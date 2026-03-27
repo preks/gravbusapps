@@ -1,20 +1,14 @@
 import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '@/common/utils/cn'
 import { DataDisplay, DataToolbar, EscapeContextProvider } from '@newwork/nw-design-system'
-import { ExpenseRequestFilterSheet, type EmployeeFilterRenderProps } from './ExpenseRequestFilterSheet'
 
 type BaseDataDisplayProps = ComponentProps<typeof DataDisplay>
 
-export interface ExpenseRequestsDataDisplayProps extends BaseDataDisplayProps {
-  /** Single employee section: legacy search + results (see {@link ExpenseRequestFilterSheet}). */
-  renderEmployeeFilter?: (props: EmployeeFilterRenderProps) => ReactNode
+export interface BackofficeDataDisplayProps extends BaseDataDisplayProps {
+  renderFilterSheet?: (open: boolean, onOpenChange: (open: boolean) => void) => ReactNode
 }
 
-/**
- * Same layout as {@link DataDisplay} but uses {@link ExpenseRequestFilterSheet} so the employee
- * filter can use API search + dropdown like the pre–DataDisplay toolbar.
- */
-export function ExpenseRequestsDataDisplay({
+export function BackofficeDataDisplay({
   className,
   'data-testid': dataTestId,
   title,
@@ -33,9 +27,6 @@ export function ExpenseRequestsDataDisplay({
   filters = {},
   filterConfiguration,
   onFilterChange,
-  enableLiveFiltering = false,
-  filterSheetTitle = 'Filters',
-  filterSheetDescription,
   viewOptions,
   currentView,
   onViewChange,
@@ -52,8 +43,8 @@ export function ExpenseRequestsDataDisplay({
   secondaryActions,
   toolbarDensity = 'default',
   children,
-  renderEmployeeFilter
-}: Readonly<ExpenseRequestsDataDisplayProps>) {
+  renderFilterSheet
+}: Readonly<BackofficeDataDisplayProps>) {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
   const toolbarTitleSections = useMemo(
@@ -63,11 +54,12 @@ export function ExpenseRequestsDataDisplay({
 
   const primarySortEntry = sorting?.length > 0 ? sorting[0] : undefined
   const currentSortId = primarySortEntry?.id ?? undefined
-  const currentSortDirection = primarySortEntry ? (primarySortEntry.desc ? 'desc' : 'asc') : undefined
+  const resolvedDirection = primarySortEntry?.desc ? 'desc' : 'asc'
+  const currentSortDirection = primarySortEntry ? resolvedDirection : undefined
 
   return (
     <EscapeContextProvider>
-      <div className={cn('nw:flex nw:flex-col nw:h-full', className)} data-testid={dataTestId}>
+      <div className={cn('gba:flex gba:flex-col gba:h-full', className)} data-testid={dataTestId}>
         <DataToolbar
           titleSections={toolbarTitleSections}
           currentSection={currentSection}
@@ -110,9 +102,9 @@ export function ExpenseRequestsDataDisplay({
           onColumnToggle={
             onVisibleColumnsChange
               ? columnId => {
-                  const isOn = visibleColumns.includes(columnId)
+                  const isVisible = visibleColumns.includes(columnId)
                   onVisibleColumnsChange(
-                    isOn ? visibleColumns.filter(id => id !== columnId) : [...visibleColumns, columnId]
+                    isVisible ? visibleColumns.filter(id => id !== columnId) : [...visibleColumns, columnId]
                   )
                 }
               : undefined
@@ -124,21 +116,8 @@ export function ExpenseRequestsDataDisplay({
           onSelectionClear={onClearSelection}
           density={toolbarDensity}
         />
-        <div className="nw:flex-1 nw:min-h-0 nw:overflow-y-auto nw:overflow-x-hidden">{children}</div>
-        {filterConfiguration && (
-          <ExpenseRequestFilterSheet
-            open={filterSheetOpen}
-            onOpenChange={setFilterSheetOpen}
-            configuration={filterConfiguration}
-            values={filters}
-            onApply={onFilterChange}
-            onChange={onFilterChange}
-            enableLiveFiltering={enableLiveFiltering}
-            title={filterSheetTitle}
-            description={filterSheetDescription}
-            renderEmployeeFilter={renderEmployeeFilter}
-          />
-        )}
+        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overflow-x-hidden">{children}</div>
+        {renderFilterSheet?.(filterSheetOpen, setFilterSheetOpen)}
       </div>
     </EscapeContextProvider>
   )

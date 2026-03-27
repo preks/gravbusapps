@@ -1,11 +1,11 @@
 import type { KeyboardEvent, ReactNode } from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { CaretDownIcon, CaretUpIcon } from '@phosphor-icons/react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 
 type FilterGroupConfig = FilterConfiguration['groups'][number]
 
-export interface ExpenseRequestEmployeeFilterAccordionProps {
+export interface FilterGroupAccordionProps {
   group: FilterGroupConfig
   values: Record<string, unknown>
   isExpanded: boolean
@@ -15,16 +15,17 @@ export interface ExpenseRequestEmployeeFilterAccordionProps {
 }
 
 /**
- * Matches design-system FilterGroup header so the employee block fits other sheet sections.
+ * Matches design-system FilterGroup header so custom filter blocks
+ * fit alongside standard sheet sections.
  */
-export function ExpenseRequestEmployeeFilterAccordion({
+export function FilterGroupAccordion({
   group,
   values,
   isExpanded,
   onToggle,
   disabled = false,
   children
-}: Readonly<ExpenseRequestEmployeeFilterAccordionProps>) {
+}: Readonly<FilterGroupAccordionProps>) {
   const firstFilter = group.filters[0]
   const rawValue = firstFilter ? values[firstFilter.id] : undefined
   const activeCount = Array.isArray(rawValue) ? rawValue.length : 0
@@ -67,9 +68,9 @@ export function ExpenseRequestEmployeeFilterAccordion({
         </div>
         <div className="gba:flex-shrink-0">
           {isExpanded ? (
-            <ChevronUp className="gba:h-4 gba:w-4" aria-hidden="true" />
+            <CaretUpIcon className="gba:h-4 gba:w-4" aria-hidden="true" />
           ) : (
-            <ChevronDown className="gba:h-4 gba:w-4" aria-hidden="true" />
+            <CaretDownIcon className="gba:h-4 gba:w-4" aria-hidden="true" />
           )}
         </div>
       </Button>
