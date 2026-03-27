@@ -389,7 +389,7 @@ export function useSpreadsheetColumns({
 
       // FortuneSheet only sees visible columns, so its insertIndex is a position
       // within the visible-only subset. Map it back to the full sorted array.
-      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible)
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible !== false)
 
       // Determine visible insert position
       const visibleInsertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
@@ -456,7 +456,7 @@ export function useSpreadsheetColumns({
       // FortuneSheet only sees visible columns, so its startIndex/endIndex are
       // positions within the visible-only subset. Map through visible columns
       // to identify which actual columns are being deleted.
-      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible)
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible !== false)
       const deletedColumns = visibleSortedColumns.slice(startIndex, endIndex + 1)
       const deletedColumnIds = new Set(deletedColumns.map(c => c.id))
       const deletedColumnNames = deletedColumns.map(c => c.name)

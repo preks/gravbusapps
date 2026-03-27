@@ -4,7 +4,7 @@
  * Table view with inline editing using Univer grid
  */
 
-import React, { useCallback, memo } from 'react'
+import React, { useCallback, memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
 import type {
@@ -79,6 +79,63 @@ export const TableView = memo<TableViewProps>(function TableView({
   onDimensionsChange,
   gridRef
 }) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const gridReadyRef = useRef(false)
+  const [showFallback, setShowFallback] = useState(false)
+
+  useEffect(() => {
+    gridReadyRef.current = false
+    setShowFallback(false)
+
+    const pollId = globalThis.setInterval(() => {
+      const host = wrapperRef.current
+      const hasCanvas = Boolean(host?.querySelector('[data-testid="univer-sheet-grid-container"] canvas'))
+      if (!hasCanvas) return
+      gridReadyRef.current = true
+      setShowFallback(false)
+      clearInterval(pollId)
+      clearTimeout(fallbackTimeoutId)
+    }, 250)
+
+    const fallbackTimeoutId = globalThis.setTimeout(() => {
+      if (gridReadyRef.current) return
+      setShowFallback(true)
+    }, 3500)
+
+    return () => {
+      clearInterval(pollId)
+      clearTimeout(fallbackTimeoutId)
+    }
+  }, [sheet.id, snapshotSeed])
+
+  const fallbackColumns = useMemo(() => {
+    const visible = spreadsheetColumns.filter(c => c.isVisible !== false)
+    if (visible.length > 0) return visible
+    if (data.length === 0) return []
+    return Object.keys(data[0]).map((key, idx) => ({
+      id: key,
+      name: key,
+      label: key,
+      type: 'text' as const,
+      isVisible: true,
+      isEditable: false,
+      isRequired: false,
+      isUnique: false,
+      order: idx
+    }))
+  }, [spreadsheetColumns, data])
+
+  const fallbackRows = useMemo(() => data.slice(0, 100), [data])
+
+  useEffect(() => {
+    if (!showFallback) return
+    console.warn('[TableView] Univer canvas missing; showing fallback table', {
+      sheetId: sheet.id,
+      columns: spreadsheetColumns.length,
+      rows: data.length
+    })
+  }, [showFallback, sheet.id, spreadsheetColumns.length, data.length])
+
   // Handle cell change from Univer
   const handleCellChange = useCallback(
     (rowId: string, columnId: string, value: unknown) => {
@@ -113,7 +170,11 @@ export const TableView = memo<TableViewProps>(function TableView({
   )
 
   return (
-    <div className="gba:relative gba:w-full gba:h-full gba:min-w-0 gba:absolute gba:inset-0" data-testid={testId}>
+    <div
+      ref={wrapperRef}
+      className="gba:relative gba:w-full gba:h-full gba:min-w-0 gba:absolute gba:inset-0"
+      data-testid={testId}
+    >
       <UniverSheetGrid
         ref={gridRef}
         sheet={sheet}
@@ -137,6 +198,37 @@ export const TableView = memo<TableViewProps>(function TableView({
         height="100%"
         width="100%"
       />
+      {showFallback && (
+        <div className="gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:p-4 gba:overflow-auto">
+          <div className="gba:mb-3 gba:text-sm gba:text-muted-foreground">
+            Interactive grid is still loading. Showing safe table fallback.
+          </div>
+          <div className="gba:overflow-auto gba:border gba:rounded-md">
+            <table className="gba:min-w-full gba:text-sm">
+              <thead className="gba:bg-muted/40">
+                <tr>
+                  {fallbackColumns.map(col => (
+                    <th key={col.id} className="gba:px-3 gba:py-2 gba:text-left gba:font-medium">
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {fallbackRows.map((row, rowIdx) => (
+                  <tr key={String(row._rowUuid || row._id || row.id || `row-${rowIdx}`)} className="gba:border-t">
+                    {fallbackColumns.map(col => (
+                      <td key={col.id} className="gba:px-3 gba:py-2">
+                        {String(row[col.name] ?? '')}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 })

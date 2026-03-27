@@ -122,7 +122,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
     if (currentStep?.requiredColumns && currentStep.requiredColumns.length > 0) {
       return columns.filter(c => currentStep.requiredColumns?.includes(c.id))
     }
-    return columns.filter(c => c.isVisible)
+    return columns.filter(c => c.isVisible !== false)
   }, [columns, currentStep])
 
   // Categorize rows by decision

@@ -696,7 +696,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onCursorEmit
     } = props
 
-    const containerRef = useRef<HTMLDivElement>(null)
+    const containerRef = useRef<HTMLDivElement | null>(null)
+    /** Host element must be in state so the Univer bootstrap effect re-runs after the ref attaches (avoids one-shot `if (!containerRef.current) return` with no re-subscribe). */
+    const [gridHostEl, setGridHostEl] = useState<HTMLDivElement | null>(null)
+    // If a persisted snapshot initializes to a blank sheet (no canvas), retry once with a row-built snapshot.
+    const [forceRowSnapshotSeed, setForceRowSnapshotSeed] = useState(0)
+    const setGridHostRef = useCallback((node: HTMLDivElement | null) => {
+      containerRef.current = node
+      setGridHostEl(node)
+    }, [])
     // Tracks whether this sheet is the currently active editor on the page.
     // Needed for published screens where the host app may register global shortcuts (e.g. Cmd+B).
     const isSheetInteractionActiveRef = useRef<boolean>(false)
@@ -1360,16 +1368,20 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => document.removeEventListener('visibilitychange', onVisibilityChange)
     }, [])
 
+    useEffect(() => {
+      setForceRowSnapshotSeed(0)
+    }, [sheet.id, props.snapshotSeed])
+
     // Recreate Univer only when the sheet or bootstrap snapshot changes.
     // Read-only transitions are handled by the overlay plus runtime guards; rebuilding the
     // workbook on transient lock/editability changes can reapply older bootstrap state.
     useEffect(() => {
-      if (!containerRef.current) return
+      if (!gridHostEl) return
       newRowClientIdByIndexRef.current.clear()
       const { sheet: s, data: d, columns: c, initialSnapshot: initialSnapshotForSheet } = propsRef.current
       let snapshotForInit: UniverWorkbookSnapshot
       try {
-        if (initialSnapshotForSheet && typeof initialSnapshotForSheet === 'object') {
+        if (initialSnapshotForSheet && typeof initialSnapshotForSheet === 'object' && forceRowSnapshotSeed === 0) {
           snapshotForInit = initialSnapshotForSheet as UniverWorkbookSnapshot
           transformAvatarFormulasInSnapshot(snapshotForInit as unknown as Record<string, unknown>, c)
         } else {
@@ -1388,7 +1400,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         },
         presets: [
           UniverSheetsCorePreset({
-            container: containerRef.current
+            container: gridHostEl
           })
         ]
       })
@@ -1397,7 +1409,31 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       if (initDims) cellDimensionsRef.current = initDims
 
       univerAPIRef.current = univerAPI
-      univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
+      try {
+        univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
+      } catch (error) {
+        console.error('[UniverSheetGrid] createWorkbook error:', error)
+        if (initialSnapshotForSheet && forceRowSnapshotSeed === 0) {
+          console.warn('[UniverSheetGrid] Falling back to row-built snapshot after createWorkbook failure')
+          setForceRowSnapshotSeed(Date.now())
+        }
+        univerAPI.dispose()
+        univerAPIRef.current = null
+        contextRef.current = null
+        return
+      }
+      const canvasHealthTimeout = globalThis.setTimeout(() => {
+        const host = containerRef.current
+        const hasCanvas = Boolean(host?.querySelector('canvas'))
+        if (hasCanvas) return
+        if (!initialSnapshotForSheet || forceRowSnapshotSeed !== 0) return
+        console.warn('[UniverSheetGrid] No canvas after snapshot bootstrap; retrying with row-built snapshot', {
+          sheetId: s.id,
+          columns: c.length,
+          rows: d.length
+        })
+        setForceRowSnapshotSeed(Date.now())
+      }, 1500)
 
       // Re-read from Univer after it hydrates (handles column/row resizes, Excel imports, etc.)
       const updateCellDimensions = (): { changed: boolean; dimensions: SnapshotDimensions | null } => {
@@ -1767,6 +1803,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const dispose = () => {
         requestSnapshotCheckpointRef.current = null
         scheduleSnapshotCheckpointRef.current = null
+        clearTimeout(canvasHealthTimeout)
         if (snapshotCheckpointTimerRef.current) {
           clearTimeout(snapshotCheckpointTimerRef.current)
           snapshotCheckpointTimerRef.current = null
@@ -1801,7 +1838,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
 
       return dispose
-    }, [sheet.id, props.snapshotSeed])
+    }, [sheet.id, props.snapshotSeed, gridHostEl, forceRowSnapshotSeed])
 
     // Track "active sheet" based on pointer/focus so we can hijack shortcuts even when
     // Univer's canvas selection doesn't move DOM focus (common in published embeds).
@@ -1933,7 +1970,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         style={{ height: props.height ?? '100%', width: props.width ?? '100%' }}
         onKeyDown={handleKeyDown}
       >
-        <div ref={containerRef} className="gba:w-full gba:h-full" data-testid="univer-sheet-grid-container" />
+        <div ref={setGridHostRef} className="gba:w-full gba:h-full" data-testid="univer-sheet-grid-container" />
         {props.isReadOnly && (
           <div
             data-testid="univer-readonly-overlay"

@@ -21,6 +21,7 @@ import type {
   PublishInput
 } from '../../../../../platform/apps/shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -281,7 +282,7 @@ function mapApiResponseToSheet(sheet: Record<string, unknown>): SpreadsheetSheet
         | SpreadsheetSheet['viewType']
         | undefined) ||
       'table',
-    columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
+    columns: normalizeSpreadsheetColumnsForDisplay((sheet.columns as SpreadsheetSheet['columns']) || []),
     views: (sheet.views as SpreadsheetSheet['views']) || [],
     settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
     entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],

@@ -31,7 +31,7 @@ export const FormView = memo<FormViewProps>(function FormView({
   canEdit = true,
   testId
 }) {
-  const visibleColumns = sheet.columns.filter(c => c.isVisible)
+  const visibleColumns = sheet.columns.filter(c => c.isVisible !== false)
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4" data-testid={testId}>

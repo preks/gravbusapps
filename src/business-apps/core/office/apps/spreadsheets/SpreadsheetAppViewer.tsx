@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 
-import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
+import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet, ViewType } from './types'
 import { columnToFormField } from './types'
 import {
   SpreadsheetApiService,
@@ -43,6 +43,7 @@ import {
   clearUniverSnapshotCache
 } from './utils/univerSnapshotCache'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
+import { resolveRenderedSpreadsheetViewType } from './utils/resolveRenderedSpreadsheetViewType'
 import { AutomationsPanel } from './components/AutomationsPanel'
 import { AnalyticsPanel } from './components/AnalyticsPanel'
 import { SheetsAIPanel } from './components/SheetsAIPanel'
@@ -842,6 +843,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [bootstrapSnapshot, setBootstrapSnapshot] = useState<Record<string, unknown> | null>(null)
   const [bootstrapSnapshotSeed, setBootstrapSnapshotSeed] = useState<string>('none')
   const [isBootstrapSnapshotLoading, setIsBootstrapSnapshotLoading] = useState<boolean>(true)
+  const [showEmergencyFallback, setShowEmergencyFallback] = useState(false)
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false)
   const [isSheetsAIOpen, setIsSheetsAIOpen] = useState(false)
   const [analyticsInitialTab, setAnalyticsInitialTab] = useState<AnalyticsPanelTab>('charts')
@@ -1591,6 +1593,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       return { ...column, width: overrideWidth }
     })
   }, [activeSheet.columns, pendingColumnWidthOverrides])
+
+  /** Prefer `isVisible !== false`; if that would hide every column (legacy data), fall back so Univer still mounts. */
+  const spreadsheetColumnsForGrid = useMemo(() => {
+    const visible = effectiveGridColumns.filter(c => c.isVisible !== false)
+    if (visible.length > 0) return visible
+    return effectiveGridColumns.length > 0 ? effectiveGridColumns : visible
+  }, [effectiveGridColumns])
 
   useEffect(() => {
     setPendingColumnWidthOverrides(prev => {
@@ -2597,7 +2606,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [])
 
   const formFields = useMemo(() => {
-    const visible = activeSheet.columns.filter(c => c.isVisible)
+    const visible = activeSheet.columns.filter(c => c.isVisible !== false)
     return visible.map((col, idx) => columnToFormField(col, idx))
   }, [activeSheet.columns])
 
@@ -2829,11 +2838,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   )
 
   // --- Active view type ---
-  const viewType = activeView?.config.type || activeSheet.viewType || 'table'
+  const viewType = resolveRenderedSpreadsheetViewType(
+    (activeView?.config.type || activeSheet.viewType || 'table') as ViewType
+  )
 
   const getHeaderRowFromGrid = useCallback((): Map<string, string> | null => {
     const grid = spreadsheetGridRef.current
-    const visibleColumns = activeSheet.columns.filter(c => c.isVisible)
+    const visibleColumns = activeSheet.columns.filter(c => c.isVisible !== false)
     if (!grid?.getVisibleRangeValues || !visibleColumns.length) return null
     const values = grid.getVisibleRangeValues(1, visibleColumns.length)
     if (!values || !values[0]) return null
@@ -2911,7 +2922,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           initialSnapshot={bootstrapSnapshot}
           snapshotSeed={bootstrapSnapshotSeed}
           columns={[]}
-          spreadsheetColumns={effectiveGridColumns.filter(c => c.isVisible)}
+          spreadsheetColumns={spreadsheetColumnsForGrid}
           testId={`${testId}-table-view`}
           onCellChange={handleCellChange}
           onCellsChange={handleCellsChange}
@@ -2966,7 +2977,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     viewType,
     isBootstrapSnapshotLoading,
     activeSheet,
-    effectiveGridColumns,
+    spreadsheetColumnsForGrid,
     sheetData,
     bootstrapSnapshot,
     bootstrapSnapshotSeed,
@@ -2986,8 +2997,52 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     activeView
   ])
 
+  const emergencyFallbackColumns = useMemo(() => {
+    const visible = activeSheet.columns.filter(c => c.isVisible !== false)
+    if (visible.length > 0) return visible
+    return activeSheet.columns
+  }, [activeSheet.columns])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (isBootstrapSnapshotLoading) {
+      setShowEmergencyFallback(false)
+      return
+    }
+    setShowEmergencyFallback(false)
+    const checkId = globalThis.setTimeout(() => {
+      const root = document.querySelector(`[data-testid="${testId}"]`)
+      if (!root) return
+      const hasUniverCanvas = Boolean(root.querySelector('[data-testid="univer-sheet-grid-container"] canvas'))
+      const hasRenderedView = Boolean(
+        root.querySelector(
+          `[data-testid="${testId}-form-view"], [data-testid="${testId}-dashboard-view"], [data-testid="${testId}-kanban-view"]`
+        )
+      )
+      if (!hasUniverCanvas && !hasRenderedView) {
+        console.warn('[SpreadsheetAppViewer] Blank-view guard triggered; showing emergency fallback', {
+          appId: app.id,
+          sheetId: activeSheetId,
+          viewType,
+          columns: activeSheet.columns.length,
+          rows: sheetData.length
+        })
+        setShowEmergencyFallback(true)
+      }
+    }, 3500)
+    return () => clearTimeout(checkId)
+  }, [
+    app.id,
+    activeSheetId,
+    viewType,
+    isBootstrapSnapshotLoading,
+    activeSheet.columns.length,
+    sheetData.length,
+    testId
+  ])
+
   return (
-    <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:overflow-hidden" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:w-full gba:h-dvh gba:min-h-dvh gba:overflow-hidden" data-testid={testId}>
       <SpreadsheetHeader
         app={app}
         activeSheet={activeSheet}
@@ -3049,7 +3104,45 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         />
       )}
 
-      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">{renderMainView()}</div>
+      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">
+        {renderMainView()}
+        {showEmergencyFallback && (
+          <div className="gba:absolute gba:inset-0 gba:z-50 gba:bg-background gba:p-4 gba:overflow-auto">
+            <div className="gba:mb-3 gba:text-sm gba:text-muted-foreground">
+              Spreadsheet grid failed to initialize. Showing emergency fallback table.
+            </div>
+            <div className="gba:overflow-auto gba:border gba:rounded-md">
+              <table className="gba:min-w-full gba:text-sm">
+                <thead className="gba:bg-muted/40">
+                  <tr>
+                    {emergencyFallbackColumns.map(col => (
+                      <th key={col.id} className="gba:px-3 gba:py-2 gba:text-left gba:font-medium">
+                        {col.label || col.name}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(sheetData.length > 0 ? sheetData.slice(0, 100) : [{}]).map((row, idx) => (
+                    <tr
+                      key={String(
+                        (row as Record<string, unknown>)._rowUuid || (row as Record<string, unknown>)._id || idx
+                      )}
+                      className="gba:border-t"
+                    >
+                      {emergencyFallbackColumns.map(col => (
+                        <td key={col.id} className="gba:px-3 gba:py-2">
+                          {String((row as Record<string, unknown>)[col.name] ?? '')}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
       <SpreadsheetSheetTabs
         sheets={app.sheets}
