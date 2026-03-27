@@ -3,6 +3,7 @@ import { DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
+import type { InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -14,6 +15,17 @@ import {
   InvestmentStatusCell,
   CreatedAtCell
 } from './cellRenderers'
+import { InvestmentListAggregatesBar } from './InvestmentListAggregatesBar'
+
+const DEFAULT_LIST_AGGREGATES: InvestmentListAggregates = {
+  count: 0,
+  totalInvestmentAmount: null,
+  investmentMarketValue: null,
+  ebitdaAmount: null,
+  avgTotalInvestmentAmount: null,
+  avgInvestmentMarketValue: null,
+  avgEbitdaAmount: null
+}
 
 /**
  * Configuration for an investment group list
@@ -59,6 +71,13 @@ export interface GenericInvestmentsListProps extends BusinessAppContextProps {
   onPaginationChange?: (pagination: { pageIndex: number; pageSize: number }) => void
   /** Visible column IDs */
   visibleColumns?: string[]
+  /** Server-side totals for current filters (all pages). Omit to hide the bar. */
+  listAggregates?: InvestmentListAggregates
+  showAggregatesBar?: boolean
+  /** Equity tab: extra EBITDA and portfolio performance from aggregates. */
+  showEquityMetrics?: boolean
+  /** ISO currency code for aggregate amounts (matches tab currency filter). */
+  displayCurrencyCode?: string
 }
 
 /**
@@ -102,7 +121,11 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
   onSortingChange,
   pagination,
   onPaginationChange,
-  visibleColumns
+  visibleColumns,
+  listAggregates = DEFAULT_LIST_AGGREGATES,
+  showAggregatesBar = false,
+  showEquityMetrics = false,
+  displayCurrencyCode = 'EUR'
 }) => {
   // Create row actions with group-specific data-testid using extracted component
   const rowActions = useMemo(
@@ -221,32 +244,42 @@ const GenericInvestmentsList: React.FC<GenericInvestmentsListProps> = ({
   }, [columns, visibleColumns])
 
   return (
-    <DataTable<Investment>
-      data={investments}
-      columns={filteredColumns}
-      loading={loading}
-      error={error || undefined}
-      totalCount={totalCount}
-      sorting={sorting}
-      onSortingChange={onSortingChange}
-      pagination={pagination}
-      onPaginationChange={onPaginationChange}
-      enablePagination
-      enableSorting
-      enableSelection={false}
-      enableColumnPinning
-      enableResizing={false}
-      tableLayout="fixed"
-      rowsPerPageOptions={[10, 20, 50, 100]}
-      showPageNumbers
-      maxVisiblePages={7}
-      emptyMessage={
-        config.emptyMessage || `No ${config.investmentGroup.toLowerCase().replace('_', ' ')} investments found`
-      }
-      onRowClick={handleRowClick}
-      actions={rowActions}
-      data-testid={`${config.dataTestIdPrefix}-list`}
-    />
+    <>
+      <DataTable<Investment>
+        data={investments}
+        columns={filteredColumns}
+        loading={loading}
+        error={error || undefined}
+        totalCount={totalCount}
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        pagination={pagination}
+        onPaginationChange={onPaginationChange}
+        enablePagination
+        enableSorting
+        enableSelection={false}
+        enableColumnPinning
+        enableResizing={false}
+        tableLayout="fixed"
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        showPageNumbers
+        maxVisiblePages={7}
+        emptyMessage={
+          config.emptyMessage || `No ${config.investmentGroup.toLowerCase().replace('_', ' ')} investments found`
+        }
+        onRowClick={handleRowClick}
+        actions={rowActions}
+        data-testid={`${config.dataTestIdPrefix}-list`}
+      />
+      {showAggregatesBar && (
+        <InvestmentListAggregatesBar
+          listAggregates={listAggregates}
+          showEquityMetrics={showEquityMetrics}
+          dataTestIdPrefix={config.dataTestIdPrefix}
+          displayCurrencyCode={displayCurrencyCode}
+        />
+      )}
+    </>
   )
 }
 

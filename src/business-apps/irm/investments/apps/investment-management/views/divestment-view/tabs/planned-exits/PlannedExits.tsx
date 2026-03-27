@@ -256,7 +256,9 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
     accessToken: accessToken || '',
     sectionState,
     selectedFilters,
-    totalCount: sectionState.totalCount
+    totalCount: sectionState.totalCount,
+    listAggregates: sectionState.listAggregates,
+    displayCurrencyCode: selectedCurrency === 'all' ? 'EUR' : selectedCurrency
   })
 
   const secondaryActions = useMemo(
@@ -348,6 +350,10 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
           pagination={sectionState.pagination}
           onPaginationChange={sectionState.handlePaginationChange}
           visibleColumns={sectionState.visibleColumns}
+          listAggregates={sectionState.listAggregates}
+          showAggregatesBar={!sectionState.isInitialLoading && !sectionState.error}
+          showEquityMetrics={false}
+          displayCurrencyCode={selectedCurrency === 'all' ? 'EUR' : selectedCurrency}
         />
       </DataDisplay>
     </div>

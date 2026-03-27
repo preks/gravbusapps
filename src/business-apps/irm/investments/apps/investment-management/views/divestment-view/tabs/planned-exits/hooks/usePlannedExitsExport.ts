@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
 import { INVESTMENT_DESCRIPTORS, type Investment } from '@/common/data/investment/types/investmentTypes.new'
@@ -8,6 +8,8 @@ import {
 } from '@/common/data/investment/queries/investmentQueries.new'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useExportBase } from '@/common/hooks/useExportBase'
+import type { InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
+import { formatFlatCurrencyAmount } from '../../../../investment-view/data/shared/investmentAggregatesFormat'
 
 const PLANNED_EXITS_EXPORT_COLUMNS = [
   { key: 'name', title: 'Investment' },
@@ -41,20 +43,44 @@ const formatPlannedExitForExport = (inv: Investment): Record<string, string> => 
   createdAt: formatExportDate(inv.createdAt)
 })
 
+const buildPlannedExitsSummaryRows = (
+  listAggregates: InvestmentListAggregates | undefined,
+  displayCurrencyCode: string
+): Array<[string, string]> => {
+  if (!listAggregates) return []
+  const fmt = (v: number | null) => formatFlatCurrencyAmount(v, displayCurrencyCode)
+  return [
+    ['Planned exits (filtered):', String(listAggregates.count)],
+    ['Total investment:', fmt(listAggregates.totalInvestmentAmount)],
+    ['Average investment:', fmt(listAggregates.avgTotalInvestmentAmount)],
+    ['Market value:', fmt(listAggregates.investmentMarketValue)],
+    ['Average market value:', fmt(listAggregates.avgInvestmentMarketValue)]
+  ]
+}
+
 interface UsePlannedExitsExportOptions {
   accessToken: string
   sectionState: { search: string; sortField: string; sortOrder: 'ASC' | 'DESC' }
   selectedFilters: Record<string, any>
   totalCount: number
+  listAggregates?: InvestmentListAggregates
+  displayCurrencyCode?: string
 }
 
 export function usePlannedExitsExport({
   accessToken,
   sectionState,
   selectedFilters,
-  totalCount
+  totalCount,
+  listAggregates,
+  displayCurrencyCode = 'EUR'
 }: UsePlannedExitsExportOptions) {
   const graphqlClient = useGraphQLClient(accessToken)
+
+  const summaryRows = useMemo(
+    () => buildPlannedExitsSummaryRows(listAggregates, displayCurrencyCode),
+    [listAggregates, displayCurrencyCode]
+  )
 
   const fetchAllItems = useCallback(async (): Promise<Investment[]> => {
     const baseConditions: Record<string, any>[] = [{ planedExit: { _eq: true } }]
@@ -123,6 +149,7 @@ export function usePlannedExitsExport({
     sheetName: 'Planned Exits',
     entityLabel: 'planned exits',
     totalCount,
-    filenamePrefix: 'planned-exits'
+    filenamePrefix: 'planned-exits',
+    summaryRows
   })
 }
