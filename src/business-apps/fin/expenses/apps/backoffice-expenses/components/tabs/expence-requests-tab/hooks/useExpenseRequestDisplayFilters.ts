@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DateRange } from '../../../../../manager-expenses/components/tabs/expense-plans-tab/config/dataDisplayFilterUtils'
+import type { DateRange } from '../../../../../../common/utils/dateRangeFilterUtils'
 import type { TranslateFn } from '../../../../utils/utils'
 import {
   applyExpenseRequestDisplayFilters,
