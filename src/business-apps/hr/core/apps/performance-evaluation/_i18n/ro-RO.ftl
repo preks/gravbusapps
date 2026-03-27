@@ -14,6 +14,7 @@ button-activate = Activează
 button-deactivate = Dezactivează
 button-complete = Finalizează
 button-delete = Șterge
+button-manual-run = Rulare manuală
 
 table-name = Nume
 table-dates = Date de execuție
@@ -47,6 +48,7 @@ field-description = Descriere
 field-active = Activ
 
 placeholder-name = ex.: 2026 Evaluare anuală a performanței
+placeholder-select-cycle = Selectează ciclu
 placeholder-select-frequency = Selectează o frecvență
 placeholder-select-scale = Selectează o scală de evaluare
 placeholder-no-scales = Nicio scală. Adaugă din tab-ul Scale de evaluare.
@@ -110,6 +112,7 @@ values-modal-description = Definește o valoare a companiei și descrierea ei.
 start-confirm-title = Pornește evaluarea performanței
 start-confirm-description-with-cycle = Sigur doriți să porniți evaluarea performanței pentru „{ $name }"? Aceasta va iniția fluxul de evaluare.
 start-confirm-description-generic = Sigur doriți să porniți această evaluare a performanței?
+start-confirm-select-cycle = Selectează ciclu *
 start-confirm-run-for-label = Rulează evaluarea pentru
 start-confirm-run-for-employee = Angajat
 start-confirm-run-for-team = Echipă

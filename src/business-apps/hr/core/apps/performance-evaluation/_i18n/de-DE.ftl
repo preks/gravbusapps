@@ -14,6 +14,7 @@ button-activate = Aktivieren
 button-deactivate = Deaktivieren
 button-complete = Abschließen
 button-delete = Löschen
+button-manual-run = Manuell starten
 
 table-name = Name
 table-dates = Ausführungsdaten
@@ -47,6 +48,7 @@ field-description = Beschreibung
 field-active = Aktiv
 
 placeholder-name = z. B. 2026 jährliche Leistungsbewertung
+placeholder-select-cycle = Zyklus auswählen
 placeholder-select-frequency = Häufigkeit wählen
 placeholder-select-scale = Bewertungsskala wählen
 placeholder-no-scales = Keine Skalen. Im Tab „Bewertungsskalen" hinzufügen.
@@ -110,6 +112,7 @@ values-modal-description = Firmenwert und Beschreibung definieren.
 start-confirm-title = Leistungsbeurteilung starten
 start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }" wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
 start-confirm-description-generic = Möchten Sie diese Leistungsbeurteilung wirklich starten?
+start-confirm-select-cycle = Zyklus auswählen *
 start-confirm-run-for-label = Bewertung starten für
 start-confirm-run-for-employee = Mitarbeiter
 start-confirm-run-for-team = Team

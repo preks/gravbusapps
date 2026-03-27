@@ -33,6 +33,7 @@ export interface PerformanceProps {
   valuesStore: ValueItemStored[]
   onCompleteCycle: (cycleId: string) => Promise<void>
   onStartCycle: (cycleId: string) => void
+  onManualRun: () => void
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
 }
 
@@ -56,6 +57,7 @@ export const Performance: React.FC<PerformanceProps> = ({
   valuesStore,
   onCompleteCycle,
   onStartCycle,
+  onManualRun,
   onSaveFromModal
 }) => {
   const { t } = useTranslation(translations)
@@ -108,6 +110,10 @@ export const Performance: React.FC<PerformanceProps> = ({
             </CardTitle>
             <div className="gba:flex gba:items-center gba:gap-2 gba:min-h-9">
               {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-tab-loading" />}
+              <Button size="sm" onClick={onManualRun} data-testid="performance-manual-run-button">
+                <Play weight="fill" className="gba:mr-1" size={16} />
+                {t('button-manual-run')}
+              </Button>
             </div>
           </div>
         </CardHeader>
