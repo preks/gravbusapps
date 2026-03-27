@@ -7,6 +7,9 @@ export type DevReportScreenshot = {
   height: number
 }
 
+export const MAX_SCREENSHOTS_PER_ISSUE = 3
+export const MAX_SCREENSHOT_DATA_URL_SIZE = 1_150_000 // ~1.1 MB
+
 function safeMessage(e: unknown): string {
   if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 500)
   return String(e).slice(0, 500)
@@ -116,7 +119,7 @@ export async function blobToDevReportScreenshot(blob: Blob): Promise<DevReportSc
         }
         ctx.drawImage(img, 0, 0)
         const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.75)
-        if (jpegDataUrl.length > 4_000_000) {
+        if (jpegDataUrl.length > MAX_SCREENSHOT_DATA_URL_SIZE) {
           resolve(null)
           return
         }
@@ -235,7 +238,7 @@ export async function captureDevReportScreenshot(): Promise<{
     })
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
-    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > 4_000_000) {
+    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > MAX_SCREENSHOT_DATA_URL_SIZE) {
       return { screenshot: null, error: 'screenshot_too_large' }
     }
     return { screenshot: { dataUrl, mimeType: 'image/jpeg', width, height } }

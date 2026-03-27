@@ -23,7 +23,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env, setProductReportBaseUrlOverride } from '@/common/env/EnvUtils'
 import { submitGravityIssue } from './productReportApi'
 import { getReportedEnvironmentFromUrl } from './environment'
-import { blobToDevReportScreenshot, captureDevReportScreenshot } from './screenshot'
+import { blobToDevReportScreenshot, captureDevReportScreenshot, MAX_SCREENSHOTS_PER_ISSUE } from './screenshot'
 import { getDevReportTelemetrySnapshot, startDevReportTelemetry } from './telemetry'
 import type { CreateGravityIssueRequest, GravityIssueType } from './types'
 import type { DevReportScreenshot } from './screenshot'
@@ -184,6 +184,15 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   }
 
   const handleCaptureScreenshot = async () => {
+    if (screenshots.length >= MAX_SCREENSHOTS_PER_ISSUE) {
+      toast.error('Screenshot limit reached', {
+        description: (
+          <span className="gba:text-foreground">Maximum {MAX_SCREENSHOTS_PER_ISSUE} screenshots per issue.</span>
+        ),
+        position: 'top-right'
+      })
+      return
+    }
     setPhase('capturing')
     setOpen(false)
     await new Promise(r => setTimeout(r, 300))
@@ -210,10 +219,22 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
   }
 
   const handlePasteFromClipboard = async () => {
+    if (screenshots.length >= MAX_SCREENSHOTS_PER_ISSUE) {
+      toast.error('Screenshot limit reached', {
+        description: (
+          <span className="gba:text-foreground">Maximum {MAX_SCREENSHOTS_PER_ISSUE} screenshots per issue.</span>
+        ),
+        position: 'top-right'
+      })
+      return
+    }
     try {
       const items = await navigator.clipboard.read()
       let added = false
+      const remaining = MAX_SCREENSHOTS_PER_ISSUE - screenshots.length
+      let processed = 0
       for (const item of items) {
+        if (processed >= remaining) break
         const imageType = item.types.find(t => t.startsWith('image/'))
         if (!imageType) continue
         const blob = await item.getType(imageType)
@@ -221,6 +242,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
         if (screenshot) {
           setScreenshots(prev => [...prev, screenshot])
           added = true
+          processed++
         }
       }
       if (!added) {
@@ -239,14 +261,25 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
+    let count = screenshots.length
     for (const file of files) {
+      if (count >= MAX_SCREENSHOTS_PER_ISSUE) {
+        toast.error('Screenshot limit reached', {
+          description: (
+            <span className="gba:text-foreground">Maximum {MAX_SCREENSHOTS_PER_ISSUE} screenshots per issue.</span>
+          ),
+          position: 'top-right'
+        })
+        break
+      }
       if (!file.type.startsWith('image/')) continue
       const screenshot = await blobToDevReportScreenshot(file)
       if (screenshot) {
         setScreenshots(prev => [...prev, screenshot])
+        count++
       } else {
         toast.error('Image too large', {
-          description: <span className="gba:text-foreground">{file.name} exceeds the 4 MB limit.</span>,
+          description: <span className="gba:text-foreground">{file.name} exceeds the 1.1 MB limit.</span>,
           position: 'top-right'
         })
       }
@@ -447,6 +480,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                       variant="outline"
                       size="sm"
                       onClick={handleCaptureScreenshot}
+                      disabled={screenshots.length >= MAX_SCREENSHOTS_PER_ISSUE}
                       className="gba:gap-1.5 gba:h-7 gba:text-xs"
                       data-testid="dev-report-capture"
                     >
@@ -568,6 +602,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                     variant="outline"
                     size="sm"
                     onClick={handlePasteFromClipboard}
+                    disabled={screenshots.length >= MAX_SCREENSHOTS_PER_ISSUE}
                     className="gba:flex-1 gba:gap-2"
                     data-testid="dev-report-paste-clipboard"
                   >
@@ -579,6 +614,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={screenshots.length >= MAX_SCREENSHOTS_PER_ISSUE}
                     className="gba:flex-1 gba:gap-2"
                     data-testid="dev-report-browse-files"
                   >
