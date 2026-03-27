@@ -113,6 +113,12 @@ reader-attachments = Anhänge
 reader-attachments-count = Anhänge ({ $count })
 reader-attachments-syncing = Anhangdetails werden synchronisiert...
 reader-empty-body = (leer)
+reader-ai-insights-toggle = KI-Zusammenfassung & Vorschläge
+reader-ai-insights-hint = Zum Laden klicken
+reader-ai-insights-loading = Zusammenfassung wird erstellt…
+reader-ai-insights-error = KI-Zusammenfassung konnte nicht geladen werden
+reader-ai-insights-retry = Erneut versuchen
+reader-ai-insights-empty = Für diese Nachricht wurde keine Zusammenfassung oder keine Vorschläge zurückgegeben.
 
 composer-toast-no-recipient = Bitte fügen Sie mindestens einen Empfänger hinzu
 composer-toast-no-account = Bitte wählen Sie ein Konto

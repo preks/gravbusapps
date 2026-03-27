@@ -4,12 +4,14 @@ import { getInitials, formatFullDate } from '../../utils/emailDisplayUtils'
 import { EmailMessageBody } from '../message/EmailMessageBody'
 import { EmailAttachmentsSection } from '../message/EmailAttachmentsSection'
 import type { EmailMessage } from '../../types'
+import { EmailMessageAiInsights } from './EmailMessageAiInsights'
 
 interface EmailReaderSingleMessageViewProps {
   message: EmailMessage
   senderAvatar?: string | null
   downloadingAttId: string | null
   onDownloadAttachment: (messageId: string, attachmentId: string) => Promise<void>
+  accessToken?: string
   t: (key: string, vars?: Record<string, string | number>) => string
   testId: string
 }
@@ -19,6 +21,7 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
   senderAvatar,
   downloadingAttId,
   onDownloadAttachment,
+  accessToken,
   t,
   testId
 }) => {
@@ -68,6 +71,14 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
         variant="detailed"
         testIdPrefix={`${testId}-attachment`}
       />
+
+      {accessToken ? (
+        <EmailMessageAiInsights
+          messageId={message.id}
+          accessToken={accessToken}
+          data-testid={`${testId}-ai-insights`}
+        />
+      ) : null}
     </>
   )
 }

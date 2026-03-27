@@ -45,7 +45,7 @@ function suggestionTypeLabel(type: string, t: (key: string, vars?: Record<string
 
 export interface EmailSummarizeSuggestionsProps {
   suggestions: EmailSummarizeSuggestion[]
-  variant: 'thread' | 'crm'
+  variant: 'thread' | 'crm' | 'reader'
   'data-testid'?: string
 }
 
@@ -76,6 +76,15 @@ export const EmailSummarizeSuggestions: React.FC<EmailSummarizeSuggestionsProps>
       ? 'gba:text-xs gba:text-decorative-foreground/65 gba:line-clamp-2'
       : 'gba:text-xs gba:text-muted-foreground gba:line-clamp-2'
 
+  const itemShellClass =
+    variant === 'thread'
+      ? 'gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1'
+      : variant === 'reader'
+        ? 'gba:rounded-md gba:border gba:border-border/40 gba:bg-muted/25 gba:p-2 gba:space-y-1'
+        : 'gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1'
+
+  const showConfidence = variant !== 'reader'
+
   if (suggestions.length === 0) {
     return null
   }
@@ -84,23 +93,19 @@ export const EmailSummarizeSuggestions: React.FC<EmailSummarizeSuggestionsProps>
     <TooltipProvider>
       <div className="gba:space-y-2" data-testid={testId}>
         <p className={sectionTitleClass}>{t('email-suggestion-section-title')}</p>
-        <ul className="gba:space-y-3 gba:list-none gba:m-0 gba:p-0">
+        <ul className={`gba:list-none gba:m-0 gba:p-0 ${variant === 'reader' ? 'gba:space-y-2' : 'gba:space-y-3'}`}>
           {suggestions.map(s => {
             const key = stableEmailSuggestionKey(s)
             const typeLabel = suggestionTypeLabel(s.type, t)
             const evidenceNeedsTooltip = (s.evidence?.length ?? 0) > EVIDENCE_TRUNCATE
 
             return (
-              <li
-                key={key}
-                className="gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1"
-                data-testid={`${testId}-item`}
-              >
+              <li key={key} className={itemShellClass} data-testid={`${testId}-item`}>
                 <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
                   <Badge variant="secondary" className="gba:text-xs" data-testid={`${testId}-type`}>
                     {typeLabel}
                   </Badge>
-                  {s.confidence !== undefined && Number.isFinite(s.confidence) && (
+                  {showConfidence && s.confidence !== undefined && Number.isFinite(s.confidence) && (
                     <span className={metaClass} data-testid={`${testId}-confidence`}>
                       {t('email-suggestion-confidence', {
                         value: formatSuggestionConfidence(s.confidence)

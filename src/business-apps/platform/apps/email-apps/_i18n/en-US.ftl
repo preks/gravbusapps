@@ -113,6 +113,12 @@ reader-attachments = Attachments
 reader-attachments-count = Attachments ({ $count })
 reader-attachments-syncing = Attachment details are being synchronized...
 reader-empty-body = (empty)
+reader-ai-insights-toggle = AI summary & suggestions
+reader-ai-insights-hint = Click to load
+reader-ai-insights-loading = Preparing summary…
+reader-ai-insights-error = Could not load AI summary
+reader-ai-insights-retry = Try again
+reader-ai-insights-empty = No summary or suggestions were returned for this message.
 
 composer-toast-no-recipient = Please add at least one recipient
 composer-toast-no-account = Please select an account

@@ -234,6 +234,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             senderAvatar={senderAvatar}
             downloadingAttId={downloadingAttId}
             onDownloadAttachment={handleDownloadAttachment}
+            accessToken={accessToken}
             t={t}
             testId={testId}
           />

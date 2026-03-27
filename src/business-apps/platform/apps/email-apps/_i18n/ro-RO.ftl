@@ -113,6 +113,12 @@ reader-attachments = Atașamente
 reader-attachments-count = Atașamente ({ $count })
 reader-attachments-syncing = Detaliile atașamentelor se sincronizează...
 reader-empty-body = (gol)
+reader-ai-insights-toggle = Rezumat AI și sugestii
+reader-ai-insights-hint = Faceți clic pentru a încărca
+reader-ai-insights-loading = Se pregătește rezumatul…
+reader-ai-insights-error = Nu s-a putut încărca rezumatul AI
+reader-ai-insights-retry = Încercați din nou
+reader-ai-insights-empty = Nu există rezumat sau sugestii pentru acest mesaj.
 
 composer-toast-no-recipient = Adăugați cel puțin un destinatar
 composer-toast-no-account = Selectați un cont
