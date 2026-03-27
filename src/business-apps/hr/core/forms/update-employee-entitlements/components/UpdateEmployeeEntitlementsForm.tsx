@@ -55,39 +55,9 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
-  const [selectedLine, setSelectedLine] = useState<any | null>(null)
-  const allowedTypeIds = useMemo(() => new Set((absenceTypes || []).map((t: any) => t.id)), [absenceTypes])
-
-  const canOpenRow = (row: any) => allowedTypeIds.has(row?.type?.id)
-  const openModalForRow = (row: any) => {
-    if (!canOpenRow(row)) return
-    setSelectedLine({
-      id: row.id,
-      version: row.version,
-      employeeId: row.employeeId,
-      type: row.type,
-      typeRef: row?.type?.id,
-      validFrom: row.validFrom,
-      validTo: row.validTo,
-      available: row.available,
-      pending: row.pending,
-      approved: row.approved,
-      total: row.total
-    })
-    setIsModalOpen(true)
-  }
 
   const isEmployeeSelectionMissing = !selectedEmployeeId
   // Keep enabled to allow viewing options even when fixed
-
-  const isAddDisabled = useMemo(() => {
-    const tableData = entitlements || []
-    const types = absenceTypes || []
-    if (types.length === 0) return false
-    const firstTypeRefs = new Set(tableData.map((item: any) => item?.type?.id))
-
-    return types.every((t: any) => firstTypeRefs.has(t.id))
-  }, [entitlements, absenceTypes])
 
   // Pagination handled inside EntitlementsTable
 
@@ -195,9 +165,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                 variant="default"
                 size="sm"
                 data-testid="mileageRuleModal_btnAddDetail"
-                disabled={isAddDisabled}
                 onClick={() => {
-                  setSelectedLine(null)
                   setIsModalOpen(true)
                 }}
               >
@@ -209,20 +177,13 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
             </div>
 
             {/* Entitlements table */}
-            <EntitlementsTable
-              entitlements={entitlements || []}
-              page={page}
-              setPage={setPage}
-              pageSize={pageSize}
-              onRowClick={openModalForRow}
-            />
+            <EntitlementsTable entitlements={entitlements || []} page={page} setPage={setPage} pageSize={pageSize} />
 
             {/* Modal */}
             <Dialog
               open={isModalOpen}
               onOpenChange={open => {
                 setIsModalOpen(open)
-                if (!open) setSelectedLine(null)
               }}
             >
               <DialogContent
@@ -238,12 +199,11 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                 <UpdateEntitlementModal
                   isOpen={isModalOpen}
                   onClose={() => setIsModalOpen(false)}
-                  selectedLine={selectedLine}
+                  selectedLine={null}
                   absenceTypes={absenceTypes}
                   employeeId={effectiveValue}
                   accessToken={accessToken}
                   year={currentYear}
-                  existingEntitlementTypeIds={(entitlements || []).map((e: any) => e?.type?.id).filter(Boolean)}
                   employeeHeaderInfo={employeeHeaderInfo}
                   onSuccess={async () => {
                     await reload()

@@ -45,7 +45,6 @@ interface UpdateEntitlementModalProps {
   accessToken: string
   year: number
   onSuccess: () => Promise<void>
-  existingEntitlementTypeIds?: string[]
   employeeHeaderInfo?: EmployeeInfo
 }
 
@@ -79,11 +78,9 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   accessToken,
   year,
   onSuccess,
-  existingEntitlementTypeIds,
   employeeHeaderInfo
 }) => {
   const { t } = useTranslation(translations)
-  const isFromTable = Boolean(selectedLine && selectedLine.id)
 
   const [absenceTypeRef, setAbsenceTypeRef] = useState<string>('')
   const [total, setTotal] = useState<number>(0)
@@ -144,9 +141,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     return result
   }, [total, pending, approved])
 
-  const headerTitle = isFromTable
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.update_entitlements', 'Update Entitlements')
-    : getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')
+  const headerTitle = getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')
 
   const addByTypeText = getTranslationFromI18nKeyAndLabel(
     'lowcoder:entitlements.add_entitlement_by_type',
@@ -156,12 +151,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const handleSubmit = async () => {
     const body: any = {
       employeeAbsenceEntitlement: {
-        ...(isFromTable
-          ? {
-              id: selectedLine?.id,
-              version: selectedLine?.version
-            }
-          : {}),
         employeeId: employeeId,
         typeRef: absenceTypeRef,
         available: available,
@@ -222,11 +211,9 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
         }
       />
 
-      {!isFromTable && (
-        <div data-testid="flw_updateEntitlementModal_addByType" className="gba:text-sm">
-          {addByTypeText}
-        </div>
-      )}
+      <div data-testid="flw_updateEntitlementModal_addByType" className="gba:text-sm">
+        {addByTypeText}
+      </div>
 
       {/* Absence Type Select */}
       <div className="gba:flex gba:flex-col gba:gap-2">
@@ -235,7 +222,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
           <span className="gba:text-destructive"> *</span>
         </div>
         <div>
-          <Select value={absenceTypeRef} onValueChange={v => setAbsenceTypeRef(v)} disabled={!!selectedLine?.type?.id}>
+          <Select value={absenceTypeRef} onValueChange={v => setAbsenceTypeRef(v)}>
             <SelectTrigger
               ref={selectTriggerRef}
               data-testid="hcm_createHrAbsence_absenceTypeSelect"
@@ -249,11 +236,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               />
             </SelectTrigger>
             {(() => {
-              const selectableTypes = (() => {
-                if (!!selectedLine?.type?.id) return absenceTypes || []
-                const existingIds = new Set((existingEntitlementTypeIds || []).filter(Boolean))
-                return (absenceTypes || []).filter(item => !existingIds.has(item.id))
-              })()
+              const selectableTypes = absenceTypes || []
               return selectableTypes.length > 0 ? (
                 <SelectContent>
                   {selectableTypes.map(item => (
@@ -351,15 +334,10 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             void handleSubmit()
           }}
         >
-          {isFromTable
-            ? getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
-                'Update'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-                'Add'
-              )}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
+            'Add'
+          )}
         </Button>
       </div>
     </div>

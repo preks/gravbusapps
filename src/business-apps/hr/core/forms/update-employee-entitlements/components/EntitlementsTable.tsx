@@ -9,10 +9,9 @@ interface EntitlementsTableProps {
   page: number
   setPage: (updater: number | ((prev: number) => number)) => void
   pageSize: number
-  onRowClick: (row: any) => void
 }
 
-const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, page, setPage, pageSize, onRowClick }) => {
+const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, page, setPage, pageSize }) => {
   const { t } = useTranslation(translations)
   const totalItems = (entitlements || []).length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
@@ -42,47 +41,11 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, pag
         <TableBody>
           {currentItems.map((row: any) => {
             return (
-              <TableRow
-                key={row.id}
-                data-testid={`entitlements-table-row-${row.id}`}
-                className="gba:cursor-pointer gba:hover:bg-accent"
-                onClick={() => onRowClick(row)}
-                tabIndex={0}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onRowClick(row)
-                  }
-                }}
-              >
-                <TableCell
-                  data-testid={`entitlements-type-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {getCatalogValue(row.type)}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-total-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {row.total ?? 0}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-effective-from-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {formatDate(row.validFrom)}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-effective-to-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {formatDate(row.validTo)}
-                </TableCell>
+              <TableRow key={row.id} data-testid={`entitlements-table-row-${row.id}`}>
+                <TableCell data-testid={`entitlements-type-${row.id}`}>{getCatalogValue(row.type)}</TableCell>
+                <TableCell data-testid={`entitlements-total-${row.id}`}>{row.total ?? 0}</TableCell>
+                <TableCell data-testid={`entitlements-effective-from-${row.id}`}>{formatDate(row.validFrom)}</TableCell>
+                <TableCell data-testid={`entitlements-effective-to-${row.id}`}>{formatDate(row.validTo)}</TableCell>
               </TableRow>
             )
           })}
