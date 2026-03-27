@@ -1,8 +1,8 @@
 title = Konfiguration des Leistungszyklus
 subtitle = Leistungsbeurteilungszyklen erstellen und verwalten
 
-tab-cycles = Zyklen
-tab-performance = Leistungszyklen
+tab-cycles = Leistungszeitraum
+tab-performance = Überprüfungszyklus
 tab-rating-scales = Bewertungsskalen
 tab-values = Werte
 
@@ -14,9 +14,10 @@ button-activate = Aktivieren
 button-deactivate = Deaktivieren
 button-complete = Abschließen
 button-delete = Löschen
+button-manual-run = Manuell starten
 
 table-name = Name
-table-dates = Ausführungsdaten
+table-dates = Überprüfungsdaten
 table-type = Typ
 table-scale = Skala
 table-participants = Teilnehmer
@@ -24,9 +25,11 @@ table-status = Status
 status-completed = Abgeschlossen
 status-in-progress = In Bearbeitung
 cycle-already-started = "{ $name }" wurde bereits gestartet.
-table-evaluation-period = Bewerteter Zeitraum
+table-evaluation-period = Leistungszeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
+performance-period-description = Der bewertete Arbeitszeitraum. Beispiel: Leistungszeitraum: 1. Jan – 31. Dez 2025.
+review-cycle-description = Der Zeitraum für Feedback, Managerbewertung und Kalibrierung. Beispiel: Überprüfungszyklus: 15. Jan – 20. Feb 2026.
 empty-no-values = Noch keine Werte definiert.
 
 modal-create-title = Neuen Zyklus erstellen
@@ -47,6 +50,7 @@ field-description = Beschreibung
 field-active = Aktiv
 
 placeholder-name = z. B. 2026 jährliche Leistungsbewertung
+placeholder-select-cycle = Zyklus auswählen
 placeholder-select-frequency = Häufigkeit wählen
 placeholder-select-scale = Bewertungsskala wählen
 placeholder-no-scales = Keine Skalen. Im Tab „Bewertungsskalen" hinzufügen.
@@ -110,6 +114,8 @@ values-modal-description = Firmenwert und Beschreibung definieren.
 start-confirm-title = Leistungsbeurteilung starten
 start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }" wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
 start-confirm-description-generic = Möchten Sie diese Leistungsbeurteilung wirklich starten?
+start-confirm-select-cycle = Zyklus auswählen *
+manual-run-cycle-already-started = Dieser Zyklus wurde bereits gestartet.
 start-confirm-run-for-label = Bewertung starten für
 start-confirm-run-for-employee = Mitarbeiter
 start-confirm-run-for-team = Team
