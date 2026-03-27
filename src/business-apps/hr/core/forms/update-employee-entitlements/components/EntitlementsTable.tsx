@@ -1,6 +1,8 @@
 import React from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 
 interface EntitlementsTableProps {
   entitlements: any[]
@@ -11,9 +13,16 @@ interface EntitlementsTableProps {
 }
 
 const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, page, setPage, pageSize, onRowClick }) => {
+  const { t } = useTranslation(translations)
   const totalItems = (entitlements || []).length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const currentItems = (entitlements || []).slice((page - 1) * pageSize, page * pageSize)
+  const formatDate = (value?: string) => {
+    if (!value) return '-'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '-'
+    return date.toLocaleDateString()
+  }
 
   return (
     <div className="gba:mb-8">
@@ -26,24 +35,12 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, pag
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
             </TableHead>
-            <TableHead>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_overview.side_bar.payment_status',
-                'Pending'
-              )}
-            </TableHead>
-            <TableHead>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:manager_expense_landing_page.upcoming_approved_badge',
-                'Approved'
-              )}
-            </TableHead>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.remaining', 'Remaining')}</TableHead>
+            <TableHead>{t('entitlements-effective-from')}</TableHead>
+            <TableHead>{t('entitlements-effective-to')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((row: any) => {
-            const remaining = Number(row.total || 0) - Number(row.approved || 0) - Number(row.pending || 0)
             return (
               <TableRow
                 key={row.id}
@@ -73,25 +70,18 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, pag
                   {row.total ?? 0}
                 </TableCell>
                 <TableCell
-                  data-testid={`entitlements-pending-${row.id}`}
+                  data-testid={`entitlements-effective-from-${row.id}`}
                   className="gba:cursor-pointer"
                   onClick={() => onRowClick(row)}
                 >
-                  {row.pending ?? 0}
+                  {formatDate(row.validFrom)}
                 </TableCell>
                 <TableCell
-                  data-testid={`entitlements-approved-${row.id}`}
+                  data-testid={`entitlements-effective-to-${row.id}`}
                   className="gba:cursor-pointer"
                   onClick={() => onRowClick(row)}
                 >
-                  {row.approved ?? 0}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-remaining-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {remaining}
+                  {formatDate(row.validTo)}
                 </TableCell>
               </TableRow>
             )

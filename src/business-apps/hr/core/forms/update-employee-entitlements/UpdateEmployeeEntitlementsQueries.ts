@@ -32,6 +32,8 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
     id
     version
     employeeId
+    validFrom
+    validTo
     type {
       objectValue
       value

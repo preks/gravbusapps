@@ -67,6 +67,8 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
       employeeId: row.employeeId,
       type: row.type,
       typeRef: row?.type?.id,
+      validFrom: row.validFrom,
+      validTo: row.validTo,
       available: row.available,
       pending: row.pending,
       approved: row.approved,
