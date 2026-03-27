@@ -149,16 +149,6 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
               </div>
             )}
 
-            {/* Year display to match WorkingHoursSummary style */}
-            <div className="gba:mb-4" data-testid="entitlements-year-display">
-              <div className="gba:font-semibold gba:text-sm gba:mb-2">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.year_of_entitlement', 'Year of Entitlement')}
-              </div>
-              <div className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm">
-                <span data-testid="flw_updateEmployeeEntitlements_year">{currentYear}</span>
-              </div>
-            </div>
-
             {/* Add Entitlement button */}
             <div className="gba:mb-6">
               <Button

@@ -28,7 +28,15 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
       vacationDays
     }
   }
-  EmployeeAbsenceEntitlement(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, validFrom: {_gte: $firstDayOfCurrentYear}, validTo: {_lte: $lastDayOfCurrentYear}}, orderBy: {type: {code: ASC}}) {
+  EmployeeAbsenceEntitlement(
+    where: {
+      isDeleted: {_eq: false},
+      employeeId: {_eq: $employeeId},
+      validFrom: {_gte: $firstDayOfCurrentYear},
+      _or: [{validTo: {_lte: $lastDayOfCurrentYear}}, {validTo: {_isNull: true}}]
+    },
+    orderBy: {type: {code: ASC}}
+  ) {
     id
     version
     employeeId

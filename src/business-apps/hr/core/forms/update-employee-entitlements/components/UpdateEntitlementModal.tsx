@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import '@newwork/nw-design-system/style'
 import {
+  Alert,
+  AlertDescription,
   Button,
   DateInput,
   Input,
@@ -11,6 +13,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { useTranslation } from '@newwork/nw-design-system'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import {
   getCatalogValue,
   getCurrentActiveUserLocale,
@@ -64,6 +67,14 @@ const toDateInputValue = (value?: string): string => {
   return value.slice(0, 10)
 }
 
+const getTodayDateInputValue = (): string => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const toUtcStartOfMonthIso = (value: string): string => {
   const [year = '', month = ''] = value.split('-')
   return `${year}-${month}-01T00:00:00Z`
@@ -104,7 +115,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   useEffect(() => {
     if (!isOpen) return
     const defaultType = selectedLine?.type?.id || ''
-    const defaultValidFrom = toDateInputValue(selectedLine?.validFrom) || `${year}-01-01`
+    const defaultValidFrom = toDateInputValue(selectedLine?.validFrom) || getTodayDateInputValue()
     setAbsenceTypeRef(defaultType)
     setTotal(Number(selectedLine?.total ?? 0))
     setPending(Number(selectedLine?.pending ?? 0))
@@ -142,11 +153,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   }, [total, pending, approved])
 
   const headerTitle = getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')
-
-  const addByTypeText = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:entitlements.add_entitlement_by_type',
-    'Add Entitlement by Type'
-  )
 
   const handleSubmit = async () => {
     const body: any = {
@@ -211,10 +217,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
         }
       />
 
-      <div data-testid="flw_updateEntitlementModal_addByType" className="gba:text-sm">
-        {addByTypeText}
-      </div>
-
       {/* Absence Type Select */}
       <div className="gba:flex gba:flex-col gba:gap-2">
         <div className="gba:font-semibold gba:text-sm">
@@ -259,19 +261,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
         )}
       </div>
 
-      {/* Year of Entitlement Display */}
-      <div className="gba:flex gba:flex-col gba:gap-2">
-        <div className="gba:font-semibold gba:text-sm">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.year_of_entitlement', 'Year of Entitlement')}
-        </div>
-        <div
-          className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
-          data-testid="flw_updateEmployeeEntitlements_year_in_modal"
-        >
-          {year}
-        </div>
-      </div>
-
       <div className="gba:flex gba:flex-col gba:gap-2">
         <div className="gba:font-semibold gba:text-sm">
           {t('entitlements-effective-from')}
@@ -289,9 +278,16 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
           data-testid="flw_updateEntitlementModal_validFromInput"
           {...({ locale: getCurrentActiveUserLocale(), captionLayout: 'dropdown' } as any)}
         />
-        <div className="gba:text-xs gba:text-muted-foreground" data-testid="flw_updateEntitlementModal_validFromHint">
-          {t('entitlements-valid-from-month-start-hint')}
-        </div>
+        <Alert
+          variant="default"
+          className="gba:w-full gba:py-2 gba:px-3"
+          data-testid="flw_updateEntitlementModal_validFromHint"
+        >
+          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+          <AlertDescription className="gba:!max-w-none gba:text-xs gba:leading-5">
+            {t('entitlements-valid-from-month-start-hint')}
+          </AlertDescription>
+        </Alert>
       </div>
 
       {/* Numeric Inputs */}
