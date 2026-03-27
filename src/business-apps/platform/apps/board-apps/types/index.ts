@@ -15,7 +15,11 @@ export type {
   BoardStatsResponse,
   BoardShare,
   BoardPermission,
-  BoardQuickFilter
+  BoardQuickFilter,
+  BoardAuditAction,
+  BoardAuditChange,
+  BoardAuditLogEntry,
+  BoardAuditLogResponse
 } from './board'
 
 export type {

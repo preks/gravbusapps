@@ -9,6 +9,14 @@ export type ChatMessageRole = 'user' | 'assistant' | 'system'
 
 export type ChatMessageType = 'prompt' | 'refinement' | 'build-command' | 'fix' | 'system' | 'general'
 
+/**
+ * Post-build composer: explicit routing for CREATE Agent messages (replaces LLM-only `auto` intent).
+ * - screen → ui_mutate (UI-only)
+ * - app → plan_refine (data, flows, functions, logic)
+ * - ask → plan_refine (same path; downstream treats read-only Q&A)
+ */
+export type OrchestratorFixComposerScope = 'screen' | 'app' | 'ask'
+
 export interface ChatMessageBlock {
   type: 'thinking' | 'response'
   content: string

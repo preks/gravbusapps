@@ -1,4 +1,4 @@
-import type { Editor } from '@tiptap/core'
+import type { CommandProps, Editor } from '@tiptap/core'
 import { applyMeasuredPageHeightsToView } from './paginationLayoutHelpers'
 import { clearPaginationOwnedGrowthSuppression } from './paginationRuntimeBookkeeping'
 import {
@@ -37,6 +37,16 @@ function updatesAffectPageNumberOptions(updates: PagesOptionUpdates) {
     updates.pageNumberAlignment !== undefined ||
     updates.pageNumberShowOnFirstPage !== undefined
   )
+}
+
+/**
+ * Pagination `refresh()` dispatches its own transaction. Tiptap's `editor.commands.*` reuses one
+ * chain `tr` from when `.commands` was read and dispatches it after the command returns; after an
+ * internal refresh the doc has advanced, so that outer `tr` is stale and ProseMirror throws
+ * "Applying a mismatched transaction".
+ */
+function suppressStaleOuterCommandDispatch(tr: CommandProps['tr']): void {
+  tr.setMeta('preventDispatch', true)
 }
 
 export function createPaginationExtensionCommands(options: {
@@ -97,16 +107,22 @@ export function createPaginationExtensionCommands(options: {
   return {
     refreshPages:
       () =>
-      ({ editor }: { editor: Editor }) =>
-        refresh(editor),
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return refresh(editor)
+      },
     refreshPagesAndStabilize:
       () =>
-      ({ editor }: { editor: Editor }) =>
-        refreshAndStabilize(editor),
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return refreshAndStabilize(editor)
+      },
     hydratePageBreakShells:
       (pageNumbers: number[]) =>
-      ({ editor }: { editor: Editor }) =>
-        hydratePageBreakShells(editor, pageNumbers),
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return hydratePageBreakShells(editor, pageNumbers)
+      },
     requestViewportPageFocus:
       (pageNumber: number) =>
       ({ editor }: { editor: Editor }) => {
@@ -116,7 +132,8 @@ export function createPaginationExtensionCommands(options: {
       },
     setPagesOptions:
       (updates: PagesOptionUpdates) =>
-      ({ editor }: { editor: Editor }) => {
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
         const storage = editor.storage.pages
         const activeEditor = updatesAffectPageNumberOptions(updates)
           ? resolveActivePaginationOverlayEditor(storage)
@@ -140,153 +157,191 @@ export function createPaginationExtensionCommands(options: {
       },
     setPageFormat:
       (pageFormat: PageFormatInput) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           shouldCloseOverlay: true,
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { pageFormat }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setHeader:
       (header: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { header }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setFooter:
       (footer: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { footer }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setHeaderTopMargin:
       (margin: number) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { headerTopMargin: margin }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setFooterBottomMargin:
       (margin: number) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { footerBottomMargin: margin }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setPaginationDocumentTitle:
       (title: string) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { documentTitle: title }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setDifferentFirstPage:
       (enabled: boolean) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           shouldCloseOverlay: true,
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { differentFirstPage: enabled }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setHeaderFirstPage:
       (header: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { headerFirstPage: header }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setFooterFirstPage:
       (footer: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { footerFirstPage: footer }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setDifferentOddEven:
       (enabled: boolean) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           shouldCloseOverlay: true,
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { differentOddEven: enabled }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setHeaderOdd:
       (header: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { headerOdd: header }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setHeaderEven:
       (header: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { headerEven: header }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setFooterOdd:
       (footer: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { footerOdd: footer }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setFooterEven:
       (footer: PagesHeaderFooter) =>
-      ({ editor }: { editor: Editor }) =>
-        applyPaginationOptionRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return applyPaginationOptionRefresh({
           closeOverlay: () => closeOverlay(editor),
           applyUpdates: () => applyOptionUpdates(editor, { footerEven: footer }),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     openHeaderEditor:
       ({ pageNumber, clickPosition }: OpenHeaderFooterEditorParams) =>
-      ({ editor }: { editor: Editor }) =>
-        openEditorByType(editor, 'header', pageNumber, clickPosition),
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return openEditorByType(editor, 'header', pageNumber, clickPosition)
+      },
     openFooterEditor:
       ({ pageNumber, clickPosition }: OpenHeaderFooterEditorParams) =>
-      ({ editor }: { editor: Editor }) =>
-        openEditorByType(editor, 'footer', pageNumber, clickPosition),
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return openEditorByType(editor, 'footer', pageNumber, clickPosition)
+      },
     closeHeaderFooterEditors:
       () =>
-      ({ editor }: { editor: Editor }) =>
-        closePaginationOverlayAndRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return closePaginationOverlayAndRefresh({
           activeEditorType: editor.storage.pages.activeEditorType,
           closeOverlay: () => closeOverlay(editor),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     closeHeaderEditor:
       () =>
-      ({ editor }: { editor: Editor }) =>
-        closePaginationOverlayAndRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return closePaginationOverlayAndRefresh({
           activeEditorType: editor.storage.pages.activeEditorType,
           requiredActiveEditorType: 'header',
           closeOverlay: () => closeOverlay(editor),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     closeFooterEditor:
       () =>
-      ({ editor }: { editor: Editor }) =>
-        closePaginationOverlayAndRefresh({
+      ({ editor, tr }: CommandProps) => {
+        suppressStaleOuterCommandDispatch(tr)
+        return closePaginationOverlayAndRefresh({
           activeEditorType: editor.storage.pages.activeEditorType,
           requiredActiveEditorType: 'footer',
           closeOverlay: () => closeOverlay(editor),
           refresh: () => refresh(editor)
-        }),
+        })
+      },
     setAccentColor:
       (color: string) =>
       ({ editor }: { editor: Editor }) =>

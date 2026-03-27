@@ -3,7 +3,7 @@ import StarterKit from '@tiptap/starter-kit'
 import {
   normalizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
-} from '@/business-apps/platform/apps/document-apps/utils/documentContentUtils'
+} from '@/business-apps/core/office/apps/documents/utils/documentContentUtils'
 import { Table, TableCell, TableHeader, TableRow } from '..'
 
 function waitForEditorPlugins() {
@@ -17,7 +17,7 @@ describe('CustomTable pagination structure', () => {
     const editor = new Editor({
       extensions: [
         StarterKit.configure({
-          history: false
+          undoRedo: false
         }),
         Table.configure({
           resizable: false,
@@ -35,7 +35,7 @@ describe('CustomTable pagination structure', () => {
         normalizeDocumentHtmlForEditor(
           '<table><tbody><tr><td rowspan="2">A</td><td>B</td></tr><tr><td>C</td></tr><tr><td>D</td><td>E</td></tr></tbody></table>'
         ),
-        false
+        { emitUpdate: false }
       )
       await waitForEditorPlugins()
 

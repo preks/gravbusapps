@@ -234,6 +234,7 @@ export const SUPPORTED_PROTOCOLS = [
   'workflow_template',
   'meetings',
   'note',
+  'slide',
   'document',
   'chat_conversation'
 ] as const

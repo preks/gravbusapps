@@ -311,6 +311,7 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = The request is sent to be approved by the manager
 request-correction-date-absence-error = This date is a bank holiday or absence and cannot be used for a correction request.
+request-correction-zero-planned-warning = This date has no planned working hours. Any time entered will count as overtime.
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
 notification-feedback-request-sent-success = Your feedback request has been sent

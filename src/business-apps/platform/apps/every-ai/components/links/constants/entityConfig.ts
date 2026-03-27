@@ -537,6 +537,14 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   },
 
   // -------------------------------------------------------------------------
+  // Slides/Presentations
+  // -------------------------------------------------------------------------
+  slide: {
+    urlTemplate: '/platform/every-office/slides?slideId={id}&view=editor',
+    icon: DEFAULT_ICON
+  },
+
+  // -------------------------------------------------------------------------
   // Chat entities
   // -------------------------------------------------------------------------
   chat_conversation: {

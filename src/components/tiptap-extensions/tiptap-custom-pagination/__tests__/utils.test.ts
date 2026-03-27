@@ -10,6 +10,7 @@ import {
   measureHeaderFooterContentHeights,
   resolvePageCountFromLastPageGap
 } from '../utils'
+import { NodeSelection } from '@tiptap/pm/state'
 
 describe('resolvePageCountFromLastPageGap', () => {
   it('keeps the existing page count within the add-page hysteresis band', () => {
@@ -283,13 +284,21 @@ describe('getPageBodyMeasurementBands', () => {
     expect(getPageBodyMeasurementBands(editorDom)).toEqual([
       {
         pageNumber: 1,
+        left: 0,
+        right: 100,
         top: 55,
-        bottom: 195
+        bottom: 195,
+        pageLeft: 0,
+        pageRight: 100
       },
       {
         pageNumber: 2,
+        left: 0,
+        right: 100,
         top: 225,
-        bottom: 355
+        bottom: 355,
+        pageLeft: 0,
+        pageRight: 100
       }
     ])
   })
@@ -334,13 +343,21 @@ describe('getPageBodyMeasurementBands', () => {
     expect(getPageBodyMeasurementBands(editorDom)).toEqual([
       {
         pageNumber: 1,
+        left: 0,
+        right: 100,
         top: 55,
-        bottom: 195
+        bottom: 195,
+        pageLeft: 0,
+        pageRight: 100
       },
       {
         pageNumber: 2,
+        left: 0,
+        right: 100,
         top: 225,
-        bottom: 355
+        bottom: 355,
+        pageLeft: 0,
+        pageRight: 100
       }
     ])
     expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
@@ -390,13 +407,21 @@ describe('getPageBodyMeasurementBands', () => {
     expect(getPageBodyMeasurementBands(editorDom)).toEqual([
       {
         pageNumber: 2,
+        left: 0,
+        right: 100,
         top: 55,
-        bottom: 195
+        bottom: 195,
+        pageLeft: 0,
+        pageRight: 100
       },
       {
         pageNumber: 3,
+        left: 0,
+        right: 100,
         top: 225,
-        bottom: 355
+        bottom: 355,
+        pageLeft: 0,
+        pageRight: 100
       }
     ])
     expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
@@ -436,16 +461,165 @@ describe('getPageBodyMeasurementBands', () => {
     expect(getPageBodyMeasurementBands(editorDom)).toEqual([
       {
         pageNumber: 1,
+        left: 0,
+        right: 100,
         top: 55,
-        bottom: 195
+        bottom: 195,
+        pageLeft: 0,
+        pageRight: 100
       },
       {
         pageNumber: 2,
+        left: 0,
+        right: 100,
         top: 225,
-        bottom: 355
+        bottom: 355,
+        pageLeft: 0,
+        pageRight: 100
       }
     ])
     expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
+  })
+
+  it('splits editor-space measurement bands around floating image exclusions', () => {
+    const editorDom = document.createElement('div')
+    const pageBody = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    pageBody.className = 'rm-page-body-layer'
+    pageBody.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'square'
+    imageAnchor.dataset.imageWrapTextSide = 'left'
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 15 })
+    Object.defineProperty(editorDom, 'scrollLeft', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 10, bottom: 500, left: 0, right: 300 })
+    setRect(pageBody, { top: 40, bottom: 240, left: 20, right: 220 })
+    setRect(imageAnchor, { top: 90, bottom: 150, left: 120, right: 220 })
+
+    editorDom.append(pageBody, imageAnchor)
+
+    expect(getPageBodyMeasurementBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 220,
+        top: 45,
+        bottom: 95,
+        pageLeft: 20,
+        pageRight: 220
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 120,
+        top: 95,
+        bottom: 155,
+        pageLeft: 20,
+        pageRight: 220
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 220,
+        top: 155,
+        bottom: 245,
+        pageLeft: 20,
+        pageRight: 220
+      }
+    ])
+  })
+
+  it('preserves through-wrap interior openings from contour slices', () => {
+    const editorDom = document.createElement('div')
+    const pageBody = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    pageBody.className = 'rm-page-body-layer'
+    pageBody.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'polygon'
+    imageAnchor.dataset.imageWrapTextSide = 'bothSides'
+    imageAnchor.dataset.imageWrapMode = 'through'
+    imageAnchor.dataset.imageWrapContour = JSON.stringify({
+      polygon: {
+        points: [
+          { x: 0, y: 0 },
+          { x: 0, y: 1 },
+          { x: 1, y: 1 },
+          { x: 1, y: 0 },
+          { x: 0, y: 0 }
+        ],
+        source: 'alpha-mask-outer',
+        supportsInnerContours: true
+      },
+      slices: [
+        {
+          top: 0,
+          bottom: 1,
+          spans: [
+            { start: 0, end: 0.2 },
+            { start: 0.8, end: 1 }
+          ]
+        }
+      ],
+      hasInteriorOpenings: true
+    })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(editorDom, 'scrollLeft', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 400, left: 0, right: 300 })
+    setRect(pageBody, { top: 0, bottom: 200, left: 0, right: 200 })
+    setRect(imageAnchor, { top: 50, bottom: 150, left: 50, right: 150 })
+
+    editorDom.append(pageBody, imageAnchor)
+
+    expect(getPageBodyMeasurementBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        left: 0,
+        right: 200,
+        top: 0,
+        bottom: 50,
+        pageLeft: 0,
+        pageRight: 200
+      },
+      {
+        pageNumber: 1,
+        left: 0,
+        right: 50,
+        top: 50,
+        bottom: 150,
+        pageLeft: 0,
+        pageRight: 200
+      },
+      {
+        pageNumber: 1,
+        left: 70,
+        right: 130,
+        top: 50,
+        bottom: 150,
+        pageLeft: 0,
+        pageRight: 200
+      },
+      {
+        pageNumber: 1,
+        left: 150,
+        right: 200,
+        top: 50,
+        bottom: 150,
+        pageLeft: 0,
+        pageRight: 200
+      },
+      {
+        pageNumber: 1,
+        left: 0,
+        right: 200,
+        top: 150,
+        bottom: 200,
+        pageLeft: 0,
+        pageRight: 200
+      }
+    ])
   })
 })
 
@@ -791,6 +965,71 @@ describe('calculatePageCount', () => {
     expect(coordsAtPos).not.toHaveBeenCalledWith(1)
   })
 
+  it('measures the image figure bottom for an image node selection', () => {
+    const editorDom = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('tail')
+
+    figure.appendChild(image)
+    paragraph.appendChild(textNode)
+    editorDom.append(figure, paragraph)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(figure, { top: 120, bottom: 190 })
+    setRect(paragraph, { top: 40, bottom: 60 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(figure, 'offsetHeight', { configurable: true, value: 70 })
+    Object.defineProperty(figure, 'clientHeight', { configurable: true, value: 70 })
+    Object.defineProperty(figure, 'scrollHeight', { configurable: true, value: 70 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 20 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 20 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 20 })
+
+    const selection = Object.create(NodeSelection.prototype)
+    Object.defineProperties(selection, {
+      from: { configurable: true, value: 1 },
+      to: { configurable: true, value: 1 },
+      node: {
+        configurable: true,
+        value: {
+          type: {
+            name: 'image'
+          }
+        }
+      }
+    })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'tail' },
+          content: {
+            size: 4
+          }
+        },
+        selection
+      },
+      coordsAtPos: () => ({
+        top: 128,
+        bottom: 176,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getSelectionBottom(view)).toBe(190)
+  })
+
   it('skips document-tail probing when the last content element already provides the bottom', () => {
     const editorDom = document.createElement('div')
     const firstParagraph = document.createElement('p')
@@ -1026,6 +1265,82 @@ describe('calculatePageCount', () => {
 
     expect(querySelectorSpy.mock.calls.filter(([selector]) => selector === '[data-rm-pagination]')).toHaveLength(0)
     expect(querySelectorSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number="1"]')
+  })
+
+  it('reduces effective page capacity when floating image exclusions narrow the usable lane', () => {
+    const editorDom = document.createElement('div')
+    const paginationElement = document.createElement('div')
+    const pageBreak = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+    const paragraph = document.createElement('p')
+    const textNode = document.createTextNode('body')
+
+    paginationElement.dataset.rmPagination = 'true'
+    pageBreak.className = 'rm-page-break'
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'square'
+    imageAnchor.dataset.imageWrapTextSide = 'left'
+    paragraph.appendChild(textNode)
+    pageBreak.appendChild(bodyLayer)
+    paginationElement.appendChild(pageBreak)
+    editorDom.append(paginationElement, imageAnchor, paragraph)
+    document.body.appendChild(editorDom)
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    Object.defineProperty(editorDom, 'scrollLeft', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 320, left: 0, right: 120 })
+    setRect(bodyLayer, { top: 0, bottom: 120, left: 0, right: 120 })
+    setRect(imageAnchor, { top: 0, bottom: 120, left: 60, right: 120 })
+    setRect(paragraph, { top: 200, bottom: 260, left: 0, right: 120 })
+    Object.defineProperty(paragraph, 'offsetHeight', { configurable: true, value: 60 })
+    Object.defineProperty(paragraph, 'clientHeight', { configurable: true, value: 60 })
+    Object.defineProperty(paragraph, 'scrollHeight', { configurable: true, value: 60 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 2,
+          firstChild: { type: { name: 'paragraph' }, childCount: 1, textContent: 'body' },
+          content: {
+            size: 8
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 24,
+        bottom: 36,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: textNode,
+        offset: 0
+      })
+    } as never
+
+    expect(
+      calculatePageCount(
+        view,
+        {
+          width: 120,
+          height: 120,
+          margins: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+          }
+        },
+        0
+      )
+    ).toBe(4)
   })
 })
 
@@ -1613,5 +1928,191 @@ describe('measureHeaderFooterContentHeights', () => {
     computedStyleSpy.mockRestore()
 
     expect(measured.headerHeights.get(1)).toBe(18)
+  })
+})
+
+describe('image runtime layout metrics', () => {
+  function setRect(element: HTMLElement, rect: { top: number; bottom: number; left?: number; right?: number }) {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        x: rect.left ?? 0,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left ?? 0,
+        right: rect.right ?? 0,
+        width: (rect.right ?? 0) - (rect.left ?? 0),
+        height: rect.bottom - rect.top,
+        toJSON: () => ({})
+      })
+    })
+  }
+
+  it('uses custom image layout metrics for image selections', () => {
+    const editorDom = document.createElement('div')
+    const anchor = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+
+    anchor.dataset.imageLayoutHeight = '130'
+    anchor.dataset.imageVisualBottom = '90'
+    anchor.appendChild(figure)
+    figure.appendChild(image)
+    editorDom.appendChild(anchor)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 240 })
+    setRect(anchor, { top: 20, bottom: 20 })
+    setRect(figure, { top: 20, bottom: 20 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+
+    const selection = Object.create(NodeSelection.prototype)
+    Object.defineProperties(selection, {
+      from: { configurable: true, value: 1 },
+      to: { configurable: true, value: 1 },
+      node: {
+        configurable: true,
+        value: {
+          type: {
+            name: 'image'
+          }
+        }
+      }
+    })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 1,
+          content: {
+            size: 2
+          }
+        },
+        selection
+      },
+      coordsAtPos: () => ({
+        top: 24,
+        bottom: 32,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getSelectionBottom(view)).toBe(110)
+  })
+
+  it('ignores overlay image runtime metrics for image selections', () => {
+    const editorDom = document.createElement('div')
+    const anchor = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+
+    anchor.dataset.imageLayoutHeight = '130'
+    anchor.dataset.imageVisualBottom = '90'
+    anchor.dataset.imageMeasurementMode = 'overlay'
+    anchor.appendChild(figure)
+    figure.appendChild(image)
+    editorDom.appendChild(anchor)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 240 })
+    setRect(anchor, { top: 20, bottom: 20 })
+    setRect(figure, { top: 20, bottom: 20 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+
+    const selection = Object.create(NodeSelection.prototype)
+    Object.defineProperties(selection, {
+      from: { configurable: true, value: 1 },
+      to: { configurable: true, value: 1 },
+      node: {
+        configurable: true,
+        value: {
+          type: {
+            name: 'image'
+          }
+        }
+      }
+    })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 1,
+          content: {
+            size: 2
+          }
+        },
+        selection
+      },
+      coordsAtPos: () => ({
+        top: 24,
+        bottom: 32,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getSelectionBottom(view)).toBe(32)
+  })
+
+  it('uses custom image layout metrics for document end measurement', () => {
+    const editorDom = document.createElement('div')
+    const anchor = document.createElement('div')
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+
+    anchor.dataset.imageLayoutHeight = '140'
+    anchor.dataset.imageVisualBottom = '95'
+    anchor.appendChild(figure)
+    figure.appendChild(image)
+    editorDom.appendChild(anchor)
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 260 })
+    setRect(anchor, { top: 30, bottom: 30 })
+    setRect(figure, { top: 30, bottom: 30 })
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc: {
+          childCount: 1,
+          content: {
+            size: 2
+          }
+        },
+        selection: {
+          from: 1,
+          to: 1
+        }
+      },
+      coordsAtPos: () => ({
+        top: 36,
+        bottom: 40,
+        left: 12,
+        right: 12
+      }),
+      domAtPos: () => ({
+        node: image,
+        offset: 0
+      })
+    } as never
+
+    expect(getDocumentContentBottom(view)).toBe(125)
   })
 })

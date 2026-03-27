@@ -15,7 +15,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 
-export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
+export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 
 export interface EvaluationStage {
@@ -48,7 +48,7 @@ export interface CycleEditorValues {
   _apiCompanyValues?: Array<{ id: string; version: number | null; companyValueId: string | null }>
 }
 
-const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
+const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Monthly']
 const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // Stages are managed outside this modal; no stage templates here.
@@ -147,7 +147,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setEndDate('')
       setEvalPeriodStart('')
       setEvalPeriodEnd('')
-      setFrequency('Custom')
+      setFrequency('Monthly')
       setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
       setSelectedValueIds([])
@@ -182,11 +182,11 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     return null
   }
 
-  /** Compute end date from { y, m, d } and frequency (Annual +12 months, Quarterly +3). */
   const computeEndDateFromStart = (parsed: { y: number; m: number; d: number }, freq: FrequencyType): string | null => {
     let addMonths = 0
     if (freq === 'Annual') addMonths = 12
     else if (freq === 'Quarterly') addMonths = 3
+    else if (freq === 'Monthly') addMonths = 1
     else return null
     const totalMonths = parsed.y * 12 + (parsed.m - 1) + addMonths
     const newYear = Math.floor(totalMonths / 12)
@@ -197,16 +197,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     return `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
   }
 
-  // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
   useEffect(() => {
     const parsed = parseStartDate(startDate)
-    if (!parsed) {
-      // If no start date is selected, set frequency to Custom
-      if (frequency !== 'Custom') {
-        setFrequency('Custom')
-      }
-      return
-    }
+    if (!parsed) return
     const computed = computeEndDateFromStart(parsed, frequency)
     if (computed) setEndDate(computed)
   }, [startDate, frequency])
@@ -264,8 +257,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
         return t('frequency-annual')
       case 'Quarterly':
         return t('frequency-quarterly')
-      case 'Custom':
-        return t('frequency-custom')
+      case 'Monthly':
+        return t('frequency-monthly')
       default:
         return f
     }
@@ -331,19 +324,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-end-date')} *</Label>
-              <DateInput
-                type="date"
-                value={endDate}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEndDate(raw)
-                  if (frequency !== 'Custom') {
-                    setFrequency('Custom')
-                  }
-                }}
-                outputFormat="iso"
-              />
+              <DateInput type="date" value={endDate} disabled outputFormat="iso" />
             </div>
           </div>
           {dateOverlapError && (
@@ -359,6 +340,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 type="date"
                 value={evalPeriodStart}
                 onChange={(value: DateInputValue) => {
+                  onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEvalPeriodStart(raw)
                 }}
@@ -373,6 +355,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 type="date"
                 value={evalPeriodEnd}
                 onChange={(value: DateInputValue) => {
+                  onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEvalPeriodEnd(raw)
                 }}

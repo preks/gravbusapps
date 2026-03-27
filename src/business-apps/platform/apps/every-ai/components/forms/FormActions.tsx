@@ -5,6 +5,7 @@ interface FormActionsProps {
   isDeleteOperation: boolean
   isLoading: boolean
   isAgentGenerating?: boolean
+  submitDisabled?: boolean
   onCancel?: () => void
 }
 
@@ -12,6 +13,7 @@ export const FormActions: React.FC<FormActionsProps> = ({
   isDeleteOperation,
   isLoading,
   isAgentGenerating = false,
+  submitDisabled = false,
   onCancel
 }) => {
   const buttonClassName = isDeleteOperation
@@ -34,7 +36,7 @@ export const FormActions: React.FC<FormActionsProps> = ({
         type="submit"
         className={`${buttonClassName} hover:gba:shadow-lg gba:transition-all`}
         variant={isDeleteOperation ? 'destructive' : 'default'}
-        disabled={isAgentGenerating || isLoading}
+        disabled={isAgentGenerating || isLoading || submitDisabled}
         data-testid="dynamic-form-submit-button"
       >
         {isLoading || isAgentGenerating ? (

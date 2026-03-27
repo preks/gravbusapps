@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { MessageItem } from './MessageItem'
 import { TypingIndicator } from './TypingIndicator'
 import type {
@@ -8,8 +8,8 @@ import type {
   TypingIndicator as TypingIndicatorType,
   ConversationParticipant
 } from '../types'
-import type { ChatApiClient } from '../services/chatApiClient'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
+import translations from '../_i18n'
 
 interface MessageListProps {
   messages: Message[]
@@ -25,7 +25,7 @@ interface MessageListProps {
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
   participants?: ConversationParticipant[]
   compact?: boolean // Compact mode for in-call chat
-  apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  apiClient?: ChatClient | null // For transcript/meeting minutes functionality
   onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
   scrollToMessageId?: string | null
   onScrollToMessageDone?: () => void
@@ -70,7 +70,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onNavigateToQuotedMessage
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const previewLabel = useMemo(() => t('chat-preview-open'), [t])
 
     const messagesEndRef = useRef<HTMLDivElement>(null)

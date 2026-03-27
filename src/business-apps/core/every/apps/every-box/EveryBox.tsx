@@ -2,11 +2,8 @@
  * EveryBox Component
  * Unified inbox and outbox for all tasks and workflows
  *
- * OPTIMIZATION: Smart polling with staggered intervals
- * - Active tasks: Poll every 15s (most important)
- * - Completed tasks: Poll every 60s (less urgent)
- * - Outbox flows: Poll every 30s (moderate)
- * This reduces backend load by ~50% while maintaining good UX
+ * Updates: SSE invalidation stream (everybox-service), tab visibility refresh, manual refresh,
+ * and process-completion events — no timer-based polling.
  *
  * URL Parameters:
  * - view: 'inbox' | 'outbox' - Controls which tab is active
@@ -40,11 +37,19 @@ import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkl
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import {
+  EVERYBOX_FIRST_PAGE_LIMIT,
+  fetchTasksBootstrapCounts,
+  fetchTasksInitialData,
+  type FetchTasksBootstrapResult,
+  type FetchTasksBootstrapCountsResult
+} from '@/business-apps/core/every/apps/every-api'
+import type { TaskFilters } from '@/business-apps/core/every/apps/every-api/types'
 import { useInboxTasks } from './hooks/useInboxTasks'
 import { useOutboxFlows } from './hooks/useOutboxFlows'
 import { useCompletedTasks } from './hooks/useCompletedTasks'
 import { useBlinkTasks } from './hooks/useBlinkCount'
+import { useEveryboxInvalidationStream } from './hooks/useEveryboxInvalidationStream'
 import { InboxView } from './components/InboxView'
 import { OutboxView } from './components/OutboxView'
 import { AiInsightsDashboard } from './components/AiInsightsDashboard'
@@ -58,6 +63,7 @@ import {
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useAiCapabilities, useAiSearch } from './hooks/useAi'
+import { isApprovalsFilterTask } from './utils/approvalsFilter'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -86,23 +92,6 @@ const updateViewUrl = (view: ViewType) => {
   urlParams.set('view', view)
   const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
   globalThis.history.replaceState({}, '', newUrl)
-}
-
-// Staggered polling intervals for different data types
-// PERFORMANCE: Intervals increased to reduce backend load; hooks have internal throttling
-const POLLING_CONFIG = {
-  activeTasks: {
-    interval: 30000, // 30 seconds - Background refresh (hooks have 10s throttle)
-    enabled: true
-  },
-  completedTasks: {
-    interval: 90000, // 90 seconds - Less urgent
-    enabled: true
-  },
-  outboxFlows: {
-    interval: 45000, // 45 seconds - Moderate
-    enabled: true
-  }
 }
 
 export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-box', ...context }) => {
@@ -144,6 +133,158 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   const sortBy = sortOption === 'priority' ? 'priority' : 'createdAt'
   const sortOrder = sortOption === 'oldest' ? 'asc' : sortOption === 'priority' ? 'asc' : 'desc'
+  const userId = context.userInfo?.id || ''
+  const selectedFilter = selectedFilters[0] || 'all'
+  const querySearch = semanticSearchAvailable ? '' : debouncedSearch
+  const completedEnabled = activeTab === 'inbox' && selectedFilter === 'completed'
+  const blinkEnabled = activeTab === 'inbox' && selectedFilter === 'blinks'
+  const bootstrapRequestKey = `${userId}:${querySearch}:${sortBy}:${sortOrder}:${dueDateFilter}`
+  const [bootstrapState, setBootstrapState] = useState<{
+    key: string
+    seedId: string | null
+    data: FetchTasksBootstrapResult | null
+    isLoading: boolean
+  }>({
+    key: bootstrapRequestKey,
+    seedId: null,
+    data: null,
+    isLoading: true
+  })
+  const [countsState, setCountsState] = useState<{
+    key: string
+    data: FetchTasksBootstrapCountsResult['counts'] | null
+    isLoading: boolean
+  }>({
+    key: bootstrapRequestKey,
+    data: null,
+    isLoading: true
+  })
+  /** Coalesce concurrent refetches for the same filter key (Strict Mode + overlapping triggers). */
+  const bootstrapInflightRef = useRef<Map<string, Promise<void>>>(new Map())
+
+  const refetchBootstrap = useCallback(async () => {
+    if (!userId) {
+      setBootstrapState({
+        key: bootstrapRequestKey,
+        seedId: null,
+        data: null,
+        isLoading: false
+      })
+      setCountsState({
+        key: bootstrapRequestKey,
+        data: null,
+        isLoading: false
+      })
+      return
+    }
+
+    const existing = bootstrapInflightRef.current.get(bootstrapRequestKey)
+    if (existing) {
+      return existing
+    }
+
+    const listFilters: Partial<TaskFilters> = {
+      ...(querySearch ? { search: querySearch } : {}),
+      sortBy: sortBy as TaskFilters['sortBy'],
+      sortOrder: sortOrder as TaskFilters['sortOrder'],
+      dueFilter: dueDateFilter
+    }
+
+    setBootstrapState(prev => ({
+      key: bootstrapRequestKey,
+      seedId: prev.key === bootstrapRequestKey ? prev.seedId : null,
+      data: prev.key === bootstrapRequestKey ? prev.data : null,
+      isLoading: true
+    }))
+    setCountsState(prev => ({
+      key: bootstrapRequestKey,
+      data: prev.key === bootstrapRequestKey ? prev.data : null,
+      isLoading: true
+    }))
+
+    const promise = (async () => {
+      try {
+        const payload = await fetchTasksInitialData(userId, context.accessToken || '', {
+          limit: EVERYBOX_FIRST_PAGE_LIMIT,
+          ...listFilters
+        })
+        const seedId = `${bootstrapRequestKey}:${Date.now()}`
+        setBootstrapState({
+          key: bootstrapRequestKey,
+          seedId,
+          data: { inbox: payload.inbox },
+          isLoading: false
+        })
+        setCountsState({
+          key: bootstrapRequestKey,
+          data: payload.counts,
+          isLoading: false
+        })
+      } catch {
+        setBootstrapState({
+          key: bootstrapRequestKey,
+          seedId: null,
+          data: null,
+          isLoading: false
+        })
+        setCountsState({
+          key: bootstrapRequestKey,
+          data: null,
+          isLoading: false
+        })
+      } finally {
+        bootstrapInflightRef.current.delete(bootstrapRequestKey)
+      }
+    })()
+
+    bootstrapInflightRef.current.set(bootstrapRequestKey, promise)
+    return promise
+  }, [userId, context.accessToken, querySearch, sortBy, sortOrder, dueDateFilter, bootstrapRequestKey])
+
+  useEffect(() => {
+    void refetchBootstrap()
+  }, [refetchBootstrap])
+
+  const bootstrapData = bootstrapState.key === bootstrapRequestKey ? bootstrapState.data : null
+  const bootstrapLoading = bootstrapState.key !== bootstrapRequestKey || bootstrapState.isLoading
+  const countsData = countsState.key === bootstrapRequestKey ? countsState.data : null
+
+  const refetchBootstrapCounts = useCallback(async () => {
+    if (!userId) {
+      setCountsState({
+        key: bootstrapRequestKey,
+        data: null,
+        isLoading: false
+      })
+      return
+    }
+
+    setCountsState(prev => ({
+      key: bootstrapRequestKey,
+      data: prev.key === bootstrapRequestKey ? prev.data : null,
+      isLoading: true
+    }))
+
+    try {
+      const result = await fetchTasksBootstrapCounts(userId, context.accessToken || '', {
+        ...(querySearch ? { search: querySearch } : {}),
+        sortBy,
+        sortOrder,
+        dueFilter: dueDateFilter
+      })
+      setCountsState({
+        key: bootstrapRequestKey,
+        data: result.counts,
+        isLoading: false
+      })
+    } catch {
+      setCountsState({
+        key: bootstrapRequestKey,
+        data: null,
+        isLoading: false
+      })
+    }
+  }, [userId, context.accessToken, querySearch, sortBy, sortOrder, dueDateFilter, bootstrapRequestKey])
 
   // Debounce search to avoid firing backend requests on each keystroke
   useEffect(() => {
@@ -177,10 +318,13 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     backgroundRefresh: backgroundRefreshInbox
     // When semantic search is available, don't pass search to regular API - let AI search handle filtering
   } = useInboxTasks(context, {
-    search: semanticSearchAvailable ? '' : debouncedSearch,
+    search: querySearch,
     sortBy,
     sortOrder,
-    dueFilter: dueDateFilter
+    dueFilter: dueDateFilter,
+    enabled: !bootstrapLoading,
+    initialBatch: bootstrapData?.inbox ?? null,
+    seedId: bootstrapState.seedId
   })
 
   // Track which tabs have been visited (lazy-load: only fetch data when tab is first opened)
@@ -190,12 +334,14 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const outboxEnabled = visitedTabs.has('outbox')
   const {
     flows,
+    totalCount: totalOutflowCount,
     isLoading: flowsLoading,
     error: flowsError,
     refetch: refetchFlows,
     backgroundRefresh: backgroundRefreshFlows
   } = useOutboxFlows(context, {
-    enabled: outboxEnabled
+    enabled: outboxEnabled,
+    initialTotalCount: countsData?.outflows ?? 0
   })
 
   // Fetch completed tasks - needed for filter badge counts in inbox view
@@ -210,10 +356,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     backgroundRefresh: backgroundRefreshCompleted
     // When semantic search is available, don't pass search to regular API - let AI search handle filtering
   } = useCompletedTasks(context, {
-    search: semanticSearchAvailable ? '' : debouncedSearch,
+    search: querySearch,
     sortBy,
     sortOrder,
-    dueFilter: dueDateFilter
+    dueFilter: dueDateFilter,
+    enabled: completedEnabled,
+    initialTotalCount: countsData?.completed ?? 0
   })
 
   // Fetch blink tasks using tag filtering (response contains totalCount for badge)
@@ -224,7 +372,72 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     hasMore: blinkHasMore,
     refetch: refetchBlinkTasks,
     loadMore: loadMoreBlinkTasks
-  } = useBlinkTasks(context)
+  } = useBlinkTasks(context, {
+    enabled: blinkEnabled,
+    initialTotalCount: countsData?.blinks ?? 0
+  })
+
+  const bootstrapInboxLen = bootstrapData?.inbox?.tasks?.length ?? 0
+  const awaitingBootstrapHydration =
+    Boolean(bootstrapState.seedId) && bootstrapInboxLen > 0 && tasks.length === 0 && !tasksError
+  const inboxLoading = tasksLoading || (bootstrapLoading && !bootstrapData) || awaitingBootstrapHydration
+  // Tab badges: prefer bootstrap/initial-data counts so they update after refetchBootstrap (e.g. quick task).
+  // Do not prefer hook totals when a tab was visited — that left badges stale vs fresh countsData.
+  const completedCount = countsData?.completed ?? totalCompletedCount
+  const blinkCount = countsData?.blinks ?? blinkTotalCount
+  const outflowCount = countsData?.outflows ?? totalOutflowCount
+  const blinkCountLoading = !blinkEnabled ? countsState.isLoading && !countsData : blinkTasksLoading
+
+  const lastSseRefreshRef = useRef(0)
+  const handleStreamInvalidation = useCallback(
+    (payload: { changed?: { inbox?: boolean; completed?: boolean; blinks?: boolean; outflows?: boolean } }) => {
+      const now = Date.now()
+      if (now - lastSseRefreshRef.current < 3000) {
+        return
+      }
+      lastSseRefreshRef.current = now
+
+      const changed = payload.changed
+      if (!changed) return
+
+      if (changed.inbox) {
+        void refetchBootstrap()
+      }
+      if (!changed.inbox && (changed.completed || changed.blinks || changed.outflows)) {
+        void refetchBootstrapCounts()
+      }
+      if (changed.completed && selectedFilter === 'completed') {
+        void refetchCompleted()
+      }
+      if (changed.blinks && selectedFilter === 'blinks') {
+        void refetchBlinkTasks()
+      }
+      if (changed.outflows && activeTab === 'outbox') {
+        void refetchFlows()
+      }
+    },
+    [
+      activeTab,
+      selectedFilter,
+      refetchBootstrap,
+      refetchBootstrapCounts,
+      refetchCompleted,
+      refetchBlinkTasks,
+      refetchFlows
+    ]
+  )
+
+  useEveryboxInvalidationStream({
+    userId,
+    accessToken: context.accessToken,
+    search: querySearch,
+    sortBy,
+    sortOrder,
+    dueFilter: dueDateFilter,
+    enabled: isPreviewEnabled && !bootstrapLoading,
+    startDelayMs: 3000,
+    onInvalidate: handleStreamInvalidation
+  })
 
   // Initialize URL with view parameter if not present
   useEffect(() => {
@@ -270,19 +483,18 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     }
 
     // inbox tab
-    const filter = selectedFilters[0] || 'all'
-    if (filter === 'completed') {
+    if (selectedFilter === 'completed') {
       await refetchCompleted()
       return
     }
-    if (filter === 'blinks') {
+    if (selectedFilter === 'blinks') {
       await refetchBlinkTasks()
       return
     }
-    await refetchTasks()
-  }, [activeTab, selectedFilters, refetchFlows, refetchCompleted, refetchBlinkTasks, refetchTasks])
+    await refetchBootstrap()
+  }, [activeTab, selectedFilter, refetchFlows, refetchCompleted, refetchBlinkTasks, refetchBootstrap])
 
-  // PERF: Store polling callbacks in refs so intervals never need to be recreated
+  // Background refresh callbacks in refs for visibility handler (avoids effect churn)
   const bgRefreshInboxRef = useRef(backgroundRefreshInbox)
   bgRefreshInboxRef.current = backgroundRefreshInbox
   const bgRefreshCompletedRef = useRef(backgroundRefreshCompleted)
@@ -290,55 +502,27 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const bgRefreshFlowsRef = useRef(backgroundRefreshFlows)
   bgRefreshFlowsRef.current = backgroundRefreshFlows
 
-  // Track browser tab visibility to pause polling when hidden
-  const isPageVisibleRef = useRef(!document.hidden)
-
-  // Pause/resume polling when browser tab visibility changes
-  // On becoming visible, refresh all data sources for an up-to-date view
+  // When the tab becomes visible again, run a lightweight hook refresh (throttled inside hooks)
   useEffect(() => {
     const handleVisibility = () => {
-      isPageVisibleRef.current = !document.hidden
       if (!document.hidden) {
-        bgRefreshInboxRef.current()
-        bgRefreshCompletedRef.current()
+        if (selectedFilter !== 'completed' && selectedFilter !== 'blinks') {
+          bgRefreshInboxRef.current()
+        }
+        if (selectedFilter === 'completed') {
+          bgRefreshCompletedRef.current()
+        }
         bgRefreshFlowsRef.current()
       }
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [])
-
-  // Active tasks polling (always runs, independent of tab) - reads from ref
-  useEffect(() => {
-    if (!isPreviewEnabled || !POLLING_CONFIG.activeTasks.enabled) return
-    const id = setInterval(() => {
-      if (isPageVisibleRef.current) bgRefreshInboxRef.current()
-    }, POLLING_CONFIG.activeTasks.interval)
-    return () => clearInterval(id)
-  }, [isPreviewEnabled])
-
-  // Completed tasks polling - only when inbox tab is active
-  useEffect(() => {
-    if (!isPreviewEnabled || !POLLING_CONFIG.completedTasks.enabled || activeTab !== 'inbox') return
-    const id = setInterval(() => {
-      if (isPageVisibleRef.current) bgRefreshCompletedRef.current()
-    }, POLLING_CONFIG.completedTasks.interval)
-    return () => clearInterval(id)
-  }, [isPreviewEnabled, activeTab])
-
-  // Outbox flows polling - only when outbox tab is active
-  useEffect(() => {
-    if (!isPreviewEnabled || !POLLING_CONFIG.outboxFlows.enabled || activeTab !== 'outbox') return
-    const id = setInterval(() => {
-      if (isPageVisibleRef.current) bgRefreshFlowsRef.current()
-    }, POLLING_CONFIG.outboxFlows.interval)
-    return () => clearInterval(id)
-  }, [isPreviewEnabled, activeTab])
+  }, [selectedFilter])
 
   // PERF: Store refetch callbacks in refs so the process-completion listener
   // doesn't get torn down and re-added on every filter/sort change
-  const refetchTasksRef = useRef(refetchTasks)
-  refetchTasksRef.current = refetchTasks
+  const refetchBootstrapRef = useRef(refetchBootstrap)
+  refetchBootstrapRef.current = refetchBootstrap
   const refetchCompletedRef = useRef(refetchCompleted)
   refetchCompletedRef.current = refetchCompleted
 
@@ -351,8 +535,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       const resolution = customEvent.detail?.resolution
 
       if (resolution === 'success') {
-        refetchTasksRef.current()
-        refetchCompletedRef.current()
+        refetchBootstrapRef.current()
+        if (selectedFilter === 'completed') {
+          refetchCompletedRef.current()
+        }
       }
     }
 
@@ -361,36 +547,24 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     return () => {
       window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
-  }, [isPreviewEnabled])
+  }, [isPreviewEnabled, selectedFilter])
 
-  // Memoize filter counts to avoid .filter() on every render
+  // Dropdown counts: "All" uses API totalCount; blinks uses blink API total; completed uses completed API total.
+  // Approvals = same predicate as InboxView filter, counted over **loaded** inbox tasks only (subset until load-more).
   const filterCounts = useMemo(
     () => ({
       all: totalTaskCount,
-      blinks: blinkTotalCount || 0,
-      approvals: tasks.filter(task => {
-        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-        const taskType = (task.type || '').toLowerCase()
-        const taskCategory = (task.taskCategory || '').toLowerCase()
-        return (
-          taskName.includes('approval') ||
-          taskName.includes('approve') ||
-          taskType.includes('approval') ||
-          taskCategory.includes('approval') ||
-          task.tags?.category === 'approval'
-        )
-      }).length,
-      completed: totalCompletedCount
+      blinks: blinkCount || 0,
+      approvals: tasks.filter(isApprovalsFilterTask).length,
+      completed: completedCount
     }),
-    [tasks, totalTaskCount, blinkTotalCount, totalCompletedCount]
+    [tasks, totalTaskCount, blinkCount, completedCount]
   )
 
   // Handle Quick Task (Blink) submission
   const handleQuickTaskSubmit = useCallback(
     async (data: QuickTaskFormData) => {
       try {
-        const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
         let uploadResults: any[] = []
         if (data.documents && data.documents.length > 0) {
           const filesToUpload = data.documents
@@ -415,13 +589,18 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
           formData: data,
           uploadResults,
           accessToken: context.accessToken,
-          initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
-          apiBaseUrl: baseUrl
+          initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown'
         })
 
         toast.success(t('blink-created-success', { title: data.title }))
 
-        Promise.all([refetchTasks(), refetchFlows(), refetchCompleted(), refetchBlinkTasks()]).catch(() => {
+        Promise.all([
+          refetchBootstrap(),
+          // Always refresh initiated list so Outflows is current when user opens the tab (skip caused stale list).
+          refetchFlows(),
+          completedEnabled ? refetchCompleted() : Promise.resolve(),
+          blinkEnabled ? refetchBlinkTasks() : Promise.resolve()
+        ]).catch(() => {
           // Ignore errors in background refresh
         })
       } catch (error) {
@@ -434,10 +613,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       context.accessToken,
       context.userInfo,
       t,
-      refetchTasks,
+      refetchBootstrap,
       refetchFlows,
       refetchCompleted,
-      refetchBlinkTasks
+      refetchBlinkTasks,
+      completedEnabled,
+      blinkEnabled
     ]
   )
 
@@ -503,8 +684,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                   >
                     <Send className="gba:h-4 gba:w-4" />
                     <span className="gba:text-sm gba:font-medium">{t('every-box-tab-outflows')}</span>
-                    {flows.length > 0 && (
-                      <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">{flows.length}</span>
+                    {outflowCount > 0 && (
+                      <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">{outflowCount}</span>
                     )}
                     {/* Active indicator line */}
                     <span
@@ -735,23 +916,23 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     {...context}
                     tasks={tasks}
                     totalCount={totalTaskCount}
-                    isLoading={tasksLoading}
+                    isLoading={inboxLoading}
                     error={tasksError}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
                     onRefresh={refetchTasks}
                     onLoadMore={loadMoreTasks}
                     hasMore={hasMoreTasks}
-                    blinkCount={blinkTotalCount}
-                    blinkCountLoading={blinkTasksLoading}
+                    blinkCount={blinkCount}
+                    blinkCountLoading={blinkCountLoading}
                     blinkTasks={blinkTasks}
-                    blinkTasksLoading={blinkTasksLoading}
+                    blinkTasksLoading={blinkEnabled ? blinkTasksLoading : false}
                     blinkHasMore={blinkHasMore}
                     onBlinkLoadMore={loadMoreBlinkTasks}
                     onBlinkRefresh={refetchBlinkTasks}
                     completedTasks={completedTasks}
-                    completedTotalCount={totalCompletedCount}
-                    completedIsLoading={completedLoading}
+                    completedTotalCount={completedCount}
+                    completedIsLoading={completedEnabled ? completedLoading : false}
                     completedError={completedError}
                     onCompletedRefresh={refetchCompleted}
                     onCompletedLoadMore={loadMoreCompleted}

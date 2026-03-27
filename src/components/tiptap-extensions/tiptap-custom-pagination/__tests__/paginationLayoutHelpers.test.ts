@@ -54,6 +54,14 @@ describe('applyMeasuredPageHeightsToView', () => {
     document.body.innerHTML = ''
   })
 
+  it('keeps first and later pages on the same spacer height when chrome measurements match', () => {
+    const storage = createStorageFromOptions(baseOptions)
+    const expectedBodyHeight = getPageLayoutHeights(storage.pageFormat, storage, 60, 20).bodyHeight
+
+    expect(getPageSpacerHeight(storage.pageFormat, storage, 1, 60, 20)).toBe(expectedBodyHeight)
+    expect(getPageSpacerHeight(storage.pageFormat, storage, 2, 60, 20)).toBe(expectedBodyHeight)
+  })
+
   it('writes per-page body and spacer CSS variables from measured chrome heights', () => {
     const editorDom = document.createElement('div')
     document.body.appendChild(editorDom)
@@ -476,6 +484,126 @@ describe('getPageBodyBands', () => {
       }
     ])
     expect(querySelectorAllSpy).not.toHaveBeenCalledWith('.rm-page-body-layer[data-rm-page-number]')
+  })
+
+  it('splits a page body band around square-right image exclusions', () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'square'
+    imageAnchor.dataset.imageWrapTextSide = 'left'
+
+    setRect(bodyLayer, { top: 80, bottom: 260, left: 20, right: 160 })
+    setRect(imageAnchor, { top: 120, bottom: 180, left: 110, right: 160 })
+
+    editorDom.append(bodyLayer, imageAnchor)
+
+    expect(getPageBodyBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 160,
+        top: 80,
+        bottom: 120
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 110,
+        top: 120,
+        bottom: 180
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 160,
+        top: 180,
+        bottom: 260
+      }
+    ])
+  })
+
+  it('splits a page body band into both-side text lanes for through exclusions', () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'polygon'
+    imageAnchor.dataset.imageWrapTextSide = 'bothSides'
+
+    setRect(bodyLayer, { top: 80, bottom: 260, left: 20, right: 180 })
+    setRect(imageAnchor, { top: 120, bottom: 180, left: 70, right: 130 })
+
+    editorDom.append(bodyLayer, imageAnchor)
+
+    expect(getPageBodyBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 180,
+        top: 80,
+        bottom: 120
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 70,
+        top: 120,
+        bottom: 180
+      },
+      {
+        pageNumber: 1,
+        left: 130,
+        right: 180,
+        top: 120,
+        bottom: 180
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 180,
+        top: 180,
+        bottom: 260
+      }
+    ])
+  })
+
+  it('removes the overlapping lane entirely for top-bottom exclusions', () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'top-bottom'
+    imageAnchor.dataset.imageWrapTextSide = 'none'
+
+    setRect(bodyLayer, { top: 80, bottom: 260, left: 20, right: 180 })
+    setRect(imageAnchor, { top: 120, bottom: 180, left: 40, right: 160 })
+
+    editorDom.append(bodyLayer, imageAnchor)
+
+    expect(getPageBodyBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 180,
+        top: 80,
+        bottom: 120
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 180,
+        top: 180,
+        bottom: 260
+      }
+    ])
   })
 })
 

@@ -61,6 +61,31 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')
   })
+
+  it('keeps the standalone first page header shell behind overlapping body content', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+
+    expect(style?.textContent).toMatch(/\.rm-pages-root \.rm-first-page-header \{[\s\S]*?z-index: 1;/)
+  })
+
+  it('keeps the blank first-page header shell click-through while preserving visible header targets', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+
+    expect(style?.textContent).toMatch(
+      /\.rm-pages-root \.rm-first-page-header > \.rm-page-header \{[\s\S]*?pointer-events: none;/
+    )
+    expect(style?.textContent).toMatch(
+      /\.rm-pages-root \.rm-first-page-header \.rm-page-header-content,[\s\S]*?pointer-events: auto;/
+    )
+  })
 })
 
 describe('refreshHeaderFooterRegionDisplay', () => {
@@ -129,6 +154,78 @@ describe('refreshHeaderFooterRegionDisplay', () => {
 
     expect(content.innerHTML).toContain('rm-page-inline-editor')
     expect(content.innerHTML).not.toContain('Updated header')
+  })
+})
+
+describe('createHeaderFooterRegion interaction guards', () => {
+  it('allows mousedown to pass through empty inactive header regions', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: []
+    })
+
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(region.dataset.rmHasVisibleContent).toBe('false')
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('allows mousedown to pass through visible inactive header regions', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: []
+    })
+
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(region.dataset.rmHasVisibleContent).toBe('true')
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('keeps intercepting selectstart for inactive header regions with visible content', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: []
+    })
+
+    const event = new Event('selectstart', { bubbles: true, cancelable: true })
+    region.dispatchEvent(event)
+
+    expect(region.dataset.rmHasVisibleContent).toBe('true')
+    expect(event.defaultPrevented).toBe(true)
   })
 })
 
@@ -211,6 +308,25 @@ describe('createPaginationWrapper', () => {
     expect(secondBreaker.dataset.rmBreakerMode).toBeUndefined()
     expect(secondBreaker.querySelector('.rm-page-footer-region[data-rm-page-number="2"]')).not.toBeNull()
     expect(secondBreaker.querySelector('.rm-page-header-region[data-rm-page-number="3"]')).not.toBeNull()
+  })
+
+  it('creates behind, floating, and front image overlay layers inside each page shell', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const pageBreak = createPageBreakElement({
+      pageNumber: 1,
+      totalPages: 2,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      activeRange: { startPage: 1, endPage: 1 },
+      placeholderBreakerMetrics: null
+    })
+
+    expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="behind"]')).not.toBeNull()
+    expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="floating"]')).not.toBeNull()
+    expect(pageBreak.querySelector('.rm-page-image-overlay-layer[data-rm-image-layer="front"]')).not.toBeNull()
   })
 
   it('renders leading and trailing spacers when the mounted window sits in the middle', () => {
@@ -460,6 +576,7 @@ describe('windowed pagination renderer state', () => {
     const pageBreak = document.createElement('div')
     const page = document.createElement('div')
     const body = document.createElement('div')
+    const imageOverlay = document.createElement('div')
     const footer = document.createElement('div')
     const header = document.createElement('div')
 
@@ -468,12 +585,15 @@ describe('windowed pagination renderer state', () => {
     page.dataset.rmPageNumber = '2'
     body.className = 'rm-page-body-layer'
     body.dataset.rmPageNumber = '2'
+    imageOverlay.className = 'rm-page-image-overlay-layer'
+    imageOverlay.dataset.rmPageNumber = '2'
+    imageOverlay.dataset.rmImageLayer = 'behind'
     footer.className = 'rm-page-footer-region'
     footer.dataset.rmPageNumber = '2'
     header.className = 'rm-page-header-region'
     header.dataset.rmPageNumber = '3'
 
-    pageBreak.append(page, body, footer, header)
+    pageBreak.append(page, body, imageOverlay, footer, header)
 
     applyWindowAttributesToPageBreak(pageBreak, { startPage: 2, endPage: 2 }, 'window-7')
 
@@ -481,6 +601,7 @@ describe('windowed pagination renderer state', () => {
     expect(pageBreak.dataset.layoutWindowPosition).toBe('inside')
     expect(pageBreak.dataset.layoutWindowKey).toBe('window-7')
     expect(body.dataset.layoutWindowActive).toBe('true')
+    expect(imageOverlay.dataset.layoutWindowActive).toBe('true')
     expect(footer.dataset.layoutWindowActive).toBe('true')
     expect(header.dataset.layoutWindowActive).toBe('false')
     expect(header.dataset.layoutWindowPosition).toBe('after')

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
-import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, Toaster, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useChatClient } from './hooks/useChatClient'
-import { useChatEnv } from './hooks/useChatEnv'
+import { useChat } from './hooks/useChat'
 import { useChatCallHandlers } from './hooks/useChatCallHandlers'
 import { useChatConversationHandlers } from './hooks/useChatConversationHandlers'
 import { useChatMessageHandlers, type UseChatMessageHandlersParams } from './hooks/useChatMessageHandlers'
@@ -26,7 +25,7 @@ import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
-import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import translations from './_i18n'
 import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestParticipants'
 
 // Presence info type for sharing with other components
@@ -91,7 +90,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     calendarApiClient,
     initialOpenWithUser
   }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
@@ -160,14 +159,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Use the stable token throughout the component
     const accessToken = stableAccessToken
 
-    const { apiUrl, wsUrl, wsSocketPath, realtimeKitApiClient } = useChatEnv({ accessToken })
-
-    const chatClient = useChatClient({
-      accessToken,
-      apiUrl,
-      wsUrl,
-      wsSocketPath
-    })
+    const chatClient = useChat({ accessToken })
 
     const {
       isConnected,
@@ -435,7 +427,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Group call functionality - Realtime Kit (RTK) only
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
-      apiClient: realtimeKitApiClient,
+      apiClient: apiClient,
       chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
       calendarApiClient: calendarApiClient, // Pass CalendarApiClient for AI transcription settings
       callConversation: null, // Computed in hook's effect using conversationsRef
@@ -1041,7 +1033,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       groupCallState,
       groupParticipants: groupParticipantsRaw,
       joinGroupCall: joinGroupCall as (roomId: string, callType: 'audio' | 'video', prefs?: unknown) => void,
-      realtimeKitApiClient,
+      realtimeKitApiClient: apiClient,
       calendarApiClient,
       getUserPresence,
       currentUserId: currentUser?.id ?? null
@@ -1327,12 +1319,11 @@ const ChatInner: React.FC<ChatProps> = memo(
   }
 )
 
-// Wrap Chat component with TranslationProvider for performance optimization
 export const Chat: React.FC<ChatProps> = props => {
   return (
-    <TranslationProvider>
+    <>
       <Toaster />
       <ChatInner {...props} />
-    </TranslationProvider>
+    </>
   )
 }

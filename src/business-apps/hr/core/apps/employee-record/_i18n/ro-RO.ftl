@@ -326,6 +326,11 @@ hr-growth-skills = Competențe
 hr-growth-feedback = Hub Feedback
 hr-growth-performance = Obiective
 
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = Dezvoltarea mea
+my-development-page-description = Competențe, feedback, obiective și performanță — aceeași experiență ca Dezvoltare HR din Profilul meu.
+my-development-unavailable = Zona de dezvoltare nu a putut fi încărcată. Încearcă din nou mai târziu.
+
 # Feedback Hub (sub-pagină sub Dezvoltare HR)
 feedback-hub-title = Hub Feedback
 feedback-hub-description = Oferiți și primiți feedback de la colegi și manageri. Urmăriți solicitările și analizele.

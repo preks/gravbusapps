@@ -76,7 +76,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     refetch: refetchValues
   } = useCompanyValues(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
-  const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
+  const { savePerformanceCycle, updateCycleActive, completeCycle, deletePerformanceCycle } =
+    useSavePerformanceCycle(accessToken)
   const { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState } = useSaveCompanyValue(accessToken)
 
   const hrBackoffice = useScopePermissionCheck(
@@ -129,6 +130,25 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       const err = new Error(t('cycles-error-dates-overlap')) as Error & { code?: string }
       err.code = 'DATES_OVERLAP'
       throw err
+    }
+
+    if (values.evaluationPeriodStartDate && values.evaluationPeriodEndDate) {
+      const evalOverlaps = otherCycles.some(
+        c =>
+          c.evaluationPeriodStartDate &&
+          c.evaluationPeriodEndDate &&
+          doDateRangesOverlap(
+            values.evaluationPeriodStartDate!,
+            values.evaluationPeriodEndDate!,
+            c.evaluationPeriodStartDate,
+            c.evaluationPeriodEndDate
+          )
+      )
+      if (evalOverlaps) {
+        const err = new Error(t('cycles-error-eval-period-overlap')) as Error & { code?: string }
+        err.code = 'DATES_OVERLAP'
+        throw err
+      }
     }
 
     if (accessToken) {
@@ -208,6 +228,21 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       }
     } else {
       setCycles(prev => prev.map(c => (c.id === cycleId ? { ...c, deactivated: true, status: 'Inactive' } : c)))
+    }
+  }
+
+  const handleCompleteCycle = async (cycleId: string) => {
+    const cycle = cycles.find(c => c.id === cycleId)
+    if (!cycle) return
+    if (accessToken) {
+      try {
+        await completeCycle(cycle)
+        await refetchCycles()
+        toast.success(t('cycle-completed-to-database', { name: cycle.name }) ?? `"${cycle.name}" completed.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to complete cycle'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+      }
     }
   }
 
@@ -498,6 +533,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             onSaveFromModal={handleSaveFromModal}
             onActivate={handleActivate}
             onDeactivate={handleDeactivate}
+            onCompleteCycle={handleCompleteCycle}
             onDeleteCycle={handleDeleteCycle}
             onStartCycle={handleStartCycle}
           />

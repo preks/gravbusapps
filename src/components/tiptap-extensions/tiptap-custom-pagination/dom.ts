@@ -414,7 +414,11 @@ function createPageRangeSpacer(params: {
   const pageSegmentHeights: number[] = []
 
   const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
-  let totalHeight = Number.isFinite(preservedHeight) ? (preservedHeight ?? 0) : 0
+  const validPreservedHeight =
+    typeof preservedHeight === 'number' && Number.isFinite(preservedHeight) && preservedHeight > 0
+      ? preservedHeight
+      : undefined
+  let totalHeight = validPreservedHeight ?? 0
   if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
     totalHeight = 0
   }
@@ -435,7 +439,7 @@ function createPageRangeSpacer(params: {
       )
     pageSegmentHeights.push(pageHeight)
 
-    if (!Number.isFinite(preservedHeight) || preservedHeight <= 0) {
+    if (validPreservedHeight === undefined) {
       totalHeight += pageHeight
     }
   }
@@ -563,6 +567,21 @@ export function refreshHeaderFooterRegionDisplay(params: {
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 }
 
+function createPageImageOverlayLayer(params: {
+  pageNumber: number
+  pageBodyHeight: number
+  layer: 'behind' | 'floating' | 'front'
+}): HTMLElement {
+  const overlayLayer = document.createElement('div')
+  overlayLayer.className = 'rm-page-image-overlay-layer'
+  overlayLayer.dataset.rmPageImageOverlay = 'true'
+  overlayLayer.dataset.rmPageNumber = String(params.pageNumber)
+  overlayLayer.dataset.rmImageLayer = params.layer
+  overlayLayer.style.height = `var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px)`
+  overlayLayer.style.top = `calc(-1 * var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px))`
+  return overlayLayer
+}
+
 export function ensurePagesStyles(targetDocument: Document) {
   if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
 
@@ -602,6 +621,25 @@ export function ensurePagesStyles(targetDocument: Document) {
       background: transparent;
       z-index: 1;
     }
+    .rm-pages-root .rm-page-image-overlay-layer {
+      position: absolute;
+      left: 0;
+      width: var(--rm-page-width);
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] {
+      z-index: 0;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="floating"] {
+      z-index: 3;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="front"] {
+      z-index: 4;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer > * {
+      pointer-events: auto;
+    }
     .rm-pages-root .breaker {
       position: relative;
       float: left;
@@ -637,10 +675,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 2;
+      z-index: 1;
       pointer-events: none;
     }
     .rm-pages-root .rm-first-page-header > .rm-page-header {
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-first-page-header .rm-page-header-content,
+    .rm-pages-root .rm-first-page-header .rm-page-number-slot {
       pointer-events: auto;
     }
     .rm-pages-root .rm-page-header,
@@ -1080,6 +1122,7 @@ export function refreshPageMinHeight(targetNode: HTMLElement) {
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
   if (region.dataset.rmOverlayActive === 'true') return
+  if (region.dataset.rmHasVisibleContent !== 'true') return
 
   event.preventDefault()
   event.stopPropagation()
@@ -1156,9 +1199,6 @@ export function createHeaderFooterRegion(params: {
   region.appendChild(inner)
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 
-  region.addEventListener('mousedown', event => {
-    blockInactiveRegion(event, region)
-  })
   region.addEventListener('selectstart', event => {
     blockInactiveRegion(event, region)
   })
@@ -1233,7 +1273,22 @@ export function createPageBreakElement(params: {
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
-  page.appendChild(bodyLayer)
+  const behindImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'behind'
+  })
+  const floatingImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'floating'
+  })
+  const frontImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'front'
+  })
+  page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =
     !shouldRenderFullPageBreaker(pageNumber, activeRange) && placeholderBreakerMetrics != null
@@ -1389,8 +1444,8 @@ export function applyWindowAttributesToPageBreak(
     return 'inside'
   }
 
-  const markerTargets = pageBreakEl.querySelectorAll(
-    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+  const markerTargets = pageBreakEl.querySelectorAll<HTMLElement>(
+    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-image-overlay-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 
   const pageBreakNumber = resolvePageBreakNumber(pageBreakEl)

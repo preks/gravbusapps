@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { CatalogEntry } from '@/common/types/CatalogTypes'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // Extend from the base CatalogEntry type
 type TaxBracketEntry = CatalogEntry & {
@@ -26,6 +27,7 @@ export const useTaxBracketCatalog = (accessToken: string): UseTaxBracketCatalogR
   const [error, setError] = useState<Error | null>(null)
   // Get catalog manager client instance
   const catalogClient = useCatalogManagerClient(accessToken)
+  const activeLocale = getCurrentActiveUserLocale()
 
   // Fetch tax bracket catalog entries
   useEffect(() => {
@@ -46,7 +48,9 @@ export const useTaxBracketCatalog = (accessToken: string): UseTaxBracketCatalogR
             limit: 50,
             offset: 0,
             returnTotalRecords: true,
-            includeChildCatalogEntries: true
+            includeChildCatalogEntries: true,
+            includeTranslations: true,
+            localeCode: activeLocale
           }
         )
 
@@ -72,7 +76,7 @@ export const useTaxBracketCatalog = (accessToken: string): UseTaxBracketCatalogR
       const matchingEntry = taxBracketEntries.find(entry => entry.id === id)
 
       // Return the human-readable value or the original ID if no match found
-      return matchingEntry?.value || id
+      return matchingEntry?.translations?.[0]?.value || matchingEntry?.value || id
     }
   }, [taxBracketEntries])
 

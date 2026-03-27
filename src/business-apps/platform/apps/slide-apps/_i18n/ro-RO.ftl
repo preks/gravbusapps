@@ -27,6 +27,8 @@ sidebar-storage-slides = { $count } slide-uri
 
 menu-new-blank-title = Slide gol
 menu-new-blank-description = Începeți de la zero
+menu-new-ai-title = Generați cu AI
+menu-new-ai-description = Creați prezentare folosind AI
 menu-new-template-title = Din șablon
 menu-new-template-description = Alegeți un șablon
 menu-new-import-title = Importați PowerPoint
@@ -76,6 +78,8 @@ toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-imported-slides = Importate { $count } slide-uri
 toast-import-failed = Import PowerPoint eșuat
+toast-import-partial = Prezentarea a fost creată, dar conținutul slide-urilor nu a putut fi salvat. Încercați să redeschideți și să resalvați.
+import-saving = Se salvează prezentarea...
 toast-template-matched = Se folosește șablonul: { $name }
 toast-template-applied = Șablon aplicat
 
@@ -273,6 +277,8 @@ header-manage-access = Gestionare acces...
 # Generate Presentation
 generate-title = Generare prezentare
 generate-description = Descrieți ce aveți nevoie și AI va crea slide-urile.
+generate-presentation-title-label = Titlu prezentare
+generate-presentation-title-placeholder = de ex., Raport Q4
 generate-topic = Temă
 generate-topic-placeholder = Revizie trimestrială acoperind metrici vânzări, reușite echipă și obiective Q2...
 generate-length = Lungime
@@ -487,6 +493,23 @@ parser-slide-not-found = Slide { $number } negăsit
 parser-no-slides-parsed = Nicun slide nu a putut fi parsat. A fost creat un slide gol.
 parser-failed = Fișierul PowerPoint nu a putut fi parsat
 parser-imported-slide = Slide importat
+parser-shape-unsupported = Tipul de formă „{ $type }" de pe slide-ul { $slide } a fost importat ca dreptunghi
+parser-chart-unsupported = Tipul de grafic „{ $type }" de pe slide-ul { $slide } nu a putut fi importat
+parser-chart-imported = Grafic { $type } importat pe slide-ul { $slide }
+parser-table-imported = Tabel importat ({ $rows } rânduri, { $cols } coloane) pe slide-ul { $slide }
+parser-notes-imported = Note de prezentator importate pentru { $count } { $count ->
+    [one] slide
+    [few] slide-uri
+   *[other] de slide-uri
+}
+parser-transition-unsupported = Tranziția „{ $type }" de pe slide-ul { $slide } a fost aproximată
+parser-group-flattened = Formele grupate de pe slide-ul { $slide } au fost degrupate
+parser-theme-mapped = Tema prezentării a fost asociată cu „{ $theme }"
+import-preview-title = Previzualizare import
+import-preview-select-slides = Selectați slide-urile de importat
+import-preview-selected = { $selected } din { $total } slide-uri selectate
+import-preview-import-all = Importă toate
+import-preview-import-selected = Importă selecția
 
 # SlidesApiService
 api-error = Eroare API: { $status }
@@ -790,3 +813,21 @@ template-purpose-help = Definiți scopul acestui slide
 template-inferring = Se detectează scopurile slide-urilor...
 template-inference-complete = Scopurile slide-urilor detectate
 template-inference-failed = Scopurile nu au putut fi detectate automat
+
+# Selector layout
+layout-change = Layout
+layout-duplicate-slides = Duplică slide-urile selectate
+layout-browse-templates = Răsfoiește șabloane...
+
+# Vizualizare Slide Master
+slideshow-slide-master = Slide Master
+master-view-title = Vizualizare Slide Master
+master-insert-layout = Inserează layout
+master-close = Închide vizualizarea Master
+master-new-layout = Layout personalizat
+master-layout-added = Layout adăugat
+master-layout-duplicated = Layout duplicat
+master-layout-deleted = Layout șters
+master-delete-last-layout-error = Nu se poate șterge ultimul layout
+master-editing-master = Editare: Slide Master
+master-editing-layout = Editare layout

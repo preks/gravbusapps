@@ -3,9 +3,9 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Input } from '@newwork/nw-design-system'
+import { Input, useTranslation } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon } from '@phosphor-icons/react'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 import { MESSAGE_REACTION_EMOJIS } from './MessageReactionPicker'
 
 const FULL_EMOJI_LIST = [
@@ -29,7 +29,7 @@ export const MessageReactionPickerFull: React.FC<MessageReactionPickerFullProps>
   onSelect,
   prefixDataTestId = 'chat-message'
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     if (!search.trim()) return FULL_EMOJI_LIST

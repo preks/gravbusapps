@@ -33,7 +33,10 @@ function createControllerHarness(options?: { scheduleFrame?: (callback: FrameReq
   } as never
   const view = {
     dom,
-    dispatch
+    dispatch,
+    state: {
+      tr: transaction
+    }
   } as never
   const overlayManager = {
     close: jest.fn()
@@ -100,6 +103,23 @@ describe('createPaginationCommandController', () => {
     expect(harness.dispatch).toHaveBeenCalledWith(harness.transaction)
     expect(harness.transaction.metas.get('REFRESH')).toBe(true)
     expect(harness.transaction.metas.get('REFRESH_AND_STABILIZE')).toBe(true)
+  })
+
+  it('retries refresh dispatch after microtask when ProseMirror reports a mismatched transaction', async () => {
+    const harness = createControllerHarness()
+    let attempts = 0
+    harness.dispatch.mockImplementation(() => {
+      attempts += 1
+      if (attempts === 1) {
+        throw new RangeError('Applying a mismatched transaction')
+      }
+    })
+
+    expect(harness.controller.dispatchRefreshCommand(harness.editor, false)).toBe(true)
+    expect(harness.dispatch).toHaveBeenCalledTimes(1)
+
+    await Promise.resolve()
+    expect(harness.dispatch).toHaveBeenCalledTimes(2)
   })
 
   it('delegates overlay closing to the manager', () => {

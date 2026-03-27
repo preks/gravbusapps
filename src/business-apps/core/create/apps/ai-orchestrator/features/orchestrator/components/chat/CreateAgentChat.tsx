@@ -6,7 +6,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Textarea
+  Textarea,
+  ToggleGroup,
+  ToggleGroupItem
 } from '@newwork/nw-design-system'
 import { History, Plus, MessageSquare, Sparkles } from 'lucide-react'
 import { useMemo, useCallback, useState } from 'react'
@@ -15,7 +17,7 @@ import { useMessageAuthors } from '../../hooks/useMessageAuthors'
 import { CreateAgentChatMessage } from './CreateAgentChatMessage'
 import { CreateAgentChatInput } from './CreateAgentChatInput'
 import { useCurrentUserPicture } from '@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture'
-import type { CreateChatMessage } from '../../types/chat'
+import type { CreateChatMessage, OrchestratorFixComposerScope } from '../../types/chat'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 function toAvatarUrl(picture: string | undefined | null): string | undefined {
@@ -54,6 +56,10 @@ interface CreateAgentChatProps {
   builtByLoading?: boolean
   accessToken?: string
   testId?: string
+  /** After build: show scope selector (Screen / App / Ask) above the composer */
+  showComposerChangeScope?: boolean
+  composerChangeScope?: OrchestratorFixComposerScope
+  onComposerChangeScope?: (scope: OrchestratorFixComposerScope) => void
 }
 
 export const CreateAgentChat = ({
@@ -69,7 +75,10 @@ export const CreateAgentChat = ({
   builtBy,
   builtByLoading,
   accessToken,
-  testId = 'create-agent-chat'
+  testId = 'create-agent-chat',
+  showComposerChangeScope = false,
+  composerChangeScope = 'screen',
+  onComposerChangeScope
 }: CreateAgentChatProps) => {
   const { messagesEndRef, scrollContainerRef, handleScroll } = useChatScroll(messages.length)
   const [editingMessage, setEditingMessage] = useState<CreateChatMessage | null>(null)
@@ -299,11 +308,23 @@ export const CreateAgentChat = ({
 
       {/* Input */}
       <div className="gba:shrink-0">
+        {showComposerChangeScope && onComposerChangeScope ? (
+          <PostBuildComposerScope
+            scope={composerChangeScope}
+            onScopeChange={onComposerChangeScope}
+            disabled={isProcessing}
+            testIdPrefix={testId}
+          />
+        ) : null}
         <CreateAgentChatInput
           onSend={onSend}
           disabled={isProcessing}
           isProcessing={isProcessing}
           testId={`${testId}-input`}
+          placeholder={
+            postBuildPlaceholder(showComposerChangeScope, composerChangeScope) ??
+            'Ask the agent to refine, build, or fix...'
+          }
         />
       </div>
       <Dialog open={!!editingMessage} onOpenChange={open => !open && closeEditDialog()}>
@@ -343,6 +364,87 @@ export const CreateAgentChat = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+const SCOPE_HELPER: Record<OrchestratorFixComposerScope, string> = {
+  screen: 'Only changes how this screen looks and is built — not your data model or automations.',
+  app: 'Can change data models, flows, functions, and how the app behaves. Rebuild may be needed.',
+  ask: 'Questions about the app or plan. The assistant answers without applying changes when possible.'
+}
+
+function postBuildPlaceholder(
+  showScope: boolean,
+  scope: OrchestratorFixComposerScope
+): string | undefined {
+  if (!showScope) return undefined
+  switch (scope) {
+    case 'screen':
+      return 'Describe layout, labels, or styling changes on this screen…'
+    case 'ask':
+      return 'Ask about this app or the plan…'
+    default:
+      return 'Describe data, workflow, or behavior changes…'
+  }
+}
+
+function PostBuildComposerScope({
+  scope,
+  onScopeChange,
+  disabled,
+  testIdPrefix
+}: {
+  scope: OrchestratorFixComposerScope
+  onScopeChange: (s: OrchestratorFixComposerScope) => void
+  disabled: boolean
+  testIdPrefix: string
+}) {
+  return (
+    <div
+      className="gba:px-3 gba:pt-2 gba:space-y-1.5 gba:border-t gba:border-border/60"
+      data-testid={`${testIdPrefix}-composer-scope`}
+    >
+      <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:px-0.5">What kind of change?</p>
+      <ToggleGroup
+        type="single"
+        value={scope}
+        onValueChange={v => {
+          if (v === 'screen' || v === 'app' || v === 'ask') {
+            onScopeChange(v)
+          }
+        }}
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        className="gba:w-full gba:flex"
+      >
+        <ToggleGroupItem
+          value="screen"
+          aria-label="Screen and layout"
+          data-testid={`${testIdPrefix}-scope-screen`}
+          className="gba:flex-1 gba:min-w-0 gba:text-xs gba:px-1.5"
+        >
+          Screen & layout
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="app"
+          aria-label="App and logic"
+          data-testid={`${testIdPrefix}-scope-app`}
+          className="gba:flex-1 gba:min-w-0 gba:text-xs gba:px-1.5"
+        >
+          App & logic
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="ask"
+          aria-label="Ask first"
+          data-testid={`${testIdPrefix}-scope-ask`}
+          className="gba:flex-1 gba:min-w-0 gba:text-xs gba:px-1.5"
+        >
+          Ask first
+        </ToggleGroupItem>
+      </ToggleGroup>
+      <p className="gba:text-[10px] gba:text-muted-foreground gba:leading-snug gba:px-0.5">{SCOPE_HELPER[scope]}</p>
     </div>
   )
 }

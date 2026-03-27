@@ -12,11 +12,12 @@ import {
   Switch,
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger
+  CollapsibleTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CaretDownIcon, CheckIcon, WarningIcon, XIcon } from '@phosphor-icons/react'
 import { MicLevelIndicator } from './MicLevelIndicator'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 import type { MediaDeviceInfo } from '../../hooks/useMediaDevices'
 
 export interface AudioSettingsModalProps {
@@ -75,7 +76,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
   t: externalT,
   prefixDataTestId = 'audio-settings-modal'
 }) => {
-  const defaultT = useChatTranslation()
+  const { t: defaultT } = useTranslation(translations)
   const t = externalT || defaultT
 
   return (
