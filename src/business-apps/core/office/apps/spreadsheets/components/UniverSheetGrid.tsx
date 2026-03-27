@@ -284,6 +284,7 @@ export interface UniverSheetGridProps {
   onOperationEmit?: (operation: DocumentOperation) => void
   onCursorEmit?: (position: { path: string[] }) => void
   collaborationEnabled?: boolean
+  onDimensionsChange?: (payload: CellDimensionsPayload) => void
   height?: string | number
   width?: string | number
 }
@@ -363,6 +364,37 @@ interface SnapshotDimensions {
   rowHeaderWidth: number
   columnHeaderHeight: number
   zoomRatio: number
+}
+
+function areDimensionMapsEqual(
+  a: Record<string | number, { w?: number; h?: number }>,
+  b: Record<string | number, { w?: number; h?: number }>,
+  key: 'w' | 'h'
+): boolean {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const entryKey of aKeys) {
+    if (!(entryKey in b)) return false
+    const aValue = a[entryKey]?.[key]
+    const bValue = b[entryKey]?.[key]
+    if ((aValue ?? null) !== (bValue ?? null)) return false
+  }
+  return true
+}
+
+function areSnapshotDimensionsEqual(a: SnapshotDimensions | null, b: SnapshotDimensions | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    a.defaultColWidth === b.defaultColWidth &&
+    a.defaultRowHeight === b.defaultRowHeight &&
+    a.rowHeaderWidth === b.rowHeaderWidth &&
+    a.columnHeaderHeight === b.columnHeaderHeight &&
+    a.zoomRatio === b.zoomRatio &&
+    areDimensionMapsEqual(a.columnData, b.columnData, 'w') &&
+    areDimensionMapsEqual(a.rowData, b.rowData, 'h')
+  )
 }
 
 function extractDimensionsFromSnapshot(snap: Record<string, unknown>): SnapshotDimensions | null {
@@ -688,6 +720,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onSnapshotRequested,
       onDataChange,
       onCursorEmit,
+      onDimensionsChange: props.onDimensionsChange,
       onOpenCommentRequest: props.onOpenCommentRequest
     })
     callbacksRef.current = {
@@ -696,6 +729,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onSnapshotRequested,
       onDataChange,
       onCursorEmit,
+      onDimensionsChange: props.onDimensionsChange,
       onOpenCommentRequest: props.onOpenCommentRequest
     }
     const readOnlyRef = useRef(props.isReadOnly)
@@ -1015,10 +1049,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const applyRemoteDimensions = useCallback(
       (payload: CellDimensionsPayload) => {
         if (payload.sheetId !== sheet.id) return
+        const currentColumnData = cellDimensionsRef.current?.columnData ?? {}
         cellDimensionsRef.current = {
           defaultColWidth: payload.defaultColWidth,
           defaultRowHeight: payload.defaultRowHeight,
-          columnData: payload.columnData ?? {},
+          // Column widths are synchronized through durable column metadata. Applying
+          // snapshot-derived columnData here can reintroduce an older width after a newer resize.
+          columnData: currentColumnData,
           rowData: payload.rowData ?? {},
           rowHeaderWidth: payload.rowHeaderWidth,
           columnHeaderHeight: payload.columnHeaderHeight,
@@ -1034,10 +1071,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             setColumnWidth: (col: number, w: number) => unknown
             setRowHeight: (row: number, h: number) => unknown
           }
-          Object.entries(payload.columnData ?? {}).forEach(([colStr, meta]) => {
-            const w = meta?.w
-            if (typeof w === 'number' && w > 0) ws.setColumnWidth(Number(colStr), w)
-          })
           Object.entries(payload.rowData ?? {}).forEach(([rowStr, meta]) => {
             const h = meta?.h
             if (typeof h === 'number' && h > 0) ws.setRowHeight(Number(rowStr), h)
@@ -1093,6 +1126,20 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const a1 = toA1Reference(active.row, active.col)
       return a1 || null
     }, [])
+
+    const toCellDimensionsPayload = useCallback(
+      (dims: SnapshotDimensions): CellDimensionsPayload => ({
+        sheetId: sheet.id,
+        defaultColWidth: dims.defaultColWidth,
+        defaultRowHeight: dims.defaultRowHeight,
+        columnData: dims.columnData,
+        rowData: dims.rowData,
+        rowHeaderWidth: dims.rowHeaderWidth,
+        columnHeaderHeight: dims.columnHeaderHeight,
+        zoomRatio: dims.zoomRatio
+      }),
+      [sheet.id]
+    )
 
     useEffect(() => {
       const container = containerRef.current
@@ -1254,6 +1301,38 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       contextRef.current = createUniverConversionContext(columns, data)
     }, [data, columns])
 
+    useEffect(() => {
+      const api = univerAPIRef.current
+      const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
+      if (
+        !worksheet ||
+        typeof (worksheet as { setColumnWidth?: (col: number, w: number) => unknown }).setColumnWidth !== 'function'
+      ) {
+        return
+      }
+
+      const ws = worksheet as { setColumnWidth: (col: number, w: number) => unknown }
+      const nextColumnData = { ...(cellDimensionsRef.current?.columnData ?? {}) }
+      const visibleColumns = columns.filter(column => column.isVisible !== false)
+      visibleColumns.forEach((column, index) => {
+        if (typeof column.width === 'number' && Number.isFinite(column.width) && column.width > 0) {
+          ws.setColumnWidth(index, column.width)
+          nextColumnData[index] = { ...(nextColumnData[index] ?? {}), w: column.width }
+        }
+      })
+      cellDimensionsRef.current = cellDimensionsRef.current
+        ? { ...cellDimensionsRef.current, columnData: nextColumnData }
+        : {
+            defaultColWidth: CURSOR_OVERLAY_COL_WIDTH_PX,
+            defaultRowHeight: CURSOR_OVERLAY_ROW_HEIGHT_PX,
+            columnData: nextColumnData,
+            rowData: {},
+            rowHeaderWidth: 48,
+            columnHeaderHeight: 28,
+            zoomRatio: 1
+          }
+    }, [columns])
+
     // Fallback interval: separate from Univer lifecycle so it keeps running even if the Univer effect re-runs.
     useEffect(() => {
       const FALLBACK_INTERVAL_MS = 10000
@@ -1281,8 +1360,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => document.removeEventListener('visibilitychange', onVisibilityChange)
     }, [])
 
-    // Recreate Univer when sheet/snapshot seed/read-only mode changes so read-only transitions
-    // immediately reset interactive state and block local edits visually and behaviorally.
+    // Recreate Univer only when the sheet or bootstrap snapshot changes.
+    // Read-only transitions are handled by the overlay plus runtime guards; rebuilding the
+    // workbook on transient lock/editability changes can reapply older bootstrap state.
     useEffect(() => {
       if (!containerRef.current) return
       newRowClientIdByIndexRef.current.clear()
@@ -1320,7 +1400,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
 
       // Re-read from Univer after it hydrates (handles column/row resizes, Excel imports, etc.)
-      const updateCellDimensions = () => {
+      const updateCellDimensions = (): { changed: boolean; dimensions: SnapshotDimensions | null } => {
         try {
           const wb = univerAPIRef.current?.getActiveWorkbook() as unknown as {
             save?: () => Record<string, unknown>
@@ -1328,8 +1408,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           } | null
           const snap = wb?.save?.() ?? wb?.getSnapshot?.()
           const d = snap ? extractDimensionsFromSnapshot(snap) : null
-          if (d) cellDimensionsRef.current = d
-        } catch {}
+          if (!d) return { changed: false, dimensions: null }
+          const changed = !areSnapshotDimensionsEqual(cellDimensionsRef.current, d)
+          cellDimensionsRef.current = d
+          if (changed) {
+            refreshCursorRectsRef.current?.()
+            refreshCommentRectsRef.current?.()
+          }
+          return { changed, dimensions: d }
+        } catch {
+          return { changed: false, dimensions: null }
+        }
       }
       setTimeout(updateCellDimensions, 200)
 
@@ -1391,6 +1480,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       requestSnapshotCheckpointRef.current = requestSnapshotCheckpoint
       scheduleSnapshotCheckpointRef.current = scheduleSnapshotCheckpoint
+      const markDirtyAndScheduleSnapshot = () => {
+        isDirtyRef.current = true
+        hasEditedRef.current = true
+        scheduleSnapshotCheckpoint()
+      }
       const handleSheetScroll = (scrollLeft: number, scrollTop: number) => {
         sheetScrollRef.current = { scrollLeft, scrollTop }
         refreshCursorRectsRef.current?.()
@@ -1490,15 +1584,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           callbacksRef.current.onOpenCommentRequest?.()
         }
         if (readOnlyRef.current) return
+        const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
+        if (dimensionsChanged) {
+          if (dimensions) {
+            callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions))
+          }
+          markDirtyAndScheduleSnapshot()
+        }
         const t = event?.type
         // Only MUTATION (type 2) represents an actual data change. COMMAND (type 0)
         // includes selection/navigation commands which must not trigger snapshots.
         if (t === UNIVER_COMMAND_TYPE_MUTATION) {
-          isDirtyRef.current = true
-          hasEditedRef.current = true
-          scheduleSnapshotCheckpoint()
-          // Refresh cached dimensions — user may have resized columns/rows
-          updateCellDimensions()
+          markDirtyAndScheduleSnapshot()
         }
       })
       const eventKey =
@@ -1704,7 +1801,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
 
       return dispose
-    }, [sheet.id, props.snapshotSeed, props.isReadOnly])
+    }, [sheet.id, props.snapshotSeed])
 
     // Track "active sheet" based on pointer/focus so we can hijack shortcuts even when
     // Univer's canvas selection doesn't move DOM focus (common in published embeds).

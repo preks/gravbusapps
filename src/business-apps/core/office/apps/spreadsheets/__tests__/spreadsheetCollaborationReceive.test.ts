@@ -1,6 +1,6 @@
 /**
  * Tests for spreadsheet collaboration receive/apply logic.
- * Verifies handleCollaborationOperation correctly applies cell_update operations.
+ * Verifies handleCollaborationOperation correctly applies live and persisted spreadsheet updates.
  */
 
 import { createUniverConversionContext } from '../utils/univerAdapter'
@@ -10,6 +10,17 @@ function backendRowIdOf(row: Record<string, unknown>): string {
   return String(
     (row as { _rowUuid?: string })._rowUuid || (row as { _id?: string })._id || (row as { id?: string }).id || ''
   )
+}
+
+function rowMatchesRemoteId(row: Record<string, unknown>, remoteRowId: string): boolean {
+  const candidateIds = [
+    (row as { _rowUuid?: string })._rowUuid,
+    (row as { _id?: string })._id,
+    (row as { id?: string }).id
+  ]
+    .map(value => (value == null ? '' : String(value)))
+    .filter(Boolean)
+  return candidateIds.includes(remoteRowId)
 }
 
 function resolveRemoteCellCoordinates(
@@ -68,6 +79,13 @@ describe('spreadsheetCollaborationReceive', () => {
       expect(result.colIndex).toBe(0)
     })
 
+    it('can fall back to the local row _id when remote row id is not the uuid', () => {
+      const result = resolveRemoteCellCoordinates(columns, dataWithBackendIds, 'ColumnA', 'row_0')
+      expect(result.rowIndex).toBe(0)
+      expect(result.colIndex).toBe(0)
+      expect(result.targetColumnName).toBe('ColumnA')
+    })
+
     it('returns colIndex -1 when column not found', () => {
       const result = resolveRemoteCellCoordinates(columns, dataWithBackendIds, 'NonExistentColumn', 'uuid-1')
       expect(result.rowIndex).toBe(0)
@@ -98,6 +116,94 @@ describe('spreadsheetCollaborationReceive', () => {
       const { rowIndex, colIndex } = resolveRemoteCellCoordinates(columns, dataWithBackendIds, 'BadColumn', 'uuid-1')
       const shouldCallApplyRemoteCellUpdate = rowIndex !== undefined && colIndex !== undefined && colIndex >= 0
       expect(shouldCallApplyRemoteCellUpdate).toBe(false)
+    })
+  })
+
+  describe('sequential remote updates', () => {
+    it('preserves earlier cell changes when remote events arrive back-to-back', () => {
+      const localRef = {
+        current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '', ColumnB: 0 }] as Record<string, unknown>[]
+      }
+
+      const applyRemoteCell = (columnName: string, value: unknown) => {
+        const next = localRef.current.map(row =>
+          backendRowIdOf(row) !== 'uuid-1' ? row : { ...row, [columnName]: value, _updatedAt: 'now' }
+        )
+        // Mirror the production fix: update the ref immediately so the next remote event
+        // builds on the latest rows instead of stale state.
+        localRef.current = next
+      }
+
+      applyRemoteCell('ColumnA', 'first')
+      applyRemoteCell('ColumnB', 42)
+
+      expect(localRef.current).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: 'first', ColumnB: 42, _updatedAt: 'now' }
+      ])
+    })
+
+    it('heals a missed live cell update when the persisted set_range arrives', () => {
+      const localRef = {
+        current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '', ColumnB: 0 }] as Record<string, unknown>[]
+      }
+
+      const applyRemoteRange = (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+        const updatesByRowId = new Map<string, Record<string, unknown>>()
+        for (const cell of cells) {
+          const rowUpdates = updatesByRowId.get(cell.rowId) ?? {}
+          rowUpdates[cell.columnName] = cell.value
+          updatesByRowId.set(cell.rowId, rowUpdates)
+        }
+        localRef.current = localRef.current.map(row => {
+          const updates = updatesByRowId.get(backendRowIdOf(row))
+          return updates ? { ...row, ...updates, _updatedAt: 'now' } : row
+        })
+      }
+
+      // Simulate the first live event being missed entirely on the receiver.
+      applyRemoteRange([
+        { rowId: 'uuid-1', columnName: 'ColumnA', value: 'first' },
+        { rowId: 'uuid-1', columnName: 'ColumnB', value: 42 }
+      ])
+
+      expect(localRef.current).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: 'first', ColumnB: 42, _updatedAt: 'now' }
+      ])
+    })
+
+    it('applies persisted set_range rows even when payload uses _id instead of _rowUuid', () => {
+      const localRef = {
+        current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '', ColumnB: 0 }] as Record<string, unknown>[]
+      }
+
+      const applyRemoteRange = (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+        const updatesByRowId = new Map<string, Record<string, unknown>>()
+        for (const cell of cells) {
+          const rowUpdates = updatesByRowId.get(cell.rowId) ?? {}
+          rowUpdates[cell.columnName] = cell.value
+          updatesByRowId.set(cell.rowId, rowUpdates)
+        }
+        localRef.current = localRef.current.map(row => {
+          const updates =
+            updatesByRowId.get(String((row as { _rowUuid?: string })._rowUuid || '')) ??
+            updatesByRowId.get(String((row as { _id?: string })._id || '')) ??
+            updatesByRowId.get(String((row as { id?: string }).id || ''))
+          return updates ? { ...row, ...updates, _updatedAt: 'now' } : row
+        })
+      }
+
+      applyRemoteRange([{ rowId: 'row_0', columnName: 'ColumnA', value: 'first' }])
+
+      expect(localRef.current).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: 'first', ColumnB: 0, _updatedAt: 'now' }
+      ])
+    })
+
+    it('treats _id and _rowUuid as the same logical row for remote matching', () => {
+      const row = { _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '' }
+      expect(rowMatchesRemoteId(row, 'row_0')).toBe(true)
+      expect(rowMatchesRemoteId(row, 'uuid-1')).toBe(true)
+      expect(rowMatchesRemoteId(row, 'missing')).toBe(false)
     })
   })
 })
