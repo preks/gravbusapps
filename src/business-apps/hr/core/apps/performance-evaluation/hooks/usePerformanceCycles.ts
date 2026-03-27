@@ -10,7 +10,7 @@ import {
 
 export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
-export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed'
+export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive' | 'Completed' | 'In Progress'
 
 export interface EvaluationStage {
   id: string
@@ -76,6 +76,7 @@ function apiStatusToUiStatus(
   evaluationPeriodEndDate: string | undefined
 ): CycleStatus {
   if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Completed'
+  if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'In Progress'
 
   if (evaluationPeriodStartDate && evaluationPeriodEndDate) {
     const today = new Date()
@@ -116,7 +117,7 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     participants: participants.length ? participants : ['Self', 'Manager'],
     stages: [],
     status,
-    deactivated: status === 'Inactive' || status === 'Completed',
+    deactivated: status === 'Inactive' || status === 'Completed' || status === 'In Progress',
     recordState: api.recordState ?? undefined,
     ratingScaleId: api.ratingScaleId ?? undefined,
     valueIds,

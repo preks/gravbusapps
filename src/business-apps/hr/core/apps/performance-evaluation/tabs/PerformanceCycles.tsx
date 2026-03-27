@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Button,
   Badge,
@@ -13,18 +13,9 @@ import {
   CardTitle,
   CardContent,
   useTranslation,
-  toast,
   Spinner
 } from '@newwork/nw-design-system'
-import {
-  CalendarBlank,
-  CheckCircle,
-  PencilSimple,
-  Play,
-  Plus,
-  Trash,
-  Warning as WarningIcon
-} from '@phosphor-icons/react'
+import { CalendarBlank, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import type { CycleStatus, PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -41,9 +32,7 @@ export interface PerformanceCyclesProps {
   ratingScales: RatingScale[]
   valuesStore: ValueItemStored[]
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
-  onCompleteCycle: (cycleId: string) => Promise<void>
   onDeleteCycle: (cycle: PerformanceCycle) => Promise<void>
-  onStartCycle: (cycleId: string) => void
 }
 
 export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
@@ -53,17 +42,25 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   ratingScales,
   valuesStore,
   onSaveFromModal,
-  onCompleteCycle,
-  onDeleteCycle,
-  onStartCycle
+  onDeleteCycle
 }) => {
   const { t } = useTranslation(translations)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
   const [dateOverlapError, setDateOverlapError] = useState<string | null>(null)
 
+  const sortedCycles = useMemo(
+    () =>
+      [...cycles].sort(
+        (a, b) =>
+          new Date(b.evaluationPeriodStartDate ?? '').getTime() - new Date(a.evaluationPeriodStartDate ?? '').getTime()
+      ),
+    [cycles]
+  )
+
   const computeDisplayStatus = (c: PerformanceCycle): CycleStatus => {
     if (c.status === 'Completed') return 'Completed'
+    if (c.status === 'In Progress') return 'In Progress'
     if (c.evaluationPeriodStartDate && c.evaluationPeriodEndDate) {
       const today = new Date()
       const start = new Date(c.evaluationPeriodStartDate)
@@ -73,10 +70,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
     return 'Inactive'
   }
 
-  const canStartCycle = (cycle: PerformanceCycle): boolean => {
-    return computeDisplayStatus(cycle) === 'Active'
-  }
-
   const handleEdit = (cycle: PerformanceCycle) => {
     setDateOverlapError(null)
     setEditing(cycle)
@@ -84,14 +77,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   }
 
   const handleAdd = () => {
-    if (ratingScales.length === 0) {
-      toast.warning(t('cycles-error-no-rating-scales'), {
-        position: 'bottom-right',
-        className: 'gba:text-base',
-        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-      })
-      return
-    }
     setDateOverlapError(null)
     setEditing(null)
     setIsModalOpen(true)
@@ -146,53 +131,40 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                   <TableHead className="gba:w-[24px]"></TableHead>
                   <TableHead>{t('table-name')}</TableHead>
                   <TableHead>{t('table-evaluation-period')}</TableHead>
-                  <TableHead>{t('table-dates')}</TableHead>
-                  <TableHead>{t('table-type')}</TableHead>
-                  <TableHead>{t('table-scale')}</TableHead>
                   <TableHead>{t('table-values')}</TableHead>
-                  <TableHead>{t('table-participants')}</TableHead>
                   <TableHead>{t('table-status')}</TableHead>
                   <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cyclesLoading && cycles.length === 0 ? (
+                {cyclesLoading && sortedCycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
+                    <TableCell colSpan={6} className="gba:py-8 gba:text-center">
                       <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
                     </TableCell>
                   </TableRow>
-                ) : cycles.length === 0 ? (
+                ) : sortedCycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="gba:text-center gba:text-muted-foreground">
+                    <TableCell colSpan={6} className="gba:text-center gba:text-muted-foreground">
                       {t('empty-no-cycles')}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  cycles.map((c, i) => {
-                    const participants = c.participants.join(', ')
-                    const dates = `${c.startDate} → ${c.endDate}`
+                  sortedCycles.map((c, i) => {
                     const evalPeriod =
                       c.evaluationPeriodStartDate && c.evaluationPeriodEndDate
                         ? `${c.evaluationPeriodStartDate} → ${c.evaluationPeriodEndDate}`
                         : '-'
-                    const valueTitles =
-                      (c.valueIds ?? [])
-                        .map(id => valuesStore.find(v => v.id === id)?.title)
-                        .filter(Boolean)
-                        .join(', ') || '-'
+                    const valueNames = (c.valueIds ?? [])
+                      .map(vid => valuesStore.find(v => v.id === vid)?.title)
+                      .filter(Boolean)
+                      .join(', ')
                     return (
                       <TableRow key={c.id}>
                         <TableCell>{i + 1}</TableCell>
                         <TableCell className="gba:font-medium">{c.name}</TableCell>
                         <TableCell>{evalPeriod}</TableCell>
-                        <TableCell>{dates}</TableCell>
-                        <TableCell>{c.frequency}</TableCell>
-                        <TableCell>
-                          {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}
-                        </TableCell>
-                        <TableCell>{valueTitles}</TableCell>
-                        <TableCell>{participants}</TableCell>
+                        <TableCell>{valueNames || '-'}</TableCell>
                         <TableCell>
                           {(() => {
                             const displayStatus = computeDisplayStatus(c)
@@ -201,12 +173,18 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                                 variant={
                                   displayStatus === 'Active'
                                     ? 'success'
-                                    : displayStatus === 'Completed'
-                                      ? 'default'
-                                      : 'secondary'
+                                    : displayStatus === 'In Progress'
+                                      ? 'info'
+                                      : displayStatus === 'Completed'
+                                        ? 'default'
+                                        : 'secondary'
                                 }
                               >
-                                {displayStatus === 'Completed' ? t('status-completed') : displayStatus}
+                                {displayStatus === 'Completed'
+                                  ? t('status-completed')
+                                  : displayStatus === 'In Progress'
+                                    ? t('status-in-progress')
+                                    : displayStatus}
                               </Badge>
                             )
                           })()}
@@ -224,28 +202,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                               aria-label="Delete"
                             >
                               <Trash />
-                            </Button>
-                            {computeDisplayStatus(c) === 'Active' && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="gba:bg-success gba:hover:bg-success/90"
-                                onClick={() => onCompleteCycle(c.id)}
-                                data-testid={`cycle-complete-${c.id}`}
-                              >
-                                <CheckCircle weight="fill" className="gba:mr-1" size={16} />
-                                {t('button-complete')}
-                              </Button>
-                            )}
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => onStartCycle(c.id)}
-                              disabled={!canStartCycle(c)}
-                              data-testid={`cycle-start-${c.id}`}
-                            >
-                              <Play weight="fill" className="gba:mr-1" size={16} />
-                              {t('button-start')}
                             </Button>
                           </div>
                         </TableCell>
@@ -265,6 +221,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
           setIsModalOpen(open)
         }}
         onSave={handleSaveFromModal}
+        mode="cycle"
         dateOverlapError={dateOverlapError}
         onClearDateError={() => setDateOverlapError(null)}
         availableValues={valuesStore}

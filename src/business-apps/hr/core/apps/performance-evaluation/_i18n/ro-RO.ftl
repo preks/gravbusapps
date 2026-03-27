@@ -2,6 +2,7 @@ title = Configurare ciclu de evaluare a performanței
 subtitle = Creează și gestionează cicluri de evaluare a performanței
 
 tab-cycles = Cicluri
+tab-performance = Cicluri de performanță
 tab-rating-scales = Scale de evaluare
 tab-values = Valori
 
@@ -21,6 +22,8 @@ table-scale = Scală
 table-participants = Participanți
 table-status = Stare
 status-completed = Finalizat
+status-in-progress = În desfășurare
+cycle-already-started = "{ $name }" a fost deja pornit.
 table-evaluation-period = Perioadă evaluată
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
@@ -90,6 +93,7 @@ cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
 cycle-completed-to-database = "{ $name }" a fost marcat ca finalizat.
 cycle-deleted-to-database = "{ $name }" a fost șters.
 cycle-started = Se pornește ciclul: { $name }
+cycle-start-rating-scale-required = O scară de evaluare este necesară înainte de a porni "{ $name }". Vă rugăm editați ciclul și selectați o scară de evaluare.
 value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
 value-deleted-to-database = "{ $title }" a fost ștearsă.
 value-activated-to-database = "{ $title }" a fost activată.

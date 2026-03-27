@@ -21,6 +21,7 @@ import type { CycleEditorValues, EvaluationStage as EditorStage } from './CycleE
 import type { RatingScaleValues } from './RatingScaleEditorModal'
 import type { ValueEditorValues } from './ValuesEditorModal'
 import { PerformanceCycles } from './tabs/PerformanceCycles'
+import { Performance } from './tabs/Performance'
 import { RatingScales } from './tabs/RatingScales'
 import { CompanyValues } from './tabs/CompanyValues'
 import { StartCycleConfirmDialog } from './components/StartCycleConfirmDialog'
@@ -50,6 +51,7 @@ function doDateRangesOverlap(startA: string, endA: string, startB: string, endB:
 
 enum PerformanceTabEnum {
   Cycles = 'cycles',
+  Performance = 'performance',
   RatingScales = 'rating-scales',
   Values = 'values'
 }
@@ -76,7 +78,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     refetch: refetchValues
   } = useCompanyValues(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
-  const { savePerformanceCycle, completeCycle, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
+  const { savePerformanceCycle, completeCycle, activateCycle, deletePerformanceCycle } =
+    useSavePerformanceCycle(accessToken)
   const { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState } = useSaveCompanyValue(accessToken)
 
   const hrBackoffice = useScopePermissionCheck(
@@ -90,7 +93,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
-  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.RatingScales)
+  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
   const [startingCycleId, setStartingCycleId] = useState<string | null>(null)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
 
@@ -218,9 +221,22 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const cycle = cycles.find(c => c.id === cycleId)
     if (!cycle) return
 
+    if (cycle.status === 'In Progress' || cycle.status === 'Completed') {
+      toast.warning(t('cycle-already-started', { name: cycle.name }) ?? `"${cycle.name}" has already been started`)
+      return
+    }
+
     const displayStatus = computeStatus(cycle)
     if (displayStatus !== 'Active') {
       toast.warning(t('cycle-not-active', { name: cycle.name }) ?? `Only active cycles can be started`)
+      return
+    }
+
+    if (!cycle.ratingScaleId) {
+      toast.warning(
+        t('cycle-start-rating-scale-required', { name: cycle.name }) ??
+          `A rating scale is required before starting "${cycle.name}"`
+      )
       return
     }
 
@@ -258,6 +274,9 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
 
     try {
+      await activateCycle({ id: cycle.id, version: cycle.version })
+      await refetchCycles()
+
       if (runFor === 'self' && options.employeeId) {
         const payload = {
           employeePerformanceEvaluation: {
@@ -467,7 +486,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           items: [
             { value: PerformanceTabEnum.RatingScales, label: t('tab-rating-scales') },
             { value: PerformanceTabEnum.Values, label: t('tab-values') },
-            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') }
+            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') },
+            { value: PerformanceTabEnum.Performance, label: t('tab-performance') }
           ]
         }}
         variant={MODULE_COLORS.HR}
@@ -481,9 +501,19 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             ratingScales={ratingScales}
             valuesStore={valuesStore}
             onSaveFromModal={handleSaveFromModal}
-            onCompleteCycle={handleCompleteCycle}
             onDeleteCycle={handleDeleteCycle}
+          />
+        )}
+        {activeTab === PerformanceTabEnum.Performance && (
+          <Performance
+            cycles={cycles}
+            cyclesLoading={cyclesLoading}
+            cyclesError={cyclesError}
+            ratingScales={ratingScales}
+            valuesStore={valuesStore}
+            onCompleteCycle={handleCompleteCycle}
             onStartCycle={handleStartCycle}
+            onSaveFromModal={handleSaveFromModal}
           />
         )}
         {activeTab === PerformanceTabEnum.RatingScales && (

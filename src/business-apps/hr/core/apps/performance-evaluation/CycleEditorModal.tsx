@@ -74,11 +74,15 @@ export interface CycleEditorRatingScaleOption {
   values: string[]
 }
 
+export type CycleEditorMode = 'cycle' | 'full' | 'performance'
+
 export interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (values: CycleEditorValues) => void | Promise<void>
   initialValues?: CycleEditorValues
+  /** 'cycle' = name + evaluated period + frequency + values; 'performance' = name (readonly) + execution dates + scale + participants; 'full' = all fields. */
+  mode?: CycleEditorMode
   /** Shown under date fields when cycle dates overlap with an existing cycle. */
   dateOverlapError?: string | null
   /** Called when start or end date changes to clear the overlap error. */
@@ -102,6 +106,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   onOpenChange,
   onSave,
   initialValues,
+  mode = 'full',
   dateOverlapError = null,
   onClearDateError,
   availableValues: availableValuesProp = [],
@@ -207,7 +212,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = async () => {
-    if (!name.trim() || !startDate || !endDate || !evalPeriodStart || !evalPeriodEnd) return
+    if (!name.trim()) return
+    if (mode !== 'performance' && (!evalPeriodStart || !evalPeriodEnd)) return
+    if ((mode === 'full' || mode === 'performance') && (!startDate || !endDate)) return
     const valueIdsToSave = [...new Set(selectedValueIds)]
     const values: CycleEditorValues = {
       id: initialValues?.id,
@@ -280,145 +287,158 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
         </DialogHeader>
 
         <div className="gba:space-y-6">
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+          {mode === 'performance' ? (
             <div className="gba:space-y-2">
-              <Label htmlFor="cycle-name">{t('field-name')} *</Label>
-              <Input
-                id="cycle-name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder={t('placeholder-name')}
-                maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
-              />
+              <Label htmlFor="cycle-name">{t('field-name')}</Label>
+              <Input id="cycle-name" value={name} disabled maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH} />
             </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-evaluation-period-start')} *</Label>
-              <DateInput
-                type="date"
-                value={evalPeriodStart}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEvalPeriodStart(raw)
-                }}
-                outputFormat="iso"
-                captionLayout="dropdown"
-                data-testid="performance-cycle-evaluation-period-start"
-              />
+          ) : (
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2">
+                <Label htmlFor="cycle-name">{t('field-name')} *</Label>
+                <Input
+                  id="cycle-name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={t('placeholder-name')}
+                  maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-evaluation-period-start')} *</Label>
+                <DateInput
+                  type="date"
+                  value={evalPeriodStart}
+                  onChange={(value: DateInputValue) => {
+                    onClearDateError?.()
+                    const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                    setEvalPeriodStart(raw)
+                  }}
+                  outputFormat="iso"
+                  captionLayout="dropdown"
+                  data-testid="performance-cycle-evaluation-period-start"
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-frequency')}</Label>
+                <Combobox
+                  value={frequency}
+                  onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
+                  options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
+                  placeholder={t('placeholder-select-frequency')}
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-evaluation-period-end')} *</Label>
+                <DateInput
+                  type="date"
+                  value={evalPeriodEnd}
+                  disabled
+                  outputFormat="iso"
+                  captionLayout="dropdown"
+                  data-testid="performance-cycle-evaluation-period-end"
+                />
+              </div>
             </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-frequency')}</Label>
-              <Combobox
-                value={frequency}
-                onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
-                options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
-                placeholder={t('placeholder-select-frequency')}
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-evaluation-period-end')} *</Label>
-              <DateInput
-                type="date"
-                value={evalPeriodEnd}
-                disabled
-                outputFormat="iso"
-                captionLayout="dropdown"
-                data-testid="performance-cycle-evaluation-period-end"
-              />
-            </div>
-          </div>
+          )}
           {dateOverlapError && (
             <p className="gba:text-sm gba:text-destructive gba:col-span-full" role="alert">
               {dateOverlapError}
             </p>
           )}
 
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            <div className="gba:space-y-2">
-              <Label>{t('field-start-date')} *</Label>
-              <DateInput
-                type="date"
-                value={startDate}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setStartDate(raw)
-                }}
-                outputFormat="iso"
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-end-date')} *</Label>
-              <DateInput
-                type="date"
-                value={endDate}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEndDate(raw)
-                }}
-                outputFormat="iso"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="gba:space-y-2">
-            <Label>{t('field-rating-scale')} *</Label>
-            <Combobox
-              value={selectedScaleId}
-              onValueChange={v => setSelectedScaleId((v as string) || undefined)}
-              options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
-              placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
-            />
-          </div>
-
-          <div className="gba:space-y-2">
-            <Label>{t('field-values')}</Label>
-            {(() => {
-              const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
-              const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
-              if (!hasValues) {
-                return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
-              }
-              return (
-                <Combobox
-                  key={`cycle-values-${cycleValuesKey}`}
-                  mode="multiple"
-                  value={selectedValueIds}
-                  onValueChange={(ids: string[] | string) => {
-                    const next = Array.isArray(ids) ? ids : ids ? [ids] : []
-                    setSelectedValueIds([...new Set(next)])
+          {(mode === 'full' || mode === 'performance') && (
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2">
+                <Label>{t('field-start-date')} *</Label>
+                <DateInput
+                  type="date"
+                  value={startDate}
+                  onChange={(value: DateInputValue) => {
+                    onClearDateError?.()
+                    const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                    setStartDate(raw)
                   }}
-                  options={availableValues
-                    .filter(v => v.recordState?.toLowerCase() === 'active')
-                    .map(v => ({ label: v.title, value: v.id }))}
-                  placeholder="Select values"
-                  searchPlaceholder="Type to search values..."
-                  emptyText="No results"
-                  className="gba:flex-wrap"
+                  outputFormat="iso"
                 />
-              )
-            })()}
-          </div>
-
-          <div className="gba:space-y-3">
-            <Label>{t('label-evaluation-participants')} *</Label>
-            <div className="gba:flex gba:flex-wrap gba:gap-6">
-              {participantOptions.map(p => (
-                <label key={p} className="gba:flex gba:items-center gba:gap-2">
-                  <Checkbox
-                    checked={!!participantsState[p]}
-                    onCheckedChange={(v: boolean) => setParticipantsState(prev => ({ ...prev, [p]: !!v }))}
-                  />
-                  <span>{getParticipantLabel(p)}</span>
-                </label>
-              ))}
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-end-date')} *</Label>
+                <DateInput
+                  type="date"
+                  value={endDate}
+                  onChange={(value: DateInputValue) => {
+                    onClearDateError?.()
+                    const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                    setEndDate(raw)
+                  }}
+                  outputFormat="iso"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Evaluation Stages section removed */}
+          {(mode === 'full' || mode === 'performance') && <Separator />}
+
+          {(mode === 'full' || mode === 'performance') && (
+            <div className="gba:space-y-2">
+              <Label>{t('field-rating-scale')} *</Label>
+              <Combobox
+                value={selectedScaleId}
+                onValueChange={v => setSelectedScaleId((v as string) || undefined)}
+                options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
+                placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
+              />
+            </div>
+          )}
+
+          {mode !== 'performance' && (
+            <div className="gba:space-y-2">
+              <Label>{t('field-values')}</Label>
+              {(() => {
+                const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
+                const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
+                if (!hasValues) {
+                  return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
+                }
+                return (
+                  <Combobox
+                    key={`cycle-values-${cycleValuesKey}`}
+                    mode="multiple"
+                    value={selectedValueIds}
+                    onValueChange={(ids: string[] | string) => {
+                      const next = Array.isArray(ids) ? ids : ids ? [ids] : []
+                      setSelectedValueIds([...new Set(next)])
+                    }}
+                    options={availableValues
+                      .filter(v => v.recordState?.toLowerCase() === 'active')
+                      .map(v => ({ label: v.title, value: v.id }))}
+                    placeholder="Select values"
+                    searchPlaceholder="Type to search values..."
+                    emptyText="No results"
+                    className="gba:flex-wrap"
+                  />
+                )
+              })()}
+            </div>
+          )}
+
+          {(mode === 'full' || mode === 'performance') && (
+            <div className="gba:space-y-3">
+              <Label>{t('label-evaluation-participants')} *</Label>
+              <div className="gba:flex gba:flex-wrap gba:gap-6">
+                {participantOptions.map(p => (
+                  <label key={p} className="gba:flex gba:items-center gba:gap-2">
+                    <Checkbox
+                      checked={!!participantsState[p]}
+                      onCheckedChange={(v: boolean) => setParticipantsState(prev => ({ ...prev, [p]: !!v }))}
+                    />
+                    <span>{getParticipantLabel(p)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="gba:flex gba:justify-end gba:gap-2">
             <Button variant="secondary" onClick={handleCancel}>
@@ -430,12 +450,11 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               onClick={handleSave}
               disabled={
                 !name.trim() ||
-                !startDate ||
-                !endDate ||
-                !evalPeriodStart ||
-                !evalPeriodEnd ||
-                !selectedScaleId ||
-                selectedParticipants.length === 0 ||
+                (mode !== 'performance' && (!evalPeriodStart || !evalPeriodEnd)) ||
+                (mode === 'full' &&
+                  (!startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0)) ||
+                (mode === 'performance' &&
+                  (!startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0)) ||
                 isSaving
               }
             >

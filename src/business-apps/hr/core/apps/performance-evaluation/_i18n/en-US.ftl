@@ -2,6 +2,7 @@ title = Performance Cycle Configuration
 subtitle = Create and manage performance evaluation cycles
 
 tab-cycles = Cycles
+tab-performance = Performance Cycles
 tab-rating-scales = Rating Scales
 tab-values = Values
 
@@ -21,6 +22,8 @@ table-scale = Scale
 table-participants = Participants
 table-status = Status
 status-completed = Completed
+status-in-progress = In Progress
+cycle-already-started = "{ $name }" has already been started.
 table-evaluation-period = Evaluated Period
 table-actions = Actions
 empty-no-cycles = No cycles created yet.
@@ -89,6 +92,7 @@ cycle-deactivated-to-database = "{ $name }" deactivated.
 cycle-completed-to-database = "{ $name }" marked as completed.
 cycle-deleted-to-database = "{ $name }" deleted.
 cycle-started = Starting cycle: { $name }
+cycle-start-rating-scale-required = A rating scale is required before starting "{ $name }". Please edit the cycle and select a rating scale.
 value-saved-to-database = Company value "{ $title }" saved.
 value-deleted-to-database = "{ $title }" deleted.
 value-activated-to-database = "{ $title }" activated.

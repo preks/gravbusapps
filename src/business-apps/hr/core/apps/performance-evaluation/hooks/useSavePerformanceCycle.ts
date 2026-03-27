@@ -131,9 +131,20 @@ function buildCompletePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayl
   }
 }
 
+function buildActivatePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayload {
+  return {
+    performanceCycle: {
+      id: cycle.id,
+      version: cycle.version ?? 0,
+      status: 'ACTIVE_PERFORMANCE_CYCLE_STATUS'
+    }
+  }
+}
+
 export interface UseSavePerformanceCycleResult {
   savePerformanceCycle: (values: CycleEditorValues) => Promise<SavePerformanceCycleResponse | null>
   completeCycle: (cycle: CycleForUpdate) => Promise<UpdatePerformanceCycleResponse | null>
+  activateCycle: (cycle: CycleForUpdate) => Promise<UpdatePerformanceCycleResponse | null>
   deletePerformanceCycle: (cycle: CycleForUpdate) => Promise<DeletePerformanceCycleResponse | null>
 }
 
@@ -158,6 +169,16 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
+  const activateCycle = useCallback(
+    async (cycle: CycleForUpdate): Promise<UpdatePerformanceCycleResponse | null> => {
+      if (!accessToken) return null
+      const payload = buildActivatePayload(cycle)
+      const result = await updatePerformanceCycleApi(accessToken, payload)
+      return result ?? null
+    },
+    [accessToken]
+  )
+
   const deletePerformanceCycle = useCallback(
     async (cycle: CycleForUpdate): Promise<DeletePerformanceCycleResponse | null> => {
       if (!accessToken) return null
@@ -170,5 +191,5 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
-  return { savePerformanceCycle, completeCycle, deletePerformanceCycle }
+  return { savePerformanceCycle, completeCycle, activateCycle, deletePerformanceCycle }
 }

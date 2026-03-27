@@ -2,6 +2,7 @@ title = Konfiguration des Leistungszyklus
 subtitle = Leistungsbeurteilungszyklen erstellen und verwalten
 
 tab-cycles = Zyklen
+tab-performance = Leistungszyklen
 tab-rating-scales = Bewertungsskalen
 tab-values = Werte
 
@@ -21,6 +22,8 @@ table-scale = Skala
 table-participants = Teilnehmer
 table-status = Status
 status-completed = Abgeschlossen
+status-in-progress = In Bearbeitung
+cycle-already-started = "{ $name }" wurde bereits gestartet.
 table-evaluation-period = Bewerteter Zeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
@@ -90,6 +93,7 @@ cycle-deactivated-to-database = "{ $name }" deaktiviert.
 cycle-completed-to-database = "{ $name }" als abgeschlossen markiert.
 cycle-deleted-to-database = "{ $name }" gelöscht.
 cycle-started = Zyklus wird gestartet: { $name }
+cycle-start-rating-scale-required = Eine Bewertungsskala ist erforderlich, bevor "{ $name }" gestartet werden kann. Bitte bearbeiten Sie den Zyklus und wählen Sie eine Bewertungsskala aus.
 value-saved-to-database = Firmenwert "{ $title }" gespeichert.
 value-deleted-to-database = "{ $title }" gelöscht.
 value-activated-to-database = "{ $title }" aktiviert.
