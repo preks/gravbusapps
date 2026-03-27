@@ -199,7 +199,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   return (
     <div
       data-testid="hcm_createHrAbsence_mainContainer"
-      className="gba:!bg-card gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
+      className="gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
     >
       <FormHeader
         title={headerTitle}

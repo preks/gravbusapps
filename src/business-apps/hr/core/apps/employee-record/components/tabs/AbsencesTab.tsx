@@ -470,7 +470,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 <PiPlus className="gba:h-5 gba:w-5" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+                {getTranslationFromI18nKeyAndLabel('entitlements-change-entitlements', 'Change Entitlements')}
               </div>
             )}
           </div>
@@ -526,7 +526,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 <PiPlus className="gba:h-5 gba:w-5" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+                {getTranslationFromI18nKeyAndLabel('entitlements-change-entitlements', 'Change Entitlements')}
               </div>
             )}
           </div>
@@ -560,7 +560,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       <Dialog open={isEntitlementsModalOpen} onOpenChange={open => setIsEntitlementsModalOpen(open)}>
         <DialogContent
-          className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:!bg-card"
+          className="gba:h-screen gba:max-h-screen gba:!rounded-none"
           data-testid="employee-entitlements-update-modal"
         >
           <UpdateEmployeeEntitlements

@@ -23,11 +23,10 @@ import EntitlementsTable from './EntitlementsTable'
 type UpdateEmployeeEntitlementsFormValues = Record<string, unknown>
 
 interface UpdateEmployeeEntitlementsFormProps {
-  onSubmit?: () => void | Promise<void>
   onCancel?: () => void | Promise<void>
 }
 
-const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormProps> = ({ onSubmit, onCancel }) => {
+const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormProps> = ({ onCancel }) => {
   const {
     employees,
     selectedEmployeeId,
@@ -54,7 +53,6 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   const pageSize = 5
   const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [hasChanges, setHasChanges] = useState(false)
 
   const isEmployeeSelectionMissing = !selectedEmployeeId
   // Keep enabled to allow viewing options even when fixed
@@ -64,7 +62,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   // Until data is loaded from the query, render only a loading state (no fields)
   if (loading) {
     return (
-      <div className="gba:!bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
+      <div className="gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
         <div className="gba:flex gba:flex-1 gba:min-h-[300px] gba:items-center gba:justify-center">
           <Spinner size="lg" data-testid="update-employee-entitlements-loading" />
         </div>
@@ -73,7 +71,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   }
 
   return (
-    <div className="gba:!bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:min-w-0 gba:max-w-full gba:overflow-x-hidden gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
+    <div className="gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:min-w-0 gba:max-w-full gba:overflow-x-hidden gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
       <AppActionForm
         processType="update"
         form={form as any}
@@ -177,7 +175,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
               }}
             >
               <DialogContent
-                className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:!bg-card"
+                className="gba:h-screen gba:max-h-screen gba:!rounded-none"
                 data-testid="mileageRuleModal_modalExpenses"
               >
                 <DialogTitle className="gba:sr-only">
@@ -197,7 +195,6 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                   employeeHeaderInfo={employeeHeaderInfo}
                   onSuccess={async () => {
                     await reload()
-                    setHasChanges(true)
                   }}
                 />
               </DialogContent>
@@ -216,22 +213,6 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
             }}
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.cancel', 'Cancel')}
-          </Button>
-          <Button
-            variant="default"
-            data-testid="hcm_createHrAbsence_submitButton"
-            disabled={!hasChanges}
-            onClick={() => {
-              if (!hasChanges) return
-              if (onSubmit) {
-                void Promise.resolve(onSubmit())
-              }
-            }}
-          >
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
-              'Update'
-            )}
           </Button>
         </div>
       </AppActionForm>
