@@ -71,7 +71,11 @@ export interface SocketIoYjsProviderOptions {
   onRemoteAwarenessChange?: () => void
   /** Resolve before first apply of doc/awareness state so the editor view can mount. */
   onBeforeFirstSync?: () => Promise<void>
+  /** Max wait for `yjs_sync_request` ack (large docs / busy main thread need more time). Default 60s. */
+  syncAckTimeoutMs?: number
 }
+
+const DEFAULT_YJS_SYNC_ACK_TIMEOUT_MS = 60_000
 
 /**
  * SocketIoYjsProvider
@@ -109,6 +113,7 @@ export class SocketIoYjsProvider {
   private retrySyncTimeout: number | null = null
   private pendingLocalDocUpdates: Uint8Array[] = []
   private pendingLocalAwarenessUpdates: Uint8Array[] = []
+  private readonly syncAckTimeoutMs: number
 
   constructor(options: SocketIoYjsProviderOptions) {
     this.socket = options.socket
@@ -123,6 +128,10 @@ export class SocketIoYjsProvider {
     this.onRemoteDocumentChange = options.onRemoteDocumentChange
     this.onRemoteAwarenessChange = options.onRemoteAwarenessChange
     this.onBeforeFirstSync = options.onBeforeFirstSync
+    this.syncAckTimeoutMs =
+      typeof options.syncAckTimeoutMs === 'number' && options.syncAckTimeoutMs > 0
+        ? options.syncAckTimeoutMs
+        : DEFAULT_YJS_SYNC_ACK_TIMEOUT_MS
   }
 
   private async waitReadyIfNeeded(): Promise<void> {
@@ -224,7 +233,7 @@ export class SocketIoYjsProvider {
         this.socket,
         'yjs_sync_request',
         { documentId: this.documentId, entityType: this.entityType },
-        10000
+        this.syncAckTimeoutMs
       )
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'

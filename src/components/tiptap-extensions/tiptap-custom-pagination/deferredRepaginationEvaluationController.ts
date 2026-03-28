@@ -25,10 +25,18 @@ const clampPageCount = (value: number): number => {
   return Math.max(1, Math.min(PAGE_COUNT_HARD_CAP, Math.floor(value)))
 }
 
+/** When stored/measured page count reaches this, break synchronous repagination loops across frames. */
+export const LARGE_DOC_PAGE_YIELD_THRESHOLD = 50
+
+/** After this many loop iterations in a large doc, reschedule evaluation instead of blocking the main thread. */
+export const LARGE_DOC_YIELD_EVERY_N_ITERATIONS = 1
+
 export interface DeferredRepaginationEvaluationResult {
   handled: boolean
   iterations: number
   structuralActionsPerformed: number
+  /** True when work was delegated to a later frame via `onScheduleEvaluation` (large documents only). */
+  deferred?: boolean
 }
 
 function isDestroyedView(view: EditorView) {
@@ -241,6 +249,20 @@ export function runDeferredRepaginationEvaluationLoop(options: {
 
     structuralActionsPerformed += passResult.structuralActionsDelta
     if (passResult.shouldContinueLoop) {
+      // Large docs: avoid tens of synchronous iterations in one task (keeps UI/socket responsive).
+      const effectivePageCount = Math.max(basePageCount, currentPageCount, measuredPageCount)
+      if (
+        effectivePageCount >= LARGE_DOC_PAGE_YIELD_THRESHOLD &&
+        loopIteration % LARGE_DOC_YIELD_EVERY_N_ITERATIONS === 0
+      ) {
+        options.onScheduleEvaluation(options.view)
+        return {
+          handled: false,
+          iterations: loopIteration,
+          structuralActionsPerformed,
+          deferred: true
+        }
+      }
       continue
     }
     if (passResult.handled) {

@@ -159,7 +159,8 @@ describe('usePagedDocumentLayoutState', () => {
       currentPage: 2,
       handleScroll,
       layoutNavigationState,
-      layoutSnapshot
+      layoutSnapshot,
+      isInitialLayoutSettled: true
     })
     mockedUseDocumentLayoutViewportModel.mockReturnValue(layoutViewportModel)
 
@@ -201,7 +202,8 @@ describe('usePagedDocumentLayoutState', () => {
       currentPage: 2,
       handleScroll,
       layoutSnapshot,
-      layoutViewportModel
+      layoutViewportModel,
+      isInitialLayoutSettled: true
     })
   })
 })

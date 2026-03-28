@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type UIEvent } from 'react'
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { Transaction } from '@tiptap/pm/state'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type {
   DocumentLayoutFlowSnapshot,
@@ -14,6 +16,7 @@ import type {
 } from '../../../types'
 import {
   resolvePageShellBodyBounds,
+  yieldToNextAnimationFrame,
   type DocumentLayoutNavigationState,
   type DocumentLayoutService
 } from '../documentLayoutService'
@@ -27,6 +30,7 @@ import {
   mergeRetainedDocumentLayoutPageSpans,
   resolveNextDocumentLayoutVersion
 } from '../documentLayoutSnapshotHelpers'
+import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
 import { resolvePageBodyWrapBands } from '@/components/tiptap-extensions/tiptap-custom-pagination/utils'
 import {
   isDocumentVirtualWindowEnabled,
@@ -48,11 +52,16 @@ export interface UsePaginationLayoutSnapshotResult {
   handleScroll: (event: UIEvent<HTMLDivElement>) => void
   layoutNavigationState: DocumentLayoutNavigationState
   layoutSnapshot: DocumentLayoutSnapshot
+  /** First layout scheduler idle after open (pagination measurement caught up for initial view). */
+  isInitialLayoutSettled: boolean
 }
 
 const PAGE_POSITION_SAMPLE_INSET_PX = 12
 const SPACER_PAGE_HEIGHTS_SEPARATOR = ','
 const OPEN_LAYOUT_BURST_MS = 150
+
+/** Align with repagination large-doc threshold: debounce structural layout to coalesce pagination-owned bursts. */
+const LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD = LARGE_DOC_PAGE_YIELD_THRESHOLD
 
 const BOOTSTRAP_LAYOUT_REASON_PRIORITY: Partial<Record<DocumentLayoutInvalidationReason, number>> = {
   'initial-load': 1,
@@ -80,9 +89,18 @@ function isBootstrapLayoutReason(reason: DocumentLayoutInvalidationReason): bool
   return reason === 'initial-load' || reason === 'document-hydration' || reason === 'layout-service-changed'
 }
 
+/**
+ * Returns the ProseMirror view when `editor.view` and `view.dom` are readable.
+ * TipTap getters throw after unmount — common when layout resumes after `await requestAnimationFrame()`.
+ */
 function resolveEditorView(editor: TiptapEditor | null): TiptapEditor['view'] | null {
   try {
-    return editor?.view ?? null
+    const view = editor?.view ?? null
+    if (!view) {
+      return null
+    }
+    void view.dom
+    return view
   } catch {
     return null
   }
@@ -179,7 +197,7 @@ function resolveMountedPageSamplingBounds(
   fallbackBounds: DocumentLayoutPageBodyBounds[]
 ): DocumentLayoutPageBodyBounds[] {
   const view = resolveEditorView(editor)
-  if (!view || !(view.dom instanceof HTMLElement)) {
+  if (!view) {
     return fallbackBounds
   }
 
@@ -669,8 +687,8 @@ export function usePaginationLayoutSnapshot({
   const [layoutSnapshot, setLayoutSnapshot] = useState<DocumentLayoutSnapshot>(() =>
     createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
   )
-  const layoutSnapshotPageCountRef = useRef(layoutSnapshot.pageCount)
-  layoutSnapshotPageCountRef.current = layoutSnapshot.pageCount
+  /** Last page count from a layout measurement (updated before React state catches up; drives large-doc debounce). */
+  const lastMeasuredLayoutPageCountRef = useRef(1)
   const [layoutNavigationState, setLayoutNavigationState] = useState<DocumentLayoutNavigationState>({
     boundaryEls: [],
     activeRange: null,
@@ -679,6 +697,7 @@ export function usePaginationLayoutSnapshot({
   })
   const [currentPage, setCurrentPage] = useState(1)
   const currentPageRef = useRef(1)
+  const [isInitialLayoutSettled, setIsInitialLayoutSettled] = useState(false)
   const hasInitializedLayoutRef = useRef(false)
   const previousLayoutInputsKeyRef = useRef<string | undefined>(layoutInputsKey)
   const lastMeasuredDocRef = useRef<object | null>(null)
@@ -720,11 +739,18 @@ export function usePaginationLayoutSnapshot({
   )
 
   const rebuildLayoutSnapshot = useCallback(
-    (request: DocumentLayoutMeasurementRequest) => {
+    async (request: DocumentLayoutMeasurementRequest) => {
       const container = editorContainerRef.current
       if (!container) return
 
-      const measurement = resolvedLayoutService.measureLayout(container, request)
+      const measurement =
+        typeof resolvedLayoutService.measureLayoutAsync === 'function'
+          ? await resolvedLayoutService.measureLayoutAsync(container, request)
+          : resolvedLayoutService.measureLayout(container, request)
+      if (!editorContainerRef.current) {
+        return
+      }
+      lastMeasuredLayoutPageCountRef.current = measurement.layout.pageCount
       navigationStateRef.current = measurement.navigationState
       setLayoutNavigationState(previous => {
         const nextNav = measurement.navigationState
@@ -739,6 +765,13 @@ export function usePaginationLayoutSnapshot({
         }
         return nextNav
       })
+      if (measurement.layout.pageCount >= LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD) {
+        await yieldToNextAnimationFrame()
+        await yieldToNextAnimationFrame()
+      }
+      if (!editorContainerRef.current) {
+        return
+      }
       const pageShellBodyBounds = resolvePageShellBodyBounds(measurement.navigationState.pageBreakEls)
       const spacerPageBodyBounds = resolveSpacerPageBodyBounds(measurement.navigationState.flowEls)
       const mountedPageSamplingBounds = resolveMountedPageSamplingBounds(
@@ -772,7 +805,12 @@ export function usePaginationLayoutSnapshot({
           startPos,
           endPos
         }))
-        const currentDoc = editor?.state.doc ?? null
+        let currentDoc: ProseMirrorNode | null = null
+        try {
+          currentDoc = editor?.state.doc ?? null
+        } catch {
+          currentDoc = null
+        }
         const docChanged = currentDoc !== lastMeasuredDocRef.current
         lastMeasuredDocRef.current = currentDoc as object | null
         const nextDocumentVersion = resolveNextDocumentLayoutVersion({
@@ -840,6 +878,7 @@ export function usePaginationLayoutSnapshot({
       ) {
         firstLayoutIdleMarkedRef.current = true
         performance.mark('document-layout-first-idle')
+        setIsInitialLayoutSettled(true)
       }
       if (
         typeof performance !== 'undefined' &&
@@ -866,6 +905,7 @@ export function usePaginationLayoutSnapshot({
   useEffect(() => {
     openBurstDeadlineMsRef.current = Date.now() + OPEN_LAYOUT_BURST_MS
     firstLayoutIdleMarkedRef.current = false
+    setIsInitialLayoutSettled(false)
     if (typeof performance !== 'undefined' && typeof performance.mark === 'function') {
       performance.mark('document-layout-open-bootstrap')
     }
@@ -890,7 +930,7 @@ export function usePaginationLayoutSnapshot({
             const burst = openBurstPendingRef.current
             openBurstPendingRef.current = null
             if (!burst) return
-            const snapshotPageCount = layoutSnapshotPageCountRef.current
+            const snapshotPageCount = lastMeasuredLayoutPageCountRef.current
             layoutScheduler.requestLayout({
               immediate: true,
               reason: burst.reason,
@@ -1000,6 +1040,7 @@ export function usePaginationLayoutSnapshot({
 
   useEffect(() => {
     navigationStateRef.current = { boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] }
+    lastMeasuredLayoutPageCountRef.current = 1
     setLayoutSnapshot(createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source))
     setLayoutNavigationState({ boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] })
     const initialRuntime = layoutScheduler.getState()
@@ -1007,6 +1048,7 @@ export function usePaginationLayoutSnapshot({
     syncDocumentLayoutRuntimeTelemetry(editorContainerRef.current, initialRuntime)
     currentPageRef.current = 1
     setCurrentPage(1)
+    setIsInitialLayoutSettled(false)
     previousLayoutInputsKeyRef.current = layoutInputsKey
   }, [editorContainerRef, layoutScheduler, resolvedLayoutService.source])
 
@@ -1036,12 +1078,16 @@ export function usePaginationLayoutSnapshot({
       return
     }
 
-    const handleTransaction = ({ transaction }: { transaction: { docChanged?: boolean } }) => {
+    const handleTransaction = ({ transaction }: { transaction: Transaction }) => {
       if (!transaction.docChanged || !hasInitializedLayoutRef.current) {
         return
       }
 
-      scheduleLayoutSnapshotRefresh('editor-transaction', true)
+      // Large docs: debounce coalesces rapid structural passes (e.g. pagination-owned RM_PAGES_* transactions).
+      const debounceStructuralLayout =
+        lastMeasuredLayoutPageCountRef.current >= LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD
+
+      scheduleLayoutSnapshotRefresh('editor-transaction', !debounceStructuralLayout)
     }
 
     editor.on('transaction', handleTransaction as never)
@@ -1085,6 +1131,7 @@ export function usePaginationLayoutSnapshot({
     currentPage,
     handleScroll,
     layoutNavigationState,
-    layoutSnapshot
+    layoutSnapshot,
+    isInitialLayoutSettled
   }
 }

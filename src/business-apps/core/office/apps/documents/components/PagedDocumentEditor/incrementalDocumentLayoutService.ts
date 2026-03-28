@@ -7,11 +7,15 @@ import type {
 } from './documentLayoutService'
 import {
   buildLayoutMeasurement,
+  buildLayoutMeasurementAsync,
+  LARGE_DOC_GEOMETRY_BATCH_SIZE,
+  LARGE_DOC_LAYOUT_GEOMETRY_CHUNK_THRESHOLD,
   resolveFirstPageHeaderElement,
   resolveActivePages,
   resolveActiveRange,
   resolveCurrentPageFromLayoutNavigation,
   resolveMountedPageBodyBounds,
+  resolveMountedPageBodyBoundsBatched,
   resolveObservableLayoutRoot,
   resolvePageBreakElementsFromPaginationRoot,
   resolvePaginationFlowElementsFromPaginationRoot,
@@ -169,6 +173,33 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     return measurement
   }
 
+  const rebuildMeasurementAsync = async (
+    registryState: IncrementalPageRegistryState,
+    container: HTMLDivElement,
+    request: Parameters<DocumentLayoutService['measureLayout']>[1]
+  ) => {
+    const measurement = await buildLayoutMeasurementAsync(
+      registryState.pageBreakEls,
+      registryState.flowEls,
+      request,
+      resolveFirstPageHeaderElement(container)
+    )
+    measurement.layout.activeRange = measurement.navigationState.activeRange
+    measurement.layout.activePages = resolveActivePages(
+      measurement.layout.pages,
+      measurement.navigationState.activeRange
+    )
+    cachedMeasurement = {
+      version: registryState.version,
+      ...measurement
+    }
+    cachedViewportWindow = {
+      activeRange: measurement.navigationState.activeRange,
+      activePages: measurement.layout.activePages
+    }
+    return measurement
+  }
+
   const refreshViewportRegistryState = (container: HTMLDivElement): IncrementalPageRegistryState => {
     if (registry.container !== container || registry.version === 0) {
       return syncRegistry(container).state
@@ -229,6 +260,46 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       }
 
       return rebuildMeasurement(registryState, container, request)
+    },
+    async measureLayoutAsync(container, request) {
+      const registryState =
+        request.scope === 'viewport' ? refreshViewportRegistryState(container) : syncRegistry(container).state
+
+      if (request.scope === 'viewport' && cachedMeasurement && cachedMeasurement.version === registryState.version) {
+        const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
+        const matchesCachedViewportWindow =
+          cachedViewportWindow?.activeRange.startPage === activeRange.startPage &&
+          cachedViewportWindow?.activeRange.endPage === activeRange.endPage
+        const activePages = matchesCachedViewportWindow
+          ? cachedViewportWindow.activePages
+          : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
+
+        cachedViewportWindow = {
+          activeRange,
+          activePages
+        }
+        const pageBreakEls = cachedMeasurement.navigationState.pageBreakEls
+        const mountedPageBodyBounds =
+          pageBreakEls.length >= LARGE_DOC_LAYOUT_GEOMETRY_CHUNK_THRESHOLD
+            ? await resolveMountedPageBodyBoundsBatched(pageBreakEls, LARGE_DOC_GEOMETRY_BATCH_SIZE)
+            : resolveMountedPageBodyBounds(pageBreakEls)
+
+        return {
+          layout: {
+            ...cachedMeasurement.layout,
+            mountedPageBodyBounds,
+            pageChromeMetrics: cachedMeasurement.layout.pageChromeMetrics,
+            activeRange,
+            activePages
+          },
+          navigationState: {
+            ...cachedMeasurement.navigationState,
+            activeRange
+          }
+        }
+      }
+
+      return rebuildMeasurementAsync(registryState, container, request)
     },
     resolveCurrentPage(container, navigationState) {
       return resolveCurrentPageFromLayoutNavigation(container, navigationState)

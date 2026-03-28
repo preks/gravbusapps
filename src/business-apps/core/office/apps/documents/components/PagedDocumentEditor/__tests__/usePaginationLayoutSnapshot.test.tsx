@@ -1,7 +1,12 @@
 import type { MutableRefObject, UIEvent } from 'react'
 import { act, renderHook } from '@testing-library/react'
+import type { Transaction } from '@tiptap/pm/state'
 import type { DocumentLayoutMeasurementRequest, DocumentLayoutPageSnapshot } from '../../../types'
+import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
+import { PAGINATION_OWNED_DOC_CHANGE_META } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
+import * as documentLayoutServiceModule from '../documentLayoutService'
 import type { DocumentLayoutService } from '../documentLayoutService'
+import * as documentLayoutScheduler from '../documentLayoutScheduler'
 import {
   mergeDocumentLayoutPagePositionRanges,
   resolveCurrentPageFromPositionRanges,
@@ -567,5 +572,184 @@ describe('usePaginationLayoutSnapshot', () => {
     ]
 
     expect(resolveCurrentPageFromPositionRanges(ranges, 59, 3, 4)).toBe(4)
+  })
+
+  describe('editor-transaction layout debounce for large documents', () => {
+    let requestLayoutCalls: Array<{ reason: string; immediate?: boolean }>
+    const realCreateDocumentLayoutScheduler =
+      jest.requireActual<typeof documentLayoutScheduler>('../documentLayoutScheduler').createDocumentLayoutScheduler
+
+    function createMockTransaction(docChanged: boolean, meta?: Partial<Record<string, unknown>>): Transaction {
+      return {
+        docChanged,
+        getMeta: (key: string) => meta?.[key]
+      } as unknown as Transaction
+    }
+
+    beforeEach(() => {
+      requestLayoutCalls = []
+      jest.spyOn(documentLayoutScheduler, 'createDocumentLayoutScheduler').mockImplementation(params => {
+        const scheduler = realCreateDocumentLayoutScheduler(params)
+        const originalRequestLayout = scheduler.requestLayout.bind(scheduler)
+        scheduler.requestLayout = options => {
+          requestLayoutCalls.push({ reason: options.reason, immediate: options.immediate })
+          return originalRequestLayout(options)
+        }
+        return scheduler
+      })
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('schedules immediate structural layout for editor transactions when page count is below the large-doc threshold', async () => {
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD - 1
+      const { service } = createLayoutServiceStub(pageCount)
+      const container = document.createElement('div')
+      const editorContainerRef = { current: container } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 1,
+        posAtCoords: () => ({ pos: 1 })
+      })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        editor.emit('transaction', {
+          transaction: createMockTransaction(true)
+        })
+      })
+
+      const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
+      expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
+      expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(true)
+    })
+
+    it('debounces structural layout for editor transactions when page count is at or above the large-doc threshold', async () => {
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD
+      const { service } = createLayoutServiceStub(pageCount)
+      const container = document.createElement('div')
+      const editorContainerRef = { current: container } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 1,
+        posAtCoords: () => ({ pos: 1 })
+      })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        editor.emit('transaction', {
+          transaction: createMockTransaction(true, { [PAGINATION_OWNED_DOC_CHANGE_META]: true })
+        })
+      })
+
+      const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
+      expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
+      expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(false)
+    })
+  })
+
+  describe('chunked layout yields after measurement', () => {
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('does not call yieldToNextAnimationFrame when page count is below the large-doc threshold', async () => {
+      const yieldSpy = jest.spyOn(documentLayoutServiceModule, 'yieldToNextAnimationFrame').mockResolvedValue(undefined)
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD - 1
+      const { service } = createLayoutServiceStub(pageCount)
+      const editorContainerRef = { current: document.createElement('div') } as MutableRefObject<HTMLDivElement | null>
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: null,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(yieldSpy).not.toHaveBeenCalled()
+    })
+
+    it('calls yieldToNextAnimationFrame twice when page count reaches the large-doc threshold', async () => {
+      const yieldSpy = jest.spyOn(documentLayoutServiceModule, 'yieldToNextAnimationFrame').mockResolvedValue(undefined)
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD
+      const { service } = createLayoutServiceStub(pageCount)
+      const editorContainerRef = { current: document.createElement('div') } as MutableRefObject<HTMLDivElement | null>
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: null,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(yieldSpy).toHaveBeenCalledTimes(2)
+    })
+
+    it('uses measureLayoutAsync from the layout service when provided', async () => {
+      const pageCount = 6
+      const { measureLayout, service } = createLayoutServiceStub(pageCount)
+      const measureLayoutAsync = jest.fn(async (...args: Parameters<typeof measureLayout>) => measureLayout(...args))
+      service.measureLayoutAsync = measureLayoutAsync
+      const editorContainerRef = { current: document.createElement('div') } as MutableRefObject<HTMLDivElement | null>
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: null,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(measureLayoutAsync).toHaveBeenCalled()
+      expect(measureLayout).toHaveBeenCalled()
+    })
   })
 })

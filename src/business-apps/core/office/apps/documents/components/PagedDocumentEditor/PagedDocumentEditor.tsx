@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -921,13 +921,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const activeHeaderFooterEditor = pagesEditorState.activeEditor
     const activeEditor = activeHeaderFooterEditor ?? editor
-    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel } = usePagedDocumentLayoutState({
-      editor,
-      editorContainerRef,
-      documentId: document?.id,
-      isYjsSynced,
-      layoutInputsKey
-    })
+    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, isInitialLayoutSettled } =
+      usePagedDocumentLayoutState({
+        editor,
+        editorContainerRef,
+        documentId: document?.id,
+        isYjsSynced,
+        layoutInputsKey
+      })
+
+    const showDocumentOpeningIndicator = Boolean(document?.id) && (!isYjsSynced || !isInitialLayoutSettled)
 
     useEffect(() => {
       setDocumentTocLayoutHints({
@@ -1289,6 +1292,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         className="gba:relative gba:flex gba:h-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:bg-background"
         data-testid={testId}
       >
+        {showDocumentOpeningIndicator ? (
+          <div
+            className="gba:pointer-events-none gba:fixed gba:left-1/2 gba:top-20 gba:z-30 gba:flex gba:-translate-x-1/2 gba:items-center gba:gap-2 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-4 gba:py-2 gba:shadow-md"
+            role="status"
+            aria-live="polite"
+            data-testid={`${testId}-document-opening-indicator`}
+          >
+            <Spinner size="sm" />
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {!isYjsSynced ? t('editor-opening-collaboration') : t('editor-opening-layout')}
+            </span>
+          </div>
+        ) : null}
         <div className="gba:sticky gba:top-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
           <PagedDocumentEditorHeader
             document={document}
