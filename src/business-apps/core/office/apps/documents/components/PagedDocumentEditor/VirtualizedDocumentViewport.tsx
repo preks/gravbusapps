@@ -1,7 +1,6 @@
 import React, { type MutableRefObject } from 'react'
 import { EditorContent, type Editor as TiptapEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
-import type { DocumentLayoutRuntimeState } from '../../types'
 import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { DocumentContextMenu } from './DocumentContextMenu'
 import type { DocumentLayoutViewportModel } from './hooks/useDocumentLayoutViewportModel'
@@ -21,7 +20,6 @@ export interface VirtualizedDocumentViewportProps {
   editorViewportStyle: React.CSSProperties | undefined
   layoutSnapshotPageCount: number
   layoutViewportModel: DocumentLayoutViewportModel
-  runtimeState: DocumentLayoutRuntimeState
   contextMenuState: DocumentContextMenuState
   onContextMenuCapture: React.MouseEventHandler
   onScroll: React.UIEventHandler<HTMLDivElement>
@@ -42,7 +40,6 @@ export function VirtualizedDocumentViewport({
   editorViewportStyle,
   layoutSnapshotPageCount,
   layoutViewportModel,
-  runtimeState,
   contextMenuState,
   onContextMenuCapture,
   onScroll,
@@ -73,9 +70,6 @@ export function VirtualizedDocumentViewport({
       data-layout-version={layoutViewportModel.layoutVersion}
       data-layout-page-span-count={layoutViewportModel.pageSpans.length}
       data-layout-table-fragment-count={layoutViewportModel.tableFragments.length}
-      data-layout-runtime-status={runtimeState.status}
-      data-layout-runtime-generation={runtimeState.resolvedGeneration}
-      data-layout-runtime-reason={runtimeState.lastResolvedReason ?? ''}
       data-virtual-window-threshold={DOCUMENT_VIRTUAL_WINDOW_PAGE_THRESHOLD}
       data-virtual-window-radius={DOCUMENT_VIRTUAL_WINDOW_RADIUS}
       data-virtual-window-page-count={DOCUMENT_VIRTUAL_WINDOW_PAGE_COUNT}

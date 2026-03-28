@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react'
 import { renderHook } from '@testing-library/react'
-import type { DocumentLayoutRuntimeState, DocumentLayoutSnapshot } from '../../../types'
+import type { DocumentLayoutSnapshot } from '../../../types'
 import type { DocumentLayoutNavigationState } from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from '../hooks/useDocumentLayoutViewportModel'
 import { useApplyDocumentLayoutViewportMarkers } from '../hooks/useApplyDocumentLayoutViewportMarkers'
@@ -109,20 +109,6 @@ describe('usePagedDocumentLayoutState', () => {
       pageBreakEls: [document.createElement('div')],
       flowEls: []
     }
-    const runtimeState: DocumentLayoutRuntimeState = {
-      source: 'incremental-layout-engine',
-      requestedGeneration: 2,
-      resolvedGeneration: 2,
-      status: 'idle',
-      pendingScope: null,
-      pendingRange: null,
-      lastRequestedReason: 'initial-load',
-      lastRequestedScope: 'full-document',
-      lastRequestedRange: { startPage: 1, endPage: 4 },
-      lastResolvedReason: 'initial-load',
-      lastResolvedScope: 'full-document',
-      lastResolvedRange: { startPage: 1, endPage: 4 }
-    }
     const layoutViewportModel: DocumentLayoutViewportModel = {
       documentVersion: 1,
       layoutVersion: 2,
@@ -173,8 +159,7 @@ describe('usePagedDocumentLayoutState', () => {
       currentPage: 2,
       handleScroll,
       layoutNavigationState,
-      layoutSnapshot,
-      runtimeState
+      layoutSnapshot
     })
     mockedUseDocumentLayoutViewportModel.mockReturnValue(layoutViewportModel)
 
@@ -216,8 +201,7 @@ describe('usePagedDocumentLayoutState', () => {
       currentPage: 2,
       handleScroll,
       layoutSnapshot,
-      layoutViewportModel,
-      runtimeState
+      layoutViewportModel
     })
   })
 })

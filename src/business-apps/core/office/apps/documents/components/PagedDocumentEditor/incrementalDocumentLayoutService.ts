@@ -237,9 +237,33 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       const root = resolveObservableLayoutRoot(editor, container)
       let observedPaginationRoot: HTMLElement | null = null
       let paginationObserver: MutationObserver | null = null
+      let layoutObserverFlushRaf: number | null = null
+      let layoutObserverFlushNeedsRebind = false
 
       const onResize = () => {
         onInvalidated('viewport-resize')
+      }
+
+      const flushLayoutObserverInvalidation = () => {
+        if (layoutObserverFlushNeedsRebind) {
+          bindPaginationObserver()
+        }
+        layoutObserverFlushNeedsRebind = false
+        const registryResult = syncRegistry(container)
+        if (registryResult.changed) {
+          onInvalidated(registryResult.invalidationReason)
+        }
+      }
+
+      const scheduleLayoutObserverFlush = (needsRebind: boolean) => {
+        layoutObserverFlushNeedsRebind = layoutObserverFlushNeedsRebind || needsRebind
+        if (layoutObserverFlushRaf !== null) {
+          return
+        }
+        layoutObserverFlushRaf = requestAnimationFrame(() => {
+          layoutObserverFlushRaf = null
+          flushLayoutObserverInvalidation()
+        })
       }
 
       const bindPaginationObserver = () => {
@@ -253,10 +277,7 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
         if (!nextPaginationRoot) return
 
         paginationObserver = new MutationObserver(() => {
-          const registryResult = syncRegistry(container)
-          if (registryResult.changed) {
-            onInvalidated(registryResult.invalidationReason)
-          }
+          scheduleLayoutObserverFlush(false)
         })
 
         paginationObserver.observe(nextPaginationRoot, {
@@ -279,17 +300,17 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
 
       if (!root) {
         return () => {
+          if (layoutObserverFlushRaf !== null) {
+            cancelAnimationFrame(layoutObserverFlushRaf)
+            layoutObserverFlushRaf = null
+          }
           paginationObserver?.disconnect()
           globalThis.window.removeEventListener('resize', onResize)
         }
       }
 
       const rootObserver = new MutationObserver(() => {
-        const registryResult = syncRegistry(container)
-        bindPaginationObserver()
-        if (registryResult.changed) {
-          onInvalidated(registryResult.invalidationReason)
-        }
+        scheduleLayoutObserverFlush(true)
       })
 
       rootObserver.observe(root, {
@@ -300,6 +321,10 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       })
 
       return () => {
+        if (layoutObserverFlushRaf !== null) {
+          cancelAnimationFrame(layoutObserverFlushRaf)
+          layoutObserverFlushRaf = null
+        }
         paginationObserver?.disconnect()
         rootObserver.disconnect()
         globalThis.window.removeEventListener('resize', onResize)

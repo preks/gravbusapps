@@ -408,7 +408,7 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
     unsubscribe()
   })
 
-  it('still invalidates when pagination flow children change', () => {
+  it('still invalidates when pagination flow children change', async () => {
     const service = createIncrementalDocumentLayoutService()
     const container = mountPaginationRoot(2)
     const onInvalidated = jest.fn()
@@ -429,10 +429,14 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
     paginationRoot.appendChild(createPage(document, 3))
     fakeObservers[0]?.callback([], fakeObservers[0] as unknown as MutationObserver)
 
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => resolve())
+    })
+
     expect(onInvalidated).toHaveBeenCalledWith('legacy-dom-structure')
   })
 
-  it('downgrades mounted-window-only pagination changes to viewport invalidations', () => {
+  it('downgrades mounted-window-only pagination changes to viewport invalidations', async () => {
     const service = createIncrementalDocumentLayoutService()
     const container = mountPaginationRoot(2)
     const onInvalidated = jest.fn()
@@ -453,6 +457,10 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
 
     paginationRoot.replaceChildren(createPage(document, 2), createPage(document, 3))
     fakeObservers[0]?.callback([], fakeObservers[0] as unknown as MutationObserver)
+
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => resolve())
+    })
 
     expect(onInvalidated).toHaveBeenCalledWith('viewport-resize')
   })

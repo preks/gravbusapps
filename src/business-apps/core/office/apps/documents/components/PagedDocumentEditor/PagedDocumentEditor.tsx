@@ -921,14 +921,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const activeHeaderFooterEditor = pagesEditorState.activeEditor
     const activeEditor = activeHeaderFooterEditor ?? editor
-    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, runtimeState } =
-      usePagedDocumentLayoutState({
-        editor,
-        editorContainerRef,
-        documentId: document?.id,
-        isYjsSynced,
-        layoutInputsKey
-      })
+    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel } = usePagedDocumentLayoutState({
+      editor,
+      editorContainerRef,
+      documentId: document?.id,
+      isYjsSynced,
+      layoutInputsKey
+    })
 
     useEffect(() => {
       setDocumentTocLayoutHints({
@@ -1389,7 +1388,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             editorViewportStyle={editorViewportStyle}
             layoutSnapshotPageCount={layoutSnapshot.pageCount}
             layoutViewportModel={layoutViewportModel}
-            runtimeState={runtimeState}
             contextMenuState={contextMenuState}
             onContextMenuCapture={handleContextMenuCapture}
             onScroll={handleScroll}
