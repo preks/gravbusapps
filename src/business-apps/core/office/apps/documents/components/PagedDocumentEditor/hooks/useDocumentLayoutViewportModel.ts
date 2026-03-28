@@ -10,6 +10,7 @@ import type {
   DocumentLayoutSource,
   DocumentLayoutTableFragmentSnapshot
 } from '../../../types'
+import { isDocumentVirtualWindowEnabled } from '../virtualWindowConfig'
 
 export interface DocumentLayoutViewportModel {
   documentVersion: number
@@ -52,11 +53,18 @@ export function useDocumentLayoutViewportModel(
 ): DocumentLayoutViewportModel {
   return useMemo(() => {
     const totalPages = Math.max(1, layoutSnapshot.pageCount)
-    const activeRange = layoutSnapshot.activeRange ?? createFallbackRange(totalPages)
-    const activePageNumbers = layoutSnapshot.activePages.map(page => page.pageNumber)
+    const windowingEnabled = isDocumentVirtualWindowEnabled(totalPages)
+    const activeRange = windowingEnabled
+      ? (layoutSnapshot.activeRange ?? createFallbackRange(totalPages))
+      : createFallbackRange(totalPages)
+    const activePageNumbers = windowingEnabled
+      ? layoutSnapshot.activePages.map(page => page.pageNumber)
+      : Array.from({ length: totalPages }, (_unused, index) => index + 1)
     const activePageCount = activePageNumbers.length
-    const mountedRange = layoutSnapshot.mountedRange
-    const mountedPageNumbers = layoutSnapshot.pages.filter(page => page.isMounted).map(page => page.pageNumber)
+    const mountedRange = windowingEnabled ? layoutSnapshot.mountedRange : createFallbackRange(totalPages)
+    const mountedPageNumbers = windowingEnabled
+      ? layoutSnapshot.pages.filter(page => page.isMounted).map(page => page.pageNumber)
+      : Array.from({ length: totalPages }, (_unused, index) => index + 1)
     const mountedPageCount = mountedPageNumbers.length
     const pageBounds = layoutSnapshot.pageBounds
     const mountedPageBodyBounds = layoutSnapshot.mountedPageBodyBounds

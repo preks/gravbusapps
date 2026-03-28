@@ -17,6 +17,8 @@ export interface DocumentLayoutNavigationState {
   flowEls: HTMLElement[]
 }
 
+const PAGINATION_TOTAL_PAGES_HARD_CAP = 2000
+
 export interface DocumentLayoutMeasurement {
   pageCount: number
   pages: DocumentLayoutPageSnapshot[]
@@ -113,14 +115,21 @@ export function resolvePaginationRootElement(container: HTMLDivElement): HTMLEle
     (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
   )
   if (!paginationChrome) {
-    return null
+    const nestedPagination = container.querySelector('[data-rm-pagination]')
+    return nestedPagination instanceof HTMLElement ? nestedPagination : null
   }
 
-  return (
+  const directChromePagination =
     Array.from(paginationChrome.children).find(
       (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === ''
     ) ?? null
-  )
+
+  if (directChromePagination) {
+    return directChromePagination
+  }
+
+  const nestedChromePagination = paginationChrome.querySelector('[data-rm-pagination]')
+  return nestedChromePagination instanceof HTMLElement ? nestedChromePagination : null
 }
 
 export function resolveFirstPageHeaderElement(container: HTMLDivElement): HTMLElement | null {
@@ -138,17 +147,24 @@ export function resolveFirstPageHeaderElement(container: HTMLDivElement): HTMLEl
     (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
   )
   if (!paginationChrome) {
-    return null
+    const nestedFirstPageHeader = container.querySelector('.rm-first-page-header[data-rm-page-number="1"]')
+    return nestedFirstPageHeader instanceof HTMLElement ? nestedFirstPageHeader : null
   }
 
-  return (
+  const directChromeFirstPageHeader =
     Array.from(paginationChrome.children).find(
       (child): child is HTMLElement =>
         child instanceof HTMLElement &&
         child.classList.contains('rm-first-page-header') &&
         child.dataset.rmPageNumber === '1'
     ) ?? null
-  )
+
+  if (directChromeFirstPageHeader) {
+    return directChromeFirstPageHeader
+  }
+
+  const nestedChromeFirstPageHeader = paginationChrome.querySelector('.rm-first-page-header[data-rm-page-number="1"]')
+  return nestedChromeFirstPageHeader instanceof HTMLElement ? nestedChromeFirstPageHeader : null
 }
 
 export function resolvePageBreakElementsFromPaginationRoot(paginationRoot: HTMLElement | null): HTMLElement[] {
@@ -183,10 +199,10 @@ export function resolvePaginationTotalPagesFromPaginationRoot(
 ): number {
   const explicitTotalPages = Number(paginationRoot?.dataset.rmTotalPages ?? '')
   if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
-    return explicitTotalPages
+    return Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, explicitTotalPages)
   }
 
-  return Math.max(1, pageBreakEls.length)
+  return Math.max(1, Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, pageBreakEls.length))
 }
 
 function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null {
@@ -200,6 +216,16 @@ function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null 
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
+function resolvePageBreakShellState(pageBreakEl: HTMLElement): 'hydrated' | 'placeholder' {
+  const explicitShellState = pageBreakEl.dataset.rmPageShellState
+  if (explicitShellState === 'hydrated' || explicitShellState === 'placeholder') {
+    return explicitShellState
+  }
+
+  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  return breaker?.dataset.rmBreakerMode === 'placeholder' ? 'placeholder' : 'hydrated'
+}
+
 function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLElement | null {
   const bodyLayer = pageBreakEl.querySelector('.rm-page-body-layer[data-rm-page-number]')
   if (bodyLayer instanceof HTMLElement) {
@@ -210,9 +236,17 @@ function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLEleme
   return pageElement instanceof HTMLElement ? pageElement : null
 }
 
-export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+function resolvePageBodyBounds(
+  pageBreakEls: HTMLElement[],
+  options?: { mountedOnly?: boolean }
+): DocumentLayoutPageBodyBounds[] {
+  const mountedOnly = options?.mountedOnly ?? false
   return pageBreakEls
     .map(pageBreakEl => {
+      if (mountedOnly && resolvePageBreakShellState(pageBreakEl) !== 'hydrated') {
+        return null
+      }
+
       const pageNumber = resolvePageNumberForPageBreak(pageBreakEl)
       const bodyElement = resolvePageBodyElementForPageBreak(pageBreakEl)
       if (pageNumber === null || !(bodyElement instanceof HTMLElement)) {
@@ -233,6 +267,14 @@ export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): Docum
       }
     })
     .filter((bounds): bounds is DocumentLayoutPageBodyBounds => bounds !== null)
+}
+
+export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return resolvePageBodyBounds(pageBreakEls, { mountedOnly: true })
+}
+
+export function resolvePageShellBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return resolvePageBodyBounds(pageBreakEls)
 }
 
 function readRegionHeight(region: Element | null): number {
@@ -398,21 +440,25 @@ function createFlowIndexedPageList(
       if (pageNumber === null || pageNumber < 1 || pageNumber > pageCount) {
         return
       }
+      const shellState = resolvePageBreakShellState(flowEl)
+      const isMounted = shellState === 'hydrated'
 
       flow.push({
         flowIndex,
         pageRange: createPageRange(pageNumber, pageNumber),
-        kind: 'page-break',
-        isMounted: true
+        kind: shellState === 'hydrated' ? 'page-break' : 'placeholder',
+        isMounted
       })
       pages[pageNumber - 1] = {
         pageNumber,
         flowIndex,
-        mountedIndex,
-        isMounted: true
+        mountedIndex: isMounted ? mountedIndex : null,
+        isMounted
       }
-      mountedIndex += 1
-      updateMountedRange(pageNumber)
+      if (isMounted) {
+        mountedIndex += 1
+        updateMountedRange(pageNumber)
+      }
       return
     }
 
@@ -458,13 +504,16 @@ export function buildLayoutMeasurement(
     .filter((pageNumber): pageNumber is number => pageNumber !== null)
   let pageCount = Math.max(1, pageBreakEls.length)
   if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
-    pageCount = explicitTotalPages
+    pageCount = Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, explicitTotalPages)
   } else if (indexedPageNumbers.length > 0) {
     pageCount = Math.max(...indexedPageNumbers)
   }
+  pageCount = Math.max(1, Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, pageCount))
   const indexedLayout = createFlowIndexedPageList(pageCount, flowEls)
   const mountedPageBodyBounds = resolveMountedPageBodyBounds(pageBreakEls)
   const pageChromeMetrics = resolveMountedPageChromeMetrics(pageBreakEls, firstPageHeader)
+  const activeRange = resolveActiveRange(pageCount, request)
+  const activePages = resolveActivePages(indexedLayout.pages, activeRange)
 
   return {
     layout: {
@@ -474,11 +523,11 @@ export function buildLayoutMeasurement(
       mountedRange: indexedLayout.mountedRange,
       mountedPageBodyBounds,
       pageChromeMetrics,
-      activePages: [],
-      activeRange: null
+      activePages,
+      activeRange
     },
     navigationState: {
-      activeRange: resolveActiveRange(pageCount, request),
+      activeRange,
       pageBreakEls,
       flowEls,
       boundaryEls: pageBreakEls

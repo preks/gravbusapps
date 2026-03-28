@@ -364,8 +364,9 @@ export function useYjsDocumentSync({
       readyStateInspectionCompletedRef.current = true
 
       const currentHtml = await getCurrentEditorHtmlSnapshot()
-      const htmlHasCustomTags = containsCustomDocumentTags(currentHtml)
-      const htmlHasPaginationRuntimeMarkup = containsPaginationRuntimeTableMarkup(currentHtml)
+      const sanitizedSnapshot = sanitizePaginationRuntimeHtml(currentHtml)
+      const htmlHasCustomTags = containsCustomDocumentTags(sanitizedSnapshot)
+      const htmlHasPaginationRuntimeMarkup = containsPaginationRuntimeTableMarkup(sanitizedSnapshot)
 
       if (debugTablesEnabled) {
         logDocumentTableDebug(debugTablesEnabled, documentId, 'ready-state-html-snapshot', {
@@ -393,16 +394,11 @@ export function useYjsDocumentSync({
         return
       }
 
-      const normalizedCurrentHtml = sanitizePaginationRuntimeHtml(currentHtml)
-      if (normalizedCurrentHtml === currentHtml) {
-        return
-      }
-
       paginationRuntimeRecoveryAttemptedRef.current = true
-      console.warn('[PagedDocumentEditor] Recovering collaboration state with leaked pagination table runtime markup')
-      scheduleNormalizedRecovery(currentHtml, 'pagination-runtime')
+      // Apply the sanitized snapshot directly to avoid leaking pagination runtime metadata into collaboration state.
+      await applyNormalizedContentToEditor(sanitizedSnapshot)
     },
-    [debugTablesEnabled, documentId, getCurrentEditorHtmlSnapshot, officeClient, scheduleNormalizedRecovery]
+    [applyNormalizedContentToEditor, debugTablesEnabled, documentId, getCurrentEditorHtmlSnapshot, officeClient]
   )
 
   // Drive Yjs sync over Socket.IO: create provider, start, cleanup

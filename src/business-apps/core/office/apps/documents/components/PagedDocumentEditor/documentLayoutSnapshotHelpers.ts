@@ -209,13 +209,14 @@ function collectCommentRanges(doc: ProseMirrorNode): Map<string, CommentRangeGro
 
 export function createDocumentLayoutPageSpans(
   ranges: DocumentLayoutPositionRange[],
-  source: Extract<DocumentLayoutPageSpan['source'], 'mounted' | 'spacer'>
+  source: Extract<DocumentLayoutPageSpan['source'], 'mounted' | 'placeholder' | 'spacer'>
 ): DocumentLayoutPageSpan[] {
   return ranges.map(range => toPageSpan(range, source)).sort((left, right) => left.pageNumber - right.pageNumber)
 }
 
 export function mergeMeasuredDocumentLayoutPageSpans(options: {
   mountedRanges: DocumentLayoutPositionRange[]
+  placeholderRanges: DocumentLayoutPositionRange[]
   spacerRanges: DocumentLayoutPositionRange[]
   pageCount: number
 }): DocumentLayoutPageSpan[] {
@@ -223,6 +224,12 @@ export function mergeMeasuredDocumentLayoutPageSpans(options: {
   const safePageCount = Math.max(1, options.pageCount)
 
   createDocumentLayoutPageSpans(options.spacerRanges, 'spacer').forEach(pageSpan => {
+    if (pageSpan.pageNumber >= 1 && pageSpan.pageNumber <= safePageCount) {
+      merged.set(pageSpan.pageNumber, pageSpan)
+    }
+  })
+
+  createDocumentLayoutPageSpans(options.placeholderRanges, 'placeholder').forEach(pageSpan => {
     if (pageSpan.pageNumber >= 1 && pageSpan.pageNumber <= safePageCount) {
       merged.set(pageSpan.pageNumber, pageSpan)
     }

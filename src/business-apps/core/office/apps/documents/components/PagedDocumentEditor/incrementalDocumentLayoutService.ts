@@ -25,6 +25,8 @@ interface IncrementalPageRegistryState {
   pageBreakEls: HTMLElement[]
   flowEls: HTMLElement[]
   totalPageCount: number
+  mountedRangeKey: string
+  pageShellStateKey: string
 }
 
 interface SyncedIncrementalRegistryResult {
@@ -38,16 +40,37 @@ function hasRegistryChanged(
   container: HTMLDivElement,
   nextPageBreakEls: HTMLElement[],
   nextFlowEls: HTMLElement[],
-  nextTotalPageCount: number
+  nextTotalPageCount: number,
+  nextMountedRangeKey: string,
+  nextPageShellStateKey: string
 ) {
   if (current.container !== container) return true
   if (current.totalPageCount !== nextTotalPageCount) return true
+  if (current.mountedRangeKey !== nextMountedRangeKey) return true
+  if (current.pageShellStateKey !== nextPageShellStateKey) return true
   if (current.pageBreakEls.length !== nextPageBreakEls.length) return true
   if (current.flowEls.length !== nextFlowEls.length) return true
   return (
     current.pageBreakEls.some((element, index) => element !== nextPageBreakEls[index]) ||
     current.flowEls.some((element, index) => element !== nextFlowEls[index])
   )
+}
+
+function resolveMountedRangeKey(paginationRoot: HTMLElement | null) {
+  return `${paginationRoot?.dataset.rmMountedStartPage ?? ''}-${paginationRoot?.dataset.rmMountedEndPage ?? ''}`
+}
+
+function resolvePageShellStateKey(pageBreakEls: HTMLElement[]) {
+  return pageBreakEls
+    .map(pageBreakEl => {
+      const pageNumber =
+        pageBreakEl.dataset.rmPageNumber ||
+        pageBreakEl.querySelector('.page[data-rm-page-number]')?.getAttribute('data-rm-page-number') ||
+        '0'
+      const shellState = pageBreakEl.dataset.rmPageShellState ?? 'hydrated'
+      return `${pageNumber}:${shellState}`
+    })
+    .join('|')
 }
 
 function resolveRegistryInvalidationReason(options: {
@@ -68,7 +91,9 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     version: 0,
     pageBreakEls: [],
     flowEls: [],
-    totalPageCount: 1
+    totalPageCount: 1,
+    mountedRangeKey: '',
+    pageShellStateKey: ''
   }
   let cachedMeasurement: {
     version: number
@@ -85,7 +110,17 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     const nextPageBreakEls = resolvePageBreakElementsFromPaginationRoot(paginationRoot)
     const nextFlowEls = resolvePaginationFlowElementsFromPaginationRoot(paginationRoot)
     const nextTotalPageCount = resolvePaginationTotalPagesFromPaginationRoot(paginationRoot, nextPageBreakEls)
-    const changed = hasRegistryChanged(registry, container, nextPageBreakEls, nextFlowEls, nextTotalPageCount)
+    const nextMountedRangeKey = resolveMountedRangeKey(paginationRoot)
+    const nextPageShellStateKey = resolvePageShellStateKey(nextPageBreakEls)
+    const changed = hasRegistryChanged(
+      registry,
+      container,
+      nextPageBreakEls,
+      nextFlowEls,
+      nextTotalPageCount,
+      nextMountedRangeKey,
+      nextPageShellStateKey
+    )
     const invalidationReason = resolveRegistryInvalidationReason({
       current: registry,
       container,
@@ -96,7 +131,9 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       version: changed ? registry.version + 1 : registry.version,
       pageBreakEls: nextPageBreakEls,
       flowEls: nextFlowEls,
-      totalPageCount: nextTotalPageCount
+      totalPageCount: nextTotalPageCount,
+      mountedRangeKey: nextMountedRangeKey,
+      pageShellStateKey: nextPageShellStateKey
     }
     return {
       changed,
@@ -132,12 +169,34 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     return measurement
   }
 
+  const refreshViewportRegistryState = (container: HTMLDivElement): IncrementalPageRegistryState => {
+    if (registry.container !== container || registry.version === 0) {
+      return syncRegistry(container).state
+    }
+
+    const paginationRoot = resolvePaginationRootElement(container)
+    const nextMountedRangeKey = resolveMountedRangeKey(paginationRoot)
+    const nextPageShellStateKey = resolvePageShellStateKey(registry.pageBreakEls)
+
+    if (registry.mountedRangeKey === nextMountedRangeKey && registry.pageShellStateKey === nextPageShellStateKey) {
+      return registry
+    }
+
+    registry = {
+      ...registry,
+      version: registry.version + 1,
+      mountedRangeKey: nextMountedRangeKey,
+      pageShellStateKey: nextPageShellStateKey
+    }
+
+    return registry
+  }
+
   return {
     source: 'incremental-layout-engine',
     measureLayout(container, request) {
-      const canReuseRegistryState =
-        request.scope === 'viewport' && registry.container === container && registry.version > 0
-      const registryState = canReuseRegistryState ? registry : syncRegistry(container).state
+      const registryState =
+        request.scope === 'viewport' ? refreshViewportRegistryState(container) : syncRegistry(container).state
 
       if (request.scope === 'viewport' && cachedMeasurement && cachedMeasurement.version === registryState.version) {
         const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
@@ -202,8 +261,14 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
 
         paginationObserver.observe(nextPaginationRoot, {
           childList: true,
-          subtree: false,
-          attributes: false,
+          subtree: true,
+          attributes: true,
+          attributeFilter: [
+            'data-rm-page-shell-state',
+            'data-rm-breaker-mode',
+            'data-rm-mounted-start-page',
+            'data-rm-mounted-end-page'
+          ],
           characterData: false
         })
       }

@@ -6,8 +6,6 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
-import { EditorContent } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
 import { Button, useTranslation } from '@newwork/nw-design-system'
 import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
@@ -32,8 +30,6 @@ import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComme
 import { usePublishing } from '@/business-apps/platform/apps/shared/hooks/usePublishing'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
-import { LinkBubbleMenu } from './LinkBubbleMenu'
-import { DocumentContextMenu } from './DocumentContextMenu'
 import { NavigationPanel } from './NavigationPanel'
 import { DocumentBottomBar } from './DocumentBottomBar'
 import { PagedDocumentAiInstructionOverlay } from './PagedDocumentAiInstructionOverlay'
@@ -60,6 +56,7 @@ import {
   getSelectedImageState,
   usePagedDocumentSelectionSidebars
 } from './hooks/usePagedDocumentSelectionSidebars'
+import { VirtualizedDocumentViewport } from './VirtualizedDocumentViewport'
 import { DOCUMENT_TOC_OPEN_FORMAT_EVENT } from './components/DocumentTableOfContentsView'
 import { useDocumentContextMenu } from './useDocumentContextMenu'
 import translations from '../../_i18n'
@@ -1256,6 +1253,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Get character count
     const charCount = editor?.storage.characterCount?.characters?.() || editor?.getText().length || 0
+    const pagesStorage =
+      (editor as (typeof editor & { storage?: { pages?: PagesStorage } }) | null)?.storage?.pages ?? null
+    const clampPageCount = (value: number | null | undefined) =>
+      Math.max(1, Math.min(2000, Number.isFinite(value as number) ? (value as number) : 1))
+    const resolvedPageCount = Math.max(
+      clampPageCount(layoutSnapshot.pageCount),
+      clampPageCount(pagesStorage?.getPageCount?.()),
+      clampPageCount(pagesStorage?.pageCount),
+      1
+    )
+    const resolvedCurrentPage = Math.max(
+      1,
+      Math.min(pagesEditorState.activePageNumber ?? currentPage ?? 1, resolvedPageCount)
+    )
     const proseMinHeight =
       paginationConfig != null
         ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom
@@ -1367,71 +1378,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               ) : null}
             </>
           )}
-          {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
-          <div
-            ref={editorContainerRef}
-            className={`gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto document-editor-viewport ${viewportBodyStateClass}`}
-            style={editorViewportStyle}
+          <VirtualizedDocumentViewport
+            editor={editor}
+            activeEditor={activeEditor}
+            editorContainerRef={editorContainerRef}
+            zoom={zoom}
+            viewportBodyStateClass={viewportBodyStateClass}
+            editorViewportStyle={editorViewportStyle}
+            layoutSnapshotPageCount={layoutSnapshot.pageCount}
+            layoutViewportModel={layoutViewportModel}
+            runtimeState={runtimeState}
+            contextMenuState={contextMenuState}
+            onContextMenuCapture={handleContextMenuCapture}
             onScroll={handleScroll}
-            data-layout-source={layoutViewportModel.source}
-            data-layout-window-mode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}
-            data-layout-window-start={layoutViewportModel.activeRange.startPage}
-            data-layout-window-end={layoutViewportModel.activeRange.endPage}
-            data-layout-window-size={layoutViewportModel.activePageCount}
-            data-layout-mounted-start={layoutViewportModel.mountedRange?.startPage}
-            data-layout-mounted-end={layoutViewportModel.mountedRange?.endPage}
-            data-layout-mounted-size={layoutViewportModel.mountedPageCount}
-            data-layout-window-key={layoutViewportModel.windowKey}
-            data-layout-current-page-in-window={layoutViewportModel.containsCurrentPage ? 'true' : 'false'}
-            data-layout-document-version={layoutViewportModel.documentVersion}
-            data-layout-version={layoutViewportModel.layoutVersion}
-            data-layout-page-span-count={layoutViewportModel.pageSpans.length}
-            data-layout-table-fragment-count={layoutViewportModel.tableFragments.length}
-            data-layout-runtime-status={runtimeState.status}
-            data-layout-runtime-generation={runtimeState.resolvedGeneration}
-            data-layout-runtime-reason={runtimeState.lastResolvedReason ?? ''}
-          >
-            <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
-              <DocumentContextMenu
-                editor={activeEditor}
-                contextMenuState={contextMenuState}
-                onContextMenuCapture={handleContextMenuCapture}
-                onOpenLinkDialog={openLinkDialog}
-                onAddInlineComment={() => handleAddInlineComment()}
-                onAiEditClick={openAiEditSidebar}
-                onOpenReplaceImageDialog={openReplaceImageDialog}
-                onOpenTableSidebar={openTableSettingsSidebar}
-                onOpenImageSidebar={openImageSettingsSidebar}
-                data-testid="document-editor-context-menu"
-              >
-                <div
-                  className="paged-document-editor"
-                  style={{
-                    transform: `scale(${zoom / 100})`,
-                    transformOrigin: 'top center'
-                  }}
-                  data-layout-active-pages={layoutViewportModel.activePageNumbers.join(',')}
-                >
-                  <EditorContent editor={editor} className="editor-content" />
-                  {editor && (
-                    <BubbleMenu
-                      editor={editor}
-                      shouldShow={({ editor: e }) => e.isActive('link')}
-                      pluginKey="linkBubbleMenu"
-                      onMouseDown={event => event.preventDefault()}
-                    >
-                      <LinkBubbleMenu
-                        editor={editor}
-                        onEdit={() => openLinkDialogForEditor(editor)}
-                        data-testid="document-link-bubble-menu"
-                      />
-                    </BubbleMenu>
-                  )}
-                  {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
-                </div>
-              </DocumentContextMenu>
-            </div>
-          </div>
+            onOpenLinkDialog={openLinkDialog}
+            onAddInlineComment={() => handleAddInlineComment()}
+            onAiEditClick={openAiEditSidebar}
+            onOpenReplaceImageDialog={openReplaceImageDialog}
+            onOpenImageSidebar={openImageSettingsSidebar}
+            onOpenLinkDialogForEditor={openLinkDialogForEditor}
+          />
         </div>
 
         <div className="gba:sticky gba:bottom-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
@@ -1439,8 +1405,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             zoom={zoom}
             wordCount={wordCount}
             charCount={charCount}
-            currentPage={pagesEditorState.activePageNumber ?? Math.min(currentPage, layoutSnapshot.pageCount)}
-            pageCount={layoutSnapshot.pageCount}
+            currentPage={resolvedCurrentPage}
+            pageCount={resolvedPageCount}
             layoutWindowLabel={layoutViewportModel.rangeLabel}
             layoutWindowMode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}
             onZoomOut={handleZoomOut}

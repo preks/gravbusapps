@@ -4,10 +4,14 @@ import type { DocumentLayoutMeasurementRequest, DocumentLayoutPageSnapshot } fro
 import type { DocumentLayoutService } from '../documentLayoutService'
 import {
   mergeDocumentLayoutPagePositionRanges,
+  resolveCurrentPageFromPositionRanges,
   resolveCurrentPageFromPageBounds,
   resolveMountedPagePositionRanges,
+  resolvePreferredActiveRange,
   resolveSpacerPageBodyBounds,
   resolveSpacerPagePositionRanges,
+  shouldRefreshViewportWindow,
+  shouldUseWindowedLayout,
   shouldScheduleDocumentHydrationRefresh,
   usePaginationLayoutSnapshot
 } from '../hooks/usePaginationLayoutSnapshot'
@@ -309,5 +313,47 @@ describe('usePaginationLayoutSnapshot', () => {
         false
       )
     ).toEqual([{ pageNumber: 2, startPos: 20, endPos: 39 }])
+  })
+
+  it('activates the virtual page window once the document grows beyond five pages', () => {
+    expect(shouldUseWindowedLayout(5)).toBe(false)
+    expect(shouldUseWindowedLayout(6)).toBe(true)
+  })
+
+  it('centers the preferred active range around the current page with two pages of overscan', () => {
+    expect(resolvePreferredActiveRange(4, 2)).toEqual({ startPage: 1, endPage: 4 })
+    expect(resolvePreferredActiveRange(6, 1)).toEqual({ startPage: 1, endPage: 3 })
+    expect(resolvePreferredActiveRange(6, 3)).toEqual({ startPage: 1, endPage: 5 })
+    expect(resolvePreferredActiveRange(6, 4)).toEqual({ startPage: 2, endPage: 6 })
+    expect(resolvePreferredActiveRange(14, 14)).toEqual({ startPage: 12, endPage: 14 })
+  })
+
+  it('shifts the viewport window whenever the centered page range changes', () => {
+    expect(shouldRefreshViewportWindow({ startPage: 1, endPage: 3 }, 2, 6)).toBe(true)
+    expect(shouldRefreshViewportWindow({ startPage: 1, endPage: 5 }, 3, 6)).toBe(false)
+    expect(shouldRefreshViewportWindow({ startPage: 1, endPage: 5 }, 4, 6)).toBe(true)
+    expect(shouldRefreshViewportWindow({ startPage: 12, endPage: 14 }, 14, 14)).toBe(false)
+  })
+
+  it('derives the current page from selection position ranges while editing', () => {
+    const ranges = [
+      { pageNumber: 1, startPos: 1, endPos: 19 },
+      { pageNumber: 2, startPos: 20, endPos: 39 },
+      { pageNumber: 3, startPos: 40, endPos: 59 }
+    ]
+
+    expect(resolveCurrentPageFromPositionRanges(ranges, 25, 1)).toBe(2)
+    expect(resolveCurrentPageFromPositionRanges(ranges, 60, 1)).toBe(3)
+    expect(resolveCurrentPageFromPositionRanges(ranges, -1, 2)).toBe(2)
+  })
+
+  it('prefers the visible trailing page when the selection is parked at the last measured document position', () => {
+    const ranges = [
+      { pageNumber: 1, startPos: 1, endPos: 19 },
+      { pageNumber: 2, startPos: 20, endPos: 39 },
+      { pageNumber: 3, startPos: 40, endPos: 59 }
+    ]
+
+    expect(resolveCurrentPageFromPositionRanges(ranges, 59, 3, 4)).toBe(4)
   })
 })

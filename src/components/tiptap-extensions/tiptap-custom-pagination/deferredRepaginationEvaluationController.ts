@@ -3,7 +3,9 @@ import { runDeferredRepaginationPass } from './deferredRepaginationRuntime'
 import {
   resolveDeferredRepaginationMeasurementState,
   type AddPagesMeasurementSnapshot,
-  type PaginationMeasuredHeights
+  type PaginationMeasuredHeights,
+  PAGE_COUNT_HARD_CAP,
+  MAX_PAGE_GROWTH_PER_EVALUATION
 } from './paginationPageCountPolicy'
 import {
   resolveDeferredRepaginationPreflight,
@@ -17,6 +19,11 @@ import {
 import type { PagesOptions, PagesStorage } from './types'
 import type { PageBodyMeasurementBand } from './utils'
 import type { TablePaginationControllerResult } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
+
+const clampPageCount = (value: number): number => {
+  if (!Number.isFinite(value)) return 1
+  return Math.max(1, Math.min(PAGE_COUNT_HARD_CAP, Math.floor(value)))
+}
 
 export interface DeferredRepaginationEvaluationResult {
   handled: boolean
@@ -79,8 +86,15 @@ export function runDeferredRepaginationEvaluationLoop(options: {
     }
   }
 
+  // Guard against runaway values before evaluation loop runs.
+  const clampedInitial = clampPageCount(options.storage.pageCount)
+  if (options.storage.pageCount !== clampedInitial) {
+    options.storage.pageCount = clampedInitial
+  }
+
   let structuralActionsPerformed = 0
   let loopIteration = 0
+  const basePageCount = clampPageCount(options.storage.pageCount)
 
   while (!isDestroyedView(options.view)) {
     loopIteration += 1
@@ -106,6 +120,13 @@ export function runDeferredRepaginationEvaluationLoop(options: {
       measureHeights: () => options.measureHeights(options.view, options.storage, runtimeOptions)
     })
     options.setMeasuredHeights(deferredRepaginationMeasurement.measured)
+
+    // Hard guard: total pages in this evaluation loop must not exceed base + MAX_PAGE_GROWTH_PER_EVALUATION.
+    const loopGrowthCap = basePageCount + MAX_PAGE_GROWTH_PER_EVALUATION
+    if (deferredRepaginationMeasurement.measuredPageCount > loopGrowthCap) {
+      deferredRepaginationMeasurement.measuredPageCount = clampPageCount(loopGrowthCap)
+      deferredRepaginationMeasurement.rawMeasuredPageCount = clampPageCount(loopGrowthCap)
+    }
 
     const currentPageCount = deferredRepaginationMeasurement.currentPageCount
     const rawMeasuredPageCount = deferredRepaginationMeasurement.rawMeasuredPageCount

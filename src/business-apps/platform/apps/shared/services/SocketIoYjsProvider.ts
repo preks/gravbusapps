@@ -107,6 +107,8 @@ export class SocketIoYjsProvider {
   private hasWaitedForReady = false
 
   private retrySyncTimeout: number | null = null
+  private pendingLocalDocUpdates: Uint8Array[] = []
+  private pendingLocalAwarenessUpdates: Uint8Array[] = []
 
   constructor(options: SocketIoYjsProviderOptions) {
     this.socket = options.socket
@@ -153,6 +155,8 @@ export class SocketIoYjsProvider {
       window.clearTimeout(this.retrySyncTimeout)
       this.retrySyncTimeout = null
     }
+    this.pendingLocalDocUpdates = []
+    this.pendingLocalAwarenessUpdates = []
 
     this.socket.off('connect', this.handleSocketConnect)
     this.socket.off('yjs_update', this.handleRemoteYjsUpdate)
@@ -171,6 +175,28 @@ export class SocketIoYjsProvider {
     if (this.synced === next) return
     this.synced = next
     this.onSyncedChange?.(next)
+
+    // Flush any local updates that happened before the initial sync completed.
+    if (next && this.pendingLocalDocUpdates.length > 0) {
+      const updates = this.pendingLocalDocUpdates.splice(0)
+      updates.forEach(update => {
+        this.socket.emit('yjs_update', {
+          documentId: this.documentId,
+          entityType: this.entityType,
+          update: uint8ArrayToBase64(update)
+        })
+      })
+    }
+    if (next && this.pendingLocalAwarenessUpdates.length > 0) {
+      const updates = this.pendingLocalAwarenessUpdates.splice(0)
+      updates.forEach(update => {
+        this.socket.emit('yjs_awareness_update', {
+          documentId: this.documentId,
+          entityType: this.entityType,
+          update: uint8ArrayToBase64(update)
+        })
+      })
+    }
   }
 
   private triggerSync() {
@@ -436,11 +462,15 @@ export class SocketIoYjsProvider {
 
   private handleLocalYjsUpdate = (_update: Uint8Array, origin: unknown) => {
     if (this.destroyed) return
-    if (!this.synced) return
     if (origin === 'remote') return
 
     const updateBase64 = uint8ArrayToBase64(_update)
-    this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
+    if (this.synced) {
+      this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
+    } else {
+      // Buffer until initial sync completes to avoid losing early edits made before ready state arrives.
+      this.pendingLocalDocUpdates.push(_update)
+    }
     this.onLocalDocumentChange?.()
   }
 
@@ -457,17 +487,20 @@ export class SocketIoYjsProvider {
     origin: unknown
   ) => {
     if (this.destroyed) return
-    if (!this.synced) return
     if (origin === 'remote') return
 
     const changed = [...added, ...updated, ...removed]
     if (changed.length === 0) return
 
     const update = encodeAwarenessUpdate(this.awareness, changed)
-    this.socket.emit('yjs_awareness_update', {
-      documentId: this.documentId,
-      entityType: this.entityType,
-      update: uint8ArrayToBase64(update)
-    })
+    if (this.synced) {
+      this.socket.emit('yjs_awareness_update', {
+        documentId: this.documentId,
+        entityType: this.entityType,
+        update: uint8ArrayToBase64(update)
+      })
+    } else {
+      this.pendingLocalAwarenessUpdates.push(update)
+    }
   }
 }

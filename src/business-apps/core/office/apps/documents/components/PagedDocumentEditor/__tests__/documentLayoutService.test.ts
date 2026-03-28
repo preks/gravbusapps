@@ -285,6 +285,39 @@ function runSharedLayoutServiceContract(label: string, createService: typeof cre
       expect(measurement.layout.activePages.map(page => page.pageNumber)).toEqual([1, 2, 3])
     })
 
+    it('reads pagination state when the pagination root is nested inside viewport shell wrappers', () => {
+      const service = createService()
+      const container = document.createElement('div')
+      const viewportShell = document.createElement('div')
+      const contextMenuTrigger = document.createElement('div')
+      const paginationChrome = document.createElement('div')
+      const paginationRoot = document.createElement('div')
+
+      paginationChrome.dataset.rmPaginationChrome = 'true'
+      paginationRoot.dataset.rmPagination = ''
+      paginationRoot.dataset.rmTotalPages = '7'
+
+      for (let pageNumber = 2; pageNumber <= 6; pageNumber += 1) {
+        paginationRoot.appendChild(createPage(document, pageNumber))
+      }
+
+      paginationChrome.appendChild(paginationRoot)
+      contextMenuTrigger.appendChild(paginationChrome)
+      viewportShell.appendChild(contextMenuTrigger)
+      container.appendChild(viewportShell)
+
+      const measurement = service.measureLayout(
+        container,
+        createMeasurementRequest(1, 'viewport-resize', 'viewport', { startPage: 2, endPage: 6 })
+      )
+
+      expect(measurement.layout.pageCount).toBe(7)
+      expect(measurement.layout.mountedRange).toEqual({ startPage: 2, endPage: 6 })
+      expect(measurement.navigationState.pageBreakEls).toHaveLength(5)
+      expect(measurement.navigationState.flowEls).toHaveLength(5)
+      expect(measurement.layout.activePages.map(page => page.pageNumber)).toEqual([2, 3, 4, 5, 6])
+    })
+
     it('captures mounted page body bounds in the layout measurement', () => {
       const service = createService()
       const container = mountPaginationRoot(2)

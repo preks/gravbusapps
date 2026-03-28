@@ -1186,14 +1186,14 @@ describe('resolvePaginationWidgetTotalPages', () => {
     ).toBe(14)
   })
 
-  it('still preserves the existing page count until a downward refresh is explicitly accepted', () => {
+  it('allows the widget total to shrink under suppression when the measured page count drops', () => {
     expect(
       resolvePaginationWidgetTotalPages({
         storedPageCount: 14,
         measuredPageCount: 13,
         growthSuppressionPageCount: 14
       })
-    ).toBe(14)
+    ).toBe(13)
   })
 
   it('allows normal upward growth once suppression is cleared', () => {
@@ -2183,6 +2183,76 @@ describe('resolvePaginationBodyClick', () => {
     } as never
 
     expect(resolvePaginationBodyClick(view, 72, 320)).toEqual({ action: 'allow' })
+  })
+
+  it('maps a blank last-page click to the document end when coords lookup misses', () => {
+    const editorDom = document.createElement('div')
+    const pageThirteenBodyBand = document.createElement('div')
+    const pageFourteenBodyBand = document.createElement('div')
+
+    pageThirteenBodyBand.className = 'rm-page-body-layer'
+    pageThirteenBodyBand.dataset.rmPageNumber = '13'
+    pageFourteenBodyBand.className = 'rm-page-body-layer'
+    pageFourteenBodyBand.dataset.rmPageNumber = '14'
+    editorDom.append(pageThirteenBodyBand, pageFourteenBodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(pageThirteenBodyBand, { top: 100, bottom: 220, left: 20, right: 180 })
+    setRect(pageFourteenBodyBand, { top: 240, bottom: 360, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true
+        },
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 5
+            }
+          },
+          content: {
+            size: 42
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 5,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: null
+          })
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position === 42
+          ? {
+              top: 180,
+              bottom: 198,
+              left: 72,
+              right: 72
+            }
+          : {
+              top: 120,
+              bottom: 138,
+              left: 72,
+              right: 72
+            },
+      posAtCoords: () => null
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 300)).toEqual({ action: 'set', position: 42 })
   })
 
   it('clamps clicks away from the excluded side of a square-right wrapped image', () => {
