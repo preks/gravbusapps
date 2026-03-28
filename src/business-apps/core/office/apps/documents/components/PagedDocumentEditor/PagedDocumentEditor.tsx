@@ -861,7 +861,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const imageHandlers = useEditorImageHandlers({
       editorRef,
       uploadImage,
-      uploadContext: imageUploadContext
+      uploadContext: imageUploadContext,
+      paginationConfig
     })
 
     // Layout snapshot drives page count/current page, while header/footer editor state can temporarily override page UI.
@@ -1292,6 +1293,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         <div className="gba:sticky gba:top-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
           <PagedDocumentEditorHeader
             document={document}
+            paginationConfig={paginationConfig}
             title={title}
             isReadOnly={isReadOnly}
             isSaving={isSaving}
@@ -1456,6 +1458,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageDialogMode={imageDialogMode}
           uploadImage={uploadImage}
           imageUploadContext={imageUploadContext}
+          paginationConfig={paginationConfig}
           onSubmitImage={imageDialogMode === 'replace' ? handleReplaceSelectedImage : undefined}
           showInsertTableDialog={showInsertTableDialog}
           setShowInsertTableDialog={setShowInsertTableDialog}
