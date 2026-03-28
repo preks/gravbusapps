@@ -100,7 +100,7 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
       // Tables using design system components
       table: ({ children }: { children?: React.ReactNode }) => (
         <div className="gba:overflow-x-auto gba:my-4 gba:rounded-lg gba:border gba:border-border gba:shadow-sm">
-          <Table className="gba:w-full">{children}</Table>
+          <Table className="gba:w-full gba:min-w-[520px] sm:gba:min-w-full">{children}</Table>
         </div>
       ),
       thead: ({ children }: { children?: React.ReactNode }) => <TableHeader>{children}</TableHeader>,
@@ -109,7 +109,7 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
         <TableRow className="gba:hover:bg-muted/30">{children}</TableRow>
       ),
       th: ({ children }: { children?: React.ReactNode }) => (
-        <TableHead className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap gba:align-top gba:min-w-[120px]">
+        <TableHead className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-2 sm:gba:py-3 gba:px-2 sm:gba:px-4 gba:align-top gba:min-w-[100px] sm:gba:min-w-[120px] gba:whitespace-normal gba:break-words">
           {children}
         </TableHead>
       ),
@@ -120,14 +120,14 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
 
         return (
           <TableCell
-            className={`gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] ${
+            className={`gba:py-2 sm:gba:py-3 gba:px-2 sm:gba:px-4 gba:align-top gba:min-w-[100px] sm:gba:min-w-[120px] ${
               isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : 'gba:text-foreground'
             }`}
             style={{
               wordBreak: 'break-word',
               overflowWrap: 'break-word',
               whiteSpace: 'normal',
-              maxWidth: '400px'
+              maxWidth: '320px'
             }}
             title={isLong ? cellContent : undefined}
           >
@@ -159,7 +159,7 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
 
       // Paragraphs - no bottom margin, spacing handled by gap in parent or sibling selector
       p: ({ children }: { children?: React.ReactNode }) => (
-        <p className="gba:mb-0 gba:leading-relaxed gba:text-foreground [&+p]:gba:mt-2">{children}</p>
+        <p className="gba:mb-0 gba:leading-relaxed gba:text-foreground gba:break-words [&+p]:gba:mt-2">{children}</p>
       ),
 
       // Headers
@@ -198,7 +198,7 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
         }
 
         return (
-          <code className="gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded gba:text-sm gba:font-mono gba:text-foreground">
+          <code className="gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded gba:text-xs sm:gba:text-sm gba:font-mono gba:text-foreground gba:break-all">
             {children}
           </code>
         )
@@ -225,7 +225,7 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
 
   // Variant-specific prose classes
   const proseClasses = useMemo(() => {
-    const baseClasses = 'gba:prose gba:max-w-none gba:text-foreground'
+    const baseClasses = 'gba:prose gba:max-w-none gba:text-foreground gba:overflow-x-auto'
     switch (variant) {
       case 'chat':
         return `${baseClasses} gba:text-sm [&>*:last-child]:gba:mb-0`
