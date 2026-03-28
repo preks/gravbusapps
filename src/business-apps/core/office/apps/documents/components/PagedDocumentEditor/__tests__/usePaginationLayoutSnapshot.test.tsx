@@ -1,5 +1,5 @@
-import type { MutableRefObject } from 'react'
-import { renderHook } from '@testing-library/react'
+import type { MutableRefObject, UIEvent } from 'react'
+import { act, renderHook } from '@testing-library/react'
 import type { DocumentLayoutMeasurementRequest, DocumentLayoutPageSnapshot } from '../../../types'
 import type { DocumentLayoutService } from '../documentLayoutService'
 import {
@@ -76,6 +76,125 @@ function createLayoutServiceStub(pageCount = 30) {
   }
 }
 
+function createSparseLayoutServiceStub(options?: {
+  pageCount?: number
+  initialResolvedCurrentPage?: number
+  initialVisiblePage?: number
+}) {
+  const pageCount = options?.pageCount ?? 30
+  const pageHeight = 100
+  const viewportCenterY = 100
+  const pages = createPageSnapshots(pageCount)
+  const spacer = document.createElement('div')
+  spacer.className = 'rm-page-spacer'
+  spacer.dataset.rmPageRangeStart = '1'
+  spacer.dataset.rmPageRangeEnd = String(pageCount)
+  spacer.dataset.rmPageSegmentHeights = Array.from({ length: pageCount }, () => String(pageHeight)).join(',')
+
+  let visiblePage = options?.initialVisiblePage ?? 1
+  const resolveSpacerTop = () => viewportCenterY - (visiblePage - 0.5) * pageHeight
+  spacer.getBoundingClientRect = () =>
+    ({
+      left: 40,
+      right: 160,
+      top: resolveSpacerTop(),
+      bottom: resolveSpacerTop() + pageCount * pageHeight
+    }) as DOMRect
+
+  let resolvedCurrentPage = options?.initialResolvedCurrentPage ?? 1
+  const resolveCurrentPage = jest.fn(() => resolvedCurrentPage)
+  const measureLayout = jest.fn((_container: HTMLDivElement, request: DocumentLayoutMeasurementRequest) => {
+    const activeRange = request.pageRange ?? { startPage: 1, endPage: pageCount }
+
+    return {
+      layout: {
+        pageCount,
+        pages,
+        flow: [
+          {
+            flowIndex: 0,
+            pageRange: { startPage: 1, endPage: pageCount },
+            kind: 'spacer' as const,
+            isMounted: false
+          }
+        ],
+        mountedRange: null,
+        mountedPageBodyBounds: [],
+        pageChromeMetrics: [],
+        activeRange,
+        activePages: pages.slice(activeRange.startPage - 1, activeRange.endPage)
+      },
+      navigationState: {
+        boundaryEls: [],
+        activeRange,
+        pageBreakEls: [],
+        flowEls: [spacer]
+      }
+    }
+  })
+
+  const service: DocumentLayoutService = {
+    source: 'incremental-layout-engine',
+    measureLayout,
+    resolveCurrentPage,
+    observeLayout: jest.fn(() => () => {
+      return undefined
+    })
+  }
+
+  return {
+    measureLayout,
+    resolveCurrentPage,
+    setResolvedCurrentPage: (pageNumber: number) => {
+      resolvedCurrentPage = pageNumber
+    },
+    setVisiblePage: (pageNumber: number) => {
+      visiblePage = pageNumber
+    },
+    service
+  }
+}
+
+function createEditorStub(options: {
+  selectionHead: number
+  posAtCoords: ({ left, top }: { left: number; top: number }) => { pos: number } | null
+}) {
+  const listeners = new Map<string, Set<(...args: unknown[]) => void>>()
+  const viewDom = document.createElement('div')
+
+  const on = jest.fn((event: string, handler: (...args: unknown[]) => void) => {
+    const registeredHandlers = listeners.get(event) ?? new Set<(...args: unknown[]) => void>()
+    registeredHandlers.add(handler)
+    listeners.set(event, registeredHandlers)
+  })
+
+  const off = jest.fn((event: string, handler: (...args: unknown[]) => void) => {
+    listeners.get(event)?.delete(handler)
+  })
+
+  return {
+    state: {
+      doc: {
+        descendants: () => {
+          return undefined
+        }
+      },
+      selection: {
+        head: options.selectionHead
+      }
+    },
+    view: {
+      dom: viewDom,
+      posAtCoords: options.posAtCoords
+    },
+    on,
+    off,
+    emit: (event: string, payload?: unknown) => {
+      listeners.get(event)?.forEach(handler => handler(payload))
+    }
+  }
+}
+
 describe('usePaginationLayoutSnapshot', () => {
   const originalRequestAnimationFrame = global.requestAnimationFrame
   const originalCancelAnimationFrame = global.cancelAnimationFrame
@@ -149,6 +268,99 @@ describe('usePaginationLayoutSnapshot', () => {
 
     expect(measureLayout).toHaveBeenCalledTimes(1)
     expect(measureLayout.mock.calls[0]?.[1].reason).toBe('initial-load')
+  })
+
+  it('prefers fresh page and spacer bounds over the live layout-service resolver while scrolling', () => {
+    const { service, resolveCurrentPage, setResolvedCurrentPage, setVisiblePage } = createSparseLayoutServiceStub({
+      pageCount: 30,
+      initialResolvedCurrentPage: 30,
+      initialVisiblePage: 1
+    })
+    const container = document.createElement('div')
+    container.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 200,
+        height: 200
+      }) as DOMRect
+    const editorContainerRef = {
+      current: container
+    } as MutableRefObject<HTMLDivElement | null>
+
+    const { result } = renderHook(() =>
+      usePaginationLayoutSnapshot({
+        editor: null,
+        editorContainerRef,
+        layoutService: service,
+        isYjsSynced: false
+      })
+    )
+
+    expect(result.current.currentPage).toBe(1)
+    expect(resolveCurrentPage).not.toHaveBeenCalled()
+    setVisiblePage(10)
+    setResolvedCurrentPage(30)
+
+    act(() => {
+      result.current.handleScroll({ currentTarget: container } as UIEvent<HTMLDivElement>)
+    })
+
+    expect(result.current.currentPage).toBe(10)
+    expect(resolveCurrentPage).not.toHaveBeenCalled()
+  })
+
+  it('uses the fresh visible page as the preferred page during selection updates at the trailing edge', () => {
+    const { service, resolveCurrentPage, setResolvedCurrentPage, setVisiblePage } = createSparseLayoutServiceStub({
+      pageCount: 4,
+      initialResolvedCurrentPage: 1,
+      initialVisiblePage: 1
+    })
+    const container = document.createElement('div')
+    container.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 200,
+        height: 200
+      }) as DOMRect
+    const editorContainerRef = {
+      current: container
+    } as MutableRefObject<HTMLDivElement | null>
+    const editor = createEditorStub({
+      selectionHead: 59,
+      posAtCoords: ({ top }: { left: number; top: number }) => {
+        if (top < 100) {
+          return { pos: top < 50 ? 1 : 19 }
+        }
+        if (top < 200) {
+          return { pos: top < 150 ? 20 : 39 }
+        }
+        if (top < 300) {
+          return { pos: top < 250 ? 40 : 59 }
+        }
+        return null
+      }
+    })
+
+    const { result } = renderHook(() =>
+      usePaginationLayoutSnapshot({
+        editor: editor as never,
+        editorContainerRef,
+        layoutService: service,
+        isYjsSynced: false
+      })
+    )
+
+    expect(result.current.currentPage).toBe(1)
+    expect(resolveCurrentPage).not.toHaveBeenCalled()
+    setVisiblePage(4)
+    setResolvedCurrentPage(1)
+
+    act(() => {
+      editor.emit('selectionUpdate')
+    })
+
+    expect(result.current.currentPage).toBe(4)
+    expect(resolveCurrentPage).not.toHaveBeenCalled()
   })
 
   it('resolves mounted page position ranges from sampled page body coordinates', () => {

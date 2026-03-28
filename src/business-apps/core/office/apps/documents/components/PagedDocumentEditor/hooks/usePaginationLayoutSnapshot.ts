@@ -574,6 +574,31 @@ export function shouldScheduleDocumentHydrationRefresh(options: {
   return Boolean(options.documentId) && options.isYjsSynced && options.hasInitializedLayout
 }
 
+function hasLiveNavigationState(navigationState: DocumentLayoutNavigationState): boolean {
+  return (
+    navigationState.activeRange !== null ||
+    navigationState.boundaryEls.length > 0 ||
+    navigationState.pageBreakEls.length > 0 ||
+    navigationState.flowEls.length > 0
+  )
+}
+
+function resolveFreshCurrentPageFromNavigationState(
+  container: HTMLDivElement,
+  navigationState: DocumentLayoutNavigationState,
+  fallbackPage: number
+): number | null {
+  const pageShellBounds = resolvePageShellBodyBounds(navigationState.pageBreakEls)
+  const spacerBounds = resolveSpacerPageBodyBounds(navigationState.flowEls)
+  const freshPageBounds = mergeMeasuredPageBodyBounds(pageShellBounds, spacerBounds)
+
+  if (freshPageBounds.length === 0) {
+    return null
+  }
+
+  return resolveCurrentPageFromPageBounds(container, freshPageBounds, fallbackPage)
+}
+
 export function usePaginationLayoutSnapshot({
   editor,
   editorContainerRef,
@@ -622,6 +647,42 @@ export function usePaginationLayoutSnapshot({
   const hasInitializedLayoutRef = useRef(false)
   const previousLayoutInputsKeyRef = useRef<string | undefined>(layoutInputsKey)
   const lastMeasuredDocRef = useRef<object | null>(null)
+
+  const resolveVisibleCurrentPage = useCallback(
+    (
+      container: HTMLDivElement,
+      pageBounds: DocumentLayoutPageBodyBounds[],
+      pageCount: number,
+      fallbackPage: number = 1
+    ): number => {
+      const safePageCount = Math.max(1, pageCount)
+      const safeFallbackPage = Math.min(Math.max(1, fallbackPage), safePageCount)
+      const navigationState = navigationStateRef.current
+
+      if (hasLiveNavigationState(navigationState)) {
+        const freshCurrentPage = resolveFreshCurrentPageFromNavigationState(
+          container,
+          navigationState,
+          safeFallbackPage
+        )
+        if (Number.isInteger(freshCurrentPage) && freshCurrentPage > 0) {
+          return Math.min(freshCurrentPage, safePageCount)
+        }
+
+        try {
+          const liveCurrentPage = resolvedLayoutService.resolveCurrentPage(container, navigationState)
+          if (Number.isInteger(liveCurrentPage) && liveCurrentPage > 0) {
+            return Math.min(liveCurrentPage, safePageCount)
+          }
+        } catch {
+          // Fall back to cached snapshot geometry when live DOM navigation is unavailable.
+        }
+      }
+
+      return Math.min(resolveSnapshotCurrentPage(container, pageBounds, safePageCount, safeFallbackPage), safePageCount)
+    },
+    [resolvedLayoutService]
+  )
 
   const rebuildLayoutSnapshot = useCallback(
     (request: DocumentLayoutMeasurementRequest) => {
@@ -702,14 +763,16 @@ export function usePaginationLayoutSnapshot({
       })
 
       const fallbackPage = currentPageRef.current ?? 1
-      const nextCurrentPage = Math.min(
-        resolveSnapshotCurrentPage(container, nextSnapshot.pageBounds, measurement.layout.pageCount, fallbackPage),
-        measurement.layout.pageCount
+      const nextCurrentPage = resolveVisibleCurrentPage(
+        container,
+        nextSnapshot.pageBounds,
+        measurement.layout.pageCount,
+        fallbackPage
       )
       currentPageRef.current = nextCurrentPage
       setCurrentPage(nextCurrentPage)
     },
-    [editor, editorContainerRef, resolvedLayoutService]
+    [editor, editorContainerRef, resolveVisibleCurrentPage, resolvedLayoutService]
   )
 
   const layoutScheduler = useMemo(
@@ -742,9 +805,11 @@ export function usePaginationLayoutSnapshot({
       scrollThrottleRef.current = requestAnimationFrame(() => {
         scrollThrottleRef.current = null
         const fallbackPage = currentPageRef.current ?? 1
-        const nextPage = Math.min(
-          resolveSnapshotCurrentPage(container, layoutSnapshot.pageBounds, layoutSnapshot.pageCount || 1, fallbackPage),
-          layoutSnapshot.pageCount || 1
+        const nextPage = resolveVisibleCurrentPage(
+          container,
+          layoutSnapshot.pageBounds,
+          layoutSnapshot.pageCount || 1,
+          fallbackPage
         )
 
         currentPageRef.current = nextPage
@@ -759,7 +824,13 @@ export function usePaginationLayoutSnapshot({
         }
       })
     },
-    [layoutSnapshot.pageBounds, layoutSnapshot.pageCount, runtimeState, scheduleLayoutSnapshotRefresh]
+    [
+      layoutSnapshot.pageBounds,
+      layoutSnapshot.pageCount,
+      resolveVisibleCurrentPage,
+      runtimeState,
+      scheduleLayoutSnapshotRefresh
+    ]
   )
 
   useEffect(() => {
@@ -771,14 +842,11 @@ export function usePaginationLayoutSnapshot({
       const container = editorContainerRef.current
       const visiblePage =
         container && layoutSnapshot.pageCount > 0
-          ? Math.min(
-              resolveSnapshotCurrentPage(
-                container,
-                layoutSnapshot.pageBounds,
-                layoutSnapshot.pageCount || 1,
-                currentPageRef.current
-              ),
-              layoutSnapshot.pageCount || 1
+          ? resolveVisibleCurrentPage(
+              container,
+              layoutSnapshot.pageBounds,
+              layoutSnapshot.pageCount || 1,
+              currentPageRef.current
             )
           : currentPageRef.current
       const nextPage = Math.min(
@@ -817,6 +885,7 @@ export function usePaginationLayoutSnapshot({
     layoutSnapshot.pageBounds,
     layoutSnapshot.pageCount,
     layoutSnapshot.pagePositionRanges,
+    resolveVisibleCurrentPage,
     runtimeState,
     scheduleLayoutSnapshotRefresh
   ])
