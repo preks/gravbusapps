@@ -8,6 +8,24 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
 
+/** Sort sheet rows by optional `settings.rowOrder` (same logic as local viewer state). */
+export function sortSpreadsheetRowsBySheetSettings(
+  data: Record<string, unknown>[],
+  sheet?: SpreadsheetSheet | { settings?: { rowOrder?: string[] } }
+): Record<string, unknown>[] {
+  const rowOrder = sheet?.settings?.rowOrder
+  if (!rowOrder || rowOrder.length === 0) return data
+
+  const orderMap = new Map(rowOrder.map((id, idx) => [id, idx]))
+  return [...data].sort((a, b) => {
+    const aId = String(a._rowUuid ?? a._id ?? a.id ?? '')
+    const bId = String(b._rowUuid ?? b._id ?? b.id ?? '')
+    const aOrder = orderMap.get(aId) ?? Number.MAX_SAFE_INTEGER
+    const bOrder = orderMap.get(bId) ?? Number.MAX_SAFE_INTEGER
+    return aOrder - bOrder
+  })
+}
+
 export interface UseSpreadsheetViewerStateProps {
   app: SpreadsheetApp
   initialSheetId?: string
@@ -44,19 +62,8 @@ export function useSpreadsheetViewerState({
   const [activeViewId] = useState<string | null>(initialViewId || null)
 
   // Sort data according to rowOrder from sheet settings (if present)
-  const sortByRowOrder = (data: Record<string, unknown>[], sheet?: { settings?: { rowOrder?: string[] } }) => {
-    const rowOrder = sheet?.settings?.rowOrder
-    if (!rowOrder || rowOrder.length === 0) return data
-
-    const orderMap = new Map(rowOrder.map((id, idx) => [id, idx]))
-    return [...data].sort((a, b) => {
-      const aId = String(a._rowUuid ?? a._id ?? a.id ?? '')
-      const bId = String(b._rowUuid ?? b._id ?? b.id ?? '')
-      const aOrder = orderMap.get(aId) ?? Number.MAX_SAFE_INTEGER
-      const bOrder = orderMap.get(bId) ?? Number.MAX_SAFE_INTEGER
-      return aOrder - bOrder
-    })
-  }
+  const sortByRowOrder = (data: Record<string, unknown>[], sheet?: SpreadsheetSheet) =>
+    sortSpreadsheetRowsBySheetSettings(data, sheet)
 
   // Local data state - independent from app.sheets during editing
   const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(() => {

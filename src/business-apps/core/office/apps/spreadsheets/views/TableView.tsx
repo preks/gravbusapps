@@ -18,6 +18,9 @@ export interface TableViewProps {
   data: Record<string, unknown>[]
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
+  workbookRemountKey?: string
+  multiSheetWorkbookMode?: boolean
+  onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
   columns: ColumnDef<Record<string, unknown>>[]
   spreadsheetColumns: SpreadsheetColumn[]
   testId: string
@@ -56,6 +59,9 @@ export const TableView = memo<TableViewProps>(function TableView({
   data,
   initialSnapshot,
   snapshotSeed,
+  workbookRemountKey,
+  multiSheetWorkbookMode,
+  onActiveWorksheetChange,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   columns,
   spreadsheetColumns,
@@ -181,6 +187,9 @@ export const TableView = memo<TableViewProps>(function TableView({
         data={data}
         initialSnapshot={initialSnapshot}
         snapshotSeed={snapshotSeed}
+        workbookRemountKey={workbookRemountKey}
+        multiSheetWorkbookMode={multiSheetWorkbookMode}
+        onActiveWorksheetChange={onActiveWorksheetChange}
         columns={spreadsheetColumns}
         isReadOnly={isReadOnly || false}
         onCellChange={handleCellChange}

@@ -34,7 +34,7 @@ export { useSpreadsheetAppsHubFiltering } from './useSpreadsheetAppsHubFiltering
 export { useSpreadsheetAppsHubUrlState } from './useSpreadsheetAppsHubUrlState'
 export { useSpreadsheetAppsHubUserLookup } from './useSpreadsheetAppsHubUserLookup'
 
-export { useSpreadsheetViewerState } from './useSpreadsheetViewerState'
+export { useSpreadsheetViewerState, sortSpreadsheetRowsBySheetSettings } from './useSpreadsheetViewerState'
 export type { UseSpreadsheetViewerStateProps, SpreadsheetViewerState } from './useSpreadsheetViewerState'
 
 export { useSpreadsheetViewerCollaboration } from './useSpreadsheetViewerCollaboration'

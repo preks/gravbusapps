@@ -246,9 +246,6 @@ async function bulkAddRowsWithLegacyFallback(
   }
 }
 
-// Cache whether the backend supports ops-v2 batch endpoint.
-// null => unknown, true => available, false => unavailable (fallback to legacy row APIs)
-let supportsOperationBatchEndpoint: boolean | null = null
 // Cache whether the backend supports Univer snapshot persistence endpoints.
 // null => unknown, true => available, false => unavailable (skip snapshot API calls).
 let supportsUniverSnapshotEndpoint: boolean | null = null
@@ -882,10 +879,6 @@ export const SpreadsheetApiService = {
       }
     }
 
-    if (supportsOperationBatchEndpoint === false) {
-      return applyLegacyFallback()
-    }
-
     try {
       const response = await apiRequest<SpreadsheetBatchOperationResponse>(
         `/spreadsheets/${appId}/sheets/${sheetId}/operations/batch`,
@@ -894,11 +887,9 @@ export const SpreadsheetApiService = {
           body: JSON.stringify(payload)
         }
       )
-      supportsOperationBatchEndpoint = true
       return response
     } catch (error) {
       if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
-        supportsOperationBatchEndpoint = false
         console.warn('[SpreadsheetApiService] operations/batch endpoint unavailable; falling back to legacy row APIs')
         return applyLegacyFallback()
       }

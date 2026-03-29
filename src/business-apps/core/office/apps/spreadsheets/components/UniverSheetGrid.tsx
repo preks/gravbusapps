@@ -264,6 +264,9 @@ export interface UniverSheetGridProps {
   data: Record<string, unknown>[]
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
+  workbookRemountKey?: string
+  multiSheetWorkbookMode?: boolean
+  onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
   columns: SpreadsheetColumn[]
   isReadOnly: boolean
   onCellChange: (rowId: string, columnId: string, value: unknown) => void
@@ -729,7 +732,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onDataChange,
       onCursorEmit,
       onDimensionsChange: props.onDimensionsChange,
-      onOpenCommentRequest: props.onOpenCommentRequest
+      onOpenCommentRequest: props.onOpenCommentRequest,
+      onActiveWorksheetChange: props.onActiveWorksheetChange
     })
     callbacksRef.current = {
       onCellChange,
@@ -738,11 +742,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       onDataChange,
       onCursorEmit,
       onDimensionsChange: props.onDimensionsChange,
-      onOpenCommentRequest: props.onOpenCommentRequest
+      onOpenCommentRequest: props.onOpenCommentRequest,
+      onActiveWorksheetChange: props.onActiveWorksheetChange
     }
     const readOnlyRef = useRef(props.isReadOnly)
     readOnlyRef.current = props.isReadOnly
     const lastEmittedCursorPathRef = useRef<string>('')
+    const lastEmittedWorksheetIdRef = useRef<string>('')
     // Caches actual column widths and row heights read from the workbook snapshot so that
     // cursor overlays match the real rendered cell dimensions (not hardcoded constants).
     const cellDimensionsRef = useRef<{
@@ -1372,12 +1378,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       setForceRowSnapshotSeed(0)
     }, [sheet.id, props.snapshotSeed])
 
-    // Recreate Univer only when the sheet or bootstrap snapshot changes.
-    // Read-only transitions are handled by the overlay plus runtime guards; rebuilding the
-    // workbook on transient lock/editability changes can reapply older bootstrap state.
+    // Recreate Univer only when the workbook identity/bootstrap changes.
+    // In multi-sheet mode the remount key stays stable across tab switches so the shared
+    // workbook instance keeps unsaved in-memory sheet state instead of resetting per tab.
     useEffect(() => {
       if (!gridHostEl) return
       newRowClientIdByIndexRef.current.clear()
+      lastEmittedWorksheetIdRef.current = ''
       const { sheet: s, data: d, columns: c, initialSnapshot: initialSnapshotForSheet } = propsRef.current
       let snapshotForInit: UniverWorkbookSnapshot
       try {
@@ -1422,6 +1429,35 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         contextRef.current = null
         return
       }
+
+      const emitWorksheetFromUniver = () => {
+        try {
+          const wb = univerAPIRef.current?.getActiveWorkbook?.() as
+            | {
+                getActiveSheet?: () => { getSheetId?: () => string; getSheetName?: () => string }
+              }
+            | undefined
+          const activeWorksheet = wb?.getActiveSheet?.()
+          const worksheetId = activeWorksheet?.getSheetId?.()
+          if (!worksheetId || worksheetId === lastEmittedWorksheetIdRef.current) return
+          lastEmittedWorksheetIdRef.current = worksheetId
+          const worksheetName =
+            typeof activeWorksheet?.getSheetName === 'function' ? activeWorksheet.getSheetName() : ''
+          callbacksRef.current.onActiveWorksheetChange?.(worksheetId, worksheetName)
+        } catch {
+          /* ignore */
+        }
+      }
+
+      queueMicrotask(() => {
+        try {
+          const wb = univerAPI.getActiveWorkbook?.() as { setActiveSheet?: (id: string) => void } | undefined
+          wb?.setActiveSheet?.(s.id)
+        } catch {
+          /* ignore */
+        }
+        emitWorksheetFromUniver()
+      })
       const canvasHealthTimeout = globalThis.setTimeout(() => {
         const host = containerRef.current
         const hasCanvas = Boolean(host?.querySelector('canvas'))
@@ -1619,6 +1655,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (commandId.includes('comment') || commandId.includes('thread')) {
           callbacksRef.current.onOpenCommentRequest?.()
         }
+        queueMicrotask(emitWorksheetFromUniver)
         if (readOnlyRef.current) return
         const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
         if (dimensionsChanged) {
@@ -1838,7 +1875,24 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
 
       return dispose
-    }, [sheet.id, props.snapshotSeed, gridHostEl, forceRowSnapshotSeed])
+    }, [props.workbookRemountKey ?? sheet.id, props.snapshotSeed, props.isReadOnly, gridHostEl, forceRowSnapshotSeed])
+
+    useEffect(() => {
+      if (!props.multiSheetWorkbookMode) return
+      try {
+        const wb = univerAPIRef.current?.getActiveWorkbook?.() as
+          | {
+              getActiveSheet?: () => { getSheetId?: () => string }
+              setActiveSheet?: (id: string) => void
+            }
+          | undefined
+        const activeWorksheetId = wb?.getActiveSheet?.()?.getSheetId?.()
+        if (activeWorksheetId === sheet.id) return
+        wb?.setActiveSheet?.(sheet.id)
+      } catch {
+        /* ignore */
+      }
+    }, [props.multiSheetWorkbookMode, sheet.id])
 
     // Track "active sheet" based on pointer/focus so we can hijack shortcuts even when
     // Univer's canvas selection doesn't move DOM focus (common in published embeds).
