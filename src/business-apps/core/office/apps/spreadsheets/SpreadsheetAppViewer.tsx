@@ -301,6 +301,21 @@ const applyColumnWidthsFromDimensions = (
   return changedColumns.length > 0 ? { nextColumns, changedColumns } : null
 }
 
+const areColumnWidthPatchesEquivalent = (
+  columns: SpreadsheetColumn[],
+  pendingOverrides: Record<string, number>,
+  changedColumns: Array<{ columnId: string; width: number }>
+): boolean =>
+  changedColumns.every(change => {
+    const currentColumn = columns.find(column => column.id === change.columnId)
+    const currentWidth =
+      typeof currentColumn?.width === 'number' && Number.isFinite(currentColumn.width)
+        ? Math.round(currentColumn.width)
+        : undefined
+    const pendingWidth = pendingOverrides[change.columnId]
+    return currentWidth === change.width || Math.round(pendingWidth ?? NaN) === change.width
+  })
+
 const SPREADSHEET_STRUCTURAL_REMOTE_OPS = new Set([
   'row_add',
   'row_delete',
@@ -453,10 +468,11 @@ const buildDimensionPayloadFromSnapshot = (
     const snap = snapshotToSave as Record<string, unknown>
     const sheetOrder = snap?.sheetOrder as string[] | undefined
     const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
-    const firstSheetId = sheetOrder?.[0]
     let sheetSnapRaw: unknown
-    if (firstSheetId && sheets) {
-      sheetSnapRaw = sheets[firstSheetId]
+    if (sheets?.[activeSheetId]) {
+      sheetSnapRaw = sheets[activeSheetId]
+    } else if (sheetOrder?.[0] && sheets) {
+      sheetSnapRaw = sheets[sheetOrder[0]]
     } else if (sheets) {
       sheetSnapRaw = Object.values(sheets)[0]
     }
@@ -844,6 +860,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const pendingDimensionColumnsRef = useRef<SpreadsheetColumn[] | null>(null)
   const pendingDimensionChangesRef = useRef<Array<{ columnId: string; width: number }>>([])
   const pendingDimensionPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const recentLocalColumnResizeRef = useRef<Map<string, { width: number; at: number }>>(new Map())
   const [pendingColumnWidthOverrides, setPendingColumnWidthOverrides] = useState<Record<string, number>>({})
   const snapshotSaveMetricsRef = useRef({
     attempts: 0,
@@ -1514,6 +1531,26 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         } else {
           scheduleSheetVersionRefreshFromApi()
         }
+        const nextWidth =
+          typeof d.columnPatch?.width === 'number' && Number.isFinite(d.columnPatch.width)
+            ? Math.round(d.columnPatch.width)
+            : undefined
+        const currentColumn = activeSheet.columns.find(column => column.id === d.columnId)
+        const currentWidth =
+          typeof currentColumn?.width === 'number' && Number.isFinite(currentColumn.width)
+            ? Math.round(currentColumn.width)
+            : undefined
+        const pendingWidth = pendingColumnWidthOverrides[d.columnId ?? '']
+        const localResizeKey = `${activeSheetId}:${d.columnId ?? ''}`
+        const recentLocalResize = recentLocalColumnResizeRef.current.get(localResizeKey)
+        if (
+          nextWidth != null &&
+          (currentWidth === nextWidth ||
+            Math.round(pendingWidth ?? NaN) === nextWidth ||
+            (recentLocalResize && recentLocalResize.width === nextWidth && Date.now() - recentLocalResize.at < 5000))
+        ) {
+          return
+        }
         const nextColumns = applyRemoteColumnUpdate(activeSheet.columns, d)
         if (!nextColumns || !onAppUpdate) return
         onAppUpdate({
@@ -1645,6 +1682,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       commitLocalSheetData,
       localSheetDataRef,
       onAppUpdate,
+      pendingColumnWidthOverrides,
       resolveRemoteCellCoordinates,
       scheduleRemoteStructuralResync,
       scheduleSheetVersionRefreshFromApi
@@ -1722,8 +1760,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       const next = applyColumnWidthsFromDimensions(activeSheet.columns, payload)
       if (!next) return
+      if (areColumnWidthPatchesEquivalent(activeSheet.columns, pendingColumnWidthOverrides, next.changedColumns)) {
+        return
+      }
 
       setPendingColumnWidthOverrides(prev => {
+        const hasMaterialOverrideChange = next.changedColumns.some(change => prev[change.columnId] !== change.width)
+        if (!hasMaterialOverrideChange) {
+          return prev
+        }
         const updated = { ...prev }
         next.changedColumns.forEach(change => {
           updated[change.columnId] = change.width
@@ -1760,6 +1805,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               void enqueueSnapshotCheckpoint()
             }
             changedColumns.forEach(change => {
+              recentLocalColumnResizeRef.current.set(`${activeSheetId}:${change.columnId}`, {
+                width: change.width,
+                at: Date.now()
+              })
               collaboration.emitOperation({
                 type: 'column_update',
                 data: {
@@ -1790,6 +1839,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       canEditWithLock,
       collaboration,
       onSheetUpdate,
+      pendingColumnWidthOverrides,
       scheduleSheetVersionRefreshFromApi
     ]
   )
