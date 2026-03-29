@@ -181,7 +181,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
     if (config?.fieldMappings && config.fieldMappings.length > 0) {
       return columns.filter(c => config.fieldMappings.some(m => m.targetColumnId === c.id))
     }
-    return columns.filter(c => c.isVisible).slice(0, 5)
+    return columns.filter(c => c.isVisible !== false).slice(0, 5)
   }, [columns, config?.fieldMappings])
 
   return (
