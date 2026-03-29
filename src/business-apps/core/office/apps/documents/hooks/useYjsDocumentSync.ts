@@ -9,6 +9,7 @@
 import DOMPurify from 'dompurify'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
+import * as Y from 'yjs'
 import { SocketIoYjsProvider } from '@/business-apps/platform/apps/shared/services/SocketIoYjsProvider'
 import { markNextPaginationHydrationDocChange } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
@@ -26,7 +27,7 @@ const SNAPSHOT_SAVE_DELAY_MS = 2000
 
 type HydrationRefreshableEditor = {
   commands: {
-    setContent: (editorHtml: string, emit?: boolean) => void
+    setContent: (editorHtml: string, options?: { emitUpdate?: boolean }) => void
     refreshPages?: () => boolean
     refreshPagesAndStabilize?: () => boolean
   }
@@ -92,6 +93,27 @@ function waitForNextAnimationFrame(): Promise<void> {
 
     setTimeout(resolve, 16)
   })
+}
+
+function seedEmptyCollaborativeFragment(ydoc: Y.Doc, html: string): boolean {
+  if (!isEffectivelyEmptyDocumentHtml(html)) {
+    return false
+  }
+
+  const fragment = ydoc.getXmlFragment('default')
+  if (fragment.length > 0) {
+    return false
+  }
+
+  Y.transact(
+    ydoc,
+    () => {
+      fragment.insert(0, [new Y.XmlElement('paragraph')])
+    },
+    'bootstrap-empty-document'
+  )
+
+  return true
 }
 
 function getDebuggableTableAttributes(element: Element): Record<string, string> {
@@ -302,7 +324,8 @@ export function useYjsDocumentSync({
           suppressSnapshotSaveRef.current = true
         }
         markNextPaginationHydrationDocChange(ed)
-        ed.commands.setContent(normalizedHtml, true)
+        ed.commands.setContent(normalizedHtml, { emitUpdate: true })
+        seedEmptyCollaborativeFragment(ydoc, normalizedHtml)
         schedulePostHydrationPaginationRefresh(ed)
         await new Promise(resolve => setTimeout(resolve, 140))
         const postApplyHtml = ed.getHTML?.() || ''
@@ -320,7 +343,7 @@ export function useYjsDocumentSync({
         }, 1500)
       }
     },
-    [debugTablesEnabled, documentId, editorRef, suppressSnapshotSaveRef]
+    [debugTablesEnabled, documentId, editorRef, suppressSnapshotSaveRef, ydoc]
   )
 
   const getCurrentEditorHtmlSnapshot = useCallback(async (): Promise<string> => {

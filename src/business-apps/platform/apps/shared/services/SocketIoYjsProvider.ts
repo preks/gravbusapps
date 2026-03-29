@@ -326,6 +326,9 @@ export class SocketIoYjsProvider {
   ): Promise<boolean> {
     if (response.status !== 'bootstrap' || response.role !== 'initializer') return false
 
+    await this.waitReadyIfNeeded()
+    if (this.destroyed) return true
+
     try {
       await this.onBootstrapRequired?.(response.initialHtml)
     } catch (error) {
