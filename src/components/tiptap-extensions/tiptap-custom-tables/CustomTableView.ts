@@ -12,26 +12,22 @@ import {
   normalizeTableWidthMode
 } from './styleUtils'
 
+function resolveTableDomId(node: ProseMirrorNode): string {
+  const fromId = typeof node.attrs.id === 'string' && node.attrs.id.length > 0 ? node.attrs.id : null
+  const legacy = typeof node.attrs.tableId === 'string' && node.attrs.tableId.length > 0 ? node.attrs.tableId : null
+  return fromId ?? legacy ?? uuid()
+}
+
 export class CustomTableView extends TiptapTableView {
   private applyIdentity(node: ProseMirrorNode) {
-    const tableId = typeof node.attrs.tableId === 'string' ? node.attrs.tableId : (this.dom.dataset.tableId ?? uuid())
-    const paginationChainId = typeof node.attrs.paginationChainId === 'string' ? node.attrs.paginationChainId : null
+    const tableId = resolveTableDomId(node)
 
-    if (tableId) {
-      this.dom.dataset.tableId = tableId
-      this.table.dataset.tableId = tableId
-    } else {
-      delete this.dom.dataset.tableId
-      delete this.table.dataset.tableId
-    }
-
-    if (paginationChainId) {
-      this.dom.dataset.paginationChainId = paginationChainId
-      this.table.dataset.paginationChainId = paginationChainId
-    } else {
-      delete this.dom.dataset.paginationChainId
-      delete this.table.dataset.paginationChainId
-    }
+    this.dom.dataset.tableId = tableId
+    this.table.dataset.tableId = tableId
+    this.dom.setAttribute('data-id', tableId)
+    this.table.setAttribute('data-id', tableId)
+    this.dom.setAttribute('data-table-id', tableId)
+    this.table.setAttribute('data-table-id', tableId)
   }
 
   applyLayout(node: ProseMirrorNode) {

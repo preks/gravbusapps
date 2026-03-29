@@ -212,14 +212,22 @@ export function usePagedDocumentEditorRuntimeEffects({
           const pos = state.selection.$from.before(depth)
           const map = TableMap.get(node)
           const resolvedCell = $cell ? map.findCell($cell.pos - pos - 1) : null
+          const tableStableId =
+            (typeof node.attrs.id === 'string' && node.attrs.id) ||
+            (typeof node.attrs.tableId === 'string' && node.attrs.tableId) ||
+            undefined
           context = {
-            tableId: typeof node.attrs.tableId === 'string' ? node.attrs.tableId : undefined,
+            tableId: tableStableId,
             rowIndex: resolvedCell?.top,
             cellIndex: resolvedCell?.left
           }
         }
         if (node.type.name === 'tableRow' && context) {
-          context = { ...context, rowId: typeof node.attrs.rowId === 'string' ? node.attrs.rowId : undefined }
+          const rowStableId =
+            (typeof node.attrs.id === 'string' && node.attrs.id) ||
+            (typeof node.attrs.rowId === 'string' && node.attrs.rowId) ||
+            undefined
+          context = { ...context, rowId: rowStableId }
           break
         }
       }

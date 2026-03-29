@@ -1,6 +1,7 @@
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { TableMap, cellAround } from '@tiptap/pm/tables'
 import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { v4 as uuid } from 'uuid'
 import {
   createPaginationChainId,
   createPaginationSplitId,
@@ -73,6 +74,14 @@ function cloneNode(node: ProseMirrorNode) {
   return node.type.create(node.attrs, node.content, node.marks)
 }
 
+/** Continuation fragments must not reuse row `id`s from the source table (e.g. repeated header row). */
+function cloneTableRowFreshIds(node: ProseMirrorNode) {
+  if (node.type.name !== 'tableRow') {
+    return cloneNode(node)
+  }
+  return node.type.create({ ...node.attrs, id: null, rowId: null }, node.content, node.marks)
+}
+
 function getAdjacentTableFragment(
   state: EditorState,
   tablePos: number,
@@ -136,6 +145,7 @@ export function splitTableAtRow(
   }
   const continuationTableAttrs = {
     ...table.attrs,
+    id: uuid(),
     paginationChainId,
     paginationSplitId,
     paginationRowGroups: getSerializedTableRowGroupsForRows(splitRows.continuationRows)
@@ -147,7 +157,7 @@ export function splitTableAtRow(
   )
   const continuationTable = table.type.create(
     continuationTableAttrs,
-    Fragment.fromArray(buildTableChildrenFromRows(table, splitRows.continuationRows.map(cloneNode))),
+    Fragment.fromArray(buildTableChildrenFromRows(table, splitRows.continuationRows.map(cloneTableRowFreshIds))),
     table.marks
   )
 
@@ -243,10 +253,11 @@ export function rebalanceAdjacentPaginationTables(
   const continuationTable = firstTable.type.create(
     {
       ...secondTable.attrs,
+      id: uuid(),
       paginationChainId: getPaginationChainId(firstTable),
       paginationRowGroups: getSerializedTableRowGroupsForRows(splitRows.continuationRows)
     },
-    Fragment.fromArray(buildTableChildrenFromRows(secondTable, splitRows.continuationRows.map(cloneNode))),
+    Fragment.fromArray(buildTableChildrenFromRows(secondTable, splitRows.continuationRows.map(cloneTableRowFreshIds))),
     secondTable.marks
   )
 

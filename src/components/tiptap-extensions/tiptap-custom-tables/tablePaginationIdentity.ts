@@ -18,7 +18,7 @@ export function createPaginationSplitId() {
 }
 
 export function getTableId(node: ProseMirrorNode) {
-  return readPaginationAttribute(node.attrs.tableId)
+  return readPaginationAttribute(node.attrs.id) ?? readPaginationAttribute(node.attrs.tableId)
 }
 
 export function getTablePaginationChainId(node: ProseMirrorNode) {
@@ -30,5 +30,5 @@ export function getTablePaginationSplitId(node: ProseMirrorNode) {
 }
 
 export function getTableRuntimeChainKey(node: ProseMirrorNode, tablePos: number) {
-  return getTableId(node) ?? getTablePaginationChainId(node) ?? getTablePaginationSplitId(node) ?? `table:${tablePos}`
+  return getTablePaginationChainId(node) ?? getTableId(node) ?? getTablePaginationSplitId(node) ?? `table:${tablePos}`
 }

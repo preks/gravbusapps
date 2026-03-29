@@ -334,7 +334,11 @@ export function hasPendingTableMeasurements(view: EditorView): boolean {
     }
 
     const wrapper = tableDom.classList.contains('tableWrapper') ? tableDom : tableDom.closest('.tableWrapper')
-    const tableId = (tableDom as HTMLElement).dataset.tableId ?? (wrapper as HTMLElement | null)?.dataset?.tableId
+    const tableId =
+      (tableDom as HTMLElement).dataset.tableId ??
+      (tableDom as HTMLElement).dataset.id ??
+      (wrapper as HTMLElement | null)?.dataset?.tableId ??
+      (wrapper as HTMLElement | null)?.dataset?.id
     if (tableId) {
       if (seenTableIds.has(tableId)) {
         if (!duplicateLogged) {

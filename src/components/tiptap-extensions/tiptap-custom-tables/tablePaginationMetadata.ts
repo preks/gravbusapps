@@ -1,5 +1,6 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
 import { createPaginationChainId, getTableId } from './tablePaginationIdentity'
 import { getSerializedTableRowGroups } from './tablePaginationUtils'
 
@@ -22,6 +23,10 @@ export function createTablePaginationMetadataPlugin(tableNodeName: string) {
     key: tablePaginationMetadataKey,
     appendTransaction(transactions, _oldState, newState) {
       if (!transactions.some(transaction => transaction.docChanged)) {
+        return null
+      }
+
+      if (transactions.some(transaction => isYjsInboundSyncTransaction(transaction))) {
         return null
       }
 

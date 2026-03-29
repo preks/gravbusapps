@@ -1,5 +1,7 @@
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import { DocumentUniqueID } from '@/components/tiptap-extensions/documentUniqueId'
+import { legacyTableIdMigrationExtension } from '@/components/tiptap-extensions/legacyTableIdMigration'
 import { Table, TableCell, TableHeader, TableRow } from '..'
 import { splitTableAtRow } from '../tableSelectionUtils'
 
@@ -7,6 +9,8 @@ function createEditor(content: string) {
   return new Editor({
     extensions: [
       StarterKit.configure({ undoRedo: false }),
+      DocumentUniqueID,
+      legacyTableIdMigrationExtension,
       Table.configure({ resizable: false, renderWrapper: false }),
       TableRow,
       TableHeader,
@@ -20,15 +24,17 @@ function getTables(editor: Editor) {
   return editor.getJSON().content?.filter(node => node.type === 'table') ?? []
 }
 
-describe('table identity plugin', () => {
-  it('backfills tableId and rowId on load', () => {
+describe('table UniqueID and legacy migration', () => {
+  it('assigns id on table and each row', () => {
     const editor = createEditor('<table><tbody><tr><td>A</td></tr><tr><td>B</td></tr></tbody></table>')
 
     try {
-      const [table] = getTables(editor)
-      expect(table?.attrs?.tableId).toBeTruthy()
+      editor.view.dispatch(editor.state.tr)
 
-      const rowIds = (table?.content ?? []).filter(node => node.type === 'tableRow').map(row => row.attrs?.rowId)
+      const [table] = getTables(editor)
+      expect(table?.attrs?.id).toBeTruthy()
+
+      const rowIds = (table?.content ?? []).filter(node => node.type === 'tableRow').map(row => row.attrs?.id)
       expect(rowIds).toHaveLength(2)
       expect(new Set(rowIds).size).toBe(2)
     } finally {
@@ -36,7 +42,7 @@ describe('table identity plugin', () => {
     }
   })
 
-  it('keeps tableId across pagination splits while keeping unique rowIds', () => {
+  it('keeps paginationChainId across split while row ids stay unique', () => {
     const editor = createEditor(
       [
         '<table>',
@@ -57,15 +63,11 @@ describe('table identity plugin', () => {
 
       const tables = getTables(editor)
       expect(tables).toHaveLength(2)
-      const tableIds = tables.map(t => t.attrs?.tableId).filter(Boolean)
-      expect(new Set(tableIds).size).toBe(1)
+      const chainIds = tables.map(t => t.attrs?.paginationChainId).filter(Boolean)
+      expect(new Set(chainIds).size).toBe(1)
 
-      const firstRowIds = (tables[0]?.content ?? [])
-        .filter(node => node.type === 'tableRow')
-        .map(row => row.attrs?.rowId)
-      const secondRowIds = (tables[1]?.content ?? [])
-        .filter(node => node.type === 'tableRow')
-        .map(row => row.attrs?.rowId)
+      const firstRowIds = (tables[0]?.content ?? []).filter(node => node.type === 'tableRow').map(row => row.attrs?.id)
+      const secondRowIds = (tables[1]?.content ?? []).filter(node => node.type === 'tableRow').map(row => row.attrs?.id)
 
       expect(new Set([...firstRowIds, ...secondRowIds]).size).toBe(firstRowIds.length + secondRowIds.length)
     } finally {

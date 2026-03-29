@@ -25,6 +25,8 @@ import type { DocumentPagesFormatting } from '../../../types'
 import type { PageLayoutPaginationConfig } from '../../../utils/pageLayoutUtils'
 import { isAllowedHref } from '../../../utils/linkUtils'
 import { isDocumentImageProtectedSrc, resolveProtectedDocumentImageSrc } from '../../../utils/documentImageBindings'
+import { DocumentUniqueID } from '@/components/tiptap-extensions/documentUniqueId'
+import { legacyTableIdMigrationExtension } from '@/components/tiptap-extensions/legacyTableIdMigration'
 import { createYjsCursorExtension } from '../extensions/YjsCursor'
 import { LineAndParagraphSpacing } from '../extensions/LineAndParagraphSpacing'
 import { ParagraphIndent } from '../extensions/ParagraphIndent'
@@ -251,6 +253,8 @@ export function usePagedDocumentEditorInstance({
           onCommentClick: handleInlineCommentClick
         }),
         ...(collaborationExtension ? [collaborationExtension] : []),
+        DocumentUniqueID,
+        legacyTableIdMigrationExtension,
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ] as any[],
     [
