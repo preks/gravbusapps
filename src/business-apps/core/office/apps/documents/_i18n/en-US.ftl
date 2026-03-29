@@ -108,6 +108,8 @@ shared-click-manage = Click to manage
 
 # Editor
 editor-back = Back to documents
+editor-opening-collaboration = Connecting to document…
+editor-opening-layout = Preparing layout…
 editor-title-placeholder = Document Title
 editor-word-count = { $count } words
 editor-character-count = { $count } characters
