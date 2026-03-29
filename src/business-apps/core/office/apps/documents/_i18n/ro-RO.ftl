@@ -109,6 +109,8 @@ shared-click-manage = Apăsați pentru gestionare
 
 # Editor
 editor-back = Înapoi la documente
+editor-opening-collaboration = Se realizează conexiunea la document…
+editor-opening-layout = Se pregătește aspectul…
 editor-title-placeholder = Titlu document
 editor-word-count = { $count } cuvinte
 editor-character-count = { $count } caractere

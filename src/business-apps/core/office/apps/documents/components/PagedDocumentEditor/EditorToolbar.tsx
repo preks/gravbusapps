@@ -8,10 +8,12 @@ import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { VoiceVisualizer, useVoiceInput, normalizeDictationTranscript } from '@/business-apps/platform/apps/shared'
 import translations from '../../_i18n'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
 import { EditorToolbarRibbon } from './EditorToolbarRibbon'
 
 interface EditorToolbarProps {
   editor: Editor | null
+  paginationConfig?: PageLayoutPaginationConfig | null
   onInsertPageBreak?: () => void
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
@@ -26,6 +28,7 @@ interface EditorToolbarProps {
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
+  paginationConfig = null,
   onInsertPageBreak,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
@@ -127,6 +130,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <div data-testid={testId}>
         <EditorToolbarRibbon
           editor={editor}
+          paginationConfig={paginationConfig}
           onInsertPageBreak={onInsertPageBreak}
           onOpenLinkDialog={onOpenLinkDialog}
           onOpenInsertImageDialog={onOpenInsertImageDialog}
