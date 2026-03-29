@@ -268,21 +268,18 @@ function getTableMeasurementElement(element: HTMLElement): HTMLElement {
     return element
   }
 
-  const firstChild = element.firstElementChild
-  if (firstChild instanceof HTMLTableElement) {
-    return firstChild
+  // Prefer a child <table> for measurement; wrapper heights can be inflated by CSS.
+  const directTable = Array.from(element.children).find(child => child instanceof HTMLTableElement)
+  if (directTable instanceof HTMLTableElement) {
+    return directTable
   }
 
-  let tableElement: HTMLTableElement | null = null
-  for (let index = 0; index < element.children.length; index += 1) {
-    const child = element.children.item(index)
-    if (child instanceof HTMLTableElement) {
-      tableElement = child
-      break
-    }
+  const nestedTable = element.querySelector('table')
+  if (nestedTable instanceof HTMLTableElement) {
+    return nestedTable
   }
 
-  return tableElement instanceof HTMLElement ? tableElement : element
+  return element
 }
 
 function getMeasuredTableRows(tableMeasurementElement: HTMLElement): HTMLTableRowElement[] {
@@ -318,6 +315,8 @@ function createTableRowElementResolver(view: EditorView, tableMeasurementElement
 
 export function hasPendingTableMeasurements(view: EditorView): boolean {
   let pending = false
+  const seenTableIds = new Set<string>()
+  let duplicateLogged = false
 
   view.state.doc.descendants((node, pos) => {
     if (node.type.name !== 'table') return true
@@ -332,6 +331,20 @@ export function hasPendingTableMeasurements(view: EditorView): boolean {
     if (!(tableDom instanceof HTMLElement)) {
       pending = true
       return false
+    }
+
+    const wrapper = tableDom.classList.contains('tableWrapper') ? tableDom : tableDom.closest('.tableWrapper')
+    const tableId = (tableDom as HTMLElement).dataset.tableId ?? (wrapper as HTMLElement | null)?.dataset?.tableId
+    if (tableId) {
+      if (seenTableIds.has(tableId)) {
+        if (!duplicateLogged) {
+          console.warn('[tablePagination] Duplicate table wrapper detected for tableId', tableId)
+          duplicateLogged = true
+        }
+        // Skip measuring duplicates to avoid runaway height
+        return true
+      }
+      seenTableIds.add(tableId)
     }
 
     const tableMeasurementElement = getTableMeasurementElement(tableDom)

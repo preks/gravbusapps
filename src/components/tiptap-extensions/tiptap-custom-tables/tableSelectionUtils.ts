@@ -4,6 +4,7 @@ import { Fragment, type Node as ProseMirrorNode } from '@tiptap/pm/model'
 import {
   createPaginationChainId,
   createPaginationSplitId,
+  getTableId,
   getTablePaginationChainId,
   getTablePaginationSplitId
 } from './tablePaginationIdentity'
@@ -108,7 +109,7 @@ function getPaginationSplitId(state: EditorState, table: ProseMirrorNode, tableP
 }
 
 function getPaginationChainId(table: ProseMirrorNode) {
-  return getTablePaginationChainId(table) ?? createPaginationChainId()
+  return getTableId(table) ?? getTablePaginationChainId(table) ?? createPaginationChainId()
 }
 
 export function splitTableAtRow(

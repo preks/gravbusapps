@@ -1,6 +1,6 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { createPaginationChainId } from './tablePaginationIdentity'
+import { createPaginationChainId, getTableId } from './tablePaginationIdentity'
 import { getSerializedTableRowGroups } from './tablePaginationUtils'
 
 const tablePaginationMetadataKey = new PluginKey('custom-table-pagination-metadata')
@@ -36,7 +36,8 @@ export function createTablePaginationMetadataPlugin(tableNodeName: string) {
         const currentValue = normalizePaginationRowGroups(node.attrs.paginationRowGroups)
         const nextValue = getNextPaginationRowGroups(node)
         const currentChainId = normalizePaginationChainId(node.attrs.paginationChainId)
-        const nextChainId = currentChainId ?? createPaginationChainId()
+        const tableId = getTableId(node)
+        const nextChainId = currentChainId ?? tableId ?? createPaginationChainId()
 
         if (currentValue !== nextValue || currentChainId !== nextChainId) {
           tr.setNodeMarkup(pos, undefined, {

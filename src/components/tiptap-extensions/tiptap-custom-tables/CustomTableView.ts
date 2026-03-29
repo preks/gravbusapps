@@ -1,5 +1,6 @@
 import { TableView as TiptapTableView } from '@tiptap/extension-table'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import { v4 as uuid } from 'uuid'
 import {
   getNormalizedTableSurfaceStyleAttributes,
   getTableStyle,
@@ -12,7 +13,30 @@ import {
 } from './styleUtils'
 
 export class CustomTableView extends TiptapTableView {
+  private applyIdentity(node: ProseMirrorNode) {
+    const tableId = typeof node.attrs.tableId === 'string' ? node.attrs.tableId : (this.dom.dataset.tableId ?? uuid())
+    const paginationChainId = typeof node.attrs.paginationChainId === 'string' ? node.attrs.paginationChainId : null
+
+    if (tableId) {
+      this.dom.dataset.tableId = tableId
+      this.table.dataset.tableId = tableId
+    } else {
+      delete this.dom.dataset.tableId
+      delete this.table.dataset.tableId
+    }
+
+    if (paginationChainId) {
+      this.dom.dataset.paginationChainId = paginationChainId
+      this.table.dataset.paginationChainId = paginationChainId
+    } else {
+      delete this.dom.dataset.paginationChainId
+      delete this.table.dataset.paginationChainId
+    }
+  }
+
   applyLayout(node: ProseMirrorNode) {
+    this.applyIdentity(node)
+
     const width = normalizeTableWidth(node.attrs.tableWidth) ?? '100%'
     const align = normalizeTableAlign(node.attrs.tableAlign) ?? 'left'
     const mode = normalizeTableWidthMode(node.attrs.tableWidthMode) ?? 'manual'
@@ -49,6 +73,7 @@ export class CustomTableView extends TiptapTableView {
 
   constructor(node: ProseMirrorNode, cellMinWidth: number) {
     super(node, cellMinWidth)
+    this.dedupeNestedWrappers()
     this.applyLayout(node)
   }
 
@@ -58,5 +83,16 @@ export class CustomTableView extends TiptapTableView {
 
     this.applyLayout(node)
     return true
+  }
+
+  private dedupeNestedWrappers() {
+    // If pasted content already contained a wrapper, avoid nested wrappers by hoisting the table up.
+    const nestedWrapper = this.dom.querySelector(':scope > .tableWrapper')
+    if (nestedWrapper instanceof HTMLElement) {
+      while (nestedWrapper.firstChild) {
+        this.dom.appendChild(nestedWrapper.firstChild)
+      }
+      nestedWrapper.remove()
+    }
   }
 }

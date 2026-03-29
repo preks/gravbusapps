@@ -3,6 +3,7 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Plugin, PluginKey, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Awareness } from 'y-protocols/awareness'
+import { TableMap, cellAround } from '@tiptap/pm/tables'
 import {
   emitDocumentActivity,
   emitDocumentActivityEnd
@@ -192,6 +193,50 @@ export function usePagedDocumentEditorRuntimeEffects({
     translate,
     editorRef
   ])
+
+  useEffect(() => {
+    if (!editor) return
+    const updateSelectionContext = () => {
+      const { state } = editor
+      const $cell = cellAround(state.selection.$from)
+      let context: {
+        tableId?: string
+        rowId?: string
+        rowIndex?: number
+        cellIndex?: number
+      } | null = null
+
+      for (let depth = state.selection.$from.depth; depth > 0; depth -= 1) {
+        const node = state.selection.$from.node(depth)
+        if (node.type.name === 'table') {
+          const pos = state.selection.$from.before(depth)
+          const map = TableMap.get(node)
+          const resolvedCell = $cell ? map.findCell($cell.pos - pos - 1) : null
+          context = {
+            tableId: typeof node.attrs.tableId === 'string' ? node.attrs.tableId : undefined,
+            rowIndex: resolvedCell?.top,
+            cellIndex: resolvedCell?.left
+          }
+        }
+        if (node.type.name === 'tableRow' && context) {
+          context = { ...context, rowId: typeof node.attrs.rowId === 'string' ? node.attrs.rowId : undefined }
+          break
+        }
+      }
+
+      awareness.setLocalStateField('selectionContext', context)
+    }
+
+    updateSelectionContext()
+    editor.on('selectionUpdate', updateSelectionContext)
+    editor.on('transaction', updateSelectionContext)
+
+    return () => {
+      editor.off('selectionUpdate', updateSelectionContext)
+      editor.off('transaction', updateSelectionContext)
+      awareness.setLocalStateField('selectionContext', null)
+    }
+  }, [editor, awareness])
 
   useEffect(() => {
     if (!documentId || !currentUserId) return

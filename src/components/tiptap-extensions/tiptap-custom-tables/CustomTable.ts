@@ -2,8 +2,10 @@ import { Table as TiptapTable } from '@tiptap/extension-table'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
+import { v4 as uuid } from 'uuid'
 import { CustomTableView } from './CustomTableView'
 import { createTablePaginationMetadataPlugin } from './tablePaginationMetadata'
+import { createTableIdentityPlugin } from './tableIdentityPlugin'
 import {
   applyBorderPresetToSelection,
   setSelectedColumnsWidthPx,
@@ -39,6 +41,7 @@ const DEFAULT_TABLE_BORDER_STYLE: TableBorderStyle = 'solid'
 const DEFAULT_TABLE_BORDER_WIDTH = '1pt'
 const DEFAULT_TABLE_BORDER_COLOR = '#d0d0d0'
 const DEFAULT_TABLE_BORDER_RADIUS = '4pt'
+const DEFAULT_TABLE_ID = () => uuid()
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -177,6 +180,15 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   addAttributes() {
     return {
       ...this.parent?.(),
+      tableId: {
+        default: DEFAULT_TABLE_ID,
+        parseHTML: element =>
+          element.getAttribute('data-table-id') || element.getAttribute('tableid') || DEFAULT_TABLE_ID,
+        renderHTML: attributes => {
+          const tableId = typeof attributes.tableId === 'string' ? attributes.tableId : null
+          return tableId ? { 'data-table-id': tableId } : {}
+        }
+      },
       tableWidth: {
         default: this.options.defaultTableWidth,
         parseHTML: element => {
@@ -376,7 +388,11 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   },
 
   addProseMirrorPlugins() {
-    return [...(this.parent?.() ?? []), createTablePaginationMetadataPlugin(this.name)]
+    return [
+      ...(this.parent?.() ?? []),
+      createTableIdentityPlugin({ tableNodeName: this.name, rowNodeName: 'tableRow', generateId: uuid }),
+      createTablePaginationMetadataPlugin(this.name)
+    ]
   },
 
   addCommands() {
