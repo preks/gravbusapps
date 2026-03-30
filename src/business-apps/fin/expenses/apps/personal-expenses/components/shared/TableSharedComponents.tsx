@@ -3,8 +3,8 @@ import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } 
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { CurrencyStat } from '../../utils/tableUtils'
 
-export { DetailsSheet } from '../../../../common/components/sheets/DetailsSheet'
-export type { DetailsSheetProps } from '../../../../common/components/sheets/DetailsSheet'
+export { DetailsSheet } from '../../../../common/components/details-panel/DetailsSheet'
+export type { DetailsSheetProps } from '../../../../common/components/details-panel/DetailsSheet'
 
 export { PrintPreviewDialog } from '../../../../common/components/document-preview/PrintPreviewDialog'
 export type { PrintPreviewDialogProps } from '../../../../common/components/document-preview/PrintPreviewDialog'
