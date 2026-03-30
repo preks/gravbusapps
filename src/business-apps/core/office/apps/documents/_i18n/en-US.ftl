@@ -936,6 +936,29 @@ header-footer-sidebar-zone-even = Even-numbered pages
 image-sidebar-in-header-context = Image in header
 image-sidebar-in-footer-context = Image in footer
 
+signature-sidebar-in-header-context = Signature in header
+signature-sidebar-in-footer-context = Signature in footer
+signature-sidebar-title = Signature
+signature-sidebar-name = Name
+signature-sidebar-lock-aspect = Lock aspect ratio
+signature-sidebar-width = Width
+signature-sidebar-height = Height
+signature-sidebar-floating-position = Position on page
+signature-sidebar-page = Page
+signature-sidebar-x = X
+signature-sidebar-y = Y
+signature-sidebar-replace = Replace signature…
+signature-sidebar-remove = Remove signature
+signature-sidebar-crop-section = Crop
+signature-sidebar-crop-intro = Trim empty space around the signature: start cropping to show handles on the document, or type values below.
+signature-sidebar-crop-start = Start cropping
+signature-sidebar-cropping = Cropping…
+signature-sidebar-crop-done = Done
+signature-sidebar-crop-active-banner = Cropping is on — drag the square handles on the signature to choose what stays visible, then choose Done.
+signature-sidebar-crop-values-hint = Each number is how much to trim from that side, as a fraction of the box width or height (0 to 0.95).
+signature-crop-overlay-hint = Drag handles to trim
+signature-rotate-handle-aria = Rotate signature
+
 # Template fields panel
 template-fields-insert = Insert field
 template-fields-search-placeholder = Search entities...
