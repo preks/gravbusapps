@@ -8,7 +8,7 @@
 import React from 'react'
 import { Alert, Spinner, Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { WarningIcon, InfoIcon, ArrowClockwiseIcon, SparkleIcon } from '@phosphor-icons/react'
-import { type AnalysisType, type ExpenseRequestAnalysis } from '../hooks/useExpenseRequestAnalysis'
+import { type AnalysisType, type ExpenseRequestAnalysis } from '../../hooks/useExpenseRequestAnalysis'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AIAnalysisSectionProps {
