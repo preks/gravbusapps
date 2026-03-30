@@ -59,6 +59,8 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-first-page-header > .rm-page-header')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .tableWrapper')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle')
+    expect(style?.textContent).toContain('z-index: 20')
+    expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror.resize-cursor')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')
   })
 

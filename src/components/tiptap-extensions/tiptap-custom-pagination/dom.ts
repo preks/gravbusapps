@@ -673,6 +673,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       border-radius: 0;
       background: transparent;
     }
+    .rm-pages-root .rm-page-header-content,
+    .rm-pages-root .rm-page-footer-content {
+      --default-cell-min-width: 25px;
+    }
     .rm-pages-root .rm-page-header-content table,
     .rm-pages-root .rm-page-footer-content table {
       max-width: 100%;
@@ -684,14 +688,23 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-footer-content td,
     .rm-pages-root .rm-page-header-content th,
     .rm-pages-root .rm-page-footer-content th {
+      box-sizing: border-box;
+      position: relative;
       border: 1pt solid #333;
       padding: 4pt 6pt;
       text-align: start;
       vertical-align: top;
       font-size: 0.875rem;
       line-height: 1.3;
-      overflow-wrap: anywhere;
+      min-width: 0;
+      overflow-wrap: break-word;
       word-break: break-word;
+    }
+    .rm-pages-root .rm-page-header-content td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-footer-content td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-header-content th:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-footer-content th:not([colwidth]):not(.column-resize-dragging) {
+      min-width: var(--default-cell-min-width);
     }
     .rm-pages-root .rm-page-header-content th,
     .rm-pages-root .rm-page-footer-content th {
@@ -947,6 +960,11 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: text;
       white-space: break-spaces;
       tab-size: 4;
+      --default-cell-min-width: 25px;
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror.resize-cursor {
+      cursor: ew-resize;
+      cursor: col-resize;
     }
     .rm-pages-root .rm-page-overlay-editor table {
       width: 100%;
@@ -960,6 +978,28 @@ export function ensurePagesStyles(targetDocument: Document) {
       border-style: dashed;
       border-width: 1px;
       padding: 2px 6px;
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror td,
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror th {
+      box-sizing: border-box;
+      position: relative;
+      min-width: 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror th:not([colwidth]):not(.column-resize-dragging) {
+      min-width: var(--default-cell-min-width);
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror .column-resize-handle {
+      position: absolute;
+      right: -2px;
+      top: 0;
+      bottom: -2px;
+      width: 4px;
+      z-index: 20;
+      background-color: #adf;
+      pointer-events: none;
     }
     .rm-pages-root .rm-page-inline-editor {
       width: 100%;
@@ -979,6 +1019,11 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: text;
       white-space: break-spaces;
       tab-size: 4;
+      --default-cell-min-width: 25px;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror.resize-cursor {
+      cursor: ew-resize;
+      cursor: col-resize;
     }
     .rm-pages-root .rm-page-inline-editor .ProseMirror p {
       min-height: 1em;
@@ -995,6 +1040,18 @@ export function ensurePagesStyles(targetDocument: Document) {
       margin: 0;
       border-collapse: collapse;
       table-layout: fixed;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror td,
+    .rm-pages-root .rm-page-inline-editor .ProseMirror th {
+      box-sizing: border-box;
+      position: relative;
+      min-width: 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-inline-editor .ProseMirror th:not([colwidth]):not(.column-resize-dragging) {
+      min-width: var(--default-cell-min-width);
     }
     .rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after {
       z-index: 2;
@@ -1013,6 +1070,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       top: 0;
       bottom: -2px;
       width: 4px;
+      z-index: 20;
       background-color: #adf;
       pointer-events: none;
     }
