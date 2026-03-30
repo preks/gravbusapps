@@ -138,19 +138,15 @@ export function TableBorderControlsSection({
   const borderColorHexForPicker = hexForColorInput(borderColor)
 
   return (
-    <section className="gba:space-y-3">
-      <div className="gba:space-y-1">
-        <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-borders')}</Label>
-        <p className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-border-hint')}</p>
-      </div>
-
-      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+    <div className="gba:space-y-3">
+      <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
         {BORDER_PRESET_OPTIONS.map(option => (
           <Button
             key={option.value}
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs"
             disabled={!canApplyBorders}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={() => applyPreset(option.value)}
@@ -162,8 +158,8 @@ export function TableBorderControlsSection({
       </div>
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-        <div className="gba:space-y-1">
-          <Label htmlFor={`${testId}-style`} className="gba:text-xs gba:text-muted-foreground">
+        <div className="gba:space-y-1.5">
+          <Label htmlFor={`${testId}-style`} className="gba:text-xs gba:font-medium">
             {t('table-sidebar-border-style')}
           </Label>
           <Select
@@ -200,8 +196,8 @@ export function TableBorderControlsSection({
           </Select>
         </div>
 
-        <div className="gba:space-y-1">
-          <Label htmlFor={`${testId}-width`} className="gba:text-xs gba:text-muted-foreground">
+        <div className="gba:space-y-1.5">
+          <Label htmlFor={`${testId}-width`} className="gba:text-xs gba:font-medium">
             {t('table-sidebar-border-width')}
           </Label>
           <Select
@@ -239,7 +235,7 @@ export function TableBorderControlsSection({
       </div>
 
       <div className="gba:space-y-2">
-        <Label htmlFor={`${testId}-border-color-hex`} className="gba:text-xs gba:text-muted-foreground">
+        <Label htmlFor={`${testId}-border-color-hex`} className="gba:text-xs gba:font-medium">
           {t('table-sidebar-border-color')}
         </Label>
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -287,6 +283,6 @@ export function TableBorderControlsSection({
           {t('table-sidebar-reset-default')}
         </Button>
       </div>
-    </section>
+    </div>
   )
 }
