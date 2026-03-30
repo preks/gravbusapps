@@ -259,7 +259,8 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       /* Signature crop scales the img larger than the frame; global img rules must not win. */
       .paged-document-editor .ProseMirror img[data-testid='document-editor-signature'] {
         max-width: none !important;
-        object-fit: fill;
+        border-radius: 0;
+        background: transparent;
       }
 
       .paged-document-editor .ProseMirror .tableWrapper {

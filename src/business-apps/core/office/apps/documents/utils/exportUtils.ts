@@ -21,6 +21,11 @@ import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-cu
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 import { sanitizePaginationRuntimeHtml } from './documentContentUtils'
 import type { DocumentPrintStyleConfig } from './pageLayoutUtils'
+import {
+  computeSignatureUniformContainLayout,
+  ensureSvgRootHasExplicitPixelSize,
+  parseSvgIntrinsicSizeFromMarkup
+} from './signatureSvgIntrinsic'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -36,6 +41,16 @@ export function escapeHtmlText(text: string): string {
 
 /** Allowed block spacing CSS properties for export (line and paragraph spacing). */
 const BLOCK_SPACING_PROPS = new Set(['line-height', 'margin-top', 'margin-bottom'])
+/** Layout props kept on signature raster images so print/PDF preserve aspect ratio after sanitization. */
+const SIGNATURE_EXPORT_IMAGE_STYLE_PROPS = new Set([
+  'width',
+  'max-width',
+  'height',
+  'aspect-ratio',
+  'vertical-align',
+  'object-fit',
+  'box-sizing'
+])
 const TEXT_FORMAT_PROPS = new Set([
   'background-color',
   'color',
@@ -71,6 +86,26 @@ function filterStyleForExport(
   }
   if (allowedProps.size === 0) return ''
 
+  const parts: string[] = []
+  for (const rawDecl of styleStr.split(';')) {
+    const decl = rawDecl.trim()
+    if (!decl) continue
+
+    const splitIdx = decl.indexOf(':')
+    if (splitIdx === -1) continue
+
+    const prop = decl.slice(0, splitIdx).trim().toLowerCase()
+    if (!allowedProps.has(prop)) continue
+
+    const value = decl.slice(splitIdx + 1).trim()
+    if (!value || !isSafeExportStyleValue(value)) continue
+
+    parts.push(`${prop}: ${value}`)
+  }
+  return parts.join('; ')
+}
+
+function filterStylePropsForExport(styleStr: string, allowedProps: Set<string>): string {
   const parts: string[] = []
   for (const rawDecl of styleStr.split(';')) {
     const decl = rawDecl.trim()
@@ -308,7 +343,13 @@ function applyStyleSanitization(
     el.removeAttribute('style')
     return
   }
-  const filtered = filterStyleForExport(style, options)
+  let filtered = filterStyleForExport(style, options)
+  if (el.tagName.toLowerCase() === 'img' && el.classList.contains('signature-export-image')) {
+    const layout = filterStylePropsForExport(style, SIGNATURE_EXPORT_IMAGE_STYLE_PROPS)
+    if (layout) {
+      filtered = filtered ? `${filtered}; ${layout}` : layout
+    }
+  }
   if (filtered) el.setAttribute('style', filtered)
   else el.removeAttribute('style')
 }
@@ -742,14 +783,17 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
         font-variant-numeric: tabular-nums;
       }
       img.signature-export-image {
-        display: block;
+        display: inline-block;
+        width: auto;
         max-width: 100%;
         height: auto;
-        margin: 0 0 14pt 0;
-        padding: 4pt;
-        border: 1pt solid #d0d0d0;
-        border-radius: 2pt;
+        vertical-align: baseline;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
         box-sizing: border-box;
+        background: transparent;
         page-break-inside: avoid;
         break-inside: avoid;
         -webkit-print-color-adjust: exact;
@@ -784,14 +828,115 @@ function prepareHtmlForPrintDocument(htmlContent: string): string {
 }
 
 const SIGNATURE_EXPORT_MAX_PX = 2400
+/** Rasterize at this multiple of logical size, then downscale for sharper edges in print/PDF. */
+const SIGNATURE_RASTER_SUPERSAMPLE = 2
+/** Cap supersampled edge length to avoid very large canvases (logical max is SIGNATURE_EXPORT_MAX_PX). */
+const SIGNATURE_RASTER_MAX_HI_EDGE = SIGNATURE_EXPORT_MAX_PX * SIGNATURE_RASTER_SUPERSAMPLE
 
 function parseSignatureCrop(attr: string | null): number {
   const v = parseFloat(attr || '0')
   return Number.isFinite(v) ? Math.min(Math.max(v, 0), 0.95) : 0
 }
 
+function resolveSignatureSvgBitmapDimensions(
+  svg: string,
+  naturalW: number,
+  naturalH: number,
+  fallbackW: number,
+  fallbackH: number
+): { nw: number; nh: number } {
+  if (naturalW > 0 && naturalH > 0) {
+    return { nw: naturalW, nh: naturalH }
+  }
+  const parsed = parseSvgIntrinsicSizeFromMarkup(svg)
+  if (parsed) {
+    return { nw: parsed.width, nh: parsed.height }
+  }
+  return { nw: fallbackW, nh: fallbackH }
+}
+
+async function waitForFontsAndNextFrame(): Promise<void> {
+  try {
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      await document.fonts.ready
+    }
+  } catch {
+    // ignore
+  }
+  await new Promise<void>(resolve => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+function createSignatureHiResCanvas(
+  img: HTMLImageElement,
+  nw: number,
+  nh: number,
+  hiW: number,
+  hiH: number,
+  ct: number,
+  cr: number,
+  cb: number,
+  cl: number
+): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = hiW
+  canvas.height = hiH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+
+  const noCrop = ct === 0 && cr === 0 && cb === 0 && cl === 0
+  if (noCrop) {
+    const fit = computeSignatureUniformContainLayout(hiW, hiH, nw, nh)
+    ctx.drawImage(img, 0, 0, nw, nh, fit.offsetX, fit.offsetY, fit.renderedWidth, fit.renderedHeight)
+  } else {
+    const srcX = nw * cl
+    const srcY = nh * ct
+    const srcW = nw * (1 - cl - cr)
+    const srcH = nh * (1 - ct - cb)
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, hiW, hiH)
+  }
+  return canvas
+}
+
+function rotateSignatureCanvas(source: HTMLCanvasElement, rotationDeg: number): HTMLCanvasElement | null {
+  if (rotationDeg === 0) return source
+  const w = source.width
+  const h = source.height
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.translate(w / 2, h / 2)
+  ctx.rotate((rotationDeg * Math.PI) / 180)
+  ctx.translate(-w / 2, -h / 2)
+  ctx.drawImage(source, 0, 0)
+  return canvas
+}
+
+function downscaleCanvasToLogicalSize(source: HTMLCanvasElement, outW: number, outH: number): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = outW
+  canvas.height = outH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, outW, outH)
+  return canvas
+}
+
 /**
  * Rasterizes signature SVG with crop and rotation baked in for reliable print/PDF output.
+ * Scales down large bitmaps with a **uniform** factor so aspect ratio is never distorted (unlike
+ * clamping width and height independently to SIGNATURE_EXPORT_MAX_PX).
  */
 function rasterizeSignatureSvgToPng(
   svg: string,
@@ -802,64 +947,75 @@ function rasterizeSignatureSvgToPng(
   cb: number,
   cl: number,
   rotationDeg: number
-): Promise<string | null> {
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
   if (typeof Image === 'undefined' || typeof document === 'undefined') {
     return Promise.resolve(null)
   }
 
-  const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
+  const normalizedSvg = ensureSvgRootHasExplicitPixelSize(svg)
+  const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(normalizedSvg)))}`
 
   return new Promise(resolve => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      try {
-        const nw = img.naturalWidth > 0 ? img.naturalWidth : displayWidth
-        const nh = img.naturalHeight > 0 ? img.naturalHeight : displayHeight
-        const srcX = nw * cl
-        const srcY = nh * ct
-        const srcW = nw * (1 - cl - cr)
-        const srcH = nh * (1 - ct - cb)
-        let outW = Math.max(1, Math.round(displayWidth))
-        let outH = Math.max(1, Math.round(displayHeight))
-        outW = Math.min(outW, SIGNATURE_EXPORT_MAX_PX)
-        outH = Math.min(outH, SIGNATURE_EXPORT_MAX_PX)
+      void (async () => {
+        try {
+          await waitForFontsAndNextFrame()
 
-        const canvas = document.createElement('canvas')
-        canvas.width = outW
-        canvas.height = outH
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          resolve(null)
-          return
-        }
-        ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'high'
-        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH)
+          const { nw, nh } = resolveSignatureSvgBitmapDimensions(
+            normalizedSvg,
+            img.naturalWidth,
+            img.naturalHeight,
+            displayWidth,
+            displayHeight
+          )
 
-        const rot = Number.isFinite(rotationDeg) ? rotationDeg : 0
-        if (rot !== 0) {
-          const canvas2 = document.createElement('canvas')
-          canvas2.width = outW
-          canvas2.height = outH
-          const ctx2 = canvas2.getContext('2d')
-          if (!ctx2) {
-            resolve(canvas.toDataURL('image/png'))
+          let outW = Math.max(1, Math.round(displayWidth))
+          let outH = Math.max(1, Math.round(displayHeight))
+          const maxOut = Math.max(outW, outH)
+          if (maxOut > SIGNATURE_EXPORT_MAX_PX) {
+            const scale = SIGNATURE_EXPORT_MAX_PX / maxOut
+            outW = Math.max(1, Math.round(outW * scale))
+            outH = Math.max(1, Math.round(outH * scale))
+          }
+
+          let hiW = Math.round(outW * SIGNATURE_RASTER_SUPERSAMPLE)
+          let hiH = Math.round(outH * SIGNATURE_RASTER_SUPERSAMPLE)
+          if (Math.max(hiW, hiH) > SIGNATURE_RASTER_MAX_HI_EDGE) {
+            const ratio = SIGNATURE_RASTER_MAX_HI_EDGE / Math.max(outW, outH)
+            hiW = Math.max(1, Math.round(outW * ratio))
+            hiH = Math.max(1, Math.round(outH * ratio))
+          }
+
+          const hiCanvas = createSignatureHiResCanvas(img, nw, nh, hiW, hiH, ct, cr, cb, cl)
+          if (!hiCanvas) {
+            resolve(null)
             return
           }
-          ctx2.imageSmoothingEnabled = true
-          ctx2.imageSmoothingQuality = 'high'
-          ctx2.translate(outW / 2, outH / 2)
-          ctx2.rotate((rot * Math.PI) / 180)
-          ctx2.translate(-outW / 2, -outH / 2)
-          ctx2.drawImage(canvas, 0, 0)
-          resolve(canvas2.toDataURL('image/png'))
-        } else {
-          resolve(canvas.toDataURL('image/png'))
+
+          const rot = Number.isFinite(rotationDeg) ? rotationDeg : 0
+          const rotated = rotateSignatureCanvas(hiCanvas, rot)
+          if (!rotated) {
+            resolve(null)
+            return
+          }
+
+          const outCanvas = downscaleCanvasToLogicalSize(rotated, outW, outH)
+          if (!outCanvas) {
+            resolve(null)
+            return
+          }
+
+          resolve({
+            dataUrl: outCanvas.toDataURL('image/png'),
+            width: outW,
+            height: outH
+          })
+        } catch {
+          resolve(null)
         }
-      } catch {
-        resolve(null)
-      }
+      })()
     }
     img.onerror = () => resolve(null)
     img.src = dataUrl
@@ -927,14 +1083,15 @@ async function materializeSignatureNodesInHtml(html: string): Promise<string> {
       const rot = parseFloat(el.getAttribute('data-rotation') || '0')
       const rotationDeg = Number.isFinite(rot) ? rot : 0
 
-      const png = await rasterizeSignatureSvgToPng(svg, displayWidth, displayHeight, ct, cr, cb, cl, rotationDeg)
-      if (png) {
+      const raster = await rasterizeSignatureSvgToPng(svg, displayWidth, displayHeight, ct, cr, cb, cl, rotationDeg)
+      if (raster) {
         const img = doc.createElement('img')
-        img.setAttribute('src', png)
+        img.setAttribute('src', raster.dataUrl)
         img.setAttribute('alt', el.getAttribute('data-name') || 'Signature')
         img.className = 'signature-export-image'
-        img.setAttribute('width', String(Math.round(displayWidth)))
-        img.setAttribute('height', String(Math.round(displayHeight)))
+        // Do not set width/height attributes or inline width/aspect-ratio: mixed with global
+        // `img { max-width:100%; height:auto }` and intrinsic PNG size, print engines can
+        // resolve a stretched box. Intrinsic canvas PNG dimensions are the single layout source.
         return { el, node: img as HTMLElement }
       }
       return { el, node: null as HTMLElement | null }

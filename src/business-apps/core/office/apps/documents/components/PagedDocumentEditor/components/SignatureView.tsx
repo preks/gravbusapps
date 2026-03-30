@@ -12,6 +12,10 @@ import {
   normalizeImageCrop,
   resolveImageCropDimensions
 } from '@/components/tiptap-extensions/tiptap-custom-image'
+import {
+  computeSignatureUniformContainLayout,
+  parseSvgIntrinsicSizeFromMarkup
+} from '../../../utils/signatureSvgIntrinsic'
 import type { NormalizedImageCrop } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
 import { DOCUMENT_SIGNATURE_UI_EVENT, type DocumentSignatureUiEventDetail } from '../signatureUiEvents'
 import { SignatureCropOverlay, type SignatureResizeDirection } from './SignatureCropOverlay'
@@ -226,15 +230,29 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
     })
   }, [cropPreview, attrs.cropTop, attrs.cropRight, attrs.cropBottom, attrs.cropLeft])
 
-  const cropLayout = useMemo(
-    () =>
-      resolveImageCropDimensions({
-        width: displayWidth,
-        height: displayHeight,
-        crop: effectiveCrop
-      }),
-    [displayHeight, displayWidth, effectiveCrop]
-  )
+  const cropLayout = useMemo(() => {
+    const hasCropPreviewOrCommitted =
+      effectiveCrop.top > 0 || effectiveCrop.right > 0 || effectiveCrop.bottom > 0 || effectiveCrop.left > 0
+    if (!hasCropPreviewOrCommitted) {
+      const intrinsic = parseSvgIntrinsicSizeFromMarkup(attrs.snapshotSvg ?? '')
+      if (intrinsic) {
+        const fit = computeSignatureUniformContainLayout(displayWidth, displayHeight, intrinsic.width, intrinsic.height)
+        return {
+          visibleWidthRatio: 1,
+          visibleHeightRatio: 1,
+          renderedWidth: fit.renderedWidth,
+          renderedHeight: fit.renderedHeight,
+          offsetX: fit.offsetX,
+          offsetY: fit.offsetY
+        }
+      }
+    }
+    return resolveImageCropDimensions({
+      width: displayWidth,
+      height: displayHeight,
+      crop: effectiveCrop
+    })
+  }, [attrs.snapshotSvg, displayHeight, displayWidth, effectiveCrop])
 
   useEffect(() => {
     cropPreviewRef.current = cropPreview
@@ -662,9 +680,11 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
           }}
         >
           <div
-            className={`gba:relative gba:overflow-hidden gba:rounded-md gba:box-border gba:border gba:border-border gba:shadow-sm ${
-              isCropMode ? 'gba:bg-background' : 'gba:bg-muted/30'
-            }`}
+            className={
+              isCropMode
+                ? 'gba:relative gba:overflow-hidden gba:rounded-md gba:box-border gba:border gba:border-border gba:shadow-sm gba:bg-background'
+                : 'gba:relative gba:overflow-hidden gba:box-border gba:bg-transparent'
+            }
             style={{ width: '100%', height: '100%' }}
           >
             <img
