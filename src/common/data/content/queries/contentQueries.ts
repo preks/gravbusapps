@@ -456,6 +456,40 @@ export const buildContentTagsQuery = (): string => {
   `
 }
 
+export const buildInsertContentTypeMutation = (): string => {
+  return `
+    mutation insertContentType($name: String!, $contentGroup: String) {
+      InsertContentTypeOne(object: { name: $name, contentGroup: $contentGroup }) {
+        id
+        name
+        contentGroup
+      }
+    }
+  `
+}
+
+export const buildUpdateContentTypeMutation = (): string => {
+  return `
+    mutation updateContentType($id: UUID!, $name: String!, $contentGroup: String) {
+      UpdateContentTypeByPk(pkColumns: { id: $id }, _set: { name: $name, contentGroup: $contentGroup }) {
+        id
+        name
+        contentGroup
+      }
+    }
+  `
+}
+
+export const buildDeleteContentTypeMutation = (): string => {
+  return `
+    mutation deleteContentType($id: UUID!) {
+      DeleteContentTypeByPk(id: $id) {
+        id
+      }
+    }
+  `
+}
+
 export const buildInsertContentCategoryMutation = (): string => {
   return `
     mutation insertContentCategory($name: String!) {
@@ -467,12 +501,54 @@ export const buildInsertContentCategoryMutation = (): string => {
   `
 }
 
+export const buildUpdateContentCategoryMutation = (): string => {
+  return `
+    mutation updateContentCategory($id: UUID!, $name: String!) {
+      UpdateContentCategoryByPk(pkColumns: { id: $id }, _set: { name: $name }) {
+        id
+        name
+      }
+    }
+  `
+}
+
+export const buildDeleteContentCategoryMutation = (): string => {
+  return `
+    mutation deleteContentCategory($id: UUID!) {
+      DeleteContentCategoryByPk(id: $id) {
+        id
+      }
+    }
+  `
+}
+
 export const buildInsertContentTagMutation = (): string => {
   return `
     mutation insertContentTag($name: String!) {
       InsertContentTagOne(object: { name: $name }) {
         id
         name
+      }
+    }
+  `
+}
+
+export const buildUpdateContentTagMutation = (): string => {
+  return `
+    mutation updateContentTag($id: UUID!, $name: String!) {
+      UpdateContentTagByPk(pkColumns: { id: $id }, _set: { name: $name }) {
+        id
+        name
+      }
+    }
+  `
+}
+
+export const buildDeleteContentTagMutation = (): string => {
+  return `
+    mutation deleteContentTag($id: UUID!) {
+      DeleteContentTagByPk(id: $id) {
+        id
       }
     }
   `

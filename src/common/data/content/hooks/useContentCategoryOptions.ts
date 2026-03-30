@@ -7,12 +7,14 @@ interface UseContentCategoryOptionsResult {
   options: ContentCategory[]
   isLoading: boolean
   error: Error | null
+  refetch: () => void
 }
 
 export const useContentCategoryOptions = (accessToken?: string): UseContentCategoryOptionsResult => {
   const [options, setOptions] = useState<ContentCategory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -43,7 +45,7 @@ export const useContentCategoryOptions = (accessToken?: string): UseContentCateg
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient])
+  }, [accessToken, graphqlClient, refreshKey])
 
-  return { options, isLoading, error }
+  return { options, isLoading, error, refetch: () => setRefreshKey(k => k + 1) }
 }

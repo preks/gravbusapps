@@ -7,6 +7,7 @@ interface UseContentTypeOptionsResult {
   options: ContentType[]
   isLoading: boolean
   error: Error | null
+  refetch: () => void
 }
 
 export const useContentTypeOptions = (
@@ -16,6 +17,7 @@ export const useContentTypeOptions = (
   const [options, setOptions] = useState<ContentType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -46,7 +48,7 @@ export const useContentTypeOptions = (
     return () => {
       cancelled = true
     }
-  }, [accessToken, contentGroup, graphqlClient])
+  }, [accessToken, contentGroup, graphqlClient, refreshKey])
 
-  return { options, isLoading, error }
+  return { options, isLoading, error, refetch: () => setRefreshKey(k => k + 1) }
 }

@@ -7,12 +7,14 @@ interface UseContentTagOptionsResult {
   options: ContentTag[]
   isLoading: boolean
   error: Error | null
+  refetch: () => void
 }
 
 export const useContentTagOptions = (accessToken?: string): UseContentTagOptionsResult => {
   const [options, setOptions] = useState<ContentTag[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -43,7 +45,7 @@ export const useContentTagOptions = (accessToken?: string): UseContentTagOptions
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient])
+  }, [accessToken, graphqlClient, refreshKey])
 
-  return { options, isLoading, error }
+  return { options, isLoading, error, refetch: () => setRefreshKey(k => k + 1) }
 }

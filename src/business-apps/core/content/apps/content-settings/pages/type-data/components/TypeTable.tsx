@@ -20,24 +20,19 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  Textarea,
   Alert,
-  AlertDescription,
-  Badge
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
-import type { CatalogEntry } from '@/common/data/catalog'
+import type { ContentType } from '@/common/data/content/types/contentTaxonomyTypes'
 
 interface TypeFormData {
-  code: string
-  value: string
-  description?: string
-  displayOrder: number
+  name: string
 }
 
 interface TypeTableProps {
-  types: CatalogEntry[]
+  types: ContentType[]
   isLoading: boolean
   error: string | null
   onCreate: (data: TypeFormData) => Promise<void>
@@ -57,17 +52,12 @@ export const TypeTable: React.FC<TypeTableProps> = ({
   prefixDataTestId = 'type-table'
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editingType, setEditingType] = useState<CatalogEntry | null>(null)
+  const [editingType, setEditingType] = useState<ContentType | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<TypeFormData>({
-    defaultValues: {
-      code: '',
-      value: '',
-      description: '',
-      displayOrder: 0
-    }
+    defaultValues: { name: '' }
   })
 
   const handleCreate = async (data: TypeFormData) => {
@@ -109,14 +99,9 @@ export const TypeTable: React.FC<TypeTableProps> = ({
     }
   }
 
-  const openEditDialog = (type: CatalogEntry) => {
+  const openEditDialog = (type: ContentType) => {
     setEditingType(type)
-    form.reset({
-      code: type.code || '',
-      value: type.value || '',
-      description: type.description || '',
-      displayOrder: type.displayOrder || 0
-    })
+    form.reset({ name: type.name || '' })
   }
 
   if (error) {
@@ -134,8 +119,6 @@ export const TypeTable: React.FC<TypeTableProps> = ({
     )
   }
 
-  const sortedTypes = [...types].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-
   return (
     <div data-testid={prefixDataTestId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
@@ -149,22 +132,16 @@ export const TypeTable: React.FC<TypeTableProps> = ({
       <Table data-testid={`${prefixDataTestId}-table`}>
         <TableHeader>
           <TableRow>
-            <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Display Order</TableHead>
+            <TableHead>Content Group</TableHead>
             <TableHead className="gba:w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedTypes.map(type => (
+          {types.map(type => (
             <TableRow key={type.id} data-testid={`${prefixDataTestId}-row-${type.id}`}>
-              <TableCell>
-                <Badge variant="outline">{type.code}</Badge>
-              </TableCell>
-              <TableCell>{type.value}</TableCell>
-              <TableCell className="gba:max-w-md gba:truncate">{type.description}</TableCell>
-              <TableCell>{type.displayOrder}</TableCell>
+              <TableCell>{type.name}</TableCell>
+              <TableCell>{type.contentGroup}</TableCell>
               <TableCell>
                 <div className="gba:flex gba:gap-2">
                   <Button
@@ -201,60 +178,12 @@ export const TypeTable: React.FC<TypeTableProps> = ({
             <form onSubmit={form.handleSubmit(handleCreate)} className="gba:space-y-4">
               <FormField
                 control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code (UPPER_SNAKE_CASE)</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="ARTICLE" data-testid={`${prefixDataTestId}-create-code-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="value"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Article" data-testid={`${prefixDataTestId}-create-value-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder="Detailed description of this content type"
-                        data-testid={`${prefixDataTestId}-create-description-input`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Display Order</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
-                        data-testid={`${prefixDataTestId}-create-order-input`}
-                      />
+                      <Input {...field} placeholder="Article" data-testid={`${prefixDataTestId}-create-name-input`} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -278,62 +207,18 @@ export const TypeTable: React.FC<TypeTableProps> = ({
         <DialogContent data-testid={`${prefixDataTestId}-edit-dialog`}>
           <DialogHeader>
             <DialogTitle>Edit Content Type</DialogTitle>
-            <DialogDescription>Update content type details</DialogDescription>
+            <DialogDescription>Update content type name</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdate)} className="gba:space-y-4">
               <FormField
                 control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code (UPPER_SNAKE_CASE)</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid={`${prefixDataTestId}-edit-code-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="value"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid={`${prefixDataTestId}-edit-value-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} data-testid={`${prefixDataTestId}-edit-description-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Display Order</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
-                        data-testid={`${prefixDataTestId}-edit-order-input`}
-                      />
+                      <Input {...field} data-testid={`${prefixDataTestId}-edit-name-input`} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

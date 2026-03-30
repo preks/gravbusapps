@@ -1,86 +1,78 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TypeTable } from './components/TypeTable'
+import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
-  useCatalogEntries,
-  useCreateCatalogEntry,
-  useUpdateCatalogEntry,
-  useDeleteCatalogEntry,
-  type CatalogEntry
-} from '@/common/data/catalog'
+  buildInsertContentTypeMutation,
+  buildUpdateContentTypeMutation,
+  buildDeleteContentTypeMutation
+} from '@/common/data/content/queries/contentQueries'
+import type { ContentType } from '@/common/data/content/types/contentTaxonomyTypes'
 
 export interface TypeDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onBack?: () => void
 }
 
-const CATALOG_IDENTIFIER = 'ContentType'
-const CATALOG_VERSION = 'v1'
-
 const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const [types, setTypes] = useState<CatalogEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken })
-  const { createCatalogEntry } = useCreateCatalogEntry({ accessToken: context.accessToken })
-  const { updateCatalogEntry } = useUpdateCatalogEntry({ accessToken: context.accessToken })
-  const { deleteCatalogEntry } = useDeleteCatalogEntry({ accessToken: context.accessToken })
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const { options: types, isLoading, error: fetchError, refetch } = useContentTypeOptions(context.accessToken)
 
-  const loadTypes = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
-        limit: 100,
-        offset: 0
-      })
-      setTypes(result.entries)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load content types')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [fetchCatalogEntriesByIdentifier])
+  const error = mutationError || (fetchError ? fetchError.message : null)
 
-  useEffect(() => {
-    loadTypes()
-  }, [loadTypes])
-
-  const handleCreate = async (data: any) => {
-    await createCatalogEntry({
-      catalogIdentifier: CATALOG_IDENTIFIER,
-      catalogVersion: CATALOG_VERSION,
-      entry: {
-        code: data.code,
-        value: data.value,
-        description: data.description,
-        displayOrder: data.displayOrder,
-        translations: []
+  const handleCreate = useCallback(
+    async (data: { name: string }) => {
+      setMutationError(null)
+      try {
+        await graphqlClient.request<{ InsertContentTypeOne: ContentType }>(buildInsertContentTypeMutation(), {
+          name: data.name
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to create content type'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadTypes()
-  }
+    },
+    [graphqlClient, refetch]
+  )
 
-  const handleUpdate = async (id: string, data: any) => {
-    await updateCatalogEntry({
-      entryId: id,
-      entry: {
-        code: data.code,
-        value: data.value,
-        description: data.description,
-        displayOrder: data.displayOrder,
-        translations: []
+  const handleUpdate = useCallback(
+    async (id: string, data: { name: string }) => {
+      setMutationError(null)
+      try {
+        await graphqlClient.request<{ UpdateContentTypeByPk: ContentType }>(buildUpdateContentTypeMutation(), {
+          id,
+          name: data.name
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update content type'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadTypes()
-  }
+    },
+    [graphqlClient, refetch]
+  )
 
-  const handleDelete = async (id: string) => {
-    await deleteCatalogEntry({ entryId: id })
-    await loadTypes()
-  }
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setMutationError(null)
+      try {
+        await graphqlClient.request(buildDeleteContentTypeMutation(), { id })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete content type'
+        setMutationError(message)
+        throw err
+      }
+    },
+    [graphqlClient, refetch]
+  )
 
   if (isLoading && types.length === 0) {
     return (
@@ -106,7 +98,7 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
           onCreate={handleCreate}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          onRetry={loadTypes}
+          onRetry={refetch}
           prefixDataTestId={`${prefixDataTestId}-table`}
         />
       </div>

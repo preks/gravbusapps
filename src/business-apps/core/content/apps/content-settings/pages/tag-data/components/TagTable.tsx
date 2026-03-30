@@ -21,22 +21,18 @@ import {
   FormMessage,
   Input,
   Alert,
-  AlertDescription,
-  Badge
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
-import type { CatalogEntry } from '@/common/data/catalog'
+import type { ContentTag } from '@/common/data/content/types/contentTaxonomyTypes'
 
 interface TagFormData {
-  code: string
-  value: string
-  displayOrder: number
-  color?: string
+  name: string
 }
 
 interface TagTableProps {
-  tags: CatalogEntry[]
+  tags: ContentTag[]
   isLoading: boolean
   error: string | null
   onCreate: (data: TagFormData) => Promise<void>
@@ -45,17 +41,6 @@ interface TagTableProps {
   onRetry?: () => void
   prefixDataTestId?: string
 }
-
-const DEFAULT_COLORS = [
-  '#3b82f6', // blue
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#84cc16' // lime
-]
 
 export const TagTable: React.FC<TagTableProps> = ({
   tags,
@@ -67,17 +52,12 @@ export const TagTable: React.FC<TagTableProps> = ({
   prefixDataTestId = 'tag-table'
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editingTag, setEditingTag] = useState<CatalogEntry | null>(null)
+  const [editingTag, setEditingTag] = useState<ContentTag | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<TagFormData>({
-    defaultValues: {
-      code: '',
-      value: '',
-      displayOrder: 0,
-      color: DEFAULT_COLORS[0]
-    }
+    defaultValues: { name: '' }
   })
 
   const handleCreate = async (data: TagFormData) => {
@@ -119,14 +99,9 @@ export const TagTable: React.FC<TagTableProps> = ({
     }
   }
 
-  const openEditDialog = (tag: CatalogEntry) => {
+  const openEditDialog = (tag: ContentTag) => {
     setEditingTag(tag)
-    form.reset({
-      code: tag.code || '',
-      value: tag.value || '',
-      displayOrder: tag.displayOrder || 0,
-      color: tag.additionalValue1 || DEFAULT_COLORS[0]
-    })
+    form.reset({ name: tag.name || '' })
   }
 
   if (error) {
@@ -144,8 +119,6 @@ export const TagTable: React.FC<TagTableProps> = ({
     )
   }
 
-  const sortedTags = [...tags].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-
   return (
     <div data-testid={prefixDataTestId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
@@ -159,24 +132,14 @@ export const TagTable: React.FC<TagTableProps> = ({
       <Table data-testid={`${prefixDataTestId}-table`}>
         <TableHeader>
           <TableRow>
-            <TableHead>Preview</TableHead>
-            <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Display Order</TableHead>
             <TableHead className="gba:w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedTags.map(tag => (
+          {tags.map(tag => (
             <TableRow key={tag.id} data-testid={`${prefixDataTestId}-row-${tag.id}`}>
-              <TableCell>
-                <Badge style={{ backgroundColor: tag.additionalValue1 || '#3b82f6' }}>{tag.value}</Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">{tag.code}</Badge>
-              </TableCell>
-              <TableCell>{tag.value}</TableCell>
-              <TableCell>{tag.displayOrder}</TableCell>
+              <TableCell>{tag.name}</TableCell>
               <TableCell>
                 <div className="gba:flex gba:gap-2">
                   <Button
@@ -213,24 +176,7 @@ export const TagTable: React.FC<TagTableProps> = ({
             <form onSubmit={form.handleSubmit(handleCreate)} className="gba:space-y-4">
               <FormField
                 control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code (UPPER_SNAKE_CASE)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="TECHNOLOGY"
-                        data-testid={`${prefixDataTestId}-create-code-input`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="value"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
@@ -238,57 +184,7 @@ export const TagTable: React.FC<TagTableProps> = ({
                       <Input
                         {...field}
                         placeholder="Technology"
-                        data-testid={`${prefixDataTestId}-create-value-input`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Color</FormLabel>
-                    <FormControl>
-                      <div className="gba:flex gba:gap-2 gba:items-center">
-                        <Input
-                          {...field}
-                          type="color"
-                          className="gba:w-20 gba:h-10"
-                          data-testid={`${prefixDataTestId}-create-color-input`}
-                        />
-                        <span className="gba:text-sm gba:text-muted-foreground">{field.value}</span>
-                      </div>
-                    </FormControl>
-                    <div className="gba:flex gba:gap-2 gba:mt-2">
-                      {DEFAULT_COLORS.map(color => (
-                        <button
-                          key={color}
-                          type="button"
-                          className="gba:w-6 gba:h-6 gba:rounded gba:border gba:cursor-pointer"
-                          style={{ backgroundColor: color }}
-                          onClick={() => form.setValue('color', color)}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Display Order</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
-                        data-testid={`${prefixDataTestId}-create-order-input`}
+                        data-testid={`${prefixDataTestId}-create-name-input`}
                       />
                     </FormControl>
                     <FormMessage />
@@ -313,81 +209,18 @@ export const TagTable: React.FC<TagTableProps> = ({
         <DialogContent data-testid={`${prefixDataTestId}-edit-dialog`}>
           <DialogHeader>
             <DialogTitle>Edit Tag</DialogTitle>
-            <DialogDescription>Update tag details</DialogDescription>
+            <DialogDescription>Update tag name</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdate)} className="gba:space-y-4">
               <FormField
                 control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code (UPPER_SNAKE_CASE)</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid={`${prefixDataTestId}-edit-code-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="value"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid={`${prefixDataTestId}-edit-value-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Color</FormLabel>
-                    <FormControl>
-                      <div className="gba:flex gba:gap-2 gba:items-center">
-                        <Input
-                          {...field}
-                          type="color"
-                          className="gba:w-20 gba:h-10"
-                          data-testid={`${prefixDataTestId}-edit-color-input`}
-                        />
-                        <span className="gba:text-sm gba:text-muted-foreground">{field.value}</span>
-                      </div>
-                    </FormControl>
-                    <div className="gba:flex gba:gap-2 gba:mt-2">
-                      {DEFAULT_COLORS.map(color => (
-                        <button
-                          key={color}
-                          type="button"
-                          className="gba:w-6 gba:h-6 gba:rounded gba:border gba:cursor-pointer"
-                          style={{ backgroundColor: color }}
-                          onClick={() => form.setValue('color', color)}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Display Order</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
-                        data-testid={`${prefixDataTestId}-edit-order-input`}
-                      />
+                      <Input {...field} data-testid={`${prefixDataTestId}-edit-name-input`} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
