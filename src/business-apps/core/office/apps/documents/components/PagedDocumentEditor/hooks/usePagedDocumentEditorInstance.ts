@@ -76,6 +76,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
     Signature,
     Table.configure({
       resizable: true,
+      handleWidth: 8,
       renderWrapper: false,
       HTMLAttributes: {
         class: 'editor-table'

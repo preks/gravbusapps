@@ -586,6 +586,12 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             >
               {t('table-sidebar-distribute-columns')}
             </Button>
+            <p
+              className="gba:text-xs gba:text-muted-foreground gba:leading-snug"
+              data-testid={`${testId}-column-width-hint`}
+            >
+              {t('table-sidebar-column-width-hint')}
+            </p>
           </div>
         </div>
       </section>

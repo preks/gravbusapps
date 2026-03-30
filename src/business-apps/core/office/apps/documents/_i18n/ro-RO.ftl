@@ -469,6 +469,7 @@ table-sidebar-width-mode = Mod lățime
 table-sidebar-width-mode-manual = Lățime manuală
 table-sidebar-row-height = Înălțime rând
 table-sidebar-column-width = Lățime coloană
+table-sidebar-column-width-hint = Puteți și să trageți marginea unei coloane în document când cursorul arată redimensionare.
 table-sidebar-apply = Aplică
 table-sidebar-distribute-rows = Distribuie rândurile
 table-sidebar-distribute-columns = Distribuie coloanele

@@ -469,6 +469,7 @@ table-sidebar-width-mode = Breitenmodus
 table-sidebar-width-mode-manual = Manuelle Breite
 table-sidebar-row-height = Zeilenhöhe
 table-sidebar-column-width = Spaltenbreite
+table-sidebar-column-width-hint = Sie können auch einen Spaltenrand im Dokument ziehen, wenn der Mauszeiger als Größenänderung angezeigt wird.
 table-sidebar-apply = Anwenden
 table-sidebar-distribute-rows = Zeilen verteilen
 table-sidebar-distribute-columns = Spalten verteilen

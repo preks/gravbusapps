@@ -470,6 +470,7 @@ table-sidebar-width-mode = Width mode
 table-sidebar-width-mode-manual = Manual width
 table-sidebar-row-height = Row height
 table-sidebar-column-width = Column width
+table-sidebar-column-width-hint = You can also drag a column border in the document when the pointer shows a resize cursor.
 table-sidebar-apply = Apply
 table-sidebar-distribute-rows = Distribute rows
 table-sidebar-distribute-columns = Distribute columns
