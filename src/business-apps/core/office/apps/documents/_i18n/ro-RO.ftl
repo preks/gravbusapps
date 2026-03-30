@@ -475,6 +475,7 @@ table-sidebar-layout-align-right = Dreapta
 table-sidebar-row-height = Înălțime rând
 table-sidebar-column-width = Lățime coloană
 table-sidebar-apply = Aplică
+table-sidebar-reset-default = Resetare la implicit
 table-sidebar-distribute-rows = Distribuie rândurile
 table-sidebar-distribute-columns = Distribuie coloanele
 table-sidebar-fill-blue = Tentă albastră

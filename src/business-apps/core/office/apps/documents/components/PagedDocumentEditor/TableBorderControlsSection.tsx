@@ -12,6 +12,8 @@ import {
 } from '@newwork/nw-design-system'
 import type { TableBorderPreset } from '@/components/tiptap-extensions/tiptap-custom-tables/tableFormattingUtils'
 import type { TableBorderStyle } from '@/components/tiptap-extensions/tiptap-custom-tables/types'
+import { DEFAULT_TABLE_CELL_BORDER_COLOR } from '@/components/tiptap-extensions/tiptap-custom-tables/types'
+import { normalizeColorValue } from '@/components/tiptap-extensions/tiptap-custom-tables/styleUtils'
 import translations from '../../_i18n'
 
 const BORDER_STYLE_OPTIONS: ReadonlyArray<{ value: TableBorderStyle; labelKey: string }> = [
@@ -42,6 +44,20 @@ function getSelectableBorderStyle(style: TableBorderStyle): Exclude<TableBorderS
 
 function preventEditorBlurOnMouseDown(event: React.MouseEvent<HTMLElement>) {
   event.preventDefault()
+}
+
+/** 6-digit #rrggbb for native color input (falls back to editor default border color when invalid). */
+function hexForColorInput(value: string): string {
+  const n = normalizeColorValue(value.trim())
+  if (!n) return DEFAULT_TABLE_CELL_BORDER_COLOR
+  if (/^#[0-9a-f]{6}$/i.test(n)) return n.toLowerCase()
+  if (/^#[0-9a-f]{3}$/i.test(n)) {
+    const r = n[1]
+    const g = n[2]
+    const b = n[3]
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase()
+  }
+  return DEFAULT_TABLE_CELL_BORDER_COLOR
 }
 
 interface TableBorderControlsSectionProps {
@@ -88,7 +104,7 @@ export function TableBorderControlsSection({
   const applyOptions = () => ({
     style: borderStyle,
     width: borderWidth,
-    color: borderColor.trim() || null
+    color: borderColor.trim() || DEFAULT_TABLE_CELL_BORDER_COLOR
   })
 
   const applyWithPreset = (preset: TableBorderPreset) => {
@@ -108,12 +124,18 @@ export function TableBorderControlsSection({
   }) => {
     if (!canApplyBorders) return
     const nextColor = next.color !== undefined ? next.color : borderColor
+    const resolvedColor =
+      typeof nextColor === 'string'
+        ? nextColor.trim() || DEFAULT_TABLE_CELL_BORDER_COLOR
+        : (nextColor ?? DEFAULT_TABLE_CELL_BORDER_COLOR)
     onApplyPreset(lastPreset, {
       style: next.style ?? borderStyle,
       width: next.width ?? borderWidth,
-      color: typeof nextColor === 'string' ? nextColor.trim() || null : nextColor
+      color: resolvedColor
     })
   }
+
+  const borderColorHexForPicker = hexForColorInput(borderColor)
 
   return (
     <section className="gba:space-y-3">
@@ -159,7 +181,11 @@ export function TableBorderControlsSection({
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent onCloseAutoFocus={event => event.preventDefault()}>
+            <SelectContent
+              data-document-table-sidebar-dropdown=""
+              onOpenAutoFocus={event => event.preventDefault()}
+              onCloseAutoFocus={event => event.preventDefault()}
+            >
               {BORDER_STYLE_OPTIONS.map(option => (
                 <SelectItem
                   key={option.value}
@@ -192,7 +218,11 @@ export function TableBorderControlsSection({
             >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent onCloseAutoFocus={event => event.preventDefault()}>
+            <SelectContent
+              data-document-table-sidebar-dropdown=""
+              onOpenAutoFocus={event => event.preventDefault()}
+              onCloseAutoFocus={event => event.preventDefault()}
+            >
               {BORDER_WIDTH_OPTIONS.map(option => (
                 <SelectItem
                   key={option}
@@ -208,32 +238,54 @@ export function TableBorderControlsSection({
         </div>
       </div>
 
-      <div className="gba:space-y-1">
-        <Label htmlFor={`${testId}-color`} className="gba:text-xs gba:text-muted-foreground">
+      <div className="gba:space-y-2">
+        <Label htmlFor={`${testId}-border-color-hex`} className="gba:text-xs gba:text-muted-foreground">
           {t('table-sidebar-border-color')}
         </Label>
-        <div className="gba:flex gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <input
+            type="color"
+            value={borderColorHexForPicker}
+            onChange={event => setBorderColor(event.target.value)}
+            className="gba:h-10 gba:w-14 gba:cursor-pointer gba:rounded-md gba:border gba:border-input gba:shrink-0"
+            data-testid={`${testId}-border-color-picker`}
+            aria-label={t('table-sidebar-border-color')}
+          />
           <Input
-            id={`${testId}-color`}
+            id={`${testId}-border-color-hex`}
             value={borderColor}
             onChange={event => setBorderColor(event.target.value)}
-            onBlur={() => reapplyLastPreset({})}
-            placeholder="#2563EB"
+            placeholder="#333333"
+            className="gba:flex-1 gba:font-mono gba:text-sm"
+            maxLength={32}
             data-testid={`${testId}-color`}
           />
           <Button
             type="button"
             variant="outline"
+            className="gba:shrink-0"
             onMouseDown={preventEditorBlurOnMouseDown}
-            onClick={() => {
-              setBorderColor('')
-              reapplyLastPreset({ color: null })
-            }}
-            data-testid={`${testId}-color-clear`}
+            onClick={() => reapplyLastPreset({ color: borderColor.trim() || DEFAULT_TABLE_CELL_BORDER_COLOR })}
+            data-testid={`${testId}-border-color-apply`}
           >
-            {t('editor-toolbar-table-border-clear')}
+            {t('table-sidebar-apply')}
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gba:w-full gba:text-muted-foreground"
+          disabled={!canApplyBorders}
+          onMouseDown={preventEditorBlurOnMouseDown}
+          onClick={() => {
+            setBorderColor(DEFAULT_TABLE_CELL_BORDER_COLOR)
+            reapplyLastPreset({ color: DEFAULT_TABLE_CELL_BORDER_COLOR })
+          }}
+          data-testid={`${testId}-border-color-reset-default`}
+        >
+          {t('table-sidebar-reset-default')}
+        </Button>
       </div>
     </section>
   )

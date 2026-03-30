@@ -476,6 +476,7 @@ table-sidebar-layout-align-right = Right
 table-sidebar-row-height = Row height
 table-sidebar-column-width = Column width
 table-sidebar-apply = Apply
+table-sidebar-reset-default = Reset to default
 table-sidebar-distribute-rows = Distribute rows
 table-sidebar-distribute-columns = Distribute columns
 table-sidebar-fill-blue = Blue tint

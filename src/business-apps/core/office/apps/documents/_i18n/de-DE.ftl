@@ -475,6 +475,7 @@ table-sidebar-layout-align-right = Rechts
 table-sidebar-row-height = Zeilenhöhe
 table-sidebar-column-width = Spaltenbreite
 table-sidebar-apply = Anwenden
+table-sidebar-reset-default = Standard wiederherstellen
 table-sidebar-distribute-rows = Zeilen verteilen
 table-sidebar-distribute-columns = Spalten verteilen
 table-sidebar-fill-blue = Blaue Tönung

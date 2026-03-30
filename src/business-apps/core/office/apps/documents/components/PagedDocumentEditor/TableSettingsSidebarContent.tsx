@@ -15,6 +15,9 @@ const TABLE_THEME_OPTIONS: ReadonlyArray<{ value: TableTheme; labelKey: string }
   { value: 'gray', labelKey: 'table-theme-gray' }
 ]
 
+/** Matches default in `useTableSidebarActions` / table node attrs. */
+const DEFAULT_TABLE_BACKGROUND_COLOR = '#ffffff'
+
 const FILL_OPTIONS: ReadonlyArray<{ value: string; labelKey: string }> = [
   { value: '#E0F2FE', labelKey: 'table-sidebar-fill-blue' },
   { value: '#ECFCCB', labelKey: 'table-sidebar-fill-green' },
@@ -94,30 +97,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   return (
     <div className="gba:flex gba:flex-col gba:gap-4 gba:px-4 gba:py-4">
       <section className="gba:space-y-3">
-        <div className="gba:space-y-1">
-          <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-style')}</Label>
-          <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-selection-summary`}>
-            {selectionLabel}
-          </p>
-        </div>
-
-        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-          {TABLE_THEME_OPTIONS.map(option => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={values.tableTheme === option.value ? 'default' : 'outline'}
-              size="sm"
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => actions.setTableTheme(option.value)}
-              data-testid={`${testId}-theme-${option.value}`}
-            >
-              {t(option.labelKey)}
-            </Button>
-          ))}
-        </div>
-
-        <div className="gba:space-y-1">
+        <div className="gba:space-y-2">
           <Label htmlFor={`${testId}-table-background-hex`} className="gba:text-xs gba:text-muted-foreground">
             {t('table-sidebar-surface-background')}
           </Label>
@@ -150,6 +130,43 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
               {t('table-sidebar-apply')}
             </Button>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gba:w-full gba:text-muted-foreground"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => {
+              setTableBackgroundInput(DEFAULT_TABLE_BACKGROUND_COLOR)
+              actions.setTableStyleOptions({ tableBackgroundColor: DEFAULT_TABLE_BACKGROUND_COLOR })
+            }}
+            data-testid={`${testId}-table-background-reset-default`}
+          >
+            {t('table-sidebar-reset-default')}
+          </Button>
+        </div>
+
+        <div className="gba:space-y-1">
+          <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-style')}</Label>
+          <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-selection-summary`}>
+            {selectionLabel}
+          </p>
+        </div>
+
+        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+          {TABLE_THEME_OPTIONS.map(option => (
+            <Button
+              key={option.value}
+              type="button"
+              variant={values.tableTheme === option.value ? 'default' : 'outline'}
+              size="sm"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableTheme(option.value)}
+              data-testid={`${testId}-theme-${option.value}`}
+            >
+              {t(option.labelKey)}
+            </Button>
+          ))}
         </div>
 
         <div className="gba:space-y-2">
