@@ -189,7 +189,6 @@ export function PagedDocumentEditorSidebarHost({
           documentId={documentId}
           documentTitle={title}
           onClose={() => setRightSidebar('closed')}
-          currentUserId={currentUserId || undefined}
           headerHeight={headerHeight}
           data-testid="document-ai-edit-panel"
         />

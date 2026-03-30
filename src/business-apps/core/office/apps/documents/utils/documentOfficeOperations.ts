@@ -533,7 +533,7 @@ export function buildLockInput(reason?: string, durationMinutes?: number): LockF
 
 export type AiEditPayload = {
   instruction: string
-  llmProvider?: 'openai' | 'groq'
+  llmProvider?: 'openai' | 'azure'
   documentHtml: string
   documentPlainText: string
   mode: 'selection' | 'document'

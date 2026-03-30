@@ -1356,7 +1356,7 @@ export const DocumentApiService = {
     documentId: string,
     payload: {
       instruction: string
-      llmProvider?: 'openai' | 'groq'
+      llmProvider?: 'openai' | 'azure'
       documentHtml: string
       documentPlainText: string
       mode: 'selection' | 'document'
