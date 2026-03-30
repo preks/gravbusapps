@@ -2629,6 +2629,45 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         </div>
       )}
 
+      {editingTextId && voiceInput.isListening && (
+        <div
+          className="gba:fixed gba:left-1/2 gba:top-24 gba:z-[50000] gba:pointer-events-none"
+          style={{ transform: 'translateX(-50%)' }}
+        >
+          <div className="gba:bg-background gba:rounded-xl gba:shadow-xl gba:border gba:border-border gba:flex gba:flex-col gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:min-w-[320px] gba:max-w-[420px]">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:w-full">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:bg-destructive/10 gba:rounded-md">
+                <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse" />
+                <span className="gba:text-xs gba:font-semibold gba:text-destructive">REC</span>
+              </div>
+
+              <div className="gba:flex gba:items-end gba:gap-0.5 gba:h-5">
+                {[0.15, 0.3, 0.5, 0.7, 0.85].map((threshold, i) => {
+                  const isActive = voiceInput.volume > threshold
+                  return (
+                    <div
+                      key={i}
+                      className={`gba:w-1 gba:rounded-sm gba:transition-colors ${isActive ? 'gba:bg-green-500' : 'gba:bg-border'}`}
+                      style={{ height: 6 + i * 3 }}
+                    />
+                  )
+                })}
+              </div>
+
+              <span className="gba:text-[11px] gba:text-muted-foreground gba:ml-auto">Speak now...</span>
+            </div>
+
+            {voiceInput.interimTranscript && (
+              <div className="gba:w-full gba:px-2.5 gba:py-2 gba:bg-muted gba:rounded-md gba:text-sm gba:text-foreground gba:italic gba:leading-relaxed gba:max-h-[60px] gba:overflow-hidden">
+                "{voiceInput.interimTranscript}"
+              </div>
+            )}
+
+            <div className="gba:text-[11px] gba:text-muted-foreground">Click mic button or outside to stop</div>
+          </div>
+        </div>
+      )}
+
       {/* Image Dialog */}
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
         <DialogContent>

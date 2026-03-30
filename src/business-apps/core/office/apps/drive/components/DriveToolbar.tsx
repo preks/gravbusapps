@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Search, LayoutGrid, List, Upload, SortAsc, SortDesc, Trash2, CloudDownload } from 'lucide-react'
+import { Search, LayoutGrid, List, Upload, FolderPlus, SortAsc, SortDesc, Trash2, CloudDownload } from 'lucide-react'
 import type { DriveViewMode, DriveSortBy, DriveSection } from '../types/drive.types'
 
 export interface DriveToolbarProps {
@@ -13,6 +13,8 @@ export interface DriveToolbarProps {
   onSearchClick: () => void
   onUploadFiles: (files: File[]) => void
   onImportExternal?: () => void
+  onCreateFolder?: () => void
+  actionsSlot?: React.ReactNode
   section: DriveSection
   onEmptyTrash?: () => void
   t: (key: string) => string
@@ -29,6 +31,8 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
   onSearchClick,
   onUploadFiles,
   onImportExternal,
+  onCreateFolder,
+  actionsSlot,
   section,
   onEmptyTrash,
   t,
@@ -80,6 +84,21 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
               <Upload className="gba:w-3.5 gba:h-3.5" />
               {t('header-upload-file')}
             </Button>
+            {onCreateFolder && (
+              <>
+                <div className="gba:w-px gba:h-4 gba:bg-border/50" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCreateFolder}
+                  className="gba:gap-1.5 gba:h-7 gba:text-xs"
+                  data-testid={`${testId}-create-folder`}
+                >
+                  <FolderPlus className="gba:w-3.5 gba:h-3.5" />
+                  New folder
+                </Button>
+              </>
+            )}
             {onImportExternal && (
               <>
                 <div className="gba:w-px gba:h-4 gba:bg-border/50" />
@@ -97,6 +116,8 @@ export const DriveToolbar: React.FC<DriveToolbarProps> = ({
             )}
           </div>
         )}
+
+        {actionsSlot}
 
         {section === 'trash' && onEmptyTrash && (
           <Button
