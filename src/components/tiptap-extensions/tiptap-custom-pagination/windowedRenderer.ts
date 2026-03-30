@@ -375,6 +375,11 @@ export function renderWindowedFirstPageHeader(params: WindowedRenderWrapperParam
   })
 }
 
+/**
+ * Pagination chrome: `[data-rm-pagination-chrome]` with `display: contents` so children participate in
+ * the editor root. First child is page 1 header (`.rm-first-page-header`); second is `.rm-pages-wrapper`.
+ * Inspecting only the first `rm-page-break` will not show a `rm-page-header-region` for page 1.
+ */
 export function renderWindowedPaginationChrome(params: WindowedRenderWrapperParams) {
   const chromeRoot = document.createElement('div')
   chromeRoot.dataset.rmPaginationChrome = 'true'

@@ -99,6 +99,7 @@ function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean
   }
 }
 
+/** When true, the Pages extension is not mounted — no pagination DOM (including `.rm-first-page-header`). */
 function isDocumentPaginationDisabled(): boolean {
   return readDocumentDebugFlag('disableDocumentPagination', DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY)
 }

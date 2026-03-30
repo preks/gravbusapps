@@ -27,6 +27,20 @@ export const CLOSED_TABLE_SIDEBAR: SelectedTableSidebarState = {
   tablePos: null
 }
 
+function isSameSelectedImageSidebarState(left: SelectedImageSidebarState, right: SelectedImageSidebarState): boolean {
+  if (left.open !== right.open) return false
+  if (left.editor !== right.editor) return false
+  if (left.pos !== right.pos) return false
+  if (left.nodeSize !== right.nodeSize) return false
+  if (left.attrs === null && right.attrs === null) return true
+  if (left.attrs === null || right.attrs === null) return false
+  return JSON.stringify(left.attrs) === JSON.stringify(right.attrs)
+}
+
+function isSameSelectedTableSidebarState(left: SelectedTableSidebarState, right: SelectedTableSidebarState): boolean {
+  return left.open === right.open && left.editor === right.editor && left.tablePos === right.tablePos
+}
+
 export const DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX = 360
 
 interface ActiveImageUiState {
@@ -306,30 +320,36 @@ export function usePagedDocumentSelectionSidebars({
         const persisted = getPersistedSelectedImageSidebar(sourceEditor)
         if (persisted) {
           replaceImagePosRef.current = persisted.pos
-          setSelectedImageSidebarState(persisted)
+          if (!isSameSelectedImageSidebarState(selectedImageSidebarRef.current, persisted)) {
+            setSelectedImageSidebarState(persisted)
+          }
           return
         }
 
         if (shouldKeepImageSidebarOpenForUiMode(selectedImageSidebarRef.current, activeImageUiStateRef.current)) {
           const current = selectedImageSidebarRef.current
           replaceImagePosRef.current = current.pos
-          setSelectedImageSidebarState(current)
           return
         }
 
         replaceImagePosRef.current = null
-        setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+        if (selectedImageSidebarRef.current.open) {
+          setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+        }
         return
       }
 
       replaceImagePosRef.current = match.imageSelection.pos
-      setSelectedImageSidebarState({
+      const nextImageSidebar: SelectedImageSidebarState = {
         open: true,
         editor: match.editor,
         pos: match.imageSelection.pos,
         nodeSize: match.imageSelection.nodeSize,
         attrs: match.imageSelection.attrs
-      })
+      }
+      if (!isSameSelectedImageSidebarState(selectedImageSidebarRef.current, nextImageSidebar)) {
+        setSelectedImageSidebarState(nextImageSidebar)
+      }
     }
 
     const refreshSelectedImageSidebar = (sourceEditor: TiptapEditor) => {
@@ -341,12 +361,16 @@ export function usePagedDocumentSelectionSidebars({
       const persisted = getPersistedSelectedImageSidebar(sourceEditor)
       if (persisted?.editor !== sourceEditor) {
         replaceImagePosRef.current = null
-        setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+        if (selectedImageSidebarRef.current.open) {
+          setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
+        }
         return
       }
 
       replaceImagePosRef.current = persisted.pos
-      setSelectedImageSidebarState(persisted)
+      if (!isSameSelectedImageSidebarState(selectedImageSidebarRef.current, persisted)) {
+        setSelectedImageSidebarState(persisted)
+      }
     }
 
     syncSelectedImageSidebar()
@@ -428,19 +452,26 @@ export function usePagedDocumentSelectionSidebars({
       if (!match?.tableSelection) {
         const persisted = getPersistedSelectedTableSidebar(sourceEditor)
         if (persisted) {
-          setSelectedTableSidebarState(persisted)
+          if (!isSameSelectedTableSidebarState(selectedTableSidebarRef.current, persisted)) {
+            setSelectedTableSidebarState(persisted)
+          }
           return
         }
 
-        setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+        if (selectedTableSidebarRef.current.open) {
+          setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+        }
         return
       }
 
-      setSelectedTableSidebarState({
+      const nextTableSidebar: SelectedTableSidebarState = {
         open: true,
         editor: match.editor,
         tablePos: match.tableSelection.tablePos
-      })
+      }
+      if (!isSameSelectedTableSidebarState(selectedTableSidebarRef.current, nextTableSidebar)) {
+        setSelectedTableSidebarState(nextTableSidebar)
+      }
     }
 
     const refreshSelectedTableSidebar = (sourceEditor: TiptapEditor) => {
@@ -451,11 +482,15 @@ export function usePagedDocumentSelectionSidebars({
 
       const persisted = getPersistedSelectedTableSidebar(sourceEditor)
       if (persisted?.editor !== sourceEditor) {
-        setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+        if (selectedTableSidebarRef.current.open) {
+          setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
+        }
         return
       }
 
-      setSelectedTableSidebarState(persisted)
+      if (!isSameSelectedTableSidebarState(selectedTableSidebarRef.current, persisted)) {
+        setSelectedTableSidebarState(persisted)
+      }
     }
 
     syncSelectedTableSidebar()
