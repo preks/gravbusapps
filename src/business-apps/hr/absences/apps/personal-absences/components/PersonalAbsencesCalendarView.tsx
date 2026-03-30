@@ -1,14 +1,14 @@
-import { PageLayout, Button } from '@newwork/nw-design-system'
+import { PageLayout, Button, useTranslation } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, CaretLeftIcon, PlusIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import AbsenceCalendar from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar'
 import { useAbsenceData } from '@/business-apps/hr/core/apps/employee-record/hooks/useAbsenceData'
 import type { AbsenceListCardAbsence } from '@/business-apps/hr/core/apps/employee-record/queries/types'
 import type dayjs from 'dayjs'
 import type { AbsenceRow } from '../types/personalAbsences'
+import translations from '../_i18n'
 
 type TFunction = (key: string) => string
 
@@ -84,6 +84,7 @@ export function PersonalAbsencesCalendarView({
   canAddEntitlements = false,
   onAddEntitlement
 }: Readonly<PersonalAbsencesCalendarViewProps>) {
+  const { t: tLocal } = useTranslation(translations)
   const fallback = useAbsenceData(employee?.id, accessToken, absenceEntitlements || [])
 
   const useOwnAbsences = absencesProp != null
@@ -108,7 +109,7 @@ export function PersonalAbsencesCalendarView({
           {canAddEntitlements && (
             <Button variant="outline" onClick={onAddEntitlement}>
               <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+              {tLocal('change-entitlement')}
             </Button>
           )}
           <AppAction

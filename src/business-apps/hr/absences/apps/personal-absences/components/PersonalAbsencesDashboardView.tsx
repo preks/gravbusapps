@@ -4,14 +4,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, CaretDownIcon, PlusIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BalanceCard } from './BalanceCard'
 import { UpcomingAbsencesCard } from './UpcomingAbsencesCard'
 import { PendingRequestsCard } from './PendingRequestsCard'
 import { AbsenceHistoryCard } from './AbsenceHistoryCard'
+import translations from '../_i18n'
 
 type TFunction = (key: string) => string
 
@@ -84,6 +85,8 @@ export function PersonalAbsencesDashboardView({
   canAddEntitlements = false,
   onAddEntitlement
 }: Readonly<PersonalAbsencesDashboardViewProps>) {
+  const { t: tLocal } = useTranslation(translations)
+
   const handleCreateAbsence = (absenceType: string) => {
     onCreateAbsence(absenceType)
   }
@@ -96,7 +99,7 @@ export function PersonalAbsencesDashboardView({
           {canAddEntitlements && (
             <Button variant="outline" onClick={onAddEntitlement}>
               <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+              {tLocal('change-entitlement')}
             </Button>
           )}
           <Button variant="outline" onClick={onShowCalendar}>
