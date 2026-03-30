@@ -43,6 +43,13 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         --default-cell-min-width: 25px;
       }
 
+      .paged-document-editor .ProseMirror .document-table-of-contents {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
       .paged-document-editor .ProseMirror.resize-cursor {
         cursor: ew-resize;
         cursor: col-resize;
@@ -247,6 +254,13 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         min-width: 0 !important;
         min-height: 0 !important;
         overflow: visible !important;
+      }
+
+      /* Signature crop scales the img larger than the frame; global img rules must not win. */
+      .paged-document-editor .ProseMirror img[data-testid='document-editor-signature'] {
+        max-width: none !important;
+        border-radius: 0;
+        background: transparent;
       }
 
       .paged-document-editor .ProseMirror .tableWrapper {
