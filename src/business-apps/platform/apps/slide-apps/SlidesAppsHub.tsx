@@ -76,6 +76,7 @@ import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
+import { compressSlideImages } from './hooks/pptxImport'
 import translations from './_i18n'
 
 export interface SlidesAppsHubProps extends BusinessAppContextProps {
@@ -190,6 +191,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     error,
     loadSlide,
     createSlide,
+    importSlide,
     deleteSlide,
     duplicateSlide,
     shareSlide,
@@ -427,30 +429,38 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const handlePowerPointImport = useCallback(
     async (parsedDoc: ParsedPowerPointDocument) => {
       try {
-        // Create new slide
-        const created = await createSlide({
-          title: parsedDoc.fileName.replace('.pptx', '')
+        const uploadedSlides = await compressSlideImages(parsedDoc.slides)
+
+        const result = await importSlide({
+          title: parsedDoc.fileName.replace('.pptx', ''),
+          contentJson: {
+            slides: uploadedSlides,
+            themeId: parsedDoc.themeId || 'corporate'
+          }
         })
 
-        if (created) {
-          // Store the imported slides to apply when editor loads
-          setPendingTemplateSlides({
-            slides: parsedDoc.slides,
-            themeId: 'corporate'
-          })
-          setShowImportDialog(false)
-          setSelectedSlideId(created.id)
-          setCurrentView('editor')
-          updateUrl(created.id, 'editor')
-          loadSlide(created.id)
+        if (!result) {
+          toast.error(t('toast-import-failed'))
+          return
+        }
+
+        setShowImportDialog(false)
+        setSelectedSlideId(result.slide.id)
+        setCurrentView('editor')
+        updateUrl(result.slide.id, 'editor')
+        await loadSlide(result.slide.id)
+
+        if (result.contentSaved) {
           toast.success(t('toast-imported-slides', { count: parsedDoc.slideCount }))
+        } else {
+          toast.warning(t('toast-import-partial'))
         }
       } catch (err) {
         console.error('[SlidesAppsHub] Import error:', err)
         toast.error(t('toast-import-failed'))
       }
     },
-    [createSlide, loadSlide, updateUrl, t]
+    [importSlide, loadSlide, updateUrl, t]
   )
 
   // Check if this is a cast receiver view (standalone page for external display)

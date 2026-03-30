@@ -33,6 +33,7 @@ import {
   getFilterChangeHandlerForSection
 } from './utils/layoutHelpers'
 import { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
+import { OpportunityAggregatesBar, type OpportunityAggregates } from './components/OpportunityAggregatesBar'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
 // Helper: Update filter options
@@ -98,6 +99,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   fetchOpportunities: (variables: TQueryVariables) => Promise<{
     opportunities?: TOpportunity[]
     total?: number
+    aggregates?: OpportunityAggregates
   }>
 
   filterDataHook: (context: BusinessAppContextProps) => {
@@ -321,6 +323,82 @@ const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
   )
 }
 
+function initializeVisibleColumns(baseColumns: string[], extendColumns: string[]): string[] {
+  if (extendColumns.length === 0) return baseColumns
+  const closeDateIndex = baseColumns.indexOf('closeDate')
+  if (closeDateIndex >= 0) {
+    return [...baseColumns.slice(0, closeDateIndex + 1), ...extendColumns, ...baseColumns.slice(closeDateIndex + 1)]
+  }
+  return [...baseColumns, ...extendColumns]
+}
+
+function buildDynamicListFilterConfig(
+  baseFilterConfig: FilterConfiguration,
+  filterData: {
+    owners: Array<{ id: string; label: string }>
+    stages: Array<{ id: string; label: string }>
+    pipelines: Array<{ id: string; label: string }>
+    accounts: Array<{ id: string; label: string }>
+    statuses: Array<{ id: string; label: string }>
+    forecasts: Array<{ id: string; label: string }>
+    amountRange: { min: number; max: number }
+  }
+): FilterConfiguration {
+  const filterConfig = { ...baseFilterConfig }
+  const { owners, stages, pipelines, accounts, statuses, forecasts, amountRange } = filterData
+  updateFilterOptions(
+    filterConfig,
+    'stage-group',
+    'opportunityPipelineStageIds',
+    stages.map(s => ({ id: s.id, label: s.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'status-group',
+    'opportunityStatusIds',
+    statuses.map(s => ({ id: s.id, label: s.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'forecast-group',
+    'opportunityForecastIds',
+    (forecasts || []).map((f: any) => ({ id: f.id, label: f.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'pipeline-group',
+    'opportunityPipelineIds',
+    pipelines.map(p => ({ id: p.id, label: p.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'owner-group',
+    'ownerEmployeeIds',
+    owners.map(o => ({ id: o.id, label: o.label }))
+  )
+  updateFilterOptions(
+    filterConfig,
+    'account-group',
+    'accountIds',
+    accounts.map(a => ({ id: a.id, label: a.label }))
+  )
+  updateAmountRangeFilter(filterConfig, amountRange)
+  return filterConfig
+}
+
+function applyCurrencyToVars(
+  baseVars: any,
+  selectedCurrency: string,
+  availableCurrencies: Array<{ id: string; code: string }>
+): any {
+  if (selectedCurrency === 'ALL') return baseVars
+  const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
+  if (selectedCurrencyObj?.id) {
+    return { ...baseVars, currencyIds: [selectedCurrencyObj.id] }
+  }
+  return baseVars
+}
+
 function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQueryVariables = any>(
   props: OpportunityLayoutProps<TOpportunity, TQueryVariables>
 ): React.ReactElement {
@@ -365,22 +443,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     []
   )
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
-    if (extendVisibleColumns.length === 0) {
-      return baseVisibleColumns
-    }
-
-    // Insert extended columns after 'closeDate' if it exists, otherwise append
-    const closeDateIndex = baseVisibleColumns.indexOf('closeDate')
-    if (closeDateIndex >= 0) {
-      return [
-        ...baseVisibleColumns.slice(0, closeDateIndex + 1),
-        ...extendVisibleColumns,
-        ...baseVisibleColumns.slice(closeDateIndex + 1)
-      ]
-    }
-    return [...baseVisibleColumns, ...extendVisibleColumns]
-  })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
+    initializeVisibleColumns(baseVisibleColumns, extendVisibleColumns)
+  )
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
@@ -396,6 +461,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // List Data State
   const [opportunities, setOpportunities] = useState<TOpportunity[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  const [listAggregates, setListAggregates] = useState<OpportunityAggregates | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -452,69 +518,24 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [boardEmployees])
 
   // Dynamic Filter Configuration for List
-  const dynamicFilterConfig = useMemo(() => {
-    const filterConfig = { ...config.baseFilterConfig }
-
-    updateFilterOptions(
-      filterConfig,
-      'stage-group',
-      'opportunityPipelineStageIds',
-      stages.map(s => ({ id: s.id, label: s.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'status-group',
-      'opportunityStatusIds',
-      statuses.map(s => ({ id: s.id, label: s.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'forecast-group',
-      'opportunityForecastIds',
-      (forecasts || []).map((f: any) => ({ id: f.id, label: f.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'pipeline-group',
-      'opportunityPipelineIds',
-      pipelines.map(p => ({ id: p.id, label: p.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'owner-group',
-      'ownerEmployeeIds',
-      owners.map(o => ({ id: o.id, label: o.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'account-group',
-      'accountIds',
-      accounts.map(a => ({ id: a.id, label: a.label }))
-    )
-
-    updateAmountRangeFilter(filterConfig, amountRange)
-
-    return filterConfig
-  }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
+  const dynamicFilterConfig = useMemo(
+    () =>
+      buildDynamicListFilterConfig(config.baseFilterConfig, {
+        owners,
+        stages,
+        pipelines,
+        accounts,
+        statuses,
+        forecasts,
+        amountRange
+      }),
+    [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig]
+  )
 
   // List Query Variables
   const listQueryVariables = useMemo(() => {
-    const baseVars = config.buildQueryVariables({
-      pagination,
-      searchTerm,
-      selectedFilters,
-      sorting
-    })
-
-    // Convert selected currency code to full catalog ID if not "ALL"
-    if (selectedCurrency !== 'ALL') {
-      const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
-      if (selectedCurrencyObj?.id) {
-        ;(baseVars as any).currencyIds = [selectedCurrencyObj.id]
-      }
-    }
-
-    return baseVars
+    const baseVars = config.buildQueryVariables({ pagination, searchTerm, selectedFilters, sorting })
+    return applyCurrencyToVars(baseVars, selectedCurrency, availableCurrencies)
   }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
 
   // Export
@@ -523,7 +544,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     queryVariables: listQueryVariables,
     totalCount,
     filenamePrefix: exportFilenamePrefix,
-    contextType: config.contextType
+    contextType: config.contextType,
+    listAggregates,
+    displayCurrencyCode: selectedCurrency === 'ALL' ? 'EUR' : selectedCurrency
   })
 
   // Load List Data
@@ -538,6 +561,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         const result = await config.fetchOpportunities(listQueryVariables)
         setOpportunities(result.opportunities || [])
         setTotalCount(result.total || 0)
+        if (result.aggregates) {
+          setListAggregates(result.aggregates)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
@@ -674,13 +700,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)
   const rowActions = useMemo(() => {
-    // Hide actions column if no actions are configured
-    if (!config.rowActionsContextArray || config.rowActionsContextArray.length === 0) {
-      return undefined
+    if (config.rowActionsContextArray && config.rowActionsContextArray.length > 0) {
+      return (row: { original: TOpportunity }) => (
+        <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
+      )
     }
-    return (row: { original: TOpportunity }) => (
-      <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
-    )
+    return undefined
   }, [config, accessToken])
 
   // Board secondary actions: Pipeline selector + Currency filter
@@ -762,22 +787,25 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // Extract primary action
   const primaryActionElement = useMemo(() => {
     if (customPrimaryAction) return customPrimaryAction
-    if (!config.flowContexts.createContext) return undefined
 
-    return (
-      <AppAction
-        contextsArray={[config.flowContexts.createContext]}
-        externalContextData={config.flowContexts.createContextData}
-        accessToken={accessToken}
-        data-testid="add-opportunity-action"
-        emptyStateBehavior="hide"
-      >
-        <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
-          <Plus size={16} />
-          {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
-        </Button>
-      </AppAction>
-    )
+    if (config.flowContexts.createContext) {
+      return (
+        <AppAction
+          contextsArray={[config.flowContexts.createContext]}
+          externalContextData={config.flowContexts.createContextData}
+          accessToken={accessToken}
+          data-testid="add-opportunity-action"
+          emptyStateBehavior="hide"
+        >
+          <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
+            <Plus size={16} />
+            {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+          </Button>
+        </AppAction>
+      )
+    }
+
+    return undefined
   }, [customPrimaryAction, config.flowContexts.createContext, config.flowContexts.createContextData, accessToken])
 
   // Convert selected currency code to full ID for statistics
@@ -867,20 +895,29 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         }
       >
         {currentSection === 'list' ? (
-          <OpportunityListLayout<TOpportunity>
-            data={opportunities}
-            loading={isLoading}
-            error={error}
-            totalCount={totalCount}
-            columns={columns.filter(col => visibleColumns.includes(col.id as string))}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            actions={rowActions}
-            onRowClick={handleRowClick}
-            dataTestId={`${dataTestId}-list`}
-          />
+          <>
+            <OpportunityListLayout<TOpportunity>
+              data={opportunities}
+              loading={isLoading}
+              error={error}
+              totalCount={totalCount}
+              columns={columns.filter(col => visibleColumns.includes(col.id as string))}
+              sorting={sorting}
+              onSortingChange={setSorting}
+              pagination={pagination}
+              onPaginationChange={setPagination}
+              actions={rowActions}
+              onRowClick={handleRowClick}
+              dataTestId={`${dataTestId}-list`}
+            />
+            {listAggregates && (
+              <OpportunityAggregatesBar
+                aggregates={listAggregates}
+                displayCurrencyCode={selectedCurrency === 'ALL' ? 'EUR' : selectedCurrency}
+                dataTestId={`${dataTestId}-aggregates-bar`}
+              />
+            )}
+          </>
         ) : (
           <OpportunityBoardLayout
             accessToken={accessToken}

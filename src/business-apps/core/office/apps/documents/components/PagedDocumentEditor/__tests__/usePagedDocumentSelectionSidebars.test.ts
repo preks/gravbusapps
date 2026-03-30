@@ -1,4 +1,5 @@
 import {
+  shouldKeepImageSidebarOpenForUiMode,
   resolveSidebarContextSubtitleKey,
   resolveSidebarPresentationState
 } from '../hooks/usePagedDocumentSelectionSidebars'
@@ -89,5 +90,50 @@ describe('resolveSidebarContextSubtitleKey', () => {
         activeHeaderFooterType: 'footer'
       })
     ).toBeUndefined()
+  })
+})
+
+describe('shouldKeepImageSidebarOpenForUiMode', () => {
+  it('keeps the image sidebar open while crop mode is active for the same image', () => {
+    expect(
+      shouldKeepImageSidebarOpenForUiMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 12,
+          mode: 'crop'
+        }
+      )
+    ).toBe(true)
+  })
+
+  it('does not keep the image sidebar open for a different image or default mode', () => {
+    expect(
+      shouldKeepImageSidebarOpenForUiMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 8,
+          mode: 'crop'
+        }
+      )
+    ).toBe(false)
+
+    expect(
+      shouldKeepImageSidebarOpenForUiMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 12,
+          mode: 'default'
+        }
+      )
+    ).toBe(false)
   })
 })

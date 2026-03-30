@@ -29,11 +29,14 @@ export interface StartCycleConfirmOptions {
   employeeId?: string
   employeeUserId?: string
   managerUserId?: string
+  cycleId?: string
 }
 
 interface StartCycleConfirmDialogProps {
   open: boolean
   cycle: PerformanceCycle | null
+  /** When provided (manual run mode), shows a cycle selector filtered to Active/In Progress/Completed */
+  cycles?: PerformanceCycle[]
   accessToken: string
   /** Pre-select this employee when runFor is 'self' (e.g. current user's employeeId) */
   defaultEmployeeId?: string | null
@@ -44,15 +47,27 @@ interface StartCycleConfirmDialogProps {
 export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = ({
   open,
   cycle,
+  cycles,
   accessToken,
   defaultEmployeeId,
   onConfirm,
   onCancel
 }) => {
   const { t } = useTranslation(translations)
+  const isManualRun = !cycle && Boolean(cycles)
   const [runFor, setRunFor] = useState<RunForOption>('self')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [selectedCycleId, setSelectedCycleId] = useState<string>('')
+
+  const eligibleCycles = useMemo(() => {
+    if (!cycles) return []
+    return cycles.filter(c => c.status === 'In Progress' || c.status === 'Completed')
+  }, [cycles])
+
+  const cycleOptions = useMemo(() => eligibleCycles.map(c => ({ label: c.name, value: c.id })), [eligibleCycles])
+
+  const resolvedCycle = isManualRun ? (eligibleCycles.find(c => c.id === selectedCycleId) ?? null) : cycle
 
   const {
     employees,
@@ -98,6 +113,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
       setRunFor('self')
       setSelectedEmployeeId(defaultEmployeeId ?? null)
       setSelectedTeamIds([])
+      setSelectedCycleId('')
       if (defaultEmployeeId) fetchStructureEmployees()
     }
     if (!open) prevOpenRef.current = false
@@ -107,6 +123,8 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
   const hasValidTeam = selectedTeamIds.length > 0
 
   const handleConfirm = () => {
+    if (isManualRun && !selectedCycleId) return
+
     if (runFor === 'self') {
       if (!hasValidEmployee) return
       const selected = getEmployeeById(selectedEmployeeId!)
@@ -115,19 +133,27 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
         teamIds: [],
         employeeId: selectedEmployeeId!,
         employeeUserId: selected?.userId ?? '',
-        managerUserId: selected?.managerUserId ?? ''
+        managerUserId: selected?.managerUserId ?? '',
+        ...(isManualRun ? { cycleId: selectedCycleId } : {})
       })
     } else {
       if (!hasValidTeam) return
       onConfirm({
         runFor: 'team',
-        teamIds: selectedTeamIds
+        teamIds: selectedTeamIds,
+        ...(isManualRun ? { cycleId: selectedCycleId } : {})
       })
     }
   }
 
+  const needsCycleSelection = isManualRun && !selectedCycleId
   const isConfirmDisabled =
-    runFor === 'self' ? !hasValidEmployee || employeesLoading : runFor === 'team' ? !hasValidTeam || teamsLoading : true
+    needsCycleSelection ||
+    (runFor === 'self'
+      ? !hasValidEmployee || employeesLoading
+      : runFor === 'team'
+        ? !hasValidTeam || teamsLoading
+        : true)
 
   return (
     <AlertDialog open={open} onOpenChange={open => !open && onCancel()}>
@@ -135,13 +161,31 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
         <AlertDialogHeader>
           <AlertDialogTitle>{t('start-confirm-title')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {cycle
-              ? t('start-confirm-description-with-cycle', { name: cycle.name })
+            {resolvedCycle
+              ? t('start-confirm-description-with-cycle', { name: resolvedCycle.name })
               : t('start-confirm-description-generic')}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
+          {isManualRun && (
+            <div className="gba:space-y-2">
+              <Label>{t('start-confirm-select-cycle')}</Label>
+              <Combobox
+                value={selectedCycleId}
+                onValueChange={(v: string | string[]) => setSelectedCycleId(Array.isArray(v) ? (v[0] ?? '') : v)}
+                options={cycleOptions}
+                placeholder={t('placeholder-select-cycle') ?? 'Select cycle'}
+                searchPlaceholder={t('table-name') ?? 'Name'}
+                emptyText={t('empty-no-cycles') ?? 'No cycles'}
+                className="gba:w-full"
+                data-testid="performance-manual-run-cycle-select"
+              />
+              {selectedCycleId && (
+                <p className="gba:text-sm gba:text-warning gba:font-medium">{t('manual-run-cycle-already-started')}</p>
+              )}
+            </div>
+          )}
           <div className="gba:space-y-3">
             <Label>{t('start-confirm-run-for-label')}</Label>
             <RadioGroup

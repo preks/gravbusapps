@@ -16,7 +16,7 @@ import { createStorageFromOptions, syncStorageFromOptions } from './utils'
 
 const REFRESH_META = 'RM_PAGES_REFRESH'
 const REFRESH_AND_STABILIZE_META = 'RM_PAGES_REFRESH_AND_STABILIZE'
-const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
+export const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
 const hardBreakKey = new PluginKey<DecorationSet>('rm-pages-hard-breaks')
 

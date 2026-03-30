@@ -3,15 +3,16 @@
  * Delegates table functionality to AdvancePaymentsTable and manages statistics
  */
 
-import React, { useMemo, useCallback } from 'react'
+import { useMemo, useCallback } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../../_i18n'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
-import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import type { BackofficeTabProps } from '../common/backofficeTabProps'
 import BackofficeTabHeaderAlert from '../common/BackofficeTabHeaderAlert'
 import useBackofficeTabSearch from '../common/useBackofficeTabSearch'
 import useBackofficeContentHeader from '../common/useBackofficeContentHeader'
+import { useAdvancePaymentsTabState } from './hooks/useAdvancePaymentsTabState'
+import type { OrderByClause } from '../../../hooks/useAdvancePayment'
 
 type AdvancePaymentTabProps = BackofficeTabProps
 
@@ -21,12 +22,20 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
 
   const { searchTerm, handleSearchChange } = useBackofficeTabSearch()
 
-  const contextProps = {
+  const {
+    payments,
+    totalCount,
+    advancePaymentStats,
+    isLoading,
+    error,
+    fetchPayments,
+    setOrderBy,
+    searchReporters,
+    searchStatuses
+  } = useAdvancePaymentsTabState({
     accessToken: props.accessToken,
     isActive
-  }
-
-  const { totalCount, advancePaymentStats, isLoading } = useAdvancePayments(contextProps)
+  })
 
   const getTotalAmountText = useCallback((): string => {
     if (isLoading) {
@@ -37,6 +46,13 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
     }
     return t('advance-payment-total-amount-zero')
   }, [isLoading, advancePaymentStats?.totalAmount, t])
+
+  const handleOrderByChange = useCallback(
+    (orderBy: Array<Record<string, unknown>>) => {
+      setOrderBy(orderBy as OrderByClause)
+    },
+    [setOrderBy]
+  )
 
   const statsHeader = useMemo(
     () => (
@@ -59,6 +75,14 @@ function AdvancePaymentTab(props: Readonly<AdvancePaymentTabProps>) {
       search={searchTerm}
       onSearchChange={handleSearchChange}
       isActive={isActive}
+      payments={payments}
+      totalCount={totalCount}
+      isLoading={isLoading}
+      error={error}
+      fetchPayments={fetchPayments}
+      setOrderBy={handleOrderByChange}
+      searchReporters={searchReporters}
+      searchStatuses={searchStatuses}
       data-testid="advance-payments-table-component"
     />
   )

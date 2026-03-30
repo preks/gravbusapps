@@ -1,4 +1,5 @@
 export type { Slide, SlideSummary, SlidePermission, SlideStatus } from './slide'
+export type { SlideMaster, SlideLayout, PresentationContentJson } from './slideMaster'
 export type {
   TemplateCategory,
   SlideTemplateSummary,

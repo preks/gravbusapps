@@ -7,6 +7,7 @@ import { AiEditPanel } from '../AiEditPanel'
 import { HeaderFooterSettingsSidebar, type HeaderFooterSettingsSidebarProps } from './HeaderFooterSettingsSidebar'
 import { TableSettingsSidebar, type SelectedTableSidebarState } from './TableSettingsSidebar'
 import { ImageSettingsSidebar, type SelectedImageSidebarState } from './ImageSettingsSidebar'
+import { DocumentTocSettingsSidebar } from './DocumentTocSettingsSidebar'
 import type { RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
 
 type TranslateFn = (key: string) => string
@@ -55,9 +56,10 @@ export interface PagedDocumentEditorSidebarHostProps {
   imageContextSubtitle?: string
   onCloseImageSidebar: () => void
   onReplaceImage: (imagePos: number | null) => void
+  tocSidebarNodePos: number | null
+  onCloseTocSidebar: () => void
   showInlineCommentPopover: boolean
   inlineCommentPosition: { top: number; left: number } | null
-  onEditInlineCommentWithAI: () => void
   onSubmitInlineComment: (content: string) => Promise<void>
   onCloseInlineCommentPopover: () => void
   translate: TranslateFn
@@ -107,9 +109,10 @@ export function PagedDocumentEditorSidebarHost({
   imageContextSubtitle,
   onCloseImageSidebar,
   onReplaceImage,
+  tocSidebarNodePos,
+  onCloseTocSidebar,
   showInlineCommentPopover,
   inlineCommentPosition,
-  onEditInlineCommentWithAI,
   onSubmitInlineComment,
   onCloseInlineCommentPopover,
   translate
@@ -231,10 +234,20 @@ export function PagedDocumentEditorSidebarHost({
         />
       )}
 
+      {rightSidebar === 'toc' && editor && tocSidebarNodePos != null && (
+        <DocumentTocSettingsSidebar
+          editor={editor}
+          tocNodePos={tocSidebarNodePos}
+          headerHeight={headerHeight}
+          rightOffset={documentRightPanelOffset}
+          onClose={onCloseTocSidebar}
+          data-testid="document-toc-settings-sidebar"
+        />
+      )}
+
       <InlineCommentPopover
         isOpen={showInlineCommentPopover}
         position={inlineCommentPosition}
-        onEditWithAI={onEditInlineCommentWithAI}
         messages={{
           addComment: translate('shared-comment-add'),
           placeholder: translate('shared-comment-placeholder'),

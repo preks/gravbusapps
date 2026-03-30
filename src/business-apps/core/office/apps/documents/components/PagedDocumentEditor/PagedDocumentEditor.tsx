@@ -6,15 +6,14 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
-import { EditorContent } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentFormatting } from '../../types'
 import { sanitizeDocumentHtmlForEditor } from '../../utils/documentContentUtils'
+import { setDocumentTocLayoutHints } from '../../utils/tocLayoutBridge'
 import { createDocumentImageUploadHandler } from '../../utils/documentImageBindings'
 import { useDocumentEditorAvatars, useDocumentEditorShortcuts, useVersionUserDisplays } from '../../hooks'
 import { useOfficeDocumentCollaboration } from '../../hooks/useOfficeDocumentCollaboration'
@@ -31,7 +30,6 @@ import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComme
 import { usePublishing } from '@/business-apps/platform/apps/shared/hooks/usePublishing'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
-import { LinkBubbleMenu } from './LinkBubbleMenu'
 import { NavigationPanel } from './NavigationPanel'
 import { DocumentBottomBar } from './DocumentBottomBar'
 import { PagedDocumentAiInstructionOverlay } from './PagedDocumentAiInstructionOverlay'
@@ -53,7 +51,14 @@ import { usePagedDocumentEditorRuntimeEffects } from './hooks/usePagedDocumentEd
 import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExternalContentSync'
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
-import { CLOSED_TABLE_SIDEBAR, usePagedDocumentSelectionSidebars } from './hooks/usePagedDocumentSelectionSidebars'
+import {
+  CLOSED_TABLE_SIDEBAR,
+  getSelectedImageState,
+  usePagedDocumentSelectionSidebars
+} from './hooks/usePagedDocumentSelectionSidebars'
+import { VirtualizedDocumentViewport } from './VirtualizedDocumentViewport'
+import { DOCUMENT_TOC_OPEN_FORMAT_EVENT } from './components/DocumentTableOfContentsView'
+import { useDocumentContextMenu } from './useDocumentContextMenu'
 import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -332,10 +337,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
+    const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
     const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+
+    useEffect(() => {
+      if (globalThis.window === undefined) return
+      type TocOpenFormatEvent = CustomEvent<{ pos: number }>
+      const handleOpenTocSidebar = (evt: Event) => {
+        const customEvent = evt as TocOpenFormatEvent
+        const nextPos = customEvent.detail?.pos
+        if (typeof nextPos !== 'number') return
+        setTocSidebarNodePos(nextPos)
+        setRightSidebar('toc')
+      }
+
+      globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
+      return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
+    }, [])
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -840,7 +861,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const imageHandlers = useEditorImageHandlers({
       editorRef,
       uploadImage,
-      uploadContext: imageUploadContext
+      uploadContext: imageUploadContext,
+      paginationConfig
     })
 
     // Layout snapshot drives page count/current page, while header/footer editor state can temporarily override page UI.
@@ -899,7 +921,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const activeHeaderFooterEditor = pagesEditorState.activeEditor
     const activeEditor = activeHeaderFooterEditor ?? editor
-    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, runtimeState } =
+    const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, isInitialLayoutSettled } =
       usePagedDocumentLayoutState({
         editor,
         editorContainerRef,
@@ -907,6 +929,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         isYjsSynced,
         layoutInputsKey
       })
+
+    const showDocumentOpeningIndicator = Boolean(document?.id) && (!isYjsSynced || !isInitialLayoutSettled)
+
+    useEffect(() => {
+      setDocumentTocLayoutHints({
+        pageBounds: layoutViewportModel.pageBounds,
+        mountedPageBodyBounds: layoutViewportModel.mountedPageBodyBounds,
+        pagePositionRanges: layoutViewportModel.pagePositionRanges,
+        pageSpans: layoutViewportModel.pageSpans,
+        retainedPageSpans: layoutViewportModel.retainedPageSpans
+      })
+      return () => setDocumentTocLayoutHints(undefined)
+    }, [
+      layoutViewportModel.layoutVersion,
+      layoutViewportModel.mountedPageBodyBounds,
+      layoutViewportModel.pageBounds,
+      layoutViewportModel.pagePositionRanges,
+      layoutViewportModel.pageSpans,
+      layoutViewportModel.retainedPageSpans
+    ])
 
     const handleInsertSignatureFromDialog = useCallback(
       (sig: {
@@ -951,6 +993,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentEditorRightReservePx,
       imageSidebarContextSubtitleKey,
       tableSidebarContextSubtitleKey,
+      setSelectedImageSidebarState,
       setSelectedTableSidebarState,
       closeImageSettingsSidebar,
       closeTableSettingsSidebar,
@@ -984,16 +1027,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       isAiSelectionPreviewExpanded,
       setIsAiSelectionPreviewExpanded,
       openLinkDialog,
+      openLinkDialogForEditor,
       openInsertImageDialog,
       openReplaceImageDialog,
       handleReplaceSelectedImage,
       handleLinkApply,
       handleLinkRemove,
       handleAddInlineComment,
-      handleAiEditClick,
+      openAiEditSidebar,
       handleConfirmAiInstruction,
-      closeAiInstructionDialog,
-      openAiFromPendingSelection
+      closeAiInstructionDialog
     } = usePagedDocumentInteractionDialogs({
       editor,
       activeEditor,
@@ -1029,6 +1072,21 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       setSelectedTableSidebarState(CLOSED_TABLE_SIDEBAR)
     }, [document?.id, setSelectedTableSidebarState])
+
+    const openImageSettingsSidebar = useCallback(() => {
+      if (!activeEditor) return
+
+      const imageSelection = getSelectedImageState(activeEditor)
+      if (!imageSelection) return
+
+      setSelectedImageSidebarState({
+        open: true,
+        editor: activeEditor,
+        pos: imageSelection.pos,
+        nodeSize: imageSelection.nodeSize,
+        attrs: imageSelection.attrs
+      })
+    }, [activeEditor, setSelectedImageSidebarState])
 
     usePagedDocumentEditorRuntimeEffects({
       editor,
@@ -1151,9 +1209,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         void handleSave()
       },
       onAddInlineComment: handleAddInlineComment,
+      onAiEdit: openAiEditSidebar,
       onOpenLinkDialog: openLinkDialog,
-      editor: activeEditor,
       editorContainerRef
+    })
+
+    const { contextMenuState, handleContextMenuCapture } = useDocumentContextMenu({
+      activeEditor
     })
 
     useEditorKeyboardIsolation(editorContainerRef)
@@ -1194,6 +1256,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Get character count
     const charCount = editor?.storage.characterCount?.characters?.() || editor?.getText().length || 0
+    const pagesStorage =
+      (editor as (typeof editor & { storage?: { pages?: PagesStorage } }) | null)?.storage?.pages ?? null
+    const clampPageCount = (value: number | null | undefined) =>
+      Math.max(1, Math.min(2000, Number.isFinite(value as number) ? (value as number) : 1))
+    const resolvedPageCount = Math.max(
+      clampPageCount(layoutSnapshot.pageCount),
+      clampPageCount(pagesStorage?.getPageCount?.()),
+      clampPageCount(pagesStorage?.pageCount),
+      1
+    )
+    const resolvedCurrentPage = Math.max(
+      1,
+      Math.min(pagesEditorState.activePageNumber ?? currentPage ?? 1, resolvedPageCount)
+    )
     const proseMinHeight =
       paginationConfig != null
         ? paginationConfig.pageHeight - paginationConfig.marginTop - paginationConfig.marginBottom
@@ -1216,9 +1292,23 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         className="gba:relative gba:flex gba:h-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:bg-background"
         data-testid={testId}
       >
+        {showDocumentOpeningIndicator ? (
+          <div
+            className="gba:pointer-events-none gba:fixed gba:left-1/2 gba:top-20 gba:z-30 gba:flex gba:-translate-x-1/2 gba:items-center gba:gap-2 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-4 gba:py-2 gba:shadow-md"
+            role="status"
+            aria-live="polite"
+            data-testid={`${testId}-document-opening-indicator`}
+          >
+            <Spinner size="sm" />
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {!isYjsSynced ? t('editor-opening-collaboration') : t('editor-opening-layout')}
+            </span>
+          </div>
+        ) : null}
         <div className="gba:sticky gba:top-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
           <PagedDocumentEditorHeader
             document={document}
+            paginationConfig={paginationConfig}
             title={title}
             isReadOnly={isReadOnly}
             isSaving={isSaving}
@@ -1248,7 +1338,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onExportWord={handleExportWord}
             onExportPDF={handleExportPDF}
             onPrint={handlePrint}
-            onAiEditClick={handleAiEditClick}
+            onAiEditClick={openAiEditSidebar}
             activeEditor={activeEditor}
             canOpenPageNumbersDialog={Boolean(editor)}
             onOpenLinkDialog={openLinkDialog}
@@ -1305,54 +1395,25 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               ) : null}
             </>
           )}
-          {/* Editor Area with Page Layout - background matches page gap for consistent document canvas */}
-          <div
-            ref={editorContainerRef}
-            className={`gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto document-editor-viewport ${viewportBodyStateClass}`}
-            style={editorViewportStyle}
+          <VirtualizedDocumentViewport
+            editor={editor}
+            activeEditor={activeEditor}
+            editorContainerRef={editorContainerRef}
+            zoom={zoom}
+            viewportBodyStateClass={viewportBodyStateClass}
+            editorViewportStyle={editorViewportStyle}
+            layoutSnapshotPageCount={layoutSnapshot.pageCount}
+            layoutViewportModel={layoutViewportModel}
+            contextMenuState={contextMenuState}
+            onContextMenuCapture={handleContextMenuCapture}
             onScroll={handleScroll}
-            data-layout-source={layoutViewportModel.source}
-            data-layout-window-mode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}
-            data-layout-window-start={layoutViewportModel.activeRange.startPage}
-            data-layout-window-end={layoutViewportModel.activeRange.endPage}
-            data-layout-window-size={layoutViewportModel.activePageCount}
-            data-layout-mounted-start={layoutViewportModel.mountedRange?.startPage}
-            data-layout-mounted-end={layoutViewportModel.mountedRange?.endPage}
-            data-layout-mounted-size={layoutViewportModel.mountedPageCount}
-            data-layout-window-key={layoutViewportModel.windowKey}
-            data-layout-current-page-in-window={layoutViewportModel.containsCurrentPage ? 'true' : 'false'}
-            data-layout-document-version={layoutViewportModel.documentVersion}
-            data-layout-version={layoutViewportModel.layoutVersion}
-            data-layout-page-span-count={layoutViewportModel.pageSpans.length}
-            data-layout-table-fragment-count={layoutViewportModel.tableFragments.length}
-            data-layout-runtime-status={runtimeState.status}
-            data-layout-runtime-generation={runtimeState.resolvedGeneration}
-            data-layout-runtime-reason={runtimeState.lastResolvedReason ?? ''}
-          >
-            <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
-              <div
-                className="paged-document-editor"
-                style={{
-                  transform: `scale(${zoom / 100})`,
-                  transformOrigin: 'top center'
-                }}
-                data-layout-active-pages={layoutViewportModel.activePageNumbers.join(',')}
-              >
-                <EditorContent editor={editor} className="editor-content" />
-                {editor && (
-                  <BubbleMenu
-                    editor={editor}
-                    shouldShow={({ editor: e }) => e.isActive('link')}
-                    pluginKey="linkBubbleMenu"
-                    onMouseDown={event => event.preventDefault()}
-                  >
-                    <LinkBubbleMenu editor={editor} onEdit={openLinkDialog} data-testid="document-link-bubble-menu" />
-                  </BubbleMenu>
-                )}
-                {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
-              </div>
-            </div>
-          </div>
+            onOpenLinkDialog={openLinkDialog}
+            onAddInlineComment={() => handleAddInlineComment()}
+            onAiEditClick={openAiEditSidebar}
+            onOpenReplaceImageDialog={openReplaceImageDialog}
+            onOpenImageSidebar={openImageSettingsSidebar}
+            onOpenLinkDialogForEditor={openLinkDialogForEditor}
+          />
         </div>
 
         <div className="gba:sticky gba:bottom-0 gba:z-20 gba:flex-shrink-0 gba:bg-background">
@@ -1360,8 +1421,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             zoom={zoom}
             wordCount={wordCount}
             charCount={charCount}
-            currentPage={pagesEditorState.activePageNumber ?? Math.min(currentPage, layoutSnapshot.pageCount)}
-            pageCount={layoutSnapshot.pageCount}
+            currentPage={resolvedCurrentPage}
+            pageCount={resolvedPageCount}
             layoutWindowLabel={layoutViewportModel.rangeLabel}
             layoutWindowMode={layoutViewportModel.isWindowed ? 'windowed' : 'full'}
             onZoomOut={handleZoomOut}
@@ -1411,6 +1472,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageDialogMode={imageDialogMode}
           uploadImage={uploadImage}
           imageUploadContext={imageUploadContext}
+          paginationConfig={paginationConfig}
           onSubmitImage={imageDialogMode === 'replace' ? handleReplaceSelectedImage : undefined}
           showInsertTableDialog={showInsertTableDialog}
           setShowInsertTableDialog={setShowInsertTableDialog}
@@ -1474,9 +1536,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
           onCloseImageSidebar={closeImageSettingsSidebar}
           onReplaceImage={openReplaceImageDialog}
+          tocSidebarNodePos={tocSidebarNodePos}
+          onCloseTocSidebar={() => {
+            setRightSidebar('closed')
+            setTocSidebarNodePos(null)
+          }}
           showInlineCommentPopover={showInlineCommentPopover}
           inlineCommentPosition={inlineCommentPosition}
-          onEditInlineCommentWithAI={openAiFromPendingSelection}
           onSubmitInlineComment={handleSubmitInlineComment}
           onCloseInlineCommentPopover={handleCloseInlineCommentPopover}
           translate={t}

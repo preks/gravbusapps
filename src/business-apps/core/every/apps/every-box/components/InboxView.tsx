@@ -44,6 +44,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
 import { FilterType } from './FiltersDropdown'
 import { markTaskRead, markTaskUnread, patchTaskState } from '@/business-apps/core/every/apps/every-api'
+import { isApprovalsFilterTask } from '../utils/approvalsFilter'
 
 type TaskFilterType = 'all' | 'blinks' | 'approvals' | 'completed'
 
@@ -145,19 +146,6 @@ const filterCompletedTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
  */
 const isBlinkTask = (task: UnifiedTask): boolean => {
   return task.source === 'cflow' && task.tags?.app === 'quick-task'
-}
-
-const isApprovalTask = (task: UnifiedTask): boolean => {
-  const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-  const taskType = (task.type || '').toLowerCase()
-  const taskCategory = (task.taskCategory || '').toLowerCase()
-  return (
-    taskName.includes('approval') ||
-    taskName.includes('approve') ||
-    taskType.includes('approval') ||
-    taskCategory.includes('approval') ||
-    task.tags?.category === 'approval'
-  )
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
@@ -653,7 +641,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   /**
    * Apply type-specific filtering (blinks, approvals)
-   * Uses module-level pure functions (isBlinkTask, isApprovalTask) for stable references
+   * Uses module-level pure functions (isBlinkTask, isApprovalsFilterTask) for stable references
    */
   const usingBlinkApiTasks = filterType === 'blinks' && blinkTasks && blinkTasks.length > 0
 
@@ -664,7 +652,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         return taskList.filter(isBlinkTask)
       }
       if (filter === 'approvals') {
-        return taskList.filter(isApprovalTask)
+        return taskList.filter(isApprovalsFilterTask)
       }
       return taskList
     },
@@ -752,7 +740,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
         return orderA - orderB
       })
 
-      return matchingTasks
+      // If AI returned hits but none match IDs in the loaded pages (embedding lag, wrong id, etc.),
+      // fall through to the normal list so the inbox does not look empty while tasks exist.
+      if (matchingTasks.length > 0) {
+        return matchingTasks
+      }
     }
 
     // Note: currentTasks is either localTasks or localCompletedTasks, both already filtered

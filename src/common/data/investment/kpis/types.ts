@@ -31,6 +31,8 @@ export interface KPIDefinition {
     sm?: number
     lg?: number
   }
+  /** Trend subtitle (e.g. vs last quarter). Defaults in InvestmentKPICards when omitted. */
+  trendDescription?: string
 }
 
 /**
@@ -51,6 +53,13 @@ export interface KPIConfig {
  */
 export interface BaseKPIData {
   totalInvestments: number
+}
+
+/** Investment View tab KPI row (count-only; used in InvestmentView only). */
+export interface InvestmentViewKPIData extends BaseKPIData {
+  activeInvestments: number
+  newThisQuarter: number
+  newThisYear: number
 }
 
 /**

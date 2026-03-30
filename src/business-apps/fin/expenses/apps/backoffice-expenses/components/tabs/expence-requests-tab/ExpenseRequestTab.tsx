@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { useCurrencySecondaryAction } from '../../../../manager-expenses/hooks/useTabState'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useCurrencySecondaryAction } from '../../../common/hooks/useSharedTabState'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService as useCommonExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import translations from '../../../_i18n'
@@ -18,19 +17,17 @@ import {
   useExpenseRequestSelection,
   useExpenseRequestTabState
 } from './hooks'
-import { useTableSetup } from '../../../common/hooks/useTableSetup'
+import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import {
   createBackofficeExpenseRequestColumns,
   type BackofficeExpenseRequestTableChrome
 } from './table/backofficeExpenseRequestColumns'
 import ExpenseRequestsTable from './table/ExpenseRequestsTable'
-import {
-  ExpenseRequestPdfModal,
-  EmployeeSearchFilter,
-  ExpenseRequestSecondaryActions,
-  ExpenseRequestsDataDisplay
-} from './components'
-import type { EmployeeFilterRenderProps } from './components/ExpenseRequestFilterSheet'
+import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
+import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestSecondaryActions } from './components'
+import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
+import { BackofficeFilterSheet, type CustomGroupRenderProps } from '../../../common/components/BackofficeFilterSheet'
+import { EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID } from './constants/expenseRequestEmployeeFilter'
 import BackofficeExpenseRequestDetailsSheet from './components/BackofficeExpenseRequestDetailsSheet'
 
 type ExpenseRequestTabProps = BackofficeTabProps
@@ -67,6 +64,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     searchText,
     handleSearchChange,
     sortingState,
+    allDataColumns,
     sortableColumns,
     handleSortingChange,
     columnsFilteredByVisibility,
@@ -120,11 +118,11 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   )
 
   const renderEmployeeFilter = useCallback(
-    ({ selectedEmployeeIds, onSelectedEmployeeIdsChange }: EmployeeFilterRenderProps) => (
+    ({ selectedIds, onSelectedIdsChange }: CustomGroupRenderProps) => (
       <EmployeeSearchFilter
         {...employeeSearchFilterProps}
-        selectedEmployeeIds={selectedEmployeeIds}
-        onSelectedEmployeeIdsChange={onSelectedEmployeeIdsChange}
+        selectedEmployeeIds={selectedIds}
+        onSelectedEmployeeIdsChange={onSelectedIdsChange}
       />
     ),
     [employeeSearchFilterProps]
@@ -189,32 +187,21 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     setSelectedExpense(record)
   }, [])
 
-  const handleCloseDetails = useCallback(() => {
-    setSelectedExpense(null)
-  }, [])
-
-  const tableChrome: BackofficeExpenseRequestTableChrome = useMemo(
-    () => ({
-      accessToken: accessToken ?? '',
-      bookableRecordsCount,
-      allBookableSelected,
-      onSelectAllRecords: handleSelectAllRecords,
-      selectedRowKeys,
-      onSelectRecord: handleSelectRecord,
-      isTransferInProgress,
-      onNavigateToExpenseRequest: handleNavigateToExpenseRequest,
-      onDownloadAccountingNote: handleDownloadAccountingNote,
-      onTriggerCSV: handleTriggerCSV,
-      onPrintExpenseRequest: handlePrintExpenseRequest,
-      onTransferPayment: handleTransferPayment
-    }),
+  const renderRowActions = useCallback(
+    (row: { original: ExpenseData }) => (
+      <ExpenseRequestTableActions
+        record={row.original}
+        accessToken={accessToken ?? ''}
+        transferInProgress={isTransferInProgress(row.original.id)}
+        onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
+        onDownloadAccountingNote={handleDownloadAccountingNote}
+        onTriggerCSV={handleTriggerCSV}
+        onPrintExpenseRequest={handlePrintExpenseRequest}
+        onTransferPayment={handleTransferPayment}
+      />
+    ),
     [
       accessToken,
-      bookableRecordsCount,
-      allBookableSelected,
-      handleSelectAllRecords,
-      selectedRowKeys,
-      handleSelectRecord,
       isTransferInProgress,
       handleNavigateToExpenseRequest,
       handleDownloadAccountingNote,
@@ -224,13 +211,28 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     ]
   )
 
+  const handleCloseDetails = useCallback(() => {
+    setSelectedExpense(null)
+  }, [])
+
+  const tableChrome: BackofficeExpenseRequestTableChrome = useMemo(
+    () => ({
+      bookableRecordsCount,
+      allBookableSelected,
+      onSelectAllRecords: handleSelectAllRecords,
+      selectedRowKeys,
+      onSelectRecord: handleSelectRecord
+    }),
+    [bookableRecordsCount, allBookableSelected, handleSelectAllRecords, selectedRowKeys, handleSelectRecord]
+  )
+
   const allExpenseRequestColumns = useMemo(
     () => createBackofficeExpenseRequestColumns(t, tableChrome),
     [t, tableChrome]
   )
 
   const visibleExpenseRequestColumnIds = useMemo(
-    () => ['select', ...columnsFilteredByVisibility, 'actions'],
+    () => ['select', ...columnsFilteredByVisibility],
     [columnsFilteredByVisibility]
   )
 
@@ -251,7 +253,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
       <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="expense-requests-table-wrapper">
-        <ExpenseRequestsDataDisplay
+        <BackofficeDataDisplay
           titleSections={[
             {
               id: 'list',
@@ -269,21 +271,28 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
           sorting={sortingState}
           sortableColumns={sortableColumns}
           onSortingChange={handleSortingChange}
-          availableColumns={sortableColumns}
+          availableColumns={allDataColumns}
           visibleColumns={columnsFilteredByVisibility}
           onVisibleColumnsChange={setVisibleColumns}
           toolbarDensity="default"
-          enableLiveFiltering={false}
-          filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_plan_table.title',
-            'Filter Expense Requests'
-          )}
-          filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.filter_expense_requests_description',
-            'Apply filters to narrow down the expense requests list.'
-          )}
           secondaryActions={secondaryActions}
-          renderEmployeeFilter={renderEmployeeFilter}
+          renderFilterSheet={(open, onOpenChange) => (
+            <BackofficeFilterSheet
+              open={open}
+              onOpenChange={onOpenChange}
+              configuration={filterConfiguration}
+              values={filtersObject}
+              onApply={handleFilterChangeFromDisplay}
+              onChange={handleFilterChangeFromDisplay}
+              title={t('expense-request-filter-sheet-title')}
+              description={t('expense-request-filter-sheet-description')}
+              customGroup={{
+                groupId: EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID,
+                valueKey: 'employeeIds',
+                render: renderEmployeeFilter
+              }}
+            />
+          )}
         >
           <ExpenseRequestsTable
             expenses={expenses ?? []}
@@ -297,8 +306,9 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
             onPaginationChange={handlePaginationChange}
             emptyMessage={listEmptyMessage}
             onRowClick={handleRowClick}
+            actions={renderRowActions}
           />
-        </ExpenseRequestsDataDisplay>
+        </BackofficeDataDisplay>
 
         <BackofficeExpenseRequestDetailsSheet
           open={!!selectedExpense}

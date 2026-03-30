@@ -1,6 +1,9 @@
 import {
+  buildLayoutMeasurement,
+  buildLayoutMeasurementAsync,
   createLegacyDomPaginationLayoutService,
   resolveCurrentPageFromLayoutNavigation,
+  resolveMountedPageBodyBoundsBatched,
   resolveObservableLayoutRoot
 } from '../documentLayoutService'
 import { createIncrementalDocumentLayoutService } from '../incrementalDocumentLayoutService'
@@ -285,6 +288,39 @@ function runSharedLayoutServiceContract(label: string, createService: typeof cre
       expect(measurement.layout.activePages.map(page => page.pageNumber)).toEqual([1, 2, 3])
     })
 
+    it('reads pagination state when the pagination root is nested inside viewport shell wrappers', () => {
+      const service = createService()
+      const container = document.createElement('div')
+      const viewportShell = document.createElement('div')
+      const contextMenuTrigger = document.createElement('div')
+      const paginationChrome = document.createElement('div')
+      const paginationRoot = document.createElement('div')
+
+      paginationChrome.dataset.rmPaginationChrome = 'true'
+      paginationRoot.dataset.rmPagination = ''
+      paginationRoot.dataset.rmTotalPages = '7'
+
+      for (let pageNumber = 2; pageNumber <= 6; pageNumber += 1) {
+        paginationRoot.appendChild(createPage(document, pageNumber))
+      }
+
+      paginationChrome.appendChild(paginationRoot)
+      contextMenuTrigger.appendChild(paginationChrome)
+      viewportShell.appendChild(contextMenuTrigger)
+      container.appendChild(viewportShell)
+
+      const measurement = service.measureLayout(
+        container,
+        createMeasurementRequest(1, 'viewport-resize', 'viewport', { startPage: 2, endPage: 6 })
+      )
+
+      expect(measurement.layout.pageCount).toBe(7)
+      expect(measurement.layout.mountedRange).toEqual({ startPage: 2, endPage: 6 })
+      expect(measurement.navigationState.pageBreakEls).toHaveLength(5)
+      expect(measurement.navigationState.flowEls).toHaveLength(5)
+      expect(measurement.layout.activePages.map(page => page.pageNumber)).toEqual([2, 3, 4, 5, 6])
+    })
+
     it('captures mounted page body bounds in the layout measurement', () => {
       const service = createService()
       const container = mountPaginationRoot(2)
@@ -375,7 +411,7 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
     unsubscribe()
   })
 
-  it('still invalidates when pagination flow children change', () => {
+  it('still invalidates when pagination flow children change', async () => {
     const service = createIncrementalDocumentLayoutService()
     const container = mountPaginationRoot(2)
     const onInvalidated = jest.fn()
@@ -396,10 +432,14 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
     paginationRoot.appendChild(createPage(document, 3))
     fakeObservers[0]?.callback([], fakeObservers[0] as unknown as MutationObserver)
 
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => resolve())
+    })
+
     expect(onInvalidated).toHaveBeenCalledWith('legacy-dom-structure')
   })
 
-  it('downgrades mounted-window-only pagination changes to viewport invalidations', () => {
+  it('downgrades mounted-window-only pagination changes to viewport invalidations', async () => {
     const service = createIncrementalDocumentLayoutService()
     const container = mountPaginationRoot(2)
     const onInvalidated = jest.fn()
@@ -420,6 +460,10 @@ describe('createIncrementalDocumentLayoutService.observeLayout', () => {
 
     paginationRoot.replaceChildren(createPage(document, 2), createPage(document, 3))
     fakeObservers[0]?.callback([], fakeObservers[0] as unknown as MutationObserver)
+
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => resolve())
+    })
 
     expect(onInvalidated).toHaveBeenCalledWith('viewport-resize')
   })
@@ -516,5 +560,146 @@ describe('resolveCurrentPageFromLayoutNavigation', () => {
         flowEls: []
       })
     ).toBe(3)
+  })
+})
+
+describe('large-document chunked geometry', () => {
+  let rafCallbacks: FrameRequestCallback[] = []
+
+  beforeEach(() => {
+    rafCallbacks = []
+    jest.spyOn(global, 'requestAnimationFrame').mockImplementation(cb => {
+      rafCallbacks.push(cb)
+      return rafCallbacks.length
+    })
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  function flushQueuedRafCallbacks() {
+    while (rafCallbacks.length > 0) {
+      const next = rafCallbacks.shift()
+      next?.(0)
+    }
+  }
+
+  async function settleChunkedLayoutPromise<T>(promise: Promise<T>) {
+    for (let i = 0; i < 40; i += 1) {
+      flushQueuedRafCallbacks()
+      await Promise.resolve()
+    }
+    return promise
+  }
+
+  it('does not queue rAF between body batches when the page break list is below the chunk threshold', async () => {
+    const container = mountPaginationRoot(5)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const pageBreakEls = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    pageBreakEls.forEach(pageBreak => {
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 })
+      }
+    })
+
+    const boundsPromise = resolveMountedPageBodyBoundsBatched(pageBreakEls, 28)
+    expect(rafCallbacks).toHaveLength(0)
+    const bounds = await boundsPromise
+    expect(bounds).toHaveLength(5)
+  })
+
+  it('queues rAF between body bounds batches for large page break lists', async () => {
+    const container = mountPaginationRoot(60)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const pageBreakEls = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    pageBreakEls.forEach(pageBreak => {
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 })
+      }
+    })
+
+    const boundsPromise = resolveMountedPageBodyBoundsBatched(pageBreakEls, 28)
+    expect(rafCallbacks.length).toBeGreaterThan(0)
+    const bounds = await settleChunkedLayoutPromise(boundsPromise)
+    expect(bounds).toHaveLength(60)
+  })
+
+  it('matches synchronous layout measurement after flushing rAF for large structures', async () => {
+    const container = mountPaginationRoot(60)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const pageBreakEls = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    const flowEls = pageBreakEls
+    pageBreakEls.forEach(pageBreak => {
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 })
+      }
+    })
+
+    const request = createMeasurementRequest(1, 'initial-load', 'full-document')
+    const syncResult = buildLayoutMeasurement(pageBreakEls, flowEls, request, null)
+    const asyncResult = await settleChunkedLayoutPromise(
+      buildLayoutMeasurementAsync(pageBreakEls, flowEls, request, null)
+    )
+
+    expect(asyncResult.layout.pageCount).toBe(syncResult.layout.pageCount)
+    expect(asyncResult.layout.mountedPageBodyBounds).toEqual(syncResult.layout.mountedPageBodyBounds)
+  })
+
+  it('does not queue geometry rAF for buildLayoutMeasurementAsync on small documents', async () => {
+    const container = mountPaginationRoot(4)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const pageBreakEls = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    const flowEls = pageBreakEls
+    pageBreakEls.forEach(pageBreak => {
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 })
+      }
+    })
+
+    const request = createMeasurementRequest(1, 'initial-load', 'full-document')
+    await buildLayoutMeasurementAsync(pageBreakEls, flowEls, request, null)
+    expect(rafCallbacks).toHaveLength(0)
+  })
+})
+
+describe('createIncrementalDocumentLayoutService.measureLayoutAsync', () => {
+  it('returns the same structural result as measureLayout after flushing rAF for large documents', async () => {
+    const service = createIncrementalDocumentLayoutService()
+    const container = mountPaginationRoot(60)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    Array.from(root.querySelectorAll('.page')).forEach(node => {
+      if (node instanceof HTMLElement) {
+        setRect(node, { top: 0, bottom: 100, left: 0, right: 80, width: 80, height: 100 })
+      }
+    })
+
+    const rafCallbacks: FrameRequestCallback[] = []
+    jest.spyOn(global, 'requestAnimationFrame').mockImplementation(cb => {
+      rafCallbacks.push(cb)
+      return rafCallbacks.length
+    })
+
+    const request = createMeasurementRequest(1, 'initial-load', 'full-document')
+    const syncResult = service.measureLayout(container, request)
+    const pending = service.measureLayoutAsync!(container, createMeasurementRequest(2, 'initial-load', 'full-document'))
+    expect(rafCallbacks.length).toBeGreaterThan(0)
+    const asyncResult = await (async () => {
+      for (let i = 0; i < 40; i += 1) {
+        while (rafCallbacks.length > 0) {
+          rafCallbacks.shift()?.(0)
+        }
+        await Promise.resolve()
+      }
+      return pending
+    })()
+
+    expect(asyncResult.layout.pageCount).toBe(syncResult.layout.pageCount)
+    expect(asyncResult.layout.mountedPageBodyBounds).toEqual(syncResult.layout.mountedPageBodyBounds)
+    jest.restoreAllMocks()
   })
 })

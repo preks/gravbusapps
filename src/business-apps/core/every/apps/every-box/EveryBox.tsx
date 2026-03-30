@@ -37,7 +37,6 @@ import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkl
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
 import {
   EVERYBOX_FIRST_PAGE_LIMIT,
   fetchTasksBootstrapCounts,
@@ -64,6 +63,7 @@ import {
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useAiCapabilities, useAiSearch } from './hooks/useAi'
+import { isApprovalsFilterTask } from './utils/approvalsFilter'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -381,9 +381,11 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const awaitingBootstrapHydration =
     Boolean(bootstrapState.seedId) && bootstrapInboxLen > 0 && tasks.length === 0 && !tasksError
   const inboxLoading = tasksLoading || (bootstrapLoading && !bootstrapData) || awaitingBootstrapHydration
-  const completedCount = completedEnabled ? totalCompletedCount : (countsData?.completed ?? totalCompletedCount)
-  const blinkCount = blinkEnabled ? blinkTotalCount : (countsData?.blinks ?? blinkTotalCount)
-  const outflowCount = outboxEnabled ? totalOutflowCount : (countsData?.outflows ?? totalOutflowCount)
+  // Tab badges: prefer bootstrap/initial-data counts so they update after refetchBootstrap (e.g. quick task).
+  // Do not prefer hook totals when a tab was visited — that left badges stale vs fresh countsData.
+  const completedCount = countsData?.completed ?? totalCompletedCount
+  const blinkCount = countsData?.blinks ?? blinkTotalCount
+  const outflowCount = countsData?.outflows ?? totalOutflowCount
   const blinkCountLoading = !blinkEnabled ? countsState.isLoading && !countsData : blinkTasksLoading
 
   const lastSseRefreshRef = useRef(0)
@@ -547,23 +549,13 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     }
   }, [isPreviewEnabled, selectedFilter])
 
-  // Memoize filter counts to avoid .filter() on every render
+  // Dropdown counts: "All" uses API totalCount; blinks uses blink API total; completed uses completed API total.
+  // Approvals = same predicate as InboxView filter, counted over **loaded** inbox tasks only (subset until load-more).
   const filterCounts = useMemo(
     () => ({
       all: totalTaskCount,
       blinks: blinkCount || 0,
-      approvals: tasks.filter(task => {
-        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-        const taskType = (task.type || '').toLowerCase()
-        const taskCategory = (task.taskCategory || '').toLowerCase()
-        return (
-          taskName.includes('approval') ||
-          taskName.includes('approve') ||
-          taskType.includes('approval') ||
-          taskCategory.includes('approval') ||
-          task.tags?.category === 'approval'
-        )
-      }).length,
+      approvals: tasks.filter(isApprovalsFilterTask).length,
       completed: completedCount
     }),
     [tasks, totalTaskCount, blinkCount, completedCount]
@@ -573,8 +565,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const handleQuickTaskSubmit = useCallback(
     async (data: QuickTaskFormData) => {
       try {
-        const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
         let uploadResults: any[] = []
         if (data.documents && data.documents.length > 0) {
           const filesToUpload = data.documents
@@ -599,16 +589,15 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
           formData: data,
           uploadResults,
           accessToken: context.accessToken,
-          initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
-          apiBaseUrl: baseUrl
+          initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown'
         })
 
         toast.success(t('blink-created-success', { title: data.title }))
 
         Promise.all([
           refetchBootstrap(),
-          // Outbox list only if tab was opened; bootstrap-counts already refreshes outflows badge
-          outboxEnabled ? refetchFlows() : Promise.resolve(),
+          // Always refresh initiated list so Outflows is current when user opens the tab (skip caused stale list).
+          refetchFlows(),
           completedEnabled ? refetchCompleted() : Promise.resolve(),
           blinkEnabled ? refetchBlinkTasks() : Promise.resolve()
         ]).catch(() => {
@@ -629,8 +618,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       refetchCompleted,
       refetchBlinkTasks,
       completedEnabled,
-      blinkEnabled,
-      outboxEnabled
+      blinkEnabled
     ]
   )
 

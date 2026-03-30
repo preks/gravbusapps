@@ -1,7 +1,15 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
-import { Button, Input, Label, ScrollArea, Separator, useTranslation } from '@newwork/nw-design-system'
-import type { CustomImageAttributes, ImageAlignment } from '@/components/tiptap-extensions/tiptap-custom-image'
+import { Button, Input, Label, ScrollArea, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
+import {
+  dispatchDocumentImageUiMode,
+  normalizeImageCrop,
+  resolveImageWrapPreset,
+  type CustomImageAttributes,
+  type ImageAlignment,
+  type ImageAnchorMode,
+  type ImageWrapMode
+} from '@/components/tiptap-extensions/tiptap-custom-image'
 import { ImageAdvancedSizeSection } from './ImageAdvancedSizeSection'
 import translations from '../../_i18n'
 
@@ -11,6 +19,23 @@ const ALIGN_OPTIONS: ReadonlyArray<{ key: string; value: ImageAlignment }> = [
   { key: 'editor-toolbar-align-left', value: 'left' },
   { key: 'editor-toolbar-align-center', value: 'center' },
   { key: 'editor-toolbar-align-right', value: 'right' }
+]
+
+const WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
+  { key: 'image-wrap-inline', value: 'inline' },
+  { key: 'image-wrap-left', value: 'square-left' },
+  { key: 'image-wrap-right', value: 'square-right' },
+  { key: 'image-wrap-tight', value: 'tight' },
+  { key: 'image-wrap-through', value: 'through' },
+  { key: 'image-wrap-center', value: 'top-bottom' },
+  { key: 'image-wrap-behind', value: 'behind' },
+  { key: 'image-wrap-in-front', value: 'front' }
+]
+
+const ANCHOR_OPTIONS: ReadonlyArray<{ key: string; value: ImageAnchorMode }> = [
+  { key: 'image-anchor-inline', value: 'inline' },
+  { key: 'image-anchor-move-with-text', value: 'move-with-text' },
+  { key: 'image-anchor-fixed', value: 'fixed' }
 ]
 
 const DISTANCE_FIELDS: ReadonlyArray<{
@@ -77,12 +102,34 @@ export function ImageSettingsSidebar({
         return false
       }
 
+      const normalizedCrop =
+        nextAttrs.cropTop !== undefined ||
+        nextAttrs.cropRight !== undefined ||
+        nextAttrs.cropBottom !== undefined ||
+        nextAttrs.cropLeft !== undefined
+          ? normalizeImageCrop({
+              cropTop: nextAttrs.cropTop ?? node.attrs.cropTop ?? 0,
+              cropRight: nextAttrs.cropRight ?? node.attrs.cropRight ?? 0,
+              cropBottom: nextAttrs.cropBottom ?? node.attrs.cropBottom ?? 0,
+              cropLeft: nextAttrs.cropLeft ?? node.attrs.cropLeft ?? 0
+            })
+          : null
+
       const tr = editor.state.tr.setNodeMarkup(imagePos, undefined, {
         ...node.attrs,
-        ...nextAttrs
+        ...nextAttrs,
+        ...(normalizedCrop
+          ? {
+              cropTop: normalizedCrop.top,
+              cropRight: normalizedCrop.right,
+              cropBottom: normalizedCrop.bottom,
+              cropLeft: normalizedCrop.left
+            }
+          : {})
       })
 
       editor.view.dispatch(tr)
+      editor.commands.refreshPagesAndStabilize?.()
       return true
     },
     [editor, imagePos, onClose]
@@ -101,8 +148,17 @@ export function ImageSettingsSidebar({
   }
 
   const align = attrs.align ?? 'left'
+  const wrapMode = attrs.wrapMode ?? 'inline'
+  const anchorMode = attrs.anchorMode ?? 'inline'
   const caption = attrs.caption ?? ''
   const alt = attrs.alt ?? ''
+  const offsetX = attrs.offsetX ?? 0
+  const offsetY = attrs.offsetY ?? 0
+  const zIndex = attrs.zIndex ?? 1
+  const cropTop = attrs.cropTop ?? 0
+  const cropRight = attrs.cropRight ?? 0
+  const cropBottom = attrs.cropBottom ?? 0
+  const cropLeft = attrs.cropLeft ?? 0
 
   return (
     <div
@@ -133,6 +189,55 @@ export function ImageSettingsSidebar({
             />
 
             <section className="gba:space-y-2">
+              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-wrap-text')}</Label>
+              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                {WRAP_OPTIONS.map(option => (
+                  <Button
+                    key={option.value}
+                    variant={wrapMode === option.value ? 'default' : 'outline'}
+                    size="sm"
+                    onMouseDown={preventEditorBlurOnMouseDown}
+                    onClick={() => updateImageAttrs(resolveImageWrapPreset(option.value, attrs))}
+                    data-testid={`${testId}-wrap-${option.value}`}
+                  >
+                    {t(option.key)}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            <section className="gba:space-y-2">
+              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-anchor')}</Label>
+              <div className="gba:grid gba:grid-cols-3 gba:gap-2">
+                {ANCHOR_OPTIONS.map(option => (
+                  <Button
+                    key={option.value}
+                    variant={anchorMode === option.value ? 'default' : 'outline'}
+                    size="sm"
+                    onMouseDown={preventEditorBlurOnMouseDown}
+                    onClick={() => updateImageAttrs({ anchorMode: option.value })}
+                    data-testid={`${testId}-anchor-${option.value}`}
+                  >
+                    {t(option.key)}
+                  </Button>
+                ))}
+              </div>
+            </section>
+
+            <section className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+              <Label htmlFor={`${testId}-allow-overlap`} className="gba:text-sm">
+                {t('image-sidebar-overlap')}
+              </Label>
+              <Switch
+                id={`${testId}-allow-overlap`}
+                checked={attrs.allowOverlap ?? false}
+                onMouseDown={preventEditorBlurOnMouseDown}
+                onCheckedChange={checked => updateImageAttrs({ allowOverlap: checked })}
+                data-testid={`${testId}-allow-overlap`}
+              />
+            </section>
+
+            <section className="gba:space-y-2">
               <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-align')}</Label>
               <div className="gba:grid gba:grid-cols-3 gba:gap-2">
                 {ALIGN_OPTIONS.map(option => (
@@ -151,6 +256,48 @@ export function ImageSettingsSidebar({
             </section>
 
             <Separator />
+
+            <section className="gba:space-y-2">
+              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-position-menu')}</Label>
+              <div className="gba:grid gba:grid-cols-3 gba:gap-2">
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-offset-x`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-sidebar-offset-x')}
+                  </Label>
+                  <Input
+                    id={`${testId}-offset-x`}
+                    type="number"
+                    value={String(offsetX)}
+                    onChange={event => updateImageAttrs({ offsetX: parseNumericInput(event.target.value, offsetX) })}
+                    data-testid={`${testId}-offset-x`}
+                  />
+                </div>
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-offset-y`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-sidebar-offset-y')}
+                  </Label>
+                  <Input
+                    id={`${testId}-offset-y`}
+                    type="number"
+                    value={String(offsetY)}
+                    onChange={event => updateImageAttrs({ offsetY: parseNumericInput(event.target.value, offsetY) })}
+                    data-testid={`${testId}-offset-y`}
+                  />
+                </div>
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-z-index`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-position-z-index')}
+                  </Label>
+                  <Input
+                    id={`${testId}-z-index`}
+                    type="number"
+                    value={String(zIndex)}
+                    onChange={event => updateImageAttrs({ zIndex: parseNumericInput(event.target.value, zIndex) })}
+                    data-testid={`${testId}-z-index`}
+                  />
+                </div>
+              </div>
+            </section>
 
             <section className="gba:space-y-2">
               <Label htmlFor={`${testId}-caption`}>{t('image-context-caption')}</Label>
@@ -198,6 +345,116 @@ export function ImageSettingsSidebar({
                   )
                 })}
               </div>
+            </section>
+
+            <Separator />
+
+            <section className="gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-crop')}</Label>
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onMouseDown={preventEditorBlurOnMouseDown}
+                    onClick={() => dispatchDocumentImageUiMode({ pos: imagePos, mode: 'crop' })}
+                    data-testid={`${testId}-crop-mode`}
+                  >
+                    {t('image-context-crop')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onMouseDown={preventEditorBlurOnMouseDown}
+                    onClick={() => dispatchDocumentImageUiMode({ pos: imagePos, mode: 'default' })}
+                    data-testid={`${testId}-crop-finish`}
+                  >
+                    {t('image-context-finish-crop')}
+                  </Button>
+                </div>
+              </div>
+              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-crop-top`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-crop-top')}
+                  </Label>
+                  <Input
+                    id={`${testId}-crop-top`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="0.95"
+                    value={String(cropTop)}
+                    onChange={event => updateImageAttrs({ cropTop: parseNumericInput(event.target.value, cropTop) })}
+                    data-testid={`${testId}-crop-top`}
+                  />
+                </div>
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-crop-right`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-crop-right')}
+                  </Label>
+                  <Input
+                    id={`${testId}-crop-right`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="0.95"
+                    value={String(cropRight)}
+                    onChange={event =>
+                      updateImageAttrs({ cropRight: parseNumericInput(event.target.value, cropRight) })
+                    }
+                    data-testid={`${testId}-crop-right`}
+                  />
+                </div>
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-crop-bottom`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-crop-bottom')}
+                  </Label>
+                  <Input
+                    id={`${testId}-crop-bottom`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="0.95"
+                    value={String(cropBottom)}
+                    onChange={event =>
+                      updateImageAttrs({ cropBottom: parseNumericInput(event.target.value, cropBottom) })
+                    }
+                    data-testid={`${testId}-crop-bottom`}
+                  />
+                </div>
+                <div className="gba:space-y-1">
+                  <Label htmlFor={`${testId}-crop-left`} className="gba:text-xs gba:text-muted-foreground">
+                    {t('image-crop-left')}
+                  </Label>
+                  <Input
+                    id={`${testId}-crop-left`}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="0.95"
+                    value={String(cropLeft)}
+                    onChange={event => updateImageAttrs({ cropLeft: parseNumericInput(event.target.value, cropLeft) })}
+                    data-testid={`${testId}-crop-left`}
+                  />
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onMouseDown={preventEditorBlurOnMouseDown}
+                onClick={() =>
+                  updateImageAttrs({
+                    cropTop: 0,
+                    cropRight: 0,
+                    cropBottom: 0,
+                    cropLeft: 0
+                  })
+                }
+                data-testid={`${testId}-reset-crop`}
+              >
+                {t('image-context-reset-crop')}
+              </Button>
             </section>
           </div>
         </ScrollArea>

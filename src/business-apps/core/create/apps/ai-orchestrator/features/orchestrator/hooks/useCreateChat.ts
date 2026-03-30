@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react'
-import type { CreateChatMessage, ChatMessageType } from '../types/chat'
+import type { CreateChatMessage, ChatMessageType, OrchestratorFixComposerScope } from '../types/chat'
 import type { OrchestratorViewState } from '../types'
 
 type AssistantStreamUpdate = Partial<Omit<CreateChatMessage, 'id' | 'createdAt' | 'role'>>
@@ -34,8 +34,11 @@ interface UseCreateChatOptions {
   onFixSend?: (
     prompt: string,
     onPartial?: (partial: AssistantStreamUpdate) => void,
-    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    options?: { changeScope: OrchestratorFixComposerScope }
   ) => Promise<void | FixSendResult>
+  /** When set, passed to `onFixSend` as `options.changeScope` for post-build (complete) messages. */
+  fixComposerChangeScope?: OrchestratorFixComposerScope
   userInfo?: { id?: string }
 }
 
@@ -123,8 +126,10 @@ interface StreamingSendOptions {
   onSend: (
     content: string,
     onPartial: (partial: AssistantStreamUpdate) => void,
-    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    options?: { changeScope: OrchestratorFixComposerScope }
   ) => Promise<void | FixSendResult>
+  fixSendOptions?: { changeScope: OrchestratorFixComposerScope }
 }
 
 function createStreamingSendHandler(
@@ -148,7 +153,7 @@ function createStreamingSendHandler(
       setMessages(prev => applyStreamingUpdate(prev, streamingMessageId, partial))
     }
     try {
-      const result = await options.onSend(content, applyPartial, conversationHistory)
+      const result = await options.onSend(content, applyPartial, conversationHistory, options.fixSendOptions)
       if (result?.assistantMessage) {
         applyPartial(result.assistantMessage)
       } else {
@@ -186,6 +191,7 @@ export function useCreateChat({
   onRefineSend,
   onStartBuild,
   onFixSend,
+  fixComposerChangeScope = 'screen',
   userInfo
 }: UseCreateChatOptions): UseCreateChatResult {
   const [messages, setMessages] = useState<CreateChatMessage[]>([])
@@ -316,12 +322,13 @@ export function useCreateChat({
           messageType: 'fix',
           fallbackContent: 'Applied. Review the updated preview on the canvas.',
           errorMessage: 'I could not apply this fix. Please try again.',
-          onSend: onFixSend
+          onSend: onFixSend,
+          fixSendOptions: { changeScope: fixComposerChangeScope }
         }
       )
       await handler()
     },
-    [onFixSend, addAssistantMessage, appendMessage]
+    [onFixSend, fixComposerChangeScope, addAssistantMessage, appendMessage]
   )
 
   const routeMessageByState = useCallback(

@@ -19,7 +19,6 @@ import {
 import {
   ArrowLeft,
   Play,
-  Plus,
   Trash2,
   ZoomIn,
   ZoomOut,
@@ -41,7 +40,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Slide as SlideType } from '../types'
 import { SlidesApiService } from '../services'
 import { SlideCanvas } from './SlideCanvas'
-import { SlideChartRenderer } from './SlideChartRenderer'
+import { SlideThumbnail } from './SlideThumbnail'
 import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
@@ -51,6 +50,7 @@ import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { SlideToolbarRibbon } from './toolbar'
 import { useToolbarContext } from '../hooks/useToolbarContext'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
+import { clearImageObjectUrlCache } from '../hooks/useImageObjectUrls'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
@@ -61,7 +61,6 @@ import {
   type AnySlideElement,
   type SlideData,
   type SlideTransition,
-  type ChartElement,
   createTextElement,
   createImageElement,
   createVideoElement,
@@ -69,6 +68,16 @@ import {
   gradientToCss,
   COLOR_PRESETS
 } from './slideElements'
+import { SlideLayoutPicker } from './SlideLayoutPicker'
+import { SlideMasterView } from './SlideMasterView'
+import type { SlideMaster } from '../types/slideMaster'
+import {
+  getEffectiveMasters,
+  cloneLayoutToSlide,
+  findLayoutById,
+  ensureTextFits,
+  recolorSlidesForTheme
+} from '../data/defaultSlideMaster'
 import { GradientBuilder } from './GradientBuilder'
 import { FloatingTextActions } from './FloatingTextActions'
 import { LinkDialog } from './LinkDialog'
@@ -197,7 +206,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
 
     snapshotSaveTimeoutRef.current = setTimeout(() => {
-      const contentJson = { slides: latestSlidesRef.current, themeId: latestThemeIdRef.current }
+      const contentJson: Record<string, unknown> = {
+        slides: latestSlidesRef.current,
+        themeId: latestThemeIdRef.current
+      }
+      if (masters && masters.length > 0) {
+        contentJson.masters = masters
+      }
       SlidesApiService.updateSlide(slideId, { contentJson }).catch(err => {
         console.error('[SlideEditor] Auto-save error:', err)
       })
@@ -225,6 +240,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
     [slide.id]
   )
+  const initialMasters = useMemo(
+    () => (slide.contentJson?.masters as SlideMaster[] | undefined) || undefined,
+    [slide.id]
+  )
 
   // Memoize callback to prevent recreation
   const handleSynced = useCallback((synced: boolean) => {
@@ -241,9 +260,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     awareness,
     updateSlides: updateCollaborativeSlides,
     updateTheme: updateCollaborativeTheme,
+    updateMasters: updateCollaborativeMasters,
     updateSlide: updateCollaborativeSlide,
     updateElement: updateCollaborativeElement,
     addSlide: addCollaborativeSlide,
+    masters: collaborativeMasters,
     applyContentJsonSnapshot
   } = useSlideCollaboration({
     slideId,
@@ -257,6 +278,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     onSynced: handleSynced,
     onLocalDocumentChange: scheduleSnapshotSave
   })
+
+  // Sync collaborative masters to local state
+  useEffect(() => {
+    if (collaborativeMasters) {
+      setMasters(collaborativeMasters)
+    }
+  }, [collaborativeMasters])
 
   // Enrich participants with avatars (same pattern as document editor)
   const [participantsWithAvatars, setParticipantsWithAvatars] = useState(participants)
@@ -335,6 +363,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
     fetchAvatar()
   }, [currentUserId, accessToken, graphqlClient])
+
+  // Slide Master & Layout state
+  const [masters, setMasters] = useState<SlideMaster[] | undefined>(initialMasters)
+  const [lastUsedLayoutId, setLastUsedLayoutId] = useState('title-content')
+  const [editorView, setEditorView] = useState<'normal' | 'master'>('normal')
 
   // UI state
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
@@ -622,6 +655,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return collaborativeThemeId ? getThemeById(collaborativeThemeId) : SLIDE_THEMES[0]
   }, [collaborativeThemeId])
 
+  const handleUpdateTheme = useCallback(
+    (newThemeId: string) => {
+      const newTheme = getThemeById(newThemeId)
+      if (newTheme && currentTheme && newTheme.id !== currentTheme.id) {
+        const recolored = recolorSlidesForTheme(slides, currentTheme, newTheme)
+        if (recolored !== slides) {
+          updateCollaborativeSlides(recolored)
+        }
+      }
+      updateCollaborativeTheme(newThemeId)
+    },
+    [currentTheme, slides, updateCollaborativeSlides, updateCollaborativeTheme]
+  )
+
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
   // Ensure elements array always exists
   const currentSlide: SlideData = {
@@ -669,6 +716,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     canSnapshotSaveRef.current = isSynced && isInitialized
   }, [isSynced, isInitialized])
 
+  // Cancel pending snapshot save and release cached Object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (snapshotSaveTimeoutRef.current) {
+        clearTimeout(snapshotSaveTimeoutRef.current)
+        snapshotSaveTimeoutRef.current = null
+      }
+      clearImageObjectUrlCache()
+    }
+  }, [])
+
   // Set initial save time when collaboration syncs
   useEffect(() => {
     if (isSynced && !lastSaveTime) {
@@ -680,7 +738,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     async (silent = false) => {
       if (!silent) setIsSaving(true)
       try {
-        const contentJson = { slides, themeId: collaborativeThemeId }
+        const contentJson: Record<string, unknown> = { slides, themeId: collaborativeThemeId }
+        if (masters && masters.length > 0) {
+          contentJson.masters = masters
+        }
         await SlidesApiService.updateSlide(slideId, { contentJson })
         setLastSaveTime(new Date())
         if (!silent) toast.success(t('editor-slide-saved'))
@@ -1105,30 +1166,102 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const canRedo = historyIndex < history.length - 1
 
   // Slide management - use collaborative methods
-  const addSlide = useCallback(() => {
-    const newSlide: SlideData = {
-      id: `slide-${Date.now()}`,
-      elements: [
-        createTextElement({
-          id: `title-${Date.now()}`,
-          content: t('editor-new-slide'),
-          position: { x: 80, y: 280 },
-          size: { width: 1120, height: 100 },
-          fontSize: 64,
-          fontWeight: 'bold',
-          textAlign: 'center',
-          color: '#1e293b'
-        })
-      ],
-      background: { type: 'solid', color: '#ffffff' }
-    }
-    if (isSynced) {
-      addCollaborativeSlide(newSlide, currentSlideIndex + 1)
-    }
-    setCurrentSlideIndex(currentSlideIndex + 1)
-    setSelectedElementIds(new Set())
-    toast.success(t('editor-slide-added'))
-  }, [currentSlideIndex, isSynced, addCollaborativeSlide, t])
+  const addSlideWithLayout = useCallback(
+    (layoutId: string) => {
+      const effectiveMasters = getEffectiveMasters(masters, currentTheme)
+      const found = findLayoutById(effectiveMasters, layoutId)
+
+      let newSlide: SlideData
+      if (found) {
+        const { elements, background } = cloneLayoutToSlide(found.layout, found.master)
+        newSlide = {
+          id: `slide-${Date.now()}`,
+          elements: elements.map(el => ensureTextFits(el)),
+          background,
+          layoutId,
+          masterId: found.master.id
+        }
+      } else {
+        newSlide = {
+          id: `slide-${Date.now()}`,
+          elements: [
+            createTextElement({
+              id: `title-${Date.now()}`,
+              content: t('editor-new-slide'),
+              position: { x: 80, y: 280 },
+              size: { width: 1120, height: 100 },
+              fontSize: 64,
+              fontWeight: 'bold',
+              textAlign: 'center',
+              color: '#1e293b'
+            })
+          ],
+          background: { type: 'solid', color: '#ffffff' }
+        }
+      }
+
+      if (isSynced) {
+        addCollaborativeSlide(newSlide, currentSlideIndex + 1)
+      }
+      setCurrentSlideIndex(currentSlideIndex + 1)
+      setSelectedElementIds(new Set())
+      setLastUsedLayoutId(layoutId)
+      toast.success(t('editor-slide-added'))
+    },
+    [currentSlideIndex, isSynced, addCollaborativeSlide, masters, currentTheme, t]
+  )
+
+  const handleChangeLayout = useCallback(
+    (layoutId: string) => {
+      const effectiveMasters = getEffectiveMasters(masters, currentTheme)
+      const found = findLayoutById(effectiveMasters, layoutId)
+      if (!found) return
+
+      const slide = slides[currentSlideIndex]
+      if (!slide) return
+
+      const { elements: freshElements, background } = cloneLayoutToSlide(found.layout, found.master)
+
+      const oldTexts = slide.elements.filter(e => e.type === 'text').map(e => (e as any).content as string)
+      const oldImages = slide.elements.filter(e => e.type === 'image').map(e => (e as any).src as string)
+      const userContent = slide.elements.filter(e => e.type === 'chart' || e.type === 'video' || e.type === 'code')
+
+      const freshTexts = freshElements.filter(e => e.type === 'text')
+      const freshImages = freshElements.filter(e => e.type === 'image')
+
+      freshTexts.forEach((el, i) => {
+        if (i < oldTexts.length) {
+          ;(el as any).content = oldTexts[i]
+        }
+      })
+
+      freshImages.forEach((el, i) => {
+        if (i < oldImages.length && oldImages[i]) {
+          ;(el as any).src = oldImages[i]
+        }
+      })
+
+      const fittedElements = freshElements.map(el => ensureTextFits(el))
+      const newElements = [...fittedElements, ...userContent]
+
+      const updatedSlide: SlideData = {
+        ...slide,
+        elements: newElements,
+        background,
+        layoutId,
+        masterId: found.master.id
+      }
+
+      if (isSynced) {
+        const newSlides = [...slides]
+        newSlides[currentSlideIndex] = updatedSlide
+        updateCollaborativeSlides(newSlides)
+      }
+      setSelectedElementIds(new Set())
+      toast.success(t('layout-changed') || 'Layout changed')
+    },
+    [masters, currentTheme, slides, currentSlideIndex, isSynced, updateCollaborativeSlides, t]
+  )
 
   const deleteSlide = useCallback(() => {
     const indicesToDelete =
@@ -1263,7 +1396,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Handle template application
   const handleApplyTemplate = useCallback(
-    (templateSlides: SlideData[], themeId: string) => {
+    (templateSlides: SlideData[], themeId: string, templateMasters?: SlideMaster[]) => {
       if (!isSynced || templateSlides.length === 0) return
 
       // Generate new IDs for template slides to avoid conflicts
@@ -1283,11 +1416,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       // Apply template theme
       updateCollaborativeTheme(themeId)
 
+      // Import template masters if present
+      if (templateMasters && templateMasters.length > 0) {
+        setMasters(templateMasters)
+        updateCollaborativeMasters(templateMasters)
+      }
+
       // Navigate to first template slide
       setCurrentSlideIndex(slides.length)
       setSelectedElementIds(new Set())
     },
-    [isSynced, slides, updateCollaborativeSlides, updateCollaborativeTheme]
+    [isSynced, slides, updateCollaborativeSlides, updateCollaborativeTheme, updateCollaborativeMasters]
   )
 
   // Handle image upload
@@ -2081,7 +2220,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         onShowImageDialog={() => setShowImageDialog(true)}
         onShowVideoDialog={() => setShowVideoDialog(true)}
         onShowLinkDialog={() => setShowLinkDialog(true)}
-        onUpdateTheme={updateCollaborativeTheme}
+        onUpdateTheme={handleUpdateTheme}
         onToggleSpellCheck={() => {
           if (!showSpellCheckPanel) {
             setShowSpellCheckPanel(true)
@@ -2108,6 +2247,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         onExportPdf={() => setShowPdfExportDialog(true)}
         onRefineSlide={handleRefineSlide}
         onGenerateSlides={handleGeneratedSlides}
+        onOpenMasterView={() => setEditorView('master')}
+        masters={masters}
+        onChangeLayout={handleChangeLayout}
         data-testid={`${testId}-toolbar`}
       />
 
@@ -2126,471 +2268,366 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
-        {/* Slide Thumbnails */}
-        <div className="gba:w-48 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col">
-          {/* Scrollable thumbnails */}
-          <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
-            {slides.map((s, idx) => {
-              // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
-              // Canvas is 1280px wide, so scale = 176/1280 ≈ 0.1375
-              const thumbScale = 176 / 1280
-              const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
+      {/* Slide Master View */}
+      {editorView === 'master' && (
+        <SlideMasterView
+          masters={getEffectiveMasters(masters, currentTheme)}
+          currentTheme={currentTheme}
+          onUpdateMasters={newMasters => {
+            setMasters(newMasters)
+            if (isSynced) updateCollaborativeMasters(newMasters)
+          }}
+          onClose={() => setEditorView('normal')}
+          data-testid={`${testId}-master-view`}
+        />
+      )}
 
-              return (
-                <div
-                  key={`${s.id}-${idx}`}
-                  ref={el => {
-                    thumbnailRefs.current[idx] = el
-                  }}
-                  draggable
-                  onDragStart={e => {
-                    setDraggedSlideIndex(idx)
-                    e.dataTransfer.effectAllowed = 'move'
-                    e.dataTransfer.setData('text/plain', String(idx))
-                  }}
-                  onDragEnd={() => {
-                    setDraggedSlideIndex(null)
-                    setDragOverIndex(null)
-                  }}
-                  onDragOver={e => {
-                    e.preventDefault()
-                    e.dataTransfer.dropEffect = 'move'
-                    if (draggedSlideIndex !== null && draggedSlideIndex !== idx) {
-                      setDragOverIndex(idx)
-                    }
-                  }}
-                  onDragLeave={() => {
-                    setDragOverIndex(null)
-                  }}
-                  onDrop={e => {
-                    e.preventDefault()
-                    if (draggedSlideIndex !== null && draggedSlideIndex !== idx) {
-                      reorderSlides(draggedSlideIndex, idx)
-                    }
-                    setDraggedSlideIndex(null)
-                    setDragOverIndex(null)
-                  }}
-                  onClick={e => {
-                    const isCtrlKey = e.ctrlKey || e.metaKey
-                    const isShiftKey = e.shiftKey
+      {/* Main Content -- Normal View */}
+      {editorView === 'normal' && (
+        <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
+          {/* Slide Thumbnails */}
+          <div className="gba:w-48 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col">
+            {/* Scrollable thumbnails */}
+            <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
+              {slides.map((s, idx) => {
+                // Thumbnail scale: sidebar is w-48 (192px) - p-2 (8px each side) - border (4px) = ~176px
+                // Canvas is 1280px wide, so scale = 176/1280 ≈ 0.1375
+                const thumbScale = 176 / 1280
+                const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
 
-                    if (isShiftKey && slideSelectionAnchor !== null) {
-                      // Shift+click: Select range
-                      const start = Math.min(slideSelectionAnchor, idx)
-                      const end = Math.max(slideSelectionAnchor, idx)
-                      const rangeIndices = new Set<number>()
-                      for (let i = start; i <= end; i++) {
-                        rangeIndices.add(i)
-                      }
-                      if (isCtrlKey) {
-                        // Ctrl+Shift: Add range to existing selection
-                        setSelectedSlideIndices(prev => new Set([...prev, ...rangeIndices]))
-                      } else {
-                        setSelectedSlideIndices(rangeIndices)
-                      }
-                      setCurrentSlideIndex(idx)
-                    } else if (isCtrlKey) {
-                      // Ctrl+click: Toggle individual selection
-                      setSelectedSlideIndices(prev => {
-                        const newSet = new Set(prev)
-                        if (newSet.has(idx)) {
-                          if (newSet.size > 1) {
-                            newSet.delete(idx)
-                            // If deleting current, move to another selected
-                            if (idx === currentSlideIndex) {
-                              setCurrentSlideIndex(Math.min(...newSet))
-                            }
-                          }
-                        } else {
-                          newSet.add(idx)
-                        }
-                        return newSet
-                      })
-                      setSlideSelectionAnchor(idx)
-                      if (!selectedSlideIndices.has(idx)) {
-                        setCurrentSlideIndex(idx)
-                      }
-                    } else {
-                      // Regular click: Select only this slide
-                      setCurrentSlideIndex(idx)
-                      setSelectedSlideIndices(new Set([idx]))
-                      setSlideSelectionAnchor(idx)
-                    }
-                    setSelectedElementIds(new Set())
-                  }}
-                  className={`gba:rounded-lg gba:cursor-grab gba:transition-all gba:border-2 gba:overflow-hidden gba:bg-card ${
-                    idx === currentSlideIndex
-                      ? 'gba:border-primary gba:shadow-md'
-                      : selectedSlideIndices.has(idx)
-                        ? 'gba:border-primary/60 gba:shadow-sm gba:bg-primary/5'
-                        : 'gba:border-border hover:gba:border-muted-foreground/40'
-                  } ${draggedSlideIndex === idx ? 'gba:opacity-50' : ''} ${
-                    isDraggedOver ? 'gba:border-primary gba:border-dashed gba:bg-primary/10' : ''
-                  }`}
-                >
-                  {/* Mini Preview - CSS transform for accurate rendering */}
+                return (
                   <div
-                    className="gba:relative gba:overflow-hidden"
-                    style={{
-                      width: '100%',
-                      aspectRatio: '16 / 9'
+                    key={`${s.id}-${idx}`}
+                    ref={el => {
+                      thumbnailRefs.current[idx] = el
                     }}
-                  >
-                    {/* Scaled canvas container */}
-                    <div
-                      className="gba:absolute gba:inset-0"
-                      style={(() => {
-                        const bg = s.background
-                        if (!bg) return { backgroundColor: '#fff' }
+                    draggable
+                    onDragStart={e => {
+                      setDraggedSlideIndex(idx)
+                      e.dataTransfer.effectAllowed = 'move'
+                      e.dataTransfer.setData('text/plain', String(idx))
+                    }}
+                    onDragEnd={() => {
+                      setDraggedSlideIndex(null)
+                      setDragOverIndex(null)
+                    }}
+                    onDragOver={e => {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = 'move'
+                      if (draggedSlideIndex !== null && draggedSlideIndex !== idx) {
+                        setDragOverIndex(idx)
+                      }
+                    }}
+                    onDragLeave={() => {
+                      setDragOverIndex(null)
+                    }}
+                    onDrop={e => {
+                      e.preventDefault()
+                      if (draggedSlideIndex !== null && draggedSlideIndex !== idx) {
+                        reorderSlides(draggedSlideIndex, idx)
+                      }
+                      setDraggedSlideIndex(null)
+                      setDragOverIndex(null)
+                    }}
+                    onClick={e => {
+                      const isCtrlKey = e.ctrlKey || e.metaKey
+                      const isShiftKey = e.shiftKey
 
-                        switch (bg.type) {
-                          case 'gradient':
-                            return bg.gradient ? { background: gradientToCss(bg.gradient) } : {}
-                          case 'branded': {
-                            const layers: string[] = []
-                            if (bg.overlay) {
-                              layers.push(gradientToCss(bg.overlay))
-                            }
-                            if (bg.gradient) {
-                              layers.push(gradientToCss(bg.gradient))
-                            }
-                            const baseColor = bg.color || '#0a0a0a'
-                            if (layers.length > 0) {
-                              return { background: `${layers.join(', ')}, ${baseColor}` }
-                            }
-                            return { backgroundColor: baseColor }
-                          }
-                          case 'image':
-                            return bg.imageUrl
-                              ? {
-                                  backgroundImage: `url(${bg.imageUrl})`,
-                                  backgroundSize: 'cover',
-                                  backgroundPosition: 'center'
-                                }
-                              : {}
-                          default:
-                            return { backgroundColor: bg.color || '#ffffff' }
+                      if (isShiftKey && slideSelectionAnchor !== null) {
+                        // Shift+click: Select range
+                        const start = Math.min(slideSelectionAnchor, idx)
+                        const end = Math.max(slideSelectionAnchor, idx)
+                        const rangeIndices = new Set<number>()
+                        for (let i = start; i <= end; i++) {
+                          rangeIndices.add(i)
                         }
-                      })()}
-                    >
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: 1280,
-                          height: 720,
-                          transform: `scale(${thumbScale})`,
-                          transformOrigin: 'top left'
-                        }}
-                      >
-                        {[...(s.elements || [])]
-                          .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-                          .map(el => (
-                            <div
-                              key={el.id}
-                              className="gba:absolute"
-                              style={{
-                                left: el.position.x,
-                                top: el.position.y,
-                                width: el.size.width,
-                                height: el.size.height,
-                                zIndex: el.zIndex || 0,
-                                backgroundColor:
-                                  el.type === 'shape' && !(el as any).gradient ? (el as any).fill : 'transparent',
-                                background:
-                                  el.type === 'shape' && (el as any).gradient
-                                    ? gradientToCss((el as any).gradient)
-                                    : undefined,
-                                borderRadius:
-                                  el.type === 'shape'
-                                    ? (el as any).shapeType === 'circle' || (el as any).shapeType === 'ellipse'
-                                      ? '50%'
-                                      : (el as any).cornerRadius || (el as any).borderRadius
-                                    : undefined,
-                                overflow: el.type === 'text' ? 'hidden' : undefined
-                              }}
-                            >
-                              {el.type === 'text' && (
-                                <div
-                                  className="gba:w-full gba:h-full gba:overflow-hidden gba:whitespace-pre-wrap"
-                                  style={{
-                                    color: (el as any).color,
-                                    fontSize: (el as any).fontSize,
-                                    fontWeight: (el as any).fontWeight,
-                                    fontFamily: (el as any).fontFamily,
-                                    textAlign: (el as any).textAlign,
-                                    lineHeight: (el as any).lineHeight || 1.2,
-                                    background: (el as any).gradient ? gradientToCss((el as any).gradient) : undefined
-                                  }}
-                                >
-                                  {(el as any).content}
-                                </div>
-                              )}
-                              {el.type === 'image' && sanitizeMediaUrl((el as any).src, ['image/']) && (
-                                <img
-                                  // nosemgrep: react-insecure-url
-                                  // snyk-ignore: URL is validated by sanitizeMediaUrl
-                                  src={sanitizeMediaUrl((el as any).src, ['image/'])}
-                                  alt=""
-                                  className="gba:w-full gba:h-full gba:object-cover"
-                                />
-                              )}
-                              {el.type === 'chart' && (
-                                <SlideChartRenderer
-                                  element={el as ChartElement}
-                                  width={el.size.width}
-                                  height={el.size.height}
-                                />
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    {/* Slide number overlay */}
-                    <div className="gba:absolute gba:bottom-1 gba:left-1 gba:min-w-5 gba:h-5 gba:px-1 gba:flex gba:items-center gba:justify-center gba:rounded gba:bg-black/50">
-                      <span className="gba:text-[10px] gba:font-medium gba:text-white gba:leading-none">{idx + 1}</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Slide Actions */}
-          <div className="gba:p-3 gba:border-t gba:bg-card/50 gba:space-y-2">
-            {selectedSlideIndices.size > 1 && (
-              <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-1">
-                {selectedSlideIndices.size} {t('editor-slides-selected') || 'slides selected'}
-              </div>
-            )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={addSlide}
-              className="gba:w-full gba:gap-2 gba:justify-center"
-              data-testid={`${testId}-add-slide-btn`}
-            >
-              <Plus className="gba:w-4 gba:h-4" />
-              {t('editor-new-slide')}
-            </Button>
-            <div className="gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:border gba:bg-muted/30 gba:p-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={duplicateSlide}
-                title={t('editor-duplicate-slide')}
-                className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background"
-                data-testid={`${testId}-duplicate-slide-btn`}
-              >
-                <CopyPlus className="gba:w-4 gba:h-4" />
-              </Button>
-              <div className="gba:w-px gba:h-5 gba:bg-border" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={deleteSlide}
-                title={t('editor-delete-slide')}
-                className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-destructive hover:gba:bg-destructive/10"
-                data-testid={`${testId}-delete-slide-btn`}
-              >
-                <Trash2 className="gba:w-4 gba:h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Canvas Area */}
-        <div className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0">
-          <div className="gba:inline-flex gba:justify-center gba:min-w-full">
-            <div
-              ref={canvasContainerRef}
-              className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
-              style={{ width: 1280 * canvasScale, height: 720 * canvasScale }}
-              onDragOver={handleCanvasDragOver}
-              onDrop={handleCanvasDrop}
-              onMouseMove={e => {
-                if (isSynced && awareness) {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  const x = (e.clientX - rect.left) / canvasScale
-                  const y = (e.clientY - rect.top) / canvasScale
-                  awareness.setLocalStateField('cursor', {
-                    x,
-                    y,
-                    slideIndex: currentSlideIndex
-                  })
-                }
-              }}
-              onMouseLeave={() => {
-                if (isSynced && awareness) {
-                  awareness.setLocalStateField('cursor', null)
-                }
-              }}
-            >
-              <SlideCanvas
-                elements={currentSlide.elements}
-                selectedIds={selectedElementIds}
-                background={currentSlide.background}
-                onSelectElements={ids => {
-                  setSelectedElementIds(ids)
-                  if (!showPropertyPanel && ids.size > 0) {
-                    setShowPropertyPanel(true)
-                  }
-                  if (isSynced && awareness) {
-                    const primaryId = ids.size > 0 ? [...ids][0] : null
-                    awareness.setLocalStateField(
-                      'selection',
-                      primaryId
-                        ? {
-                            slideIndex: currentSlideIndex,
-                            elementId: primaryId
+                        if (isCtrlKey) {
+                          // Ctrl+Shift: Add range to existing selection
+                          setSelectedSlideIndices(prev => new Set([...prev, ...rangeIndices]))
+                        } else {
+                          setSelectedSlideIndices(rangeIndices)
+                        }
+                        setCurrentSlideIndex(idx)
+                      } else if (isCtrlKey) {
+                        // Ctrl+click: Toggle individual selection
+                        setSelectedSlideIndices(prev => {
+                          const newSet = new Set(prev)
+                          if (newSet.has(idx)) {
+                            if (newSet.size > 1) {
+                              newSet.delete(idx)
+                              // If deleting current, move to another selected
+                              if (idx === currentSlideIndex) {
+                                setCurrentSlideIndex(Math.min(...newSet))
+                              }
+                            }
+                          } else {
+                            newSet.add(idx)
                           }
-                        : null
-                    )
-                  }
-                }}
-                onUpdateElement={updateElement}
-                onUpdateMultipleElements={updateMultipleElements}
-                onEditText={id => {
-                  const element = currentSlide.elements.find(e => e.id === id) as TextElement | undefined
-                  if (element) {
-                    voiceBaseContentRef.current = element.content
-                    currentEditingContentRef.current = element.content
-                    lastProcessedTranscriptRef.current = ''
-                    editingTextIdRef.current = id
-                  }
-                  handleEditText(id)
-                }}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                scale={canvasScale}
-                inlineEditing={{
-                  editingTextId,
-                  onTextChange: handleTextChange,
-                  onFinishEditing: () => {
-                    if (voiceInput.isListening) {
-                      voiceInput.stopListening()
-                    }
-                    finishTextEditing()
-                  },
-                  voiceInput: {
-                    isListening: voiceInput.isListening,
-                    isSupported: voiceInput.isSupported,
-                    volume: voiceInput.volume,
-                    error: voiceInput.error,
-                    interimTranscript: voiceInput.interimTranscript,
-                    startListening: () => {
-                      // Capture current content as base for voice input
-                      voiceBaseContentRef.current = currentEditingContentRef.current
-                      lastProcessedTranscriptRef.current = ''
-                      voiceInput.startListening()
-                    },
-                    stopListening: voiceInput.stopListening
-                  }
-                }}
-              />
+                          return newSet
+                        })
+                        setSlideSelectionAnchor(idx)
+                        if (!selectedSlideIndices.has(idx)) {
+                          setCurrentSlideIndex(idx)
+                        }
+                      } else {
+                        // Regular click: Select only this slide
+                        setCurrentSlideIndex(idx)
+                        setSelectedSlideIndices(new Set([idx]))
+                        setSlideSelectionAnchor(idx)
+                      }
+                      setSelectedElementIds(new Set())
+                    }}
+                    className={`gba:rounded-lg gba:cursor-grab gba:transition-all gba:border-2 gba:overflow-hidden gba:bg-card ${
+                      idx === currentSlideIndex
+                        ? 'gba:border-primary gba:shadow-md'
+                        : selectedSlideIndices.has(idx)
+                          ? 'gba:border-primary/60 gba:shadow-sm gba:bg-primary/5'
+                          : 'gba:border-border hover:gba:border-muted-foreground/40'
+                    } ${draggedSlideIndex === idx ? 'gba:opacity-50' : ''} ${
+                      isDraggedOver ? 'gba:border-primary gba:border-dashed gba:bg-primary/10' : ''
+                    }`}
+                  >
+                    <SlideThumbnail slide={s} index={idx} thumbScale={thumbScale} />
+                  </div>
+                )
+              })}
+            </div>
 
-              {/* Collaborator cursors overlay */}
-              {isInitialized && (
-                <CollaboratorCursors
-                  awareness={awareness}
-                  currentSlideIndex={currentSlideIndex}
-                  canvasScale={canvasScale}
-                  currentUserId={currentUserId}
-                  data-testid={`${testId}-collaborator-cursors`}
-                />
+            {/* Slide Actions */}
+            <div className="gba:p-3 gba:border-t gba:bg-card/50 gba:space-y-2">
+              {selectedSlideIndices.size > 1 && (
+                <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-1">
+                  {selectedSlideIndices.size} {t('editor-slides-selected') || 'slides selected'}
+                </div>
               )}
-            </div>
-
-            {/* Floating Text Actions - outside canvas container to avoid overflow clipping */}
-            {selectedElementIds.size === 1 && selectedElement?.type === 'text' && !editingTextId && !isPresentMode && (
-              <FloatingTextActions
-                element={selectedElement as TextElement}
-                canvasScale={canvasScale}
-                canvasRef={canvasContainerRef}
-                isVoiceSupported={voiceInput.isSupported}
-                onVoiceClick={() => {
-                  const currentContent = (selectedElement as TextElement)?.content || ''
-                  voiceBaseContentRef.current = currentContent
-                  currentEditingContentRef.current = currentContent
-                  lastProcessedTranscriptRef.current = ''
-                  editingTextIdRef.current = selectedElement.id
-                  setEditingTextId(selectedElement.id)
-                  voiceInput.startListening()
-                }}
-                onEditClick={() => {
-                  const currentContent = (selectedElement as TextElement)?.content || ''
-                  currentEditingContentRef.current = currentContent
-                  editingTextIdRef.current = selectedElement.id
-                  setEditingTextId(selectedElement.id)
-                }}
-                data-testid={`${testId}-floating-text-actions`}
+              <SlideLayoutPicker
+                masters={masters}
+                currentTheme={currentTheme}
+                onSelectLayout={addSlideWithLayout}
+                onDuplicateSlide={duplicateSlide}
+                lastUsedLayoutId={lastUsedLayoutId}
+                data-testid={`${testId}-add-slide-btn`}
               />
-            )}
-          </div>
-        </div>
-
-        {/* Property Panel - Always visible until X button is clicked */}
-        {showPropertyPanel && (
-          <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
-            <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
-              <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="gba:h-6 gba:w-6"
-                onClick={() => setShowPropertyPanel(false)}
-                data-testid={`${testId}-close-property-panel`}
-              >
-                <X className="gba:h-4 gba:w-4" />
-              </Button>
+              <div className="gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:border gba:bg-muted/30 gba:p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={duplicateSlide}
+                  title={t('editor-duplicate-slide')}
+                  className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background"
+                  data-testid={`${testId}-duplicate-slide-btn`}
+                >
+                  <CopyPlus className="gba:w-4 gba:h-4" />
+                </Button>
+                <div className="gba:w-px gba:h-5 gba:bg-border" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={deleteSlide}
+                  title={t('editor-delete-slide')}
+                  className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-destructive hover:gba:bg-destructive/10"
+                  data-testid={`${testId}-delete-slide-btn`}
+                >
+                  <Trash2 className="gba:w-4 gba:h-4" />
+                </Button>
+              </div>
             </div>
-            <PropertyPanel
-              element={selectedElement}
-              onUpdate={updates => selectedElementId && updateElement(selectedElementId, updates)}
-              onDelete={deleteElement}
-              onDuplicate={duplicateElement}
-              onBringForward={bringForward}
-              onSendBackward={sendBackward}
-              slideTransition={currentSlide.transition}
-              onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
-            />
           </div>
-        )}
 
-        {/* Spell Check Panel */}
-        {showSpellCheckPanel && (
-          <div className="gba:w-80 gba:flex-shrink-0 gba:h-full">
-            <SpellCheckPanel
-              annotations={spellCheck.annotations}
-              annotationsBySlide={spellCheck.annotationsBySlide}
-              isChecking={spellCheck.isChecking}
-              totalIssues={spellCheck.totalIssues}
-              selectedAnnotationId={spellCheck.selectedAnnotation?.id || null}
-              onCheck={() => spellCheck.checkAllSlides()}
-              onSelectAnnotation={spellCheck.selectAnnotation}
-              onAcceptSuggestion={(annotation: SlideAnnotation) => {
-                const newContent = spellCheck.acceptSuggestion(annotation)
-                if (newContent !== null) {
-                  updateElement(annotation.elementId, { content: newContent })
-                }
-              }}
-              onIgnoreAnnotation={spellCheck.ignoreAnnotation}
-              onIgnoreWord={spellCheck.ignoreWord}
-              onNavigateToSlide={slideId => {
-                const idx = slides.findIndex(s => s.id === slideId)
-                if (idx >= 0) {
-                  setCurrentSlideIndex(idx)
-                }
-              }}
-              onClose={() => setShowSpellCheckPanel(false)}
-              data-testid={`${testId}-spell-check-panel`}
-            />
+          {/* Canvas Area */}
+          <div className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0">
+            <div className="gba:inline-flex gba:justify-center gba:min-w-full">
+              <div
+                ref={canvasContainerRef}
+                className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
+                style={{ width: 1280 * canvasScale, height: 720 * canvasScale }}
+                onDragOver={handleCanvasDragOver}
+                onDrop={handleCanvasDrop}
+                onMouseMove={e => {
+                  if (isSynced && awareness) {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const x = (e.clientX - rect.left) / canvasScale
+                    const y = (e.clientY - rect.top) / canvasScale
+                    awareness.setLocalStateField('cursor', {
+                      x,
+                      y,
+                      slideIndex: currentSlideIndex
+                    })
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (isSynced && awareness) {
+                    awareness.setLocalStateField('cursor', null)
+                  }
+                }}
+              >
+                <SlideCanvas
+                  key={currentSlide.id || currentSlideIndex}
+                  elements={currentSlide.elements}
+                  selectedIds={selectedElementIds}
+                  background={currentSlide.background}
+                  onSelectElements={ids => {
+                    setSelectedElementIds(ids)
+                    if (!showPropertyPanel && ids.size > 0) {
+                      setShowPropertyPanel(true)
+                    }
+                    if (isSynced && awareness) {
+                      const primaryId = ids.size > 0 ? [...ids][0] : null
+                      awareness.setLocalStateField(
+                        'selection',
+                        primaryId
+                          ? {
+                              slideIndex: currentSlideIndex,
+                              elementId: primaryId
+                            }
+                          : null
+                      )
+                    }
+                  }}
+                  onUpdateElement={updateElement}
+                  onUpdateMultipleElements={updateMultipleElements}
+                  onEditText={id => {
+                    const element = currentSlide.elements.find(e => e.id === id) as TextElement | undefined
+                    if (element) {
+                      voiceBaseContentRef.current = element.content
+                      currentEditingContentRef.current = element.content
+                      lastProcessedTranscriptRef.current = ''
+                      editingTextIdRef.current = id
+                    }
+                    handleEditText(id)
+                  }}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  scale={canvasScale}
+                  inlineEditing={{
+                    editingTextId,
+                    onTextChange: handleTextChange,
+                    onFinishEditing: () => {
+                      if (voiceInput.isListening) {
+                        voiceInput.stopListening()
+                      }
+                      finishTextEditing()
+                    },
+                    voiceInput: {
+                      isListening: voiceInput.isListening,
+                      isSupported: voiceInput.isSupported,
+                      volume: voiceInput.volume,
+                      error: voiceInput.error,
+                      interimTranscript: voiceInput.interimTranscript,
+                      startListening: () => {
+                        // Capture current content as base for voice input
+                        voiceBaseContentRef.current = currentEditingContentRef.current
+                        lastProcessedTranscriptRef.current = ''
+                        voiceInput.startListening()
+                      },
+                      stopListening: voiceInput.stopListening
+                    }
+                  }}
+                />
+
+                {/* Collaborator cursors overlay */}
+                {isInitialized && (
+                  <CollaboratorCursors
+                    awareness={awareness}
+                    currentSlideIndex={currentSlideIndex}
+                    canvasScale={canvasScale}
+                    currentUserId={currentUserId}
+                    data-testid={`${testId}-collaborator-cursors`}
+                  />
+                )}
+              </div>
+
+              {/* Floating Text Actions - outside canvas container to avoid overflow clipping */}
+              {selectedElementIds.size === 1 &&
+                selectedElement?.type === 'text' &&
+                !editingTextId &&
+                !isPresentMode && (
+                  <FloatingTextActions
+                    element={selectedElement as TextElement}
+                    canvasScale={canvasScale}
+                    canvasRef={canvasContainerRef}
+                    isVoiceSupported={voiceInput.isSupported}
+                    onVoiceClick={() => {
+                      const currentContent = (selectedElement as TextElement)?.content || ''
+                      voiceBaseContentRef.current = currentContent
+                      currentEditingContentRef.current = currentContent
+                      lastProcessedTranscriptRef.current = ''
+                      editingTextIdRef.current = selectedElement.id
+                      setEditingTextId(selectedElement.id)
+                      voiceInput.startListening()
+                    }}
+                    onEditClick={() => {
+                      const currentContent = (selectedElement as TextElement)?.content || ''
+                      currentEditingContentRef.current = currentContent
+                      editingTextIdRef.current = selectedElement.id
+                      setEditingTextId(selectedElement.id)
+                    }}
+                    data-testid={`${testId}-floating-text-actions`}
+                  />
+                )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Property Panel - Always visible until X button is clicked */}
+          {showPropertyPanel && (
+            <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
+              <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
+                <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="gba:h-6 gba:w-6"
+                  onClick={() => setShowPropertyPanel(false)}
+                  data-testid={`${testId}-close-property-panel`}
+                >
+                  <X className="gba:h-4 gba:w-4" />
+                </Button>
+              </div>
+              <PropertyPanel
+                element={selectedElement}
+                onUpdate={updates => selectedElementId && updateElement(selectedElementId, updates)}
+                onDelete={deleteElement}
+                onDuplicate={duplicateElement}
+                onBringForward={bringForward}
+                onSendBackward={sendBackward}
+                slideTransition={currentSlide.transition}
+                onSlideTransitionChange={canEdit ? updateCurrentSlideTransition : undefined}
+              />
+            </div>
+          )}
+
+          {/* Spell Check Panel */}
+          {showSpellCheckPanel && (
+            <div className="gba:w-80 gba:flex-shrink-0 gba:h-full">
+              <SpellCheckPanel
+                annotations={spellCheck.annotations}
+                annotationsBySlide={spellCheck.annotationsBySlide}
+                isChecking={spellCheck.isChecking}
+                totalIssues={spellCheck.totalIssues}
+                selectedAnnotationId={spellCheck.selectedAnnotation?.id || null}
+                onCheck={() => spellCheck.checkAllSlides()}
+                onSelectAnnotation={spellCheck.selectAnnotation}
+                onAcceptSuggestion={(annotation: SlideAnnotation) => {
+                  const newContent = spellCheck.acceptSuggestion(annotation)
+                  if (newContent !== null) {
+                    updateElement(annotation.elementId, { content: newContent })
+                  }
+                }}
+                onIgnoreAnnotation={spellCheck.ignoreAnnotation}
+                onIgnoreWord={spellCheck.ignoreWord}
+                onNavigateToSlide={slideId => {
+                  const idx = slides.findIndex(s => s.id === slideId)
+                  if (idx >= 0) {
+                    setCurrentSlideIndex(idx)
+                  }
+                }}
+                onClose={() => setShowSpellCheckPanel(false)}
+                data-testid={`${testId}-spell-check-panel`}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Image Dialog */}
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>

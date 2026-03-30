@@ -344,6 +344,8 @@ export interface SlideData {
   background: SlideBackground
   notes?: string
   transition?: SlideTransition
+  layoutId?: string
+  masterId?: string
 }
 
 // Default element factories

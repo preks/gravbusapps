@@ -22,6 +22,12 @@ export interface GravityIssueEvidence {
     width: number
     height: number
   } | null
+  screenshots?: Array<{
+    dataUrl: string
+    mimeType: 'image/jpeg'
+    width: number
+    height: number
+  }> | null
   screenshotError?: string | null
   telemetry?: {
     console: Array<{ t: string; level: 'error' | 'warn'; message: string }>

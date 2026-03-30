@@ -49,7 +49,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   onResetTableController: () => void
   onClearGrowthSuppression: () => void
   onSetStoredPageCount: (pageCount: number) => void
-  onRequestRefresh: (source: 'selection-overflow') => void
+  onRequestRefresh: (source: 'selection-overflow' | 'page-count-shrink') => void
   onScheduleDeferredRepagination: (minimumAttempts?: number) => void
   getDeferredStabilizationAttemptCount: (view: EditorView) => number
   shouldScheduleDeferredRepaginationOnUpdate: (options: {
@@ -100,6 +100,31 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
     options.onClearGrowthSuppression()
     if (externalDocChange) {
       nextState.runawayGrowthCapPageCount = null
+    }
+  }
+
+  if (
+    storage.activeEditorType === null &&
+    !(view as EditorView & { composing?: boolean }).composing &&
+    docChangedSinceLastUpdate &&
+    !shouldDeferSelectionOverflowResolution
+  ) {
+    const measurementState = options.resolveMeasurementState(nextState)
+
+    if (measurementState.measuredPageCount < measurementState.currentPageCount) {
+      if (paginationOwnedDocChange) {
+        options.onClearGrowthSuppression()
+      }
+
+      nextState.runawayGrowthCapPageCount = null
+      if (resolveHasTables()) {
+        nextState.pendingRefreshDrivenStabilization = true
+      }
+
+      options.onSetStoredPageCount(measurementState.measuredPageCount)
+      nextState.lastKnownSelectionHead = currentSelectionHead
+      options.onRequestRefresh('page-count-shrink')
+      return nextState
     }
   }
 

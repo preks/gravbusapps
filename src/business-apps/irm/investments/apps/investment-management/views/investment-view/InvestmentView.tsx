@@ -6,12 +6,9 @@ import { useInvestmentExport } from './hooks/useInvestmentExport'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
-import { OVERVIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
-import { useInvestmentPortfolioIntegration } from '../analytics-view/overview/hooks'
-import { useEquityKPIIntegration } from '../analytics-view/equity-analytics/hooks'
-import { useLiquidFundKPIIntegration } from '../analytics-view/liquid-fund-analytics/hooks'
-import { useRealEstateKPIIntegration } from '../analytics-view/real-estate-analytics/hooks'
-import { useGenericGroupKPIIntegration } from '@/common/data/investment/hooks/useGenericGroupKPIIntegration'
+import { INVESTMENT_VIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
+import { useInvestmentViewKPIIntegration } from '@/common/data/investment/hooks/useInvestmentViewKPIIntegration'
+import type { InvestmentViewKPIScope } from '@/common/data/investment/hooks/useInvestmentViewKPIIntegration'
 import AllInvestmentsList from './data/investment-data/AllInvestmentsList'
 import GenericInvestmentsList from './data/shared/GenericInvestmentsList'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -27,8 +24,13 @@ import { useInvestmentGroups } from './hooks/useInvestmentGroups'
 import { useAllInvestmentCounts } from './hooks/useAllInvestmentCounts'
 import { useInvestmentTabsInitialization } from './hooks/useInvestmentTabsInitialization'
 import { getGroupConfiguration } from './config/groupConfigurations'
-import { aggregateDynamicKPIs, aggregateDynamicStates } from './utils/kpiAggregation'
-import { findCurrencyByCode, buildFilterWithCurrency, buildCurrencyFilter } from './utils/filterHandlers'
+import { aggregateDynamicStates } from './utils/kpiAggregation'
+import {
+  findCurrencyByCode,
+  buildFilterWithCurrency,
+  buildCurrencyFilter,
+  isAllCurrencySelection
+} from './utils/filterHandlers'
 import { useInvestmentAccountFilter } from './hooks/useInvestmentAccountFilter'
 import { CurrencyFilter } from '../analytics-view/shared/components/CurrencyFilter'
 
@@ -37,52 +39,35 @@ const EMPTY_FILTERS = {}
 const MAX_DYNAMIC_GROUP_SLOTS = 10
 
 const useDynamicGroupSlot = ({
-  context,
   accessToken,
   investmentGroups,
   index,
-  currencyByTab,
   filtersByTab,
   filtersReady,
   currentSection
 }: {
-  context: BusinessAppContextProps
   accessToken?: string
   investmentGroups: Array<{ code: string; tabId: string }>
   index: number
-  currencyByTab: Record<string, string>
   filtersByTab: Record<string, Record<string, any>>
   filtersReady: boolean
   currentSection: string
 }) => {
   const group = investmentGroups[index]
   const tabId = group?.tabId
-  const selectedCurrency = useMemo(() => currencyByTab[tabId || ''] || 'EUR', [currencyByTab, tabId])
 
   // Full filters for the data list (respects all user-applied filters)
   const selectedFilters = useMemo(() => filtersByTab[tabId || ''] || {}, [filtersByTab, tabId])
-
-  // Currency-only filters for KPIs — prevents KPI re-fetch on non-currency filter changes
-  const currencyId = filtersByTab[tabId || '']?.currencyIds?.[0] as string | undefined
-  const kpiFilters = useMemo(() => (currencyId ? { currencyIds: [currencyId] } : {}), [currencyId])
 
   const stateResult = useGenericInvestmentSectionState({
     accessToken: filtersReady && group && currentSection === tabId ? accessToken || '' : '',
     groupCode: group?.code || '',
     selectedFilters
   })
-  const genericKPIResult = useGenericGroupKPIIntegration(
-    context,
-    group?.code || '',
-    selectedCurrency,
-    kpiFilters,
-    filtersReady && !!group && !getGroupConfiguration(group.code).kpiHookName && currentSection === tabId
-  )
 
   return {
     tabId,
-    stateResult,
-    genericKPIResult
+    stateResult
   }
 }
 
@@ -112,7 +97,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   // Single currency state per tab (stored in map)
   const [currencyByTab, setCurrencyByTab] = useState<Record<string, string>>({
-    overview: 'EUR'
+    overview: 'all'
   })
 
   // Single filter state per tab (stored in map)
@@ -122,7 +107,13 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   const [filtersReady, setFiltersReady] = useState(false)
 
   // Get current tab's currency and filters (memoize to prevent infinite loops)
-  const selectedCurrency = currencyByTab[currentSection] || 'EUR'
+  const selectedCurrency = currencyByTab[currentSection] || 'all'
+
+  /** Aggregates use a single display currency; when "All" is selected, default to EUR for formatting only. */
+  const displayCurrencyCode = useMemo(
+    () => (isAllCurrencySelection(selectedCurrency) ? 'EUR' : selectedCurrency),
+    [selectedCurrency]
+  )
   const selectedFilters = useMemo(() => filtersByTab[currentSection] || EMPTY_FILTERS, [filtersByTab, currentSection])
 
   // Fetch available currencies
@@ -136,101 +127,81 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   // Bounded dynamic slots to support scalable groups without fixed group0..group4 wiring
   const groupSlot0 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 0,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot1 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 1,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot2 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 2,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot3 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 3,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot4 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 4,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot5 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 5,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot6 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 6,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot7 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 7,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot8 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 8,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
   })
   const groupSlot9 = useDynamicGroupSlot({
-    context,
     accessToken,
     investmentGroups,
     index: 9,
-    currencyByTab,
     filtersByTab,
     filtersReady,
     currentSection
@@ -283,72 +254,27 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     [investmentGroups, dynamicGroupSlots]
   )
 
-  // Overview KPIs - only fetch when overview tab is active, only react to currency changes
-  const overviewCurrencyId = filtersByTab['overview']?.currencyIds?.[0] as string | undefined
-  const overviewKPIFilters = useMemo(
-    () => (overviewCurrencyId ? { currencyIds: [overviewCurrencyId] } : EMPTY_FILTERS),
-    [overviewCurrencyId]
+  const investmentViewKPIScope = useMemo((): InvestmentViewKPIScope => {
+    if (currentSection === 'overview') return 'overview'
+    const group = investmentGroups.find(g => g.tabId === currentSection)
+    return group ? { groupCode: group.code } : 'overview'
+  }, [currentSection, investmentGroups])
+
+  const kpiCurrencyId = filtersByTab[currentSection]?.currencyIds?.[0] as string | undefined
+  const investmentViewKPIFilters = useMemo(
+    () => (kpiCurrencyId ? { currencyIds: [kpiCurrencyId] } : EMPTY_FILTERS),
+    [kpiCurrencyId]
   )
-  const overviewKPIs = useInvestmentPortfolioIntegration(
+
+  const investmentViewKPIEnabled =
+    filtersReady && (currentSection === 'overview' || investmentGroups.some(g => g.tabId === currentSection))
+
+  const investmentViewKPIs = useInvestmentViewKPIIntegration(
     context,
+    investmentViewKPIScope,
+    investmentViewKPIFilters,
     selectedCurrency,
-    overviewKPIFilters,
-    shouldFetchOverview
-  )
-
-  // Find stable tab IDs for KPI hooks
-  const equityTabId = useMemo(() => investmentGroups.find(g => g.code === 'EQUITY')?.tabId, [investmentGroups])
-  const liquidFundTabId = useMemo(() => investmentGroups.find(g => g.code === 'LIQUID_FUND')?.tabId, [investmentGroups])
-  const realEstateTabId = useMemo(() => investmentGroups.find(g => g.code === 'REAL_ESTATE')?.tabId, [investmentGroups])
-
-  // KPI filters scoped to currency only — other filters must not trigger KPI re-fetches
-  const equityCurrencyId = filtersByTab[equityTabId || '']?.currencyIds?.[0] as string | undefined
-  const liquidFundCurrencyId = filtersByTab[liquidFundTabId || '']?.currencyIds?.[0] as string | undefined
-  const realEstateCurrencyId = filtersByTab[realEstateTabId || '']?.currencyIds?.[0] as string | undefined
-
-  const equityKPIFilters = useMemo(
-    () => (equityCurrencyId ? { currencyIds: [equityCurrencyId] } : EMPTY_FILTERS),
-    [equityCurrencyId]
-  )
-  const liquidFundKPIFilters = useMemo(
-    () => (liquidFundCurrencyId ? { currencyIds: [liquidFundCurrencyId] } : EMPTY_FILTERS),
-    [liquidFundCurrencyId]
-  )
-  const realEstateKPIFilters = useMemo(
-    () => (realEstateCurrencyId ? { currencyIds: [realEstateCurrencyId] } : EMPTY_FILTERS),
-    [realEstateCurrencyId]
-  )
-
-  // Specialized KPIs - only fetch when the specific group tab is active
-  const equityKPIs = useEquityKPIIntegration(
-    context,
-    currencyByTab[equityTabId || ''] || 'EUR',
-    equityKPIFilters,
-    filtersReady && currentSection === equityTabId
-  )
-  const liquidFundKPIs = useLiquidFundKPIIntegration(
-    context,
-    currencyByTab[liquidFundTabId || ''] || 'EUR',
-    liquidFundKPIFilters,
-    filtersReady && currentSection === liquidFundTabId
-  )
-  const realEstateKPIs = useRealEstateKPIIntegration(
-    context,
-    currencyByTab[realEstateTabId || ''] || 'EUR',
-    realEstateKPIFilters,
-    filtersReady && currentSection === realEstateTabId
-  )
-
-  const dynamicKPIs = useMemo(
-    () =>
-      aggregateDynamicKPIs(
-        investmentGroups,
-        equityKPIs,
-        liquidFundKPIs,
-        realEstateKPIs,
-        dynamicGroupSlots.map(slot => slot.genericKPIResult)
-      ),
-    [investmentGroups, equityKPIs, liquidFundKPIs, realEstateKPIs, dynamicGroupSlots]
+    investmentViewKPIEnabled
   )
 
   // Initialize currencies and filters when available
@@ -433,8 +359,14 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   // Matches the AccountLayout pattern (empty deps, functional state updates).
   const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
     const section = currentSectionRef.current
-    const currencyObj = findCurrencyByCode(availableCurrenciesRef.current, selectedCurrencyRef.current)
-    const finalFilters = buildFilterWithCurrency(newFilters, currencyObj)
+    const selection = selectedCurrencyRef.current
+    const finalFilters = isAllCurrencySelection(selection)
+      ? (() => {
+          const f = { ...newFilters }
+          delete f.currencyIds
+          return f
+        })()
+      : buildFilterWithCurrency(newFilters, findCurrencyByCode(availableCurrenciesRef.current, selection))
 
     setFiltersByTab(prev => ({ ...prev, [section]: finalFilters }))
 
@@ -445,13 +377,16 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   // Currency change handler
   const handleCurrencyChange = useCallback(
     (newCurrency: string) => {
-      const currencyFilter = buildCurrencyFilter(availableCurrencies, newCurrency)
-
       setCurrencyByTab(prev => ({ ...prev, [currentSection]: newCurrency }))
-      setFiltersByTab(prev => ({
-        ...prev,
-        [currentSection]: { ...prev[currentSection], ...currencyFilter }
-      }))
+      setFiltersByTab(prev => {
+        const sectionFilters = { ...prev[currentSection] }
+        if (isAllCurrencySelection(newCurrency)) {
+          delete sectionFilters.currencyIds
+        } else {
+          Object.assign(sectionFilters, buildCurrencyFilter(availableCurrencies, newCurrency))
+        }
+        return { ...prev, [currentSection]: sectionFilters }
+      })
     },
     [currentSection, availableCurrencies]
   )
@@ -486,11 +421,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   useProcessCompletion({
     onSuccess: () => {
       allCounts.refetch()
+      void investmentViewKPIs.refetch()
       if (currentSection === 'overview') {
-        overviewKPIs.refetch()
         overviewState.refetch()
       } else {
-        dynamicKPIs[currentSection]?.refetch?.()
         dynamicStates[currentSection]?.refetch?.()
       }
     }
@@ -506,7 +440,13 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   )
 
   const currencyFilterUI = (
-    <CurrencyFilter value={selectedCurrency} currencies={currencyCodes} onChange={handleCurrencyChange} />
+    <CurrencyFilter
+      value={selectedCurrency}
+      currencies={currencyCodes}
+      onChange={handleCurrencyChange}
+      allOptionLabel={getTranslationFromI18nKeyAndLabel('currency.filter.all', 'All')}
+      dataTestId="investment-view-currency-filter"
+    />
   )
 
   // Primary action for current section
@@ -587,42 +527,18 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     return sections
   }, [investmentGroups, allCounts, currentSection, activeTabCount, currentState.loading])
 
-  // Render KPIs for current section
-  const renderKPIs = () => {
-    if (currentSection === 'overview') {
-      return (
-        <InvestmentKPICards
-          config={OVERVIEW_KPI_CONFIG}
-          data={overviewKPIs.kpis}
-          previousData={overviewKPIs.previousKpis}
-          currencyCode={selectedCurrency}
-          isLoading={overviewKPIs.isLoading}
-          error={overviewKPIs.error ? new Error(overviewKPIs.error) : null}
-          onRetry={overviewKPIs.refetch}
-          data-testid="investment-view-overview-kpis"
-        />
-      )
-    }
-
-    const kpiData = dynamicKPIs[currentSection]
-    const group = investmentGroups.find(g => g.tabId === currentSection)
-    if (!group || !kpiData) return null
-
-    const config = getGroupConfiguration(group.code)
-
-    return (
-      <InvestmentKPICards
-        config={config.kpiConfig!}
-        data={kpiData.current || kpiData.kpis}
-        previousData={kpiData.previous || kpiData.previousKpis}
-        currencyCode={selectedCurrency}
-        isLoading={kpiData.isLoading}
-        error={kpiData.error ? new Error(kpiData.error) : null}
-        onRetry={kpiData.refetch}
-        data-testid={`investment-view-${currentSection}-kpis`}
-      />
-    )
-  }
+  const renderKPIs = () => (
+    <InvestmentKPICards
+      config={INVESTMENT_VIEW_KPI_CONFIG}
+      data={investmentViewKPIs.current}
+      previousData={investmentViewKPIs.previous}
+      currencyCode={displayCurrencyCode}
+      isLoading={investmentViewKPIs.isLoading}
+      error={investmentViewKPIs.error ? new Error(investmentViewKPIs.error) : null}
+      onRetry={investmentViewKPIs.refetch}
+      data-testid={`investment-view-${currentSection}-kpis`}
+    />
+  )
 
   // Render list for current section
   const renderList = () => {
@@ -639,6 +555,9 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
           pagination={overviewState.pagination}
           onPaginationChange={overviewState.handlePaginationChange}
           visibleColumns={overviewState.visibleColumns}
+          listAggregates={overviewState.listAggregates}
+          showAggregatesBar={!overviewState.isInitialLoading && !overviewState.error}
+          displayCurrencyCode={displayCurrencyCode}
         />
       )
     }
@@ -669,6 +588,10 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         pagination={state.pagination}
         onPaginationChange={state.handlePaginationChange}
         visibleColumns={state.visibleColumns}
+        listAggregates={state.listAggregates}
+        showAggregatesBar={!state.isInitialLoading && !state.error}
+        showEquityMetrics={group.code === 'EQUITY'}
+        displayCurrencyCode={displayCurrencyCode}
       />
     )
   }
@@ -686,7 +609,8 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     currentSection,
     investmentGroups,
     totalCount: activeTabCount,
-    filenamePrefix: exportFilenamePrefix
+    filenamePrefix: exportFilenamePrefix,
+    displayCurrencyCode
   })
 
   if (groupsLoading || currenciesLoading) {

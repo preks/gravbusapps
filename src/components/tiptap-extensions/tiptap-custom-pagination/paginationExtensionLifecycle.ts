@@ -10,6 +10,12 @@ import {
 } from './paginationRuntimeRegistry'
 import { createWindowedPaginationRenderer } from './windowedRenderer'
 import type { PagesOptions, PagesStorage } from './types'
+import { PAGE_COUNT_HARD_CAP } from './paginationPageCountPolicy'
+
+const clampPageCount = (value: number): number => {
+  if (!Number.isFinite(value)) return 1
+  return Math.max(1, Math.min(PAGE_COUNT_HARD_CAP, Math.floor(value)))
+}
 
 export function getMountedEditorView(editor: Editor): EditorView | null {
   const candidate = (editor as unknown as { editorView?: EditorView | null }).editorView
@@ -38,7 +44,12 @@ export function initializePaginationExtension(options: {
   })
 
   options.syncStorageFromOptions(options.storage, runtimeOptions)
-  options.storage.getPageCount = () => Math.max(1, options.storage.pageCount)
+  options.storage.getPageCount = () => {
+    if (options.storage.pageCount !== clampPageCount(options.storage.pageCount)) {
+      options.storage.pageCount = clampPageCount(options.storage.pageCount)
+    }
+    return options.storage.pageCount
+  }
   windowedRenderer.syncRootPresentation({
     editorDom: options.editor.view.dom,
     options: runtimeOptions,

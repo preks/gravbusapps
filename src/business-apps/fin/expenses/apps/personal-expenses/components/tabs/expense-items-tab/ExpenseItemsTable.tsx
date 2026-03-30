@@ -1,4 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../_i18n'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
@@ -208,6 +210,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     setExpenseDateRange,
     ...contextProps
   } = props
+
+  const { t: tPersonal } = useTranslation(personalTranslations)
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 200) // 200ms debounce for responsive feel
@@ -954,14 +958,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_list.flows_button.expense_items',
-          'Filter Expense Items'
-        )}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_expense_items_description',
-          'Apply filters to narrow down the expense items list.'
-        )}
+        filterSheetTitle={tPersonal('filter-expense-items-title')}
+        filterSheetDescription={tPersonal('filter-expense-items-description')}
       >
         <DataTable<ExpenseItem>
           data={items || []}

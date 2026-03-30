@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, ReactNode } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PerformanceEvaluationPeerFormValues, EmployeeOption } from '../types'
 import { useStructureEmployees } from '../hooks/useStructureEmployees'
 import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 export interface EmployeeForHeader {
@@ -56,23 +58,18 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
   })
 
   const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
-  const {
-    employees,
-    isLoading: employeesLoading,
-    error: employeesError,
-    fetchStructureEmployees,
-    getEmployeeById
-  } = useStructureEmployees(businessAppContext.accessToken, true, currentUserEmployeeId)
 
   const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
   const taskPayload = ad?.psi_taskPayload as Record<string, unknown> | undefined
+
   const processInputs = (ad?.psi_processMetadata as Record<string, unknown> | undefined)?.inputs as
     | Record<string, unknown>
     | undefined
+
   const empEvalFromTask = taskPayload?.employeePerformanceEvaluation as Record<string, unknown> | undefined
   const empEvalFromInputs = processInputs?.employeePerformanceEvaluation as Record<string, unknown> | undefined
   const initialParams = taskPayload?.psi_initialParameters as Record<string, unknown> | undefined
-  // Employee being evaluated: from task/process payload, or current user (Select Peers is assigned to the employee)
+
   const employeeIdFromPayload =
     (empEvalFromTask?.employee as string | undefined) ??
     (empEvalFromInputs?.employee as string | undefined) ??
@@ -82,10 +79,62 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
     ((ad?.flowContext as Record<string, unknown> | undefined)?.employeeId as string | undefined) ??
     ((ad?.contextData as Record<string, unknown> | undefined)?.employeeId as string | undefined) ??
     currentUserEmployeeId
+
   const { employee: employeeById, loading: employeeForHeaderLoading } = useEmployeeById({
     accessToken: businessAppContext.accessToken ?? '',
     employeeId: employeeIdFromPayload ?? undefined
   })
+
+  const graphqlClient = useGraphQLClient(businessAppContext.accessToken ?? '')
+  const [supervisorUserId, setSupervisorUserId] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    if (!employeeIdFromPayload || !businessAppContext.accessToken) return
+
+    const structureId = getCurrentActiveStructureId()
+    if (!structureId) return
+
+    const query = `
+      query GetSupervisor($employeeId: uuid!, $structureId: uuid!) {
+        EmployeePosition(
+          where: { employeeId: { _eq: $employeeId }, structureId: { _eq: $structureId } }
+          limit: 1
+        ) {
+          supervisorEmployee { userId }
+        }
+      }
+    `
+    graphqlClient
+      .request<{ EmployeePosition: { supervisorEmployee: { userId: string } | null }[] }>(query, {
+        employeeId: employeeIdFromPayload,
+        structureId
+      })
+      .then(res => {
+        const uid = res.EmployeePosition?.[0]?.supervisorEmployee?.userId
+        if (uid) setSupervisorUserId(uid)
+      })
+      .catch(() => {})
+  }, [employeeIdFromPayload, businessAppContext.accessToken, graphqlClient])
+
+  const excludeUserIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (supervisorUserId) ids.add(supervisorUserId)
+    return [...ids]
+  }, [supervisorUserId])
+
+  const {
+    employees: rawEmployees,
+    isLoading: employeesLoading,
+    error: employeesError,
+    fetchStructureEmployees,
+    getEmployeeById
+  } = useStructureEmployees(businessAppContext.accessToken, true, currentUserEmployeeId)
+
+  const employees = useMemo(
+    () => rawEmployees.filter(emp => !emp.userId || !excludeUserIds.includes(emp.userId)),
+    [rawEmployees, excludeUserIds]
+  )
+
   const employeeForHeader = useMemo((): EmployeeForHeader | null => {
     if (!employeeById) return null
     return {
