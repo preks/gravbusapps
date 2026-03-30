@@ -210,9 +210,32 @@ export function useEntityImport<T = ConvertedEntity>(
     try {
       const agentResult = await aiServiceRef.current.analyzeImport(file)
 
-      // Validate mappings - filter out invalid target fields
+      // Build reverse map: unprefixed field name → full prefixed field value.
+      // Needed for investment entity types where backend returns e.g. "buildingYear"
+      // but our config uses "realEstateInvestment.buildingYear" for nested conversion.
+      // First match wins; conflicts (same short name across prefixes) are resolved
+      // by whichever targetField appears first in the config array.
+      const shortToFullTargetField = new Map<string, string>()
+      config.targetFields.forEach(f => {
+        const lastPart = f.value.includes('.') ? f.value.split('.').pop()! : f.value
+        if (!shortToFullTargetField.has(lastPart)) {
+          shortToFullTargetField.set(lastPart, f.value)
+        }
+      })
+
+      // Expand backend suggestions: if backend returned an unprefixed name that
+      // matches a known prefixed config field, restore the full prefixed name.
+      const expandedMappings = agentResult.fieldMappings.map(mapping => {
+        if (!config.targetFields.some(f => f.value === mapping.targetField)) {
+          const expanded = shortToFullTargetField.get(mapping.targetField)
+          if (expanded) return { ...mapping, targetField: expanded }
+        }
+        return mapping
+      })
+
+      // Validate mappings - filter out fields that don't match any config target
       const validTargetFields = new Set(config.targetFields.map(f => f.value))
-      const validMappings = agentResult.fieldMappings.filter(mapping => {
+      const validMappings = expandedMappings.filter(mapping => {
         const isValid = validTargetFields.has(mapping.targetField)
         if (!isValid) {
           console.warn(
@@ -243,8 +266,8 @@ export function useEntityImport<T = ConvertedEntity>(
         }
       })
 
-      // Update unmapped fields to include the invalid mappings
-      const invalidSourceFields = agentResult.fieldMappings
+      // Update unmapped fields to include source fields whose target couldn't be resolved
+      const invalidSourceFields = expandedMappings
         .filter(m => !validTargetFields.has(m.targetField))
         .map(m => m.sourceField)
 
