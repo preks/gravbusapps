@@ -27,11 +27,9 @@ import { CompanyValues } from './tabs/CompanyValues'
 import { StartCycleConfirmDialog } from './components/StartCycleConfirmDialog'
 
 function computeStatus(cycle: Omit<PerformanceCycle, 'status'>) {
-  if (cycle.evaluationPeriodStartDate && cycle.evaluationPeriodEndDate) {
+  if (cycle.startDate && cycle.endDate) {
     const today = new Date()
-    const start = new Date(cycle.evaluationPeriodStartDate)
-    const end = new Date(cycle.evaluationPeriodEndDate)
-    if (today >= start && today <= end) return 'Active' as const
+    if (today >= new Date(cycle.startDate) && today <= new Date(cycle.endDate)) return 'Active' as const
   }
   return 'Inactive' as const
 }
@@ -243,16 +241,25 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     setStartingCycleId(cycleId)
   }
 
+  const [manualRunMode, setManualRunMode] = useState(false)
+
+  const handleManualRun = () => {
+    setManualRunMode(true)
+    setStartingCycleId('__manual__')
+  }
+
   const handleConfirmStartCycle = async (options: {
     runFor: 'self' | 'team'
     teamIds: string[]
     employeeId?: string
     employeeUserId?: string
     managerUserId?: string
+    cycleId?: string
   }) => {
-    if (!startingCycleId) return
+    const resolvedCycleId = options.cycleId ?? startingCycleId
+    if (!resolvedCycleId) return
 
-    const cycle = cycles.find(c => c.id === startingCycleId)
+    const cycle = cycles.find(c => c.id === resolvedCycleId)
     if (!cycle) return
 
     const { runFor, teamIds: selectedTeamIds } = options
@@ -346,6 +353,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
     } finally {
       setStartingCycleId(null)
+      setManualRunMode(false)
     }
   }
 
@@ -513,6 +521,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             valuesStore={valuesStore}
             onCompleteCycle={handleCompleteCycle}
             onStartCycle={handleStartCycle}
+            onManualRun={handleManualRun}
             onSaveFromModal={handleSaveFromModal}
           />
         )}
@@ -542,11 +551,15 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
 
       <StartCycleConfirmDialog
         open={startingCycleId !== null}
-        cycle={cycles.find(c => c.id === startingCycleId) || null}
+        cycle={manualRunMode ? null : cycles.find(c => c.id === startingCycleId) || null}
+        cycles={manualRunMode ? cycles : undefined}
         accessToken={accessToken}
         defaultEmployeeId={platformContext.employeeId}
         onConfirm={handleConfirmStartCycle}
-        onCancel={() => setStartingCycleId(null)}
+        onCancel={() => {
+          setStartingCycleId(null)
+          setManualRunMode(false)
+        }}
       />
     </div>
   )

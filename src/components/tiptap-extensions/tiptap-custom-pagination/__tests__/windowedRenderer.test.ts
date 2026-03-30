@@ -302,8 +302,7 @@ describe('createWindowedHeaderFooterChromeController', () => {
         activeRange: { startPage: 1, endPage: 1 },
         mountedRange: { startPage: 1, endPage: 1 },
         windowKey: 'window-1',
-        placeholderBreakerMetricsByPage: new Map(),
-        spacerHeightsByRange: new Map()
+        placeholderBreakerMetricsByPage: new Map()
       }
     })
     const mountedNextHeader = existingWrapper.querySelector(
@@ -405,7 +404,7 @@ describe('hydrateWindowedPageBreakShells', () => {
 })
 
 describe('renderWindowedPaginationWrapper', () => {
-  it('builds a sparse wrapper with mounted page shells and off-window spacers', () => {
+  it('builds one page shell per page and marks off-window shells as placeholders', () => {
     const options = createTestOptions()
     const storage = createStorageFromOptions(options)
     storage.pageCount = 3
@@ -430,8 +429,7 @@ describe('renderWindowedPaginationWrapper', () => {
               nextHeaderHeight: 24
             }
           ]
-        ]),
-        spacerHeightsByRange: new Map()
+        ])
       }
     })
 
@@ -454,20 +452,21 @@ describe('renderWindowedPaginationWrapper', () => {
 
     const firstBreaker = wrapper.children[0]?.querySelector('.breaker') as HTMLElement
     const secondBreaker = wrapper.children[1]?.querySelector('.breaker') as HTMLElement
-    const trailingSpacer = wrapper.querySelector('.rm-page-spacer[data-rm-page-range-start="3"]') as HTMLElement
+    const thirdPageBreak = wrapper.children[2] as HTMLElement
+    const thirdBreaker = thirdPageBreak.querySelector('.breaker') as HTMLElement
 
     expect(wrapper.dataset.rmTotalPages).toBe('3')
     expect(wrapper.dataset.rmMountedStartPage).toBe('1')
     expect(wrapper.dataset.rmMountedEndPage).toBe('2')
-    expect(wrapper.querySelectorAll('.rm-page-break')).toHaveLength(2)
-    expect(wrapper.querySelectorAll('.rm-page-spacer')).toHaveLength(1)
+    expect(wrapper.querySelectorAll('.rm-page-break')).toHaveLength(3)
+    expect(wrapper.querySelectorAll('.rm-page-spacer')).toHaveLength(0)
     expect(firstBreaker.dataset.rmBreakerMode).toBeUndefined()
     expect(secondBreaker.dataset.rmBreakerMode).toBeUndefined()
-    expect(trailingSpacer.dataset.rmPageRangeStart).toBe('3')
-    expect(trailingSpacer.dataset.rmPageRangeEnd).toBe('3')
+    expect(thirdPageBreak.dataset.rmPageShellState).toBe('placeholder')
+    expect(thirdBreaker.dataset.rmBreakerMode).toBe('placeholder')
   })
 
-  it('preserves an existing spacer height when rerendering the same sparse range', () => {
+  it('reuses placeholder breaker metrics from the existing full shell DOM', () => {
     const options = createTestOptions()
     const storage = createStorageFromOptions(options)
     storage.pageCount = 3
@@ -483,14 +482,15 @@ describe('renderWindowedPaginationWrapper', () => {
         activeRange: { startPage: 1, endPage: 1 },
         mountedRange: { startPage: 1, endPage: 1 },
         windowKey: 'window-1',
-        placeholderBreakerMetricsByPage: new Map(),
-        spacerHeightsByRange: new Map()
+        placeholderBreakerMetricsByPage: new Map()
       }
     })
-    const existingSpacer = existingWrapper.querySelector('.rm-page-spacer[data-rm-page-range-start="2"]') as HTMLElement
+    const existingBreaker = existingWrapper.querySelector(
+      '.rm-page-break[data-rm-page-number="3"] .breaker'
+    ) as HTMLElement
 
-    existingSpacer.style.height = '1234px'
-    existingSpacer.dataset.rmPageRangeHeight = '1234'
+    existingBreaker.style.height = '1234px'
+    existingBreaker.dataset.rmBreakerPlaceholderHeight = '1234'
 
     viewport.className = 'document-editor-viewport'
     viewport.dataset.layoutWindowMode = 'windowed'
@@ -508,10 +508,10 @@ describe('renderWindowedPaginationWrapper', () => {
       options,
       storage
     })
-    const trailingSpacer = wrapper.querySelector('.rm-page-spacer[data-rm-page-range-start="2"]') as HTMLElement
+    const trailingBreaker = wrapper.querySelector('.rm-page-break[data-rm-page-number="3"] .breaker') as HTMLElement
 
-    expect(trailingSpacer.style.height).toBe('1234px')
-    expect(trailingSpacer.dataset.rmPageRangeHeight).toBe('1234')
+    expect(trailingBreaker.style.height).toBe('1234px')
+    expect(trailingBreaker.dataset.rmBreakerPlaceholderHeight).toBe('1234')
   })
 })
 
@@ -564,8 +564,7 @@ describe('renderWindowedPaginationChrome', () => {
               nextHeaderHeight: 24
             }
           ]
-        ]),
-        spacerHeightsByRange: new Map()
+        ])
       }
     })
 
@@ -597,7 +596,8 @@ describe('renderWindowedPaginationChrome', () => {
     expect(chrome.firstElementChild?.className).toBe('rm-first-page-header')
     expect(chrome.lastElementChild?.getAttribute('data-rm-pagination')).toBe('true')
     expect(chrome.querySelectorAll('.rm-page-gap')).toHaveLength(1)
-    expect(chrome.querySelectorAll('.rm-page-spacer')).toHaveLength(1)
+    expect(chrome.querySelectorAll('.rm-page-spacer')).toHaveLength(0)
+    expect(chrome.querySelectorAll('.rm-page-break')).toHaveLength(3)
   })
 })
 
@@ -795,8 +795,7 @@ describe('createWindowedPaginationRenderer', () => {
               nextHeaderHeight: 24
             }
           ]
-        ]),
-        spacerHeightsByRange: new Map()
+        ])
       }
     })
 

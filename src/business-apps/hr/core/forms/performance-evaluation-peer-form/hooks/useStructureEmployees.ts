@@ -3,7 +3,12 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { EmployeeOption } from '../types'
 
-export const useStructureEmployees = (accessToken: string, shouldFetch: boolean = true, excludeEmployeeId?: string) => {
+export const useStructureEmployees = (
+  accessToken: string,
+  shouldFetch: boolean = true,
+  excludeEmployeeId?: string,
+  excludeUserIds?: string[]
+) => {
   const [employees, setEmployees] = useState<EmployeeOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +80,11 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
           department: emp.organizationalUnit?.name,
           pictureThumbnail: emp.employee?.pictureThumbnail,
           userId: emp.employee?.userId || undefined
-        })).filter((emp: EmployeeOption) => emp.id !== excludeEmployeeId)
+        })).filter((emp: EmployeeOption) => {
+          if (emp.id === excludeEmployeeId) return false
+          if (excludeUserIds?.length && emp.userId && excludeUserIds.includes(emp.userId)) return false
+          return true
+        })
 
         setEmployees(employeeOptions)
       } catch (err) {
@@ -85,7 +94,7 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
         setIsLoading(false)
       }
     },
-    [accessToken, graphqlClient, shouldFetch, excludeEmployeeId]
+    [accessToken, graphqlClient, shouldFetch, excludeEmployeeId, excludeUserIds]
   )
 
   const getEmployeeById = useCallback(

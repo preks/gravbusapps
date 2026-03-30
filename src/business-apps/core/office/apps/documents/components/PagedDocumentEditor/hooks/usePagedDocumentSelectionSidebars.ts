@@ -11,6 +11,7 @@ import {
 import { getSelectedTableRectContext } from '@/components/tiptap-extensions/tiptap-custom-tables/tableFormattingUtils'
 import { type SelectedImageSidebarState } from '../ImageSettingsSidebar'
 import { type SelectedTableSidebarState } from '../TableSettingsSidebar'
+import type { RightSidebar } from './usePagedDocumentInteractionDialogs'
 
 export const CLOSED_IMAGE_SIDEBAR: SelectedImageSidebarState = {
   open: false,
@@ -33,7 +34,6 @@ interface ActiveImageUiState {
   mode: DocumentImageUiMode
 }
 
-type RightSidebar = 'closed' | 'comments' | 'ai'
 type SidebarContextSubtitleKey =
   | 'table-sidebar-in-header-context'
   | 'table-sidebar-in-footer-context'
@@ -126,6 +126,8 @@ export function resolveSidebarPresentationState(options: {
     documentRightPanelOffset = 412
   } else if (options.rightSidebar === 'ai') {
     documentRightPanelOffset = 496
+  } else if (options.rightSidebar === 'toc') {
+    documentRightPanelOffset = 412
   }
   const showTableSidebar =
     options.selectedTableSidebar.open &&

@@ -1,4 +1,4 @@
-import { useEffect, type MutableRefObject } from 'react'
+import { useEffect, useLayoutEffect, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Plugin, PluginKey, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
@@ -141,7 +141,7 @@ export function usePagedDocumentEditorRuntimeEffects({
 }: UsePagedDocumentEditorRuntimeEffectsParams): void {
   useCollaborationCursorStyles()
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     editorRef.current = editor
   }, [editor, editorRef])
 
