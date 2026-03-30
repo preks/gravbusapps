@@ -40,6 +40,7 @@ export interface BaseCatalog extends AuditFields {
   recordState?: string
   validFrom?: string
   validTo?: string
+  isCustomerManaged?: boolean
 
   // Legacy compatibility fields
   version?: string // For compatibility with REST API expectations
