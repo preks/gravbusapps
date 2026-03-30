@@ -70,6 +70,8 @@ export function TableBorderControlsSection({
   )
   const [borderWidth, setBorderWidth] = useState(initialWidth)
   const [borderColor, setBorderColor] = useState(initialColor)
+  /** Re-applied when style/width/color change so dropdowns take effect without an extra preset click. */
+  const [lastPreset, setLastPreset] = useState<TableBorderPreset>('all')
 
   useEffect(() => {
     setBorderStyle(getSelectableBorderStyle(initialStyle))
@@ -83,11 +85,33 @@ export function TableBorderControlsSection({
     setBorderColor(initialColor)
   }, [initialColor])
 
+  const applyOptions = () => ({
+    style: borderStyle,
+    width: borderWidth,
+    color: borderColor.trim() || null
+  })
+
+  const applyWithPreset = (preset: TableBorderPreset) => {
+    if (!canApplyBorders) return
+    onApplyPreset(preset, applyOptions())
+  }
+
   const applyPreset = (preset: TableBorderPreset) => {
-    onApplyPreset(preset, {
-      style: borderStyle,
-      width: borderWidth,
-      color: borderColor.trim() || null
+    setLastPreset(preset)
+    applyWithPreset(preset)
+  }
+
+  const reapplyLastPreset = (next: {
+    style?: Exclude<TableBorderStyle, 'none'>
+    width?: string
+    color?: string | null
+  }) => {
+    if (!canApplyBorders) return
+    const nextColor = next.color !== undefined ? next.color : borderColor
+    onApplyPreset(lastPreset, {
+      style: next.style ?? borderStyle,
+      width: next.width ?? borderWidth,
+      color: typeof nextColor === 'string' ? nextColor.trim() || null : nextColor
     })
   }
 
@@ -122,14 +146,27 @@ export function TableBorderControlsSection({
           </Label>
           <Select
             value={borderStyle}
-            onValueChange={value => setBorderStyle(value as Exclude<TableBorderStyle, 'none'>)}
+            onValueChange={value => {
+              const next = value as Exclude<TableBorderStyle, 'none'>
+              setBorderStyle(next)
+              reapplyLastPreset({ style: next })
+            }}
           >
-            <SelectTrigger id={`${testId}-style`} data-testid={`${testId}-style`}>
+            <SelectTrigger
+              id={`${testId}-style`}
+              data-testid={`${testId}-style`}
+              onMouseDown={preventEditorBlurOnMouseDown}
+            >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent onCloseAutoFocus={event => event.preventDefault()}>
               {BORDER_STYLE_OPTIONS.map(option => (
-                <SelectItem key={option.value} value={option.value} data-testid={`${testId}-style-${option.value}`}>
+                <SelectItem
+                  key={option.value}
+                  value={option.value}
+                  data-testid={`${testId}-style-${option.value}`}
+                  onMouseDown={preventEditorBlurOnMouseDown}
+                >
                   {t(option.labelKey)}
                 </SelectItem>
               ))}
@@ -141,13 +178,28 @@ export function TableBorderControlsSection({
           <Label htmlFor={`${testId}-width`} className="gba:text-xs gba:text-muted-foreground">
             {t('table-sidebar-border-width')}
           </Label>
-          <Select value={borderWidth} onValueChange={setBorderWidth}>
-            <SelectTrigger id={`${testId}-width`} data-testid={`${testId}-width`}>
+          <Select
+            value={borderWidth}
+            onValueChange={value => {
+              setBorderWidth(value)
+              reapplyLastPreset({ width: value })
+            }}
+          >
+            <SelectTrigger
+              id={`${testId}-width`}
+              data-testid={`${testId}-width`}
+              onMouseDown={preventEditorBlurOnMouseDown}
+            >
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent onCloseAutoFocus={event => event.preventDefault()}>
               {BORDER_WIDTH_OPTIONS.map(option => (
-                <SelectItem key={option} value={option} data-testid={`${testId}-width-${option}`}>
+                <SelectItem
+                  key={option}
+                  value={option}
+                  data-testid={`${testId}-width-${option}`}
+                  onMouseDown={preventEditorBlurOnMouseDown}
+                >
                   {option}
                 </SelectItem>
               ))}
@@ -165,6 +217,7 @@ export function TableBorderControlsSection({
             id={`${testId}-color`}
             value={borderColor}
             onChange={event => setBorderColor(event.target.value)}
+            onBlur={() => reapplyLastPreset({})}
             placeholder="#2563EB"
             data-testid={`${testId}-color`}
           />
@@ -172,7 +225,10 @@ export function TableBorderControlsSection({
             type="button"
             variant="outline"
             onMouseDown={preventEditorBlurOnMouseDown}
-            onClick={() => setBorderColor('')}
+            onClick={() => {
+              setBorderColor('')
+              reapplyLastPreset({ color: null })
+            }}
             data-testid={`${testId}-color-clear`}
           >
             {t('editor-toolbar-table-border-clear')}
