@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { EveryOneHero } from './EveryOneHero'
 import { PersonalStats } from './PersonalStats'
@@ -6,9 +6,8 @@ import { TopContacts, PresenceInfo } from './TopContacts'
 import { GlobalStats } from './GlobalStats'
 import { UpcomingMeetings } from './UpcomingMeetings'
 import { useEveryOneAnalytics } from '../../hooks/useEveryOneAnalytics'
-import { ChatApiClient } from '../../services/chatApiClient'
 import type { CalendarEvent } from '../../calendar/types'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 
 type CallType = 'audio' | 'video'
 
@@ -42,31 +41,7 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
   onJoinMeeting,
   'data-testid': testId = 'everyone-dashboard'
 }) => {
-  // Create API client
-  const apiClient = useMemo(() => {
-    if (!accessToken) return null
-
-    // Build API URL - same logic as Chat component
-    let baseUrl = env('NEXT_PUBLIC_PLATFORM_API') || ''
-    const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_OVERRIDE')
-
-    let apiUrl: string
-    if (chatServiceOverride) {
-      const localUrl = chatServiceOverride.endsWith('/') ? chatServiceOverride.slice(0, -1) : chatServiceOverride
-      apiUrl = `${localUrl}/api/v1`
-    } else {
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
-      apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-      if (apiUrl.includes('localhost')) {
-        apiUrl = `${baseUrl}/chat-service/api/v1`
-      }
-    }
-
-    return new ChatApiClient(apiUrl, accessToken)
-  }, [accessToken])
+  const apiClient = useChatClient(accessToken)
 
   const { userOverview, userContacts, globalStats, isLoading, error } = useEveryOneAnalytics({
     apiClient,

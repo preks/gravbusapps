@@ -5,6 +5,7 @@ import { DataTable, DataDisplay, type FilterConfiguration, useTranslation } from
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { Badge, Button } from '@newwork/nw-design-system'
 import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
+import personalTranslations from '../../../_i18n'
 import { message } from 'antd'
 import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
@@ -17,9 +18,9 @@ import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components'
-import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
-import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
+import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
 import { toast } from 'sonner'
 import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../utils/tableUtils'
 import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
@@ -149,6 +150,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
   // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
   useTranslation(advancePaymentDetailsTranslations)
+  const { t: tPersonal } = useTranslation(personalTranslations)
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetAdvancePayments(contextProps)
   const {
@@ -1104,14 +1106,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:advance_lists.my_advance_payments.title',
-          'Filter Advance Payments'
-        )}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_advance_payments_description',
-          'Apply filters to narrow down the advance payments list.'
-        )}
+        filterSheetTitle={tPersonal('filter-advance-payments-title')}
+        filterSheetDescription={tPersonal('filter-advance-payments-description')}
       >
         <DataTable<AdvancePayment>
           data={items || []}

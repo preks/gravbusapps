@@ -13,11 +13,10 @@ import {
 } from '../services/performanceCycleApi'
 import type { CycleEditorValues } from '../CycleEditorModal'
 
-/** Backend enum: ANNUAL_PERFORMANCE_CYCLE_FREQUENCY | QUARTERLY_PERFORMANCE_CYCLE_FREQUENCY | SEMI_ANNUAL_PERFORMANCE_CYCLE_FREQUENCY | CUSTOM_PERFORMANCE_CYCLE_FREQUENCY. */
 const FREQUENCY_TO_API: Record<string, string> = {
   Annual: 'ANNUAL_PERFORMANCE_CYCLE_FREQUENCY',
   Quarterly: 'QUARTERLY_PERFORMANCE_CYCLE_FREQUENCY',
-  Custom: 'CUSTOM_PERFORMANCE_CYCLE_FREQUENCY'
+  Monthly: 'CUSTOM_PERFORMANCE_CYCLE_FREQUENCY'
 }
 
 /** API participant type enum: SELF_EVALUATION_PARTICIPANT_TYPE, PEER_EVALUATION_PARTICIPANT_TYPE, MANAGER_EVALUATION_PARTICIPANT_TYPE, etc. */
@@ -116,27 +115,36 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
   }
 }
 
-/** Minimal cycle shape needed for updatePerformanceCycle (activate/deactivate). */
+/** Minimal cycle shape needed for updatePerformanceCycle. */
 export interface CycleForUpdate {
   id: string
   version?: number
 }
 
-/** Build minimal payload for updatePerformanceCycle (id, version, status only). */
-function buildUpdateActivePayload(cycle: CycleForUpdate, isActive: boolean): UpdatePerformanceCyclePayload {
-  const status = isActive ? 'DRAFT_PERFORMANCE_CYCLE_STATUS' : 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS'
+function buildCompletePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayload {
   return {
     performanceCycle: {
       id: cycle.id,
       version: cycle.version ?? 0,
-      status
+      status: 'COMPLETED_PERFORMANCE_CYCLE_STATUS'
+    }
+  }
+}
+
+function buildActivatePayload(cycle: CycleForUpdate): UpdatePerformanceCyclePayload {
+  return {
+    performanceCycle: {
+      id: cycle.id,
+      version: cycle.version ?? 0,
+      status: 'ACTIVE_PERFORMANCE_CYCLE_STATUS'
     }
   }
 }
 
 export interface UseSavePerformanceCycleResult {
   savePerformanceCycle: (values: CycleEditorValues) => Promise<SavePerformanceCycleResponse | null>
-  updateCycleActive: (cycle: CycleForUpdate, isActive: boolean) => Promise<UpdatePerformanceCycleResponse | null>
+  completeCycle: (cycle: CycleForUpdate) => Promise<UpdatePerformanceCycleResponse | null>
+  activateCycle: (cycle: CycleForUpdate) => Promise<UpdatePerformanceCycleResponse | null>
   deletePerformanceCycle: (cycle: CycleForUpdate) => Promise<DeletePerformanceCycleResponse | null>
 }
 
@@ -151,10 +159,20 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
-  const updateCycleActive = useCallback(
-    async (cycle: CycleForUpdate, isActive: boolean): Promise<UpdatePerformanceCycleResponse | null> => {
+  const completeCycle = useCallback(
+    async (cycle: CycleForUpdate): Promise<UpdatePerformanceCycleResponse | null> => {
       if (!accessToken) return null
-      const payload = buildUpdateActivePayload(cycle, isActive)
+      const payload = buildCompletePayload(cycle)
+      const result = await updatePerformanceCycleApi(accessToken, payload)
+      return result ?? null
+    },
+    [accessToken]
+  )
+
+  const activateCycle = useCallback(
+    async (cycle: CycleForUpdate): Promise<UpdatePerformanceCycleResponse | null> => {
+      if (!accessToken) return null
+      const payload = buildActivatePayload(cycle)
       const result = await updatePerformanceCycleApi(accessToken, payload)
       return result ?? null
     },
@@ -173,5 +191,5 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
-  return { savePerformanceCycle, updateCycleActive, deletePerformanceCycle }
+  return { savePerformanceCycle, completeCycle, activateCycle, deletePerformanceCycle }
 }

@@ -24,7 +24,9 @@ export const exportSheetToExcel = async (
   sheet: SpreadsheetSheet,
   data: Record<string, unknown>[]
 ): Promise<void> => {
-  const visibleColumns: SpreadsheetColumn[] = sheet.columns.filter(c => c.isVisible).sort((a, b) => a.order - b.order)
+  const visibleColumns: SpreadsheetColumn[] = sheet.columns
+    .filter(c => c.isVisible !== false)
+    .sort((a, b) => a.order - b.order)
 
   const excelColumns = visibleColumns.map(col => ({
     header: col.label || col.name,
@@ -40,7 +42,9 @@ export const exportSheetToExcel = async (
 /** Exports all spreadsheet sheets to a single multi-sheet Excel file. */
 export const exportAppToExcel = async (appName: string, sheets: SpreadsheetSheet[]): Promise<void> => {
   const workbookSheets = sheets.map((sheet, index) => {
-    const visibleColumns: SpreadsheetColumn[] = sheet.columns.filter(c => c.isVisible).sort((a, b) => a.order - b.order)
+    const visibleColumns: SpreadsheetColumn[] = sheet.columns
+      .filter(c => c.isVisible !== false)
+      .sort((a, b) => a.order - b.order)
 
     return {
       name: sheet.name || `Sheet ${index + 1}`,

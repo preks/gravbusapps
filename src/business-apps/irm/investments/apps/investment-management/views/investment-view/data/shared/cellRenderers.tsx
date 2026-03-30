@@ -7,6 +7,8 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatDate } from '@/common/data/investment/utils/formatters'
 import { getInvestmentStatusBadgeVariant } from '../utils/statusBadgeHelpers'
 
+export { getPerformanceColorClass, getPerformanceSign } from './investmentPerformanceDisplay'
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -35,28 +37,6 @@ export const getOwnerInitials = (ownerName: string): string => {
     .join('')
     .toUpperCase()
   return initials || 'O'
-}
-
-/**
- * Get performance color class for equity/real estate investments
- */
-export const getPerformanceColorClass = (value: number, type: 'amount' | 'percentage'): string => {
-  if (value === 0) {
-    return type === 'amount' ? 'gba:text-gray-500' : 'gba:text-gray-400'
-  }
-  if (value > 0) {
-    return type === 'amount' ? 'gba:text-green-600' : 'gba:text-green-500'
-  }
-  return type === 'amount' ? 'gba:text-red-600' : 'gba:text-red-500'
-}
-
-/**
- * Get performance sign (used for equity performance cells)
- */
-export const getPerformanceSign = (isZero: boolean, isPositive: boolean): string => {
-  if (isZero) return ''
-  if (isPositive) return '+'
-  return '-'
 }
 
 /**

@@ -15,7 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   MicrophoneIcon,
@@ -30,7 +31,7 @@ import {
   CheckIcon,
   SpeakerHighIcon
 } from '@phosphor-icons/react'
-import { useChatTranslation } from '../contexts/TranslationContext'
+import translations from '../_i18n'
 import { useMediaDevices } from '../hooks/useMediaDevices'
 import { useCallPreferences } from '../hooks/useCallPreferences'
 
@@ -73,7 +74,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
     onCancel,
     prefixDataTestId = 'rejoin-call-dialog'
   }) => {
-    const t = useChatTranslation()
+    const { t } = useTranslation(translations)
     const callPreferences = useCallPreferences()
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)

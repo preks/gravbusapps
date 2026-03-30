@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { Conversation, Message, ConversationParticipant } from '../types'
-import { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
 import { sortConversationsPinThenTime } from '../utils/conversationSort'
 
 interface UseConversationsOptions {
-  apiClient: ChatApiClient | null | undefined
+  apiClient: ChatClient | null | undefined
   accessToken: string
   enabled?: boolean
 }

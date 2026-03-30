@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
 
@@ -186,6 +186,13 @@ export interface PromptPatchDetails {
 
 export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
+}
+
+export interface PromptManagerUserDataRecord<TData = unknown> {
+  user_id: string
+  key: string
+  data: TData
+  updated_at: string
 }
 
 /** Knowledge source entry for execute-json (e.g. catalog reference). */
@@ -573,30 +580,11 @@ export interface AIServicePage {
 // --- Client ---
 export class PromptManagerClient extends RestClient {
   constructor() {
-    // Follow the same pattern as other clients: use specific API URL or fallback to BASE_URL
-    // Priority: NEXT_PUBLIC_PROMPT_MANAGER_API_URL (incl. local override) >
-    //           localhost default (when running on localhost) >
-    //           NEXT_PUBLIC_BASE_URL/prompt-manager >
-    //           localhost
-    let url = env('NEXT_PUBLIC_PROMPT_MANAGER_API_URL')
-    // Prefer localhost when the app runs locally and no explicit URL is set
-    if (!url && typeof window !== 'undefined') {
-      const host = window.location.hostname
-      if (host === 'localhost' || host === '127.0.0.1') {
-        url = 'http://localhost:8000'
-      }
-    }
-    if (!url) {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
-      url = baseUrl ? `${baseUrl}/prompt-manager` : 'http://localhost:8000'
-    }
+    super(PROMPT_MANAGER_API_URL, {})
+  }
 
-    // Ensure URL doesn't end with slash (RestClient handles this)
-    if (url.endsWith('/')) {
-      url = url.slice(0, -1)
-    }
-
-    super(url, {})
+  private hasHttpStatus(error: unknown, status: number): boolean {
+    return error instanceof Error && error.message.includes(`REST request failed: ${status}`)
   }
 
   private normalizeAccessToken(accessToken: unknown): string | null {
@@ -633,27 +621,27 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<WorkspacePage> {
-    return this.get<WorkspacePage>('/api/v1/workspaces/', { params })
+    return this.get<WorkspacePage>('/workspaces/', { params })
   }
 
   async getWorkspace(id: string): Promise<WorkspaceODM> {
-    return this.get<WorkspaceODM>(`/api/v1/workspaces/${encodeURIComponent(id)}`)
+    return this.get<WorkspaceODM>(`/workspaces/${encodeURIComponent(id)}`)
   }
 
   async createWorkspace(body: WorkspaceDetails): Promise<WorkspaceODM> {
-    return this.post<WorkspaceODM>('/api/v1/workspaces/', body)
+    return this.post<WorkspaceODM>('/workspaces/', body)
   }
 
   async updateWorkspace(id: string, body: WorkspaceDetails): Promise<WorkspaceODM> {
-    return this.put<WorkspaceODM>(`/api/v1/workspaces/${encodeURIComponent(id)}`, body)
+    return this.put<WorkspaceODM>(`/workspaces/${encodeURIComponent(id)}`, body)
   }
 
   async patchWorkspace(id: string, body: WorkspacePatchDetails): Promise<WorkspaceODM> {
-    return this.patch<WorkspaceODM>(`/api/v1/workspaces/${encodeURIComponent(id)}`, body)
+    return this.patch<WorkspaceODM>(`/workspaces/${encodeURIComponent(id)}`, body)
   }
 
   async deleteWorkspace(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/workspaces/${encodeURIComponent(id)}`)
+    await this.delete<void>(`/workspaces/${encodeURIComponent(id)}`)
   }
 
   // --- Prompts (Agents) ---
@@ -664,33 +652,33 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<PromptPage> {
-    return this.get<PromptPage>('/api/v1/prompts/', { params: params as Record<string, any> })
+    return this.get<PromptPage>('/prompts/', { params: params as Record<string, any> })
   }
 
   async getPrompt(id: string): Promise<PromptODM> {
-    return this.get<PromptODM>(`/api/v1/prompts/${encodeURIComponent(id)}`)
+    return this.get<PromptODM>(`/prompts/${encodeURIComponent(id)}`)
   }
 
   async getPromptParameters(id: string): Promise<{ system_parameters: string[]; user_parameters: string[] }> {
     return this.get<{ system_parameters: string[]; user_parameters: string[] }>(
-      `/api/v1/prompts/${encodeURIComponent(id)}/parameters`
+      `/prompts/${encodeURIComponent(id)}/parameters`
     )
   }
 
   async createPrompt(body: PromptDetails): Promise<PromptODM> {
-    return this.post<PromptODM>('/api/v1/prompts/', body)
+    return this.post<PromptODM>('/prompts/', body)
   }
 
   async putPrompt(id: string, body: PromptPutDetails): Promise<PromptODM> {
-    return this.put<PromptODM>(`/api/v1/prompts/${encodeURIComponent(id)}`, body)
+    return this.put<PromptODM>(`/prompts/${encodeURIComponent(id)}`, body)
   }
 
   async patchPrompt(id: string, body: PromptPatchDetails): Promise<PromptODM> {
-    return this.patch<PromptODM>(`/api/v1/prompts/${encodeURIComponent(id)}`, body)
+    return this.patch<PromptODM>(`/prompts/${encodeURIComponent(id)}`, body)
   }
 
   async deletePrompt(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/prompts/${encodeURIComponent(id)}`)
+    await this.delete<void>(`/prompts/${encodeURIComponent(id)}`)
   }
 
   async getPromptVersions(
@@ -701,26 +689,52 @@ export class PromptManagerClient extends RestClient {
       returnTotalRecords?: boolean
     }
   ): Promise<{ data: PromptODM[]; paging: Paging }> {
-    return this.get<{ data: PromptODM[]; paging: Paging }>(`/api/v1/prompts/${encodeURIComponent(id)}/versions`, {
+    return this.get<{ data: PromptODM[]; paging: Paging }>(`/prompts/${encodeURIComponent(id)}/versions`, {
       params
     })
   }
 
   // --- Execution ---
   async executePrompt(formData: FormData): Promise<PromptExecuteResponse> {
-    return this.post<PromptExecuteResponse>('/api/v1/prompts/execute', formData)
+    return this.post<PromptExecuteResponse>('/prompts/execute', formData)
   }
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
-    return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+    return this.post<PromptExecuteResponse>(`/prompts/${encodeURIComponent(id)}/execute`, formData)
   }
 
   /**
    * Execute prompt with JSON body and optional document links.
-   * POST /api/v1/prompts/execute-json
+   * POST /prompts/execute-json
    */
   async executePromptByJson(body: ExecutePromptJsonBody): Promise<PromptExecuteResponse> {
-    return this.post<PromptExecuteResponse>('/api/v1/prompts/execute-json', body)
+    return this.post<PromptExecuteResponse>('/prompts/execute-json', body)
+  }
+
+  // --- User data ---
+  async getUserData<TData = unknown>(key: string, userId: string): Promise<PromptManagerUserDataRecord<TData> | null> {
+    try {
+      return await this.get<PromptManagerUserDataRecord<TData>>(`/user-data/${encodeURIComponent(key)}`, {
+        params: { user_id: userId }
+      })
+    } catch (error) {
+      if (this.hasHttpStatus(error, 404)) {
+        return null
+      }
+      throw error
+    }
+  }
+
+  async putUserData<TData = unknown>(
+    key: string,
+    userId: string,
+    data: TData
+  ): Promise<PromptManagerUserDataRecord<TData> | null> {
+    return this.put<PromptManagerUserDataRecord<TData> | null>(
+      `/user-data/${encodeURIComponent(key)}`,
+      { data },
+      { params: { user_id: userId } }
+    )
   }
 
   // --- Execution telemetry (runs + traces) ---
@@ -736,25 +750,25 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<ExecutionRunPage> {
-    return this.get<ExecutionRunPage>('/api/v1/executions/runs', { params: params as Record<string, any> })
+    return this.get<ExecutionRunPage>('/executions/runs', { params: params as Record<string, any> })
   }
 
   async getExecutionRun(executionId: string): Promise<ExecutionRun> {
-    return this.get<ExecutionRun>(`/api/v1/executions/runs/${encodeURIComponent(executionId)}`)
+    return this.get<ExecutionRun>(`/executions/runs/${encodeURIComponent(executionId)}`)
   }
 
   async getExecutionTrace(
     executionId: string,
     params?: { limit?: number; offset?: number; returnTotalRecords?: boolean }
   ): Promise<ExecutionTracePage> {
-    return this.get<ExecutionTracePage>(`/api/v1/executions/runs/${encodeURIComponent(executionId)}/trace`, { params })
+    return this.get<ExecutionTracePage>(`/executions/runs/${encodeURIComponent(executionId)}/trace`, { params })
   }
 
   async getExecutionStats(params?: {
     policyRootId?: string | null
     promptId?: string | null
   }): Promise<ExecutionStatsResponse> {
-    return this.get<ExecutionStatsResponse>('/api/v1/executions/stats', { params: params as Record<string, any> })
+    return this.get<ExecutionStatsResponse>('/executions/stats', { params: params as Record<string, any> })
   }
 
   async getExecutionTimeseries(params?: {
@@ -763,7 +777,7 @@ export class PromptManagerClient extends RestClient {
     days?: number
     resolution?: string | null
   }): Promise<ExecutionTimeseriesResponse> {
-    return this.get<ExecutionTimeseriesResponse>('/api/v1/executions/timeseries', {
+    return this.get<ExecutionTimeseriesResponse>('/executions/timeseries', {
       params: params as Record<string, any>
     })
   }
@@ -774,7 +788,7 @@ export class PromptManagerClient extends RestClient {
     days?: number
     limit?: number
   }): Promise<ExecutionTopToolsResponse> {
-    return this.get<ExecutionTopToolsResponse>('/api/v1/executions/tools-top', {
+    return this.get<ExecutionTopToolsResponse>('/executions/tools-top', {
       params: params as Record<string, any>
     })
   }
@@ -816,7 +830,7 @@ export class PromptManagerClient extends RestClient {
       formData.append('context', JSON.stringify(options.context))
     }
 
-    return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+    return this.post<PromptExecuteResponse>(`/prompts/${encodeURIComponent(id)}/execute`, formData)
   }
 
   /**
@@ -851,7 +865,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<AIServicePage> {
-    return this.get<AIServicePage>('/api/v1/ai-services/', { params })
+    return this.get<AIServicePage>('/ai-services/', { params })
   }
 
   async getAiModels(params?: {
@@ -861,7 +875,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<AIModelPage> {
-    return this.get<AIModelPage>('/api/v1/ai-models/', {
+    return this.get<AIModelPage>('/ai-models/', {
       params: params as Record<string, any>
     })
   }
@@ -874,32 +888,32 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<ToolPage> {
-    return this.get<ToolPage>('/api/v1/tools/', { params: params as Record<string, any> })
+    return this.get<ToolPage>('/tools/', { params: params as Record<string, any> })
   }
 
   // --- MCP Tools ---
   async getMcpTool(id: string): Promise<ToolODM> {
-    return this.get<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+    return this.get<ToolODM>(`/tools/mcp/${encodeURIComponent(id)}`)
   }
 
   async getMcpAvailableActions(id: string): Promise<McpAvailableActionsResponse> {
-    return this.get<McpAvailableActionsResponse>(`/api/v1/tools/mcp/${encodeURIComponent(id)}/available-actions`)
+    return this.get<McpAvailableActionsResponse>(`/tools/mcp/${encodeURIComponent(id)}/available-actions`)
   }
 
   async createMcpTool(body: MCPToolDetails): Promise<ToolODM> {
-    return this.post<ToolODM>('/api/v1/tools/mcp/', body)
+    return this.post<ToolODM>('/tools/mcp/', body)
   }
 
   async putMcpTool(id: string, body: MCPToolDetails): Promise<ToolODM> {
-    return this.put<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`, body)
+    return this.put<ToolODM>(`/tools/mcp/${encodeURIComponent(id)}`, body)
   }
 
   async patchMcpTool(id: string, body: ToolPatchDetails): Promise<ToolODM> {
-    return this.patch<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`, body)
+    return this.patch<ToolODM>(`/tools/mcp/${encodeURIComponent(id)}`, body)
   }
 
   async deleteMcpTool(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+    await this.delete<void>(`/tools/mcp/${encodeURIComponent(id)}`)
   }
 
   // --- External Connections ---
@@ -912,23 +926,20 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<ConnectorProviderPage> {
-    return this.get<ConnectorProviderPage>('/api/v1/connector-providers/', {
+    return this.get<ConnectorProviderPage>('/connector-providers/', {
       params: params as Record<string, any>
     })
   }
 
   async getConnectorProvider(providerId: string): Promise<ConnectorProviderODM> {
-    return this.get<ConnectorProviderODM>(`/api/v1/connector-providers/${encodeURIComponent(providerId)}`)
+    return this.get<ConnectorProviderODM>(`/connector-providers/${encodeURIComponent(providerId)}`)
   }
 
   async instantiateConnectorProvider(
     providerId: string,
     body: ConnectorProviderInstantiationDetails
   ): Promise<ExternalConnectionODM> {
-    return this.post<ExternalConnectionODM>(
-      `/api/v1/connector-providers/${encodeURIComponent(providerId)}/instantiate`,
-      body
-    )
+    return this.post<ExternalConnectionODM>(`/connector-providers/${encodeURIComponent(providerId)}/instantiate`, body)
   }
 
   async getExternalConnections(params?: {
@@ -941,45 +952,45 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<ExternalConnectionPage> {
-    return this.get<ExternalConnectionPage>('/api/v1/external-connections/', {
+    return this.get<ExternalConnectionPage>('/external-connections/', {
       params: params as Record<string, any>
     })
   }
 
   async getExternalConnection(connectionId: string): Promise<ExternalConnectionODM> {
-    return this.get<ExternalConnectionODM>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`)
+    return this.get<ExternalConnectionODM>(`/external-connections/${encodeURIComponent(connectionId)}`)
   }
 
   async createExternalConnection(body: ExternalConnectionDetails): Promise<ExternalConnectionODM> {
-    return this.post<ExternalConnectionODM>('/api/v1/external-connections/', body)
+    return this.post<ExternalConnectionODM>('/external-connections/', body)
   }
 
   async putExternalConnection(connectionId: string, body: ExternalConnectionDetails): Promise<ExternalConnectionODM> {
-    return this.put<ExternalConnectionODM>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`, body)
+    return this.put<ExternalConnectionODM>(`/external-connections/${encodeURIComponent(connectionId)}`, body)
   }
 
   async patchExternalConnection(
     connectionId: string,
     body: ExternalConnectionPatchDetails
   ): Promise<ExternalConnectionODM> {
-    return this.patch<ExternalConnectionODM>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`, body)
+    return this.patch<ExternalConnectionODM>(`/external-connections/${encodeURIComponent(connectionId)}`, body)
   }
 
   async deleteExternalConnection(connectionId: string): Promise<void> {
-    await this.delete<void>(`/api/v1/external-connections/${encodeURIComponent(connectionId)}`)
+    await this.delete<void>(`/external-connections/${encodeURIComponent(connectionId)}`)
   }
 
   async getExternalConnectionAvailableActions(
     connectionId: string
   ): Promise<ExternalConnectionAvailableActionsResponse> {
     return this.get<ExternalConnectionAvailableActionsResponse>(
-      `/api/v1/external-connections/${encodeURIComponent(connectionId)}/available-actions`
+      `/external-connections/${encodeURIComponent(connectionId)}/available-actions`
     )
   }
 
   async getExternalConnectionHealth(connectionId: string): Promise<ExternalConnectionHealthResponse> {
     return this.get<ExternalConnectionHealthResponse>(
-      `/api/v1/external-connections/${encodeURIComponent(connectionId)}/health`
+      `/external-connections/${encodeURIComponent(connectionId)}/health`
     )
   }
 
@@ -995,7 +1006,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<PromptPage> {
-    return this.get<PromptPage>('/api/v1/prompts/', {
+    return this.get<PromptPage>('/prompts/', {
       params: {
         ...params,
         agentType: 'everyai' // Filter for EveryAI agents only
@@ -1014,7 +1025,7 @@ export class PromptManagerClient extends RestClient {
     offset?: number
     returnTotalRecords?: boolean
   }): Promise<PromptPage> {
-    return this.get<PromptPage>('/api/v1/prompts/', {
+    return this.get<PromptPage>('/prompts/', {
       params: {
         ...params,
         agentType: 'general' // Filter for General agents only
@@ -1031,10 +1042,7 @@ export class PromptManagerClient extends RestClient {
     if (description) {
       formData.append('description', description)
     }
-    return this.post<KnowledgeSource>(
-      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/upload`,
-      formData
-    )
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/upload`, formData)
   }
 
   /**
@@ -1046,7 +1054,7 @@ export class PromptManagerClient extends RestClient {
     name: string,
     description?: string
   ): Promise<KnowledgeSource> {
-    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/url`, {
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/url`, {
       url,
       name,
       description
@@ -1062,7 +1070,7 @@ export class PromptManagerClient extends RestClient {
     name: string,
     description?: string
   ): Promise<KnowledgeSource> {
-    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/content`, {
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/content`, {
       contentEntryId,
       name,
       description
@@ -1079,7 +1087,7 @@ export class PromptManagerClient extends RestClient {
     name: string,
     description?: string
   ): Promise<KnowledgeSource> {
-    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/catalog`, {
+    return this.post<KnowledgeSource>(`/prompts/${encodeURIComponent(promptId)}/knowledge-sources/catalog`, {
       catalogIdentifier,
       catalogVersion,
       name,
@@ -1092,7 +1100,7 @@ export class PromptManagerClient extends RestClient {
    */
   async removeKnowledgeSource(promptId: string, sourceId: string): Promise<void> {
     await this.delete<void>(
-      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/${encodeURIComponent(sourceId)}`
+      `/prompts/${encodeURIComponent(promptId)}/knowledge-sources/${encodeURIComponent(sourceId)}`
     )
   }
 
@@ -1101,7 +1109,7 @@ export class PromptManagerClient extends RestClient {
    */
   async getKnowledgeSources(promptId: string): Promise<KnowledgeSource[]> {
     const response = await this.get<{ data: KnowledgeSource[] }>(
-      `/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources`
+      `/prompts/${encodeURIComponent(promptId)}/knowledge-sources`
     )
     return response.data || []
   }

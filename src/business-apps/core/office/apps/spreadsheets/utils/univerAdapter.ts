@@ -388,6 +388,91 @@ export function buildWorkbookSnapshot(
   }
 }
 
+export function countWorksheetsInUniverSnapshot(snapshot: unknown): number {
+  if (!snapshot || typeof snapshot !== 'object') return 0
+  const sheets = (snapshot as { sheets?: unknown }).sheets
+  if (!sheets || typeof sheets !== 'object') return 0
+  return Object.keys(sheets as Record<string, unknown>).length
+}
+
+function cloneUniverSnapshotSlice<T>(value: T): T {
+  if (value == null) return value
+  try {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value)
+    }
+  } catch {
+    // Fall through to JSON clone.
+  }
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function pickWorksheetFromSingleSheetBootstrap(
+  snapshot: Record<string, unknown>,
+  preferSheetId: string
+): UniverWorksheetData | null {
+  const sheets = snapshot.sheets as Record<string, UniverWorksheetData> | undefined
+  if (!sheets || Object.keys(sheets).length === 0) return null
+
+  const picked =
+    sheets[preferSheetId] ??
+    (Array.isArray(snapshot.sheetOrder)
+      ? sheets[String(snapshot.sheetOrder[0] ?? '')]
+      : (Object.values(sheets)[0] as UniverWorksheetData | undefined))
+
+  if (!picked) return null
+  return cloneUniverSnapshotSlice(picked)
+}
+
+export function buildMultiSheetWorkbookFromAppSheets(options: {
+  appSheets: SpreadsheetSheet[]
+  activeSheetId: string
+  getRowsForSheet: (sheetId: string) => Record<string, unknown>[]
+  singleWorksheetBootstrap?: Record<string, unknown> | null
+  appId?: string
+}): UniverWorkbookSnapshot {
+  const { appSheets, activeSheetId, getRowsForSheet, singleWorksheetBootstrap, appId } = options
+  const workbookId = appId ? `workbook-${appId}` : `workbook-${activeSheetId}`
+  const activeSheet = appSheets.find(sheet => sheet.id === activeSheetId) ?? appSheets[0]
+  const sheets: Record<string, UniverWorksheetData> = {}
+  const sheetOrder: string[] = []
+
+  for (const sheet of appSheets) {
+    const visibleColumns = sheet.columns.filter(column => column.isVisible !== false)
+    const bootstrapWorksheet =
+      sheet.id === activeSheetId && singleWorksheetBootstrap
+        ? pickWorksheetFromSingleSheetBootstrap(singleWorksheetBootstrap, activeSheetId)
+        : null
+
+    const worksheet =
+      bootstrapWorksheet ?? buildWorkbookSnapshot(sheet, getRowsForSheet(sheet.id), sheet.columns).sheets[sheet.id]
+
+    const nextWorksheet = cloneUniverSnapshotSlice(worksheet)
+    nextWorksheet.id = sheet.id
+    nextWorksheet.name = sheet.name
+    transformAvatarFormulasInSnapshot(
+      {
+        id: workbookId,
+        name: activeSheet?.name || sheet.name,
+        sheetOrder: [sheet.id],
+        sheets: { [sheet.id]: nextWorksheet }
+      },
+      visibleColumns
+    )
+    sheets[sheet.id] = nextWorksheet
+    sheetOrder.push(sheet.id)
+  }
+
+  return {
+    id: workbookId,
+    name: activeSheet?.name || 'Workbook',
+    sheetOrder,
+    appVersion: '0.15.0',
+    locale: 'en-US',
+    sheets
+  }
+}
+
 /** Regex to match old 1-arg IMAGE formula for upgrade to sized version (allows optional spaces) */
 const OLD_IMAGE_FORMULA = /^=IMAGE\s*\(\s*"((?:[^"]|"")*)"\s*\)$/
 
@@ -487,4 +572,48 @@ export function createUniverConversionContext(
     excelColToIndex,
     indexToExcelCol
   }
+}
+
+/**
+ * Extract URL from =HYPERLINK("url","text") formula.
+ */
+export function extractUrlFromHyperlinkFormula(formula: string): string | null {
+  if (!formula || typeof formula !== 'string') return null
+  const trimmed = formula.trim()
+  const match = trimmed.match(/^=?\s*HYPERLINK\s*\(\s*"((?:[^"\\]|\\.)*)"\s*,/i)
+  if (!match) return null
+  const url = match[1].replace(/\\"/g, '"').trim()
+  return /^https?:\/\//i.test(url) ? url : null
+}
+
+/**
+ * Returns the URL for the cell at (row, col) if it is the link column and contains a valid URL.
+ * Tries data first, then parses HYPERLINK formula from cell if provided.
+ */
+export function getHyperlinkUrlFromSelection(
+  row: number,
+  col: number,
+  data: Record<string, unknown>[],
+  columns: SpreadsheetColumn[],
+  cellFormula?: string | null
+): string | null {
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  if (col < 0 || col >= visibleColumns.length || row < 0) return null
+  const column = visibleColumns[col]
+  if (row < data.length && isLinkColumn(column)) {
+    const raw = getCellValue(data[row], column)
+    if (typeof raw === 'string' && /^https?:\/\//i.test(raw.trim())) return raw.trim()
+    if (raw && typeof raw === 'object') {
+      const url =
+        (raw as Record<string, unknown>).url ??
+        (raw as Record<string, unknown>).v ??
+        (raw as Record<string, unknown>).src
+      if (typeof url === 'string' && /^https?:\/\//i.test(url.trim())) return url.trim()
+    }
+  }
+  if (cellFormula) {
+    const fromFormula = extractUrlFromHyperlinkFormula(cellFormula)
+    if (fromFormula) return fromFormula
+  }
+  return null
 }

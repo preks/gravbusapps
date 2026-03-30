@@ -446,3 +446,13 @@ sa-error-no-token = Zugriffstoken nicht verfügbar
 sa-error-load = Automatisierungen konnten nicht geladen werden
 sa-error-run = Automatisierung konnte nicht ausgeführt werden
 sa-error-stop = Ausführung konnte nicht gestoppt werden
+
+# Save status (inline header, not pill)
+spreadsheet-save-just-now = Gerade gespeichert
+
+# Save / persistence indicator (viewer header)
+persist-cell-failed = Zellenänderungen konnten nicht gespeichert werden. Bitte erneut versuchen oder die Seite aktualisieren.
+persist-row-update-failed = Zeilenänderungen konnten nicht gespeichert werden.
+persist-row-delete-failed = Zeile konnte nicht gelöscht werden.
+persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
+persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.

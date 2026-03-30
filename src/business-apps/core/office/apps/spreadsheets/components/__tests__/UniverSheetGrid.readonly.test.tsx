@@ -1,6 +1,6 @@
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { UniverSheetGrid } from '../UniverSheetGrid'
+import { UniverSheetGrid, type UniverSheetGridHandle } from '../UniverSheetGrid'
 
 const eventHandlers: Record<string, (payload: any) => void> = {}
 
@@ -14,10 +14,14 @@ jest.mock(
 
 jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: true })
 
+let lastPresetContainer: unknown
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
-    UniverSheetsCorePreset: jest.fn(() => ({}))
+    UniverSheetsCorePreset: jest.fn((opts: { container?: unknown }) => {
+      lastPresetContainer = opts?.container
+      return {}
+    })
   }),
   { virtual: true }
 )
@@ -28,9 +32,15 @@ jest.mock(
     LocaleType: { EN_US: 'en-US' },
     mergeLocales: jest.fn((...args: unknown[]) => args[0] || {}),
     createUniver: jest.fn(() => {
+      const range = {
+        setValue: jest.fn(),
+        getValue: jest.fn(),
+        getCellData: jest.fn(() => ({ v: undefined }))
+      }
       const activeSheet = {
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
-        onScroll: () => ({ dispose: jest.fn() })
+        onScroll: () => ({ dispose: jest.fn() }),
+        getRange: () => range
       }
       const workbook = {
         getActiveSheet: () => activeSheet,
@@ -88,6 +98,7 @@ describe('UniverSheetGrid read-only behavior', () => {
 
   beforeEach(() => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
+    lastPresetContainer = undefined
   })
 
   afterEach(() => {
@@ -109,6 +120,23 @@ describe('UniverSheetGrid read-only behavior', () => {
     )
 
     expect(screen.getByTestId('univer-readonly-overlay')).toBeInTheDocument()
+  })
+
+  it('passes the mounted grid host element to Univer (not null from early effect)', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={true}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    expect(lastPresetContainer).toBeInstanceOf(HTMLDivElement)
+    expect(screen.getByTestId('univer-sheet-grid-container')).toBe(lastPresetContainer)
   })
 
   it('does not emit local cell changes while read-only', () => {
@@ -155,6 +183,51 @@ describe('UniverSheetGrid read-only behavior', () => {
       payload: {
         params: {
           cellValue: { 0: { 0: { v: 'Allowed' } } },
+          range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+        }
+      }
+    })
+    expect(onCellsChange).toHaveBeenCalled()
+  })
+
+  it('suppresses remote echo updates without blocking subsequent local edits', () => {
+    const onCellsChange = jest.fn()
+    const gridRef = React.createRef<UniverSheetGridHandle>()
+
+    render(
+      <UniverSheetGrid
+        ref={gridRef}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    act(() => {
+      gridRef.current?.applyRemoteCellUpdate(0, 0, { v: 'Remote' })
+    })
+
+    const sheetValueChanged = eventHandlers.SheetValueChanged
+    expect(sheetValueChanged).toBeDefined()
+
+    sheetValueChanged?.({
+      payload: {
+        params: {
+          cellValue: { 0: { 0: { v: 'Remote' } } },
+          range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+        }
+      }
+    })
+    expect(onCellsChange).not.toHaveBeenCalled()
+
+    sheetValueChanged?.({
+      payload: {
+        params: {
+          cellValue: { 0: { 0: { v: 'Local' } } },
           range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
         }
       }

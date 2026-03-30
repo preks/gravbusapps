@@ -233,12 +233,15 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
   const accountAvatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
   const contactAvatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  // Use central hooks for accounts and contacts - extract refetch directly
+  // Use central hooks for accounts and contacts - with full pagination support
   const {
     accounts: accountsList,
     total: accountsTotal,
     loading: accountsLoading,
     error: accountsError,
+    hasMore: hasMoreAccounts,
+    search: searchAccounts,
+    loadMore: loadMoreAccounts,
     refetch: refetchAccounts
   } = useCustomerAccountsList(businessAppContext, { limit: 20 })
 
@@ -247,23 +250,11 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     total: contactsTotal,
     loading: contactsLoading,
     error: contactsError,
+    hasMore: hasMoreContacts,
+    search: searchContacts,
+    loadMore: loadMoreContacts,
     refetch: refetchContacts
   } = useCustomerContactsList(businessAppContext, { limit: 20 })
-
-  // Memoize search functions to prevent re-renders - use refetch directly
-  const searchAccounts = useCallback(
-    (search: string) => {
-      refetchAccounts({ search, limit: 20, offset: 0 })
-    },
-    [refetchAccounts]
-  )
-
-  const searchContacts = useCallback(
-    (search: string) => {
-      refetchContacts({ search, limit: 20, offset: 0 })
-    },
-    [refetchContacts]
-  )
 
   // Transform accounts to SelectOption[] (like AccountInformationSegment does)
   const accountOptions = useMemo<AccountSelectOption[]>(() => {
@@ -446,9 +437,13 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
           accounts={accountOptions}
           isLoadingAccounts={accountsLoading}
           searchAccounts={searchAccounts}
+          hasMoreAccounts={hasMoreAccounts}
+          onLoadMoreAccounts={loadMoreAccounts}
           contacts={contactOptions}
           isLoadingContacts={contactsLoading}
           searchContacts={searchContacts}
+          hasMoreContacts={hasMoreContacts}
+          onLoadMoreContacts={loadMoreContacts}
           loading={loading}
         />
       )
@@ -475,6 +470,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 contacts: contactsList,
                 loading: contactsLoading,
                 error: contactsError,
+                hasMore: hasMoreContacts,
+                search: searchContacts,
+                loadMore: loadMoreContacts,
                 refetch: refetchContacts
               }}
               loading={loading}
@@ -507,6 +505,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 accounts: accountsList,
                 loading: accountsLoading,
                 error: accountsError,
+                hasMore: hasMoreAccounts,
+                search: searchAccounts,
+                loadMore: loadMoreAccounts,
                 refetch: refetchAccounts
               }}
               loading={loading}
@@ -538,6 +539,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 total: accountsTotal,
                 loading: accountsLoading,
                 error: accountsError,
+                hasMore: hasMoreAccounts,
+                search: searchAccounts,
+                loadMore: loadMoreAccounts,
                 refetch: refetchAccounts
               }}
               useContacts={{
@@ -545,6 +549,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 total: contactsTotal,
                 loading: contactsLoading,
                 error: contactsError,
+                hasMore: hasMoreContacts,
+                search: searchContacts,
+                loadMore: loadMoreContacts,
                 refetch: refetchContacts
               }}
               loading={loading}
@@ -571,6 +578,10 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     contactsLoading,
     searchAccounts,
     searchContacts,
+    hasMoreAccounts,
+    hasMoreContacts,
+    loadMoreAccounts,
+    loadMoreContacts,
     businessAppContext,
     accountForm,
     contactForm,

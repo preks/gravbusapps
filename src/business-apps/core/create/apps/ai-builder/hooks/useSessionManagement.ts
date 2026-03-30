@@ -5,12 +5,14 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const SESSION_ID_QUERY_PARAM = 'sessionId'
 
+type SessionUrlHistoryMode = 'push' | 'replace'
+
 function getSessionIdFromUrl(): string | null {
   if (globalThis.window === undefined) return null
   return new URLSearchParams(globalThis.window.location.search).get(SESSION_ID_QUERY_PARAM)
 }
 
-function setSessionIdInUrl(sid: string | null): void {
+function setSessionIdInUrl(sid: string | null, historyMode: SessionUrlHistoryMode = 'replace'): void {
   if (globalThis.window === undefined) return
   const params = new URLSearchParams(globalThis.window.location.search)
   if (sid) params.set(SESSION_ID_QUERY_PARAM, sid)
@@ -18,6 +20,10 @@ function setSessionIdInUrl(sid: string | null): void {
   const newSearch = params.toString()
   const newUrl =
     globalThis.window.location.pathname + (newSearch ? '?' + newSearch : '') + globalThis.window.location.hash
+  if (historyMode === 'push') {
+    globalThis.window.history.pushState({}, '', newUrl)
+    return
+  }
   globalThis.window.history.replaceState({}, '', newUrl)
 }
 
@@ -48,7 +54,7 @@ export const useSessionManagement = ({
 }: UseSessionManagementProps): UseSessionManagementReturn => {
   const [sessions, setSessions] = useState<SessionMetadata[]>([])
   const [sessionId, setSessionId] = useState<string>('')
-  const [showSessionList, setShowSessionList] = useState(true)
+  const showSessionList = sessionId.length === 0
 
   const builderClient = useBuilderClient(accessToken)
 
@@ -81,15 +87,30 @@ export const useSessionManagement = ({
     loadSessionsFromAPI()
   }, [])
 
-  // Open session from URL when sessions are loaded
+  // Keep the selected session in sync with URL changes from breadcrumb/browser navigation.
   useEffect(() => {
-    if (sessions.length === 0) return
-    const urlSessionId = getSessionIdFromUrl()
-    if (!urlSessionId) return
-    const exists = sessions.some(s => s.sessionId === urlSessionId)
-    if (exists) {
-      setSessionId(urlSessionId)
-      setShowSessionList(false)
+    if (typeof window === 'undefined') return
+
+    const syncSessionStateFromUrl = () => {
+      const urlSessionId = getSessionIdFromUrl()
+      if (!urlSessionId) {
+        setSessionId('')
+        return
+      }
+
+      if (sessions.length === 0) {
+        return
+      }
+
+      const sessionExists = sessions.some(session => session.sessionId === urlSessionId)
+      setSessionId(sessionExists ? urlSessionId : '')
+    }
+
+    syncSessionStateFromUrl()
+    window.addEventListener('popstate', syncSessionStateFromUrl)
+
+    return () => {
+      window.removeEventListener('popstate', syncSessionStateFromUrl)
     }
   }, [sessions])
 
@@ -159,8 +180,7 @@ export const useSessionManagement = ({
       const updatedSessions = [newSession, ...sessions]
       updateSessionsState(updatedSessions)
       setSessionId(response.sessionId)
-      setShowSessionList(false)
-      setSessionIdInUrl(response.sessionId)
+      setSessionIdInUrl(response.sessionId, 'push')
     } catch (error) {
       console.error('Failed to create session:', error)
       alert(
@@ -174,8 +194,7 @@ export const useSessionManagement = ({
 
   const selectSession = (sid: string) => {
     setSessionId(sid)
-    setShowSessionList(false)
-    setSessionIdInUrl(sid)
+    setSessionIdInUrl(sid, 'push')
     // Update last modified time
     const updatedSession = sessions.find(s => s.sessionId === sid)
     if (updatedSession) {
@@ -199,7 +218,6 @@ export const useSessionManagement = ({
       // If deleting current session, go back to session list
       if (sessionId === sid) {
         setSessionId('')
-        setShowSessionList(true)
         setSessionIdInUrl(null)
       }
 
@@ -216,7 +234,16 @@ export const useSessionManagement = ({
   }
 
   const backToSessionList = () => {
-    setShowSessionList(true)
+    setSessionId('')
+    setSessionIdInUrl(null)
+  }
+
+  const setShowSessionList = (show: boolean) => {
+    if (!show) {
+      return
+    }
+
+    setSessionId('')
     setSessionIdInUrl(null)
   }
 

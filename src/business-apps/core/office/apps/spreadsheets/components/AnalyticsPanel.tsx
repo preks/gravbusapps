@@ -548,6 +548,16 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     () => getChartableValueColumns(columns, analyticsRows),
     [columns, analyticsRows]
   )
+  const chartAxisColumns = useMemo(
+    () =>
+      columns.filter(column =>
+        analyticsRows.some(row => {
+          const value = getCellValueForChartFromRow(row, column, firstRowHeaderMap)
+          return extractDisplayValue(value).length > 0
+        })
+      ),
+    [analyticsRows, columns, firstRowHeaderMap]
+  )
   const chartableValueColumnNames = useMemo(
     () => new Set(chartableValueColumns.map(column => column.name)),
     [chartableValueColumns]
@@ -577,6 +587,16 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     setPivotRows([])
     setIsPivotReady(false)
   }, [sheetId, analyticsRows.length])
+
+  useEffect(() => {
+    if (!chartAxisColumns.length) {
+      if (chartXAxis) setChartXAxis('')
+      return
+    }
+    if (!chartAxisColumns.some(column => column.name === chartXAxis)) {
+      setChartXAxis(chartAxisColumns[0].name)
+    }
+  }, [chartAxisColumns, chartXAxis])
 
   useEffect(() => {
     if (chartableValueColumns.length > 0 && chartYAxis.length === 0) {
@@ -866,7 +886,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                     value={pivotRowField}
                     onChange={e => setPivotRowField(e.target.value)}
                   >
-                    {columns.map(col => (
+                    {chartAxisColumns.map(col => (
                       <option key={col.id} value={col.name}>
                         {getColumnHeader(col)}
                       </option>
@@ -1151,7 +1171,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 ) : (
                   <div className="gba:border gba:border-secondary/30 gba:bg-secondary/5 gba:rounded-md gba:p-3">
                     <p className="gba:text-xs gba:text-muted-foreground">
-                      Run AI insights to analyze trends and anomalies.
+                      Generate business summary, trend interpretation, and executive direction.
                     </p>
                   </div>
                 )}

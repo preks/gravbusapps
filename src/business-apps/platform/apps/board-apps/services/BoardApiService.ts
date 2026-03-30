@@ -15,7 +15,8 @@ import type {
   BoardStatsResponse,
   MyWorkResponse,
   BoardShare,
-  BoardPermission
+  BoardPermission,
+  BoardAuditLogResponse
 } from '../types'
 import type { BoardColumn, BoardColumnType } from '../types/columns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
@@ -303,6 +304,7 @@ export const BoardApiService = {
         description: app.description as string | undefined,
         icon: app.icon as string | undefined,
         status: app.status as BoardStatus,
+        ...(app.settings ? { settings: app.settings as Record<string, unknown> } : {}),
         sheetCount: sheets.length,
         rowCount: (app.rowCount as number) ?? 0,
         spaceId: app.spaceId as string | undefined,
@@ -1256,6 +1258,33 @@ export const BoardApiService = {
     } catch {
       return false
     }
+  },
+
+  // ── Audit log ────────────────────────────────────────────────────
+
+  async getRowAuditLog(
+    boardId: string,
+    sheetId: string,
+    rowId: string,
+    page = 1,
+    limit = 100
+  ): Promise<BoardAuditLogResponse> {
+    return apiRequest<BoardAuditLogResponse>(
+      `/boards/${boardId}/sheets/${sheetId}/rows/${rowId}/audit-log?page=${page}&limit=${limit}`
+    )
+  },
+
+  async getBoardAuditLog(
+    boardId: string,
+    options: { page?: number; limit?: number; action?: string; actorUserId?: string } = {}
+  ): Promise<BoardAuditLogResponse> {
+    const params = new URLSearchParams()
+    if (options.page) params.set('page', String(options.page))
+    if (options.limit) params.set('limit', String(options.limit))
+    if (options.action) params.set('action', options.action)
+    if (options.actorUserId) params.set('actorUserId', options.actorUserId)
+    const qs = params.toString()
+    return apiRequest<BoardAuditLogResponse>(`/boards/${boardId}/audit-log${qs ? `?${qs}` : ''}`)
   }
 }
 

@@ -234,7 +234,9 @@ export const SUPPORTED_PROTOCOLS = [
   'workflow_template',
   'meetings',
   'note',
-  'document'
+  'slide',
+  'document',
+  'chat_conversation'
 ] as const
 
 export type SupportedProtocol = (typeof SUPPORTED_PROTOCOLS)[number]

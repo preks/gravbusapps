@@ -9,6 +9,7 @@ import {
   buildInvestmentOpportunityWhereCondition,
   buildInvestmentOpportunityOrderBy
 } from '@/common/data/investment/queries/investmentOpportunityQueries'
+import type { OpportunityAggregates } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityAggregatesBar'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useDivestmentOpportunityFilters } from './hooks/useDivestmentOpportunityFilters'
@@ -24,6 +25,28 @@ import {
 
 export interface ExitOpportunitiesTabProps extends BusinessAppContextProps {
   enabled?: boolean
+}
+
+const EXIT_OPPORTUNITY_AGGREGATES_QUERY = `
+  query GetExitOpportunityAggregates($where: InvestmentOpportunityBoolExp) {
+    InvestmentOpportunityAggregate(where: $where) {
+      aggregate {
+        count
+        sum { estimatedAmount initialInvestmentAmount }
+        avg { estimatedAmount initialInvestmentAmount }
+      }
+    }
+  }
+`
+
+function parseAggregateValue(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value === 'number' && !Number.isNaN(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    return Number.isNaN(parsed) ? null : parsed
+  }
+  return null
 }
 
 const createEnabledFilterHook = (isEnabled: boolean) => {
@@ -61,6 +84,33 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = ({ enab
     [graphqlClient]
   )
 
+  const fetchExitOpportunityAggregates = useCallback(
+    async (variables: InvestmentOpportunityQueryVariables): Promise<OpportunityAggregates> => {
+      const customConditions = buildOpportunityCustomConditions(variables, [{ divestmentId: { _isNull: false } }])
+      const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
+
+      const result = await graphqlClient.request<{
+        InvestmentOpportunityAggregate: {
+          aggregate: {
+            count: number
+            sum: { estimatedAmount: number | null; initialInvestmentAmount: number | null }
+            avg: { estimatedAmount: number | null; initialInvestmentAmount: number | null }
+          }
+        }
+      }>(EXIT_OPPORTUNITY_AGGREGATES_QUERY, { where: whereCondition })
+
+      const agg = result.InvestmentOpportunityAggregate.aggregate
+      return {
+        count: agg.count,
+        totalEstimatedAmount: parseAggregateValue(agg.sum.estimatedAmount),
+        avgEstimatedAmount: parseAggregateValue(agg.avg.estimatedAmount),
+        totalInvestmentAmount: parseAggregateValue(agg.sum.initialInvestmentAmount),
+        avgInvestmentAmount: parseAggregateValue(agg.avg.initialInvestmentAmount)
+      }
+    },
+    [graphqlClient]
+  )
+
   const filterDataHook = useMemo(() => createEnabledFilterHook(enabled), [enabled])
 
   const prefilledInvestmentId = useMemo(() => {
@@ -92,12 +142,16 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = ({ enab
           return { opportunities: [], total: 0 }
         }
 
-        const result = await fetchInvestmentOpportunities(variables)
+        const [result, aggregates] = await Promise.all([
+          fetchInvestmentOpportunities(variables),
+          fetchExitOpportunityAggregates(variables)
+        ])
         return {
           opportunities: result.InvestmentOpportunity.filter(
             (opp): opp is InvestmentOpportunity & { id: string } => !!opp.id
           ),
-          total: result.InvestmentOpportunityAggregate.aggregate.count
+          total: result.InvestmentOpportunityAggregate.aggregate.count,
+          aggregates
         }
       },
 
@@ -158,7 +212,14 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = ({ enab
         return baseSortable
       }
     } as typeof baseConfig
-  }, [enabled, accessToken, fetchInvestmentOpportunities, filterDataHook, prefilledInvestmentId])
+  }, [
+    enabled,
+    accessToken,
+    fetchInvestmentOpportunities,
+    fetchExitOpportunityAggregates,
+    filterDataHook,
+    prefilledInvestmentId
+  ])
 
   return (
     <OpportunityLayout
@@ -166,6 +227,10 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = ({ enab
       config={config}
       dataTestId="exit-opportunities-view"
       extendVisibleColumns={['divestment']}
+      enableExport
+      exportFilenamePrefix="exit-opportunities"
+      showAllCurrencyOption={false}
+      defaultCurrency="EUR"
     />
   )
 }

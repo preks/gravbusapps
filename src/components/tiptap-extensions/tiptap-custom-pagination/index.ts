@@ -1,6 +1,7 @@
 import {
   Pages,
   PaginationPlus,
+  PAGINATION_OWNED_DOC_CHANGE_META,
   markNextPaginationHydrationDocChange,
   type PaginationPlusOptions,
   type PaginationPlusStorage
@@ -9,6 +10,7 @@ import {
 export {
   Pages,
   PaginationPlus,
+  PAGINATION_OWNED_DOC_CHANGE_META,
   markNextPaginationHydrationDocChange,
   type PaginationPlusOptions,
   type PaginationPlusStorage

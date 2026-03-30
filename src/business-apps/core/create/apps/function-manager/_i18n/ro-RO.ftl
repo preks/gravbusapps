@@ -29,3 +29,7 @@ empty-message = Nu s-au gasit functii
 # Editor
 create-function = Creare functie
 edit-function = Editare functie
+
+# Chat panel (AI wizard)
+chat-panel-title = Asistent AI
+chat-panel-description = Descrieti functia sau cereti ajutor. Asistentul poate sugera nume, scheme intrare/iesire si cod. (Integrare in curand.)

@@ -1,5 +1,5 @@
 import { DriveApiService } from '../services/DriveApiService'
-import { buildDocxBlob, sanitizeDocxFilename } from '@/business-apps/platform/apps/document-apps/utils/docxExport'
+import { buildDocxBlob, sanitizeDocxFilename } from '@/business-apps/core/office/apps/documents/utils/docxExport'
 import { downloadNote } from '@/business-apps/platform/apps/note-apps/utils/noteExportUtils'
 import { exportSheetToExcel } from '@/business-apps/core/office/apps/spreadsheets/utils/exportUtils'
 import { exportToPptx } from '@/business-apps/platform/apps/slide-apps/utils/exportUtils'

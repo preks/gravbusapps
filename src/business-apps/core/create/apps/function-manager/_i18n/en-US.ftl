@@ -29,3 +29,7 @@ empty-message = No functions found
 # Editor
 create-function = Create Function
 edit-function = Edit Function
+
+# Chat panel (AI wizard)
+chat-panel-title = AI Assistant
+chat-panel-description = Describe your function or ask for help. The assistant can suggest names, input/output schemas, and code. (Integration coming soon.)
