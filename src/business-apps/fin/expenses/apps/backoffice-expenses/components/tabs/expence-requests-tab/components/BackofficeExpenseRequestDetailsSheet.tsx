@@ -4,7 +4,7 @@ import type { TranslateFn } from '../../../../utils/utils'
 import { formatCurrency } from '../../../../utils/currencyUtils'
 import { getExpenseRequestStatusDisplay } from '../../../../utils/utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import TravelOrderAttachmentPreview from '../../../../../../common/components/TravelOrderAttachmentPreview'
+import TravelOrderAttachmentPreview from '../../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 import ExpenseDetailsShell from '../../../../../../common/components/details-panel/ExpenseDetailsShell'
 import type {

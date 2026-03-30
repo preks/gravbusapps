@@ -8,7 +8,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
 import { generateExpensePlanActions } from '../../../utils/expensePlanActions'
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
-import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
+import TravelOrderAttachmentPreview from '../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
