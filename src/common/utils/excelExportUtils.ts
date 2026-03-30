@@ -292,16 +292,118 @@ export const escapeCsvCell = (key: string, value: string, dateColumnKeys: Set<st
   return escapeCsvValue(value)
 }
 
-/** Generates and triggers a CSV download from structured row data. */
+/**
+ * Generates and triggers a CSV download from structured row data.
+ * When `summaryRows` is provided, they are written as `Label,Value` pairs at the
+ * top of the file followed by an empty separator line before the table header.
+ */
 export const downloadCsvData = (
   data: Record<string, string>[],
   columns: readonly { key: string; title: string }[],
   filename: string,
-  dateColumnKeys: Set<string>
+  dateColumnKeys: Set<string>,
+  summaryRows?: Array<[string, string]>
 ): void => {
-  const header = columns.map(c => escapeCsvValue(c.title))
-  const rows = data.map(row => columns.map(c => escapeCsvCell(c.key, formatCellValue(row[c.key]), dateColumnKeys)))
-  const csvContent = '\uFEFF' + [header.join(','), ...rows.map(r => r.join(','))].join('\n')
+  const lines: string[] = []
+
+  if (summaryRows && summaryRows.length > 0) {
+    summaryRows.forEach(([label, value]) => {
+      // Use ="value" (forced-text prefix) so Excel never auto-converts currency
+      // strings to numbers (which causes ####). The whole construct must be
+      // wrapped in outer CSV quotes so internal commas don't split into extra
+      // columns. Internal double-quotes are doubled per the CSV spec.
+      // e.g. €1,234,567 → "=""€1,234,567"""
+      const escapedValue = `"=""${value.replace(/"/g, '""')}"""`
+      lines.push(`${escapeCsvValue(label)},${escapedValue}`)
+    })
+    lines.push('')
+  }
+
+  lines.push(columns.map(c => escapeCsvValue(c.title)).join(','))
+  data.forEach(row =>
+    lines.push(columns.map(c => escapeCsvCell(c.key, formatCellValue(row[c.key]), dateColumnKeys)).join(','))
+  )
+
+  const csvContent = '\uFEFF' + lines.join('\n')
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   triggerDownload(blob, filename)
+}
+
+/**
+ * Like `buildExcelWorkbook` but prepends a summary section (label + value rows)
+ * above the data table, separated by an empty row.
+ * Used when a domain export needs to embed aggregates at the top of the sheet.
+ */
+export const buildExcelWorkbookWithSummary = (
+  sheetName: string,
+  columns: ExcelColumn[],
+  data: Record<string, unknown>[],
+  summaryRows: Array<[string, string]>,
+  creator: string = 'NEWWORK'
+): ExcelJS.Workbook => {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = creator
+  workbook.created = new Date()
+
+  const worksheet = workbook.addWorksheet(sanitizeSheetName(sheetName, 'Sheet 1'))
+
+  // ── 1. Pre-compute column widths BEFORE any rows are added ────────────────
+  // ExcelJS only persists column widths reliably when they are set via
+  // worksheet.columns (which registers columns in the internal model) or when
+  // getColumn().width is called before the first addRow. Doing it afterwards
+  // can silently no-op, producing the ##### display in Excel.
+
+  const colWidths = columns.map(col => Math.max(col.header.length + 2, 12))
+
+  summaryRows.forEach(([label, value]) => {
+    colWidths[0] = Math.min(Math.max(colWidths[0], label.length + 2), 60)
+    if (colWidths.length > 1) {
+      colWidths[1] = Math.min(Math.max(colWidths[1], value.length + 2), 50)
+    }
+  })
+
+  data.forEach(row => {
+    columns.forEach((col, i) => {
+      const len = extractExportCell(row[col.key]).text.length
+      colWidths[i] = Math.min(Math.max(colWidths[i], len + 2), 50)
+    })
+  })
+
+  // Register columns (no header — prevents ExcelJS from auto-inserting a row)
+  // then immediately apply the pre-computed widths.
+  worksheet.columns = columns.map((col, i) => ({ key: col.key, width: colWidths[i] }))
+
+  // ── 2. Summary rows: same color as table data, value bold ────────────────
+  summaryRows.forEach(([label, value]) => {
+    const row = worksheet.addRow([label, value])
+    row.getCell(1).font = { color: { argb: 'FF000000' } }
+    row.getCell(2).font = { bold: true, color: { argb: 'FF000000' } }
+  })
+
+  // ── 3. Empty separator between summary and table ───────────────────────────
+  worksheet.addRow([])
+
+  // ── 4. Table header row ────────────────────────────────────────────────────
+  const headerRow = worksheet.addRow(columns.map(col => col.header))
+  headerRow.font = { bold: true, color: { argb: 'FF000000' } }
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } }
+  headerRow.alignment = { vertical: 'middle', horizontal: 'left' }
+
+  // ── 5. Data rows ──────────────────────────────────────────────────────────
+  data.forEach(row => {
+    const rowValues = columns.map(col => extractExportCell(row[col.key]).text)
+    const addedRow = worksheet.addRow(rowValues)
+    columns.forEach((col, colIndex) => {
+      const parsed = extractExportCell(row[col.key])
+      if (parsed.bgArgb) {
+        addedRow.getCell(colIndex + 1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: parsed.bgArgb }
+        }
+      }
+    })
+  })
+
+  return workbook
 }

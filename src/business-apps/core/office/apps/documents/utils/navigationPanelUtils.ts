@@ -5,11 +5,15 @@
 
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
+import type { DocumentLayoutPageSpan } from '../types'
 
 export interface HeadingItem {
   level: number
   text: string
+  /** Cursor position inside the heading (for selection / scroll). */
   pos: number
+  /** ProseMirror position immediately before the heading node. */
+  blockStart: number
 }
 
 /**
@@ -25,11 +29,33 @@ export function getHeadingsFromDoc(doc: PMNode): HeadingItem[] {
       items.push({
         level,
         text: node.textContent,
-        pos: pos + 1
+        pos: pos + 1,
+        blockStart: pos
       })
     }
   })
   return items
+}
+
+/**
+ * Headings whose block starts at or after `minBlockStart` (e.g. after a table-of-contents block).
+ */
+export function getHeadingsForDocumentTableOfContents(doc: PMNode, minBlockStart: number): HeadingItem[] {
+  return getHeadingsFromDoc(doc).filter(h => h.blockStart >= minBlockStart)
+}
+
+/**
+ * Map a document position to a printed page number using layout spans (pagination).
+ */
+export function resolvePageNumberForDocPosition(
+  pos: number,
+  spans: Array<Pick<DocumentLayoutPageSpan, 'pageNumber' | 'startPos' | 'endPos'>> | undefined
+): number | null {
+  if (!Number.isInteger(pos) || pos < 0 || !spans?.length) {
+    return null
+  }
+  const range = spans.find(candidate => pos >= candidate.startPos && pos <= candidate.endPos)
+  return range?.pageNumber ?? null
 }
 
 export interface FindMatch {

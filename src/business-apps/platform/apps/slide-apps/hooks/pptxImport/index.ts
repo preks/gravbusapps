@@ -1,0 +1,17 @@
+// Barrel export for PPTX import module.
+
+export { assembleSlide } from './assembleSlide'
+export { extractTheme, mapThemeToSlideThemeId } from './extractTheme'
+export { extractAllMedia, resolveSlideRelationships } from './resolveRelationships'
+export { extractTextElements } from './extractText'
+export { extractShapeElements } from './extractShapes'
+export { extractImageElements } from './extractImages'
+export { extractTableElements } from './extractTables'
+export { extractChartElements } from './extractCharts'
+export { extractBackground, extractBackgroundWithInheritance } from './extractBackground'
+export { extractNotes } from './extractNotes'
+export { extractTransition } from './extractTransitions'
+export { flattenGroupedShapes } from './flattenGroups'
+export { uploadSlideImages } from './uploadSlideImages'
+export { compressSlideImages } from './compressSlideImages'
+export type { OoxmlTheme, OoxmlTextRun, OoxmlParagraph, OoxmlTransform, SlideRelationships } from './types'

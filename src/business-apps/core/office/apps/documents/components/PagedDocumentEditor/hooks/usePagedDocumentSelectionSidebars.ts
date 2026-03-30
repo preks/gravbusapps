@@ -2,10 +2,16 @@ import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { NodeSelection, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import type { ActivePagesEditorState } from '@/components/tiptap-extensions/tiptap-custom-pagination'
-import type { CustomImageAttributes } from '@/components/tiptap-extensions/tiptap-custom-image'
+import {
+  DOCUMENT_IMAGE_UI_EVENT,
+  dispatchDocumentImageUiMode,
+  type CustomImageAttributes,
+  type DocumentImageUiMode
+} from '@/components/tiptap-extensions/tiptap-custom-image'
 import { getSelectedTableRectContext } from '@/components/tiptap-extensions/tiptap-custom-tables/tableFormattingUtils'
 import { type SelectedImageSidebarState } from '../ImageSettingsSidebar'
 import { type SelectedTableSidebarState } from '../TableSettingsSidebar'
+import type { RightSidebar } from './usePagedDocumentInteractionDialogs'
 
 export const CLOSED_IMAGE_SIDEBAR: SelectedImageSidebarState = {
   open: false,
@@ -23,14 +29,18 @@ export const CLOSED_TABLE_SIDEBAR: SelectedTableSidebarState = {
 
 export const DOCUMENT_EDITOR_RIGHT_SIDEBAR_WIDTH_PX = 360
 
-type RightSidebar = 'closed' | 'comments' | 'ai'
+interface ActiveImageUiState {
+  pos: number | null
+  mode: DocumentImageUiMode
+}
+
 type SidebarContextSubtitleKey =
   | 'table-sidebar-in-header-context'
   | 'table-sidebar-in-footer-context'
   | 'image-sidebar-in-header-context'
   | 'image-sidebar-in-footer-context'
 
-function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarState, 'open' | 'editor'> | null {
+export function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarState, 'open' | 'editor'> | null {
   const { selection } = editor.state
 
   if (selection instanceof NodeSelection && selection.node.type.name === 'image') {
@@ -56,7 +66,19 @@ function getSelectedImageState(editor: TiptapEditor): Omit<SelectedImageSidebarS
   return null
 }
 
-function getSelectedTableState(editor: TiptapEditor): Omit<SelectedTableSidebarState, 'open' | 'editor'> | null {
+export function shouldKeepImageSidebarOpenForUiMode(
+  imageSidebar: Pick<SelectedImageSidebarState, 'open' | 'pos'>,
+  imageUiState: ActiveImageUiState
+): boolean {
+  return (
+    imageSidebar.open &&
+    imageSidebar.pos != null &&
+    imageUiState.mode === 'crop' &&
+    imageUiState.pos === imageSidebar.pos
+  )
+}
+
+export function getSelectedTableState(editor: TiptapEditor): Omit<SelectedTableSidebarState, 'open' | 'editor'> | null {
   const context = getSelectedTableRectContext(editor.state, 'table')
   if (!context) return null
 
@@ -104,6 +126,8 @@ export function resolveSidebarPresentationState(options: {
     documentRightPanelOffset = 412
   } else if (options.rightSidebar === 'ai') {
     documentRightPanelOffset = 496
+  } else if (options.rightSidebar === 'toc') {
+    documentRightPanelOffset = 412
   }
   const showTableSidebar =
     options.selectedTableSidebar.open &&
@@ -175,6 +199,10 @@ export function usePagedDocumentSelectionSidebars({
   const [showBodyWhileEditingHeaderFooter, setShowBodyWhileEditingHeaderFooter] = useState(true)
   const selectedImageSidebarRef = useRef<SelectedImageSidebarState>(CLOSED_IMAGE_SIDEBAR)
   const selectedTableSidebarRef = useRef<SelectedTableSidebarState>(CLOSED_TABLE_SIDEBAR)
+  const activeImageUiStateRef = useRef<ActiveImageUiState>({
+    pos: null,
+    mode: 'default'
+  })
 
   const setSelectedImageSidebarState = useCallback((next: SelectedImageSidebarState) => {
     selectedImageSidebarRef.current = next
@@ -211,6 +239,19 @@ export function usePagedDocumentSelectionSidebars({
   useEffect(() => {
     selectedTableSidebarRef.current = selectedTableSidebar
   }, [selectedTableSidebar])
+
+  useEffect(() => {
+    const handleImageUiEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<ActiveImageUiState>
+      activeImageUiStateRef.current = customEvent.detail ?? {
+        pos: null,
+        mode: 'default'
+      }
+    }
+
+    globalThis.addEventListener(DOCUMENT_IMAGE_UI_EVENT, handleImageUiEvent)
+    return () => globalThis.removeEventListener(DOCUMENT_IMAGE_UI_EVENT, handleImageUiEvent)
+  }, [])
 
   useEffect(() => {
     if (!editor && !activeEditor) {
@@ -266,6 +307,13 @@ export function usePagedDocumentSelectionSidebars({
         if (persisted) {
           replaceImagePosRef.current = persisted.pos
           setSelectedImageSidebarState(persisted)
+          return
+        }
+
+        if (shouldKeepImageSidebarOpenForUiMode(selectedImageSidebarRef.current, activeImageUiStateRef.current)) {
+          const current = selectedImageSidebarRef.current
+          replaceImagePosRef.current = current.pos
+          setSelectedImageSidebarState(current)
           return
         }
 
@@ -460,6 +508,14 @@ export function usePagedDocumentSelectionSidebars({
         return
       }
 
+      if (target.closest('[data-image-overlay-anchor="true"]')) {
+        return
+      }
+
+      if (shouldKeepImageSidebarOpenForUiMode(selectedImageSidebarRef.current, activeImageUiStateRef.current)) {
+        return
+      }
+
       replaceImagePosRef.current = null
       setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
     }
@@ -497,6 +553,14 @@ export function usePagedDocumentSelectionSidebars({
   }, [selectedTableSidebar.open, setSelectedTableSidebarState])
 
   const closeImageSettingsSidebar = useCallback(() => {
+    const currentPos = selectedImageSidebarRef.current.pos
+    if (currentPos != null) {
+      dispatchDocumentImageUiMode({ pos: currentPos, mode: 'default' })
+    }
+    activeImageUiStateRef.current = {
+      pos: null,
+      mode: 'default'
+    }
     replaceImagePosRef.current = null
     setSelectedImageSidebarState(CLOSED_IMAGE_SIDEBAR)
   }, [setSelectedImageSidebarState])

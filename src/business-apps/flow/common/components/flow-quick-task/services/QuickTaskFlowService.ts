@@ -1,4 +1,4 @@
-﻿import {
+import {
   FlowTemplate,
   FlowStep,
   FlowStepType,
@@ -6,6 +6,8 @@
   Link,
   AssignmentMode
 } from '@/common/network/flows/FlowTemplateClient'
+import { resolveExecuteDynamicUrl } from '@/common/network/flows/flowEngineUrl'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { QuickTaskFormData } from '../types'
 
 export interface QuickTaskFlowData {
@@ -28,7 +30,8 @@ export interface ExecuteQuickTaskOptions {
   uploadResults?: any[]
   accessToken: string
   initiatorId: string
-  apiBaseUrl: string
+  /** Flow engine API root; defaults to {@link CUSTOM_FLOW_ENGINE_API_URL}. */
+  apiBaseUrl?: string
 }
 
 /**
@@ -194,7 +197,7 @@ export class QuickTaskFlowService {
    * Supports multiple assignees by creating separate workflow instances grouped together
    */
   static async executeQuickTask(options: ExecuteQuickTaskOptions): Promise<any> {
-    const { formData, uploadResults = [], accessToken, initiatorId, apiBaseUrl } = options
+    const { formData, uploadResults = [], accessToken, initiatorId, apiBaseUrl = CUSTOM_FLOW_ENGINE_API_URL } = options
 
     const userIds = formData.assignedUserIds || []
     if (!userIds || userIds.length === 0) {
@@ -236,7 +239,7 @@ export class QuickTaskFlowService {
       }
 
       // Execute the workflow for this assignee
-      const response = await fetch(`${apiBaseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(resolveExecuteDynamicUrl(apiBaseUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -349,11 +349,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     })
 
     if (newDoc) {
+      const loadedDoc = await loadDocument(newDoc.id)
+      if (!loadedDoc) return
       setSelectedDocumentId(newDoc.id)
       setCurrentView('editor')
       updateUrl(newDoc.id, 'editor')
     }
-  }, [createDocument, currentUserId, updateUrl, t])
+  }, [createDocument, currentUserId, loadDocument, updateUrl, t])
 
   const handleCreateWithAi = useCallback(() => {
     setCreateWithAiDialogOpen(true)

@@ -28,6 +28,7 @@ export interface UseSalesCampaignDataReturn {
   statisticsError: string | null
   refetch: () => void
   fetchCampaigns: (variables?: SalesCampaignQueryVariables) => Promise<void>
+  fetchSalesCampaignsWithCount: (variables?: SalesCampaignQueryVariables) => Promise<any>
   processFiltersAndFetch: (params: ProcessFiltersParams) => Promise<void>
   refetchStatistics: () => void
 }
@@ -239,6 +240,7 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
     statisticsError,
     refetch,
     fetchCampaigns,
+    fetchSalesCampaignsWithCount,
     processFiltersAndFetch,
     refetchStatistics
   }
