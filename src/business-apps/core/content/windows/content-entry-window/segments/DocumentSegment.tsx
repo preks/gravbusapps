@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useRef } from 'react'
-import { Control } from 'react-hook-form'
+import { Control, useWatch } from 'react-hook-form'
 import {
   FormControl,
   FormField,
@@ -8,6 +8,11 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
   Button,
   Popover,
@@ -16,12 +21,17 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ImageIcon, Folder, Link } from '@phosphor-icons/react'
-import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
+import { CONTENT_GROUP_OPTIONS } from '@/common/data/content/constants/contentGroupConstants'
+import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
+import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
 interface DocumentSegmentProps {
   control: Control<ContentEntryFormValues>
+  accessToken?: string
   watchDisplayAuthor: boolean
   authorName: string | null
   image: string | null
@@ -29,7 +39,7 @@ interface DocumentSegmentProps {
   imageInfo: { name: string; size: string } | null
   setImageInfo: (info: { name: string; size: string } | null) => void
   setImageFile: (file: File | null) => void
-  extractedContentGroupRef?: string
+  extractedContentGroup?: string | null
   onCreateCategory?: (label: string) => Promise<string>
   onCreateTag?: (label: string) => Promise<string>
   onCategoriesChange?: (categories: string[]) => void
@@ -38,18 +48,15 @@ interface DocumentSegmentProps {
 
 const MAX_IMAGE_SIZE_MB = 5
 
-/**
- * DocumentSegment - Simple metadata form for Document Areas/Containers
- * This creates the CONTAINER where documents will be uploaded later
- */
 export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   control,
+  accessToken,
   image,
   setImage,
   imageInfo,
   setImageInfo,
   setImageFile,
-  extractedContentGroupRef,
+  extractedContentGroup,
   onCreateCategory,
   onCreateTag,
   onCategoriesChange,
@@ -63,7 +70,13 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Process file (used by both file upload and drag & drop)
+  const watchContentGroup = useWatch({ control, name: 'contentGroup' })
+  const activeGroup = extractedContentGroup || watchContentGroup
+
+  const { options: contentTypeOptions, isLoading: typesLoading } = useContentTypeOptions(accessToken, activeGroup)
+  const { options: categoryOptions, isLoading: categoriesLoading } = useContentCategoryOptions(accessToken)
+  const { options: tagOptions, isLoading: tagsLoading } = useContentTagOptions(accessToken)
+
   const processFile = useCallback(
     (file: File, setValue: any) => {
       const fileSizeMB = file.size / (1024 * 1024)
@@ -71,23 +84,15 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         alert(`Image size must be less than ${MAX_IMAGE_SIZE_MB}MB`)
         return
       }
-
       if (!file.type.startsWith('image/')) {
         alert('Please upload a valid image file')
         return
       }
-
-      // Store the file for upload in pre-submit
       setImageFile(file)
-
       const reader = new FileReader()
       reader.onloadend = () => {
         setImage(reader.result as string)
-        setImageInfo({
-          name: file.name,
-          size: `${fileSizeMB.toFixed(2)}MB`
-        })
-        // Store base64 for preview, will be replaced with fileInfo in pre-submit
+        setImageInfo({ name: file.name, size: `${fileSizeMB.toFixed(2)}MB` })
         setValue('contentImage', reader.result as any)
       }
       reader.readAsDataURL(file)
@@ -100,25 +105,18 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
       const file = event.target.files?.[0]
       if (!file) return
       processFile(file, setValue)
-      // Clear input so same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      if (fileInputRef.current) fileInputRef.current.value = ''
     },
     [processFile]
   )
 
-  // Drag and drop handlers
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>, setValue: any) => {
       event.preventDefault()
       event.stopPropagation()
       setDragActive(false)
-
       const file = event.dataTransfer.files?.[0]
-      if (file) {
-        processFile(file, setValue)
-      }
+      if (file) processFile(file, setValue)
     },
     [processFile]
   )
@@ -135,31 +133,18 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
     setDragActive(false)
   }, [])
 
-  // URL fetch handler
   const handleUrlFetch = useCallback(
     async (setValue: any) => {
       if (!urlInput.trim()) return
-
       setIsLoadingUrl(true)
       try {
         const response = await fetch(urlInput.trim(), { mode: 'cors' })
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-        }
-
+        if (!response.ok) throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
         const blob = await response.blob()
-        if (!blob.type.startsWith('image/')) {
-          throw new Error('URL does not point to an image')
-        }
-
-        // Convert blob to File
+        if (!blob.type.startsWith('image/')) throw new Error('URL does not point to an image')
         const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
-        const fileExtension = fileName.split('.').pop() || 'jpg'
-        const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
-        const file = new File([blob], fileName, { type: mimeType })
-
-        // Process as regular file upload
-        processFile(file, setValue)
+        const mimeType = blob.type || `image/jpeg`
+        processFile(new File([blob], fileName, { type: mimeType }), setValue)
         setUrlInput('')
         setUrlPopoverOpen(false)
         setUploadMenuOpen(false)
@@ -184,24 +169,28 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
 
   return (
     <div className="gba:space-y-6">
-      {/* Content Group and Content Type - Above Header Image */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-4">
-        {/* Content Group Selection - Hidden if provided via props or additionalData */}
-        {!extractedContentGroupRef && (
+        {!extractedContentGroup && (
           <FormField
             control={control as any}
-            name="contentGroupRef"
+            name="contentGroup"
             rules={{ required: t('group-required') }}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('content-group')}</FormLabel>
                 <FormControl>
-                  <CatalogSelect
-                    catalogIdentifier="ContentGroup:v1"
-                    value={field.value || ''}
-                    onValueChange={field.onChange}
-                    data-testid="content-entry-window-group-select"
-                  />
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <SelectTrigger data-testid="content-entry-window-group-select">
+                      <SelectValue placeholder={t('select-group') || 'Select group'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTENT_GROUP_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -209,23 +198,29 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
           />
         )}
 
-        {/* Content Type Selection */}
         <FormField
           control={control as any}
-          name="contentTypeRef"
+          name="contentTypeId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t('content-type')}</FormLabel>
               <FormControl>
-                <CatalogSelect
-                  catalogIdentifier="ContentType:v1"
-                  parentField="contentGroupRef"
-                  requireSourceForEnable={true}
-                  autoSelectFirst={true}
-                  value={field.value || null}
+                <Select
+                  value={field.value || ''}
                   onValueChange={field.onChange}
-                  data-testid="document-segment-type-select"
-                />
+                  disabled={!activeGroup || typesLoading}
+                >
+                  <SelectTrigger data-testid="document-segment-type-select">
+                    <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contentTypeOptions.map(opt => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -233,7 +228,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         />
       </div>
 
-      {/* Optional Header Image */}
       <div className="gba:space-y-2">
         <FormLabel>
           {t('header-image') || 'Header Image'}{' '}
@@ -326,9 +320,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                               onChange={e => setUrlInput(e.target.value)}
                               placeholder="https://example.com/image.jpg"
                               onKeyDown={e => {
-                                if (e.key === 'Enter' && !isLoadingUrl) {
-                                  handleUrlFetch((control as any)._formValues)
-                                }
+                                if (e.key === 'Enter' && !isLoadingUrl) handleUrlFetch((control as any)._formValues)
                               }}
                               data-testid="document-segment-url-input"
                             />
@@ -367,7 +359,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         </div>
       </div>
 
-      {/* Area Name */}
       <FormField
         control={control as any}
         name="title"
@@ -387,7 +378,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         )}
       />
 
-      {/* Short Description (Preview Text) */}
       <FormField
         control={control as any}
         name="previewText"
@@ -407,7 +397,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         )}
       />
 
-      {/* Description (Optional) */}
       <FormField
         control={control as any}
         name="content"
@@ -436,9 +425,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         )}
       />
 
-      {/* Categories and Tags - Below Description */}
       <FormFieldGroup>
-        {/* Categories - Tags Mode */}
         <FormField
           control={control as any}
           name="categories"
@@ -446,22 +433,16 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
             <FormItem className="gba:flex-1">
               <FormLabel>Categories</FormLabel>
               <FormControl>
-                <CatalogSelect
-                  catalogIdentifier="ContentCategory:v1"
-                  mode="tags"
+                <TaxonomyMultiSelect
+                  options={categoryOptions}
                   value={field.value || []}
-                  onValueChange={value => {
-                    const categories = Array.isArray(value) ? value : []
-                    field.onChange(categories)
-                    onCategoriesChange?.(categories)
+                  onValueChange={ids => {
+                    field.onChange(ids)
+                    onCategoriesChange?.(ids)
                   }}
-                  onCreateTag={async (tag: string) => {
-                    if (!onCreateCategory) {
-                      throw new Error('onCreateCategory is required for categories')
-                    }
-                    const newId = await onCreateCategory(tag)
-                    return newId
-                  }}
+                  onCreateNew={onCreateCategory}
+                  isLoading={categoriesLoading}
+                  placeholder="Select categories..."
                   data-testid="document-segment-categories-select"
                 />
               </FormControl>
@@ -470,7 +451,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
           )}
         />
 
-        {/* Tags - Tags Mode */}
         <FormField
           control={control as any}
           name="tags"
@@ -478,22 +458,16 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
             <FormItem className="gba:flex-1">
               <FormLabel>Tags</FormLabel>
               <FormControl>
-                <CatalogSelect
-                  catalogIdentifier="ContentTag:v1"
-                  mode="tags"
+                <TaxonomyMultiSelect
+                  options={tagOptions}
                   value={field.value || []}
-                  onValueChange={value => {
-                    const tags = Array.isArray(value) ? value : []
-                    field.onChange(tags)
-                    onTagsChange?.(tags)
+                  onValueChange={ids => {
+                    field.onChange(ids)
+                    onTagsChange?.(ids)
                   }}
-                  onCreateTag={async (tag: string) => {
-                    if (!onCreateTag) {
-                      throw new Error('onCreateTag is required for tags')
-                    }
-                    const newId = await onCreateTag(tag)
-                    return newId
-                  }}
+                  onCreateNew={onCreateTag}
+                  isLoading={tagsLoading}
+                  placeholder="Select tags..."
                   data-testid="document-segment-tags-select"
                 />
               </FormControl>
@@ -503,7 +477,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
         />
       </FormFieldGroup>
 
-      {/* Hidden fields */}
       <input type="hidden" {...(control as any).register('allowReaction')} value="false" />
       <input type="hidden" {...(control as any).register('allowComment')} value="false" />
       <input type="hidden" {...(control as any).register('displayAuthor')} value="false" />

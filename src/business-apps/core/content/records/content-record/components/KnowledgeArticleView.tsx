@@ -143,7 +143,7 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
           <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:flex-1 gba:text-foreground">
             {displayTitle}
           </h1>
-          {item.contentGroupRef === ContentGroup.KNOWLEDGE && accessToken && userId && (
+          {item.contentGroup === ContentGroup.KNOWLEDGE && accessToken && userId && (
             <div className="gba:mt-4">
               <ContentArticleAnalyzer contentEntry={item} accessToken={accessToken} userId={userId} />
             </div>

@@ -9,20 +9,12 @@ const baseFilterGroups = [
     collapsible: true,
     filters: [
       {
-        id: 'contentTypeRef',
-        field: 'contentTypeRef',
+        id: 'contentTypeId',
+        field: 'contentTypeId',
         label: 'Type',
         type: 'select' as const,
         config: {
-          options: [
-            { id: 'ContentType:v1:Article', label: 'Article' },
-            { id: 'ContentType:v1:News', label: 'News' },
-            { id: 'ContentType:v1:Announcement', label: 'Announcement' },
-            { id: 'ContentType:v1:KnowledgeBase', label: 'Knowledge Base' },
-            { id: 'ContentType:v1:Document', label: 'Document' },
-            { id: 'ContentType:v1:Question', label: 'Question' },
-            { id: 'ContentType:v1:Discussion', label: 'Discussion' }
-          ]
+          options: []
         }
       }
     ]
@@ -69,8 +61,8 @@ const contentGroupFilter = {
   collapsible: true,
   filters: [
     {
-      id: 'contentGroupRef',
-      field: 'contentGroupRef',
+      id: 'contentGroup',
+      field: 'contentGroup',
       label: 'Group',
       type: 'select' as const,
       config: {

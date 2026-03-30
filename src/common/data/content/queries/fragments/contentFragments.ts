@@ -3,10 +3,8 @@
  * Reusable fragments for consistent data fetching
  */
 
-// Import catalog entry fragment from catalog data
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 import { ContentRole } from '../../types/contentEnums'
-// Import document fragment from document types
 import { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
 
 // Re-export document fragment for backwards compatibility
@@ -46,7 +44,7 @@ export const EMPLOYEE_REF_FRAGMENT = `
 `
 
 /**
- * Use the centralized catalog entry fragment
+ * Use the centralized catalog entry fragment (still needed for language and reactions)
  */
 export const CATALOG_ENTRY_FRAGMENT = CATALOG_ENTRY_REF
 
@@ -72,8 +70,8 @@ export const CONTENT_ENTRY_CORE_FRAGMENT = `
   allowReaction
   accepted
   role
-  contentGroupRef
-  contentTypeRef
+  contentGroup
+  contentTypeId
   languageRef
   entryVersion
   activeFrom
@@ -102,15 +100,14 @@ export const CONTENT_ENTRY_WITH_EMPLOYEES_FRAGMENT = `
 `
 
 /**
- * Content entry with catalog references
+ * Content entry with taxonomy and catalog relations
  */
 export const CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT = `
   ${CONTENT_ENTRY_WITH_EMPLOYEES_FRAGMENT}
-  contentGroup {
-    ${CATALOG_ENTRY_FRAGMENT}
-  }
   contentType {
-    ${CATALOG_ENTRY_FRAGMENT}
+    id
+    name
+    contentGroup
   }
   language {
     ${CATALOG_ENTRY_FRAGMENT}
@@ -123,13 +120,14 @@ export const CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT = `
 export const CONTENT_ENTRY_CATEGORY_FRAGMENT = `
   id
   contentEntryId
-  contentCategoryRef
+  contentCategoryId
   recordState
   createdAt
   createdBy
   isDeleted
   contentCategory {
-    ${CATALOG_ENTRY_FRAGMENT}
+    id
+    name
   }
 `
 
@@ -139,13 +137,14 @@ export const CONTENT_ENTRY_CATEGORY_FRAGMENT = `
 export const CONTENT_ENTRY_TAG_FRAGMENT = `
   id
   contentEntryId
-  contentTagRef
+  contentTagId
   recordState
   createdAt
   createdBy
   isDeleted
   contentTag {
-    ${CATALOG_ENTRY_FRAGMENT}
+    id
+    name
   }
 `
 
@@ -174,7 +173,6 @@ export const CONTENT_DOCUMENT_WITH_CHILDREN_FRAGMENT = `
 
 /**
  * Content entry reaction fragment
- * FIXED: CatalogEntry has no label or icon fields
  */
 export const CONTENT_ENTRY_REACTION_FRAGMENT = `
   id
@@ -263,8 +261,8 @@ export const CHILD_CONTENT_ENTRY_FRAGMENT = `
   allowComment
   allowReaction
   role
-  contentGroupRef
-  contentTypeRef
+  contentGroup
+  contentTypeId
   createdAt
   updatedAt
   isDeleted

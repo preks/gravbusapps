@@ -35,11 +35,9 @@ const POLICY_VIEW_FIELDS: Array<keyof ContentEntry> = [
   'title',
   'preview',
   'picture',
-  'contentGroupRef',
-  'contentTypeRef',
-  'creatorEmployee',
   'contentGroup',
   'contentType',
+  'creatorEmployee',
   'contentEntryCategories',
   'contentEntryTags',
   'createdAt',
@@ -67,7 +65,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRefs: [ContentGroup.POLICY],
+      contentGroups: [ContentGroup.POLICY],
       search: searchQuery,
       limit: PAGE_SIZE,
       offset,

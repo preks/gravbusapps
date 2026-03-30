@@ -26,14 +26,17 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
   return [
     {
       id: 'group',
-      accessorKey: 'contentGroupRef',
+      accessorKey: 'contentGroup',
       header: 'Group',
       size: 120,
       enableSorting: true,
       cell: ({ row }) => {
-        const groupRef = row.original.contentGroupRef
-        const groupValue =
-          typeof groupRef === 'string' ? groupRef.split(':').pop() : (groupRef as any)?.value || 'Unknown'
+        const contentGroup = row.original.contentGroup
+        const groupLabel =
+          typeof contentGroup === 'string'
+            ? contentGroup.replace('_CONTENT_GROUP', '').charAt(0).toUpperCase() +
+              contentGroup.replace('_CONTENT_GROUP', '').slice(1).toLowerCase()
+            : 'Unknown'
 
         const variantMap: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
           News: 'default',
@@ -44,23 +47,22 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
         }
 
         return (
-          <Badge variant={variantMap[groupValue] || 'outline'} className="gba:capitalize">
-            {groupValue}
+          <Badge variant={variantMap[groupLabel] || 'outline'} className="gba:capitalize">
+            {groupLabel}
           </Badge>
         )
       }
     },
     {
       id: 'type',
-      accessorKey: 'contentTypeRef',
+      accessorKey: 'contentType',
       header: 'Type',
       size: 120,
       enableSorting: true,
       cell: ({ row }) => {
-        const typeRef = row.original.contentTypeRef
-        const typeValue = typeof typeRef === 'string' ? typeRef.split(':').pop() : (typeRef as any)?.value || 'Unknown'
-
-        return <Badge variant="outline">{typeValue}</Badge>
+        const typeName = row.original.contentType?.name || null
+        if (!typeName) return null
+        return <Badge variant="outline">{typeName}</Badge>
       }
     },
     {
@@ -158,11 +160,11 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
         return (
           <div className="gba:flex gba:flex-wrap gba:gap-1">
             {visibleTags.map((tagEntry: any) => {
-              const tagValue = tagEntry.contentTag?.value || tagEntry.value || 'Unknown'
-              const tagId = tagEntry.contentTag?.id || tagEntry.id || tagValue
+              const tagName = tagEntry.contentTag?.name || 'Unknown'
+              const tagId = tagEntry.contentTag?.id || tagEntry.contentTagId || tagName
               return (
                 <Badge key={`tag-${tagId}`} variant="secondary" className="gba:text-xs">
-                  #{tagValue}
+                  #{tagName}
                 </Badge>
               )
             })}

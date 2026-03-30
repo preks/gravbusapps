@@ -24,10 +24,9 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'title',
     'preview',
     'picture',
-    'contentGroupRef',
-    'contentTypeRef',
-    'creatorEmployee',
     'contentGroup',
+    'contentTypeId',
+    'creatorEmployee',
     'contentType',
     'createdAt',
     'allowComment',
@@ -43,10 +42,9 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'preview',
     'content',
     'picture',
-    'contentGroupRef',
-    'contentTypeRef',
-    'creatorEmployee',
     'contentGroup',
+    'contentTypeId',
+    'creatorEmployee',
     'contentType',
     'contentEntryCategories',
     'contentEntryTags',
@@ -65,13 +63,12 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'preview',
     'content',
     'picture',
-    'contentGroupRef',
-    'contentTypeRef',
+    'contentGroup',
+    'contentTypeId',
     'languageRef',
     'creatorEmployee',
     'updaterEmployee',
     'acceptorEmployee',
-    'contentGroup',
     'contentType',
     'language',
     'contentEntryCategories',
@@ -103,8 +100,8 @@ const SCALAR_FIELDS = [
   'preview',
   'content',
   'picture',
-  'contentGroupRef',
-  'contentTypeRef',
+  'contentGroup',
+  'contentTypeId',
   'languageRef',
   'creatorEmployeeId',
   'updaterEmployeeId',
@@ -148,13 +145,12 @@ function buildScalarFields(fields: Array<keyof ContentEntry>): string[] {
 function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, offset: number): string[] {
   const parts: string[] = []
 
-  // Simple catalog relations
-  if (fields.includes('contentGroup')) {
-    parts.push(`contentGroup { ${CATALOG_ENTRY_REF} }`)
-  }
+  // ContentType relation (new taxonomy table)
   if (fields.includes('contentType')) {
-    parts.push(`contentType { ${CATALOG_ENTRY_REF} }`)
+    parts.push(`contentType { id name contentGroup }`)
   }
+
+  // Language still uses catalog
   if (fields.includes('language')) {
     parts.push(`language { ${CATALOG_ENTRY_REF} }`)
   }
@@ -179,9 +175,10 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         offset: ${offset}
       ) {
         id
-        contentCategoryRef
+        contentCategoryId
         contentCategory {
-          ${CATALOG_ENTRY_REF}
+          id
+          name
         }
       }
     `)
@@ -196,9 +193,10 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         offset: ${offset}
       ) {
         id
-        contentTagRef
+        contentTagId
         contentTag {
-          ${CATALOG_ENTRY_REF}
+          id
+          name
         }
       }
     `)

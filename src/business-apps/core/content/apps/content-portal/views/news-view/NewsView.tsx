@@ -49,7 +49,7 @@ const NewsView: React.FC<NewsViewProps> = ({
   const { getFilterOptions } = useContentFilterGroups({ accessToken, userInfo }, ContentGroup.NEWS)
 
   // Get ContentType filter options
-  const contentTypeOptions = getFilterOptions('contentTypeRef')
+  const contentTypeOptions = getFilterOptions('contentTypeId')
 
   // Build categories from filter options
   const categories = useMemo(() => {
@@ -65,7 +65,7 @@ const NewsView: React.FC<NewsViewProps> = ({
   const featuredQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.NEWS,
+      contentGroup: ContentGroup.NEWS,
       limit: 2,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -78,8 +78,8 @@ const NewsView: React.FC<NewsViewProps> = ({
   const queryParams = useMemo(() => {
     return {
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.NEWS,
-      contentTypeRef: selectedContentTypeRef || undefined,
+      contentGroup: ContentGroup.NEWS,
+      contentTypeId: selectedContentTypeRef || undefined,
       search: searchQuery,
       limit: PAGE_SIZE,
       offset: offset,

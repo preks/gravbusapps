@@ -56,7 +56,7 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
   // Fetch document areas (ContentEntries with DOCUMENT group)
   const documentAreaQueryParams = useMemo(
     () => ({
-      contentGroupRef: ContentGroup.DOCUMENT,
+      contentGroup: ContentGroup.DOCUMENT,
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }),
@@ -65,7 +65,7 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
 
   const documentAreaQueryOptions = useMemo(
     () => ({
-      fields: ['id', 'title', 'contentGroupRef', 'contentGroup'] as const,
+      fields: ['id', 'title', 'contentGroup'] as const,
       relationLimit: 50
     }),
     []

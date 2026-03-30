@@ -81,7 +81,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   )
 
   // Get Category filter options
-  const categoryOptions = getFilterOptions('contentCategoryRefs')
+  const categoryOptions = getFilterOptions('categoryIds')
 
   // Transform filter options to Category format for CategorySidebar
   const categories = useMemo(
@@ -98,7 +98,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.KNOWLEDGE,
+      contentGroup: ContentGroup.KNOWLEDGE,
       categoryRefs: selectedCategoryRef ? [selectedCategoryRef] : undefined,
       search: searchQuery,
       limit: PAGE_SIZE,

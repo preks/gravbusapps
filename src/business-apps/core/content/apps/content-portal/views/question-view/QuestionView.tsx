@@ -96,8 +96,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.QUESTION,
-      contentTypeRef: selectedContentTypeRef || undefined,
+      contentGroup: ContentGroup.QUESTION,
+      contentTypeId: selectedContentTypeRef || undefined,
       search: searchQuery,
       limit: loadedCount,
       offset: 0,
@@ -115,11 +115,9 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         'title',
         'preview',
         'picture',
-        'contentGroupRef',
-        'contentTypeRef',
-        'creatorEmployee',
         'contentGroup',
         'contentType',
+        'creatorEmployee',
         'createdAt',
         'contentEntryTags',
         'childContentEntries',
@@ -499,7 +497,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                             )}
                           </div>
                           {(() => {
-                            const entityType = getEntityTypeFromContentGroup(question.contentGroupRef)
+                            const entityType = getEntityTypeFromContentGroup(question.contentGroup)
                             return entityType ? (
                               <AppAction
                                 variant="custom"

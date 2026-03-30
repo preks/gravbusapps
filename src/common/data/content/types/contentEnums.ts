@@ -14,16 +14,15 @@ export enum ContentRole {
 }
 
 /**
- * Content Groups - Core module groups
- * These are Catalog Entries with translations
- * Use getCatalogEntryValue() to get localized display names
+ * Content Groups - scalar enum stored directly on content_entry.content_group
+ * Values match the CHECK constraint on nw_content.content_entry
  */
 export enum ContentGroup {
-  NEWS = 'ContentGroup:v1:NEWS',
-  KNOWLEDGE = 'ContentGroup:v1:KNOWLEDGE',
-  DOCUMENT = 'ContentGroup:v1:DOCUMENT',
-  QUESTION = 'ContentGroup:v1:QUESTION',
-  INTRANET = 'ContentGroup:v1:INTRANET',
-  GLOSSARY = 'ContentGroup:v1:GLOSSARY',
-  POLICY = 'ContentGroup:v1:POLICY'
+  UNKNOWN = 'UNKNOWN_CONTENT_GROUP',
+  NEWS = 'NEWS_CONTENT_GROUP',
+  KNOWLEDGE = 'KNOWLEDGE_CONTENT_GROUP',
+  GLOSSARY = 'GLOSSARY_CONTENT_GROUP',
+  QUESTION = 'QUESTION_CONTENT_GROUP',
+  DOCUMENT = 'DOCUMENT_CONTENT_GROUP',
+  POLICY = 'POLICY_CONTENT_GROUP'
 }

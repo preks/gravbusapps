@@ -9,48 +9,53 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
 import ReactQuill from 'react-quill'
 import { TableHandler } from '../quillTableSetup'
-import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
+import { CONTENT_GROUP_OPTIONS } from '@/common/data/content/constants/contentGroupConstants'
+import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
+import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
 interface PolicyAiTextGeneratorWrapperProps {
   control: Control<ContentEntryFormValues>
   watchTitle: string
   watchPreviewText: string
-  watchContentTypeRef?: string
+  watchContentTypeId?: string
   watchCategories?: string[]
   watchTags?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
-  extractedContentGroupRef?: string
-  onContentTypeRefChange?: (value: string | undefined) => void
-  onContentCategoryRefsChange?: (value: string[]) => void
-  onContentCategoryNamesChange?: (value: string[]) => void
-  onContentTagRefsChange?: (value: string[]) => void
-  onContentTagNamesChange?: (value: string[]) => void
+  extractedContentGroup?: string | null
+  onContentTypeIdChange?: (value: string | undefined) => void
+  onContentCategoryIdsChange?: (ids: string[]) => void
+  onContentTagIdsChange?: (ids: string[]) => void
 }
 
 const PolicyAiTextGeneratorWrapper = React.memo(function PolicyAiTextGeneratorWrapper({
   control,
   watchTitle,
   watchPreviewText,
-  watchContentTypeRef,
+  watchContentTypeId,
   watchCategories,
   watchTags,
   setValue,
   context,
-  extractedContentGroupRef,
-  onContentTypeRefChange,
-  onContentCategoryRefsChange,
-  onContentCategoryNamesChange,
-  onContentTagRefsChange,
-  onContentTagNamesChange
+  extractedContentGroup,
+  onContentTypeIdChange,
+  onContentCategoryIdsChange,
+  onContentTagIdsChange
 }: PolicyAiTextGeneratorWrapperProps) {
   const content = useWatch({ control, name: 'content' })
   return (
@@ -63,37 +68,13 @@ const PolicyAiTextGeneratorWrapper = React.memo(function PolicyAiTextGeneratorWr
       onContentChange={value => setValue('content', value)}
       accessToken={context.accessToken || ''}
       context={context}
-      contentGroupRef={extractedContentGroupRef}
-      contentTypeRef={watchContentTypeRef}
-      contentCategoryRefs={
-        watchCategories?.filter(cat => {
-          const parts = cat.split(':')
-          return parts.length >= 2
-        }) || []
-      }
-      contentCategoryNames={
-        watchCategories?.filter(cat => {
-          const parts = cat.split(':')
-          return parts.length < 2
-        }) || []
-      }
-      contentTagRefs={
-        watchTags?.filter(tag => {
-          const parts = tag.split(':')
-          return parts.length >= 2
-        }) || []
-      }
-      contentTagNames={
-        watchTags?.filter(tag => {
-          const parts = tag.split(':')
-          return parts.length < 2
-        }) || []
-      }
-      onContentTypeRefChange={onContentTypeRefChange}
-      onContentCategoryRefsChange={onContentCategoryRefsChange}
-      onContentCategoryNamesChange={onContentCategoryNamesChange}
-      onContentTagRefsChange={onContentTagRefsChange}
-      onContentTagNamesChange={onContentTagNamesChange}
+      contentGroup={extractedContentGroup}
+      contentTypeId={watchContentTypeId}
+      contentCategoryIds={watchCategories || []}
+      contentTagIds={watchTags || []}
+      onContentTypeIdChange={onContentTypeIdChange}
+      onContentCategoryIdsChange={onContentCategoryIdsChange}
+      onContentTagIdsChange={onContentTagIdsChange}
     />
   )
 })
@@ -102,50 +83,51 @@ interface PolicySegmentProps {
   control: Control<ContentEntryFormValues>
   watchTitle: string
   watchPreviewText: string
-  watchContentTypeRef?: string
+  watchContentTypeId?: string
   watchCategories?: string[]
   watchTags?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
-  extractedContentGroupRef?: string
+  extractedContentGroup?: string | null
   onCreateCategory?: (label: string) => Promise<string>
   onCreateTag?: (label: string) => Promise<string>
   onCategoriesChange?: (categories: string[]) => void
   onTagsChange?: (tags: string[]) => void
-  onContentTypeRefChange?: (value: string | undefined) => void
-  onContentCategoryRefsChange?: (value: string[]) => void
-  onContentCategoryNamesChange?: (value: string[]) => void
-  onContentTagRefsChange?: (value: string[]) => void
-  onContentTagNamesChange?: (value: string[]) => void
+  onContentTypeIdChange?: (value: string | undefined) => void
+  onContentCategoryIdsChange?: (ids: string[]) => void
+  onContentTagIdsChange?: (ids: string[]) => void
 }
 
-/**
- * PolicySegment - Form segment for Policies
- * Simplified version without picture upload, comments, reactions
- * Features: Title, Preview, Rich Text Editor, Validity Period (activeFrom/activeTo)
- */
 export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
   ({
     control,
     watchTitle,
     watchPreviewText,
-    watchContentTypeRef,
+    watchContentTypeId,
     watchCategories,
     watchTags,
     setValue,
     context,
-    extractedContentGroupRef,
+    extractedContentGroup,
     onCreateCategory,
     onCreateTag,
     onCategoriesChange,
     onTagsChange,
-    onContentTypeRefChange,
-    onContentCategoryRefsChange,
-    onContentCategoryNamesChange,
-    onContentTagRefsChange,
-    onContentTagNamesChange
+    onContentTypeIdChange,
+    onContentCategoryIdsChange,
+    onContentTagIdsChange
   }) => {
     const { t } = useTranslation(translations)
+
+    const watchContentGroup = useWatch({ control, name: 'contentGroup' })
+    const activeGroup = extractedContentGroup || watchContentGroup
+
+    const { options: contentTypeOptions, isLoading: typesLoading } = useContentTypeOptions(
+      context.accessToken,
+      activeGroup
+    )
+    const { options: categoryOptions, isLoading: categoriesLoading } = useContentCategoryOptions(context.accessToken)
+    const { options: tagOptions, isLoading: tagsLoading } = useContentTagOptions(context.accessToken)
 
     const quillModules = useMemo(
       () => ({
@@ -157,57 +139,53 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
           [TableHandler.toolName],
           ['clean']
         ],
-        [TableHandler.moduleName]: {
-          fullWidth: true,
-          customButton: 'Insert table',
-          dragResize: false
-        }
+        [TableHandler.moduleName]: { fullWidth: true, customButton: 'Insert table', dragResize: false }
       }),
       []
     )
 
     return (
       <div className="gba:flex gba:flex-1 gba:flex-col gba:gap-6 gba:overflow-hidden">
-        {/* MAIN CONTENT */}
         <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
-          {/* AI Text Generator Button */}
           <div className="gba:flex gba:justify-end gba:mb-4">
             <PolicyAiTextGeneratorWrapper
               control={control}
               watchTitle={watchTitle}
               watchPreviewText={watchPreviewText}
-              watchContentTypeRef={watchContentTypeRef}
+              watchContentTypeId={watchContentTypeId}
               watchCategories={watchCategories}
               watchTags={watchTags}
               setValue={setValue}
               context={context}
-              extractedContentGroupRef={extractedContentGroupRef}
-              onContentTypeRefChange={onContentTypeRefChange}
-              onContentCategoryRefsChange={onContentCategoryRefsChange}
-              onContentCategoryNamesChange={onContentCategoryNamesChange}
-              onContentTagRefsChange={onContentTagRefsChange}
-              onContentTagNamesChange={onContentTagNamesChange}
+              extractedContentGroup={extractedContentGroup}
+              onContentTypeIdChange={onContentTypeIdChange}
+              onContentCategoryIdsChange={onContentCategoryIdsChange}
+              onContentTagIdsChange={onContentTagIdsChange}
             />
           </div>
 
-          {/* Content Group and Content Type */}
           <FormFieldGroup>
-            {/* Content Group Selection - Hidden if provided via props or additionalData */}
-            {!extractedContentGroupRef && (
+            {!extractedContentGroup && (
               <FormField
                 control={control as any}
-                name="contentGroupRef"
+                name="contentGroup"
                 rules={{ required: t('group-required') }}
                 render={({ field }) => (
                   <FormItem className="gba:flex-1">
                     <FormLabel>{t('content-group')}</FormLabel>
                     <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier="ContentGroup:v1"
-                        value={field.value || ''}
-                        onValueChange={field.onChange}
-                        data-testid="content-entry-window-group-select"
-                      />
+                      <Select value={field.value || ''} onValueChange={field.onChange}>
+                        <SelectTrigger data-testid="content-entry-window-group-select">
+                          <SelectValue placeholder={t('select-group') || 'Select group'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTENT_GROUP_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -215,23 +193,29 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
               />
             )}
 
-            {/* Content Type Selection */}
             <FormField
               control={control as any}
-              name="contentTypeRef"
+              name="contentTypeId"
               render={({ field }) => (
                 <FormItem className="gba:flex-1">
                   <FormLabel>{t('content-type')}</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentType:v1"
-                      parentField="contentGroupRef"
-                      requireSourceForEnable={true}
-                      autoSelectFirst={true}
+                    <Select
                       value={field.value || ''}
                       onValueChange={field.onChange}
-                      data-testid="content-entry-window-type-select"
-                    />
+                      disabled={!activeGroup || typesLoading}
+                    >
+                      <SelectTrigger data-testid="content-entry-window-type-select">
+                        <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contentTypeOptions.map(opt => (
+                          <SelectItem key={opt.id} value={opt.id}>
+                            {opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -239,7 +223,6 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             />
           </FormFieldGroup>
 
-          {/* Title */}
           <FormField
             control={control as any}
             name="title"
@@ -260,7 +243,6 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             )}
           />
 
-          {/* Preview Text (optional for policies) */}
           <FormField
             control={control as any}
             name="previewText"
@@ -280,12 +262,9 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             )}
           />
 
-          {/* Quill Editor - Takes full remaining height */}
           <div className="gba:flex-1 gba:flex gba:flex-col gba:border-t gba:border-border gba:overflow-hidden gba:min-h-0">
             <style>{`
-            .ql-editor {
-              min-height: 50px;
-            }
+            .ql-editor { min-height: 50px; }
             .ql-table { border-collapse: separate; table-layout: fixed; }
             .ql-table[data-full] { width: 100%; }
             .ql-table-wrapper { width: 100%; padding-left: 1px; padding-right: 1px; overflow: auto; }
@@ -321,9 +300,7 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             />
           </div>
 
-          {/* Categories and Tags */}
           <FormFieldGroup>
-            {/* Categories - Tags Mode */}
             <FormField
               control={control as any}
               name="categories"
@@ -331,22 +308,16 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                 <FormItem className="gba:flex-1">
                   <FormLabel>Categories</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentCategory:v1"
-                      mode="tags"
+                    <TaxonomyMultiSelect
+                      options={categoryOptions}
                       value={field.value || []}
-                      onValueChange={value => {
-                        const categories = Array.isArray(value) ? value : []
-                        field.onChange(categories)
-                        onCategoriesChange?.(categories)
+                      onValueChange={ids => {
+                        field.onChange(ids)
+                        onCategoriesChange?.(ids)
                       }}
-                      onCreateTag={async (tag: string) => {
-                        if (!onCreateCategory) {
-                          throw new Error('onCreateCategory is required for categories')
-                        }
-                        const newId = await onCreateCategory(tag)
-                        return newId
-                      }}
+                      onCreateNew={onCreateCategory}
+                      isLoading={categoriesLoading}
+                      placeholder="Select categories..."
                       data-testid="content-entry-window-categories-select"
                     />
                   </FormControl>
@@ -355,7 +326,6 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
               )}
             />
 
-            {/* Tags - Tags Mode */}
             <FormField
               control={control as any}
               name="tags"
@@ -363,22 +333,16 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                 <FormItem className="gba:flex-1">
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentTag:v1"
-                      mode="tags"
+                    <TaxonomyMultiSelect
+                      options={tagOptions}
                       value={field.value || []}
-                      onValueChange={value => {
-                        const tags = Array.isArray(value) ? value : []
-                        field.onChange(tags)
-                        onTagsChange?.(tags)
+                      onValueChange={ids => {
+                        field.onChange(ids)
+                        onTagsChange?.(ids)
                       }}
-                      onCreateTag={async (tag: string) => {
-                        if (!onCreateTag) {
-                          throw new Error('onCreateTag is required for tags')
-                        }
-                        const newId = await onCreateTag(tag)
-                        return newId
-                      }}
+                      onCreateNew={onCreateTag}
+                      isLoading={tagsLoading}
+                      placeholder="Select tags..."
                       data-testid="content-entry-window-tags-select"
                     />
                   </FormControl>
@@ -389,9 +353,7 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
           </FormFieldGroup>
         </div>
 
-        {/* BOTTOM CONTROLS - Validity Period */}
         <div className="gba:flex gba:flex-col gba:gap-6 gba:flex-shrink-0 gba:overflow-y-auto gba:transition-all gba:duration-300 gba:border-border gba:w-full gba:pt-4 gba:border-t">
-          {/* Validity Period (activeFrom/activeTo) */}
           <div className="gba:space-y-4">
             <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {t('policy-validity-period') || 'Policy Validity Period'}
@@ -440,7 +402,6 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             </FormFieldGroup>
           </div>
 
-          {/* Display Author Toggle (policies typically show author) */}
           <FormField
             control={control as any}
             name="displayAuthor"

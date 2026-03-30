@@ -55,7 +55,7 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.GLOSSARY,
+      contentGroup: ContentGroup.GLOSSARY,
       search: searchQuery,
       limit: PAGE_SIZE,
       offset: 0,

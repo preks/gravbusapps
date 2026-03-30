@@ -12,13 +12,13 @@ import { ContentRole } from '../types/contentEnums'
  */
 export const useContentFilterGroups = (
   context: BusinessAppContextProps,
-  contentGroupRef: ContentGroup,
+  contentGroup: ContentGroup,
   options?: { limit?: number }
 ) => {
   // Build baseWhereParts to scope filter options to specific content group and role
   const baseWhereParts = useMemo(
-    () => [`role: { _eq: "${ContentRole.ROOT}" }`, `contentGroupRef: { _eq: "${contentGroupRef}" }`],
-    [contentGroupRef]
+    () => [`role: { _eq: "${ContentRole.ROOT}" }`, `contentGroup: { _eq: "${contentGroup}" }`],
+    [contentGroup]
   )
 
   // Filter descriptors to only those with filter options (optionSelectPaths)

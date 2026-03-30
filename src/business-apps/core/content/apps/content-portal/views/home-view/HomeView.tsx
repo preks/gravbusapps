@@ -61,7 +61,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   const newsQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.NEWS,
+      contentGroup: ContentGroup.NEWS,
       limit: 8,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -74,7 +74,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   const knowledgeQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.KNOWLEDGE,
+      contentGroup: ContentGroup.KNOWLEDGE,
       limit: 20,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -87,7 +87,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   const questionsQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.QUESTION,
+      contentGroup: ContentGroup.QUESTION,
       limit: 5,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -100,7 +100,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   const recentQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRefs: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE, ContentGroup.QUESTION],
+      contentGroups: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE, ContentGroup.QUESTION],
       limit: 8,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -144,38 +144,31 @@ const HomeView: React.FC<HomeViewProps> = ({
   const knowledgeByType = useMemo(() => {
     if (!knowledgeEntries.length) return []
 
-    // Group articles by contentTypeRef
     const typeMap = new Map<
       string,
       {
-        type: { id: string; value: string; code?: string }
+        type: { id: string; name: string }
         articles: typeof knowledgeEntries
       }
     >()
 
     for (const entry of knowledgeEntries) {
-      const typeRef = entry.contentTypeRef
-      if (!typeRef) continue
+      const typeId = entry.contentType?.id
+      if (!typeId) continue
 
-      if (!typeMap.has(typeRef)) {
-        typeMap.set(typeRef, {
-          type: {
-            id: typeRef,
-            value: entry.contentType?.value || typeRef,
-            code: entry.contentType?.code
-          },
+      if (!typeMap.has(typeId)) {
+        typeMap.set(typeId, {
+          type: { id: typeId, name: entry.contentType?.name || typeId },
           articles: []
         })
       }
 
-      const group = typeMap.get(typeRef)!
+      const group = typeMap.get(typeId)!
       if (group.articles.length < 4) {
-        // Max 4 articles per type
         group.articles.push(entry)
       }
     }
 
-    // Convert to array and limit to 3 types
     return Array.from(typeMap.values()).slice(0, 3)
   }, [knowledgeEntries])
 
@@ -927,9 +920,9 @@ const HomeView: React.FC<HomeViewProps> = ({
                   {recentEntries.map((item, index) => {
                     const translated = translatedItems?.[item.id || '']
                     const tabForItem =
-                      item.contentGroupRef === ContentGroup.QUESTION
+                      item.contentGroup === ContentGroup.QUESTION
                         ? 'questions'
-                        : item.contentGroupRef === ContentGroup.KNOWLEDGE
+                        : item.contentGroup === ContentGroup.KNOWLEDGE
                           ? 'knowledge'
                           : 'news'
                     return (
@@ -947,8 +940,8 @@ const HomeView: React.FC<HomeViewProps> = ({
                         </div>
                         <div className="gba:flex-1 gba:min-w-0 gba:border-l gba:border-border gba:pl-3">
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                            <Badge variant={getGroupBadgeVariant(item.contentGroupRef)} className="gba:text-[10px]">
-                              {getGroupLabel(item.contentGroupRef)}
+                            <Badge variant={getGroupBadgeVariant(item.contentGroup)} className="gba:text-[10px]">
+                              {getGroupLabel(item.contentGroup)}
                             </Badge>
                             {(getReactionCount(item) > 0 || getCommentCount(item) > 0) && (
                               <div className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground">

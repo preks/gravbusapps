@@ -20,7 +20,6 @@ const CONTENT_GROUP_OPTIONS: { value: ContentGroup; label: string }[] = [
   { value: ContentGroup.POLICY, label: 'Policies' },
   { value: ContentGroup.DOCUMENT, label: 'Document' },
   { value: ContentGroup.QUESTION, label: 'Question' },
-  { value: ContentGroup.INTRANET, label: 'Intranet' },
   { value: ContentGroup.GLOSSARY, label: 'Glossary' }
 ]
 
@@ -35,7 +34,7 @@ export interface ContentGroupChangePopupProps extends BusinessAppContextProps {
  * ContentGroupChangePopup
  * Flow popup to move a content entry to another group.
  * - Loads content entry from context (additionalData.contentEntryId)
- * - Shows group selector; on submit returns contentEntry payload (id, version, contentGroupRef)
+ * - Shows group selector; on submit returns contentEntry payload (id, version, contentGroup)
  * - When registered as flow target (e.g. targetDesktop "content-group-change-popup"), available wherever the flow is used
  */
 export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = ({
@@ -50,7 +49,7 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
 
   const queryOptions = useMemo(
     () => ({
-      fields: ['id', 'version', 'contentGroupRef'] as Array<'id' | 'version' | 'contentGroupRef'>
+      fields: ['id', 'version', 'contentGroup'] as Array<'id' | 'version' | 'contentGroup'>
     }),
     []
   )
@@ -60,19 +59,16 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
     queryOptions
   })
 
-  const [selectedGroupRef, setSelectedGroupRef] = useState<string>('')
+  const [selectedGroup, setSelectedGroup] = useState<string>('')
 
-  const currentGroupRef = entry?.contentGroupRef ?? ''
-  const availableGroups = useMemo(
-    () => CONTENT_GROUP_OPTIONS.filter(opt => opt.value !== currentGroupRef),
-    [currentGroupRef]
-  )
+  const currentGroup = entry?.contentGroup ?? ''
+  const availableGroups = useMemo(() => CONTENT_GROUP_OPTIONS.filter(opt => opt.value !== currentGroup), [currentGroup])
 
   const handleSubmit = async () => {
     if (!entry?.id) {
       throw new Error('Content entry not loaded')
     }
-    if (!selectedGroupRef) {
+    if (!selectedGroup) {
       throw new Error('Please select a group')
     }
 
@@ -80,7 +76,7 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
       contentEntry: {
         id: entry.id,
         ...(entry.version !== undefined && entry.version !== null ? { version: entry.version } : {}),
-        contentGroupRef: selectedGroupRef
+        contentGroup: selectedGroup
       }
     }
   }
@@ -153,7 +149,7 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
           <label className="gba:text-sm gba:font-medium gba:leading-none gba:peer-disabled:gba:cursor-not-allowed gba:peer-disabled:gba:opacity-70">
             {getTranslationFromI18nKeyAndLabel('content.groupChange.targetGroup', 'Target group')}
           </label>
-          <Select value={selectedGroupRef} onValueChange={setSelectedGroupRef}>
+          <Select value={selectedGroup} onValueChange={setSelectedGroup}>
             <SelectTrigger data-testid={`${dataTestId}-group-select`}>
               <SelectValue
                 placeholder={getTranslationFromI18nKeyAndLabel('content.groupChange.selectPlaceholder', 'Select group')}

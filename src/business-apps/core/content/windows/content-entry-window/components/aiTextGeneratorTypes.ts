@@ -13,11 +13,9 @@ export interface AiResponse {
   previewText: string
   content: string
   picture?: string | null
-  contentTypeRef?: string
-  contentCategoryRefs?: string[]
-  contentCategoryNames?: string[]
-  contentTagRefs?: string[]
-  contentTagNames?: string[]
+  contentTypeId?: string
+  contentCategoryIds?: string[]
+  contentTagIds?: string[]
 }
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -32,17 +30,13 @@ export interface ContentAiTextGeneratorProps {
   onPictureChange?: (pictureUrl: string) => Promise<void>
   accessToken: string
   context: BusinessAppContextProps
-  contentGroupRef?: string
-  contentTypeRef?: string
-  contentCategoryRefs?: string[]
-  contentCategoryNames?: string[]
-  contentTagRefs?: string[]
-  contentTagNames?: string[]
-  onContentTypeRefChange?: (value: string | undefined) => void
-  onContentCategoryRefsChange?: (value: string[]) => void
-  onContentCategoryNamesChange?: (value: string[]) => void
-  onContentTagRefsChange?: (value: string[]) => void
-  onContentTagNamesChange?: (value: string[]) => void
+  contentGroup?: string | null
+  contentTypeId?: string
+  contentCategoryIds?: string[]
+  contentTagIds?: string[]
+  onContentTypeIdChange?: (value: string | undefined) => void
+  onContentCategoryIdsChange?: (ids: string[]) => void
+  onContentTagIdsChange?: (ids: string[]) => void
 }
 
 export interface AiResponsePopoverProps {

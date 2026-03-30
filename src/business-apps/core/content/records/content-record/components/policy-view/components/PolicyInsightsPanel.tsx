@@ -150,7 +150,7 @@ export const PolicyInsightsPanel: React.FC<PolicyInsightsPanelProps> = ({
               {
                 context: FlowContextName.contentEntryCreate,
                 contextData: {
-                  contentGroup: policy.contentGroupRef,
+                  contentGroup: policy.contentGroup,
                   rootContentEntryId: policyRootId,
                   parentContentEntryId: policyVersionId
                 }

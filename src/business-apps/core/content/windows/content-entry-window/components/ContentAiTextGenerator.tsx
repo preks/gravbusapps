@@ -39,17 +39,13 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   onContentChange,
   onPictureChange,
   context,
-  contentGroupRef,
-  contentTypeRef,
-  contentCategoryRefs,
-  contentCategoryNames,
-  contentTagRefs,
-  contentTagNames,
-  onContentTypeRefChange,
-  onContentCategoryRefsChange,
-  onContentCategoryNamesChange,
-  onContentTagRefsChange,
-  onContentTagNamesChange
+  contentGroup,
+  contentTypeId,
+  contentCategoryIds,
+  contentTagIds,
+  onContentTypeIdChange,
+  onContentCategoryIdsChange,
+  onContentTagIdsChange
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [view, setView] = useState<
@@ -149,39 +145,33 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         const existingContent: ContentEntryInput =
           actionType === 'generate'
             ? {
-                contentGroupRef,
-                contentTypeRef,
-                contentCategoryRefs,
-                contentCategoryNames,
-                contentTagRefs,
-                contentTagNames
+                contentGroup,
+                contentTypeId,
+                contentCategoryIds,
+                contentTagIds
               }
             : {
                 title: inputTitle,
                 preview: inputPreviewText,
                 content: inputContent,
                 picture: null,
-                contentGroupRef,
-                contentTypeRef,
-                contentCategoryRefs,
-                contentCategoryNames,
-                contentTagRefs,
-                contentTagNames
+                contentGroup,
+                contentTypeId,
+                contentCategoryIds,
+                contentTagIds
               }
 
         const result = await aiServiceRef.current.executeContentEntryOperation(operation, userPrompt, existingContent)
 
-        // Map response to AiResponse format (including new catalog fields)
+        // Map response to AiResponse format
         const aiResponse: AiResponse = {
           title: result.title || '',
           previewText: result.preview || '',
           content: result.content || '',
           picture: result.picture || null,
-          contentTypeRef: result.contentTypeRef,
-          contentCategoryRefs: result.contentCategoryRefs,
-          contentCategoryNames: result.contentCategoryNames,
-          contentTagRefs: result.contentTagRefs,
-          contentTagNames: result.contentTagNames
+          contentTypeId: result.contentTypeId,
+          contentCategoryIds: result.contentCategoryIds,
+          contentTagIds: result.contentTagIds
         }
 
         setResponse(aiResponse)
@@ -194,18 +184,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         setIsLoading(false)
       }
     },
-    [
-      title,
-      previewText,
-      content,
-      response,
-      contentGroupRef,
-      contentTypeRef,
-      contentCategoryRefs,
-      contentCategoryNames,
-      contentTagRefs,
-      contentTagNames
-    ]
+    [title, previewText, content, response, contentGroup, contentTypeId, contentCategoryIds, contentTagIds]
   )
 
   const handleGenerate = useCallback(
@@ -307,29 +286,14 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       }
 
       // Handle catalog fields from AI response
-      // AI returns complete lists, so we replace (not append)
-      if (response.contentTypeRef !== undefined && onContentTypeRefChange) {
-        onContentTypeRefChange(response.contentTypeRef)
+      if (response.contentTypeId !== undefined && onContentTypeIdChange) {
+        onContentTypeIdChange(response.contentTypeId)
       }
-
-      // Combine refs and names for categories (AI returns complete list)
-      const allCategoryRefs = response.contentCategoryRefs || []
-      const allCategoryNames = response.contentCategoryNames || []
-      if (onContentCategoryRefsChange) {
-        onContentCategoryRefsChange(allCategoryRefs)
+      if (onContentCategoryIdsChange) {
+        onContentCategoryIdsChange(response.contentCategoryIds || [])
       }
-      if (onContentCategoryNamesChange) {
-        onContentCategoryNamesChange(allCategoryNames)
-      }
-
-      // Combine refs and names for tags (AI returns complete list)
-      const allTagRefs = response.contentTagRefs || []
-      const allTagNames = response.contentTagNames || []
-      if (onContentTagRefsChange) {
-        onContentTagRefsChange(allTagRefs)
-      }
-      if (onContentTagNamesChange) {
-        onContentTagNamesChange(allTagNames)
+      if (onContentTagIdsChange) {
+        onContentTagIdsChange(response.contentTagIds || [])
       }
 
       handleDiscard()
@@ -340,11 +304,9 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
     onPreviewTextChange,
     onContentChange,
     onPictureChange,
-    onContentTypeRefChange,
-    onContentCategoryRefsChange,
-    onContentCategoryNamesChange,
-    onContentTagRefsChange,
-    onContentTagNamesChange,
+    onContentTypeIdChange,
+    onContentCategoryIdsChange,
+    onContentTagIdsChange,
     handleDiscard
   ])
 

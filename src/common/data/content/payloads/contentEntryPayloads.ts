@@ -7,7 +7,7 @@ import { ContentRole } from '../types/contentEnums'
 export type ChangeMode = 'UPSERT' | 'REPLACE'
 
 export interface CategoryItem {
-  contentCategoryRef?: string
+  contentCategoryId?: string
 }
 
 export interface DocumentItem {
@@ -21,7 +21,7 @@ export interface DocumentItem {
 }
 
 export interface TagItem {
-  contentTagRef?: string
+  contentTagId?: string
 }
 
 export interface BuildContentEntryPayloadParams {
@@ -34,12 +34,12 @@ export interface BuildContentEntryPayloadParams {
 
   // Metadata
   role: ContentRole
-  contentGroupRef?: string | null
-  contentTypeRef?: string | null
+  contentGroup?: string | null
+  contentTypeId?: string | null
 
   // Relations
-  parentContentEntryId?: string | null // Direct parent (article or parent comment)
-  rootContentEntryId?: string | null // Always the root article (for nested comments)
+  parentContentEntryId?: string | null
+  rootContentEntryId?: string | null
 
   // Employee relations
   creatorEmployeeId?: string
@@ -95,8 +95,8 @@ export const buildCreateContentEntryPayload = (params: BuildContentEntryPayloadP
 
       // Metadata
       role: params.role,
-      contentGroupRef: params.contentGroupRef || null,
-      contentTypeRef: params.contentTypeRef || null,
+      contentGroup: params.contentGroup || null,
+      contentTypeId: params.contentTypeId || null,
 
       // Relations (for comments)
       parentContentEntry: params.parentContentEntryId || null,
@@ -173,8 +173,8 @@ export const buildUpdateContentEntryPayload = (params: BuildContentEntryPayloadP
 
       // Metadata
       role: params.role,
-      contentGroupRef: params.contentGroupRef || null,
-      contentTypeRef: params.contentTypeRef || null,
+      contentGroup: params.contentGroup || null,
+      contentTypeId: params.contentTypeId || null,
 
       // Relations (for comments)
       parentContentEntry: params.parentContentEntryId || null,

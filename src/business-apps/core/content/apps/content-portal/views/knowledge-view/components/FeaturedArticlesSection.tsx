@@ -39,7 +39,7 @@ const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
             data-testid={`featured-article-${entry.id}`}
           >
             {/* AI Analyzer Button - Only for KNOWLEDGE */}
-            {entry.contentGroupRef === ContentGroup.KNOWLEDGE && accessToken && userInfo?.id && (
+            {entry.contentGroup === ContentGroup.KNOWLEDGE && accessToken && userInfo?.id && (
               <div
                 className="gba:absolute gba:top-2 gba:right-2 gba:z-10"
                 onClick={e => e.stopPropagation()}

@@ -139,7 +139,7 @@ const ArticleView: React.FC<ArticleViewProps> = ({
           <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:flex-1 gba:text-foreground">
             {displayTitle}
           </h1>
-          {(item.contentGroupRef === ContentGroup.NEWS || item.contentGroupRef === ContentGroup.KNOWLEDGE) &&
+          {(item.contentGroup === ContentGroup.NEWS || item.contentGroup === ContentGroup.KNOWLEDGE) &&
             accessToken &&
             userId && (
               <div className="gba:mt-4">

@@ -83,8 +83,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
     item.descendantContentEntriesAggregate?.aggregate?.count || item.childContentEntriesAggregate?.aggregate?.count || 0
   const reactionCount = item.contentEntryReactionCounts?.reduce((sum, r) => sum + (r.count || 0), 0) || 0
 
-  const isNewsOrKnowledge =
-    item.contentGroupRef === ContentGroup.NEWS || item.contentGroupRef === ContentGroup.KNOWLEDGE
+  const isNewsOrKnowledge = item.contentGroup === ContentGroup.NEWS || item.contentGroup === ContentGroup.KNOWLEDGE
 
   return (
     <div className={`gba:relative gba:w-full ${className}`}>
