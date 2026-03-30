@@ -38,7 +38,7 @@ type Story = StoryObj<typeof AddFromDriveStep>
 
 export const Default: Story = {
   args: {
-    accessToken: 'mock-token',
+    accessToken: '', // nosec: storybook demo value
     spaceId: 'space-123',
     targetFolderId: null
   },
@@ -54,7 +54,7 @@ export const Default: Story = {
 
 export const WithTargetFolder: Story = {
   args: {
-    accessToken: 'mock-token',
+    accessToken: '', // nosec: storybook demo value
     spaceId: 'space-123',
     targetFolderId: 'folder-456'
   },
