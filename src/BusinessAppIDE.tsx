@@ -29,6 +29,7 @@ import { useRewrapAntDStylesLive } from './common/hooks/useRewrapAntDStylesLive'
 import { BlinkProvider } from './common/providers/BlinkProvider'
 import { useBusinessAuth } from './common/auth/useBusinessAuth'
 import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfileFromKeycloak'
+import { useBrandingLogo } from './common/hooks/useBrandingLogo'
 import {
   STORAGE_KEY_USER_INFO,
   STORAGE_KEY_ACCESS_TOKEN,
@@ -975,6 +976,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     isMsOAuthCallback
   } = useBusinessAuth()
   const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
+  const { wordmarkUrl: brandingWordmarkUrl, logomarkUrl: brandingLogomarkUrl } = useBrandingLogo(authToken)
 
   // When auth/profile become available, synchronize into IDE state and localStorage
   useEffect(() => {
@@ -1071,6 +1073,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                     selectedApp={selectedApp}
                     onAppSelect={handleAppSelect}
                     onHomeClick={handleHomeClick}
+                    wordmarkUrl={brandingWordmarkUrl}
+                    logomarkUrl={brandingLogomarkUrl}
                   />
                 }
                 header={

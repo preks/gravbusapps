@@ -73,6 +73,17 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   const [activeCard, setActiveCard] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!activeCard) return
+    const statusFilters = selectedFilters.filter(f => !f.includes(':'))
+    if (activeCard === 'total-expenses') {
+      const hasExpectedStatuses = statusFilters.includes('paid') || statusFilters.includes('closed')
+      if (!hasExpectedStatuses) setActiveCard(null)
+    } else if (activeCard === 'pending-reimbursement') {
+      if (!statusFilters.includes('pending')) setActiveCard(null)
+    }
+  }, [selectedFilters, activeCard])
+
   // Stats come from aggregated overview hook
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
@@ -390,6 +401,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     })
   }, [contextProps.userInfo?.employeeDetails?.employeeId])
 
+  const handleClearAllFilters = useCallback(() => {
+    preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef)
+    setActiveCard(null)
+  }, [selectedFilters, clearFilters, addFilter, mostUsedCurrencyRef])
+
   return (
     <ExpenseItemsTable
       {...contextProps}
@@ -397,7 +413,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
       selectedFilters={selectedFilters}
       addFilter={addFilter}
       removeFilter={removeFilter}
-      clearFilters={clearFilters}
+      clearFilters={handleClearAllFilters}
       filterGroups={filterGroups}
       filterLabelMap={filterLabelMap}
       getFilters={getFiltersWithDateRange}
