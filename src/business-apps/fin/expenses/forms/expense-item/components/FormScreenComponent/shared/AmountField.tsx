@@ -2,7 +2,11 @@ import React, { useEffect, useRef } from 'react'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
-import { formatAmountForLocale, parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
+import {
+  formatAmountForLocale,
+  parseAndFormatAmount,
+  sanitizeDecimalAmountInput
+} from '@/business-apps/fin/expenses/utils/amountFormatting'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AmountFieldProps {
@@ -98,29 +102,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
         // Mark that user is actively editing (prevents useEffect from interfering)
         isUserEditingRef.current = true
 
-        let value = String(field.value)
-
-        // Allow only digits and one decimal separator (. or ,); block letters and other characters
-        value = value.replace(/[^\d.,]/g, '')
-        const firstSepIndex = value.search(/[.,]/)
-        if (firstSepIndex >= 0) {
-          const sep = value[firstSepIndex]
-          const before = value.slice(0, firstSepIndex).replace(/[.,]/g, '')
-          const after = value
-            .slice(firstSepIndex + 1)
-            .replace(/[.,]/g, '')
-            .slice(0, 2)
-          value = after.length > 0 ? `${before}${sep}${after}` : before || sep
-        }
-
-        // Limit to 2 decimal places (accept both . and , as decimal separator)
-        if (value.includes('.') || value.includes(',')) {
-          const sep = value.includes('.') ? '.' : ','
-          const parts = value.split(sep)
-          if (parts[1] && parts[1].length > 2) {
-            value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
-          }
-        }
+        const value = sanitizeDecimalAmountInput(field.value)
 
         form.setFieldsValue({ [`amount-${index}`]: value })
 
