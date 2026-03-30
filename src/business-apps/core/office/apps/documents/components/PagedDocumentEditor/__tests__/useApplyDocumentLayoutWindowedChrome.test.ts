@@ -1,6 +1,7 @@
 import {
   collectPageChromeRegions,
   parkChromeRegion,
+  resolveEffectiveChromeActivePageNumbers,
   restoreChromeRegion,
   useApplyDocumentLayoutWindowedChrome
 } from '../hooks/useApplyDocumentLayoutWindowedChrome'
@@ -51,6 +52,25 @@ function createPageBreak(pageNumber: number) {
   return { pageBreak, footer, nextHeader }
 }
 
+describe('resolveEffectiveChromeActivePageNumbers', () => {
+  it('includes page 1 when page 1 remains mounted', () => {
+    const active = resolveEffectiveChromeActivePageNumbers({
+      activePageNumbers: [2],
+      mountedPageNumbers: [1, 2]
+    })
+    expect(active.has(1)).toBe(true)
+    expect(active.has(2)).toBe(true)
+  })
+
+  it('does not add page 1 when page 1 is not mounted', () => {
+    const active = resolveEffectiveChromeActivePageNumbers({
+      activePageNumbers: [2],
+      mountedPageNumbers: [2]
+    })
+    expect(active.has(1)).toBe(false)
+  })
+})
+
 describe('collectPageChromeRegions', () => {
   it('indexes footer, next-page header, and first page header by logical page number', () => {
     const first = createPageBreak(1)
@@ -98,6 +118,16 @@ describe('parkChromeRegion and restoreChromeRegion', () => {
 
     expect(region.dataset.layoutChromeMounted).toBeUndefined()
     expect(content.innerHTML).toContain('Footer 2')
+  })
+
+  it('does not park the first-page header region', () => {
+    const parkedRegions = new WeakMap()
+    const { region, content } = createChromeRegion('rm-first-page-header', 1, '<p>First</p>')
+
+    parkChromeRegion(region, parkedRegions)
+
+    expect(region.dataset.layoutChromeMounted).toBeUndefined()
+    expect(content.innerHTML).toContain('First')
   })
 })
 
@@ -283,7 +313,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
     expect(second.footer.content.innerHTML).toContain('Footer 2')
   })
 
-  it('parks a remounted first-page header when it is outside the active window', () => {
+  it('keeps first-page header chrome mounted when outside the numeric active window', () => {
     const container = document.createElement('div')
     const paginationRoot = document.createElement('div')
     const first = createPageBreak(1)
@@ -336,8 +366,8 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
       }
     })
 
-    expect(firstPageHeader.region.dataset.layoutChromeMounted).toBe('false')
-    expect(firstPageHeader.content.childNodes).toHaveLength(0)
+    expect(firstPageHeader.region.dataset.layoutChromeMounted).toBeUndefined()
+    expect(firstPageHeader.content.innerHTML).toContain('First page header')
   })
 
   it('rebuilds chrome regions when placeholder page-break chrome hydrates in place', () => {
@@ -394,7 +424,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
       }
     })
 
-    expect(first.footer.region.dataset.layoutChromeMounted).toBe('false')
+    expect(first.footer.region.dataset.layoutChromeMounted).toBeUndefined()
     expect(first.nextHeader.region.dataset.layoutChromeMounted).toBeUndefined()
   })
 })

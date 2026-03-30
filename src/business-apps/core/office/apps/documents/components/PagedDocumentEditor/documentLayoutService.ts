@@ -152,6 +152,13 @@ export function resolvePaginationRootElement(container: HTMLDivElement): HTMLEle
 }
 
 export function resolveFirstPageHeaderElement(container: HTMLDivElement): HTMLElement | null {
+  const underPagesRoot = container.querySelector(
+    '.rm-pages-root .rm-first-page-header[data-rm-page-number="1"]'
+  ) as HTMLElement | null
+  if (underPagesRoot) {
+    return underPagesRoot
+  }
+
   const directChildFirstPageHeader = Array.from(container.children).find(
     (child): child is HTMLElement =>
       child instanceof HTMLElement &&

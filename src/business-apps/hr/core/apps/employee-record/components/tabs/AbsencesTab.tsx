@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react'
 import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent } from '@newwork/nw-design-system'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Dialog,
+  DialogContent,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { CalendarIcon, ListIcon, PaperclipIcon } from 'lucide-react'
 import isBetween from 'dayjs/plugin/isBetween'
 import weekday from 'dayjs/plugin/weekday'
@@ -36,6 +44,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useAbsenceEffectiveDates } from '../../hooks/useAbsenceEffectiveDates'
 import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
 import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
+import translations from './_i18n'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -45,6 +54,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   shownTab,
   userInfo
 }) => {
+  const { t } = useTranslation(translations)
   const userManagementClient = useRestClient(env('NEXT_PUBLIC_USER_MANAGEMENT_API') || '')
   const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar')
   const [currentPage, setCurrentPage] = useState(1)
@@ -470,7 +480,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 <PiPlus className="gba:h-5 gba:w-5" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+                {t('entitlements-change-entitlements')}
               </div>
             )}
           </div>
@@ -526,7 +536,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 <PiPlus className="gba:h-5 gba:w-5" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+                {t('entitlements-change-entitlements')}
               </div>
             )}
           </div>
@@ -560,7 +570,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       <Dialog open={isEntitlementsModalOpen} onOpenChange={open => setIsEntitlementsModalOpen(open)}>
         <DialogContent
-          className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:!bg-card"
+          className="gba:h-screen gba:max-h-screen gba:!rounded-none"
           data-testid="employee-entitlements-update-modal"
         >
           <UpdateEmployeeEntitlements

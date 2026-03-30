@@ -269,6 +269,7 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         vertical-align: top;
         font-size: 0.875rem;
         line-height: 1.3;
+        min-width: 0;
         overflow-wrap: anywhere;
         word-break: break-word;
       }
