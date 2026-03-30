@@ -314,6 +314,10 @@ notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten 
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
 notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
 feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
+entitlements-valid-from-month-start-hint = Das eingereichte Datum ist immer der erste Tag des ausgewaehlten Monats, unabhaengig vom ausgewaehlten Tag.
+entitlements-valid-from = Gueltig ab
+entitlements-effective-from = Wirksam ab
+entitlements-effective-to = Wirksam bis
 
 # ============================================
 # Create Employee Form

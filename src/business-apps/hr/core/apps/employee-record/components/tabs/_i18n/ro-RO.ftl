@@ -78,3 +78,4 @@ documents-error-empty-blob = Blob gol primit
 documents-error-no-file-id = ID-ul fișierului documentului nu este disponibil
 documents-error-no-file-info = Nu sunt disponibile informații despre fișier
 documents-error-image-display = Imaginea nu a putut fi afișată. Poate fi într-un format neacceptat.
+entitlements-change-entitlements = Modifică drepturile
