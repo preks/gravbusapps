@@ -15,7 +15,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 
-export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
+export type FrequencyType = 'Annual' | 'Quarterly' | 'Monthly'
 export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 
 export interface EvaluationStage {
@@ -48,7 +48,7 @@ export interface CycleEditorValues {
   _apiCompanyValues?: Array<{ id: string; version: number | null; companyValueId: string | null }>
 }
 
-const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
+const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Monthly']
 const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // Stages are managed outside this modal; no stage templates here.
@@ -74,11 +74,15 @@ export interface CycleEditorRatingScaleOption {
   values: string[]
 }
 
+export type CycleEditorMode = 'cycle' | 'full' | 'performance'
+
 export interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (values: CycleEditorValues) => void | Promise<void>
   initialValues?: CycleEditorValues
+  /** 'cycle' = name + evaluated period + frequency + values; 'performance' = name (readonly) + execution dates + scale + participants; 'full' = all fields. */
+  mode?: CycleEditorMode
   /** Shown under date fields when cycle dates overlap with an existing cycle. */
   dateOverlapError?: string | null
   /** Called when start or end date changes to clear the overlap error. */
@@ -102,6 +106,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   onOpenChange,
   onSave,
   initialValues,
+  mode = 'full',
   dateOverlapError = null,
   onClearDateError,
   availableValues: availableValuesProp = [],
@@ -147,7 +152,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setEndDate('')
       setEvalPeriodStart('')
       setEvalPeriodEnd('')
-      setFrequency('Custom')
+      setFrequency('Monthly')
       setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
       setSelectedValueIds([])
@@ -182,39 +187,36 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     return null
   }
 
-  /** Compute end date from { y, m, d } and frequency (Annual +12 months, Quarterly +3). */
   const computeEndDateFromStart = (parsed: { y: number; m: number; d: number }, freq: FrequencyType): string | null => {
     let addMonths = 0
     if (freq === 'Annual') addMonths = 12
     else if (freq === 'Quarterly') addMonths = 3
+    else if (freq === 'Monthly') addMonths = 1
     else return null
     const totalMonths = parsed.y * 12 + (parsed.m - 1) + addMonths
     const newYear = Math.floor(totalMonths / 12)
     const newMonthZeroBased = totalMonths % 12
     const daysInNewMonth = new Date(newYear, newMonthZeroBased + 1, 0).getDate()
     const newDay = Math.min(parsed.d, daysInNewMonth)
+    const endDate = new Date(newYear, newMonthZeroBased, newDay)
+    endDate.setDate(endDate.getDate() - 1)
     const pad2 = (n: number) => n.toString().padStart(2, '0')
-    return `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
+    return `${endDate.getFullYear().toString().padStart(4, '0')}-${pad2(endDate.getMonth() + 1)}-${pad2(endDate.getDate())}`
   }
 
-  // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
   useEffect(() => {
-    const parsed = parseStartDate(startDate)
-    if (!parsed) {
-      // If no start date is selected, set frequency to Custom
-      if (frequency !== 'Custom') {
-        setFrequency('Custom')
-      }
-      return
-    }
+    const parsed = parseStartDate(evalPeriodStart)
+    if (!parsed) return
     const computed = computeEndDateFromStart(parsed, frequency)
-    if (computed) setEndDate(computed)
-  }, [startDate, frequency])
+    if (computed) setEvalPeriodEnd(computed)
+  }, [evalPeriodStart, frequency])
 
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = async () => {
-    if (!name.trim() || !startDate || !endDate || !evalPeriodStart || !evalPeriodEnd) return
+    if (!name.trim()) return
+    if (mode !== 'performance' && (!evalPeriodStart || !evalPeriodEnd)) return
+    if ((mode === 'full' || mode === 'performance') && (!startDate || !endDate)) return
     const valueIdsToSave = [...new Set(selectedValueIds)]
     const values: CycleEditorValues = {
       id: initialValues?.id,
@@ -264,8 +266,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
         return t('frequency-annual')
       case 'Quarterly':
         return t('frequency-quarterly')
-      case 'Custom':
-        return t('frequency-custom')
+      case 'Monthly':
+        return t('frequency-monthly')
       default:
         return f
     }
@@ -287,159 +289,158 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
         </DialogHeader>
 
         <div className="gba:space-y-6">
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+          {mode === 'performance' ? (
             <div className="gba:space-y-2">
-              <Label htmlFor="cycle-name">{t('field-name')} *</Label>
-              <Input
-                id="cycle-name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder={t('placeholder-name')}
-                maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
-              />
+              <Label htmlFor="cycle-name">{t('field-name')}</Label>
+              <Input id="cycle-name" value={name} disabled maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH} />
             </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-start-date')} *</Label>
-              <DateInput
-                type="date"
-                value={startDate}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  const parsed = parseStartDate(raw)
-                  if (parsed) {
-                    const pad2 = (n: number) => n.toString().padStart(2, '0')
-                    const isoStart = `${parsed.y.toString().padStart(4, '0')}-${pad2(parsed.m)}-${pad2(parsed.d)}`
-                    setStartDate(isoStart)
-                    const end = computeEndDateFromStart(parsed, frequency)
-                    if (end) setEndDate(end)
-                  } else {
-                    setStartDate(raw)
-                  }
-                }}
-                outputFormat="iso"
-              />
+          ) : (
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2">
+                <Label htmlFor="cycle-name">{t('field-name')} *</Label>
+                <Input
+                  id="cycle-name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={t('placeholder-name')}
+                  maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-evaluation-period-start')} *</Label>
+                <DateInput
+                  type="date"
+                  value={evalPeriodStart}
+                  onChange={(value: DateInputValue) => {
+                    onClearDateError?.()
+                    const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                    setEvalPeriodStart(raw)
+                  }}
+                  outputFormat="iso"
+                  captionLayout="dropdown"
+                  data-testid="performance-cycle-evaluation-period-start"
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-frequency')}</Label>
+                <Combobox
+                  value={frequency}
+                  onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
+                  options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
+                  placeholder={t('placeholder-select-frequency')}
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-evaluation-period-end')} *</Label>
+                <DateInput
+                  type="date"
+                  value={evalPeriodEnd}
+                  disabled
+                  outputFormat="iso"
+                  captionLayout="dropdown"
+                  data-testid="performance-cycle-evaluation-period-end"
+                />
+              </div>
             </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-frequency')}</Label>
-              <Combobox
-                value={frequency}
-                onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
-                options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
-                placeholder={t('placeholder-select-frequency')}
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-end-date')} *</Label>
-              <DateInput
-                type="date"
-                value={endDate}
-                onChange={(value: DateInputValue) => {
-                  onClearDateError?.()
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEndDate(raw)
-                  if (frequency !== 'Custom') {
-                    setFrequency('Custom')
-                  }
-                }}
-                outputFormat="iso"
-              />
-            </div>
-          </div>
+          )}
           {dateOverlapError && (
             <p className="gba:text-sm gba:text-destructive gba:col-span-full" role="alert">
               {dateOverlapError}
             </p>
           )}
 
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-            <div className="gba:space-y-2">
-              <Label>{t('field-evaluation-period-start')} *</Label>
-              <DateInput
-                type="date"
-                value={evalPeriodStart}
-                onChange={(value: DateInputValue) => {
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEvalPeriodStart(raw)
-                }}
-                outputFormat="iso"
-                captionLayout="dropdown"
-                data-testid="performance-cycle-evaluation-period-start"
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>{t('field-evaluation-period-end')} *</Label>
-              <DateInput
-                type="date"
-                value={evalPeriodEnd}
-                onChange={(value: DateInputValue) => {
-                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
-                  setEvalPeriodEnd(raw)
-                }}
-                outputFormat="iso"
-                captionLayout="dropdown"
-                data-testid="performance-cycle-evaluation-period-end"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="gba:space-y-2">
-            <Label>{t('field-rating-scale')} *</Label>
-            <Combobox
-              value={selectedScaleId}
-              onValueChange={v => setSelectedScaleId((v as string) || undefined)}
-              options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
-              placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
-            />
-          </div>
-
-          <div className="gba:space-y-2">
-            <Label>{t('field-values')}</Label>
-            {(() => {
-              const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
-              const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
-              if (!hasValues) {
-                return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
-              }
-              return (
-                <Combobox
-                  key={`cycle-values-${cycleValuesKey}`}
-                  mode="multiple"
-                  value={selectedValueIds}
-                  onValueChange={(ids: string[] | string) => {
-                    const next = Array.isArray(ids) ? ids : ids ? [ids] : []
-                    setSelectedValueIds([...new Set(next)])
+          {(mode === 'full' || mode === 'performance') && (
+            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2">
+                <Label>{t('field-start-date')} *</Label>
+                <DateInput
+                  type="date"
+                  value={startDate}
+                  onChange={(value: DateInputValue) => {
+                    onClearDateError?.()
+                    const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                    setStartDate(raw)
                   }}
-                  options={availableValues
-                    .filter(v => v.recordState?.toLowerCase() === 'active')
-                    .map(v => ({ label: v.title, value: v.id }))}
-                  placeholder="Select values"
-                  searchPlaceholder="Type to search values..."
-                  emptyText="No results"
-                  className="gba:flex-wrap"
+                  outputFormat="iso"
                 />
-              )
-            })()}
-          </div>
-
-          <div className="gba:space-y-3">
-            <Label>{t('label-evaluation-participants')} *</Label>
-            <div className="gba:flex gba:flex-wrap gba:gap-6">
-              {participantOptions.map(p => (
-                <label key={p} className="gba:flex gba:items-center gba:gap-2">
-                  <Checkbox
-                    checked={!!participantsState[p]}
-                    onCheckedChange={(v: boolean) => setParticipantsState(prev => ({ ...prev, [p]: !!v }))}
-                  />
-                  <span>{getParticipantLabel(p)}</span>
-                </label>
-              ))}
+              </div>
+              <div className="gba:space-y-2">
+                <Label>{t('field-end-date')} *</Label>
+                <DateInput
+                  type="date"
+                  value={endDate}
+                  onChange={(value: DateInputValue) => {
+                    onClearDateError?.()
+                    const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                    setEndDate(raw)
+                  }}
+                  outputFormat="iso"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Evaluation Stages section removed */}
+          {(mode === 'full' || mode === 'performance') && <Separator />}
+
+          {(mode === 'full' || mode === 'performance') && (
+            <div className="gba:space-y-2">
+              <Label>{t('field-rating-scale')} *</Label>
+              <Combobox
+                value={selectedScaleId}
+                onValueChange={v => setSelectedScaleId((v as string) || undefined)}
+                options={availableScales.map(s => ({ label: formatRatingScaleOptionLabel(s), value: s.id }))}
+                placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
+              />
+            </div>
+          )}
+
+          {mode !== 'performance' && (
+            <div className="gba:space-y-2">
+              <Label>{t('field-values')}</Label>
+              {(() => {
+                const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
+                const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
+                if (!hasValues) {
+                  return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
+                }
+                return (
+                  <Combobox
+                    key={`cycle-values-${cycleValuesKey}`}
+                    mode="multiple"
+                    value={selectedValueIds}
+                    onValueChange={(ids: string[] | string) => {
+                      const next = Array.isArray(ids) ? ids : ids ? [ids] : []
+                      setSelectedValueIds([...new Set(next)])
+                    }}
+                    options={availableValues
+                      .filter(v => v.recordState?.toLowerCase() === 'active')
+                      .map(v => ({ label: v.title, value: v.id }))}
+                    placeholder="Select values"
+                    searchPlaceholder="Type to search values..."
+                    emptyText="No results"
+                    className="gba:flex-wrap"
+                  />
+                )
+              })()}
+            </div>
+          )}
+
+          {(mode === 'full' || mode === 'performance') && (
+            <div className="gba:space-y-3">
+              <Label>{t('label-evaluation-participants')} *</Label>
+              <div className="gba:flex gba:flex-wrap gba:gap-6">
+                {participantOptions.map(p => (
+                  <label key={p} className="gba:flex gba:items-center gba:gap-2">
+                    <Checkbox
+                      checked={!!participantsState[p]}
+                      onCheckedChange={(v: boolean) => setParticipantsState(prev => ({ ...prev, [p]: !!v }))}
+                    />
+                    <span>{getParticipantLabel(p)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="gba:flex gba:justify-end gba:gap-2">
             <Button variant="secondary" onClick={handleCancel}>
@@ -451,12 +452,11 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               onClick={handleSave}
               disabled={
                 !name.trim() ||
-                !startDate ||
-                !endDate ||
-                !evalPeriodStart ||
-                !evalPeriodEnd ||
-                !selectedScaleId ||
-                selectedParticipants.length === 0 ||
+                (mode !== 'performance' && (!evalPeriodStart || !evalPeriodEnd)) ||
+                (mode === 'full' &&
+                  (!startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0)) ||
+                (mode === 'performance' &&
+                  (!startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0)) ||
                 isSaving
               }
             >

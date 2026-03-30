@@ -92,6 +92,32 @@ function createRuntimeState(source: DocumentLayoutSource): DocumentLayoutRuntime
   }
 }
 
+function pageRangeEqual(left: DocumentLayoutPageRange | null, right: DocumentLayoutPageRange | null): boolean {
+  if (left === right) return true
+  if (!left || !right) return false
+  return left.startPage === right.startPage && left.endPage === right.endPage
+}
+
+function isDocumentLayoutRuntimeStateEqual(
+  left: DocumentLayoutRuntimeState,
+  right: DocumentLayoutRuntimeState
+): boolean {
+  return (
+    left.source === right.source &&
+    left.requestedGeneration === right.requestedGeneration &&
+    left.resolvedGeneration === right.resolvedGeneration &&
+    left.status === right.status &&
+    left.pendingScope === right.pendingScope &&
+    pageRangeEqual(left.pendingRange, right.pendingRange) &&
+    left.lastRequestedReason === right.lastRequestedReason &&
+    left.lastRequestedScope === right.lastRequestedScope &&
+    pageRangeEqual(left.lastRequestedRange, right.lastRequestedRange) &&
+    left.lastResolvedReason === right.lastResolvedReason &&
+    left.lastResolvedScope === right.lastResolvedScope &&
+    pageRangeEqual(left.lastResolvedRange, right.lastResolvedRange)
+  )
+}
+
 export function createDocumentLayoutScheduler({
   source,
   debounceMs = 150,
@@ -104,9 +130,16 @@ export function createDocumentLayoutScheduler({
   let disposed = false
   let measuring = false
   const generationInvalidations = new Map<number, ScheduledInvalidation>()
+  let lastEmittedState: DocumentLayoutRuntimeState | null = null
 
   const emitState = () => {
-    onStateChange?.({ ...state })
+    if (!onStateChange) return
+    const next = { ...state }
+    if (lastEmittedState !== null && isDocumentLayoutRuntimeStateEqual(lastEmittedState, next)) {
+      return
+    }
+    lastEmittedState = next
+    onStateChange(next)
   }
 
   const resolvePendingScope = (upToGeneration = state.requestedGeneration): DocumentLayoutInvalidationScope | null => {
@@ -288,16 +321,12 @@ export function createDocumentLayoutScheduler({
         pendingRange: resolvePendingRange(nextGeneration),
         lastRequestedReason: options.reason,
         lastRequestedScope: options.scope,
-        lastRequestedRange: options.pageRange ?? null
+        lastRequestedRange: options.pageRange ?? null,
+        ...(measuring ? { status: 'scheduled' as const } : {})
       }
       emitState()
 
       if (measuring) {
-        state = {
-          ...state,
-          status: 'scheduled'
-        }
-        emitState()
         return
       }
 

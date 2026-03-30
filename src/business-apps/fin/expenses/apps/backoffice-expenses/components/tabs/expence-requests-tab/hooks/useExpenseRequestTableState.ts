@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
-import { useFilterSignatureReset, useVisibleColumns } from '../../../../../manager-expenses/hooks/useTabState'
+import { useFilterSignatureReset, useVisibleColumns } from '../../../../common/hooks/useSharedTabState'
 import {
   BACKOFFICE_EXPENSE_REQUEST_DATA_COLUMN_IDS,
+  createBackofficeExpenseRequestAllDataColumns,
   createBackofficeExpenseRequestSortableColumns
 } from '../config/backofficeExpenseRequestSortableColumns'
 import {
@@ -79,8 +80,9 @@ export function useExpenseRequestTableState({
     [applySorting, setCurrentPage, sorting.field, sorting.order]
   )
 
+  const allDataColumns = useMemo(() => createBackofficeExpenseRequestAllDataColumns(t), [t])
   const sortableColumns = useMemo(() => createBackofficeExpenseRequestSortableColumns(t), [t])
-  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, sortableColumns)
+  const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, allDataColumns)
 
   const listEmptyMessage = useMemo(
     () => (hasActiveFilters ? t('empty-no-data') : t('empty-no-requests-yet')),
@@ -92,6 +94,7 @@ export function useExpenseRequestTableState({
     setVisibleColumns,
     sortingState,
     handleSortingChange,
+    allDataColumns,
     sortableColumns,
     columnsFilteredByVisibility,
     listEmptyMessage

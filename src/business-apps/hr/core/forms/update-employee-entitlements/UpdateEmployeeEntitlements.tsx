@@ -11,14 +11,10 @@ import {
 import UpdateEmployeeEntitlementsForm from './components/UpdateEmployeeEntitlementsForm'
 
 interface UpdateEmployeeEntitlementsContentProps {
-  onSubmit?: () => void | Promise<void>
   onCancel?: () => void | Promise<void>
 }
 
-const UpdateEmployeeEntitlementsContent: React.FC<UpdateEmployeeEntitlementsContentProps> = ({
-  onSubmit,
-  onCancel
-}) => {
+const UpdateEmployeeEntitlementsContent: React.FC<UpdateEmployeeEntitlementsContentProps> = ({ onCancel }) => {
   const { employeeHeaderInfo, loading } = useUpdateEmployeeEntitlementsContext()
   const title = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.update_entitlements', 'Update Entitlements'),
@@ -29,7 +25,7 @@ const UpdateEmployeeEntitlementsContent: React.FC<UpdateEmployeeEntitlementsCont
 
   return (
     <div
-      className="gba:!bg-card gba:rounded-2xl gba:flex gba:flex-col gba:h-full gba:p-0 gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
+      className="gba:rounded-2xl gba:flex gba:flex-col gba:h-full gba:p-0 gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
       data-testid="mileageRuleModal_containerCreateMileageRule"
     >
       <FormHeader
@@ -47,7 +43,7 @@ const UpdateEmployeeEntitlementsContent: React.FC<UpdateEmployeeEntitlementsCont
             : undefined
         }
       />
-      <UpdateEmployeeEntitlementsForm onSubmit={onSubmit} onCancel={onCancel} />
+      <UpdateEmployeeEntitlementsForm onCancel={onCancel} />
     </div>
   )
 }
@@ -55,7 +51,7 @@ const UpdateEmployeeEntitlementsContent: React.FC<UpdateEmployeeEntitlementsCont
 export const UpdateEmployeeEntitlements: React.FC<
   BusinessAppContextProps & { onSubmit?: () => void | Promise<void>; onCancel?: () => void | Promise<void> }
 > = props => {
-  const { accessToken, additionalData, userInfo, onSubmit, onCancel } = props
+  const { accessToken, additionalData, userInfo, onCancel } = props
   const employeeId = useMemo(() => {
     return (
       additionalData?.employeeId ||
@@ -68,7 +64,7 @@ export const UpdateEmployeeEntitlements: React.FC<
 
   return (
     <UpdateEmployeeEntitlementsProvider accessToken={accessToken} userInfo={userInfo} employeeId={employeeId}>
-      <UpdateEmployeeEntitlementsContent onSubmit={onSubmit} onCancel={onCancel} />
+      <UpdateEmployeeEntitlementsContent onCancel={onCancel} />
     </UpdateEmployeeEntitlementsProvider>
   )
 }

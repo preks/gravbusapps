@@ -96,6 +96,7 @@ export interface CatalogManagement {
   isDeleted?: boolean
   recordState?: string
   schemaDefinition?: Record<string, ParameterDefinition>
+  isCustomerManaged?: boolean
 }
 
 export interface GetCatalogsResponse {

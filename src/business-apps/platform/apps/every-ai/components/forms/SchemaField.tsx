@@ -237,11 +237,13 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
         if (schema.format === 'date') {
           // Check if field should be disabled (endDate, endAssetConditionRef)
           const isEndField = name === 'endDate' || name === 'endAssetConditionRef'
+          // Strip time component if backend returns a full datetime string
+          const dateValue = typeof value === 'string' ? value.split('T')[0] : ''
 
           return (
             <DateInput
               type="date"
-              value={typeof value === 'string' ? value : ''}
+              value={dateValue}
               onChange={(v: string | [string | null, string | null] | null) => {
                 const dateValue = typeof v === 'string' ? v : ''
                 onChange(dateValue)

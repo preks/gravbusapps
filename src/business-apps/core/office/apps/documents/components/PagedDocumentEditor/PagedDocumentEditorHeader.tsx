@@ -30,6 +30,7 @@ import {
   Wand2
 } from 'lucide-react'
 import type { Document, DocumentApprovalRequest } from '../../types'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
 import { PresenceIndicator } from '@/business-apps/platform/apps/shared/components/PresenceIndicator'
 import { StatusBadge } from '@/business-apps/platform/apps/shared/components/StatusBadge'
 import { EditorToolbar } from './EditorToolbar'
@@ -38,6 +39,7 @@ import type { RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
 
 export interface PagedDocumentEditorHeaderProps {
   document?: Document
+  paginationConfig?: PageLayoutPaginationConfig | null
   title: string
   isReadOnly: boolean
   isSaving: boolean
@@ -88,6 +90,7 @@ export interface PagedDocumentEditorHeaderProps {
 
 export function PagedDocumentEditorHeader({
   document,
+  paginationConfig = null,
   title,
   isReadOnly,
   isSaving,
@@ -395,6 +398,7 @@ export function PagedDocumentEditorHeader({
 
       <EditorToolbar
         editor={activeEditor}
+        paginationConfig={paginationConfig}
         onOpenLinkDialog={onOpenLinkDialog}
         onOpenInsertImageDialog={onOpenInsertImageDialog}
         onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}

@@ -14,10 +14,14 @@ jest.mock(
 
 jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: true })
 
+let lastPresetContainer: unknown
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
-    UniverSheetsCorePreset: jest.fn(() => ({}))
+    UniverSheetsCorePreset: jest.fn((opts: { container?: unknown }) => {
+      lastPresetContainer = opts?.container
+      return {}
+    })
   }),
   { virtual: true }
 )
@@ -94,6 +98,7 @@ describe('UniverSheetGrid read-only behavior', () => {
 
   beforeEach(() => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
+    lastPresetContainer = undefined
   })
 
   afterEach(() => {
@@ -115,6 +120,23 @@ describe('UniverSheetGrid read-only behavior', () => {
     )
 
     expect(screen.getByTestId('univer-readonly-overlay')).toBeInTheDocument()
+  })
+
+  it('passes the mounted grid host element to Univer (not null from early effect)', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={true}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    expect(lastPresetContainer).toBeInstanceOf(HTMLDivElement)
+    expect(screen.getByTestId('univer-sheet-grid-container')).toBe(lastPresetContainer)
   })
 
   it('does not emit local cell changes while read-only', () => {

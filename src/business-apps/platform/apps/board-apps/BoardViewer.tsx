@@ -22,6 +22,7 @@ import { SystemDataSheet } from './components/system-data/SystemDataSheet'
 import { FlowEngineDataSheet } from './components/flow-engine/FlowEngineDataSheet'
 import { ExternalDataSheet } from './components/external-data/ExternalDataSheet'
 import { BoardApiService } from './services/BoardApiService'
+import { BoardAuditLogPanel } from './components/audit/BoardAuditLogPanel'
 import { useDashboardData } from './hooks/useDashboardData'
 import { usePeopleColumnOptions } from './hooks/usePeopleColumnOptions'
 import type { ServerFilterParams } from './hooks/useTableFilterSort'
@@ -67,6 +68,7 @@ export interface BoardViewerHandle {
   openSystemData: () => void
   openFlowData: () => void
   openExternalData: () => void
+  openActivityLog: () => void
   navigateToRow: (sheetId: string, rowId: string, position?: number) => void
 }
 
@@ -189,6 +191,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const [isSystemDataOpen, setIsSystemDataOpen] = useState(false)
   const [isFlowEngineDataOpen, setIsFlowEngineDataOpen] = useState(false)
   const [isExternalDataOpen, setIsExternalDataOpen] = useState(false)
+  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false)
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null)
   const tableNextPageRef = useRef(1)
   const kanbanNextPageRef = useRef(1)
@@ -374,6 +377,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
       openSystemData: () => setIsSystemDataOpen(true),
       openFlowData: () => setIsFlowEngineDataOpen(true),
       openExternalData: () => setIsExternalDataOpen(true),
+      openActivityLog: () => setIsActivityLogOpen(true),
       navigateToRow
     }),
     [navigateToRow]
@@ -991,6 +995,21 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           data-testid={`${testId}-external-data-sheet`}
         />
       )}
+
+      <BoardAuditLogPanel
+        boardId={board.id}
+        boardName={board.name}
+        sheets={board.sheets}
+        rows={effectiveRows}
+        accessToken={accessToken}
+        open={isActivityLogOpen}
+        onClose={() => setIsActivityLogOpen(false)}
+        onRowClick={(sheetId, rowId) => {
+          setIsActivityLogOpen(false)
+          navigateToRow(sheetId, rowId)
+        }}
+        data-testid={`${testId}-activity-log`}
+      />
     </div>
   )
 })

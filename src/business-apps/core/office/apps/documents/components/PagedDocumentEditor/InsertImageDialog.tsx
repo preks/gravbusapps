@@ -20,8 +20,10 @@ import {
   TabsContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Upload } from 'lucide-react'
+import { UploadSimple } from '@phosphor-icons/react'
 import type { CustomImageUploadHandler, ImageUploadContext } from '@/components/tiptap-extensions/tiptap-custom-image'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
+import { buildInitialInsertedImageAttrs } from '../../utils/initialInsertedImageLayout'
 import translations from '../../_i18n'
 
 export interface InsertImageDialogProps {
@@ -30,6 +32,7 @@ export interface InsertImageDialogProps {
   readonly editor: Editor | null
   readonly uploadImage: CustomImageUploadHandler
   readonly uploadContext?: ImageUploadContext
+  readonly paginationConfig?: PageLayoutPaginationConfig | null
   readonly onSubmitImage?: (src: string) => void
   readonly mode?: 'insert' | 'replace'
   readonly 'data-testid'?: string
@@ -41,6 +44,7 @@ export function InsertImageDialog({
   editor,
   uploadImage,
   uploadContext,
+  paginationConfig = null,
   onSubmitImage,
   mode = 'insert',
   'data-testid': testId = 'document-editor-insert-image-dialog'
@@ -48,6 +52,7 @@ export function InsertImageDialog({
   const { t } = useTranslation(translations)
   const [urlValue, setUrlValue] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [urlInsertBusy, setUrlInsertBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -59,31 +64,51 @@ export function InsertImageDialog({
     setIsDragging(false)
   }, [])
 
-  const handleInsertByUrl = useCallback(() => {
+  const handleInsertByUrl = useCallback(async () => {
     const url = urlValue.trim()
     if (!url || !editor) return
     setError(null)
-    if (onSubmitImage) {
-      onSubmitImage(url)
-    } else {
-      editor.chain().focus().setImage({ src: url }).run()
+    setUrlInsertBusy(true)
+    try {
+      if (onSubmitImage) {
+        onSubmitImage(url)
+      } else {
+        const attrs = await buildInitialInsertedImageAttrs({
+          src: url,
+          paginationConfig: paginationConfig ?? null,
+          editor,
+          insertPos: editor.state.selection.from
+        })
+        editor.chain().focus().setImage(attrs).run()
+      }
+      onOpenChange(false)
+      resetState()
+    } catch {
+      setError(t('insert-image-upload-failed'))
+    } finally {
+      setUrlInsertBusy(false)
     }
-    onOpenChange(false)
-    resetState()
-  }, [editor, onOpenChange, onSubmitImage, resetState, urlValue])
+  }, [editor, onOpenChange, onSubmitImage, paginationConfig, resetState, t, urlValue])
 
-  const insertImage = useCallback(
-    (src: string) => {
+  const insertUploadedImage = useCallback(
+    async (src: string, file: File) => {
       if (!editor) return
       if (onSubmitImage) {
         onSubmitImage(src)
       } else {
-        editor.chain().focus().setImage({ src }).run()
+        const attrs = await buildInitialInsertedImageAttrs({
+          src,
+          file,
+          paginationConfig: paginationConfig ?? null,
+          editor,
+          insertPos: editor.state.selection.from
+        })
+        editor.chain().focus().setImage(attrs).run()
       }
       onOpenChange(false)
       resetState()
     },
-    [editor, onOpenChange, onSubmitImage, resetState]
+    [editor, onOpenChange, onSubmitImage, paginationConfig, resetState]
   )
 
   const handleFile = useCallback(
@@ -93,14 +118,14 @@ export function InsertImageDialog({
       setUploading(true)
       try {
         const { url } = await uploadImage(file, uploadContext)
-        insertImage(url)
+        await insertUploadedImage(url, file)
       } catch {
         setError(t('insert-image-upload-failed'))
       } finally {
         setUploading(false)
       }
     },
-    [editor, insertImage, t, uploadContext, uploadImage]
+    [editor, insertUploadedImage, t, uploadContext, uploadImage]
   )
 
   const onFileInputChange = useCallback(
@@ -153,7 +178,7 @@ export function InsertImageDialog({
       <DialogContent
         className="gba:max-w-md"
         data-testid={testId}
-        onPointerDownOutside={() => !uploading && handleOpenChange(false)}
+        onPointerDownOutside={() => !uploading && !urlInsertBusy && handleOpenChange(false)}
       >
         <DialogHeader>
           <DialogTitle>
@@ -199,7 +224,10 @@ export function InsertImageDialog({
                 <span className="gba:text-muted-foreground">{t('insert-image-uploading')}</span>
               ) : (
                 <>
-                  <Upload className="gba:mx-auto gba:h-10 gba:w-10 gba:text-muted-foreground gba:mb-2" />
+                  <UploadSimple
+                    className="gba:mx-auto gba:h-10 gba:w-10 gba:text-muted-foreground gba:mb-2"
+                    aria-hidden
+                  />
                   <p className="gba:text-sm gba:text-muted-foreground">{t('insert-image-drop-here')}</p>
                 </>
               )}
@@ -220,8 +248,8 @@ export function InsertImageDialog({
               />
             </div>
             <Button
-              onClick={handleInsertByUrl}
-              disabled={!urlValue.trim()}
+              onClick={() => void handleInsertByUrl()}
+              disabled={!urlValue.trim() || urlInsertBusy}
               data-testid="document-editor-insert-image-url-insert"
             >
               {t('insert-image-insert')}
@@ -236,7 +264,7 @@ export function InsertImageDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={uploading}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={uploading || urlInsertBusy}>
             {t('insert-image-cancel')}
           </Button>
         </DialogFooter>

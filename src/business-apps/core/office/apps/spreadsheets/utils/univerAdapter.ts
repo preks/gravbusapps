@@ -388,6 +388,91 @@ export function buildWorkbookSnapshot(
   }
 }
 
+export function countWorksheetsInUniverSnapshot(snapshot: unknown): number {
+  if (!snapshot || typeof snapshot !== 'object') return 0
+  const sheets = (snapshot as { sheets?: unknown }).sheets
+  if (!sheets || typeof sheets !== 'object') return 0
+  return Object.keys(sheets as Record<string, unknown>).length
+}
+
+function cloneUniverSnapshotSlice<T>(value: T): T {
+  if (value == null) return value
+  try {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value)
+    }
+  } catch {
+    // Fall through to JSON clone.
+  }
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function pickWorksheetFromSingleSheetBootstrap(
+  snapshot: Record<string, unknown>,
+  preferSheetId: string
+): UniverWorksheetData | null {
+  const sheets = snapshot.sheets as Record<string, UniverWorksheetData> | undefined
+  if (!sheets || Object.keys(sheets).length === 0) return null
+
+  const picked =
+    sheets[preferSheetId] ??
+    (Array.isArray(snapshot.sheetOrder)
+      ? sheets[String(snapshot.sheetOrder[0] ?? '')]
+      : (Object.values(sheets)[0] as UniverWorksheetData | undefined))
+
+  if (!picked) return null
+  return cloneUniverSnapshotSlice(picked)
+}
+
+export function buildMultiSheetWorkbookFromAppSheets(options: {
+  appSheets: SpreadsheetSheet[]
+  activeSheetId: string
+  getRowsForSheet: (sheetId: string) => Record<string, unknown>[]
+  singleWorksheetBootstrap?: Record<string, unknown> | null
+  appId?: string
+}): UniverWorkbookSnapshot {
+  const { appSheets, activeSheetId, getRowsForSheet, singleWorksheetBootstrap, appId } = options
+  const workbookId = appId ? `workbook-${appId}` : `workbook-${activeSheetId}`
+  const activeSheet = appSheets.find(sheet => sheet.id === activeSheetId) ?? appSheets[0]
+  const sheets: Record<string, UniverWorksheetData> = {}
+  const sheetOrder: string[] = []
+
+  for (const sheet of appSheets) {
+    const visibleColumns = sheet.columns.filter(column => column.isVisible !== false)
+    const bootstrapWorksheet =
+      sheet.id === activeSheetId && singleWorksheetBootstrap
+        ? pickWorksheetFromSingleSheetBootstrap(singleWorksheetBootstrap, activeSheetId)
+        : null
+
+    const worksheet =
+      bootstrapWorksheet ?? buildWorkbookSnapshot(sheet, getRowsForSheet(sheet.id), sheet.columns).sheets[sheet.id]
+
+    const nextWorksheet = cloneUniverSnapshotSlice(worksheet)
+    nextWorksheet.id = sheet.id
+    nextWorksheet.name = sheet.name
+    transformAvatarFormulasInSnapshot(
+      {
+        id: workbookId,
+        name: activeSheet?.name || sheet.name,
+        sheetOrder: [sheet.id],
+        sheets: { [sheet.id]: nextWorksheet }
+      },
+      visibleColumns
+    )
+    sheets[sheet.id] = nextWorksheet
+    sheetOrder.push(sheet.id)
+  }
+
+  return {
+    id: workbookId,
+    name: activeSheet?.name || 'Workbook',
+    sheetOrder,
+    appVersion: '0.15.0',
+    locale: 'en-US',
+    sheets
+  }
+}
+
 /** Regex to match old 1-arg IMAGE formula for upgrade to sized version (allows optional spaces) */
 const OLD_IMAGE_FORMULA = /^=IMAGE\s*\(\s*"((?:[^"]|"")*)"\s*\)$/
 

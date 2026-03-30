@@ -2,6 +2,18 @@ import type { EditorView } from '@tiptap/pm/view'
 import type { PagesOptions, PagesStorage } from './types'
 import { calculatePageCount, getExistingPageCount, type PageCountDebugInfo } from './utils'
 
+export const PAGE_COUNT_HARD_CAP = 2000
+export const MAX_PAGE_GROWTH_PER_EVALUATION = 120
+
+const clampPageCount = (value: number): number => {
+  if (!Number.isFinite(value)) return 1
+  return Math.max(1, Math.min(PAGE_COUNT_HARD_CAP, Math.floor(value)))
+}
+
+// Limit how much the measured page count can grow in a single evaluation iteration.
+const limitGrowthFromCurrent = (current: number, next: number): number =>
+  clampPageCount(Math.min(next, current + MAX_PAGE_GROWTH_PER_EVALUATION))
+
 export interface PaginationMeasuredHeights {
   headerHeights: Map<number, number>
   footerHeights: Map<number, number>
@@ -69,7 +81,7 @@ export function measurePageCount(
   measured: PaginationMeasuredHeights,
   onDebug?: (info: PageCountDebugInfo) => void
 ) {
-  return calculatePageCount(view, storage.pageFormat, options.pageGap, {
+  const rawPageCount = calculatePageCount(view, storage.pageFormat, options.pageGap, {
     storage,
     headerHeights: measured.headerHeights,
     footerHeights: measured.footerHeights,
@@ -77,10 +89,11 @@ export function measurePageCount(
     defaultFooterHeight: options.footerHeight,
     onDebug
   })
+  return clampPageCount(rawPageCount)
 }
 
 export function resolveCurrentKnownPageCount(existingPageCount: number, storedPageCount: number) {
-  return Math.max(1, existingPageCount, storedPageCount)
+  return clampPageCount(Math.max(1, existingPageCount, storedPageCount))
 }
 
 function toAddPagesMeasurementSnapshot(
@@ -138,10 +151,10 @@ function applyRunawayPageGrowthCap(
   cappedPageCount: number | null
 ) {
   if (cappedPageCount === null || info?.reason !== 'add-pages') {
-    return measuredPageCount
+    return clampPageCount(measuredPageCount)
   }
 
-  return Math.min(measuredPageCount, cappedPageCount)
+  return clampPageCount(Math.min(measuredPageCount, cappedPageCount))
 }
 
 export function resolveRunawayPageGrowth(
@@ -155,7 +168,7 @@ export function resolveRunawayPageGrowth(
 ): RunawayPageGrowthResolution {
   if (resetDueToDocChange) {
     return {
-      effectivePageCount: measuredPageCount,
+      effectivePageCount: clampPageCount(measuredPageCount),
       cappedPageCount: null,
       suppressionActive: false,
       runawayPageGrowthCheck: NO_RUNAWAY_PAGE_GROWTH_CHECK
@@ -194,7 +207,7 @@ export function resolveRunawayPageGrowth(
 
   if (!runawayPageGrowthCheck.shouldStabilize) {
     return {
-      effectivePageCount: measuredPageCount,
+      effectivePageCount: clampPageCount(measuredPageCount),
       cappedPageCount: null,
       suppressionActive: false,
       runawayPageGrowthCheck
@@ -202,8 +215,8 @@ export function resolveRunawayPageGrowth(
   }
 
   return {
-    effectivePageCount: currentPageCount,
-    cappedPageCount: currentPageCount,
+    effectivePageCount: clampPageCount(currentPageCount),
+    cappedPageCount: clampPageCount(currentPageCount),
     suppressionActive: true,
     runawayPageGrowthCheck
   }
@@ -226,18 +239,19 @@ export function resolveMeasuredPageCountSnapshot(options: ResolveMeasuredPageCou
   const rawMeasuredPageCount = measurePageCount(view, storage, runtimeOptions, measured, info => {
     pageCountDebugInfo = info
   })
+  const growthLimitedPageCount = limitGrowthFromCurrent(currentPageCount, rawMeasuredPageCount)
   const runawayPageGrowthResolution = resolveRunawayPageGrowth(
     previousAddPagesMeasurement,
     cappedPageCount,
     currentPageCount,
-    rawMeasuredPageCount,
+    growthLimitedPageCount,
     pageCountDebugInfo,
     docChangedSinceLastUpdate,
     resetDueToDocChange
   )
 
   return {
-    rawMeasuredPageCount,
+    rawMeasuredPageCount: growthLimitedPageCount,
     measuredPageCount: runawayPageGrowthResolution.effectivePageCount,
     pageCountDebugInfo,
     runawayPageGrowthResolution
@@ -329,14 +343,19 @@ export function resolvePaginationWidgetTotalPages(options: {
 }) {
   const { storedPageCount, measuredPageCount, growthSuppressionPageCount } = options
 
+  // Allow both growth and shrink to move at most MAX_PAGE_GROWTH_PER_EVALUATION per measurement.
+  const targetPageCount =
+    measuredPageCount > storedPageCount
+      ? Math.min(measuredPageCount, storedPageCount + MAX_PAGE_GROWTH_PER_EVALUATION)
+      : Math.max(measuredPageCount, storedPageCount - MAX_PAGE_GROWTH_PER_EVALUATION)
+
+  const clampedTarget = clampPageCount(targetPageCount)
+
   if (growthSuppressionPageCount === null) {
-    return Math.max(storedPageCount, measuredPageCount)
+    return clampedTarget
   }
 
-  return Math.max(
-    Math.min(storedPageCount, growthSuppressionPageCount),
-    Math.min(measuredPageCount, growthSuppressionPageCount)
-  )
+  return Math.min(clampedTarget, clampPageCount(growthSuppressionPageCount))
 }
 
 export function createAddPagesMeasurementSnapshot(

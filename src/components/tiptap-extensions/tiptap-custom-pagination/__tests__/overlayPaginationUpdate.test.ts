@@ -28,7 +28,7 @@ describe('applyOverlayPaginationUpdate', () => {
     expect(events).toEqual(['set:4', 'refresh-presentation'])
   })
 
-  it('closes and reopens the overlay when page count changes', () => {
+  it('refreshes presentation without closing when measured page count grows (e.g. header height)', () => {
     const events: string[] = []
 
     const result = applyOverlayPaginationUpdate({
@@ -51,8 +51,35 @@ describe('applyOverlayPaginationUpdate', () => {
       }
     })
 
+    expect(result).toEqual({ reopened: false })
+    expect(events).toEqual(['set:4', 'clear-growth-suppression', 'set:6', 'refresh-presentation'])
+  })
+
+  it('closes and reopens the overlay when measured page count shrinks', () => {
+    const events: string[] = []
+
+    const result = applyOverlayPaginationUpdate({
+      currentPageCount: 6,
+      measuredPageCount: 4,
+      onSetStoredPageCount: pageCount => {
+        events.push(`set:${pageCount}`)
+      },
+      onClearGrowthSuppression: () => {
+        events.push('clear-growth-suppression')
+      },
+      onCloseOverlay: () => {
+        events.push('close-overlay')
+      },
+      onReopenOverlay: () => {
+        events.push('reopen-overlay')
+      },
+      onRefreshPresentation: () => {
+        events.push('refresh-presentation')
+      }
+    })
+
     expect(result).toEqual({ reopened: true })
-    expect(events).toEqual(['set:4', 'clear-growth-suppression', 'set:6', 'close-overlay', 'reopen-overlay'])
+    expect(events).toEqual(['set:6', 'clear-growth-suppression', 'set:4', 'close-overlay', 'reopen-overlay'])
   })
 })
 
