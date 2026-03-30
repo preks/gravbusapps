@@ -1,7 +1,8 @@
 title = Konfiguration des Leistungszyklus
 subtitle = Leistungsbeurteilungszyklen erstellen und verwalten
 
-tab-cycles = Zyklen
+tab-cycles = Leistungszeitraum
+tab-performance = Überprüfungszyklus
 tab-rating-scales = Bewertungsskalen
 tab-values = Werte
 
@@ -13,17 +14,22 @@ button-activate = Aktivieren
 button-deactivate = Deaktivieren
 button-complete = Abschließen
 button-delete = Löschen
+button-manual-run = Manuell starten
 
 table-name = Name
-table-dates = Zeitraum
+table-dates = Überprüfungsdaten
 table-type = Typ
 table-scale = Skala
 table-participants = Teilnehmer
 table-status = Status
 status-completed = Abgeschlossen
-table-evaluation-period = Bewertungszeitraum
+status-in-progress = In Bearbeitung
+cycle-already-started = "{ $name }" wurde bereits gestartet.
+table-evaluation-period = Leistungszeitraum
 table-actions = Aktionen
 empty-no-cycles = Noch keine Zyklen erstellt.
+performance-period-description = Der bewertete Arbeitszeitraum. Beispiel: Leistungszeitraum: 1. Jan – 31. Dez 2025.
+review-cycle-description = Der Zeitraum für Feedback, Managerbewertung und Kalibrierung. Beispiel: Überprüfungszyklus: 15. Jan – 20. Feb 2026.
 empty-no-values = Noch keine Werte definiert.
 
 modal-create-title = Neuen Zyklus erstellen
@@ -31,19 +37,20 @@ modal-edit-title = Zyklus bearbeiten
 modal-description = Details für den Leistungszyklus konfigurieren.
 
 field-name = Name
-field-start-date = Startdatum
-field-end-date = Enddatum
+field-start-date = Ausführung Startdatum
+field-end-date = Ausführung Enddatum
 field-frequency = Häufigkeit/Typ
 field-rating-scale = Bewertungsskala
 label-evaluation-participants = Bewertungsteilnehmer
-field-evaluation-period-start = Bewertungszeitraum Beginn
-field-evaluation-period-end = Bewertungszeitraum Ende
+field-evaluation-period-start = Bewerteter Zeitraum Beginn
+field-evaluation-period-end = Bewerteter Zeitraum Ende
 field-values = Werte
 field-title = Titel
 field-description = Beschreibung
 field-active = Aktiv
 
 placeholder-name = z. B. 2026 jährliche Leistungsbewertung
+placeholder-select-cycle = Zyklus auswählen
 placeholder-select-frequency = Häufigkeit wählen
 placeholder-select-scale = Bewertungsskala wählen
 placeholder-no-scales = Keine Skalen. Im Tab „Bewertungsskalen" hinzufügen.
@@ -90,6 +97,7 @@ cycle-deactivated-to-database = "{ $name }" deaktiviert.
 cycle-completed-to-database = "{ $name }" als abgeschlossen markiert.
 cycle-deleted-to-database = "{ $name }" gelöscht.
 cycle-started = Zyklus wird gestartet: { $name }
+cycle-start-rating-scale-required = Eine Bewertungsskala ist erforderlich, bevor "{ $name }" gestartet werden kann. Bitte bearbeiten Sie den Zyklus und wählen Sie eine Bewertungsskala aus.
 value-saved-to-database = Firmenwert "{ $title }" gespeichert.
 value-deleted-to-database = "{ $title }" gelöscht.
 value-activated-to-database = "{ $title }" aktiviert.
@@ -106,6 +114,8 @@ values-modal-description = Firmenwert und Beschreibung definieren.
 start-confirm-title = Leistungsbeurteilung starten
 start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }" wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
 start-confirm-description-generic = Möchten Sie diese Leistungsbeurteilung wirklich starten?
+start-confirm-select-cycle = Zyklus auswählen *
+manual-run-cycle-already-started = Dieser Zyklus wurde bereits gestartet.
 start-confirm-run-for-label = Bewertung starten für
 start-confirm-run-for-employee = Mitarbeiter
 start-confirm-run-for-team = Team

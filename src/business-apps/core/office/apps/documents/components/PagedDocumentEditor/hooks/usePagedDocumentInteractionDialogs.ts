@@ -19,6 +19,7 @@ import { truncateHtmlForAiContext } from '../../../utils/documentContentUtils'
 import type { LinkDialogInitialValues, LinkDialogMode } from '../LinkDialog'
 import { requestEditorSelectionAnchorPosition } from '../commentSidebarNavigation'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
+import { tryLoadImageIntrinsicPixelSize } from '../../../utils/initialInsertedImageLayout'
 
 export interface PendingInlineSelection {
   from: number
@@ -454,18 +455,23 @@ export function usePagedDocumentInteractionDialogs({
   const handleReplaceSelectedImage = useCallback(
     (src: string) => {
       if (!activeEditor) return
-      const imagePos = replaceImagePosRef.current
-      if (imagePos == null) return
 
-      const node = activeEditor.state.doc.nodeAt(imagePos)
-      if (node?.type.name !== 'image') return
+      void (async () => {
+        const ed = activeEditor
+        const pos = replaceImagePosRef.current
+        if (pos == null) return
+        const current = ed.state.doc.nodeAt(pos)
+        if (current?.type.name !== 'image') return
 
-      const tr = activeEditor.state.tr.setNodeMarkup(imagePos, undefined, {
-        ...node.attrs,
-        src
-      })
-      activeEditor.view.dispatch(tr)
-      activeEditor.view.focus()
+        const intrinsic = await tryLoadImageIntrinsicPixelSize(src)
+        const tr = ed.state.tr.setNodeMarkup(pos, undefined, {
+          ...current.attrs,
+          src,
+          ...(intrinsic ? { originalWidth: intrinsic.width, originalHeight: intrinsic.height } : {})
+        })
+        ed.view.dispatch(tr)
+        ed.view.focus()
+      })()
     },
     [activeEditor, replaceImagePosRef]
   )

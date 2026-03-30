@@ -80,16 +80,13 @@ export type PageBreakerPlaceholderMetrics = {
   nextHeaderHeight: number
 }
 
+export type PageShellState = 'hydrated' | 'placeholder'
+
 export type WindowedPaginationRendererState = {
   activeRange: PaginationWindowRange | null
   mountedRange: PaginationWindowRange | null
   windowKey: string | null
   placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
-  spacerHeightsByRange: Map<string, number>
-}
-
-function createPageRangeKey(startPage: number, endPage: number) {
-  return `${startPage}-${endPage}`
 }
 
 function resolveMountedPageRange(
@@ -124,7 +121,7 @@ function resolveMountedPageRange(
 
 function shouldRenderFullPageBreaker(pageNumber: number, activeRange: PaginationWindowRange | null | undefined) {
   if (!activeRange) return true
-  return pageNumber >= activeRange.startPage - 1 && pageNumber <= activeRange.endPage
+  return pageNumber >= activeRange.startPage && pageNumber <= activeRange.endPage
 }
 
 export function resolvePaginationWindowRange(editorDom: HTMLElement): PaginationWindowRange | null {
@@ -179,42 +176,6 @@ function resolvePaginationRootElement(editorDom: HTMLElement): HTMLElement | nul
   }
 
   return null
-}
-
-function resolvePageRangeSpacerHeights(editorDom: HTMLElement): Map<string, number> {
-  const spacerHeights = new Map<string, number>()
-  const paginationRoot = resolvePaginationRootElement(editorDom)
-  if (!(paginationRoot instanceof HTMLElement)) {
-    return spacerHeights
-  }
-
-  Array.from(paginationRoot.children).forEach(child => {
-    if (!(child instanceof HTMLElement) || !child.classList.contains('rm-page-spacer')) {
-      return
-    }
-
-    const startPage = Number(child.dataset.rmPageRangeStart ?? '')
-    const endPage = Number(child.dataset.rmPageRangeEnd ?? '')
-    if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
-      return
-    }
-
-    const dataHeight = Number.parseFloat(child.dataset.rmPageRangeHeight ?? '')
-    const styleHeight = Number.parseFloat(child.style.height || '')
-    let resolvedHeight = child.offsetHeight
-    if (Number.isFinite(dataHeight) && dataHeight >= 0) {
-      resolvedHeight = dataHeight
-    } else if (Number.isFinite(styleHeight) && styleHeight >= 0) {
-      resolvedHeight = styleHeight
-    }
-    if (!Number.isFinite(resolvedHeight) || resolvedHeight < 0) {
-      return
-    }
-
-    spacerHeights.set(createPageRangeKey(startPage, endPage), resolvedHeight)
-  })
-
-  return spacerHeights
 }
 
 export function findPaginationPageBreakElement(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
@@ -290,6 +251,24 @@ function resolvePageBreakNumber(pageBreakEl: HTMLElement) {
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
+export function resolvePageBreakShellState(pageBreakEl: HTMLElement): PageShellState {
+  const explicitState = pageBreakEl.dataset.rmPageShellState
+  if (explicitState === 'hydrated' || explicitState === 'placeholder') {
+    return explicitState
+  }
+
+  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  return breaker?.dataset.rmBreakerMode === 'placeholder' ? 'placeholder' : 'hydrated'
+}
+
+export function isHydratedPageBreakShell(pageBreakEl: HTMLElement): boolean {
+  return resolvePageBreakShellState(pageBreakEl) === 'hydrated'
+}
+
+function setPageBreakShellState(pageBreakEl: HTMLElement, shellState: PageShellState) {
+  pageBreakEl.dataset.rmPageShellState = shellState
+}
+
 export function resolvePageBreakerPlaceholderMetrics(
   editorDom: HTMLElement
 ): Map<number, PageBreakerPlaceholderMetrics> {
@@ -351,8 +330,7 @@ export function resolveWindowedPaginationRendererState(editorDom: HTMLElement): 
     activeRange: resolvePaginationWindowRange(editorDom),
     mountedRange: resolvePaginationMountedRange(editorDom),
     windowKey: viewport?.dataset.layoutWindowKey ?? null,
-    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom),
-    spacerHeightsByRange: resolvePageRangeSpacerHeights(editorDom)
+    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom)
   }
 }
 
@@ -387,70 +365,25 @@ function resolveDefaultBreakerHeight(params: {
   return currentLayout.footerReserved + storage.pageGap + nextLayout.headerReserved
 }
 
-function createPageRangeSpacer(params: {
-  startPage: number
-  endPage: number
+function resolveDefaultPlaceholderBreakerMetrics(params: {
+  pageNumber: number
   totalPages: number
   pageFormat: PageFormat
   options: PagesOptions
   storage: PagesStorage
-  placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
-  spacerHeightsByRange: Map<string, number>
 }) {
-  const {
-    startPage,
-    endPage,
-    totalPages,
-    pageFormat,
-    options,
-    storage,
-    placeholderBreakerMetricsByPage,
-    spacerHeightsByRange
-  } = params
-  const spacer = document.createElement('div')
-  spacer.className = 'rm-page-spacer'
-  spacer.dataset.rmPageRangeStart = String(startPage)
-  spacer.dataset.rmPageRangeEnd = String(endPage)
-  const pageSegmentHeights: number[] = []
+  const { pageNumber, totalPages, pageFormat, options, storage } = params
+  const currentLayout = getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
+  const nextLayout =
+    pageNumber >= totalPages
+      ? currentLayout
+      : getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
 
-  const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
-  const validPreservedHeight =
-    typeof preservedHeight === 'number' && Number.isFinite(preservedHeight) && preservedHeight > 0
-      ? preservedHeight
-      : undefined
-  let totalHeight = validPreservedHeight ?? 0
-  if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
-    totalHeight = 0
+  return {
+    breakerHeight: resolveDefaultBreakerHeight(params),
+    footerHeight: currentLayout.footerReserved,
+    nextHeaderHeight: pageNumber >= totalPages ? 0 : nextLayout.headerReserved
   }
-
-  for (let pageNumber = startPage; pageNumber <= endPage; pageNumber += 1) {
-    const pageHeight =
-      getPageSpacerHeight(pageFormat, storage, pageNumber, options.headerHeight, options.footerHeight) +
-      Math.max(
-        0,
-        placeholderBreakerMetricsByPage.get(pageNumber)?.breakerHeight ??
-          resolveDefaultBreakerHeight({
-            pageNumber,
-            totalPages,
-            pageFormat,
-            options,
-            storage
-          })
-      )
-    pageSegmentHeights.push(pageHeight)
-
-    if (validPreservedHeight === undefined) {
-      totalHeight += pageHeight
-    }
-  }
-
-  if (totalHeight > 0) {
-    spacer.style.height = `${totalHeight}px`
-  }
-  spacer.dataset.rmPageRangeHeight = String(Math.max(0, totalHeight))
-  spacer.dataset.rmPageSegmentHeights = pageSegmentHeights.join(',')
-
-  return spacer
 }
 
 function createFullPageBreaker(params: {
@@ -1222,6 +1155,7 @@ export function createPageBreakElement(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
+  hydratedRange?: PaginationWindowRange | null
   activeRange?: PaginationWindowRange | null
   placeholderBreakerMetrics?: PageBreakerPlaceholderMetrics | null
   onOpenEditor?: (
@@ -1238,6 +1172,7 @@ export function createPageBreakElement(params: {
     options,
     storage,
     extensions,
+    hydratedRange,
     activeRange,
     placeholderBreakerMetrics,
     onOpenEditor
@@ -1246,6 +1181,11 @@ export function createPageBreakElement(params: {
   const pageContainer = document.createElement('div')
   pageContainer.className = 'rm-page-break'
   pageContainer.dataset.rmPageNumber = String(pageNumber)
+  const effectiveHydratedRange = hydratedRange ?? activeRange ?? null
+  const shellState: PageShellState = shouldRenderFullPageBreaker(pageNumber, effectiveHydratedRange)
+    ? 'hydrated'
+    : 'placeholder'
+  setPageBreakShellState(pageContainer, shellState)
 
   const page = document.createElement('div')
   page.className = 'page'
@@ -1291,8 +1231,17 @@ export function createPageBreakElement(params: {
   page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =
-    !shouldRenderFullPageBreaker(pageNumber, activeRange) && placeholderBreakerMetrics != null
-      ? createPlaceholderBreaker(placeholderBreakerMetrics)
+    shellState === 'placeholder'
+      ? createPlaceholderBreaker(
+          placeholderBreakerMetrics ??
+            resolveDefaultPlaceholderBreakerMetrics({
+              pageNumber,
+              totalPages,
+              pageFormat,
+              options,
+              storage
+            })
+        )
       : createFullPageBreaker({
           pageNumber,
           totalPages,
@@ -1315,7 +1264,7 @@ export function createPaginationWrapper(params: {
   extensions: Extension[]
   rendererState?: Pick<
     WindowedPaginationRendererState,
-    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage' | 'spacerHeightsByRange'
+    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage'
   > | null
   onOpenEditor?: (
     type: HeaderFooterEditorType,
@@ -1331,31 +1280,15 @@ export function createPaginationWrapper(params: {
   wrapper.id = 'pages'
   wrapper.className = 'rm-pages-wrapper'
 
-  const mountedRange = resolveMountedPageRange(totalPages, rendererState?.mountedRange, rendererState?.activeRange)
+  const mountedRange = resolveMountedPageRange(
+    totalPages,
+    rendererState?.activeRange ? rendererState.mountedRange : null,
+    rendererState?.activeRange
+  )
   wrapper.dataset.rmMountedStartPage = String(mountedRange.startPage)
   wrapper.dataset.rmMountedEndPage = String(mountedRange.endPage)
-  const shouldRenderSparseShells = mountedRange.startPage > 1 || mountedRange.endPage < totalPages
 
-  if (shouldRenderSparseShells && mountedRange.startPage > 1) {
-    wrapper.appendChild(
-      createPageRangeSpacer({
-        startPage: 1,
-        endPage: mountedRange.startPage - 1,
-        totalPages,
-        pageFormat,
-        options,
-        storage,
-        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
-        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
-      })
-    )
-  }
-
-  for (
-    let pageNumber = shouldRenderSparseShells ? mountedRange.startPage : 1;
-    pageNumber <= (shouldRenderSparseShells ? mountedRange.endPage : totalPages);
-    pageNumber += 1
-  ) {
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
     const pageBreakElement = createPageBreakElement({
       pageNumber,
       totalPages,
@@ -1363,7 +1296,7 @@ export function createPaginationWrapper(params: {
       options,
       storage,
       extensions,
-      activeRange: mountedRange,
+      hydratedRange: mountedRange,
       placeholderBreakerMetrics: rendererState?.placeholderBreakerMetricsByPage.get(pageNumber) ?? null,
       onOpenEditor
     })
@@ -1373,21 +1306,6 @@ export function createPaginationWrapper(params: {
       rendererState?.windowKey ?? null
     )
     wrapper.appendChild(pageBreakElement)
-  }
-
-  if (shouldRenderSparseShells && mountedRange.endPage < totalPages) {
-    wrapper.appendChild(
-      createPageRangeSpacer({
-        startPage: mountedRange.endPage + 1,
-        endPage: totalPages,
-        totalPages,
-        pageFormat,
-        options,
-        storage,
-        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
-        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
-      })
-    )
   }
 
   return wrapper
@@ -1424,6 +1342,7 @@ export function hydratePageBreakElement(params: {
   })
 
   breaker.replaceWith(nextBreaker)
+  setPageBreakShellState(params.pageContainer, 'hydrated')
   applyWindowAttributesToPageBreak(
     params.pageContainer,
     params.rendererState?.activeRange ?? null,

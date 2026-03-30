@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react'
 import React from 'react'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { ExpenseData } from '../../../../types'
-import { ExpenseDataTable } from '../../../../common/components/ExpenseDataTable'
-import { TableErrorState } from '../../../../common/components/TableErrorState'
+import { ExpenseDataTable } from '../../../../../../common/components/ExpenseDataTable'
+import { TableErrorState } from '../../../../../../common/components/TableErrorState'
 
 const DEFAULT_DATA_TEST_ID_PREFIX = 'expense-requests'
 
@@ -18,6 +19,7 @@ export interface ExpenseRequestsTableProps {
   onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
   emptyMessage: string
   onRowClick: (record: ExpenseData) => void
+  actions?: (row: { original: ExpenseData }) => ReactNode
   dataTestIdPrefix?: string
 }
 
@@ -34,6 +36,7 @@ function ExpenseRequestsTable(props: Readonly<ExpenseRequestsTableProps>) {
     onPaginationChange,
     emptyMessage,
     onRowClick,
+    actions,
     dataTestIdPrefix = DEFAULT_DATA_TEST_ID_PREFIX
   } = props
 
@@ -54,8 +57,10 @@ function ExpenseRequestsTable(props: Readonly<ExpenseRequestsTableProps>) {
         pagination={pagination}
         onPaginationChange={onPaginationChange}
         onRowClick={onRowClick}
+        actions={actions}
         emptyMessage={emptyMessage}
         dataTestId="expense-requests-data-table"
+        rowsPerPage={pagination?.pageSize}
       />
     </div>
   )

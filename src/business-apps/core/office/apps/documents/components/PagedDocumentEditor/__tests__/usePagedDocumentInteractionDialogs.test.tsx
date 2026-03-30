@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Schema } from '@tiptap/pm/model'
 import {
@@ -8,6 +8,17 @@ import {
   resolveLinkDialogRequest,
   usePagedDocumentInteractionDialogs
 } from '../hooks/usePagedDocumentInteractionDialogs'
+
+beforeAll(() => {
+  global.Image = class {
+    naturalWidth = 800
+    naturalHeight = 600
+    onload: (() => void) | null = null
+    set src(_value: string) {
+      queueMicrotask(() => this.onload?.())
+    }
+  } as unknown as typeof Image
+})
 
 function createHookParams(overrides?: Partial<Parameters<typeof usePagedDocumentInteractionDialogs>[0]>) {
   return {
@@ -379,7 +390,7 @@ describe('usePagedDocumentInteractionDialogs', () => {
     })
   })
 
-  it('replaces the currently selected image node when the replace dialog submits', () => {
+  it('replaces the currently selected image node when the replace dialog submits', async () => {
     const tr = { id: 'transaction' }
     const setNodeMarkup = jest.fn(() => tr)
     const dispatch = jest.fn()
@@ -417,19 +428,24 @@ describe('usePagedDocumentInteractionDialogs', () => {
 
     expect(result.current.showInsertImageDialog).toBe(true)
     expect(result.current.imageDialogMode).toBe('replace')
+    await waitFor(() => {
+      expect(setNodeMarkup).toHaveBeenCalled()
+    })
     expect(setNodeMarkup).toHaveBeenCalledWith(
       12,
       undefined,
       expect.objectContaining({
         src: 'new-src',
-        alt: 'diagram'
+        alt: 'diagram',
+        originalWidth: 800,
+        originalHeight: 600
       })
     )
     expect(dispatch).toHaveBeenCalledWith(tr)
     expect(focus).toHaveBeenCalled()
   })
 
-  it('maps the replacement image position while the replace dialog stays open', () => {
+  it('maps the replacement image position while the replace dialog stays open', async () => {
     const { editor, handlers, setImagePositions, setNodeMarkup } = createTrackedImageEditor()
     setImagePositions([14])
     const replaceImagePosRef = { current: null as number | null }
@@ -464,12 +480,17 @@ describe('usePagedDocumentInteractionDialogs', () => {
     })
 
     expect(replaceImagePosRef.current).toBe(14)
+    await waitFor(() => {
+      expect(setNodeMarkup).toHaveBeenCalled()
+    })
     expect(setNodeMarkup).toHaveBeenCalledWith(
       14,
       undefined,
       expect.objectContaining({
         src: 'new-src',
-        alt: 'diagram'
+        alt: 'diagram',
+        originalWidth: 800,
+        originalHeight: 600
       })
     )
   })
