@@ -68,14 +68,14 @@ import MultiEmployeeSelect from '@/components/multi-employee-select/MultiEmploye
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import translations from '../../_i18n'
 
-function getTriggerStepDescription(automationType: AutomationType): string {
+function getTriggerStepDescription(automationType: AutomationType, translate: (key: string) => string): string {
   if (automationType === 'sheet_approval') {
-    return 'Sheet approval is triggered manually when you submit the spreadsheet for review.'
+    return translate('wizard-trigger-description-sheet-approval')
   }
   if (automationType === 'bulk_collection' || automationType === 'excel_collection') {
-    return 'Choose when to send out collection requests to participants.'
+    return translate('wizard-trigger-description-collection')
   }
-  return 'Choose when this automation should run.'
+  return translate('wizard-trigger-description-default')
 }
 
 export interface AutomationWizardProps {
@@ -126,54 +126,54 @@ interface WizardStepAssignment {
 
 const COLLECTION_DELIVERY_OPTIONS: {
   type: 'bulk_collection' | 'excel_collection'
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
   icon: React.FC<{ className?: string }>
 }[] = [
   {
     type: 'bulk_collection',
-    title: 'Form',
-    description: 'Send a form with custom fields. Recipients fill and submit; responses appear as rows.',
+    titleKey: 'wizard-delivery-form-title',
+    descriptionKey: 'wizard-delivery-form-description',
     icon: Users
   },
   {
     type: 'excel_collection',
-    title: 'Spreadsheet template',
-    description: 'Send a copy of a spreadsheet template. Recipients fill their copy and submit.',
+    titleKey: 'wizard-delivery-spreadsheet-title',
+    descriptionKey: 'wizard-delivery-spreadsheet-description',
     icon: FileDown
   }
 ]
 
 interface TriggerOption {
   trigger: AutomationTrigger
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
   icon: React.FC<{ className?: string }>
 }
 
 const TRIGGER_OPTIONS: TriggerOption[] = [
   {
     trigger: 'manual',
-    title: 'Manual',
-    description: 'Run the automation when you click the Run button.',
+    titleKey: 'wizard-trigger-manual-title',
+    descriptionKey: 'wizard-trigger-manual-description',
     icon: Play
   },
   {
     trigger: 'onRowAdd',
-    title: 'On Row Add',
-    description: 'Automatically run when a new row is added.',
+    titleKey: 'wizard-trigger-on-row-add-title',
+    descriptionKey: 'wizard-trigger-on-row-add-description',
     icon: Plus
   },
   {
     trigger: 'onFieldChange',
-    title: 'On Field Change',
-    description: 'Run when specific columns are modified.',
+    titleKey: 'wizard-trigger-on-field-change-title',
+    descriptionKey: 'wizard-trigger-on-field-change-description',
     icon: RefreshCw
   },
   {
     trigger: 'scheduled',
-    title: 'Scheduled',
-    description: 'Run at specific times or intervals.',
+    titleKey: 'wizard-trigger-scheduled-title',
+    descriptionKey: 'wizard-trigger-scheduled-description',
     icon: Clock
   }
 ]
@@ -214,13 +214,17 @@ interface SpreadsheetTemplateItem {
 
 function toTemplateOptions(
   items: SpreadsheetTemplateItem[],
-  spreadsheetId: string
+  spreadsheetId: string,
+  translate: (key: string) => string
 ): Array<{ id: string; name: string }> {
   return items
     .filter(item => !item.settings?.excel_collection_copy)
     .map(item => ({
       id: item.id,
-      name: item.id === spreadsheetId ? `${item.name || 'Untitled'} (this sheet)` : item.name || 'Untitled'
+      name:
+        item.id === spreadsheetId
+          ? `${item.name || translate('wizard-untitled')} ${translate('wizard-this-sheet')}`
+          : item.name || translate('wizard-untitled')
     }))
 }
 
@@ -265,51 +269,55 @@ function getFormFieldSuggestion(columnLabel: string): string {
     .replaceAll(/\s/g, '')
 }
 
-function getMappingDescription(automationType: AutomationType | null): string {
+function getMappingDescription(automationType: AutomationType | null, translate: (key: string) => string): string {
   switch (automationType) {
     case 'bulk_collection':
-      return 'Configure which form fields map to which spreadsheet columns. When people submit the form, their answers will fill these columns.'
+      return translate('wizard-mapping-description-bulk')
     case 'row_workflow':
-      return 'Specify which row data to include in the workflow. Recipients will see this data when reviewing.'
+      return translate('wizard-mapping-description-row-workflow')
     case 'line_approval':
-      return 'Choose which columns to show in the approval form. Approvers will see these values when reviewing each line.'
+      return translate('wizard-mapping-description-line-approval')
     case 'sheet_approval':
-      return 'Select columns to include in the approval summary. These will be shown to the approver.'
+      return translate('wizard-mapping-description-sheet-approval')
     default:
-      return 'Map spreadsheet columns to workflow data.'
+      return translate('wizard-mapping-description-default')
   }
 }
 
-function getMappingFieldLabel(automationType: AutomationType | null): string {
+function getMappingFieldLabel(automationType: AutomationType | null, translate: (key: string) => string): string {
   switch (automationType) {
     case 'bulk_collection':
-      return 'Form Field Label'
+      return translate('wizard-mapping-field-label-bulk')
     case 'row_workflow':
     case 'line_approval':
-      return 'Show as Label'
+      return translate('wizard-mapping-field-label-show-as')
     case 'sheet_approval':
-      return 'Summary Label'
+      return translate('wizard-mapping-field-label-summary')
     default:
-      return 'Field Name'
+      return translate('wizard-mapping-field-label-default')
   }
 }
 
-function getMappingDirectionLabel(automationType: AutomationType | null): string {
+function getMappingDirectionLabel(automationType: AutomationType | null, translate: (key: string) => string): string {
   switch (automationType) {
     case 'bulk_collection':
-      return 'Collect responses into column'
+      return translate('wizard-mapping-direction-label-bulk')
     case 'row_workflow':
-      return 'Send to workflow / Get result back'
+      return translate('wizard-mapping-direction-label-row-workflow')
     default:
-      return 'Data Flow'
+      return translate('wizard-mapping-direction-label-default')
   }
 }
 
-function getRecipientLabel(assignee: string | undefined, recipientCount: number): string {
-  if (assignee === 'specific') return `${recipientCount} people selected`
-  if (assignee === 'team') return 'My Team'
-  if (assignee === 'department') return 'Department'
-  return '—'
+function getRecipientLabel(
+  assignee: string | undefined,
+  recipientCount: number,
+  translate: (key: string, vars?: Record<string, string | number>) => string
+): string {
+  if (assignee === 'specific') return translate('wizard-recipients-selected-count', { count: recipientCount })
+  if (assignee === 'team') return translate('wizard-recipient-team')
+  if (assignee === 'department') return translate('wizard-recipient-department')
+  return translate('wizard-empty-dash')
 }
 
 function getStepIndicatorStyle(isActive: boolean, isCompleted: boolean): string {
@@ -318,24 +326,39 @@ function getStepIndicatorStyle(isActive: boolean, isCompleted: boolean): string 
   return 'gba:bg-muted gba:text-muted-foreground'
 }
 
-function getStepTitle(step: WizardStep): string {
-  if (step === 'type') return 'Collection Method'
-  if (step === 'setup') return 'Setup'
-  if (step === 'configure') return 'Configure Collection'
-  return step.replaceAll('_', ' ').replaceAll(/\b\w/g, c => c.toUpperCase())
+function getStepTitle(step: WizardStep, translate: (key: string) => string): string {
+  switch (step) {
+    case 'type':
+      return translate('wizard-step-type')
+    case 'setup':
+      return translate('wizard-step-setup')
+    case 'configure':
+      return translate('wizard-step-configure')
+    case 'trigger':
+      return translate('wizard-step-trigger')
+    case 'workflow':
+      return translate('wizard-step-workflow')
+    case 'mapping':
+      return translate('wizard-step-mapping')
+    case 'review':
+      return translate('wizard-step-review')
+    default:
+      return step
+  }
 }
 
-function getAutomationTypeTitle(type: AutomationType | null): string {
-  const titles: Record<AutomationType, string> = {
-    row_workflow: 'Row Workflow',
-    bulk_collection: 'Form',
-    excel_collection: 'Spreadsheet template',
-    sheet_approval: 'Sheet Approval',
-    line_approval: 'Line Approval'
+function getAutomationTypeTitle(type: AutomationType | null, translate: (key: string) => string): string {
+  if (!type) return translate('wizard-not-selected')
+
+  const titleByType: Record<AutomationType, string> = {
+    row_workflow: 'wizard-automation-type-row-workflow',
+    bulk_collection: 'wizard-automation-type-bulk-collection',
+    excel_collection: 'wizard-automation-type-excel-collection',
+    sheet_approval: 'wizard-automation-type-sheet-approval',
+    line_approval: 'wizard-automation-type-line-approval'
   }
 
-  if (!type) return 'Not selected'
-  return titles[type] || type
+  return translate(titleByType[type])
 }
 
 /**
@@ -504,7 +527,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
         const data = (await response.json()) as { items?: SpreadsheetTemplateItem[] }
         if (cancelled) return
-        setAvailableTemplates(toTemplateOptions(data.items || [], spreadsheetId))
+        setAvailableTemplates(toTemplateOptions(data.items || [], spreadsheetId, t))
       } catch {
         if (!cancelled) setAvailableTemplates([])
       } finally {
@@ -517,7 +540,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     return () => {
       cancelled = true
     }
-  }, [isOpen, automationType, currentStep, accessToken, spreadsheetId])
+  }, [isOpen, automationType, currentStep, accessToken, spreadsheetId, t])
 
   // Wizard steps depend on automation type (bulk: 4 steps, others: 5 steps)
   const wizardSteps = useMemo(() => getWizardStepsForType(automationType), [automationType])
@@ -529,17 +552,17 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const getPlaceholderName = (): string => {
     switch (automationType) {
       case 'row_workflow':
-        return 'e.g., Process Customer Requests'
+        return t('wizard-placeholder-name-row-workflow')
       case 'bulk_collection':
-        return 'e.g., Q4 Employee Survey'
+        return t('wizard-placeholder-name-bulk-collection')
       case 'excel_collection':
-        return 'e.g., Q4 Status Report'
+        return t('wizard-placeholder-name-excel-collection')
       case 'sheet_approval':
-        return 'e.g., Budget Approval'
+        return t('wizard-placeholder-name-sheet-approval')
       case 'line_approval':
-        return 'e.g., Expense Line Approval'
+        return t('wizard-placeholder-name-line-approval')
       default:
-        return 'e.g., My Automation'
+        return t('wizard-placeholder-name-default')
     }
   }
 
@@ -547,17 +570,17 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const getPlaceholderDescription = (): string => {
     switch (automationType) {
       case 'row_workflow':
-        return 'Process each row through review and completion tasks...'
+        return t('wizard-placeholder-description-row-workflow')
       case 'bulk_collection':
-        return 'Collect responses from team members into this spreadsheet...'
+        return t('wizard-placeholder-description-bulk-collection')
       case 'excel_collection':
-        return 'Send a copy of this spreadsheet to your team. They fill it and submit.'
+        return t('wizard-placeholder-description-excel-collection')
       case 'sheet_approval':
-        return 'Submit the entire sheet for manager approval...'
+        return t('wizard-placeholder-description-sheet-approval')
       case 'line_approval':
-        return 'Each line item will be reviewed and approved separately...'
+        return t('wizard-placeholder-description-line-approval')
       default:
-        return 'Describe what this automation does...'
+        return t('wizard-placeholder-description-default')
     }
   }
 
@@ -569,72 +592,72 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
   const validateReviewStep = useCallback(
     (errors: string[]) => {
-      if (!name.trim()) errors.push('Automation name is required')
-      if (!automationType) errors.push('Automation type is required')
+      if (!name.trim()) errors.push(t('wizard-error-name-required'))
+      if (!automationType) errors.push(t('wizard-error-type-required'))
 
       if (automationType === 'bulk_collection') {
-        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this form')
-        if (formFields.length === 0) errors.push('Please add at least one form field')
+        if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-form-recipients'))
+        if (formFields.length === 0) errors.push(t('wizard-error-add-form-field'))
       }
 
       if (automationType === 'excel_collection') {
-        if (!selectedTemplateId) errors.push('Please select a template spreadsheet')
-        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
+        if (!selectedTemplateId) errors.push(t('wizard-error-select-template'))
+        if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-recipients'))
       }
     },
-    [name, automationType, hasConfiguredRecipients, formFields.length, selectedTemplateId]
+    [name, automationType, hasConfiguredRecipients, formFields.length, selectedTemplateId, t]
   )
 
   const validateTypeStep = useCallback(
     (errors: string[]) => {
       if (!automationType) {
-        errors.push('Please select a collection method')
+        errors.push(t('wizard-error-select-collection-method'))
       }
     },
-    [automationType]
+    [automationType, t]
   )
 
   const validateSetupStep = useCallback(
     (errors: string[]) => {
       if (!name.trim()) {
-        errors.push('Please enter an automation name')
+        errors.push(t('wizard-error-enter-name'))
       }
     },
-    [name]
+    [name, t]
   )
 
   const validateTriggerStep = useCallback(
     (errors: string[]) => {
       if (trigger === 'onFieldChange' && watchColumns.length === 0) {
-        errors.push('Please select at least one column to watch')
+        errors.push(t('wizard-error-select-watch-column'))
       }
     },
-    [trigger, watchColumns]
+    [trigger, watchColumns, t]
   )
 
   const validateWorkflowStep = useCallback(
     (errors: string[]) => {
       if (!name.trim()) {
-        errors.push('Please enter an automation name')
+        errors.push(t('wizard-error-enter-name'))
       }
       if (workflowSteps.length === 0 && approvalSteps.length === 0) {
-        errors.push('Please add at least one workflow step')
+        errors.push(t('wizard-error-add-workflow-step'))
       }
     },
-    [name, workflowSteps.length, approvalSteps.length]
+    [name, workflowSteps.length, approvalSteps.length, t]
   )
 
   const validateConfigureStep = useCallback(
     (errors: string[]) => {
-      if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
+      if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-recipients'))
       if (automationType === 'excel_collection' && !selectedTemplateId) {
-        errors.push('Please select a template spreadsheet')
+        errors.push(t('wizard-error-select-template'))
       }
       if (automationType === 'bulk_collection' && formFields.length === 0) {
-        errors.push('Please add at least one form field to collect')
+        errors.push(t('wizard-error-add-form-field-to-collect'))
       }
     },
-    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields.length]
+    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields.length, t]
   )
 
   const stepValidationHandlers: Partial<Record<WizardStep, (errors: string[]) => void>> = useMemo(
@@ -1371,8 +1394,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           <Icon className="gba:w-5 gba:h-5" />
                         </div>
                         <div className="gba:flex-1">
-                          <h3 className="gba:font-semibold gba:text-foreground">{opt.title}</h3>
-                          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{opt.description}</p>
+                          <h3 className="gba:font-semibold gba:text-foreground">{t(opt.titleKey)}</h3>
+                          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t(opt.descriptionKey)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -1443,8 +1466,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             <Icon className="gba:w-5 gba:h-5" />
                           </div>
                           <div>
-                            <h3 className="gba:font-semibold gba:text-foreground">{option.title}</h3>
-                            <p className="gba:text-sm gba:text-muted-foreground">{option.description}</p>
+                            <h3 className="gba:font-semibold gba:text-foreground">{t(option.titleKey)}</h3>
+                            <p className="gba:text-sm gba:text-muted-foreground">{t(option.descriptionKey)}</p>
                           </div>
                         </div>
                       </CardContent>
@@ -1463,7 +1486,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
         return (
           <div className="gba:space-y-4">
-            <p className="gba:text-muted-foreground">{getTriggerStepDescription(automationType)}</p>
+            <p className="gba:text-muted-foreground">{getTriggerStepDescription(automationType, t)}</p>
             <div className="gba:space-y-3">
               {filteredOptions.map(option => {
                 const Icon = option.icon
@@ -1487,8 +1510,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           <Icon className="gba:w-5 gba:h-5" />
                         </div>
                         <div>
-                          <h3 className="gba:font-semibold gba:text-foreground">{option.title}</h3>
-                          <p className="gba:text-sm gba:text-muted-foreground">{option.description}</p>
+                          <h3 className="gba:font-semibold gba:text-foreground">{t(option.titleKey)}</h3>
+                          <p className="gba:text-sm gba:text-muted-foreground">{t(option.descriptionKey)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -1639,15 +1662,30 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                   {isExcelConfigure ? 2 : 1}
                 </div>
                 <Label className="gba:text-sm gba:font-semibold">
-                  {isExcelConfigure ? 'Who should receive this spreadsheet copy?' : 'Who should receive this form?'}
+                  {isExcelConfigure ? t('wizard-who-receives-spreadsheet-copy') : t('wizard-who-receives-form')}
                 </Label>
               </div>
 
               <div className="gba:grid gba:grid-cols-3 gba:gap-2">
                 {[
-                  { value: 'team', icon: Users, label: 'My Team', desc: 'Direct reports' },
-                  { value: 'department', icon: Building, label: 'Department', desc: 'All members' },
-                  { value: 'specific', icon: User, label: 'Specific People', desc: 'Choose who' }
+                  {
+                    value: 'team',
+                    icon: Users,
+                    labelKey: 'wizard-recipient-team',
+                    descKey: 'wizard-recipient-team-description'
+                  },
+                  {
+                    value: 'department',
+                    icon: Building,
+                    labelKey: 'wizard-recipient-department',
+                    descKey: 'wizard-recipient-department-description'
+                  },
+                  {
+                    value: 'specific',
+                    icon: User,
+                    labelKey: 'wizard-recipient-specific-people',
+                    descKey: 'wizard-recipient-specific-people-description'
+                  }
                 ].map(opt => (
                   <button
                     key={opt.value}
@@ -1665,8 +1703,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     }`}
                   >
                     <opt.icon className="gba:w-5 gba:h-5 gba:mb-1 gba:text-muted-foreground" />
-                    <div className="gba:font-medium gba:text-sm">{opt.label}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">{opt.desc}</div>
+                    <div className="gba:font-medium gba:text-sm">{t(opt.labelKey)}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">{t(opt.descKey)}</div>
                   </button>
                 ))}
               </div>
@@ -1942,12 +1980,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         )
 
       case 'mapping': {
-        const columnLabel = 'Spreadsheet Column'
+        const columnLabel = t('wizard-spreadsheet-column')
 
         return (
           <div className="gba:space-y-6">
             <div>
-              <p className="gba:text-muted-foreground">{getMappingDescription(automationType)}</p>
+              <p className="gba:text-muted-foreground">{getMappingDescription(automationType, t)}</p>
             </div>
 
             {/* Quick setup: auto-map all columns */}
@@ -2011,8 +2049,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 <div className="gba:grid gba:grid-cols-12 gba:gap-3 gba:px-4 gba:text-xs gba:text-muted-foreground gba:font-medium">
                   <div className="gba:col-span-4">{columnLabel}</div>
                   <div className="gba:col-span-1"></div>
-                  <div className="gba:col-span-4">{getMappingFieldLabel(automationType)}</div>
-                  <div className="gba:col-span-2">{getMappingDirectionLabel(automationType)}</div>
+                  <div className="gba:col-span-4">{getMappingFieldLabel(automationType, t)}</div>
+                  <div className="gba:col-span-2">{getMappingDirectionLabel(automationType, t)}</div>
                   <div className="gba:col-span-1"></div>
                 </div>
 
@@ -2133,18 +2171,23 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                   <div>
                     <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-type')}</Label>
-                    <p className="gba:font-medium">{getAutomationTypeTitle(automationType)}</p>
+                    <p className="gba:font-medium">{getAutomationTypeTitle(automationType, t)}</p>
                   </div>
                   <div>
                     <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-trigger')}</Label>
-                    <p className="gba:font-medium">{TRIGGER_OPTIONS.find(t => t.trigger === trigger)?.title}</p>
+                    <p className="gba:font-medium">
+                      {(() => {
+                        const selectedTrigger = TRIGGER_OPTIONS.find(option => option.trigger === trigger)
+                        return selectedTrigger ? t(selectedTrigger.titleKey) : t('wizard-empty-dash')
+                      })()}
+                    </p>
                   </div>
                   {automationType === 'bulk_collection' ? (
                     <>
                       <div>
                         <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-recipients')}</Label>
                         <p className="gba:font-medium">
-                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length)}
+                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length, t)}
                         </p>
                       </div>
                       <div>
@@ -2159,7 +2202,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       <div>
                         <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-recipients')}</Label>
                         <p className="gba:font-medium">
-                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length)}
+                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length, t)}
                         </p>
                       </div>
                       <div>
@@ -2300,7 +2343,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
           {/* Step Title */}
           <div className="gba:text-center gba:mb-4">
-            <h3 className="gba:text-lg gba:font-semibold">{getStepTitle(currentStep)}</h3>
+            <h3 className="gba:text-lg gba:font-semibold">{getStepTitle(currentStep, t)}</h3>
           </div>
 
           {/* Validation Errors */}
@@ -2327,22 +2370,22 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             {currentStepIndex > 0 && (
               <Button variant="outline" onClick={handleBack}>
                 <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
-                Back
+                {t('wizard-back')}
               </Button>
             )}
           </div>
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              {t('wizard-cancel')}
             </Button>
             {currentStep === 'review' ? (
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? <Spinner size="sm" className="gba:mr-2" /> : <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                {isEditing ? 'Save Changes' : 'Create Automation'}
+                {isEditing ? t('wizard-save-changes') : t('wizard-create-automation')}
               </Button>
             ) : (
               <Button onClick={handleNext} disabled={!canGoNext}>
-                Next
+                {t('wizard-next')}
                 <ChevronRight className="gba:w-4 gba:h-4 gba:ml-1" />
               </Button>
             )}
