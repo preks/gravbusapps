@@ -117,8 +117,22 @@ menu-share = Share
 menu-export-to-excel = Export to Excel
 menu-add-column = Add Column
 menu-manage-columns = Manage Columns
+menu-ai-analytics = AI Analytics
 menu-automations = Automations
 menu-settings = Settings
+
+# AI Capability Menu
+ai-generate-charts = Generate charts
+ai-generate-formula = Generate a formula
+ai-analyze-data = Analyze data
+ai-smart-review = Smart review
+ai-insights = AI insights
+
+# Header labels
+header-view-only = View Only
+header-comments = Comments
+header-breadcrumb-spreadsheets = Spreadsheets
+header-submitted-at = Submitted - { $date }
 
 # Version History (shared dialog)
 version-history-title = Version History

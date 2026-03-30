@@ -11,7 +11,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChevronRight,
@@ -27,6 +28,7 @@ import {
   Sigma,
   ClipboardCheck
 } from 'lucide-react'
+import translations from '../_i18n'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
@@ -53,6 +55,8 @@ function AppIcon({ app }: { app: SpreadsheetApp }) {
 }
 
 function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: SpreadsheetApp }) {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
       {onBack && (
@@ -63,7 +67,7 @@ function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: Spreadsh
           className="gba:h-8 gba:px-2 gba:gap-1 gba:text-muted-foreground gba:hover:text-foreground"
         >
           <Home className="gba:w-4 gba:h-4" />
-          <span className="gba:hidden sm:gba:inline">Spreadsheets</span>
+          <span className="gba:hidden sm:gba:inline">{t('header-breadcrumb-spreadsheets')}</span>
         </Button>
       )}
       {onBack && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />}
@@ -106,6 +110,7 @@ function EditingToolbar({
     isLockedByMe: boolean
   }
 }) {
+  const { t } = useTranslation(translations)
   const isLocked = fileLock.lock?.isLocked ?? false
   return (
     <div className="gba:flex gba:items-center gba:gap-1.5">
@@ -121,7 +126,7 @@ function EditingToolbar({
         variant={showComments ? 'default' : 'ghost'}
         size="sm"
         onClick={() => setShowComments(!showComments)}
-        title="Comments"
+        title={t('header-comments')}
         data-testid="spreadsheet-comments-button"
         className="gba:h-8"
       >
@@ -137,34 +142,34 @@ function EditingToolbar({
           <Button
             variant="ghost"
             size="sm"
-            title="AI Analytics"
+            title={t('menu-ai-analytics')}
             data-testid="spreadsheet-analytics-button"
             className="gba:h-8 gba:px-2 gba:gap-1 gba:bg-black gba:text-white gba:hover:bg-black/90 gba:hover:text-white"
           >
             <BarChart3 className="gba:w-4 gba:h-4" />
-            AI Analytics
+            {t('menu-ai-analytics')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="gba:min-w-[220px]">
           <DropdownMenuItem onClick={() => onOpenAICapability('charts')}>
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
-            Generate charts
+            {t('ai-generate-charts')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onOpenAICapability('formula')}>
             <Sigma className="gba:w-4 gba:h-4 gba:mr-2" />
-            Generate a formula
+            {t('ai-generate-formula')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onOpenAICapability('analyze')}>
             <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-            Analyze data
+            {t('ai-analyze-data')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onOpenAICapability('review')}>
             <ClipboardCheck className="gba:w-4 gba:h-4 gba:mr-2" />
-            Smart review
+            {t('ai-smart-review')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onOpenAICapability('insights')}>
             <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-            AI insights
+            {t('ai-insights')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -174,7 +179,9 @@ function EditingToolbar({
           className="gba:flex gba:items-center gba:gap-1"
         >
           <Lock className="gba:h-3 gba:w-3" />
-          {fileLock.isLockedByMe ? 'Locked' : `Locked by ${fileLock.lock?.lockedByName || 'another user'}`}
+          {fileLock.isLockedByMe
+            ? t('lock-status-locked')
+            : t('lock-status-locked-by', { name: fileLock.lock?.lockedByName || t('lock-status-locked-by-unknown') })}
         </Badge>
       )}
     </div>
@@ -196,6 +203,8 @@ function CollectionStatusSection({
   isSubmittingCollection: boolean
   handleSubmitCollection: () => void
 }) {
+  const { t } = useTranslation(translations)
+
   if (!isCollectionCopy) return null
   if (collectionSubmittedAt && formattedSubmittedAt) {
     return (
@@ -205,7 +214,7 @@ function CollectionStatusSection({
         data-testid="spreadsheet-submitted-badge"
       >
         <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />
-        <span>Submitted - {formattedSubmittedAt}</span>
+        <span>{t('header-submitted-at', { date: formattedSubmittedAt })}</span>
       </Badge>
     )
   }
@@ -220,7 +229,7 @@ function CollectionStatusSection({
         data-testid="spreadsheet-submit-collection"
       >
         <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-        {isSubmittingCollection ? 'Submitting...' : 'Submit'}
+        {isSubmittingCollection ? t('collection-submitting') : t('collection-submit')}
       </Button>
     )
   }
@@ -313,6 +322,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   collectionSubmittedAt,
   testId
 }) {
+  const { t } = useTranslation(translations)
   const [isSubmittingCollection, setIsSubmittingCollection] = useState(false)
   const handleSubmitCollection = useCallback(async () => {
     if (!onSubmitCollection || isSubmittingCollection) return
@@ -360,7 +370,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               data-testid="view-only-badge"
             >
               <Eye className="gba:h-3 gba:w-3 gba:mr-1" />
-              View Only
+              {t('header-view-only')}
             </Badge>
           )}
 

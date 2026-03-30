@@ -117,8 +117,22 @@ menu-share = Teilen
 menu-export-to-excel = Nach Excel exportieren
 menu-add-column = Spalte hinzufügen
 menu-manage-columns = Spalten verwalten
+menu-ai-analytics = KI-Analytik
 menu-automations = Automatisierungen
 menu-settings = Einstellungen
+
+# AI Capability Menu
+ai-generate-charts = Diagramme erstellen
+ai-generate-formula = Formel generieren
+ai-analyze-data = Daten analysieren
+ai-smart-review = Intelligente Überprüfung
+ai-insights = KI-Erkenntnisse
+
+# Header labels
+header-view-only = Nur Ansicht
+header-comments = Kommentare
+header-breadcrumb-spreadsheets = Tabellen
+header-submitted-at = Eingereicht – { $date }
 
 # Version History (shared dialog)
 version-history-title = Versionsverlauf

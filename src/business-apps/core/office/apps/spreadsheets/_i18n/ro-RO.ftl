@@ -117,8 +117,22 @@ menu-share = Distribuie
 menu-export-to-excel = Exportă în Excel
 menu-add-column = Adaugă coloană
 menu-manage-columns = Gestionează coloanele
+menu-ai-analytics = Analiză AI
 menu-automations = Automatizări
 menu-settings = Setări
+
+# AI Capability Menu
+ai-generate-charts = Generează diagrame
+ai-generate-formula = Generează o formulă
+ai-analyze-data = Analizează datele
+ai-smart-review = Revizuire inteligentă
+ai-insights = Perspective AI
+
+# Header labels
+header-view-only = Doar vizualizare
+header-comments = Comentarii
+header-breadcrumb-spreadsheets = Foi de calcul
+header-submitted-at = Trimis – { $date }
 
 # Version History (shared dialog)
 version-history-title = Istoric versiuni

@@ -9,6 +9,8 @@ import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef,
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets'
+import { useTranslation } from '@newwork/nw-design-system'
+import spreadsheetTranslations from '../_i18n'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type {
   DocumentParticipant,
@@ -35,33 +37,128 @@ const GERMAN_NUMFMT_LOCALE = 'de_DE'
 const NUMFMT_GRID_ROW_SELECTOR = ':scope > div.univer-flex.univer-h-7'
 /** Preview lives in the second span (`sheets-numfmt-ui` `Qn` / `MoreNumfmtType`); label stays in the first span. */
 const NUMFMT_ROW_PREVIEW_SPAN_SELECTOR = ':scope > span.univer-text-xs'
-/**
- * Anchors that identify the number-format dropdown (not the cell context menu).
- * Mirrors how context menu uses `CONTEXT_MENU_ANCHOR_LABELS` inside `tryInjectViaGridContainer`.
- */
-const NUMFMT_MENU_GRID_ANCHOR_LABELS = ['General', 'Formats', 'Currency', 'Date and time']
 const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
 
-const GERMAN_NUMFMT_PREVIEW_BY_LABEL: Record<string, string> = {
-  Percentage: '122000,00%',
-  Scientific: '1,22E+03',
-  Accounting: '1.220,00 EUR',
-  'Financial value': '1.220,00',
-  Currency: '1.220,00 EUR',
-  'Rounding up the currency': '1.220 EUR',
-  Date: '04.05.1903',
-  Time: '00:00:00',
-  'Date and time': '04.05.1903 00:00'
+/**
+ * Univer locale overlay for German (the library ships no de-DE bundle).
+ * Only the `sheet.numfmt.*` keys are needed for the number-format dropdown menu.
+ */
+const UNIVER_NUMFMT_DE_LOCALE = {
+  sheet: {
+    numfmt: {
+      title: 'Zahlenformat',
+      numfmtType: 'Formattypen',
+      cancel: 'Abbrechen',
+      confirm: 'Bestätigen',
+      general: 'Allgemein',
+      accounting: 'Buchhaltung',
+      text: 'Text',
+      number: 'Zahl',
+      percent: 'Prozentsatz',
+      scientific: 'Wissenschaftlich',
+      currency: 'Währung',
+      date: 'Datum',
+      time: 'Uhrzeit',
+      thousandthPercentile: 'Tausendertrennzeichen',
+      preview: 'Vorschau',
+      dateTime: 'Datum und Uhrzeit',
+      decimalLength: 'Dezimalstellen',
+      currencyType: 'Währungssymbol',
+      moreFmt: 'Formate',
+      financialValue: 'Finanzieller Wert',
+      roundingCurrency: 'Währung gerundet',
+      timeDuration: 'Zeitdauer',
+      currencyDes:
+        'Das Währungsformat wird für allgemeine Geldbeträge verwendet. Das Buchhaltungsformat richtet Dezimalstellen und Währungssymbole in einer Spalte aus.',
+      accountingDes:
+        'Das Buchhaltungsformat richtet eine Spalte von Werten an Währungssymbolen und Dezimalstellen aus.',
+      dateType: 'Datumstyp',
+      dateDes: 'Das Datumsformat stellt Datums- und Zeitreihenwerte als Datumswerte dar.',
+      negType: 'Negativer Zahlentyp',
+      generalDes: 'Das Standardformat enthält kein bestimmtes Zahlenformat.',
+      thousandthPercentileDes:
+        'Das Prozentformat wird zur Darstellung gewöhnlicher Zahlen verwendet. Währungs- und Buchhaltungsformate bieten spezialisierte Formate für Geldwertberechnungen.',
+      addDecimal: 'Dezimalstellen erhöhen',
+      subtractDecimal: 'Dezimalstellen verringern',
+      customFormat: 'Benutzerdefiniertes Format',
+      customFormatDes: 'Benutzerdefinierte Zahlenformate basierend auf vorhandenen Formaten erstellen.'
+    }
+  }
 }
 
-const GERMAN_NUMFMT_PATTERN_BY_LABEL: Record<string, string> = {
-  Accounting: '#,##0.00 "EUR"',
-  'Financial value': '#,##0.00',
-  Currency: '#,##0.00 "EUR"',
-  'Rounding up the currency': '#,##0 "EUR"',
-  Date: 'dd.mm.yyyy',
-  Time: 'hh:mm:ss',
-  'Date and time': 'dd.mm.yyyy hh:mm'
+/**
+ * Anchors that identify the number-format dropdown (not the cell context menu).
+ * Indexed by app locale so the grid finder works regardless of Univer's UI language.
+ */
+const NUMFMT_MENU_GRID_ANCHOR_LABELS_BY_LOCALE: Record<string, string[]> = {
+  'en-US': ['General', 'Formats', 'Currency', 'Date and time'],
+  'de-DE': ['Allgemein', 'Formate', 'Währung', 'Datum und Uhrzeit']
+}
+const NUMFMT_MENU_GRID_ANCHOR_LABELS_DEFAULT = NUMFMT_MENU_GRID_ANCHOR_LABELS_BY_LOCALE['en-US']
+
+/**
+ * German-formatted preview values keyed by the label text visible in the menu.
+ * Indexed by app locale because the label language changes with the Univer locale.
+ */
+const GERMAN_NUMFMT_PREVIEW_BY_LABEL_BY_LOCALE: Record<string, Record<string, string>> = {
+  'en-US': {
+    Percentage: '122000,00%',
+    Scientific: '1,22E+03',
+    Accounting: '1.220,00 EUR',
+    'Financial value': '1.220,00',
+    Currency: '1.220,00 EUR',
+    'Rounding up the currency': '1.220 EUR',
+    Date: '04.05.1903',
+    Time: '00:00:00',
+    'Date and time': '04.05.1903 00:00'
+  },
+  'de-DE': {
+    Prozentsatz: '122000,00%',
+    Wissenschaftlich: '1,22E+03',
+    Buchhaltung: '1.220,00 EUR',
+    'Finanzieller Wert': '1.220,00',
+    Währung: '1.220,00 EUR',
+    'Währung gerundet': '1.220 EUR',
+    Datum: '04.05.1903',
+    Uhrzeit: '00:00:00',
+    'Datum und Uhrzeit': '04.05.1903 00:00'
+  }
+}
+
+const GERMAN_NUMFMT_PATTERN_BY_LABEL_BY_LOCALE: Record<string, Record<string, string>> = {
+  'en-US': {
+    Accounting: '#,##0.00 "EUR"',
+    'Financial value': '#,##0.00',
+    Currency: '#,##0.00 "EUR"',
+    'Rounding up the currency': '#,##0 "EUR"',
+    Date: 'dd.mm.yyyy',
+    Time: 'hh:mm:ss',
+    'Date and time': 'dd.mm.yyyy hh:mm'
+  },
+  'de-DE': {
+    Buchhaltung: '#,##0.00 "EUR"',
+    'Finanzieller Wert': '#,##0.00',
+    Währung: '#,##0.00 "EUR"',
+    'Währung gerundet': '#,##0 "EUR"',
+    Datum: 'dd.mm.yyyy',
+    Uhrzeit: 'hh:mm:ss',
+    'Datum und Uhrzeit': 'dd.mm.yyyy hh:mm'
+  }
+}
+
+/** Module-level active locale so static helpers (MutationObserver callbacks) can pick it up. */
+let activeAppLocale = 'en-US'
+
+function getNumfmtPreviewMap(): Record<string, string> {
+  return GERMAN_NUMFMT_PREVIEW_BY_LABEL_BY_LOCALE[activeAppLocale] ?? GERMAN_NUMFMT_PREVIEW_BY_LABEL_BY_LOCALE['en-US']
+}
+
+function getNumfmtPatternMap(): Record<string, string> {
+  return GERMAN_NUMFMT_PATTERN_BY_LABEL_BY_LOCALE[activeAppLocale] ?? GERMAN_NUMFMT_PATTERN_BY_LABEL_BY_LOCALE['en-US']
+}
+
+function getNumfmtAnchorLabels(): string[] {
+  return NUMFMT_MENU_GRID_ANCHOR_LABELS_BY_LOCALE[activeAppLocale] ?? NUMFMT_MENU_GRID_ANCHOR_LABELS_DEFAULT
 }
 
 type UniverFontConfig = {
@@ -774,7 +871,8 @@ function normalizeMenuText(value: string): string {
 
 export function extractFormatMenuLabel(text: string): string | null {
   const normalized = normalizeMenuText(text)
-  const labels = Object.keys(GERMAN_NUMFMT_PREVIEW_BY_LABEL).sort((a, b) => b.length - a.length)
+  const previewMap = getNumfmtPreviewMap()
+  const labels = Object.keys(previewMap).sort((a, b) => b.length - a.length)
   for (const label of labels) {
     if (normalized === label || normalized.startsWith(`${label} `)) return label
   }
@@ -782,7 +880,7 @@ export function extractFormatMenuLabel(text: string): string | null {
 }
 
 export function getGermanNumfmtPattern(label: string): string | undefined {
-  return GERMAN_NUMFMT_PATTERN_BY_LABEL[label]
+  return getNumfmtPatternMap()[label]
 }
 
 /**
@@ -790,16 +888,17 @@ export function getGermanNumfmtPattern(label: string): string | undefined {
  * `tryInjectViaGridContainer`, but keyed on format-menu anchors and excluding cell context menus.
  */
 function findNumfmtFormatMenuGrids(): HTMLElement[] {
+  const anchorLabels = getNumfmtAnchorLabels()
   return Array.from(document.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')).filter(
     el => {
       const gridText = (el.textContent || '').toLowerCase()
       if (CONTEXT_MENU_ANCHOR_LABELS.some(lbl => gridText.includes(lbl.toLowerCase()))) return false
-      if (!NUMFMT_MENU_GRID_ANCHOR_LABELS.every(lbl => gridText.includes(lbl.toLowerCase()))) return false
+      if (!anchorLabels.every(lbl => gridText.includes(lbl.toLowerCase()))) return false
       const childGrids = el.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
       for (const child of childGrids) {
         if (child === el) continue
         const childText = (child.textContent || '').toLowerCase()
-        if (NUMFMT_MENU_GRID_ANCHOR_LABELS.every(lbl => childText.includes(lbl.toLowerCase()))) return false
+        if (anchorLabels.every(lbl => childText.includes(lbl.toLowerCase()))) return false
       }
       return true
     }
@@ -810,14 +909,15 @@ function patchGermanNumfmtMenuPreview(): void {
   if (typeof document === 'undefined') return
   const grids = findNumfmtFormatMenuGrids()
   if (grids.length === 0) return
+  const previewMap = getNumfmtPreviewMap()
   for (const grid of grids) {
     const rows = grid.querySelectorAll<HTMLElement>(NUMFMT_GRID_ROW_SELECTOR)
     for (const row of rows) {
       const labelSpan = row.querySelector<HTMLElement>(':scope > span:first-child')
       if (!labelSpan) continue
       const label = normalizeMenuText(labelSpan.textContent || '')
-      if (!label || !(label in GERMAN_NUMFMT_PREVIEW_BY_LABEL)) continue
-      const preview = GERMAN_NUMFMT_PREVIEW_BY_LABEL[label]
+      if (!label || !(label in previewMap)) continue
+      const preview = previewMap[label]
       const previewSpan = row.querySelector<HTMLElement>(NUMFMT_ROW_PREVIEW_SPAN_SELECTOR)
       if (!previewSpan) continue
       if (normalizeMenuText(previewSpan.textContent || '') === normalizeMenuText(preview)) continue
@@ -826,8 +926,57 @@ function patchGermanNumfmtMenuPreview(): void {
   }
 }
 
+/**
+ * Univer's date format list (`DATEFMTLISG`) contains hardcoded Chinese labels
+ * (年, 月, 日, 下午/上午). Replace them with locale-appropriate text so no
+ * Chinese ever appears in the UI.
+ */
+const CHINESE_DATE_LABEL_REPLACEMENTS: Record<string, Record<string, string>> = {
+  'en-US': {
+    '1930年08月05日': 'Aug 05, 1930',
+    '8月5日': 'Aug 5',
+    '下午01:30': '01:30 PM',
+    '下午1:30': '1:30 PM',
+    '下午1:30:30': '1:30:30 PM',
+    '08-05 下午 01:30': '08-05 01:30 PM'
+  },
+  'de-DE': {
+    '1930年08月05日': '05.08.1930',
+    '8月5日': '5. Aug.',
+    '下午01:30': '13:30',
+    '下午1:30': '13:30',
+    '下午1:30:30': '13:30:30',
+    '08-05 下午 01:30': '05.08. 13:30'
+  }
+}
+
+const CHINESE_CHAR_REGEX = /[\u4e00-\u9fff]/
+
+function patchChineseDateLabels(): void {
+  if (typeof document === 'undefined') return
+  const replacements = CHINESE_DATE_LABEL_REPLACEMENTS[activeAppLocale] ?? CHINESE_DATE_LABEL_REPLACEMENTS['en-US']
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return node.textContent && CHINESE_CHAR_REGEX.test(node.textContent)
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT
+    }
+  })
+  let textNode: Text | null = null
+  while ((textNode = walker.nextNode() as Text | null)) {
+    const text = textNode.textContent ?? ''
+    const replacement = replacements[text.trim()]
+    if (replacement) {
+      textNode.textContent = replacement
+    }
+  }
+}
+
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
+    const { locale: appLocale } = useTranslation(spreadsheetTranslations)
+    activeAppLocale = appLocale
+
     const {
       sheet,
       data,
@@ -1424,6 +1573,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         rafScheduled = globalThis.requestAnimationFrame(() => {
           rafScheduled = 0
           patchGermanNumfmtMenuPreview()
+          patchChineseDateLabels()
         })
       }
 
@@ -1436,6 +1586,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       /** Univer re-applies `Dt(pattern)` to preview spans on render; re-patch on a timer while the sheet is mounted. */
       const numfmtPreviewIntervalId = globalThis.setInterval(() => {
         patchGermanNumfmtMenuPreview()
+        patchChineseDateLabels()
       }, 200)
 
       const onNumfmtMenuItemClickCapture = (event: MouseEvent) => {
@@ -1615,10 +1766,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       contextRef.current = createUniverConversionContext(c, d)
 
+      const univerLocaleData =
+        appLocale === 'de-DE'
+          ? mergeLocales(UniverPresetSheetsCoreEnUS, UNIVER_NUMFMT_DE_LOCALE)
+          : mergeLocales(UniverPresetSheetsCoreEnUS)
+
       const { univerAPI } = createUniver({
         locale: LocaleType.EN_US,
         locales: {
-          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS)
+          [LocaleType.EN_US]: univerLocaleData
         },
         presets: [
           UniverSheetsCorePreset({
@@ -2101,7 +2257,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       props.isReadOnly,
       gridHostEl,
       forceRowSnapshotSeed,
-      supportedUniverFonts
+      supportedUniverFonts,
+      appLocale
     ])
 
     useEffect(() => {
