@@ -1,10 +1,12 @@
 import { getCurrentActiveUserLocale, formatNumberFunction } from '@/common/utils/windowUtils'
 
+export const DEFAULT_CURRENCY_CODE = 'EUR'
+
 function extractCurrencyCodeFromAmount(amount: string): string {
-  if (!amount.includes(' ')) return 'EUR'
+  if (!amount.includes(' ')) return DEFAULT_CURRENCY_CODE
   const parts = amount.split(' ')
   const lastPart = parts[parts.length - 1]
-  return /^[A-Z]{3}$/.test(lastPart) ? lastPart : 'EUR'
+  return /^[A-Z]{3}$/.test(lastPart) ? lastPart : DEFAULT_CURRENCY_CODE
 }
 
 function formatAmountWithLocale(amount: number, userLocale: string): string {
@@ -38,12 +40,12 @@ export const formatCurrencyDisplay = (
   currencyCode: string | null | undefined
 ): string => {
   if (amount === null || amount === undefined || amount === '' || Number.isNaN(Number(amount))) {
-    return `0 ${currencyCode || 'EUR'}`
+    return `0 ${currencyCode || DEFAULT_CURRENCY_CODE}`
   }
 
   let resolvedCode = currencyCode
   if (!resolvedCode) {
-    resolvedCode = typeof amount === 'string' ? extractCurrencyCodeFromAmount(amount) : 'EUR'
+    resolvedCode = typeof amount === 'string' ? extractCurrencyCodeFromAmount(amount) : DEFAULT_CURRENCY_CODE
   }
 
   const userLocale = getCurrentActiveUserLocale()

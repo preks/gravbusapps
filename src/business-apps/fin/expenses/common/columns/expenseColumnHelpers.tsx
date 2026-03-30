@@ -2,7 +2,7 @@ import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../utils/formatCurrency'
+import { formatCurrencyDisplay, DEFAULT_CURRENCY_CODE } from '../utils/formatCurrency'
 
 const NOT_AVAILABLE = 'lowcoder:common.not_available'
 const NOT_AVAILABLE_LABEL = 'N/A'
@@ -19,7 +19,7 @@ export function createFormatDate(
 
 export function createFormatCurrency(currencyFilter: string | null) {
   return (amount: number, currency: string) => {
-    const code = currencyFilter ?? currency ?? 'EUR'
+    const code = currencyFilter ?? currency ?? DEFAULT_CURRENCY_CODE
     return formatCurrencyDisplay(amount, code)
   }
 }
