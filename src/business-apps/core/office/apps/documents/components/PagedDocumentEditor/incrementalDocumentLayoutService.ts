@@ -7,11 +7,15 @@ import type {
 } from './documentLayoutService'
 import {
   buildLayoutMeasurement,
+  buildLayoutMeasurementAsync,
+  LARGE_DOC_GEOMETRY_BATCH_SIZE,
+  LARGE_DOC_LAYOUT_GEOMETRY_CHUNK_THRESHOLD,
   resolveFirstPageHeaderElement,
   resolveActivePages,
   resolveActiveRange,
   resolveCurrentPageFromLayoutNavigation,
   resolveMountedPageBodyBounds,
+  resolveMountedPageBodyBoundsBatched,
   resolveObservableLayoutRoot,
   resolvePageBreakElementsFromPaginationRoot,
   resolvePaginationFlowElementsFromPaginationRoot,
@@ -25,6 +29,8 @@ interface IncrementalPageRegistryState {
   pageBreakEls: HTMLElement[]
   flowEls: HTMLElement[]
   totalPageCount: number
+  mountedRangeKey: string
+  pageShellStateKey: string
 }
 
 interface SyncedIncrementalRegistryResult {
@@ -38,16 +44,37 @@ function hasRegistryChanged(
   container: HTMLDivElement,
   nextPageBreakEls: HTMLElement[],
   nextFlowEls: HTMLElement[],
-  nextTotalPageCount: number
+  nextTotalPageCount: number,
+  nextMountedRangeKey: string,
+  nextPageShellStateKey: string
 ) {
   if (current.container !== container) return true
   if (current.totalPageCount !== nextTotalPageCount) return true
+  if (current.mountedRangeKey !== nextMountedRangeKey) return true
+  if (current.pageShellStateKey !== nextPageShellStateKey) return true
   if (current.pageBreakEls.length !== nextPageBreakEls.length) return true
   if (current.flowEls.length !== nextFlowEls.length) return true
   return (
     current.pageBreakEls.some((element, index) => element !== nextPageBreakEls[index]) ||
     current.flowEls.some((element, index) => element !== nextFlowEls[index])
   )
+}
+
+function resolveMountedRangeKey(paginationRoot: HTMLElement | null) {
+  return `${paginationRoot?.dataset.rmMountedStartPage ?? ''}-${paginationRoot?.dataset.rmMountedEndPage ?? ''}`
+}
+
+function resolvePageShellStateKey(pageBreakEls: HTMLElement[]) {
+  return pageBreakEls
+    .map(pageBreakEl => {
+      const pageNumber =
+        pageBreakEl.dataset.rmPageNumber ||
+        pageBreakEl.querySelector('.page[data-rm-page-number]')?.getAttribute('data-rm-page-number') ||
+        '0'
+      const shellState = pageBreakEl.dataset.rmPageShellState ?? 'hydrated'
+      return `${pageNumber}:${shellState}`
+    })
+    .join('|')
 }
 
 function resolveRegistryInvalidationReason(options: {
@@ -68,7 +95,9 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     version: 0,
     pageBreakEls: [],
     flowEls: [],
-    totalPageCount: 1
+    totalPageCount: 1,
+    mountedRangeKey: '',
+    pageShellStateKey: ''
   }
   let cachedMeasurement: {
     version: number
@@ -85,7 +114,17 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     const nextPageBreakEls = resolvePageBreakElementsFromPaginationRoot(paginationRoot)
     const nextFlowEls = resolvePaginationFlowElementsFromPaginationRoot(paginationRoot)
     const nextTotalPageCount = resolvePaginationTotalPagesFromPaginationRoot(paginationRoot, nextPageBreakEls)
-    const changed = hasRegistryChanged(registry, container, nextPageBreakEls, nextFlowEls, nextTotalPageCount)
+    const nextMountedRangeKey = resolveMountedRangeKey(paginationRoot)
+    const nextPageShellStateKey = resolvePageShellStateKey(nextPageBreakEls)
+    const changed = hasRegistryChanged(
+      registry,
+      container,
+      nextPageBreakEls,
+      nextFlowEls,
+      nextTotalPageCount,
+      nextMountedRangeKey,
+      nextPageShellStateKey
+    )
     const invalidationReason = resolveRegistryInvalidationReason({
       current: registry,
       container,
@@ -96,7 +135,9 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       version: changed ? registry.version + 1 : registry.version,
       pageBreakEls: nextPageBreakEls,
       flowEls: nextFlowEls,
-      totalPageCount: nextTotalPageCount
+      totalPageCount: nextTotalPageCount,
+      mountedRangeKey: nextMountedRangeKey,
+      pageShellStateKey: nextPageShellStateKey
     }
     return {
       changed,
@@ -132,12 +173,61 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
     return measurement
   }
 
+  const rebuildMeasurementAsync = async (
+    registryState: IncrementalPageRegistryState,
+    container: HTMLDivElement,
+    request: Parameters<DocumentLayoutService['measureLayout']>[1]
+  ) => {
+    const measurement = await buildLayoutMeasurementAsync(
+      registryState.pageBreakEls,
+      registryState.flowEls,
+      request,
+      resolveFirstPageHeaderElement(container)
+    )
+    measurement.layout.activeRange = measurement.navigationState.activeRange
+    measurement.layout.activePages = resolveActivePages(
+      measurement.layout.pages,
+      measurement.navigationState.activeRange
+    )
+    cachedMeasurement = {
+      version: registryState.version,
+      ...measurement
+    }
+    cachedViewportWindow = {
+      activeRange: measurement.navigationState.activeRange,
+      activePages: measurement.layout.activePages
+    }
+    return measurement
+  }
+
+  const refreshViewportRegistryState = (container: HTMLDivElement): IncrementalPageRegistryState => {
+    if (registry.container !== container || registry.version === 0) {
+      return syncRegistry(container).state
+    }
+
+    const paginationRoot = resolvePaginationRootElement(container)
+    const nextMountedRangeKey = resolveMountedRangeKey(paginationRoot)
+    const nextPageShellStateKey = resolvePageShellStateKey(registry.pageBreakEls)
+
+    if (registry.mountedRangeKey === nextMountedRangeKey && registry.pageShellStateKey === nextPageShellStateKey) {
+      return registry
+    }
+
+    registry = {
+      ...registry,
+      version: registry.version + 1,
+      mountedRangeKey: nextMountedRangeKey,
+      pageShellStateKey: nextPageShellStateKey
+    }
+
+    return registry
+  }
+
   return {
     source: 'incremental-layout-engine',
     measureLayout(container, request) {
-      const canReuseRegistryState =
-        request.scope === 'viewport' && registry.container === container && registry.version > 0
-      const registryState = canReuseRegistryState ? registry : syncRegistry(container).state
+      const registryState =
+        request.scope === 'viewport' ? refreshViewportRegistryState(container) : syncRegistry(container).state
 
       if (request.scope === 'viewport' && cachedMeasurement && cachedMeasurement.version === registryState.version) {
         const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
@@ -171,6 +261,46 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
 
       return rebuildMeasurement(registryState, container, request)
     },
+    async measureLayoutAsync(container, request) {
+      const registryState =
+        request.scope === 'viewport' ? refreshViewportRegistryState(container) : syncRegistry(container).state
+
+      if (request.scope === 'viewport' && cachedMeasurement && cachedMeasurement.version === registryState.version) {
+        const activeRange = resolveActiveRange(cachedMeasurement.layout.pageCount, request)
+        const matchesCachedViewportWindow =
+          cachedViewportWindow?.activeRange.startPage === activeRange.startPage &&
+          cachedViewportWindow?.activeRange.endPage === activeRange.endPage
+        const activePages = matchesCachedViewportWindow
+          ? cachedViewportWindow.activePages
+          : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
+
+        cachedViewportWindow = {
+          activeRange,
+          activePages
+        }
+        const pageBreakEls = cachedMeasurement.navigationState.pageBreakEls
+        const mountedPageBodyBounds =
+          pageBreakEls.length >= LARGE_DOC_LAYOUT_GEOMETRY_CHUNK_THRESHOLD
+            ? await resolveMountedPageBodyBoundsBatched(pageBreakEls, LARGE_DOC_GEOMETRY_BATCH_SIZE)
+            : resolveMountedPageBodyBounds(pageBreakEls)
+
+        return {
+          layout: {
+            ...cachedMeasurement.layout,
+            mountedPageBodyBounds,
+            pageChromeMetrics: cachedMeasurement.layout.pageChromeMetrics,
+            activeRange,
+            activePages
+          },
+          navigationState: {
+            ...cachedMeasurement.navigationState,
+            activeRange
+          }
+        }
+      }
+
+      return rebuildMeasurementAsync(registryState, container, request)
+    },
     resolveCurrentPage(container, navigationState) {
       return resolveCurrentPageFromLayoutNavigation(container, navigationState)
     },
@@ -178,9 +308,33 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       const root = resolveObservableLayoutRoot(editor, container)
       let observedPaginationRoot: HTMLElement | null = null
       let paginationObserver: MutationObserver | null = null
+      let layoutObserverFlushRaf: number | null = null
+      let layoutObserverFlushNeedsRebind = false
 
       const onResize = () => {
         onInvalidated('viewport-resize')
+      }
+
+      const flushLayoutObserverInvalidation = () => {
+        if (layoutObserverFlushNeedsRebind) {
+          bindPaginationObserver()
+        }
+        layoutObserverFlushNeedsRebind = false
+        const registryResult = syncRegistry(container)
+        if (registryResult.changed) {
+          onInvalidated(registryResult.invalidationReason)
+        }
+      }
+
+      const scheduleLayoutObserverFlush = (needsRebind: boolean) => {
+        layoutObserverFlushNeedsRebind = layoutObserverFlushNeedsRebind || needsRebind
+        if (layoutObserverFlushRaf !== null) {
+          return
+        }
+        layoutObserverFlushRaf = requestAnimationFrame(() => {
+          layoutObserverFlushRaf = null
+          flushLayoutObserverInvalidation()
+        })
       }
 
       const bindPaginationObserver = () => {
@@ -194,16 +348,19 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
         if (!nextPaginationRoot) return
 
         paginationObserver = new MutationObserver(() => {
-          const registryResult = syncRegistry(container)
-          if (registryResult.changed) {
-            onInvalidated(registryResult.invalidationReason)
-          }
+          scheduleLayoutObserverFlush(false)
         })
 
         paginationObserver.observe(nextPaginationRoot, {
           childList: true,
-          subtree: false,
-          attributes: false,
+          subtree: true,
+          attributes: true,
+          attributeFilter: [
+            'data-rm-page-shell-state',
+            'data-rm-breaker-mode',
+            'data-rm-mounted-start-page',
+            'data-rm-mounted-end-page'
+          ],
           characterData: false
         })
       }
@@ -214,17 +371,17 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
 
       if (!root) {
         return () => {
+          if (layoutObserverFlushRaf !== null) {
+            cancelAnimationFrame(layoutObserverFlushRaf)
+            layoutObserverFlushRaf = null
+          }
           paginationObserver?.disconnect()
           globalThis.window.removeEventListener('resize', onResize)
         }
       }
 
       const rootObserver = new MutationObserver(() => {
-        const registryResult = syncRegistry(container)
-        bindPaginationObserver()
-        if (registryResult.changed) {
-          onInvalidated(registryResult.invalidationReason)
-        }
+        scheduleLayoutObserverFlush(true)
       })
 
       rootObserver.observe(root, {
@@ -235,6 +392,10 @@ export function createIncrementalDocumentLayoutService(): DocumentLayoutService 
       })
 
       return () => {
+        if (layoutObserverFlushRaf !== null) {
+          cancelAnimationFrame(layoutObserverFlushRaf)
+          layoutObserverFlushRaf = null
+        }
         paginationObserver?.disconnect()
         rootObserver.disconnect()
         globalThis.window.removeEventListener('resize', onResize)

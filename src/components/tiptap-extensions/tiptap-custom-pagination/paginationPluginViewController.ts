@@ -3,7 +3,12 @@ import type { EditorView } from '@tiptap/pm/view'
 import type { AddPagesMeasurementSnapshot } from './paginationPageCountPolicy'
 import type { PagesStorage } from './types'
 
-export type PaginationDocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | null
+export type PaginationDocChangeOrigin =
+  | 'external'
+  | 'pagination-owned'
+  | 'hydration-owned'
+  | 'collaboration-remote'
+  | null
 export type SelectionNavigationDirection = 'forward' | 'backward' | null
 
 export interface PaginationPluginViewRuntimeState {
@@ -49,7 +54,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   onResetTableController: () => void
   onClearGrowthSuppression: () => void
   onSetStoredPageCount: (pageCount: number) => void
-  onRequestRefresh: (source: 'selection-overflow') => void
+  onRequestRefresh: (source: 'selection-overflow' | 'page-count-shrink') => void
   onScheduleDeferredRepagination: (minimumAttempts?: number) => void
   getDeferredStabilizationAttemptCount: (view: EditorView) => number
   shouldScheduleDeferredRepaginationOnUpdate: (options: {
@@ -77,7 +82,10 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   const docChangedSinceLastUpdate = options.state.lastKnownDoc !== null && currentDoc !== options.state.lastKnownDoc
   const paginationOwnedDocChange = docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'pagination-owned'
   const hydrationOwnedDocChange = docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'hydration-owned'
-  const externalDocChange = docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange
+  const collaborationRemoteDocChange =
+    docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'collaboration-remote'
+  const externalDocChange =
+    docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange && !collaborationRemoteDocChange
   const selectionDirection = resolveSelectionNavigationDirection(
     options.state.lastKnownSelectionHead,
     currentSelectionHead
@@ -100,6 +108,31 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
     options.onClearGrowthSuppression()
     if (externalDocChange) {
       nextState.runawayGrowthCapPageCount = null
+    }
+  }
+
+  if (
+    storage.activeEditorType === null &&
+    !(view as EditorView & { composing?: boolean }).composing &&
+    docChangedSinceLastUpdate &&
+    !shouldDeferSelectionOverflowResolution
+  ) {
+    const measurementState = options.resolveMeasurementState(nextState)
+
+    if (measurementState.measuredPageCount < measurementState.currentPageCount) {
+      if (paginationOwnedDocChange) {
+        options.onClearGrowthSuppression()
+      }
+
+      nextState.runawayGrowthCapPageCount = null
+      if (resolveHasTables()) {
+        nextState.pendingRefreshDrivenStabilization = true
+      }
+
+      options.onSetStoredPageCount(measurementState.measuredPageCount)
+      nextState.lastKnownSelectionHead = currentSelectionHead
+      options.onRequestRefresh('page-count-shrink')
+      return nextState
     }
   }
 

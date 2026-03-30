@@ -620,19 +620,15 @@ export const DynamicFormGenerator: React.FC<DynamicFormGeneratorProps> = ({
               value={Array.isArray(value) ? value : []}
               onChange={(files: UploadFile[]) => handleFieldChange(field.name, files)}
               onUploadComplete={uploadResults => {
-                // Debug: Log the raw upload results
-                console.log('🔍 [DynamicFormGenerator] Raw upload results:', uploadResults)
-
-                // Use utility function to serialize upload results properly
                 const serializedResults = serializeUploadResults(uploadResults)
 
-                console.log('🔍 [DynamicFormGenerator] Serialized upload results:', serializedResults)
-                console.log('🔍 [DynamicFormGenerator] Serialized as JSON:', JSON.stringify(serializedResults, null, 2))
+                // Replace the main field value with server-side file references
+                // so downstream workflow steps can access files via downloadPath.
+                handleFieldChange(field.name, serializedResults)
 
-                // Update form values with serialized file upload results
+                // Also keep a separate key for backward compatibility
                 handleFieldChange(`${field.name}_uploadResults`, serializedResults)
 
-                // Notify parent component
                 if (onFileUploadComplete) {
                   onFileUploadComplete(field.name, uploadResults)
                 }

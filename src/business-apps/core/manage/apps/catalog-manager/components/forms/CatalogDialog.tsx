@@ -9,6 +9,7 @@ import {
   Input,
   Label,
   Textarea,
+  Checkbox,
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -28,6 +29,7 @@ export interface CatalogFormData {
   validTo?: string
   defaultLocale?: 'en-US' | 'de-DE' | 'ro-RO'
   description?: string
+  isCustomerManaged?: boolean
 }
 
 interface CatalogDialogProps extends BusinessAppContextProps {
@@ -65,13 +67,14 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
   const [form, setForm] = useState<CatalogFormData>({
     name: '',
     identifier: '',
-    defaultLocale: 'en-US'
+    defaultLocale: 'en-US',
+    isCustomerManaged: false
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
-      setForm({ name: '', identifier: '', defaultLocale: 'en-US' })
+      setForm({ name: '', identifier: '', defaultLocale: 'en-US', isCustomerManaged: false })
       setIsSubmitting(false)
     }
   }, [open])
@@ -88,7 +91,8 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
         validFrom: initialData.validFrom ?? prev.validFrom,
         validTo: initialData.validTo ?? prev.validTo,
         defaultLocale: (initialData.defaultLocale as any) ?? prev.defaultLocale,
-        description: initialData.description ?? prev.description
+        description: initialData.description ?? prev.description,
+        isCustomerManaged: initialData.isCustomerManaged ?? prev.isCustomerManaged
       }))
     }
   }, [open, initialData])
@@ -211,6 +215,17 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
               placeholder="Optional description"
               data-testid={`${dataTestId}-Description`}
             />
+          </div>
+
+          {/* Customer Managed */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Checkbox
+              id="isCustomerManaged"
+              checked={form.isCustomerManaged ?? false}
+              onCheckedChange={checked => handleChange('isCustomerManaged', !!checked)}
+              data-testid={`${dataTestId}-IsCustomerManaged`}
+            />
+            <Label htmlFor="isCustomerManaged">Customer Managed</Label>
           </div>
         </div>
 

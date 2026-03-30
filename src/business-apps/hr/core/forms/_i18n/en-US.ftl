@@ -317,6 +317,10 @@ notification-working-hours-updated-success = Working hours updates are sent for 
 notification-feedback-request-sent-success = Your feedback request has been sent
 notification-feedback-request-sent-success-on-behalf = The feedback request has been sent
 feedback-request-missing-user-id = Some selected employees are missing user IDs. Please reselect and try again.
+entitlements-valid-from-month-start-hint = The submitted date is always the first day of the selected month, regardless of the chosen day.
+entitlements-valid-from = Valid From
+entitlements-effective-from = Effective From
+entitlements-effective-to = Effective To
 
 # ============================================
 # Create Employee Form

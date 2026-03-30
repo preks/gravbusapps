@@ -3,6 +3,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { DevReportDot } from './DevReportDot'
+import { DevReportScreenKeyProvider } from './DevReportScreenKeyContext'
 
 export function wrapWithDevReportDot(screenKey: string) {
   return function withDevReportDot<P extends BusinessAppContextProps>(Component: ComponentType<P>): React.FC<P> {
@@ -14,10 +15,10 @@ export function wrapWithDevReportDot(screenKey: string) {
       }
 
       return (
-        <>
+        <DevReportScreenKeyProvider>
           <Component {...props} />
           <DevReportDot enabled={enabled} screenKey={screenKey} context={props} />
-        </>
+        </DevReportScreenKeyProvider>
       )
     }
 

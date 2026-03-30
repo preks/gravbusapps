@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface PagedDocumentEditorStylesProps {
   pageColor: string
   proseMinHeight: number
@@ -42,6 +40,12 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         line-height: 1.15;
         color: #1a1a1a;
         min-height: ${proseMinHeight}px;
+        --default-cell-min-width: 25px;
+      }
+
+      .paged-document-editor .ProseMirror.resize-cursor {
+        cursor: ew-resize;
+        cursor: col-resize;
       }
 
       .paged-document-editor .ProseMirror .editor-link {
@@ -263,14 +267,22 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
 
       .paged-document-editor .ProseMirror td,
       .paged-document-editor .ProseMirror th {
+        box-sizing: border-box;
+        position: relative;
         border: 1pt solid #333;
         padding: 4pt 6pt;
         text-align: start;
         vertical-align: top;
         font-size: 0.875rem;
         line-height: 1.3;
-        overflow-wrap: anywhere;
+        min-width: 0;
+        overflow-wrap: break-word;
         word-break: break-word;
+      }
+
+      .paged-document-editor .ProseMirror td:not([colwidth]):not(.column-resize-dragging),
+      .paged-document-editor .ProseMirror th:not([colwidth]):not(.column-resize-dragging) {
+        min-width: var(--default-cell-min-width);
       }
 
       .paged-document-editor .ProseMirror th {
@@ -441,6 +453,7 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         top: 0;
         bottom: -2px;
         width: 4px;
+        z-index: 20;
         background-color: #adf;
         pointer-events: none;
       }
