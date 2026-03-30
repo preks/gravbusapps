@@ -17,14 +17,9 @@ import {
 } from '../prompts/collection-summary'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 import type { SpreadsheetApp } from '../types/spreadsheet'
+import { selectPreferredModel } from '../utils/aiModelSelection'
 
 const MAX_COPIES = 20
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
-
-interface AiModelCandidate {
-  _id: string
-  name: string
-}
 
 const parseSummaryContent = (content: unknown): CollectionSummaryResponse => {
   let normalized = typeof content === 'string' ? content : JSON.stringify(content)
@@ -58,13 +53,6 @@ async function fetchCopiesForSummary(
   }
 
   return copies
-}
-
-function selectSummaryModelId(models: AiModelCandidate[]): string {
-  const preferredModel = models.find(m => m._id === PREFERRED_MODEL_ID)
-  const gpt4Model = models.find(m => m.name.toLowerCase().includes('gpt-4'))
-  const selectedModel = preferredModel || gpt4Model || models[0]
-  return selectedModel._id
 }
 
 function buildAvatarByRecipientMap(
@@ -145,22 +133,14 @@ export function useExcelCollectionSummary({
       const formattedData = formatCopiesForPrompt(copies)
       const userPrompt = COLLECTION_SUMMARY_USER_PROMPT.replace('{formattedData}', formattedData)
 
-      let modelsResponse
+      let selectedModel
       try {
-        modelsResponse = await promptClient.getAiModels({
-          limit: 10,
-          offset: 0,
-          returnTotalRecords: false
-        })
+        selectedModel = await selectPreferredModel(promptClient)
       } catch {
         return fail('AI service unavailable')
       }
 
-      if (!modelsResponse.data?.length) {
-        return fail('No AI models available')
-      }
-
-      const modelId = selectSummaryModelId(modelsResponse.data as AiModelCandidate[])
+      const modelId = selectedModel._id
 
       const formData = new FormData()
       formData.append('model_id', modelId)

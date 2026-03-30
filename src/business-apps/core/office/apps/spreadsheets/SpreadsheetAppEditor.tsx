@@ -169,7 +169,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
       const newColumn: SpreadsheetColumn = {
         id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         name: `new_column_${Date.now()}`,
-        label: 'New Column',
+        label: t('editor-new-column-label'),
         type: 'text',
         isVisible: true,
         isEditable: true,
@@ -187,7 +187,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
       setEditingColumn(newColumn)
     },
-    [activeSheet]
+    [activeSheet, t]
   )
 
   /**
@@ -293,7 +293,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
           <div className="gba:flex gba:items-center gba:gap-4">
             <Button variant="ghost" onClick={onCancel}>
               <X className="gba:w-4 gba:h-4 gba:mr-2" />
-              Cancel
+              {t('checkpoint-cancel')}
             </Button>
             <Separator orientation="vertical" className="gba:h-6" />
             <div className="gba:flex gba:items-center gba:gap-3">
@@ -308,14 +308,14 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 value={app.name}
                 onChange={e => updateApp('name', e.target.value)}
                 className="gba:text-lg gba:font-semibold gba:border-none gba:bg-transparent gba:p-0 gba:h-auto gba:focus:ring-0"
-                placeholder="App Name"
+                placeholder={t('editor-app-name-placeholder')}
               />
             </div>
           </div>
 
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? t('checkpoint-saving') : t('editor-save-changes')}
           </Button>
         </div>
       </div>
@@ -325,7 +325,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
         {/* Sidebar - Sheet selector */}
         <div className="gba:w-64 gba:border-r gba:bg-muted/30 gba:p-4 gba:space-y-4">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <h3 className="gba:font-medium gba:text-foreground">Sheets</h3>
+            <h3 className="gba:font-medium gba:text-foreground">{t('editor-sheets')}</h3>
             <Badge variant="secondary">{app.sheets.length}</Badge>
           </div>
 
@@ -528,15 +528,15 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
               <TabsContent value="datasource" className="gba:space-y-4">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div>
-                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Data Source</h2>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Connect this sheet to real data from your NEWWORK system
-                    </p>
+                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+                      {t('settings-datasource-title')}
+                    </h2>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('settings-datasource-desc')}</p>
                   </div>
                   {!activeSheet.entityDataSource && (
                     <Button onClick={() => setIsDataSourceDialogOpen(true)}>
                       <Database className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Connect Entity
+                      {t('settings-connect-entity')}
                     </Button>
                   )}
                 </div>
@@ -553,14 +553,14 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                             {activeSheet.entityDataSource.entityDisplayName}
                           </h3>
                           <p className="gba:text-sm gba:text-muted-foreground">
-                            Entity: {activeSheet.entityDataSource.entityType}
+                            {t('editor-entity-label', { entity: activeSheet.entityDataSource.entityType })}
                           </p>
                         </div>
                       </div>
                       <div className="gba:flex gba:gap-2">
                         <Button variant="outline" size="sm" onClick={() => setIsDataSourceDialogOpen(true)}>
                           <Pencil className="gba:w-4 gba:h-4 gba:mr-1" />
-                          Edit
+                          {t('settings-edit')}
                         </Button>
                         <Button
                           variant="outline"
@@ -569,7 +569,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                           className="gba:text-destructive gba:hover:text-destructive"
                         >
                           <Unplug className="gba:w-4 gba:h-4 gba:mr-1" />
-                          Disconnect
+                          {t('settings-disconnect')}
                         </Button>
                       </div>
                     </div>
@@ -578,36 +578,36 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
                     <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
                       <div>
-                        <p className="gba:text-sm gba:text-muted-foreground">Filters</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('editor-filters')}</p>
                         <p className="gba:font-medium gba:text-foreground">
                           {
                             activeSheet.entityDataSource.filters.conditions.filter(
                               (c: EntityFilterCondition) => c.isActive
                             ).length
                           }{' '}
-                          active
+                          {t('editor-active')}
                         </p>
                       </div>
                       <div>
-                        <p className="gba:text-sm gba:text-muted-foreground">Fields</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('editor-fields')}</p>
                         <p className="gba:font-medium gba:text-foreground">
                           {
                             activeSheet.entityDataSource.fieldMappings.filter((f: EntityFieldMapping) => f.include)
                               .length
                           }{' '}
-                          selected
+                          {t('editor-selected')}
                         </p>
                       </div>
                       <div>
-                        <p className="gba:text-sm gba:text-muted-foreground">Limit</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('editor-limit')}</p>
                         <p className="gba:font-medium gba:text-foreground">
                           {activeSheet.entityDataSource.limit > 0
                             ? activeSheet.entityDataSource.limit.toLocaleString()
-                            : 'No limit'}
+                            : t('editor-no-limit')}
                         </p>
                       </div>
                       <div>
-                        <p className="gba:text-sm gba:text-muted-foreground">Refresh Mode</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('editor-refresh-mode')}</p>
                         <p className="gba:font-medium gba:text-foreground gba:capitalize">
                           {activeSheet.entityDataSource.refreshMode
                             .split(/(?=[A-Z])/)
@@ -622,10 +622,14 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                         <Separator className="gba:my-4" />
                         <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
                           <span className="gba:text-muted-foreground">
-                            Last synced: {new Date(activeSheet.entityDataSource.lastSyncAt).toLocaleString()}
+                            {t('editor-last-synced', {
+                              date: new Date(activeSheet.entityDataSource.lastSyncAt).toLocaleString()
+                            })}
                           </span>
                           {activeSheet.entityDataSource.lastSyncCount !== undefined && (
-                            <Badge variant="secondary">{activeSheet.entityDataSource.lastSyncCount} records</Badge>
+                            <Badge variant="secondary">
+                              {t('editor-records', { count: activeSheet.entityDataSource.lastSyncCount })}
+                            </Badge>
                           )}
                         </div>
                       </>
@@ -633,7 +637,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
                     {activeSheet.entityDataSource.lastSyncError && (
                       <div className="gba:mt-4 gba:p-3 gba:rounded-lg gba:bg-destructive/10 gba:text-destructive gba:text-sm">
-                        Last sync error: {activeSheet.entityDataSource.lastSyncError}
+                        {t('editor-last-sync-error', { error: activeSheet.entityDataSource.lastSyncError })}
                       </div>
                     )}
 
@@ -644,7 +648,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                         <div>
                           <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-2 gba:flex gba:items-center gba:gap-2">
                             <Filter className="gba:w-4 gba:h-4" />
-                            Active Filters
+                            {t('editor-active-filters')}
                           </h4>
                           <div className="gba:flex gba:flex-wrap gba:gap-2">
                             {activeSheet.entityDataSource.filters.conditions
@@ -662,14 +666,11 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 ) : (
                   <Card className="gba:p-8 gba:text-center">
                     <Database className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-muted-foreground/50" />
-                    <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">No Data Source Connected</h3>
-                    <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-                      Connect this sheet to an entity from your NEWWORK system to load real data. You can filter by
-                      status, type, owner, and more.
-                    </p>
+                    <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">{t('settings-no-datasource')}</h3>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('settings-no-datasource-desc')}</p>
                     <Button onClick={() => setIsDataSourceDialogOpen(true)}>
                       <Database className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Connect Entity
+                      {t('settings-connect-entity')}
                     </Button>
                   </Card>
                 )}
@@ -679,12 +680,12 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
               <TabsContent value="views" className="gba:space-y-4">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div>
-                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Views</h2>
-                    <p className="gba:text-sm gba:text-muted-foreground">Configure how data is displayed</p>
+                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('settings-views-title')}</h2>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('settings-views-desc')}</p>
                   </div>
                   <Button onClick={() => setIsAddViewDialogOpen(true)}>
                     <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Add View
+                    {t('settings-add-view')}
                   </Button>
                 </div>
 
@@ -696,7 +697,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                           <Badge variant="secondary" className="gba:capitalize">
                             {view.type}
                           </Badge>
-                          {view.isDefault && <Badge variant="default">Default</Badge>}
+                          {view.isDefault && <Badge variant="default">{t('settings-default')}</Badge>}
                         </div>
                         <div className="gba:flex gba:gap-1">
                           {!view.isDefault && (
@@ -867,7 +868,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
       <Dialog open={isIconPickerOpen} onOpenChange={setIsIconPickerOpen}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[80vh] gba:flex gba:flex-col">
           <DialogHeader>
-            <DialogTitle>Select App Icon</DialogTitle>
+            <DialogTitle>{t('editor-select-app-icon')}</DialogTitle>
           </DialogHeader>
 
           <div className="gba:flex-1 gba:overflow-y-auto gba:py-4">
@@ -905,7 +906,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsIconPickerOpen(false)}>
-              Cancel
+              {t('checkpoint-cancel')}
             </Button>
             {app.icon && (
               <Button
@@ -915,7 +916,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                   setIsIconPickerOpen(false)
                 }}
               >
-                Clear Icon
+                {t('editor-clear-icon')}
               </Button>
             )}
           </DialogFooter>
@@ -935,15 +936,20 @@ interface AddViewDialogProps {
 }
 
 const AddViewDialog: React.FC<AddViewDialogProps> = ({ isOpen, onClose, onAdd }) => {
+  const { t } = useTranslation(translations)
   const [viewType, setViewType] = useState<ViewType>('table')
   const [viewName, setViewName] = useState('')
 
   const viewTypes: Array<{ type: ViewType; label: string; description: string }> = [
-    { type: 'table', label: 'Table', description: 'Spreadsheet-like data grid' },
-    { type: 'form', label: 'Form Cards', description: 'Card-based record display' },
-    { type: 'dashboard', label: 'Dashboard', description: 'Charts and KPIs' },
-    { type: 'kanban', label: 'Kanban', description: 'Column-based board' },
-    { type: 'calendar', label: 'Calendar', description: 'Date-based view' }
+    { type: 'table', label: t('editor-view-type-table'), description: t('editor-view-type-table-desc') },
+    { type: 'form', label: t('editor-view-type-form'), description: t('editor-view-type-form-desc') },
+    {
+      type: 'dashboard',
+      label: t('editor-view-type-dashboard'),
+      description: t('editor-view-type-dashboard-desc')
+    },
+    { type: 'kanban', label: t('editor-view-type-kanban'), description: t('editor-view-type-kanban-desc') },
+    { type: 'calendar', label: t('editor-view-type-calendar'), description: t('editor-view-type-calendar-desc') }
   ]
 
   const handleAdd = () => {
@@ -958,22 +964,22 @@ const AddViewDialog: React.FC<AddViewDialogProps> = ({ isOpen, onClose, onAdd })
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New View</DialogTitle>
+          <DialogTitle>{t('editor-add-new-view')}</DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
           <div className="gba:space-y-2">
-            <Label htmlFor="viewName">View Name</Label>
+            <Label htmlFor="viewName">{t('editor-view-name')}</Label>
             <Input
               id="viewName"
               value={viewName}
               onChange={e => setViewName(e.target.value)}
-              placeholder="My Custom View"
+              placeholder={t('editor-view-name-placeholder')}
             />
           </div>
 
           <div className="gba:space-y-2">
-            <Label>View Type</Label>
+            <Label>{t('editor-view-type')}</Label>
             <div className="gba:grid gba:grid-cols-2 gba:gap-2">
               {viewTypes.map(vt => (
                 <button
@@ -996,10 +1002,10 @@ const AddViewDialog: React.FC<AddViewDialogProps> = ({ isOpen, onClose, onAdd })
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
           <Button onClick={handleAdd} disabled={!viewName.trim()}>
-            Add View
+            {t('settings-add-view')}
           </Button>
         </DialogFooter>
       </DialogContent>
