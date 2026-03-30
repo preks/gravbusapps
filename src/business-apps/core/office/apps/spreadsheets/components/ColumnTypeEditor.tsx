@@ -17,7 +17,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Type,
@@ -35,6 +36,7 @@ import {
   Plus
 } from 'lucide-react'
 import type { SpreadsheetColumn, ColumnType, SelectOption, ColumnValidation } from '../types'
+import translations from '../_i18n'
 
 export interface ColumnTypeEditorProps {
   column: SpreadsheetColumn
@@ -105,6 +107,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
   onCancel,
   'data-testid': testId = 'column-type-editor'
 }) => {
+  const { t } = useTranslation(translations)
   const [column, setColumn] = useState<SpreadsheetColumn>(initialColumn)
   const [newOption, setNewOption] = useState('')
 
@@ -175,7 +178,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
               <TypeIcon className="gba:w-5 gba:h-5 gba:text-primary" />
             </div>
             <div>
-              <h3 className="gba:font-semibold gba:text-foreground">Edit Column</h3>
+              <h3 className="gba:font-semibold gba:text-foreground">{t('column-type-edit-column')}</h3>
               <p className="gba:text-sm gba:text-muted-foreground">{column.name}</p>
             </div>
           </div>
@@ -187,17 +190,17 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         {/* Basic Settings */}
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
           <div className="gba:space-y-2">
-            <Label htmlFor="label">Display Label</Label>
+            <Label htmlFor="label">{t('column-type-display-label')}</Label>
             <Input
               id="label"
               value={column.label}
               onChange={e => updateColumn('label', e.target.value)}
-              placeholder="Column label"
+              placeholder={t('column-type-column-label-placeholder')}
             />
           </div>
 
           <div className="gba:space-y-2">
-            <Label htmlFor="type">Column Type</Label>
+            <Label htmlFor="type">{t('column-type-column-type')}</Label>
             <Select value={column.type} onValueChange={(value: ColumnType) => updateColumn('type', value)}>
               <SelectTrigger id="type">
                 <SelectValue />
@@ -223,7 +226,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
             <Label htmlFor="visible" className="gba:text-sm">
-              Visible
+              {t('manage-columns-visible')}
             </Label>
             <Switch
               id="visible"
@@ -233,7 +236,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
           </div>
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
             <Label htmlFor="editable" className="gba:text-sm">
-              Editable
+              {t('column-type-editable')}
             </Label>
             <Switch
               id="editable"
@@ -243,7 +246,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
           </div>
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
             <Label htmlFor="required" className="gba:text-sm">
-              Required
+              {t('settings-required-header')}
             </Label>
             <Switch
               id="required"
@@ -253,7 +256,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
           </div>
           <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg">
             <Label htmlFor="unique" className="gba:text-sm">
-              Unique
+              {t('column-type-unique')}
             </Label>
             <Switch
               id="unique"
@@ -266,12 +269,12 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         {/* Select Options (for select/multiselect types) */}
         {(column.type === 'select' || column.type === 'multiselect') && (
           <div className="gba:space-y-3">
-            <Label>Options</Label>
+            <Label>{t('column-type-options')}</Label>
             <div className="gba:flex gba:gap-2">
               <Input
                 value={newOption}
                 onChange={e => setNewOption(e.target.value)}
-                placeholder="Add new option"
+                placeholder={t('column-type-add-option')}
                 onKeyDown={e => e.key === 'Enter' && addSelectOption()}
               />
               <Button variant="outline" onClick={addSelectOption}>
@@ -292,7 +295,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
                 </Badge>
               ))}
               {(!column.selectOptions || column.selectOptions.length === 0) && (
-                <p className="gba:text-sm gba:text-muted-foreground">No options defined</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('column-type-no-options')}</p>
               )}
             </div>
           </div>
@@ -301,11 +304,11 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         {/* Reference Settings (for reference type) */}
         {column.type === 'reference' && availableSheets.length > 0 && (
           <div className="gba:space-y-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg">
-            <Label>Reference Configuration</Label>
+            <Label>{t('column-type-reference-configuration')}</Label>
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <div className="gba:space-y-2">
                 <Label htmlFor="refSheet" className="gba:text-sm">
-                  Reference Sheet
+                  {t('column-type-reference-sheet')}
                 </Label>
                 <Select
                   value={column.referenceTo?.sheetId || ''}
@@ -318,7 +321,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
                   }
                 >
                   <SelectTrigger id="refSheet">
-                    <SelectValue placeholder="Select sheet" />
+                    <SelectValue placeholder={t('column-type-select-sheet')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableSheets.map(sheet => (
@@ -333,7 +336,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
               {column.referenceTo?.sheetId && (
                 <div className="gba:space-y-2">
                   <Label htmlFor="refColumn" className="gba:text-sm">
-                    Reference Column
+                    {t('column-type-reference-column')}
                   </Label>
                   <Select
                     value={column.referenceTo?.columnId || ''}
@@ -345,7 +348,7 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
                     }
                   >
                     <SelectTrigger id="refColumn">
-                      <SelectValue placeholder="Select column" />
+                      <SelectValue placeholder={t('column-type-select-column')} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableSheets
@@ -366,30 +369,30 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         {/* Validation Settings (for number types) */}
         {(column.type === 'number' || column.type === 'currency' || column.type === 'percentage') && (
           <div className="gba:space-y-3 gba:p-4 gba:bg-muted/30 gba:rounded-lg">
-            <Label>Validation</Label>
+            <Label>{t('column-type-validation')}</Label>
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <div className="gba:space-y-2">
                 <Label htmlFor="min" className="gba:text-sm">
-                  Minimum Value
+                  {t('column-type-minimum-value')}
                 </Label>
                 <Input
                   id="min"
                   type="number"
                   value={column.validation?.min ?? ''}
                   onChange={e => updateValidation('min', e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="No minimum"
+                  placeholder={t('column-type-no-minimum')}
                 />
               </div>
               <div className="gba:space-y-2">
                 <Label htmlFor="max" className="gba:text-sm">
-                  Maximum Value
+                  {t('column-type-maximum-value')}
                 </Label>
                 <Input
                   id="max"
                   type="number"
                   value={column.validation?.max ?? ''}
                   onChange={e => updateValidation('max', e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="No maximum"
+                  placeholder={t('column-type-no-maximum')}
                 />
               </div>
             </div>
@@ -399,17 +402,15 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         {/* Calculated Field Formula (for calculated type) */}
         {column.type === 'calculated' && (
           <div className="gba:space-y-2">
-            <Label htmlFor="formula">Formula</Label>
+            <Label htmlFor="formula">{t('column-type-formula')}</Label>
             <Input
               id="formula"
               value={column.formula || ''}
               onChange={e => updateColumn('formula', e.target.value)}
-              placeholder="e.g., =price * quantity"
+              placeholder={t('column-type-formula-placeholder')}
               className="gba:font-mono"
             />
-            <p className="gba:text-xs gba:text-muted-foreground">
-              Use column names to reference other fields. Basic arithmetic operations are supported.
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('column-type-formula-help')}</p>
           </div>
         )}
 
@@ -417,11 +418,11 @@ export const ColumnTypeEditor: React.FC<ColumnTypeEditorProps> = ({
         <div className="gba:flex gba:items-center gba:justify-end gba:gap-3 gba:pt-4 gba:border-t">
           <Button variant="outline" onClick={onCancel}>
             <X className="gba:w-4 gba:h-4 gba:mr-2" />
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
           <Button onClick={handleSave}>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            Save Changes
+            {t('manage-columns-save')}
           </Button>
         </div>
       </div>

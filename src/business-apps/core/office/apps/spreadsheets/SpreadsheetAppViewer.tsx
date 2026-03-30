@@ -1358,10 +1358,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       } catch {
         // Non-critical: task completion already succeeded on workflow side.
       }
-      toast.success('Submitted successfully. Your task is now complete.')
+      toast.success(sheetT('toast-submit-success'))
       onBack?.()
     } else {
-      toast.error(result.error || 'Failed to submit')
+      toast.error(result.error || sheetT('toast-submit-failed'))
     }
   }, [activeSheet.columns, app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
 
@@ -2455,7 +2455,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       const checkpoint = await versioning.createCheckpoint(description, { univerSnapshots })
       if (checkpoint && flushFailed) {
-        toast.error('Checkpoint saved, but some pending edits may not be included.')
+        toast.error(sheetT('toast-checkpoint-flush-warning'))
       }
       return checkpoint
     },
@@ -2965,7 +2965,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const payloads = buildAnalyticsInsertPayloads(rows, activeSheet.columns)
 
       if (payloads.length === 0) {
-        toast.error('No matching columns found to insert pivot result.')
+        toast.error(sheetT('toast-analytics-no-matching-columns'))
         return false
       }
 
@@ -2985,7 +2985,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             })
 
         if (createdRows.length === 0) {
-          toast.error('No rows were inserted into the sheet.')
+          toast.error(sheetT('toast-analytics-no-rows-inserted'))
           return false
         }
 
@@ -2993,12 +2993,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         commitLocalSheetData(next)
         sheetPersist.recordSuccess(true)
         versioning.markAsSaved()
-        toast.success(`Inserted ${createdRows.length} analytics row${createdRows.length > 1 ? 's' : ''}.`)
+        toast.success(sheetT('toast-analytics-inserted-rows', { count: createdRows.length }))
         return true
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Failed to insert analytics rows:', error)
         sheetPersist.recordError(sheetT('persist-rows-add-failed'))
-        toast.error('Failed to insert analytics result into sheet.')
+        toast.error(sheetT('toast-analytics-insert-failed'))
         return false
       } finally {
         sheetPersist.endPersist()
@@ -3037,12 +3037,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         .filter((cell): cell is { rowId: string; columnName: string; value: string } => Boolean(cell))
 
       if (cells.length === 0) {
-        toast.error('No rows available to apply formula.')
+        toast.error(sheetT('toast-formula-no-rows'))
         return false
       }
 
       handleCellsChange(cells)
-      toast.success(`Applied formula to ${cells.length} row${cells.length > 1 ? 's' : ''}.`)
+      toast.success(sheetT('toast-formula-applied', { count: cells.length }))
       return true
     },
     [canEditWithLock, handleCellsChange, localSheetDataRef]
@@ -3055,10 +3055,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         content
       })
       if (!created) {
-        toast.error('Failed to create comment from review finding.')
+        toast.error(sheetT('toast-review-comment-create-failed'))
         return false
       }
-      toast.success('Review finding added to comments.')
+      toast.success(sheetT('toast-review-comment-created'))
       return true
     },
     [comments]
