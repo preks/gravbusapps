@@ -338,6 +338,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
     const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
+    const replaceSignaturePosRef = useRef<number | null>(null)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
@@ -972,10 +973,44 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         insertPart: 'full' | 'initials'
       }) => {
         if (!activeEditor) return
-        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+        const replacePos = replaceSignaturePosRef.current
+        replaceSignaturePosRef.current = null
         const isInitials = sig.insertPart === 'initials'
         const width = isInitials ? 120 : 200
         const height = isInitials ? 64 : 80
+
+        if (replacePos != null) {
+          const node = activeEditor.state.doc.nodeAt(replacePos)
+          if (node?.type.name === 'signature') {
+            const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+            activeEditor
+              .chain()
+              .focus()
+              .setNodeSelection(replacePos)
+              .updateAttributes('signature', {
+                signatureId: sig.id ?? null,
+                kind: sig.kind,
+                snapshotSvg: sig.snapshotSvg,
+                name: sig.name ?? null,
+                pageNumber: node.attrs.pageNumber ?? pageNum,
+                x: node.attrs.x,
+                y: node.attrs.y,
+                width,
+                height,
+                lockAspectRatio: true,
+                createdBy: node.attrs.createdBy,
+                cropTop: 0,
+                cropRight: 0,
+                cropBottom: 0,
+                cropLeft: 0,
+                rotation: 0
+              })
+              .run()
+            return
+          }
+        }
+
+        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
         activeEditor
           .chain()
           .focus()
@@ -995,10 +1030,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [activeEditor, pagesEditorState.activePageNumber, currentPage]
     )
 
+    useEffect(() => {
+      if (!showInsertSignatureDialog) {
+        replaceSignaturePosRef.current = null
+      }
+    }, [showInsertSignatureDialog])
+
     const {
       replaceImagePosRef,
       selectedImageSidebar,
       selectedTableSidebar,
+      selectedSignatureSidebar,
       showBodyWhileEditingHeaderFooter,
       setShowBodyWhileEditingHeaderFooter,
       documentRightPanelOffset,
@@ -1006,11 +1048,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentEditorRightReservePx,
       imageSidebarContextSubtitleKey,
       tableSidebarContextSubtitleKey,
+      signatureSidebarContextSubtitleKey,
       setSelectedImageSidebarState,
       setSelectedTableSidebarState,
       closeImageSettingsSidebar,
       closeTableSettingsSidebar,
-      openTableSettingsSidebar
+      closeSignatureSettingsSidebar,
+      openTableSettingsSidebar,
+      activeSignatureUiState
     } = usePagedDocumentSelectionSidebars({
       editor,
       activeEditor,
@@ -1019,6 +1064,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       isHeaderFooterEditing,
       rightSidebar
     })
+
+    const handleOpenReplaceSignatureDialog = useCallback(() => {
+      const pos = selectedSignatureSidebar.pos
+      if (pos == null) return
+      replaceSignaturePosRef.current = pos
+      setShowInsertSignatureDialog(true)
+    }, [selectedSignatureSidebar.pos])
 
     useEffect(() => {
       if (!editor && !activeEditor) return
@@ -1654,6 +1706,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
           onCloseImageSidebar={closeImageSettingsSidebar}
           onReplaceImage={openReplaceImageDialog}
+          selectedSignatureSidebar={selectedSignatureSidebar}
+          signatureContextSubtitle={
+            signatureSidebarContextSubtitleKey ? t(signatureSidebarContextSubtitleKey) : undefined
+          }
+          onCloseSignatureSidebar={closeSignatureSettingsSidebar}
+          onReplaceSignature={handleOpenReplaceSignatureDialog}
+          signatureCropActive={
+            activeSignatureUiState.mode === 'crop' &&
+            activeSignatureUiState.pos != null &&
+            activeSignatureUiState.pos === selectedSignatureSidebar.pos
+          }
           tocSidebarNodePos={tocSidebarNodePos}
           onCloseTocSidebar={() => {
             setRightSidebar('closed')

@@ -1,11 +1,24 @@
 /**
- * Renders a signature node in the editor with optional resize handle.
+ * Renders a signature node with resize handles, rotate control, and optional crop mode.
  * Supports floating mode (pageNumber, x, y) using the page body layer as the coordinate system.
  */
 
 import React, { useRef, useCallback, useMemo, useLayoutEffect, useEffect, useState } from 'react'
-import { NodeViewWrapper } from '@tiptap/react'
+import { useTranslation } from '@newwork/nw-design-system'
+import { NodeViewWrapper, useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
+import {
+  hasImageCrop,
+  normalizeImageCrop,
+  resolveImageCropDimensions
+} from '@/components/tiptap-extensions/tiptap-custom-image'
+import type { NormalizedImageCrop } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
+import { DOCUMENT_SIGNATURE_UI_EVENT, type DocumentSignatureUiEventDetail } from '../signatureUiEvents'
+import { SignatureCropOverlay, type SignatureResizeDirection } from './SignatureCropOverlay'
+import { SignatureSelectionChrome } from './SignatureSelectionChrome'
+import { clampSignatureRotation, getPointerAngleFromRect } from './signatureInteractionUtils'
+import { buildBakedSignatureAttrsAfterCrop } from './signatureSnapshotCropBake'
+import translations from '../../../_i18n'
 
 const MIN_SIZE = 40
 /** Inset from page body edges when clamping drag/resize; keep 0 for flush alignment. */
@@ -150,6 +163,11 @@ export interface SignatureViewProps {
       pageNumber?: number | null
       x?: number | null
       y?: number | null
+      cropTop?: number
+      cropRight?: number
+      cropBottom?: number
+      cropLeft?: number
+      rotation?: number
     }
   }
   editor: Editor | null
@@ -158,25 +176,131 @@ export interface SignatureViewProps {
 }
 
 export function SignatureView({ node, editor, getPos, selected }: SignatureViewProps) {
+  const { t } = useTranslation(translations)
   const imgRef = useRef<HTMLImageElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
+  const frameRef = useRef<HTMLDivElement | null>(null)
+  const dragRotationRef = useRef<number | null>(null)
   const [dragSize, setDragSize] = React.useState<{ width: number; height: number } | null>(null)
+  const [dragRotation, setDragRotation] = useState<number | null>(null)
   const [dragPosition, setDragPosition] = React.useState<{ x: number; y: number } | null>(null)
   const dragSizeRef = useRef<{ width: number; height: number } | null>(null)
   const dragPositionRef = useRef<{ x: number; y: number } | null>(null)
+  const [signatureUiMode, setSignatureUiMode] = useState<'default' | 'crop'>('default')
+  const [cropPreview, setCropPreview] = useState<NormalizedImageCrop | null>(null)
+  const cropPreviewRef = useRef<NormalizedImageCrop | null>(null)
 
-  const attrsWidth = node.attrs.width ?? 200
-  const attrsHeight = node.attrs.height ?? 80
+  const nodePos = getPos()
+  const liveDocAttrs = useEditorState({
+    editor,
+    selector: ({ editor: ed }) => {
+      if (!ed || nodePos == null) return null
+      const n = ed.state.doc.nodeAt(nodePos)
+      if (n?.type.name !== 'signature') return null
+      return n.attrs
+    }
+  })
+  const attrs = liveDocAttrs ?? node.attrs
+
+  const attrsWidth = attrs.width ?? 200
+  const attrsHeight = attrs.height ?? 80
+  const attrsRotation = attrs.rotation ?? 0
   const displayWidth = dragSize?.width ?? attrsWidth
   const displayHeight = dragSize?.height ?? attrsHeight
-  const attrsX = node.attrs.x
-  const attrsY = node.attrs.y
-  const pageNumber = Math.max(1, node.attrs.pageNumber ?? 1)
+  const effectiveRotation = dragRotation ?? attrsRotation
+  const attrsX = attrs.x
+  const attrsY = attrs.y
+  const pageNumber = Math.max(1, attrs.pageNumber ?? 1)
   const isFloating = typeof attrsX === 'number' && typeof attrsY === 'number'
-  const src = useMemo(() => svgToDataUri(node.attrs.snapshotSvg ?? ''), [node.attrs.snapshotSvg])
+  const src = useMemo(() => svgToDataUri(attrs.snapshotSvg ?? ''), [attrs.snapshotSvg])
+
+  const isCropMode = selected && signatureUiMode === 'crop'
+
+  const effectiveCrop = useMemo(() => {
+    if (cropPreview) return cropPreview
+    return normalizeImageCrop({
+      cropTop: attrs.cropTop ?? 0,
+      cropRight: attrs.cropRight ?? 0,
+      cropBottom: attrs.cropBottom ?? 0,
+      cropLeft: attrs.cropLeft ?? 0
+    })
+  }, [cropPreview, attrs.cropTop, attrs.cropRight, attrs.cropBottom, attrs.cropLeft])
+
+  const cropLayout = useMemo(
+    () =>
+      resolveImageCropDimensions({
+        width: displayWidth,
+        height: displayHeight,
+        crop: effectiveCrop
+      }),
+    [displayHeight, displayWidth, effectiveCrop]
+  )
+
+  useEffect(() => {
+    cropPreviewRef.current = cropPreview
+  }, [cropPreview])
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<DocumentSignatureUiEventDetail>).detail
+      const nodePos = getPos()
+      if (detail.pos == null || nodePos === undefined || detail.pos !== nodePos) return
+      setSignatureUiMode(detail.mode)
+      if (detail.mode === 'default') {
+        const pending = cropPreviewRef.current
+        if (pending != null && editor) {
+          editor
+            .chain()
+            .focus()
+            .setNodeSelection(nodePos)
+            .updateAttributes('signature', {
+              cropTop: pending.top,
+              cropRight: pending.right,
+              cropBottom: pending.bottom,
+              cropLeft: pending.left
+            })
+            .run()
+          editor.commands.refreshPagesAndStabilize?.()
+        }
+        setCropPreview(null)
+        cropPreviewRef.current = null
+
+        if (editor) {
+          const n = editor.state.doc.nodeAt(nodePos)
+          if (n?.type.name === 'signature') {
+            const a = n.attrs
+            const crop = normalizeImageCrop({
+              cropTop: a.cropTop,
+              cropRight: a.cropRight,
+              cropBottom: a.cropBottom,
+              cropLeft: a.cropLeft
+            })
+            if (hasImageCrop(a)) {
+              const baked = buildBakedSignatureAttrsAfterCrop(a.width ?? 200, a.height ?? 80, a.snapshotSvg ?? '', crop)
+              if (baked != null) {
+                editor.chain().focus().setNodeSelection(nodePos).updateAttributes('signature', baked).run()
+                editor.commands.refreshPagesAndStabilize?.()
+              }
+            }
+          }
+        }
+      }
+    }
+    globalThis.addEventListener(DOCUMENT_SIGNATURE_UI_EVENT, handler)
+    return () => globalThis.removeEventListener(DOCUMENT_SIGNATURE_UI_EVENT, handler)
+  }, [editor, getPos])
+
+  useEffect(() => {
+    if (!selected) {
+      setSignatureUiMode('default')
+      setCropPreview(null)
+    }
+  }, [selected])
 
   const onPositionDragMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (isCropMode) return
+      if ((e.target as HTMLElement).closest('[data-signature-handle="true"]')) return
       if (e.button !== 0 || !editor || getPos() === undefined) return
       const img = imgRef.current
       if (!img) return
@@ -250,25 +374,53 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       globalThis.addEventListener('mousemove', onMove)
       globalThis.addEventListener('mouseup', onUp)
     },
-    [editor, getPos, pageNumber, attrsX, attrsY, displayWidth, displayHeight]
+    [editor, getPos, pageNumber, attrsX, attrsY, displayWidth, displayHeight, isCropMode]
   )
 
-  const onResizeHandleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const startResizeInteraction = useCallback(
+    (direction: SignatureResizeDirection, e: React.MouseEvent) => {
+      if (isCropMode) return
       e.preventDefault()
-      const img = imgRef.current
-      if (!img || !editor) return
+      e.stopPropagation()
+      if (!editor || getPos() === undefined) return
       const startX = e.clientX
       const startY = e.clientY
-      const startW = img.offsetWidth
-      const startH = img.offsetHeight
-      const current = { width: startW, height: startH }
-      setDragSize(current)
-      dragSizeRef.current = current
+      const startW = displayWidth
+      const startH = displayHeight
+      const lock = attrs.lockAspectRatio !== false
+      const aspectRatio = startH > 0 ? startW / startH : null
+      const includesWest = direction.includes('w')
+      const includesEast = direction.includes('e')
+      const includesNorth = direction.includes('n')
+      const includesSouth = direction.includes('s')
       const curX = typeof attrsX === 'number' ? attrsX : 0
       const curY = typeof attrsY === 'number' ? attrsY : 0
 
-      const onMove = (e: MouseEvent) => {
+      setDragSize({ width: startW, height: startH })
+      dragSizeRef.current = { width: startW, height: startH }
+
+      const onMove = (moveEvent: MouseEvent) => {
+        const dx = moveEvent.clientX - startX
+        const dy = moveEvent.clientY - startY
+        let width = startW + (includesEast ? dx : 0) - (includesWest ? dx : 0)
+        let height = startH + (includesSouth ? dy : 0) - (includesNorth ? dy : 0)
+        width = Math.max(MIN_SIZE, Math.round(width))
+        height = Math.max(MIN_SIZE, Math.round(height))
+
+        if (lock && aspectRatio) {
+          if ((includesEast || includesWest) && (includesNorth || includesSouth)) {
+            const widthScale = width / startW
+            const heightScale = height / startH
+            const scale = Math.max(widthScale, heightScale)
+            width = Math.max(MIN_SIZE, Math.round(startW * scale))
+            height = Math.max(MIN_SIZE, Math.round(startH * scale))
+          } else if (includesEast || includesWest) {
+            height = Math.max(MIN_SIZE, Math.round(width / aspectRatio))
+          } else if (includesNorth || includesSouth) {
+            width = Math.max(MIN_SIZE, Math.round(height * aspectRatio))
+          }
+        }
+
         const pageLayer = resolvePageBodyLayerForWrapper(editor, contentRef.current?.parentElement ?? null, pageNumber)
         const lr = pageLayer?.getBoundingClientRect()
         const maxW = lr ? Math.max(MIN_SIZE, lr.width - curX - POSITION_MARGIN) : undefined
@@ -279,22 +431,14 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
                 resolveSignatureVerticalExtent(editor, pageLayer, pageNumber).bottom - lr.top - curY - POSITION_MARGIN
               )
             : undefined
-        const dx = e.clientX - startX
-        const dy = e.clientY - startY
-        const lock = node.attrs.lockAspectRatio !== false
-        let w = Math.max(MIN_SIZE, Math.round(startW + dx))
-        let h = Math.max(MIN_SIZE, Math.round(startH + dy))
-        if (lock) {
-          const scale = Math.min(w / startW, h / startH)
-          w = Math.max(MIN_SIZE, Math.round(startW * scale))
-          h = Math.max(MIN_SIZE, Math.round(startH * scale))
-        }
-        if (maxW != null) w = Math.min(w, maxW)
-        if (maxH != null) h = Math.min(h, maxH)
-        const next = { width: w, height: h }
+        if (maxW != null) width = Math.min(width, maxW)
+        if (maxH != null) height = Math.min(height, maxH)
+
+        const next = { width, height }
         setDragSize(next)
         dragSizeRef.current = next
       }
+
       const onUp = () => {
         globalThis.removeEventListener('mousemove', onMove)
         globalThis.removeEventListener('mouseup', onUp)
@@ -311,10 +455,72 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
           })
           .run()
       }
+
       globalThis.addEventListener('mousemove', onMove)
       globalThis.addEventListener('mouseup', onUp)
     },
-    [editor, getPos, pageNumber, attrsX, attrsY, node.attrs.lockAspectRatio]
+    [displayHeight, displayWidth, editor, getPos, attrsX, attrsY, isCropMode, attrs.lockAspectRatio, pageNumber]
+  )
+
+  const startRotateInteraction = useCallback(
+    (e: React.MouseEvent) => {
+      if (isCropMode) return
+      e.preventDefault()
+      e.stopPropagation()
+      const frame = frameRef.current
+      if (!frame || !editor || getPos() === undefined) return
+      const rect = frame.getBoundingClientRect()
+      const startAngle = getPointerAngleFromRect(e.clientX, e.clientY, rect)
+      const startRotation = attrsRotation
+
+      const onMove = (moveEvent: MouseEvent) => {
+        const r = frame.getBoundingClientRect()
+        const currentAngle = getPointerAngleFromRect(moveEvent.clientX, moveEvent.clientY, r)
+        const next = clampSignatureRotation(startRotation + currentAngle - startAngle)
+        dragRotationRef.current = next
+        setDragRotation(next)
+      }
+
+      const onUp = () => {
+        globalThis.removeEventListener('mousemove', onMove)
+        globalThis.removeEventListener('mouseup', onUp)
+        const final = dragRotationRef.current
+        dragRotationRef.current = null
+        setDragRotation(null)
+        if (final == null || getPos() === undefined) return
+        editor.chain().setNodeSelection(getPos()!).updateAttributes('signature', { rotation: final }).run()
+      }
+
+      globalThis.addEventListener('mousemove', onMove)
+      globalThis.addEventListener('mouseup', onUp)
+    },
+    [attrsRotation, editor, getPos, isCropMode]
+  )
+
+  const handleCropPreview = useCallback((next: NormalizedImageCrop) => {
+    setCropPreview(next)
+  }, [])
+
+  const handleCropCommit = useCallback(
+    (c: NormalizedImageCrop) => {
+      setCropPreview(null)
+      cropPreviewRef.current = null
+      const nodePos = getPos()
+      if (nodePos === undefined || !editor) return
+      editor
+        .chain()
+        .focus()
+        .setNodeSelection(nodePos)
+        .updateAttributes('signature', {
+          cropTop: c.top,
+          cropRight: c.right,
+          cropBottom: c.bottom,
+          cropLeft: c.left
+        })
+        .run()
+      editor.commands.refreshPagesAndStabilize?.()
+    },
+    [editor, getPos]
   )
 
   const posPageLocal = dragPosition ?? (isFloating ? { x: attrsX as number, y: attrsY as number } : null)
@@ -433,7 +639,7 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
           minWidth: displayWidth,
           minHeight: displayHeight,
           // Above .breaker (z-index 2) so the float is not covered by page chrome / gaps
-          zIndex: 12
+          zIndex: isCropMode ? 40 : 12
         }
       : undefined
 
@@ -445,29 +651,61 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       data-floating={useFloatingLayout ? 'true' : undefined}
     >
       <div ref={contentRef} className="gba:inline-flex gba:relative" style={innerStyle}>
-        <img
-          ref={imgRef}
-          src={src}
-          alt={node.attrs.name || 'Signature'}
-          width={displayWidth}
-          height={displayHeight}
-          className={`gba:rounded gba:block gba:max-w-full gba:cursor-move gba:box-border ${
-            SHOW_SIGNATURE_DEBUG_BORDER ? 'gba:border gba:border-dashed gba:border-primary/50' : ''
-          }`}
-          contentEditable={false}
-          draggable={false}
-          onMouseDown={onPositionDragMouseDown}
-          data-testid="document-editor-signature"
-        />
-        {selected && (
-          <button
-            type="button"
-            aria-label="Resize signature"
-            className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:border-t-2 gba:border-l-2 gba:border-primary gba:rounded-tl gba:cursor-nwse-resize gba:bg-muted gba:p-0 gba:border-b-0 gba:border-r-0"
-            onMouseDown={onResizeHandleMouseDown}
-            data-testid="document-editor-signature-resize-handle"
-          />
-        )}
+        <div
+          ref={frameRef}
+          className={`gba:relative gba:inline-flex gba:max-w-full ${isCropMode ? 'gba:z-30' : ''}`}
+          style={{
+            width: displayWidth,
+            height: displayHeight,
+            transform: effectiveRotation !== 0 ? `rotate(${effectiveRotation}deg)` : undefined,
+            transformOrigin: 'center center'
+          }}
+        >
+          <div
+            className={`gba:relative gba:overflow-hidden gba:rounded gba:box-border ${
+              isCropMode ? 'gba:bg-background' : ''
+            }`}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <img
+              ref={imgRef}
+              src={src}
+              alt={attrs.name || 'Signature'}
+              className={`gba:block gba:max-w-none gba:box-border ${
+                isCropMode ? 'gba:cursor-default' : 'gba:cursor-move'
+              } ${SHOW_SIGNATURE_DEBUG_BORDER ? 'gba:border gba:border-dashed gba:border-primary/50' : ''}`}
+              style={{
+                position: 'absolute',
+                left: cropLayout.offsetX,
+                top: cropLayout.offsetY,
+                width: cropLayout.renderedWidth,
+                height: cropLayout.renderedHeight
+              }}
+              contentEditable={false}
+              draggable={false}
+              onMouseDown={onPositionDragMouseDown}
+              data-testid="document-editor-signature"
+            />
+            {isCropMode ? (
+              <SignatureCropOverlay
+                frameWidth={displayWidth}
+                frameHeight={displayHeight}
+                crop={effectiveCrop}
+                onCropPreview={handleCropPreview}
+                onCropCommit={handleCropCommit}
+                hintText={t('signature-crop-overlay-hint')}
+              />
+            ) : null}
+          </div>
+          {selected && !isCropMode ? (
+            <SignatureSelectionChrome
+              rotateAriaLabel={t('signature-rotate-handle-aria')}
+              onResizeMouseDown={startResizeInteraction}
+              onRotateMouseDown={startRotateInteraction}
+              data-testid="document-editor-signature-chrome"
+            />
+          ) : null}
+        </div>
       </div>
     </NodeViewWrapper>
   )

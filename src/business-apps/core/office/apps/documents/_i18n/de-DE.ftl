@@ -932,6 +932,29 @@ header-footer-sidebar-zone-even = Gerade Seiten
 image-sidebar-in-header-context = Bild in Kopfzeile
 image-sidebar-in-footer-context = Bild in Fußzeile
 
+signature-sidebar-in-header-context = Signatur in Kopfzeile
+signature-sidebar-in-footer-context = Signatur in Fußzeile
+signature-sidebar-title = Signatur
+signature-sidebar-name = Name
+signature-sidebar-lock-aspect = Seitenverhältnis beibehalten
+signature-sidebar-width = Breite
+signature-sidebar-height = Höhe
+signature-sidebar-floating-position = Position auf der Seite
+signature-sidebar-page = Seite
+signature-sidebar-x = X
+signature-sidebar-y = Y
+signature-sidebar-replace = Signatur ersetzen…
+signature-sidebar-remove = Signatur entfernen
+signature-sidebar-crop-section = Zuschneiden
+signature-sidebar-crop-intro = Leerraum abschneiden: Zuschneiden starten, um Griffe im Dokument anzuzeigen, oder Werte unten eingeben.
+signature-sidebar-crop-start = Zuschneiden starten
+signature-sidebar-cropping = Zuschneiden…
+signature-sidebar-crop-done = Fertig
+signature-sidebar-crop-active-banner = Zuschneiden aktiv — ziehen Sie die quadratischen Griffe an der Signatur, um den sichtbaren Bereich zu wählen, dann Fertig.
+signature-sidebar-crop-values-hint = Jede Zahl gibt an, wie viel von dieser Seite abgeschnitten wird, als Anteil von Breite bzw. Höhe (0 bis 0,95).
+signature-crop-overlay-hint = Griffe zum Zuschneiden ziehen
+signature-rotate-handle-aria = Signatur drehen
+
 # Template fields panel
 template-fields-insert = Feld einfügen
 template-fields-search-placeholder = Entitäten suchen...

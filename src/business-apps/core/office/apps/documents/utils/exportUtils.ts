@@ -638,6 +638,27 @@ function materializeSignatureNodesInHtml(html: string): string {
       const h = div.getAttribute('data-height')
       if (w) img.setAttribute('width', w)
       if (h) img.setAttribute('height', h)
+      const parseCrop = (attr: string | null) => {
+        const v = parseFloat(attr || '0')
+        return Number.isFinite(v) ? Math.min(Math.max(v, 0), 0.95) : 0
+      }
+      const ct = parseCrop(div.getAttribute('data-crop-top'))
+      const cr = parseCrop(div.getAttribute('data-crop-right'))
+      const cb = parseCrop(div.getAttribute('data-crop-bottom'))
+      const cl = parseCrop(div.getAttribute('data-crop-left'))
+      const rot = parseFloat(div.getAttribute('data-rotation') || '0')
+      const rotationDeg = Number.isFinite(rot) ? rot : 0
+      const styleParts: string[] = []
+      if (ct > 0 || cr > 0 || cb > 0 || cl > 0) {
+        styleParts.push(`clip-path: inset(${ct * 100}% ${cr * 100}% ${cb * 100}% ${cl * 100}%)`)
+      }
+      if (rotationDeg !== 0) {
+        styleParts.push(`transform: rotate(${rotationDeg}deg)`)
+        styleParts.push('transform-origin: center center')
+      }
+      if (styleParts.length > 0) {
+        img.setAttribute('style', styleParts.join('; '))
+      }
       div.replaceWith(img)
     } catch {
       // leave div in place if encoding fails
