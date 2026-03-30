@@ -143,7 +143,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
       <ContextMenuTrigger asChild>
         <NodeViewWrapper
           as="div"
-          className={`document-table-of-contents gba:my-3 gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/20 gba:p-3 ${
+          className={`document-table-of-contents gba:my-3 gba:rounded-md gba:border gba:border-border/60 gba:p-3 ${
             selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
           }`}
           data-document-toc=""
