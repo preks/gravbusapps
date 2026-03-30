@@ -203,6 +203,59 @@ describe('createHeaderFooterRegion interaction guards', () => {
     expect(event.defaultPrevented).toBe(false)
   })
 
+  it('opens the header editor on the first click of a click gesture', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const onOpenEditor = jest.fn()
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      onOpenEditor
+    })
+
+    region.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+
+    expect(onOpenEditor).toHaveBeenCalledTimes(1)
+    expect(onOpenEditor.mock.calls[0]?.[0]).toBe('header')
+    expect(onOpenEditor.mock.calls[0]?.[1]).toBe(1)
+  })
+
+  it('does not open the editor on the second click of a double-click sequence', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const onOpenEditor = jest.fn()
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      onOpenEditor
+    })
+
+    region.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+    region.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 2 }))
+
+    expect(onOpenEditor).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps intercepting selectstart for inactive header regions with visible content', () => {
     const options = createTestOptions()
     const storage = createStorageFromOptions(options)

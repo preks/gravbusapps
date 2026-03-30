@@ -386,6 +386,10 @@ function resolveDefaultPlaceholderBreakerMetrics(params: {
   }
 }
 
+/**
+ * Page N break footer is for page N; the header in the same breaker is for page N+1.
+ * Physical page 1’s header is not here — it is a separate `.rm-first-page-header` (see `createFirstPageHeader`).
+ */
 function createFullPageBreaker(params: {
   pageNumber: number
   totalPages: number
@@ -655,6 +659,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       user-select: none;
       -webkit-user-select: none;
+    }
+    .rm-pages-root .rm-page-header-content[data-rm-empty="true"],
+    .rm-pages-root .rm-page-footer-content[data-rm-empty="true"] {
+      min-height: 1.25em;
     }
     .rm-pages-root .rm-page-header-content .tableWrapper,
     .rm-pages-root .rm-page-footer-content .tableWrapper {
@@ -1136,7 +1144,10 @@ export function createHeaderFooterRegion(params: {
     blockInactiveRegion(event, region)
   })
 
-  region.addEventListener('dblclick', event => {
+  region.addEventListener('click', event => {
+    if (event.detail !== 1) {
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
     onOpenEditor?.(type, pageNumber, region, {
@@ -1394,6 +1405,11 @@ export function applyWindowAttributesToPageBreak(
   })
 }
 
+/**
+ * Shell for page 1’s header (class `rm-first-page-header`). Always mounted next to `.rm-pages-wrapper`
+ * via `renderWindowedPaginationChrome`, not inside the first `rm-page-break`. Content uses the
+ * `default` or `firstPage` storage variant depending on `differentFirstPage`, not a different DOM shape.
+ */
 export function createFirstPageHeader(params: {
   totalPages: number
   pageFormat: PageFormat
