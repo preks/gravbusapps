@@ -58,6 +58,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result/components/MarkdownRenderer'
 import { calculateDueDateCriticality, getCriticalityBadgeVariant } from '../utils/dueDateUtils'
 import { getInitials } from '../utils/avatarUtils'
+import { uploadFilesForTaskCompletion } from '../utils/taskFileUpload'
 import { TaskAiSection } from './TaskAiSection'
 import { AiToolbar } from './AiToolbar'
 import { useAiAssistant, useAiCapabilities } from '../hooks/useAi'
@@ -611,7 +612,20 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       return processNumberValue(field, value)
     }
 
-    // All other types (including file) return value as-is
+    // FILE fields: strip non-serialisable properties (originFileObj).
+    // Actual upload happens in handleCompleteTask before the API call.
+    const fieldType = (field.type || '').toUpperCase()
+    if (fieldType === 'FILE' && Array.isArray(value)) {
+      return value.map((item: any) => {
+        if (item && typeof item === 'object' && 'originFileObj' in item) {
+          const cleaned = { ...item }
+          delete cleaned.originFileObj
+          return cleaned
+        }
+        return item
+      })
+    }
+
     return value
   }
 
@@ -687,7 +701,30 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     // Clear any previous field errors
     setFieldErrors({})
 
-    const processedFormData = processFormData()
+    let processedFormData = processFormData()
+
+    // Upload any local File objects in FILE-type fields before completing the task.
+    // This replaces raw {uid, name, status} entries with server-side references
+    // containing fileId and downloadPath so downstream workflow steps can access them.
+    if (task.form && Array.isArray(task.form)) {
+      const fileFields = task.form.filter((f: any) => (f.type || '').toUpperCase() === 'FILE')
+      if (fileFields.length > 0) {
+        try {
+          processedFormData = await uploadFilesForTaskCompletion(
+            processedFormData,
+            fileFields,
+            formValues,
+            accessToken,
+            task.id
+          )
+        } catch (uploadErr) {
+          console.error('[UniversalCflowTaskDetails] File upload failed:', uploadErr)
+          toast.error(uploadErr instanceof Error ? uploadErr.message : 'File upload failed')
+          return
+        }
+      }
+    }
+
     const completeRequestBody = {
       userId: userId,
       formData: processedFormData,
