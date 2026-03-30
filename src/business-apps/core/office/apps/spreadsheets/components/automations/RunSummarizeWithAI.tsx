@@ -19,6 +19,7 @@ import {
 import type { SpreadsheetApp } from '../../types/spreadsheet'
 import type { ExcelCollectionSummaryResult } from '../../hooks/useExcelCollectionSummary'
 import { CollectionSummaryDialog } from './CollectionSummaryDialog'
+import { selectPreferredModel } from '../../utils/aiModelSelection'
 
 export interface SummarizeSubmission {
   id: string
@@ -36,7 +37,6 @@ interface RunSummarizeWithAIProps {
 }
 
 const MAX_COPIES = 20
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
 
 function extractAppIdFromUrl(url: string): string | null {
   try {
@@ -151,15 +151,13 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         return
       }
 
-      const modelsResponse = await promptClient.getAiModels({ limit: 10, offset: 0, returnTotalRecords: false })
-      if (!modelsResponse.data || modelsResponse.data.length === 0) {
+      let selectedModel
+      try {
+        selectedModel = await selectPreferredModel(promptClient)
+      } catch {
         setError('No AI models available. Please contact your administrator.')
         return
       }
-
-      const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
-      const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
-      const selectedModel = preferredModel ?? gpt4Model ?? modelsResponse.data[0]
 
       const formData = new FormData()
       formData.append('model_id', selectedModel._id)
