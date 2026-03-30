@@ -614,7 +614,7 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
     ? 'gba:relative gba:inline-block gba:overflow-visible'
     : isDragging
       ? 'gba:relative gba:inline-block gba:overflow-visible'
-      : 'gba:inline-block gba:align-middle gba:relative gba:inline-flex'
+      : 'gba:inline-block gba:align-middle gba:relative gba:inline-flex gba:my-3'
   const wrapperStyle = useFloatingLayout
     ? {
         width: 0,
@@ -662,8 +662,8 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
           }}
         >
           <div
-            className={`gba:relative gba:overflow-hidden gba:rounded gba:box-border ${
-              isCropMode ? 'gba:bg-background' : ''
+            className={`gba:relative gba:overflow-hidden gba:rounded-md gba:box-border gba:border gba:border-border gba:shadow-sm ${
+              isCropMode ? 'gba:bg-background' : 'gba:bg-muted/30'
             }`}
             style={{ width: '100%', height: '100%' }}
           >

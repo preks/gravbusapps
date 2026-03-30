@@ -1306,6 +1306,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       lastSavedTitleRef.current = title
     }, [document?.id])
     const getImageDataUrl = useImageDataUrlResolver(accessToken)
+    const documentTocExportLabels = useMemo(
+      () => ({
+        blockTitle: t('document-toc-block-title'),
+        emptyMessage: t('document-toc-empty'),
+        untitledHeading: t('title-untitled'),
+        duplicateHeadingFilterDocumentTitle: title.trim() || undefined
+      }),
+      [t, title]
+    )
     const {
       isSaving,
       isExporting,
@@ -1343,7 +1352,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       buildPersistedFormatting,
       layoutFormatting,
       printStyleConfig,
-      getImageDataUrl: async src => (await getImageDataUrl(src)) ?? ''
+      getImageDataUrl,
+      documentTocExportLabels
     })
     editorOnUpdateRef.current = () => {
       if (document?.id) {

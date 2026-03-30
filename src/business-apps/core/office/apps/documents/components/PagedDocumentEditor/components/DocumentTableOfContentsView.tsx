@@ -143,7 +143,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
       <ContextMenuTrigger asChild>
         <NodeViewWrapper
           as="div"
-          className={`document-table-of-contents gba:my-3 gba:rounded-md gba:border gba:border-border/60 gba:p-3 ${
+          className={`document-table-of-contents gba:my-3 gba:w-full gba:max-w-full gba:rounded-md gba:border gba:border-border/60 gba:p-3 ${
             selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
           }`}
           data-document-toc=""
@@ -170,66 +170,69 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                 const pad =
                   ['', 'gba:pl-2', 'gba:pl-4', 'gba:pl-6', 'gba:pl-8', 'gba:pl-10'][Math.min(h.level, 6)] ?? 'gba:pl-10'
                 const pageNum = resolvePageNumberForDocPosition(h.blockStart, spans)
-                const pageLabel =
-                  showPageNumbers && pageNum !== null
-                    ? String(pageNum)
-                    : showPageNumbers
-                      ? String(resolveFallbackPageNumber(editor.state.doc, h.blockStart))
-                      : ''
+                let pageLabel = ''
+                if (showPageNumbers) {
+                  if (pageNum !== null) {
+                    pageLabel = String(pageNum)
+                  } else {
+                    pageLabel = String(resolveFallbackPageNumber(editor.state.doc, h.blockStart))
+                  }
+                }
+                const titleBaseClass =
+                  'gba:block gba:min-w-0 gba:w-full gba:text-left gba:text-base gba:leading-snug gba:text-foreground gba:whitespace-normal gba:break-words gba:overflow-wrap-anywhere'
+                const titleClass = titleBaseClass
                 const titleNode =
                   editable && headingLinks ? (
                     <button
                       type="button"
                       onMouseDown={event => event.stopPropagation()}
                       onClick={() => scrollToHeading(h.pos)}
-                      className="gba:max-w-[55%] gba:shrink-0 gba:truncate gba:text-left gba:text-sm gba:text-foreground hover:gba:underline"
+                      className={`${titleClass} gba:text-left hover:gba:underline`}
                       data-testid={`document-toc-line-${idx}`}
                     >
                       {h.text || t('title-untitled')}
                     </button>
                   ) : (
-                    <span
-                      className="gba:max-w-[55%] gba:shrink-0 gba:truncate gba:text-sm gba:text-foreground"
-                      data-testid={`document-toc-line-${idx}`}
-                    >
+                    <span className={titleClass} data-testid={`document-toc-line-${idx}`}>
                       {h.text || t('title-untitled')}
                     </span>
                   )
 
                 return (
                   <div key={`${h.blockStart}-${idx}`} className={pad}>
-                    <div className="gba:flex gba:min-h-7 gba:items-end gba:gap-2 gba:w-full">
-                      {titleNode}
-                      {rightAlignPageNumbers ? (
-                        <>
-                          {tabLeader === 'dot' ? (
-                            <span
-                              className="gba:flex-1 gba:border-b gba:border-dotted gba:border-border gba:mb-1.5 gba:min-w-4"
-                              aria-hidden
-                            />
-                          ) : (
-                            <span className="gba:flex-1" aria-hidden />
-                          )}
-                          {pageLabel !== '' ? (
-                            <span className="gba:shrink-0 gba:min-w-6 gba:text-right gba:text-sm gba:tabular-nums gba:text-foreground">
-                              {pageLabel}
-                            </span>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
-                          {tabLeader === 'dot' && pageLabel !== '' ? (
-                            <span
-                              className="gba:w-16 gba:border-b gba:border-dotted gba:border-border gba:mb-1.5"
-                              aria-hidden
-                            />
-                          ) : null}
-                          {pageLabel !== '' ? (
-                            <span className="gba:text-sm gba:tabular-nums gba:text-foreground">{pageLabel}</span>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
+                    {rightAlignPageNumbers ? (
+                      <div className="gba:flex gba:w-full gba:min-w-0 gba:flex-nowrap gba:items-end gba:gap-x-2">
+                        <div className="gba:min-w-0 gba:w-fit gba:max-w-[calc(100%-4rem)] gba:shrink">{titleNode}</div>
+                        {tabLeader === 'dot' ? (
+                          <span
+                            className="gba:mb-1.5 gba:min-h-[0.65rem] gba:min-w-2 gba:flex-1 gba:shrink-0 gba:self-end gba:border-b gba:border-dotted gba:border-border"
+                            aria-hidden
+                          />
+                        ) : (
+                          <span className="gba:min-w-8 gba:flex-1 gba:shrink-0" aria-hidden />
+                        )}
+                        {pageLabel !== '' ? (
+                          <span className="gba:shrink-0 gba:min-w-8 gba:text-right gba:text-base gba:tabular-nums gba:text-foreground">
+                            {pageLabel}
+                          </span>
+                        ) : (
+                          <span className="gba:min-w-0" aria-hidden />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="gba:flex gba:min-h-7 gba:flex-wrap gba:items-end gba:gap-x-2 gba:gap-y-1">
+                        <div className="gba:min-w-0 gba:flex-1">{titleNode}</div>
+                        {tabLeader === 'dot' && pageLabel !== '' ? (
+                          <span
+                            className="gba:mb-1.5 gba:inline-block gba:min-w-16 gba:border-b gba:border-dotted gba:border-border"
+                            aria-hidden
+                          />
+                        ) : null}
+                        {pageLabel !== '' ? (
+                          <span className="gba:text-base gba:tabular-nums gba:text-foreground">{pageLabel}</span>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 )
               })}

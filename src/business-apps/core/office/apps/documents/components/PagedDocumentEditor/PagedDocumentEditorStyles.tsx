@@ -43,6 +43,13 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         --default-cell-min-width: 25px;
       }
 
+      .paged-document-editor .ProseMirror .document-table-of-contents {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
       .paged-document-editor .ProseMirror.resize-cursor {
         cursor: ew-resize;
         cursor: col-resize;
