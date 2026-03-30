@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import type { Editor } from '@tiptap/react'
-import { Button, Input, Label, Switch, useTranslation } from '@newwork/nw-design-system'
+import { Button, Input, Label, Switch, useTranslation, cn } from '@newwork/nw-design-system'
+import { ImageSidebarSection } from './ImageSidebarSection'
 import type { CustomImageAttributes, ImageSizeUnit } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   DEFAULT_IMAGE_ROTATION,
@@ -69,6 +70,9 @@ export function ImageAdvancedSizeSection({
   const rotationInputValue = resolvedDimensions.rotation
   const originalWidth = resolvedDimensions.originalWidth
   const originalHeight = resolvedDimensions.originalHeight
+  const unitsMatch = widthUnit === heightUnit
+  const segmentPxActive = unitsMatch && widthUnit === 'px'
+  const segmentPercentActive = unitsMatch && widthUnit === 'percent'
 
   const updateDimension = useCallback(
     (dimension: 'width' | 'height', unit: ImageSizeUnit, rawValue: string) => {
@@ -106,8 +110,7 @@ export function ImageAdvancedSizeSection({
         const linkedAbsolute = isWidth
           ? Math.max(1, Math.round(referenceAbsolute / aspectRatio))
           : Math.max(1, Math.round(referenceAbsolute * aspectRatio))
-        const otherUnit = isWidth ? heightUnit : widthUnit
-        const linkedPercent = otherUnit === 'percent' ? convertPxToPercent(linkedAbsolute, otherReferenceLength) : null
+        const linkedPercent = unit === 'percent' ? convertPxToPercent(linkedAbsolute, otherReferenceLength) : null
 
         if (isWidth) {
           nextAttrs.heightUnit = linkedPercent == null ? 'px' : 'percent'
@@ -127,38 +130,31 @@ export function ImageAdvancedSizeSection({
     [
       aspectRatio,
       heightInputValue,
-      heightUnit,
       lockAspectRatio,
       measurementContext.containerHeight,
       measurementContext.containerWidth,
       updateImageAttrs,
-      widthInputValue,
-      widthUnit
+      widthInputValue
     ]
   )
 
-  const updateDimensionUnit = useCallback(
-    (dimension: 'width' | 'height', nextUnit: ImageSizeUnit) => {
-      const isWidth = dimension === 'width'
-      const currentAbsolute = isWidth ? resolvedDimensions.baseWidth : resolvedDimensions.baseHeight
-      const referenceLength = isWidth ? measurementContext.containerWidth : measurementContext.containerHeight
-      const nextPercent = nextUnit === 'percent' ? (convertPxToPercent(currentAbsolute, referenceLength) ?? 100) : null
+  const updateBothDimensionUnits = useCallback(
+    (nextUnit: ImageSizeUnit) => {
+      const widthAbs = resolvedDimensions.baseWidth
+      const heightAbs = resolvedDimensions.baseHeight
+      const cw = measurementContext.containerWidth
+      const ch = measurementContext.containerHeight
 
-      updateImageAttrs(
-        isWidth
-          ? {
-              widthUnit: nextUnit,
-              widthPercent: nextPercent,
-              widthRelativeTo: 'page',
-              width: currentAbsolute
-            }
-          : {
-              heightUnit: nextUnit,
-              heightPercent: nextPercent,
-              heightRelativeTo: 'page',
-              height: currentAbsolute
-            }
-      )
+      updateImageAttrs({
+        widthUnit: nextUnit,
+        heightUnit: nextUnit,
+        widthPercent: nextUnit === 'percent' ? (convertPxToPercent(widthAbs, cw) ?? 100) : null,
+        heightPercent: nextUnit === 'percent' ? (convertPxToPercent(heightAbs, ch) ?? 100) : null,
+        widthRelativeTo: 'page',
+        heightRelativeTo: 'page',
+        width: widthAbs,
+        height: heightAbs
+      })
     },
     [
       measurementContext.containerHeight,
@@ -202,13 +198,20 @@ export function ImageAdvancedSizeSection({
     })
   }, [originalHeight, originalWidth, updateImageAttrs])
 
+  const unitToggleClass = (active: boolean) =>
+    cn(
+      'gba:flex-1 gba:h-8 gba:text-xs gba:font-medium',
+      active ? 'gba:bg-background gba:shadow-sm' : 'gba:text-muted-foreground gba:hover:text-foreground'
+    )
+
   return (
-    <section className="gba:space-y-3">
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-        <Label className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-size')}</Label>
+    <ImageSidebarSection
+      title={t('image-sidebar-size')}
+      action={
         <Button
           variant="outline"
           size="sm"
+          className="gba:text-xs"
           onMouseDown={preventEditorBlurOnMouseDown}
           onClick={handleResetSize}
           disabled={originalWidth == null || originalHeight == null}
@@ -216,80 +219,85 @@ export function ImageAdvancedSizeSection({
         >
           {t('image-sidebar-reset-size')}
         </Button>
-      </div>
-
-      <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+      }
+      data-testid={`${testId}-size-section`}
+    >
+      <div className="gba:space-y-3">
         <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-width`}>{t('image-sidebar-width')}</Label>
-          <div className="gba:flex gba:gap-2">
+          <Label className="gba:text-xs gba:font-medium">{t('image-sidebar-size-unit')}</Label>
+          <div
+            className="gba:inline-flex gba:w-full gba:max-w-xs gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/40 gba:p-0.5"
+            role="group"
+            aria-label={t('image-sidebar-size-unit')}
+          >
             <Button
-              variant={widthUnit === 'px' ? 'default' : 'outline'}
+              type="button"
+              variant="ghost"
               size="sm"
+              className={cn(unitToggleClass(segmentPxActive), 'gba:rounded-md')}
               onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => updateDimensionUnit('width', 'px')}
-              data-testid={`${testId}-width-unit-px`}
+              onClick={() => updateBothDimensionUnits('px')}
+              data-testid={`${testId}-size-unit-px`}
             >
               px
             </Button>
             <Button
-              variant={widthUnit === 'percent' ? 'default' : 'outline'}
+              type="button"
+              variant="ghost"
               size="sm"
+              className={cn(unitToggleClass(segmentPercentActive), 'gba:rounded-md')}
               onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => updateDimensionUnit('width', 'percent')}
-              data-testid={`${testId}-width-unit-percent`}
+              onClick={() => updateBothDimensionUnits('percent')}
+              data-testid={`${testId}-size-unit-percent`}
             >
               %
             </Button>
           </div>
-          <Input
-            id={`${testId}-width`}
-            type="number"
-            value={String(widthInputValue)}
-            onChange={event => updateDimension('width', widthUnit, event.target.value)}
-            data-testid={`${testId}-width`}
-          />
-          {widthUnit === 'percent' ? (
+          {unitsMatch && widthUnit === 'percent' ? (
             <p className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-relative-to-page')}</p>
+          ) : null}
+          {!unitsMatch ? (
+            <p className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-size-unit-mixed')}</p>
           ) : null}
         </div>
 
-        <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-height`}>{t('image-sidebar-height')}</Label>
-          <div className="gba:flex gba:gap-2">
-            <Button
-              variant={heightUnit === 'px' ? 'default' : 'outline'}
-              size="sm"
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => updateDimensionUnit('height', 'px')}
-              data-testid={`${testId}-height-unit-px`}
-            >
-              px
-            </Button>
-            <Button
-              variant={heightUnit === 'percent' ? 'default' : 'outline'}
-              size="sm"
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => updateDimensionUnit('height', 'percent')}
-              data-testid={`${testId}-height-unit-percent`}
-            >
-              %
-            </Button>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          <div className="gba:space-y-2">
+            <Label htmlFor={`${testId}-width`} className="gba:text-xs gba:font-medium">
+              {t('image-sidebar-width')}
+            </Label>
+            <Input
+              id={`${testId}-width`}
+              type="number"
+              value={String(widthInputValue)}
+              onChange={event => updateDimension('width', widthUnit, event.target.value)}
+              data-testid={`${testId}-width`}
+            />
+            {!unitsMatch && widthUnit === 'percent' ? (
+              <p className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-relative-to-page')}</p>
+            ) : null}
           </div>
-          <Input
-            id={`${testId}-height`}
-            type="number"
-            value={String(heightInputValue)}
-            onChange={event => updateDimension('height', heightUnit, event.target.value)}
-            data-testid={`${testId}-height`}
-          />
-          {heightUnit === 'percent' ? (
-            <p className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-relative-to-page')}</p>
-          ) : null}
+
+          <div className="gba:space-y-2">
+            <Label htmlFor={`${testId}-height`} className="gba:text-xs gba:font-medium">
+              {t('image-sidebar-height')}
+            </Label>
+            <Input
+              id={`${testId}-height`}
+              type="number"
+              value={String(heightInputValue)}
+              onChange={event => updateDimension('height', heightUnit, event.target.value)}
+              data-testid={`${testId}-height`}
+            />
+            {!unitsMatch && heightUnit === 'percent' ? (
+              <p className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-relative-to-page')}</p>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-        <Label htmlFor={`${testId}-lock-aspect-ratio`} className="gba:text-sm">
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:bg-muted/30 gba:px-3 gba:py-2.5">
+        <Label htmlFor={`${testId}-lock-aspect-ratio`} className="gba:text-sm gba:font-medium">
           {t('image-sidebar-lock-aspect-ratio')}
         </Label>
         <Switch
@@ -301,9 +309,11 @@ export function ImageAdvancedSizeSection({
         />
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-scale-width`}>{t('image-sidebar-scale-width')}</Label>
+          <Label htmlFor={`${testId}-scale-width`} className="gba:text-xs gba:font-medium">
+            {t('image-sidebar-scale-width')}
+          </Label>
           <Input
             id={`${testId}-scale-width`}
             type="number"
@@ -313,7 +323,9 @@ export function ImageAdvancedSizeSection({
           />
         </div>
         <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-scale-height`}>{t('image-sidebar-scale-height')}</Label>
+          <Label htmlFor={`${testId}-scale-height`} className="gba:text-xs gba:font-medium">
+            {t('image-sidebar-scale-height')}
+          </Label>
           <Input
             id={`${testId}-scale-height`}
             type="number"
@@ -323,9 +335,12 @@ export function ImageAdvancedSizeSection({
           />
         </div>
       </div>
+      <p className="gba:text-xs gba:text-muted-foreground">{t('image-sidebar-scale-hint')}</p>
 
       <div className="gba:space-y-2">
-        <Label htmlFor={`${testId}-rotation`}>{t('image-sidebar-rotation')}</Label>
+        <Label htmlFor={`${testId}-rotation`} className="gba:text-xs gba:font-medium">
+          {t('image-sidebar-rotation')}
+        </Label>
         <Input
           id={`${testId}-rotation`}
           type="number"
@@ -338,6 +353,6 @@ export function ImageAdvancedSizeSection({
           data-testid={`${testId}-rotation`}
         />
       </div>
-    </section>
+    </ImageSidebarSection>
   )
 }

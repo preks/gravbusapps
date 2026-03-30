@@ -1,19 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Button,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Separator,
-  Switch,
-  useTranslation
-} from '@newwork/nw-design-system'
-import type { TableBorderStyle, TableTheme, TableWidthMode } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import { Button, Input, Label, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
+import type { TableTheme } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import { normalizeColorValue } from '@/components/tiptap-extensions/tiptap-custom-tables/styleUtils'
 import translations from '../../_i18n'
+import { ImageSidebarSection } from './ImageSidebarSection'
 import { TableBorderControlsSection } from './TableBorderControlsSection'
 import { useTableSidebarActions } from './useTableSidebarActions'
 
@@ -26,21 +16,8 @@ const TABLE_THEME_OPTIONS: ReadonlyArray<{ value: TableTheme; labelKey: string }
   { value: 'gray', labelKey: 'table-theme-gray' }
 ]
 
-const TABLE_WIDTH_MODE_OPTIONS: ReadonlyArray<{ value: TableWidthMode; labelKey: string }> = [
-  { value: 'auto-fit-window', labelKey: 'editor-toolbar-table-width-autofit-window' },
-  { value: 'auto-fit-content', labelKey: 'editor-toolbar-table-width-autofit-content' },
-  { value: 'manual', labelKey: 'table-sidebar-width-mode-manual' }
-]
-
-const TABLE_SHELL_BORDER_STYLE_OPTIONS: ReadonlyArray<{ value: TableBorderStyle; labelKey: string }> = [
-  { value: 'none', labelKey: 'table-sidebar-border-none' },
-  { value: 'solid', labelKey: 'table-sidebar-border-style-solid' },
-  { value: 'dashed', labelKey: 'table-sidebar-border-style-dashed' },
-  { value: 'dotted', labelKey: 'table-sidebar-border-style-dotted' },
-  { value: 'double', labelKey: 'table-sidebar-border-style-double' }
-]
-
-const TABLE_SHELL_BORDER_WIDTH_OPTIONS = ['0.75pt', '1pt', '1.5pt', '2.25pt', '3pt'] as const
+/** Matches default in `useTableSidebarActions` / table node attrs. */
+const DEFAULT_TABLE_BACKGROUND_COLOR = '#ffffff'
 
 const FILL_OPTIONS: ReadonlyArray<{ value: string; labelKey: string }> = [
   { value: '#E0F2FE', labelKey: 'table-sidebar-fill-blue' },
@@ -64,6 +41,20 @@ function ensureUnit(value: string) {
   return /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}cm` : trimmed
 }
 
+/** 6-digit #rrggbb for native color input (falls back to white). */
+function hexForColorInput(value: string): string {
+  const n = normalizeColorValue(value.trim())
+  if (!n) return '#ffffff'
+  if (/^#[0-9a-f]{6}$/i.test(n)) return n.toLowerCase()
+  if (/^#[0-9a-f]{3}$/i.test(n)) {
+    const r = n[1]
+    const g = n[2]
+    const b = n[3]
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase()
+  }
+  return '#ffffff'
+}
+
 interface TableSettingsSidebarContentProps {
   testId: string
   controller: ReturnType<typeof useTableSidebarActions>
@@ -77,8 +68,6 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   const [rowHeightInput, setRowHeightInput] = useState(values.rowHeight)
   const [columnWidthInput, setColumnWidthInput] = useState(formatCentimeterValue(values.columnWidthPx))
   const [tableBackgroundInput, setTableBackgroundInput] = useState(values.tableBackgroundColor)
-  const [tableBorderColorInput, setTableBorderColorInput] = useState(values.tableBorderColor)
-  const [tableBorderRadiusInput, setTableBorderRadiusInput] = useState(values.tableBorderRadius)
 
   useEffect(() => {
     setTableWidthInput(values.tableWidth)
@@ -97,32 +86,88 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   }, [values.tableBackgroundColor])
 
   useEffect(() => {
-    setTableBorderColorInput(values.tableBorderColor)
-  }, [values.tableBorderColor])
-
-  useEffect(() => {
-    setTableBorderRadiusInput(values.tableBorderRadius)
-  }, [values.tableBorderRadius])
+    if (values.tableWidthMode !== 'manual') {
+      actions.setTableWidthMode('manual')
+    }
+  }, [actions, values.tableWidthMode])
 
   const selectionLabel = useMemo(() => t('table-sidebar-selection-summary', selectionMetrics), [selectionMetrics, t])
 
+  const tableBackgroundHexForPicker = hexForColorInput(tableBackgroundInput)
+
+  const styleSwitchRowClass =
+    'gba:flex gba:items-center gba:justify-between gba:gap-2 gba:rounded-lg gba:bg-muted/30 gba:px-3 gba:py-2.5'
+
   return (
-    <div className="gba:flex gba:flex-col gba:gap-4 gba:px-4 gba:py-4">
-      <section className="gba:space-y-3">
-        <div className="gba:space-y-1">
-          <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-style')}</Label>
-          <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-selection-summary`}>
+    <div className="gba:flex gba:flex-col gba:gap-3 gba:px-4 gba:py-4">
+      <ImageSidebarSection title={t('table-sidebar-section-style')} data-testid={`${testId}-style-section`}>
+        <div className="gba:space-y-2">
+          <Label htmlFor={`${testId}-table-background-hex`} className="gba:text-xs gba:font-medium">
+            {t('table-sidebar-surface-background')}
+          </Label>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <input
+              type="color"
+              value={tableBackgroundHexForPicker}
+              onChange={event => setTableBackgroundInput(event.target.value)}
+              className="gba:h-10 gba:w-14 gba:cursor-pointer gba:rounded-md gba:border gba:border-input gba:shrink-0"
+              data-testid={`${testId}-table-background-color`}
+              aria-label={t('table-sidebar-surface-background')}
+            />
+            <Input
+              id={`${testId}-table-background-hex`}
+              value={tableBackgroundInput}
+              onChange={event => setTableBackgroundInput(event.target.value)}
+              placeholder="#ffffff"
+              className="gba:flex-1 gba:font-mono gba:text-sm"
+              maxLength={32}
+              data-testid={`${testId}-table-background`}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gba:shrink-0"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableStyleOptions({ tableBackgroundColor: tableBackgroundInput })}
+              data-testid={`${testId}-table-background-apply`}
+            >
+              {t('table-sidebar-apply')}
+            </Button>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gba:w-full gba:text-muted-foreground"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => {
+              setTableBackgroundInput(DEFAULT_TABLE_BACKGROUND_COLOR)
+              actions.setTableStyleOptions({ tableBackgroundColor: DEFAULT_TABLE_BACKGROUND_COLOR })
+            }}
+            data-testid={`${testId}-table-background-reset-default`}
+          >
+            {t('table-sidebar-reset-default')}
+          </Button>
+        </div>
+
+        <div className="gba:space-y-1.5">
+          <p
+            className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed"
+            data-testid={`${testId}-selection-summary`}
+          >
             {selectionLabel}
           </p>
         </div>
 
-        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+        <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
           {TABLE_THEME_OPTIONS.map(option => (
             <Button
               key={option.value}
               type="button"
-              variant={values.tableTheme === option.value ? 'default' : 'outline'}
+              variant={values.tableTheme === option.value ? 'secondary' : 'outline'}
               size="sm"
+              className="gba:text-xs gba:font-medium"
               onMouseDown={preventEditorBlurOnMouseDown}
               onClick={() => actions.setTableTheme(option.value)}
               data-testid={`${testId}-theme-${option.value}`}
@@ -132,194 +177,79 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
           ))}
         </div>
 
-        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-          <div className="gba:space-y-1">
-            <Label htmlFor={`${testId}-table-background`} className="gba:text-xs gba:text-muted-foreground">
-              {t('table-sidebar-surface-background')}
-            </Label>
-            <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
-              <Input
-                id={`${testId}-table-background`}
-                value={tableBackgroundInput}
-                onChange={event => setTableBackgroundInput(event.target.value)}
-                placeholder="#FFFFFF"
-                data-testid={`${testId}-table-background`}
+        <div className="gba:space-y-2">
+          <span className="gba:block gba:text-xs gba:font-medium gba:text-foreground">
+            {t('table-sidebar-section-style-options')}
+          </span>
+          <div className="gba:grid gba:grid-cols-1 gba:gap-2">
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-header-row`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-header-row')}
+              </Label>
+              <Switch
+                id={`${testId}-style-header-row`}
+                checked={values.styleHeaderRow}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleHeaderRow: checked })}
+                data-testid={`${testId}-style-header-row`}
               />
-              <Button
-                type="button"
-                variant="outline"
-                onMouseDown={preventEditorBlurOnMouseDown}
-                onClick={() => actions.setTableStyleOptions({ tableBackgroundColor: tableBackgroundInput })}
-                data-testid={`${testId}-table-background-apply`}
-              >
-                {t('table-sidebar-apply')}
-              </Button>
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-first-column`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-first-column')}
+              </Label>
+              <Switch
+                id={`${testId}-style-first-column`}
+                checked={values.styleFirstColumn}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleFirstColumn: checked })}
+                data-testid={`${testId}-style-first-column`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-last-column`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-last-column')}
+              </Label>
+              <Switch
+                id={`${testId}-style-last-column`}
+                checked={values.styleLastColumn}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleLastColumn: checked })}
+                data-testid={`${testId}-style-last-column`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-banded-rows`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-banded-rows')}
+              </Label>
+              <Switch
+                id={`${testId}-style-banded-rows`}
+                checked={values.styleBandedRows}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleBandedRows: checked })}
+                data-testid={`${testId}-style-banded-rows`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-banded-columns`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-banded-columns')}
+              </Label>
+              <Switch
+                id={`${testId}-style-banded-columns`}
+                checked={values.styleBandedColumns}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleBandedColumns: checked })}
+                data-testid={`${testId}-style-banded-columns`}
+              />
             </div>
           </div>
-          <div className="gba:space-y-1">
-            <Label htmlFor={`${testId}-table-border-radius`} className="gba:text-xs gba:text-muted-foreground">
-              {t('table-sidebar-surface-radius')}
-            </Label>
-            <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
-              <Input
-                id={`${testId}-table-border-radius`}
-                value={tableBorderRadiusInput}
-                onChange={event => setTableBorderRadiusInput(event.target.value)}
-                placeholder="4pt"
-                data-testid={`${testId}-table-border-radius`}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onMouseDown={preventEditorBlurOnMouseDown}
-                onClick={() => actions.setTableStyleOptions({ tableBorderRadius: tableBorderRadiusInput })}
-                data-testid={`${testId}-table-border-radius-apply`}
-              >
-                {t('table-sidebar-apply')}
-              </Button>
-            </div>
-          </div>
         </div>
+      </ImageSidebarSection>
 
-        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-          <div className="gba:space-y-1">
-            <Label htmlFor={`${testId}-table-border-style`} className="gba:text-xs gba:text-muted-foreground">
-              {t('table-sidebar-surface-border-style')}
-            </Label>
-            <Select
-              value={values.tableBorderStyle}
-              onValueChange={value => actions.setTableStyleOptions({ tableBorderStyle: value as TableBorderStyle })}
-            >
-              <SelectTrigger id={`${testId}-table-border-style`} data-testid={`${testId}-table-border-style`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TABLE_SHELL_BORDER_STYLE_OPTIONS.map(option => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    data-testid={`${testId}-table-border-style-${option.value}`}
-                  >
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="gba:space-y-1">
-            <Label htmlFor={`${testId}-table-border-width`} className="gba:text-xs gba:text-muted-foreground">
-              {t('table-sidebar-surface-border-width')}
-            </Label>
-            <Select
-              value={values.tableBorderWidth}
-              onValueChange={value => actions.setTableStyleOptions({ tableBorderWidth: value })}
-            >
-              <SelectTrigger id={`${testId}-table-border-width`} data-testid={`${testId}-table-border-width`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TABLE_SHELL_BORDER_WIDTH_OPTIONS.map(option => (
-                  <SelectItem key={option} value={option} data-testid={`${testId}-table-border-width-${option}`}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+      <Separator className="gba:my-1" />
 
-        <div className="gba:space-y-1">
-          <Label htmlFor={`${testId}-table-border-color`} className="gba:text-xs gba:text-muted-foreground">
-            {t('table-sidebar-surface-border-color')}
-          </Label>
-          <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
-            <Input
-              id={`${testId}-table-border-color`}
-              value={tableBorderColorInput}
-              onChange={event => setTableBorderColorInput(event.target.value)}
-              placeholder="#D0D0D0"
-              data-testid={`${testId}-table-border-color`}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => actions.setTableStyleOptions({ tableBorderColor: tableBorderColorInput })}
-              data-testid={`${testId}-table-border-color-apply`}
-            >
-              {t('table-sidebar-apply')}
-            </Button>
-          </div>
-        </div>
-
-        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <Label htmlFor={`${testId}-style-header-row`} className="gba:text-xs">
-              {t('table-sidebar-style-header-row')}
-            </Label>
-            <Switch
-              id={`${testId}-style-header-row`}
-              checked={values.styleHeaderRow}
-              onCheckedChange={checked => actions.setTableStyleOptions({ styleHeaderRow: checked })}
-              data-testid={`${testId}-style-header-row`}
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <Label htmlFor={`${testId}-style-first-column`} className="gba:text-xs">
-              {t('table-sidebar-style-first-column')}
-            </Label>
-            <Switch
-              id={`${testId}-style-first-column`}
-              checked={values.styleFirstColumn}
-              onCheckedChange={checked => actions.setTableStyleOptions({ styleFirstColumn: checked })}
-              data-testid={`${testId}-style-first-column`}
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <Label htmlFor={`${testId}-style-last-column`} className="gba:text-xs">
-              {t('table-sidebar-style-last-column')}
-            </Label>
-            <Switch
-              id={`${testId}-style-last-column`}
-              checked={values.styleLastColumn}
-              onCheckedChange={checked => actions.setTableStyleOptions({ styleLastColumn: checked })}
-              data-testid={`${testId}-style-last-column`}
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <Label htmlFor={`${testId}-style-banded-rows`} className="gba:text-xs">
-              {t('table-sidebar-style-banded-rows')}
-            </Label>
-            <Switch
-              id={`${testId}-style-banded-rows`}
-              checked={values.styleBandedRows}
-              onCheckedChange={checked => actions.setTableStyleOptions({ styleBandedRows: checked })}
-              data-testid={`${testId}-style-banded-rows`}
-            />
-          </div>
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <Label htmlFor={`${testId}-style-banded-columns`} className="gba:text-xs">
-              {t('table-sidebar-style-banded-columns')}
-            </Label>
-            <Switch
-              id={`${testId}-style-banded-columns`}
-              checked={values.styleBandedColumns}
-              onCheckedChange={checked => actions.setTableStyleOptions({ styleBandedColumns: checked })}
-              data-testid={`${testId}-style-banded-columns`}
-            />
-          </div>
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="gba:space-y-3">
-        <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-structure')}</Label>
-        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+      <ImageSidebarSection title={t('table-sidebar-section-structure')} data-testid={`${testId}-structure-section`}>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canAddRowBefore}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.addRowBefore}
@@ -331,6 +261,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canAddRowAfter}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.addRowAfter}
@@ -342,6 +273,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canAddColumnBefore}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.addColumnBefore}
@@ -353,6 +285,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canAddColumnAfter}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.addColumnAfter}
@@ -364,6 +297,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canDuplicateRow}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.duplicateRow}
@@ -375,6 +309,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canDuplicateColumn}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.duplicateColumn}
@@ -386,6 +321,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canDeleteRow}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.deleteRow}
@@ -397,6 +333,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canDeleteColumn}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.deleteColumn}
@@ -408,6 +345,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canMergeCells}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.mergeCells}
@@ -419,6 +357,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canSplitCell}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={actions.splitCell}
@@ -431,7 +370,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
           type="button"
           variant="destructive"
           size="sm"
-          className="gba:w-full"
+          className="gba:w-full gba:text-xs gba:font-medium"
           disabled={!capability.canDeleteTable}
           onMouseDown={preventEditorBlurOnMouseDown}
           onClick={actions.deleteTable}
@@ -439,91 +378,75 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
         >
           {t('editor-toolbar-table-delete-table')}
         </Button>
-      </section>
+      </ImageSidebarSection>
 
-      <Separator />
+      <Separator className="gba:my-1" />
 
-      <section className="gba:space-y-3">
-        <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-layout')}</Label>
-        <div className="gba:space-y-1">
-          <Label htmlFor={`${testId}-width-mode`} className="gba:text-xs gba:text-muted-foreground">
-            {t('table-sidebar-width-mode')}
+      <ImageSidebarSection title={t('table-sidebar-section-layout')} data-testid={`${testId}-layout-section`}>
+        <div className="gba:space-y-1.5">
+          <Label htmlFor={`${testId}-table-width`} className="gba:text-xs gba:font-medium">
+            {t('table-sidebar-table-width')}
           </Label>
-          <Select
-            value={values.tableWidthMode}
-            onValueChange={value => actions.setTableWidthMode(value as TableWidthMode)}
-          >
-            <SelectTrigger id={`${testId}-width-mode`} data-testid={`${testId}-width-mode`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TABLE_WIDTH_MODE_OPTIONS.map(option => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  data-testid={`${testId}-width-mode-${option.value}`}
-                >
-                  {t(option.labelKey)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+            <Input
+              id={`${testId}-table-width`}
+              value={tableWidthInput}
+              onChange={event => setTableWidthInput(event.target.value)}
+              placeholder="100%"
+              data-testid={`${testId}-table-width`}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableWidth(ensureUnit(tableWidthInput))}
+              data-testid={`${testId}-table-width-apply`}
+            >
+              {t('table-sidebar-apply')}
+            </Button>
+          </div>
         </div>
 
-        <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
-          <Input
-            value={tableWidthInput}
-            onChange={event => setTableWidthInput(event.target.value)}
-            placeholder="100%"
-            data-testid={`${testId}-table-width`}
-          />
+        <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
           <Button
             type="button"
-            variant="outline"
-            onMouseDown={preventEditorBlurOnMouseDown}
-            onClick={() => actions.setTableWidth(ensureUnit(tableWidthInput))}
-            data-testid={`${testId}-table-width-apply`}
-          >
-            {t('table-sidebar-apply')}
-          </Button>
-        </div>
-
-        <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-          <Button
-            type="button"
-            variant={values.tableAlign === 'left' ? 'default' : 'outline'}
+            variant={values.tableAlign === 'left' ? 'secondary' : 'outline'}
             size="sm"
+            className="gba:text-xs gba:font-medium"
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={() => actions.setTableAlign('left')}
             data-testid={`${testId}-table-align-left`}
           >
-            {t('editor-toolbar-table-align-left')}
+            {t('table-sidebar-layout-align-left')}
           </Button>
           <Button
             type="button"
-            variant={values.tableAlign === 'center' ? 'default' : 'outline'}
+            variant={values.tableAlign === 'center' ? 'secondary' : 'outline'}
             size="sm"
+            className="gba:text-xs gba:font-medium"
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={() => actions.setTableAlign('center')}
             data-testid={`${testId}-table-align-center`}
           >
-            {t('editor-toolbar-table-align-center')}
+            {t('table-sidebar-layout-align-center')}
           </Button>
           <Button
             type="button"
-            variant={values.tableAlign === 'right' ? 'default' : 'outline'}
+            variant={values.tableAlign === 'right' ? 'secondary' : 'outline'}
             size="sm"
+            className="gba:text-xs gba:font-medium"
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={() => actions.setTableAlign('right')}
             data-testid={`${testId}-table-align-right`}
           >
-            {t('editor-toolbar-table-align-right')}
+            {t('table-sidebar-layout-align-right')}
           </Button>
         </div>
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-3">
           <div className="gba:space-y-2">
-            <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-row-height')}</Label>
+            <Label className="gba:text-xs gba:font-medium">{t('table-sidebar-row-height')}</Label>
             <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
               <Input
                 value={rowHeightInput}
@@ -534,6 +457,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onMouseDown={preventEditorBlurOnMouseDown}
                 onClick={() => actions.setSelectedRowHeight(ensureUnit(rowHeightInput) || null)}
                 data-testid={`${testId}-row-height-apply`}
@@ -545,7 +469,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
               type="button"
               variant="outline"
               size="sm"
-              className="gba:w-full"
+              className="gba:w-full gba:text-xs gba:font-medium"
               disabled={!capability.canDistributeRows}
               onMouseDown={preventEditorBlurOnMouseDown}
               onClick={() => actions.distributeRowsEvenly(ensureUnit(rowHeightInput) || '0.8cm')}
@@ -556,7 +480,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
           </div>
 
           <div className="gba:space-y-2">
-            <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-column-width')}</Label>
+            <Label className="gba:text-xs gba:font-medium">{t('table-sidebar-column-width')}</Label>
             <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
               <Input
                 value={columnWidthInput}
@@ -567,6 +491,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onMouseDown={preventEditorBlurOnMouseDown}
                 onClick={() => actions.setSelectedColumnWidth(ensureUnit(columnWidthInput) || null)}
                 data-testid={`${testId}-column-width-apply`}
@@ -578,7 +503,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
               type="button"
               variant="outline"
               size="sm"
-              className="gba:w-full"
+              className="gba:w-full gba:text-xs gba:font-medium"
               disabled={!capability.canDistributeColumns}
               onMouseDown={preventEditorBlurOnMouseDown}
               onClick={() => actions.distributeColumnsEvenly(ensureUnit(columnWidthInput) || '3cm')}
@@ -588,51 +513,19 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             </Button>
           </div>
         </div>
-      </section>
+      </ImageSidebarSection>
 
-      <Separator />
+      <Separator className="gba:my-1" />
 
-      <section className="gba:space-y-3">
-        <Label className="gba:text-xs gba:text-muted-foreground">{t('table-sidebar-section-cell')}</Label>
-        <div className="gba:grid gba:grid-cols-4 gba:gap-2">
-          {(['left', 'center', 'right', 'justify'] as const).map(option => (
-            <Button
-              key={option}
-              type="button"
-              variant={values.cellTextAlign === option ? 'default' : 'outline'}
-              size="sm"
-              disabled={!capability.canSetCellTextAlign}
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => actions.setCellTextAlign(option)}
-              data-testid={`${testId}-text-align-${option}`}
-            >
-              {t(option === 'justify' ? 'editor-toolbar-justify' : `editor-toolbar-align-${option}`)}
-            </Button>
-          ))}
-        </div>
-        <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-          {(['top', 'middle', 'bottom'] as const).map(option => (
-            <Button
-              key={option}
-              type="button"
-              variant={values.cellVerticalAlign === option ? 'default' : 'outline'}
-              size="sm"
-              disabled={!capability.canSetCellVerticalAlign}
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => actions.setCellVerticalAlign(option)}
-              data-testid={`${testId}-vertical-align-${option}`}
-            >
-              {t(`editor-toolbar-table-vertical-align-${option}`)}
-            </Button>
-          ))}
-        </div>
-        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+      <ImageSidebarSection title={t('table-sidebar-section-cell')} data-testid={`${testId}-cell-section`}>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
           {FILL_OPTIONS.map(option => (
             <Button
               key={option.value}
               type="button"
-              variant={values.backgroundColor === option.value ? 'default' : 'outline'}
+              variant={values.backgroundColor === option.value ? 'secondary' : 'outline'}
               size="sm"
+              className="gba:text-xs gba:font-medium"
               disabled={!capability.canSetCellBackground}
               onMouseDown={preventEditorBlurOnMouseDown}
               onClick={() => actions.setCellBackground(option.value)}
@@ -645,6 +538,7 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             type="button"
             variant="outline"
             size="sm"
+            className="gba:text-xs gba:font-medium"
             disabled={!capability.canSetCellBackground}
             onMouseDown={preventEditorBlurOnMouseDown}
             onClick={() => actions.setCellBackground(null)}
@@ -653,18 +547,21 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
             {t('editor-toolbar-table-fill-clear')}
           </Button>
         </div>
-      </section>
+      </ImageSidebarSection>
 
-      <Separator />
+      <Separator className="gba:my-1" />
 
-      <TableBorderControlsSection
-        testId={`${testId}-borders`}
-        initialStyle={values.borderStyle}
-        initialWidth={values.borderWidth}
-        initialColor={values.borderColor}
-        canApplyBorders={capability.canApplyBorders}
-        onApplyPreset={(preset, options) => actions.applyBorderPreset({ preset, ...options })}
-      />
+      <ImageSidebarSection title={t('table-sidebar-section-borders')} data-testid={`${testId}-borders-section`}>
+        <p className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed">{t('table-sidebar-border-hint')}</p>
+        <TableBorderControlsSection
+          testId={`${testId}-borders`}
+          initialStyle={values.borderStyle}
+          initialWidth={values.borderWidth}
+          initialColor={values.borderColor}
+          canApplyBorders={capability.canApplyBorders}
+          onApplyPreset={(preset, options) => actions.applyBorderPreset({ preset, ...options })}
+        />
+      </ImageSidebarSection>
     </div>
   )
 }

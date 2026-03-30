@@ -573,6 +573,11 @@ export function usePagedDocumentSelectionSidebars({
         return
       }
 
+      // Radix Select portals <SelectContent> to document.body; it is not under the sidebar DOM.
+      if (target.closest('[data-document-table-sidebar-dropdown]')) {
+        return
+      }
+
       if (target.closest('.ProseMirror table')) {
         return
       }

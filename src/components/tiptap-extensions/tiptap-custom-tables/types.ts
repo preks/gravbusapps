@@ -7,6 +7,9 @@ export const TABLE_CELL_VERTICAL_ALIGNMENTS = ['top', 'middle', 'bottom'] as con
 export const TABLE_BORDER_STYLES = ['none', 'solid', 'dashed', 'dotted', 'double'] as const
 export const TABLE_THEMES = ['blue', 'teal', 'green', 'orange', 'purple', 'gray'] as const
 
+/** Default cell border color in the document editor (matches editor CSS on `td`/`th`). */
+export const DEFAULT_TABLE_CELL_BORDER_COLOR = '#333333'
+
 export type TableAlignment = (typeof TABLE_ALIGNMENTS)[number]
 export type TableWidthMode = (typeof TABLE_WIDTH_MODES)[number]
 export type TableCellTextAlignment = (typeof TABLE_CELL_TEXT_ALIGNMENTS)[number]
