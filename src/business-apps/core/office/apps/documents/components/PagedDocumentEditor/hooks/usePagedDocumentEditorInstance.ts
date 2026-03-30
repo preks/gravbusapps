@@ -209,6 +209,7 @@ export function usePagedDocumentEditorInstance({
         SearchHighlight,
         ...(paginationConfig && !paginationDebugDisabled
           ? [
+              // Without this block there is no pagination widget: no `.rm-first-page-header` / `.rm-pages-wrapper`.
               Pages.configure({
                 pageFormat: paginationConfig.pageFormat,
                 pageGap: PAGE_GAP_PX,
