@@ -48,21 +48,27 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
   } = useEntityImport<ConvertedEquityInvestment>(context, equityInvestmentImportConfig)
 
   // Mappings hook (initialized from agent response)
-  const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
-    equityInvestmentImportConfig.targetFields,
-    agentResponse?.fieldMappings || []
-  )
+  const {
+    mappings,
+    setMappings,
+    updateTargetFromUnmapped,
+    removeMapping,
+    addMapping,
+    unmappedSourceFields,
+    setUnmappedSourceFields
+  } = useEntityMappings(equityInvestmentImportConfig.targetFields, agentResponse?.fieldMappings || [])
 
-  // Sync mappings when agent response changes
+  // Sync mappings and unmapped fields when agent response changes
   React.useEffect(() => {
     if (agentResponse) {
       setMappings(agentResponse.fieldMappings)
+      setUnmappedSourceFields(agentResponse.unmappedSourceFields)
     }
-  }, [agentResponse, setMappings])
+  }, [agentResponse, setMappings, setUnmappedSourceFields])
 
   // Handle conversion with current mappings and transformation function
   const handleConvert = async () => {
-    await baseConvertData(mappings, convertToNestedEquityInvestment)
+    await baseConvertData(mappings, undefined, convertToNestedEquityInvestment)
   }
 
   return (
@@ -81,7 +87,9 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
                 <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
               </div>
               <div className="gba:space-y-2">
-                <p className="gba:font-semibold gba:text-base gba:text-destructive">Analysis Failed</p>
+                <p className="gba:font-semibold gba:text-base gba:text-destructive">
+                  {step === 'mapping' ? 'Conversion Failed' : step === 'result' ? 'Import Failed' : 'Analysis Failed'}
+                </p>
                 <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
               </div>
             </div>
@@ -105,10 +113,11 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
+          unmappedSourceFields={unmappedSourceFields}
           targetFieldsConfig={equityInvestmentImportConfig.targetFields}
           entityType={t('equity-entity-type')}
           isLoading={isLoading}
-          onUpdateMapping={updateMapping}
+          onUpdateTargetFromUnmapped={updateTargetFromUnmapped}
           onRemoveMapping={removeMapping}
           onAddMapping={addMapping}
           onConvert={handleConvert}

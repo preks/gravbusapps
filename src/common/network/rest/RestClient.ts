@@ -101,20 +101,30 @@ export class RestClient {
 
       try {
         errorData = await response.json()
-        errorMessage = errorData.message || errorData.error || errorMessage
-        // Log full error data for debugging
-        if (errorData && errorData.errors && Array.isArray(errorData.errors)) {
-          const details = errorData.errors.map((e: any) => e.detail || e.title).join('; ')
-          if (details) {
-            errorMessage = details
+
+        // FastAPI returns {"detail": "..."} or {"detail": [{loc, msg, type}]}
+        if (errorData.detail !== undefined) {
+          if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail
+          } else if (Array.isArray(errorData.detail)) {
+            errorMessage = errorData.detail
+              .map((e: any) => (e.msg ? `${e.loc?.join('.')} — ${e.msg}` : String(e)))
+              .join('; ')
           }
+        } else {
+          errorMessage = errorData.message || errorData.error || errorMessage
+        }
+
+        // JSON:API errors array
+        if (errorData.errors && Array.isArray(errorData.errors)) {
+          const details = errorData.errors.map((e: any) => e.detail || e.title).join('; ')
+          if (details) errorMessage = details
         }
       } catch {
         errorMessage = response.statusText || errorMessage
       }
 
       const error = new Error(`REST request failed: ${response.status} - ${errorMessage}`)
-      // Attach error data for debugging
       if (errorData) {
         ;(error as any).responseData = errorData
       }

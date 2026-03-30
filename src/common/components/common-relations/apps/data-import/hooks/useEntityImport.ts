@@ -68,6 +68,29 @@ const STANDARD_ENTITY_ENDPOINTS = {
   opportunity: 'Opportunities'
 } as const
 
+// Investment entity types whose targetField must have the object prefix stripped
+// before sending to /extract-from-file. The backend schema for each sub-type
+// expects leaf field names (e.g. "buildingYear"), not the FE prefixed form
+// (e.g. "realEstateInvestment.buildingYear").
+const INVESTMENT_ENTITY_TYPES = new Set([
+  'investment',
+  'real-estate-investment',
+  'equity-investment',
+  'liquid-fund-investment'
+])
+
+const INVESTMENT_FIELD_PREFIXES = ['investment.', 'realEstateInvestment.', 'equityInvestment.', 'liquidFundInvestment.']
+
+function normalizeTargetFieldForFlowbot(targetField: string, entityType: string): string {
+  if (!INVESTMENT_ENTITY_TYPES.has(entityType)) return targetField
+  for (const prefix of INVESTMENT_FIELD_PREFIXES) {
+    if (targetField.startsWith(prefix)) {
+      return targetField.slice(prefix.length)
+    }
+  }
+  return targetField
+}
+
 function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(entity).filter(([, value]) => {
@@ -166,10 +189,8 @@ export function useEntityImport<T = ConvertedEntity>(
   // Map internal ImportConfig domain to the Flowbot API domain param
   const flowbotDomain: 'crm' | 'irm' | undefined = config.domain === 'investment' ? 'irm' : undefined
 
-  // Services
   const aiServiceRef = useRef<ImportAnalyzer | null>(null)
 
-  // Initialize AI service and flowbot client
   useEffect(() => {
     if (accessToken) {
       aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType, flowbotDomain)
@@ -177,10 +198,8 @@ export function useEntityImport<T = ConvertedEntity>(
     }
   }, [accessToken, config.entityType, flowbotDomain])
 
-  // Hooks
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
-  // Handle file change
   const handleFileChange = useCallback(async (selectedFile: File | null) => {
     if (!selectedFile) {
       setFile(null)
@@ -192,7 +211,6 @@ export function useEntityImport<T = ConvertedEntity>(
     setError(null)
   }, [])
 
-  // Analyze with AI
   const analyzeWithAgent = useCallback(async () => {
     if (!file) {
       setError('Please upload a file first')
@@ -210,11 +228,10 @@ export function useEntityImport<T = ConvertedEntity>(
     try {
       const agentResult = await aiServiceRef.current.analyzeImport(file)
 
-      // Build reverse map: unprefixed field name → full prefixed field value.
-      // Needed for investment entity types where backend returns e.g. "buildingYear"
-      // but our config uses "realEstateInvestment.buildingYear" for nested conversion.
-      // First match wins; conflicts (same short name across prefixes) are resolved
-      // by whichever targetField appears first in the config array.
+      // map-from-file returns unprefixed leaf names (e.g. "buildingYear") for investment
+      // entities, but the FE config uses prefixed values (e.g. "realEstateInvestment.buildingYear")
+      // so the transform functions can reconstruct the nested structure. Build a reverse map
+      // from the last path segment to the full config value and expand before validation.
       const shortToFullTargetField = new Map<string, string>()
       config.targetFields.forEach(f => {
         const lastPart = f.value.includes('.') ? f.value.split('.').pop()! : f.value
@@ -223,8 +240,6 @@ export function useEntityImport<T = ConvertedEntity>(
         }
       })
 
-      // Expand backend suggestions: if backend returned an unprefixed name that
-      // matches a known prefixed config field, restore the full prefixed name.
       const expandedMappings = agentResult.fieldMappings.map(mapping => {
         if (!config.targetFields.some(f => f.value === mapping.targetField)) {
           const expanded = shortToFullTargetField.get(mapping.targetField)
@@ -233,7 +248,6 @@ export function useEntityImport<T = ConvertedEntity>(
         return mapping
       })
 
-      // Validate mappings - filter out fields that don't match any config target
       const validTargetFields = new Set(config.targetFields.map(f => f.value))
       const validMappings = expandedMappings.filter(mapping => {
         const isValid = validTargetFields.has(mapping.targetField)
@@ -245,9 +259,6 @@ export function useEntityImport<T = ConvertedEntity>(
         return isValid
       })
 
-      // Normalize mappings based on config:
-      // - ensure catalog mappings carry the correct catalogIdentifier
-      // - ensure direct mappings don't carry a catalogIdentifier
       const targetFieldByValue = new Map(config.targetFields.map(f => [f.value, f] as const))
       const normalizedMappings = validMappings.map(mapping => {
         const targetField = targetFieldByValue.get(mapping.targetField)
@@ -266,7 +277,6 @@ export function useEntityImport<T = ConvertedEntity>(
         }
       })
 
-      // Update unmapped fields to include source fields whose target couldn't be resolved
       const invalidSourceFields = expandedMappings
         .filter(m => !validTargetFields.has(m.targetField))
         .map(m => m.sourceField)
@@ -298,7 +308,6 @@ export function useEntityImport<T = ConvertedEntity>(
     }
   }, [file, config.targetFields])
 
-  // Convert data
   const convertData = useCallback(
     async (mappings: FieldMapping[], enforcedFieldsJson?: string, transformFn?: (entity: ConvertedEntity) => T) => {
       if (!file) {
@@ -315,17 +324,21 @@ export function useEntityImport<T = ConvertedEntity>(
       setError(null)
 
       try {
-        // Remove enforced fields from the mappings so they are not double-counted
         const enforcedKeys = enforcedFieldsJson
           ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
           : new Set<string>()
         const filteredMappings =
           enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
 
-        // Build mapping JSON for backend
-        const mappingJson = JSON.stringify({ fieldMappings: filteredMappings })
+        // extract-from-file expects leaf field names without the object prefix
+        // (e.g. "buildingYear" not "realEstateInvestment.buildingYear").
+        const normalizedMappings = filteredMappings.map(m => ({
+          ...m,
+          targetField: normalizeTargetFieldForFlowbot(m.targetField, config.entityType)
+        }))
 
-        // Call backend extract endpoint with enforced fields
+        const mappingJson = JSON.stringify({ fieldMappings: normalizedMappings })
+
         const response = await flowbotClient.extractFromFile(
           config.entityType,
           file,
@@ -334,10 +347,8 @@ export function useEntityImport<T = ConvertedEntity>(
           flowbotDomain
         )
 
-        // Apply transformation function if provided (for nested structures like investments)
         const transformedEntities = transformFn ? response.records.map(transformFn) : (response.records as T[])
 
-        // Post-process: Transform flat communication fields into communicationChannels array for contacts and accounts
         const finalEntities =
           config.entityType === 'contact' || config.entityType === 'account'
             ? transformedEntities.map(entity => transformCommunicationChannels(entity as ConvertedEntity))
@@ -354,7 +365,6 @@ export function useEntityImport<T = ConvertedEntity>(
     [file, config.entityType, flowbotDomain]
   )
 
-  // Import to backend
   const importToBackend = useCallback(async () => {
     if (convertedEntities.length === 0) {
       setError('No data to import')
@@ -367,7 +377,6 @@ export function useEntityImport<T = ConvertedEntity>(
     try {
       const ownerEmployeeId = props.userInfo?.employeeDetails?.employeeId
 
-      // Inject ownerEmployee and optional campaignId into all entities before import
       const entitiesWithOwner = convertedEntities.map((entity: any) => {
         const base = {
           ...entity,
@@ -386,7 +395,6 @@ export function useEntityImport<T = ConvertedEntity>(
 
       let result: ImportResult
 
-      // Handle investment imports (real-estate, equity, liquid-fund)
       if (config.entityType in INVESTMENT_TYPE_MAP) {
         const investmentType = INVESTMENT_TYPE_MAP[config.entityType as keyof typeof INVESTMENT_TYPE_MAP]
         const payload = buildInvestmentPayload(entitiesWithOwner, investmentType, ownerEmployeeId)
@@ -396,14 +404,11 @@ export function useEntityImport<T = ConvertedEntity>(
         })
 
         result = processInvestmentResponse(response)
-      }
-      // Handle standard entity imports (lead, contact, account)
-      else if (config.entityType in STANDARD_ENTITY_ENDPOINTS) {
+      } else if (config.entityType in STANDARD_ENTITY_ENDPOINTS) {
         const domainPrefix = config.domain === 'investment' ? 'investment-relations' : 'customer-relations'
         const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
         const entitySuffix = STANDARD_ENTITY_ENDPOINTS[config.entityType as keyof typeof STANDARD_ENTITY_ENDPOINTS]
         const endpoint = `/${domainPrefix}/create${entityPrefix}${entitySuffix}`
-        // Use mapping-based pluralization (e.g. opportunity → opportunities)
         const entityTypePlural = entitySuffix.toLowerCase()
 
         const response = await restClient.post(
@@ -417,7 +422,6 @@ export function useEntityImport<T = ConvertedEntity>(
         throw new Error(`Unsupported entity type: ${config.entityType}`)
       }
 
-      // Handle result
       if (result.success === false) {
         setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
         setImportResult(null)
@@ -434,7 +438,6 @@ export function useEntityImport<T = ConvertedEntity>(
     }
   }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken, campaignId])
 
-  // Download JSON
   const downloadJSON = useCallback(() => {
     const dataStr = JSON.stringify(convertedEntities, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
@@ -446,7 +449,6 @@ export function useEntityImport<T = ConvertedEntity>(
     URL.revokeObjectURL(url)
   }, [convertedEntities, config.entityType])
 
-  // Reset
   const reset = useCallback(() => {
     setFile(null)
     setAgentResponse(null)
