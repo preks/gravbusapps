@@ -75,12 +75,11 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   useEffect(() => {
     if (!activeCard) return
-    const statusFilters = selectedFilters.filter(f => !f.includes(':'))
+    const statusFilters = new Set(selectedFilters.filter(f => !f.includes(':')))
     if (activeCard === 'total-expenses') {
-      const hasExpectedStatuses = statusFilters.includes('paid') || statusFilters.includes('closed')
-      if (!hasExpectedStatuses) setActiveCard(null)
+      if (!statusFilters.has('paid') && !statusFilters.has('closed')) setActiveCard(null)
     } else if (activeCard === 'pending-reimbursement') {
-      if (!statusFilters.includes('pending')) setActiveCard(null)
+      if (!statusFilters.has('pending')) setActiveCard(null)
     }
   }, [selectedFilters, activeCard])
 
