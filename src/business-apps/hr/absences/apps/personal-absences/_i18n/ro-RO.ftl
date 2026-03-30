@@ -5,6 +5,7 @@ request-absence = Solicitare concediu
 calendar = Calendar
 back-to-dashboard = Înapoi la panou
 absence-overview = Absențe
+change-entitlement = Modifică dreptul
 
 # My Balance
 my-balance = Soldul meu

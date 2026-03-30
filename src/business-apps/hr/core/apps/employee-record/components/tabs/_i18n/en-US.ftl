@@ -78,4 +78,4 @@ documents-error-empty-blob = Empty blob received
 documents-error-no-file-id = No document file ID available
 documents-error-no-file-info = No file information available
 documents-error-image-display = The image could not be displayed. It may be in an unsupported format.
-entitlements-change-entitlements = Change Entitlements
+change-entitlement = Change Entitlement

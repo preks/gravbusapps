@@ -480,7 +480,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 <PiPlus className="gba:h-5 gba:w-5" />
-                {t('entitlements-change-entitlements')}
+                {t('change-entitlement')}
               </div>
             )}
           </div>
@@ -536,7 +536,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                 }}
               >
                 <PiPlus className="gba:h-5 gba:w-5" />
-                {t('entitlements-change-entitlements')}
+                {t('change-entitlement')}
               </div>
             )}
           </div>
