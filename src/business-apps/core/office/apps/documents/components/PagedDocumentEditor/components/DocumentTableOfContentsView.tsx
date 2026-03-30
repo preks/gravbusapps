@@ -120,10 +120,11 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
   const openFormatSidebar = useCallback(() => {
     const pos = getPos()
     if (typeof pos !== 'number') return
+    editor.chain().focus().setNodeSelection(pos).run()
     globalThis.window.dispatchEvent(
       new CustomEvent<DocumentTocOpenFormatEventDetail>(DOCUMENT_TOC_OPEN_FORMAT_EVENT, { detail: { pos } })
     )
-  }, [getPos])
+  }, [editor, getPos])
 
   const updateTableOfContents = useCallback(() => {
     const pos = getPos()
@@ -142,12 +143,21 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
       <ContextMenuTrigger asChild>
         <NodeViewWrapper
           as="div"
-          className={`document-table-of-contents gba:my-3 gba:p-1 ${
+          className={`document-table-of-contents gba:my-3 gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/20 gba:p-3 ${
             selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
           }`}
           data-document-toc=""
           contentEditable={false}
           data-testid="document-table-of-contents"
+          onMouseDown={event => {
+            const target = event.target
+            if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
+              return
+            }
+            const pos = getPos()
+            if (typeof pos !== 'number') return
+            editor.chain().focus().setNodeSelection(pos).run()
+          }}
         >
           <div className="gba:mb-3 gba:text-base gba:font-semibold gba:text-foreground">
             {t('document-toc-block-title')}
@@ -170,18 +180,19 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                   editable && headingLinks ? (
                     <button
                       type="button"
+                      onMouseDown={event => event.stopPropagation()}
                       onClick={() => scrollToHeading(h.pos)}
                       className="gba:max-w-[55%] gba:shrink-0 gba:truncate gba:text-left gba:text-sm gba:text-foreground hover:gba:underline"
                       data-testid={`document-toc-line-${idx}`}
                     >
-                      {h.text || t('editor-heading-normal')}
+                      {h.text || t('title-untitled')}
                     </button>
                   ) : (
                     <span
                       className="gba:max-w-[55%] gba:shrink-0 gba:truncate gba:text-sm gba:text-foreground"
                       data-testid={`document-toc-line-${idx}`}
                     >
-                      {h.text || t('editor-heading-normal')}
+                      {h.text || t('title-untitled')}
                     </span>
                   )
 

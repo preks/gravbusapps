@@ -101,6 +101,27 @@ export function getSelectedTableState(editor: TiptapEditor): Omit<SelectedTableS
   }
 }
 
+const DOCUMENT_TOC_NODE = 'documentTableOfContents'
+
+/** When the TOC block is selected (click), drive the format sidebar like the table sidebar. */
+export function getSelectedDocumentTocState(editor: TiptapEditor): { tocPos: number } | null {
+  const { selection } = editor.state
+
+  if (selection instanceof NodeSelection && selection.node.type.name === DOCUMENT_TOC_NODE) {
+    return { tocPos: selection.from }
+  }
+
+  const { $from } = selection
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth)
+    if (node.type.name === DOCUMENT_TOC_NODE) {
+      return { tocPos: $from.before(depth) }
+    }
+  }
+
+  return null
+}
+
 export function resolveSidebarContextSubtitleKey(options: {
   sidebar: 'image' | 'table'
   open: boolean
@@ -140,9 +161,8 @@ export function resolveSidebarPresentationState(options: {
     documentRightPanelOffset = 412
   } else if (options.rightSidebar === 'ai') {
     documentRightPanelOffset = 496
-  } else if (options.rightSidebar === 'toc') {
-    documentRightPanelOffset = 412
   }
+  // TOC uses the same docked offset as table/image (16). It is mutually exclusive with comments/AI in `rightSidebar`.
   const showTableSidebar =
     options.selectedTableSidebar.open &&
     options.selectedTableSidebar.editor != null &&
@@ -154,6 +174,7 @@ export function resolveSidebarPresentationState(options: {
     !showTableSidebar &&
     !(options.selectedImageSidebar.open && options.selectedImageSidebar.editor === options.activeHeaderFooterEditor)
   const shouldReserveRightSidebarSpace =
+    options.rightSidebar === 'toc' ||
     showHeaderFooterSidebar ||
     showTableSidebar ||
     (options.selectedImageSidebar.open &&

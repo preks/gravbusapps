@@ -51,8 +51,10 @@ import { usePagedDocumentEditorRuntimeEffects } from './hooks/usePagedDocumentEd
 import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExternalContentSync'
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
+import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import {
   CLOSED_TABLE_SIDEBAR,
+  getSelectedDocumentTocState,
   getSelectedImageState,
   usePagedDocumentSelectionSidebars
 } from './hooks/usePagedDocumentSelectionSidebars'
@@ -339,6 +341,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
+    const tocSidebarNodePosRef = useRef<number | null>(null)
+    const rightSidebarRef = useRef<RightSidebar>('closed')
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
@@ -358,6 +362,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
       return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
     }, [])
+
+    useEffect(() => {
+      tocSidebarNodePosRef.current = tocSidebarNodePos
+    }, [tocSidebarNodePos])
+
+    useEffect(() => {
+      rightSidebarRef.current = rightSidebar
+    }, [rightSidebar])
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -1007,6 +1019,111 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       isHeaderFooterEditing,
       rightSidebar
     })
+
+    useEffect(() => {
+      if (!editor && !activeEditor) return
+
+      const getPersistedTocAtPos = (ed: NonNullable<typeof editor>, pos: number | null) => {
+        if (pos == null) return null
+        const node = ed.state.doc.nodeAt(pos)
+        if (node?.type.name !== 'documentTableOfContents') return null
+        return pos
+      }
+
+      const editors: NonNullable<typeof editor>[] = []
+      if (activeEditor) editors.push(activeEditor)
+      if (editor && editor !== activeEditor) editors.push(editor)
+
+      const syncTocFromSelection = (sourceEditor?: NonNullable<typeof editor>) => {
+        const candidates = sourceEditor ? [sourceEditor, ...editors.filter(e => e !== sourceEditor)] : editors
+        const match = candidates
+          .map(ed => ({ ed, toc: getSelectedDocumentTocState(ed) }))
+          .find(entry => entry.toc !== null)
+
+        if (match?.toc) {
+          setTocSidebarNodePos(match.toc.tocPos)
+          setRightSidebar('toc')
+          return
+        }
+
+        if (rightSidebarRef.current !== 'toc') return
+
+        const ed = sourceEditor ?? activeEditor ?? editor
+        if (!ed) {
+          setTocSidebarNodePos(null)
+          setRightSidebar('closed')
+          return
+        }
+
+        const persistedPos = getPersistedTocAtPos(ed, tocSidebarNodePosRef.current)
+        if (persistedPos != null) {
+          setTocSidebarNodePos(persistedPos)
+          return
+        }
+
+        setTocSidebarNodePos(null)
+        setRightSidebar('closed')
+      }
+
+      const subs: Array<{
+        ed: NonNullable<typeof editor>
+        selectionFn: () => void
+        transactionFn: (payload: { transaction: ProseMirrorTransaction }) => void
+      }> = []
+
+      for (const ed of editors) {
+        const selectionFn = () => syncTocFromSelection(ed)
+        const transactionFn = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+          if (transaction.selectionSet) {
+            syncTocFromSelection(ed)
+            return
+          }
+          if (!transaction.docChanged) return
+          if (rightSidebarRef.current !== 'toc') return
+          const pos = tocSidebarNodePosRef.current
+          if (pos == null) return
+          const mapped = transaction.mapping.mapResult(pos)
+          if (mapped.deleted) {
+            setRightSidebar('closed')
+            setTocSidebarNodePos(null)
+            return
+          }
+          if (mapped.pos !== pos) {
+            setTocSidebarNodePos(mapped.pos)
+          }
+        }
+        ed.on('selectionUpdate', selectionFn)
+        ed.on('transaction', transactionFn)
+        subs.push({ ed, selectionFn, transactionFn })
+      }
+
+      syncTocFromSelection()
+
+      return () => {
+        for (const { ed, selectionFn, transactionFn } of subs) {
+          ed.off('selectionUpdate', selectionFn)
+          ed.off('transaction', transactionFn)
+        }
+      }
+    }, [editor, activeEditor])
+
+    useEffect(() => {
+      if (rightSidebar !== 'toc') return
+
+      const handlePointerDown = (event: PointerEvent) => {
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+        if (target.closest('[data-testid="document-toc-settings-sidebar"]')) return
+        if (target.closest('[data-document-toc-sidebar-dropdown]')) return
+        if (target.closest('[data-testid="document-table-of-contents"]')) return
+        setRightSidebar('closed')
+        setTocSidebarNodePos(null)
+      }
+
+      globalThis.document.addEventListener('pointerdown', handlePointerDown, true)
+      return () => globalThis.document.removeEventListener('pointerdown', handlePointerDown, true)
+    }, [rightSidebar])
+
     const {
       showInsertImageDialog,
       setShowInsertImageDialog,
