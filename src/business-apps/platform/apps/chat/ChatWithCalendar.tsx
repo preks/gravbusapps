@@ -17,6 +17,7 @@ import { EveryAI } from '../every-ai/EveryAI'
 import { RemindersPanel } from './components/RemindersPanel'
 import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { useDevReportScreenKey } from '@/common/dev-report/DevReportScreenKeyContext'
 import translations from './_i18n'
 import { GlobalCallContainer } from './components/GlobalCallContainer'
 import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
@@ -185,6 +186,11 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   })
   const [activeTab, setActiveTab] = useState<TabValue>(chatInitState.tab)
   const pendingOpenWithUser = chatInitState.pending
+
+  const { setSuffix } = useDevReportScreenKey()
+  useEffect(() => {
+    setSuffix(activeTab)
+  }, [activeTab, setSuffix])
 
   useEffect(() => {
     if (pendingOpenWithUser) {
