@@ -28,7 +28,8 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  ScrollArea
+  ScrollArea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Database,
@@ -58,6 +59,7 @@ import type {
   EntityFieldMapping,
   EntityFilterOperator
 } from '../types/entityDataSource'
+import translations from '../_i18n'
 
 /**
  * Props for EntityDataSourceDialog
@@ -129,6 +131,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   userId,
   'data-testid': testId = 'entity-data-source-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   // Hook for entity data
   const {
     availableEntities,
@@ -384,11 +387,9 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Database className="gba:h-5 gba:w-5" />
-            Connect to Entity Data
+            {t('entity-ds-title')}
           </DialogTitle>
-          <DialogDescription>
-            Load real data from your NEWWORK system with customizable filters and field selection.
-          </DialogDescription>
+          <DialogDescription>{t('entity-ds-description')}</DialogDescription>
         </DialogHeader>
 
         <Tabs
@@ -399,19 +400,19 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
           <TabsList className="gba:w-full gba:justify-start">
             <TabsTrigger value="entity" className="gba:gap-2">
               <Database className="gba:h-4 gba:w-4" />
-              Entity
+              {t('entity-ds-tab-entity')}
             </TabsTrigger>
             <TabsTrigger value="filters" className="gba:gap-2" disabled={!selectedEntityType}>
               <Filter className="gba:h-4 gba:w-4" />
-              Filters
+              {t('entity-ds-tab-filters')}
             </TabsTrigger>
             <TabsTrigger value="fields" className="gba:gap-2" disabled={!selectedEntityType}>
               <Columns className="gba:h-4 gba:w-4" />
-              Fields
+              {t('entity-ds-tab-fields')}
             </TabsTrigger>
             <TabsTrigger value="settings" className="gba:gap-2" disabled={!selectedEntityType}>
               <Settings className="gba:h-4 gba:w-4" />
-              Settings
+              {t('entity-ds-tab-settings')}
             </TabsTrigger>
           </TabsList>
 
@@ -421,26 +422,26 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
               <TabsContent value="entity" className="gba:m-0 gba:pr-4">
                 <div className="gba:space-y-4">
                   <div>
-                    <Label className="gba:text-sm gba:font-medium">Select Entity Type</Label>
+                    <Label className="gba:text-sm gba:font-medium">{t('entity-ds-select-entity-type')}</Label>
                     <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                      Choose which type of data to load into this sheet.
+                      {t('entity-ds-select-entity-help')}
                     </p>
                   </div>
 
                   {isLoadingEntities && (
                     <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
                       <Loader2 className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
-                      <span className="gba:ml-2 gba:text-muted-foreground">Loading entities...</span>
+                      <span className="gba:ml-2 gba:text-muted-foreground">{t('entity-ds-loading-entities')}</span>
                     </div>
                   )}
                   {!isLoadingEntities && entitiesError && (
                     <div className="gba:text-center gba:py-8">
                       <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-destructive" />
-                      <p className="gba:text-destructive gba:font-medium gba:mb-1">Failed to load entities</p>
+                      <p className="gba:text-destructive gba:font-medium gba:mb-1">{t('entity-ds-load-failed')}</p>
                       <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{entitiesError}</p>
                       <Button variant="outline" size="sm" onClick={fetchAvailableEntities}>
                         <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
-                        Retry
+                        {t('action-retry')}
                       </Button>
                     </div>
                   )}
@@ -477,7 +478,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                                 {isSelected && <Check className="gba:h-4 gba:w-4 gba:text-primary" />}
                               </div>
                               <p className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                                {entity.description ?? `${entity.fields?.length ?? 0} fields available`}
+                                {entity.description ??
+                                  t('entity-ds-fields-available', { count: entity.fields?.length ?? 0 })}
                               </p>
                               {entity.category && (
                                 <Badge variant="secondary" className="gba:mt-1">
@@ -493,10 +495,10 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                   {!isLoadingEntities && !entitiesError && availableEntities.length === 0 && (
                     <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                       <AlertCircle className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2" />
-                      <p>No entities available</p>
+                      <p>{t('entity-ds-no-entities')}</p>
                       <Button variant="outline" size="sm" onClick={fetchAvailableEntities} className="gba:mt-2">
                         <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
-                        Retry
+                        {t('action-retry')}
                       </Button>
                     </div>
                   )}
@@ -508,10 +510,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                 <div className="gba:space-y-4">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div>
-                      <Label className="gba:text-sm gba:font-medium">Filter Conditions</Label>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        Define criteria to filter which records are loaded.
-                      </p>
+                      <Label className="gba:text-sm gba:font-medium">{t('entity-ds-filter-conditions')}</Label>
+                      <p className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-filter-conditions-help')}</p>
                     </div>
                     <Button
                       variant="outline"
@@ -520,28 +520,28 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                       data-testid={`${testId}-add-filter`}
                     >
                       <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
-                      Add Filter
+                      {t('entity-ds-add-filter')}
                     </Button>
                   </div>
 
                   {/* Logic toggle */}
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:text-sm gba:text-muted-foreground">Match</span>
+                    <span className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-match')}</span>
                     <Button
                       variant={filters.logic === 'AND' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setFilters(prev => ({ ...prev, logic: 'AND' }))}
                     >
-                      All
+                      {t('entity-ds-all')}
                     </Button>
                     <Button
                       variant={filters.logic === 'OR' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setFilters(prev => ({ ...prev, logic: 'OR' }))}
                     >
-                      Any
+                      {t('entity-ds-any')}
                     </Button>
-                    <span className="gba:text-sm gba:text-muted-foreground">conditions</span>
+                    <span className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-conditions')}</span>
                   </div>
 
                   <Separator />
@@ -565,7 +565,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                           }}
                         >
                           <SelectTrigger className="gba:w-[180px]">
-                            <SelectValue placeholder="Select field" />
+                            <SelectValue placeholder={t('entity-ds-select-field')} />
                           </SelectTrigger>
                           <SelectContent>
                             {selectedEntityFields.map(field => (
@@ -606,7 +606,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                                 value: e.target.value
                               })
                             }
-                            placeholder="Value..."
+                            placeholder={t('entity-ds-value-placeholder')}
                             className="gba:flex-1"
                           />
                         )}
@@ -636,8 +636,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                     {filters.conditions.length === 0 && (
                       <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:border gba:border-dashed gba:rounded-lg">
                         <Filter className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                        <p>No filters configured</p>
-                        <p className="gba:text-sm">All records will be loaded</p>
+                        <p>{t('entity-ds-no-filters')}</p>
+                        <p className="gba:text-sm">{t('entity-ds-all-records-loaded')}</p>
                       </div>
                     )}
                   </div>
@@ -650,11 +650,11 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                       ) : (
                         <Search className="gba:h-4 gba:w-4 gba:mr-2" />
                       )}
-                      Preview Results
+                      {t('entity-ds-preview-results')}
                     </Button>
                     {previewCount !== null && (
                       <span className="gba:text-sm gba:text-muted-foreground">
-                        {previewCount.toLocaleString()} records match these filters
+                        {t('entity-ds-preview-match-count', { count: previewCount.toLocaleString() })}
                       </span>
                     )}
                   </div>
@@ -666,10 +666,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                 <div className="gba:space-y-4">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div>
-                      <Label className="gba:text-sm gba:font-medium">Field Selection</Label>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        Choose which fields to include in the spreadsheet.
-                      </p>
+                      <Label className="gba:text-sm gba:font-medium">{t('entity-ds-field-selection')}</Label>
+                      <p className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-field-selection-help')}</p>
                     </div>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Button
@@ -677,14 +675,14 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                         size="sm"
                         onClick={() => setFieldMappings(prev => prev.map(m => ({ ...m, include: true })))}
                       >
-                        Select All
+                        {t('entity-ds-select-all')}
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setFieldMappings(prev => prev.map(m => ({ ...m, include: false })))}
                       >
-                        Deselect All
+                        {t('entity-ds-deselect-all')}
                       </Button>
                     </div>
                   </div>
@@ -693,7 +691,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                   <div className="gba:relative">
                     <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
                     <Input
-                      placeholder="Search fields..."
+                      placeholder={t('entity-ds-search-fields')}
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       className="gba:pl-9"
@@ -729,7 +727,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                     {fieldMappings.length === 0 && (
                       <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
                         <Columns className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
-                        <p>No fields available</p>
+                        <p>{t('entity-ds-no-fields')}</p>
                       </div>
                     )}
                   </div>
@@ -741,10 +739,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                 <div className="gba:space-y-6">
                   {/* Limit */}
                   <div className="gba:space-y-2">
-                    <Label>Maximum Records</Label>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Limit the number of records loaded. Set to 0 for no limit.
-                    </p>
+                    <Label>{t('entity-ds-maximum-records')}</Label>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-maximum-records-help')}</p>
                     <Input
                       type="number"
                       value={limit}
@@ -761,12 +757,12 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                   <div className="gba:space-y-3">
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <div>
-                        <Label>Sort Order</Label>
-                        <p className="gba:text-sm gba:text-muted-foreground">Define how records should be sorted.</p>
+                        <Label>{t('entity-ds-sort-order')}</Label>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-sort-order-help')}</p>
                       </div>
                       <Button variant="outline" size="sm" onClick={addSortConfig}>
                         <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
-                        Add Sort
+                        {t('entity-ds-add-sort')}
                       </Button>
                     </div>
 
@@ -777,7 +773,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                           onValueChange={value => updateSortConfigAtIndex(index, { field: value })}
                         >
                           <SelectTrigger className="gba:flex-1">
-                            <SelectValue placeholder="Select field" />
+                            <SelectValue placeholder={t('entity-ds-select-field')} />
                           </SelectTrigger>
                           <SelectContent>
                             {selectedEntityFields.map(field => (
@@ -797,8 +793,8 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="ASC_NULLS_LAST">Ascending</SelectItem>
-                            <SelectItem value="DESC_NULLS_LAST">Descending</SelectItem>
+                            <SelectItem value="ASC_NULLS_LAST">{t('entity-ds-ascending')}</SelectItem>
+                            <SelectItem value="DESC_NULLS_LAST">{t('entity-ds-descending')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
@@ -817,15 +813,15 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
 
                   {/* Refresh mode */}
                   <div className="gba:space-y-2">
-                    <Label>Data Refresh</Label>
-                    <p className="gba:text-sm gba:text-muted-foreground">When should the data be refreshed?</p>
+                    <Label>{t('entity-ds-data-refresh')}</Label>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('entity-ds-data-refresh-help')}</p>
                     <Select value={refreshMode} onValueChange={value => setRefreshMode(value as 'manual' | 'onOpen')}>
                       <SelectTrigger className="gba:w-64">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="onOpen">When sheet is opened</SelectItem>
-                        <SelectItem value="manual">Manual refresh only</SelectItem>
+                        <SelectItem value="onOpen">{t('entity-ds-refresh-on-open')}</SelectItem>
+                        <SelectItem value="manual">{t('entity-ds-refresh-manual')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -837,11 +833,11 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
 
         <DialogFooter className="gba:mt-4">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
           <Button onClick={handleSave} disabled={!selectedEntityType} data-testid={`${testId}-save`}>
             <Database className="gba:h-4 gba:w-4 gba:mr-2" />
-            {initialDataSource ? 'Update Connection' : 'Connect Entity'}
+            {initialDataSource ? t('entity-ds-update-connection') : t('settings-connect-entity')}
           </Button>
         </DialogFooter>
       </DialogContent>

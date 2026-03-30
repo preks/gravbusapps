@@ -470,3 +470,37 @@ persist-row-update-failed = Modificările rândului nu au putut fi salvate.
 persist-row-delete-failed = Rândul nu a putut fi șters.
 persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
 persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.
+
+# Share App Dialog
+share-dialog-title = Partajează „{ $name }"
+share-dialog-description = Partajează această aplicație cu membrii echipei. Aceștia o pot accesa din tabloul lor de bord.
+share-dialog-add-people = Adaugă persoane
+share-dialog-search-placeholder = Caută după nume sau e-mail...
+share-dialog-searching = Se caută...
+share-dialog-no-users-found = Niciun utilizator găsit
+share-dialog-selected = Selectați ({ $count })
+share-dialog-success = Partajat cu succes! Notificări Blink trimise.
+share-dialog-sharing = Se partajează...
+share-dialog-share-button = Partajează cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
+}
+share-dialog-people-with-access = Persoane cu acces
+share-dialog-you = Tu
+share-dialog-owner = Proprietar
+share-dialog-not-shared = Nepartajat cu nimeni încă
+share-dialog-not-shared-hint = Adaugă persoane mai sus pentru a partaja această aplicație
+share-dialog-close = Închide
+share-dialog-error-select-user = Selectează cel puțin o persoană pentru partajare
+share-dialog-error-failed-retry = Partajarea aplicației a eșuat. Încearcă din nou.
+share-dialog-error-failed = Partajarea aplicației a eșuat
+share-dialog-toast-success = „{ $name }" partajat cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
+}!
+share-dialog-permission-view = Doar vizualizare
+share-dialog-permission-view-desc = Acces doar pentru citire (fără editare sau gestionare partajare)
+share-dialog-permission-edit = Poate edita
+share-dialog-permission-edit-desc = Poate vizualiza și edita date
+share-dialog-permission-admin = Administrator
+share-dialog-permission-admin-desc = Poate vizualiza, edita și gestiona partajarea

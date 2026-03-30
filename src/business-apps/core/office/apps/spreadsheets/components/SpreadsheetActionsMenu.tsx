@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   useTranslation
 } from '@newwork/nw-design-system'
-import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3, Settings } from 'lucide-react'
+import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3 } from 'lucide-react'
 import translations from '../_i18n'
 
 export interface SpreadsheetActionsMenuProps {
@@ -46,7 +46,6 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onShare,
   onOpenAnalytics,
   onOpenAutomations,
-  onEdit,
   allowExport,
   onExport,
   'data-testid': testId = 'spreadsheet-actions-menu'
@@ -105,12 +104,6 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
             {t('menu-automations')}
           </DropdownMenuItem>
-          {onEdit && (
-            <DropdownMenuItem onClick={onEdit}>
-              <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('menu-settings')}
-            </DropdownMenuItem>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
