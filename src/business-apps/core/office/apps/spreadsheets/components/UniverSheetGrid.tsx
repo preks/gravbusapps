@@ -846,6 +846,62 @@ function tryInjectContextMenuItem(
   )
 }
 
+/**
+ * Hides the "Protect Rows And Columns" item from Univer's context menu.
+ * The feature is not supported in this app; leaving it visible confuses users.
+ * Walks all nested grids/sections to find the leaf item, not a parent container.
+ */
+function hideProtectContextMenuItem(): void {
+  if (typeof document === 'undefined') return
+  const candidates = document.querySelectorAll<HTMLElement>(
+    'button, [role="button"], [role="menuitem"], .univer-menu-item, [class*="menu-item"], [class*="univer-h-8"]'
+  )
+  for (const el of candidates) {
+    if (el.style.display === 'none') continue
+    const spans = el.querySelectorAll('span')
+    for (const span of spans) {
+      if (span.children.length > 0) continue
+      const text = (span.textContent || '').trim()
+      if (/^protect/i.test(text)) {
+        el.style.display = 'none'
+        break
+      }
+    }
+  }
+}
+
+const HIDDEN_RIBBON_TABS = ['data', 'daten']
+
+/**
+ * Hides unwanted tabs from Univer's ribbon dropdown.
+ * Walks text nodes to find the tab title, then hides the closest clickable ancestor.
+ */
+function hideUnwantedRibbonTabs(): void {
+  if (typeof document === 'undefined') return
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const text = (node.textContent || '').trim().toLowerCase()
+      return HIDDEN_RIBBON_TABS.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    }
+  })
+  let textNode: Text | null = null
+  while ((textNode = walker.nextNode() as Text | null)) {
+    let el: HTMLElement | null = textNode.parentElement
+    for (let depth = 0; depth < 8 && el; depth++) {
+      const cls = el.getAttribute('class') || ''
+      if (
+        cls.includes('univer-cursor-pointer') ||
+        cls.includes('univer-rounded') ||
+        el.getAttribute('role') === 'tab'
+      ) {
+        if (el.style.display !== 'none') el.style.display = 'none'
+        break
+      }
+      el = el.parentElement
+    }
+  }
+}
+
 function scheduleContextMenuInjectionPoll(run: () => void): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -1511,6 +1567,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const pollInjection = (x: number, y: number, attempts: { count: number }, maxAttempts: number) => {
         attempts.count += 1
+        hideProtectContextMenuItem()
         injectOpenLink(x, y)
         if (injectComment(x, y)) {
           stopObserver()
@@ -1529,6 +1586,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const attempts = { count: 0 }
         stopObserver()
         contextMenuObserver = new MutationObserver(() => {
+          hideProtectContextMenuItem()
           injectOpenLink(x, y)
           if (injectComment(x, y)) stopObserver()
         })
@@ -1574,6 +1632,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           rafScheduled = 0
           patchGermanNumfmtMenuPreview()
           patchChineseDateLabels()
+          hideUnwantedRibbonTabs()
         })
       }
 
@@ -1587,6 +1646,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const numfmtPreviewIntervalId = globalThis.setInterval(() => {
         patchGermanNumfmtMenuPreview()
         patchChineseDateLabels()
+        hideUnwantedRibbonTabs()
       }, 200)
 
       const onNumfmtMenuItemClickCapture = (event: MouseEvent) => {
