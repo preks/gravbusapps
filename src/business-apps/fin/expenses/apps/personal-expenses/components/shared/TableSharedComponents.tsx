@@ -1,22 +1,16 @@
 import React from 'react'
-import {
-  Spinner,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Sheet,
-  SheetContent,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
+import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import ExpenseDetailsShell from '../../../../common/components/details-panel/ExpenseDetailsShell'
 import type { CurrencyStat } from '../../utils/tableUtils'
+
+export { DetailsSheet } from '../../../../common/components/sheets/DetailsSheet'
+export type { DetailsSheetProps } from '../../../../common/components/sheets/DetailsSheet'
+
+export { PrintPreviewDialog } from '../../../../common/components/document-preview/PrintPreviewDialog'
+export type { PrintPreviewDialogProps } from '../../../../common/components/document-preview/PrintPreviewDialog'
+
+export { RowActionsWrapper, RowActionsIcon } from '../../../../common/components/table/RowActionComponents'
+export type { RowActionsWrapperProps } from '../../../../common/components/table/RowActionComponents'
 
 export interface CurrencyDropdownProps {
   currencyStats: CurrencyStat[]
@@ -57,114 +51,5 @@ export const CurrencyDropdown = React.memo(function CurrencyDropdown({
         </SelectContent>
       </Select>
     </div>
-  )
-})
-
-export interface PrintPreviewDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  loading: boolean
-  pdfUrl: string
-  testIdPrefix: string
-}
-
-export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
-  open,
-  onOpenChange,
-  title,
-  loading,
-  pdfUrl,
-  testIdPrefix
-}: PrintPreviewDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
-        style={{ height: '90vh' }}
-        data-testid={`${testIdPrefix}-print-modal`}
-      >
-        <DialogHeader className="gba:p-4">
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        {loading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            className="gba:w-full gba:border-0"
-            style={{ height: 'calc(90vh - 55px)' }}
-            title="Print Preview"
-            data-testid={`${testIdPrefix}-pdf-iframe`}
-          />
-        ) : (
-          <div className="gba:text-center gba:p-8 gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-})
-
-export interface DetailsSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  testId: string
-  children: React.ReactNode
-  onClose?: () => void
-}
-
-export const DetailsSheet = React.memo(function DetailsSheet({
-  open,
-  onOpenChange,
-  title,
-  testId,
-  children,
-  onClose
-}: DetailsSheetProps) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange} data-testid={testId}>
-      <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-        <ExpenseDetailsShell title={title} onClose={onClose}>
-          {children}
-        </ExpenseDetailsShell>
-      </SheetContent>
-    </Sheet>
-  )
-})
-
-export interface RowActionsWrapperProps {
-  children: React.ReactNode
-}
-
-export const RowActionsWrapper = React.memo(function RowActionsWrapper({ children }: RowActionsWrapperProps) {
-  return (
-    <button
-      type="button"
-      className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
-      onClick={e => e.stopPropagation()}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
-      }}
-    >
-      {children}
-    </button>
-  )
-})
-
-export const RowActionsIcon = React.memo(function RowActionsIcon() {
-  return (
-    <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-      />
-    </svg>
   )
 })

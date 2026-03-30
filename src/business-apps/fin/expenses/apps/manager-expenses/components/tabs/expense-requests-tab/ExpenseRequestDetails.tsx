@@ -6,7 +6,7 @@ import { ArrowRightIcon, CheckCircleIcon, XCircleIcon } from '@phosphor-icons/re
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
-import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
+import TravelOrderAttachmentPreview from '../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 import { translateTypeValue, extractRequestTypeValue } from '../../../utils/typeUtils'
 

@@ -415,12 +415,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, any>) => {
       const statusIds = (filters.statusIds as string[] | undefined) || []
-      setFilters(statusIds)
+      const existingCurrencyToken = allSelectedFilters.find(f => f.startsWith('currency:'))
+      const nextFilters = existingCurrencyToken ? [...statusIds, existingCurrencyToken] : statusIds
+      setFilters(nextFilters)
       applyExpenseDateRangeFromFilters(filters.expenseDateRange, setExpenseDateRange)
       applyAmountRangeFromFilters(filters.amount as { min?: number; max?: number } | undefined, setAmountRange)
       setCurrentPage(1)
     },
-    [setFilters, setExpenseDateRange, setAmountRange]
+    [allSelectedFilters, setFilters, setExpenseDateRange, setAmountRange]
   )
 
   // Sortable columns for DataDisplay (opportunity-style)
@@ -769,6 +771,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         id: 'attachment',
         accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
+        enableSorting: false,
         size: 80,
         cell: renderItemAttachmentCell
       },
