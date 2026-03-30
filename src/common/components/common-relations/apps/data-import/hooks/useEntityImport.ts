@@ -163,16 +163,19 @@ export function useEntityImport<T = ConvertedEntity>(
     setCampaignNameState(name || '')
   }, [])
 
+  // Map internal ImportConfig domain to the Flowbot API domain param
+  const flowbotDomain: 'crm' | 'irm' | undefined = config.domain === 'investment' ? 'irm' : undefined
+
   // Services
   const aiServiceRef = useRef<ImportAnalyzer | null>(null)
 
   // Initialize AI service and flowbot client
   useEffect(() => {
     if (accessToken) {
-      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType)
+      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType, flowbotDomain)
       flowbotClient.setAccessToken(accessToken)
     }
-  }, [accessToken, config.entityType])
+  }, [accessToken, config.entityType, flowbotDomain])
 
   // Hooks
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
@@ -298,7 +301,6 @@ export function useEntityImport<T = ConvertedEntity>(
 
         // Build mapping JSON for backend
         const mappingJson = JSON.stringify({ fieldMappings: filteredMappings })
-        const extractionDomain = config.domain === 'investment' ? 'irm' : undefined
 
         // Call backend extract endpoint with enforced fields
         const response = await flowbotClient.extractFromFile(
@@ -306,7 +308,7 @@ export function useEntityImport<T = ConvertedEntity>(
           file,
           mappingJson,
           enforcedFieldsJson,
-          extractionDomain
+          flowbotDomain
         )
 
         // Apply transformation function if provided (for nested structures like investments)
@@ -326,7 +328,7 @@ export function useEntityImport<T = ConvertedEntity>(
         setIsLoading(false)
       }
     },
-    [file, config.entityType, config.domain]
+    [file, config.entityType, flowbotDomain]
   )
 
   // Import to backend

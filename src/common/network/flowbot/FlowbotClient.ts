@@ -47,6 +47,7 @@ export interface EvalsDashboardQueryParams {
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
+  domain?: 'crm' | 'irm'
   llm_model?: string
 }
 
@@ -169,12 +170,16 @@ export class FlowbotClient extends RestClient {
   public async mapFromFile(
     entityType: string,
     importFile: File,
+    domain?: 'crm' | 'irm',
     llmModel?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
     formData.append('import_file', importFile)
+    if (domain) {
+      formData.append('domain', domain)
+    }
     if (llmModel) {
       formData.append('llm_model', llmModel)
     }
