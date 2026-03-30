@@ -21,6 +21,11 @@ import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-cu
 import { buildDocxBlob, sanitizeDocxFilename } from './docxExport'
 import { sanitizePaginationRuntimeHtml } from './documentContentUtils'
 import type { DocumentPrintStyleConfig } from './pageLayoutUtils'
+import {
+  computeSignatureUniformContainLayout,
+  ensureSvgRootHasExplicitPixelSize,
+  parseSvgIntrinsicSizeFromMarkup
+} from './signatureSvgIntrinsic'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -36,6 +41,16 @@ export function escapeHtmlText(text: string): string {
 
 /** Allowed block spacing CSS properties for export (line and paragraph spacing). */
 const BLOCK_SPACING_PROPS = new Set(['line-height', 'margin-top', 'margin-bottom'])
+/** Layout props kept on signature raster images so print/PDF preserve aspect ratio after sanitization. */
+const SIGNATURE_EXPORT_IMAGE_STYLE_PROPS = new Set([
+  'width',
+  'max-width',
+  'height',
+  'aspect-ratio',
+  'vertical-align',
+  'object-fit',
+  'box-sizing'
+])
 const TEXT_FORMAT_PROPS = new Set([
   'background-color',
   'color',
@@ -71,6 +86,26 @@ function filterStyleForExport(
   }
   if (allowedProps.size === 0) return ''
 
+  const parts: string[] = []
+  for (const rawDecl of styleStr.split(';')) {
+    const decl = rawDecl.trim()
+    if (!decl) continue
+
+    const splitIdx = decl.indexOf(':')
+    if (splitIdx === -1) continue
+
+    const prop = decl.slice(0, splitIdx).trim().toLowerCase()
+    if (!allowedProps.has(prop)) continue
+
+    const value = decl.slice(splitIdx + 1).trim()
+    if (!value || !isSafeExportStyleValue(value)) continue
+
+    parts.push(`${prop}: ${value}`)
+  }
+  return parts.join('; ')
+}
+
+function filterStylePropsForExport(styleStr: string, allowedProps: Set<string>): string {
   const parts: string[] = []
   for (const rawDecl of styleStr.split(';')) {
     const decl = rawDecl.trim()
@@ -308,7 +343,13 @@ function applyStyleSanitization(
     el.removeAttribute('style')
     return
   }
-  const filtered = filterStyleForExport(style, options)
+  let filtered = filterStyleForExport(style, options)
+  if (el.tagName.toLowerCase() === 'img' && el.classList.contains('signature-export-image')) {
+    const layout = filterStylePropsForExport(style, SIGNATURE_EXPORT_IMAGE_STYLE_PROPS)
+    if (layout) {
+      filtered = filtered ? `${filtered}; ${layout}` : layout
+    }
+  }
   if (filtered) el.setAttribute('style', filtered)
   else el.removeAttribute('style')
 }
@@ -472,23 +513,36 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
         font-weight: 700;
         margin: 0 0 16pt 0;
         line-height: 1.2;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
+        word-break: break-word;
       }
       h2 {
         font-size: 1.5rem;
         font-weight: 600;
         margin: 20pt 0 12pt 0;
         line-height: 1.3;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
       }
       h3 {
         font-size: 1.125rem;
         font-weight: 600;
         margin: 16pt 0 10pt 0;
         line-height: 1.4;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
       }
       h4, h5, h6 {
         font-size: 1rem;
         font-weight: 600;
         margin: 14pt 0 8pt 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
       }
       p { margin: 0; }
       ul, ol {
@@ -590,6 +644,161 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
       .page-break-label {
         display: none;
       }
+      .document-table-of-contents {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        margin: 16pt 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+      }
+      .document-toc-print-inner {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      .document-toc-print-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin: 0 0 12pt 0;
+        color: ${resolved.textColor};
+      }
+      .document-toc-print-empty {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #6b7280;
+      }
+      .document-toc-print-row {
+        margin: 0 0 5pt 0;
+        font-size: 1rem;
+        line-height: 1.35;
+        color: ${resolved.textColor};
+      }
+      .document-toc-level-2 {
+        padding-inline-start: 8pt;
+      }
+      .document-toc-level-3 {
+        padding-inline-start: 16pt;
+      }
+      .document-toc-level-4 {
+        padding-inline-start: 24pt;
+      }
+      .document-toc-level-5 {
+        padding-inline-start: 32pt;
+      }
+      .document-toc-level-6 {
+        padding-inline-start: 40pt;
+      }
+      .document-toc-print-line.document-toc-print-line-flex {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: flex-end;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        gap: 8pt;
+        border: none;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+      }
+      .document-toc-print-line-flex > .document-toc-print-title-cell,
+      .document-toc-print-line-flex > .document-toc-print-leader-cell,
+      .document-toc-print-line-flex > .document-toc-print-page-cell {
+        border: none;
+        font-size: inherit;
+        line-height: 1.35;
+        padding: 0 0 2pt 0;
+        min-width: 0;
+      }
+      .document-toc-print-line-flex > .document-toc-print-title-cell {
+        flex: 0 1 auto;
+        min-width: 0;
+        width: fit-content;
+        max-width: calc(100% - 4rem);
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        white-space: normal;
+        hyphens: auto;
+        padding-right: 0;
+      }
+      .document-toc-print-line-flex > .document-toc-print-leader-cell {
+        flex: 1 0 0%;
+        min-width: 0.5rem;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .document-toc-print-line-flex > .document-toc-print-page-cell {
+        flex: 0 0 auto;
+      }
+      .document-toc-print-leader-fill {
+        display: block;
+        width: 100%;
+        min-height: 0.85em;
+        box-sizing: border-box;
+      }
+      .document-toc-print-leader-fill-dot {
+        border-bottom: 1pt dotted #d0d0d0;
+        margin-bottom: 0.15em;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .document-toc-print-leader-fill-gap {
+        min-height: 0.5em;
+      }
+      .document-toc-print-page-cell {
+        text-align: end;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        padding-left: 8pt;
+      }
+      .document-toc-print-row-inline {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 6pt;
+      }
+      .document-toc-print-text-wrap {
+        flex: 1 1 auto;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+      .document-toc-print-leader-inline {
+        display: inline-block;
+        width: 48pt;
+        border-bottom: 1pt dotted #d0d0d0;
+        margin-bottom: 3pt;
+        height: 0;
+      }
+      .document-toc-print-page-inline {
+        font-variant-numeric: tabular-nums;
+      }
+      img.signature-export-image {
+        display: inline-block;
+        width: auto;
+        max-width: 100%;
+        height: auto;
+        vertical-align: baseline;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        box-sizing: border-box;
+        background: transparent;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
       @media print {
         body, img {
           -webkit-print-color-adjust: exact;
@@ -618,29 +827,281 @@ function prepareHtmlForPrintDocument(htmlContent: string): string {
   )
 }
 
+const SIGNATURE_EXPORT_MAX_PX = 2400
+/** Rasterize at this multiple of logical size, then downscale for sharper edges in print/PDF. */
+const SIGNATURE_RASTER_SUPERSAMPLE = 2
+/** Cap supersampled edge length to avoid very large canvases (logical max is SIGNATURE_EXPORT_MAX_PX). */
+const SIGNATURE_RASTER_MAX_HI_EDGE = SIGNATURE_EXPORT_MAX_PX * SIGNATURE_RASTER_SUPERSAMPLE
+
+function parseSignatureCrop(attr: string | null): number {
+  const v = parseFloat(attr || '0')
+  return Number.isFinite(v) ? Math.min(Math.max(v, 0), 0.95) : 0
+}
+
+function resolveSignatureSvgBitmapDimensions(
+  svg: string,
+  naturalW: number,
+  naturalH: number,
+  fallbackW: number,
+  fallbackH: number
+): { nw: number; nh: number } {
+  if (naturalW > 0 && naturalH > 0) {
+    return { nw: naturalW, nh: naturalH }
+  }
+  const parsed = parseSvgIntrinsicSizeFromMarkup(svg)
+  if (parsed) {
+    return { nw: parsed.width, nh: parsed.height }
+  }
+  return { nw: fallbackW, nh: fallbackH }
+}
+
+async function waitForFontsAndNextFrame(): Promise<void> {
+  try {
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      await document.fonts.ready
+    }
+  } catch {
+    // ignore
+  }
+  await new Promise<void>(resolve => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+function createSignatureHiResCanvas(
+  img: HTMLImageElement,
+  nw: number,
+  nh: number,
+  hiW: number,
+  hiH: number,
+  ct: number,
+  cr: number,
+  cb: number,
+  cl: number
+): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = hiW
+  canvas.height = hiH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+
+  const noCrop = ct === 0 && cr === 0 && cb === 0 && cl === 0
+  if (noCrop) {
+    const fit = computeSignatureUniformContainLayout(hiW, hiH, nw, nh)
+    ctx.drawImage(img, 0, 0, nw, nh, fit.offsetX, fit.offsetY, fit.renderedWidth, fit.renderedHeight)
+  } else {
+    const srcX = nw * cl
+    const srcY = nh * ct
+    const srcW = nw * (1 - cl - cr)
+    const srcH = nh * (1 - ct - cb)
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, hiW, hiH)
+  }
+  return canvas
+}
+
+function rotateSignatureCanvas(source: HTMLCanvasElement, rotationDeg: number): HTMLCanvasElement | null {
+  if (rotationDeg === 0) return source
+  const w = source.width
+  const h = source.height
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.translate(w / 2, h / 2)
+  ctx.rotate((rotationDeg * Math.PI) / 180)
+  ctx.translate(-w / 2, -h / 2)
+  ctx.drawImage(source, 0, 0)
+  return canvas
+}
+
+function downscaleCanvasToLogicalSize(source: HTMLCanvasElement, outW: number, outH: number): HTMLCanvasElement | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = outW
+  canvas.height = outH
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, 0, 0, source.width, source.height, 0, 0, outW, outH)
+  return canvas
+}
+
 /**
- * Converts div[data-signature-node] elements to img with data URL so export/print render the signature.
+ * Rasterizes signature SVG with crop and rotation baked in for reliable print/PDF output.
+ * Scales down large bitmaps with a **uniform** factor so aspect ratio is never distorted (unlike
+ * clamping width and height independently to SIGNATURE_EXPORT_MAX_PX).
  */
-function materializeSignatureNodesInHtml(html: string): string {
+function rasterizeSignatureSvgToPng(
+  svg: string,
+  displayWidth: number,
+  displayHeight: number,
+  ct: number,
+  cr: number,
+  cb: number,
+  cl: number,
+  rotationDeg: number
+): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  if (typeof Image === 'undefined' || typeof document === 'undefined') {
+    return Promise.resolve(null)
+  }
+
+  const normalizedSvg = ensureSvgRootHasExplicitPixelSize(svg)
+  const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(normalizedSvg)))}`
+
+  return new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      void (async () => {
+        try {
+          await waitForFontsAndNextFrame()
+
+          const { nw, nh } = resolveSignatureSvgBitmapDimensions(
+            normalizedSvg,
+            img.naturalWidth,
+            img.naturalHeight,
+            displayWidth,
+            displayHeight
+          )
+
+          let outW = Math.max(1, Math.round(displayWidth))
+          let outH = Math.max(1, Math.round(displayHeight))
+          const maxOut = Math.max(outW, outH)
+          if (maxOut > SIGNATURE_EXPORT_MAX_PX) {
+            const scale = SIGNATURE_EXPORT_MAX_PX / maxOut
+            outW = Math.max(1, Math.round(outW * scale))
+            outH = Math.max(1, Math.round(outH * scale))
+          }
+
+          let hiW = Math.round(outW * SIGNATURE_RASTER_SUPERSAMPLE)
+          let hiH = Math.round(outH * SIGNATURE_RASTER_SUPERSAMPLE)
+          if (Math.max(hiW, hiH) > SIGNATURE_RASTER_MAX_HI_EDGE) {
+            const ratio = SIGNATURE_RASTER_MAX_HI_EDGE / Math.max(outW, outH)
+            hiW = Math.max(1, Math.round(outW * ratio))
+            hiH = Math.max(1, Math.round(outH * ratio))
+          }
+
+          const hiCanvas = createSignatureHiResCanvas(img, nw, nh, hiW, hiH, ct, cr, cb, cl)
+          if (!hiCanvas) {
+            resolve(null)
+            return
+          }
+
+          const rot = Number.isFinite(rotationDeg) ? rotationDeg : 0
+          const rotated = rotateSignatureCanvas(hiCanvas, rot)
+          if (!rotated) {
+            resolve(null)
+            return
+          }
+
+          const outCanvas = downscaleCanvasToLogicalSize(rotated, outW, outH)
+          if (!outCanvas) {
+            resolve(null)
+            return
+          }
+
+          resolve({
+            dataUrl: outCanvas.toDataURL('image/png'),
+            width: outW,
+            height: outH
+          })
+        } catch {
+          resolve(null)
+        }
+      })()
+    }
+    img.onerror = () => resolve(null)
+    img.src = dataUrl
+  })
+}
+
+function materializeSignatureNodesWithSvgFallback(div: HTMLDivElement, doc: Document): void {
+  const svg = div.getAttribute('data-snapshot-svg')
+  if (!svg) return
+  try {
+    const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
+    const img = doc.createElement('img')
+    img.setAttribute('src', dataUrl)
+    img.setAttribute('alt', div.getAttribute('data-name') || 'Signature')
+    img.className = 'signature-export-image'
+    const w = div.getAttribute('data-width')
+    const h = div.getAttribute('data-height')
+    if (w) img.setAttribute('width', w)
+    if (h) img.setAttribute('height', h)
+    const ct = parseSignatureCrop(div.getAttribute('data-crop-top'))
+    const cr = parseSignatureCrop(div.getAttribute('data-crop-right'))
+    const cb = parseSignatureCrop(div.getAttribute('data-crop-bottom'))
+    const cl = parseSignatureCrop(div.getAttribute('data-crop-left'))
+    const rot = parseFloat(div.getAttribute('data-rotation') || '0')
+    const rotationDeg = Number.isFinite(rot) ? rot : 0
+    const styleParts: string[] = []
+    if (ct > 0 || cr > 0 || cb > 0 || cl > 0) {
+      styleParts.push(`clip-path: inset(${ct * 100}% ${cr * 100}% ${cb * 100}% ${cl * 100}%)`)
+    }
+    if (rotationDeg !== 0) {
+      styleParts.push(`transform: rotate(${rotationDeg}deg)`)
+      styleParts.push('transform-origin: center center')
+    }
+    if (styleParts.length > 0) {
+      img.setAttribute('style', styleParts.join('; '))
+    }
+    div.replaceWith(img)
+  } catch {
+    // leave div in place if encoding fails
+  }
+}
+
+/**
+ * Converts div[data-signature-node] elements to img (PNG when possible) so export/print render the signature.
+ */
+async function materializeSignatureNodesInHtml(html: string): Promise<string> {
   if (typeof DOMParser === 'undefined') return html
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
-  const divs = doc.body.querySelectorAll('div[data-signature-node]')
-  for (const div of divs) {
-    const svg = div.getAttribute('data-snapshot-svg')
-    if (!svg) continue
-    try {
-      const dataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
-      const img = doc.createElement('img')
-      img.setAttribute('src', dataUrl)
-      img.setAttribute('alt', div.getAttribute('data-name') || 'Signature')
-      const w = div.getAttribute('data-width')
-      const h = div.getAttribute('data-height')
-      if (w) img.setAttribute('width', w)
-      if (h) img.setAttribute('height', h)
-      div.replaceWith(img)
-    } catch {
-      // leave div in place if encoding fails
+  const divs = Array.from(doc.body.querySelectorAll('div[data-signature-node]'))
+  const replacements = await Promise.all(
+    divs.map(async div => {
+      const el = div as HTMLDivElement
+      const svg = el.getAttribute('data-snapshot-svg')
+      if (!svg) return { el, node: null as HTMLElement | null }
+
+      const w = parseFloat(el.getAttribute('data-width') || '200')
+      const h = parseFloat(el.getAttribute('data-height') || '80')
+      const displayWidth = Number.isFinite(w) ? w : 200
+      const displayHeight = Number.isFinite(h) ? h : 80
+      const ct = parseSignatureCrop(el.getAttribute('data-crop-top'))
+      const cr = parseSignatureCrop(el.getAttribute('data-crop-right'))
+      const cb = parseSignatureCrop(el.getAttribute('data-crop-bottom'))
+      const cl = parseSignatureCrop(el.getAttribute('data-crop-left'))
+      const rot = parseFloat(el.getAttribute('data-rotation') || '0')
+      const rotationDeg = Number.isFinite(rot) ? rot : 0
+
+      const raster = await rasterizeSignatureSvgToPng(svg, displayWidth, displayHeight, ct, cr, cb, cl, rotationDeg)
+      if (raster) {
+        const img = doc.createElement('img')
+        img.setAttribute('src', raster.dataUrl)
+        img.setAttribute('alt', el.getAttribute('data-name') || 'Signature')
+        img.className = 'signature-export-image'
+        // Do not set width/height attributes or inline width/aspect-ratio: mixed with global
+        // `img { max-width:100%; height:auto }` and intrinsic PNG size, print engines can
+        // resolve a stretched box. Intrinsic canvas PNG dimensions are the single layout source.
+        return { el, node: img as HTMLElement }
+      }
+      return { el, node: null as HTMLElement | null }
+    })
+  )
+  for (const { el, node } of replacements) {
+    if (node) {
+      el.replaceWith(node)
+    } else if (el.getAttribute('data-snapshot-svg')) {
+      materializeSignatureNodesWithSvgFallback(el as HTMLDivElement, doc)
     }
   }
   return doc.body.innerHTML
@@ -648,11 +1109,11 @@ function materializeSignatureNodesInHtml(html: string): string {
 
 /**
  * Replaces each img src in html with the result of getImageDataUrl(src) when not null.
- * Also materializes signature nodes (div[data-signature-node]) to img with embedded SVG data URLs.
+ * Also materializes signature nodes (div[data-signature-node]) to raster or SVG img.
  * Use so exported Word/PDF contain embedded images instead of unreachable URLs.
  */
 export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageDataUrlForExport): Promise<string> {
-  const content = materializeSignatureNodesInHtml(html)
+  const content = await materializeSignatureNodesInHtml(html)
   const imgRegex = /<img([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*)>/gi
   let result = ''
   let lastIndex = 0
@@ -660,7 +1121,7 @@ export async function embedImagesInHtml(html: string, getImageDataUrl: GetImageD
   while ((m = imgRegex.exec(content)) !== null) {
     result += content.slice(lastIndex, m.index)
     const dataUrl = await getImageDataUrl(m[2])
-    if (dataUrl == null) {
+    if (dataUrl == null || dataUrl.trim() === '') {
       result += m[0]
     } else {
       result += `<img${m[1]}src="${dataUrl}"${m[3]}>`

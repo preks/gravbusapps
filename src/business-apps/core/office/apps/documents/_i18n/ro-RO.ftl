@@ -932,6 +932,29 @@ header-footer-sidebar-zone-even = Pagini pare
 image-sidebar-in-header-context = Imagine în antet
 image-sidebar-in-footer-context = Imagine în subsol
 
+signature-sidebar-in-header-context = Semnătură în antet
+signature-sidebar-in-footer-context = Semnătură în subsol
+signature-sidebar-title = Semnătură
+signature-sidebar-name = Nume
+signature-sidebar-lock-aspect = Păstrează raportul de aspect
+signature-sidebar-width = Lățime
+signature-sidebar-height = Înălțime
+signature-sidebar-floating-position = Poziție pe pagină
+signature-sidebar-page = Pagină
+signature-sidebar-x = X
+signature-sidebar-y = Y
+signature-sidebar-replace = Înlocuiește semnătura…
+signature-sidebar-remove = Elimină semnătura
+signature-sidebar-crop-section = Decupare
+signature-sidebar-crop-intro = Tăiați spațiul gol: porniți decuparea pentru mânere pe document sau introduceți valorile de mai jos.
+signature-sidebar-crop-start = Pornește decuparea
+signature-sidebar-cropping = Se decupează…
+signature-sidebar-crop-done = Gata
+signature-sidebar-crop-active-banner = Decupare activă — trageți mânerele de pe semnătură pentru zona vizibilă, apoi Gata.
+signature-sidebar-crop-values-hint = Fiecare valoare este cât se taie de pe acea parte, ca fracție din lățime sau înălțime (0–0,95).
+signature-crop-overlay-hint = Trageți mânerele pentru decupare
+signature-rotate-handle-aria = Rotiți semnătura
+
 # Template fields panel
 template-fields-insert = Inserați câmp
 template-fields-search-placeholder = Căutați entități...
