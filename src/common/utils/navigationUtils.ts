@@ -70,7 +70,9 @@ export const Navigation = {
   CONTENT_MANAGER: `${NAVIGATION_BASE_PATH}/content/manager`,
 
   // Manage
+  MANAGE_BRANDING: `${NAVIGATION_BASE_PATH}/manage/branding`,
   MANAGE_CATALOGS: `${NAVIGATION_BASE_PATH}/catalog-manager`,
+  MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
@@ -176,7 +178,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CONTENT_MANAGER]: 'core/content/apps/content-manager',
 
   // Manage
+  [Navigation.MANAGE_BRANDING]: 'core/manage/apps/branding',
   [Navigation.MANAGE_CATALOGS]: 'core/manage/apps/catalog-manager',
+  [Navigation.MANAGE_USERS]: 'core/manage/apps/user-manager',
 
   // Platform
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
