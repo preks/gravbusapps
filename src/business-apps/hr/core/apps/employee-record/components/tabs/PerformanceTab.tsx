@@ -76,6 +76,8 @@ interface GoalUpdate {
   updateTime?: string
   updateDelta?: { milestones?: MilestoneDelta[] } | null
   employee?: { firstName?: string; lastName?: string }
+  completedMilestones?: string[]
+  reopenedMilestones?: string[]
 }
 
 interface GoalUpdateEvent {
@@ -255,21 +257,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
       goal.employeePerformanceGoalUpdate.forEach(update => {
         const author = [update.employee?.firstName, update.employee?.lastName].filter(Boolean).join(' ')
-        const completedMilestones: string[] = []
-        const reopenedMilestones: string[] = []
+        const completedMilestones = [...(update.completedMilestones || [])]
+        const reopenedMilestones = [...(update.reopenedMilestones || [])]
         const milestoneSnapshot = update.updateDelta?.milestones
 
-        milestoneSnapshot?.forEach(milestone => {
-          const wasDone = previousMilestoneState.get(milestone.id) ?? false
-          const title = milestoneTitleMap.get(milestone.id)
-          if (!title || wasDone === milestone.done) return
+        if (!completedMilestones.length && !reopenedMilestones.length) {
+          milestoneSnapshot?.forEach(milestone => {
+            const wasDone = previousMilestoneState.get(milestone.id) ?? false
+            const title = milestoneTitleMap.get(milestone.id)
+            if (!title || wasDone === milestone.done) return
 
-          if (milestone.done) {
-            completedMilestones.push(title)
-          } else {
-            reopenedMilestones.push(title)
-          }
-        })
+            if (milestone.done) {
+              completedMilestones.push(title)
+            } else {
+              reopenedMilestones.push(title)
+            }
+          })
+        }
 
         if (milestoneSnapshot?.length) {
           previousMilestoneState = new Map(milestoneSnapshot.map(milestone => [milestone.id, milestone.done]))
@@ -529,6 +533,35 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       type === 'MILESTONE'
         ? milestoneDraft.map(m => ({ id: m.id, done: m.done, doneAt: m.done ? (m.doneAt ?? now) : null }))
         : undefined
+    const latestMilestoneSnapshot = selectedGoal.employeePerformanceGoalUpdate
+      ?.slice()
+      .reverse()
+      .find(update => update.updateDelta?.milestones?.length)?.updateDelta?.milestones
+    const previousMilestoneState =
+      type === 'MILESTONE'
+        ? new Map(
+            (
+              latestMilestoneSnapshot ||
+              selectedGoal.employeePerformanceGoalMilestone?.map(milestone => ({
+                id: milestone.id,
+                done: milestone.done ?? false
+              })) ||
+              []
+            ).map(milestone => [milestone.id, milestone.done])
+          )
+        : new Map<string, boolean>()
+    const completedMilestones =
+      type === 'MILESTONE'
+        ? milestoneDraft
+            .filter(milestone => !(previousMilestoneState.get(milestone.id) ?? false) && milestone.done)
+            .map(milestone => milestone.title)
+        : undefined
+    const reopenedMilestones =
+      type === 'MILESTONE'
+        ? milestoneDraft
+            .filter(milestone => (previousMilestoneState.get(milestone.id) ?? false) && !milestone.done)
+            .map(milestone => milestone.title)
+        : undefined
 
     // Build the optimistic update record so the history panel updates immediately
     const optimisticUpdate: GoalUpdate = {
@@ -537,7 +570,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       comment,
       updateTime: now,
       updateDelta: milestoneDeltaForUpdate ? { milestones: milestoneDeltaForUpdate } : null,
-      employee: { firstName: employee.firstName, lastName: employee.lastName }
+      employee: { firstName: employee.firstName, lastName: employee.lastName },
+      completedMilestones: completedMilestones?.length ? completedMilestones : undefined,
+      reopenedMilestones: reopenedMilestones?.length ? reopenedMilestones : undefined
     }
 
     // Optimistic local update — also append the new update record so getInitialEvents
@@ -1103,10 +1138,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={buildChartData(selectedGoal)}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} padding={{ left: 2, right: 2 }} />
                         <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 11 }} />
                         <RechartsTooltip
-                          formatter={(value: number | undefined) => (value != null ? `${Math.round(value)}%` : '')}
+                          formatter={value => (typeof value === 'number' ? `${Math.round(value)}%` : '')}
                         />
                         <Line dataKey="ideal" type="monotone" stroke="var(--nw-chart-2)" dot={false} name="Ideal" />
                         <Line
@@ -1118,7 +1153,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                           strokeWidth={2}
                           connectNulls={false}
                         />
-                        <ReferenceLine x={dayjs().format('MMM D')} stroke="var(--warning)" strokeDasharray="3 3" />
+                        <ReferenceLine
+                          x={dayjs().format('MMM D')}
+                          stroke="var(--nw-warning)"
+                          strokeDasharray="3 3"
+                          strokeWidth={2}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
