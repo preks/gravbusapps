@@ -8,6 +8,7 @@ import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-desig
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
+import { getImportErrorTitle } from '@/common/components/common-relations/apps/data-import/utils'
 import {
   FileUploadStep,
   MappingReviewStep,
@@ -71,6 +72,8 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
     await baseConvertData(mappings, undefined, convertToNestedEquityInvestment)
   }
 
+  const importErrorTitle = getImportErrorTitle(step)
+
   return (
     <PageLayout
       headerIcon={SparkleIcon}
@@ -87,9 +90,7 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
                 <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
               </div>
               <div className="gba:space-y-2">
-                <p className="gba:font-semibold gba:text-base gba:text-destructive">
-                  {step === 'mapping' ? 'Conversion Failed' : step === 'result' ? 'Import Failed' : 'Analysis Failed'}
-                </p>
+                <p className="gba:font-semibold gba:text-base gba:text-destructive">{importErrorTitle}</p>
                 <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
               </div>
             </div>
