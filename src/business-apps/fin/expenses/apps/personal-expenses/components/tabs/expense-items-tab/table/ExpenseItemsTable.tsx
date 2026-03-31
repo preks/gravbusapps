@@ -1,70 +1,36 @@
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
-import personalTranslations from '../../../_i18n'
+import personalTranslations from '../../../../_i18n'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
-import type { ColumnDef, CellContext } from '@tanstack/react-table'
-import { Button, Alert, Checkbox, Badge } from '@newwork/nw-design-system'
-import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
+import { DataTable, DataDisplay } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
+import { Button, Alert } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action'
-import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../hooks/useGetExpenseItems'
-import { useExpenseCurrencies, type CurrencyStat } from '../../../hooks/useExpenseCurrencies'
+import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../../hooks/useGetExpenseItems'
+import { useExpenseCurrencies, type CurrencyStat } from '../../../../hooks/useExpenseCurrencies'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getExpenseItemStatusDisplay } from '../../../utils'
-import ExpenseItemDetails from './ExpenseItemDetails'
+import ExpenseItemDetails from '../details/ExpenseItemDetails'
 import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
-import { formatCurrencyDisplay } from '../../../utils'
-import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
-import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
-import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../utils/tableUtils'
-import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
-
-const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
-
-function rawDateRangeToNormalizable(rawDateRange: unknown): string | string[] | null | undefined {
-  if (rawDateRange == null) return undefined
-  const isObjectWithFromOrTo =
-    typeof rawDateRange === 'object' && !Array.isArray(rawDateRange) && ('from' in rawDateRange || 'to' in rawDateRange)
-  if (isObjectWithFromOrTo) {
-    const obj = rawDateRange as { from?: unknown; to?: unknown }
-    return [obj?.from, obj?.to].filter(Boolean).join(',')
-  }
-  if (typeof rawDateRange === 'string' || Array.isArray(rawDateRange)) return rawDateRange
-  return undefined
-}
-
-function applyExpenseDateRangeFromFilters(
-  rawDateRange: unknown,
-  setExpenseDateRange: (range: [Date | null, Date | null] | null) => void
-): void {
-  const isDisplayString =
-    typeof rawDateRange === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(rawDateRange) && !rawDateRange.includes(',')
-  if (isDisplayString) return
-  const raw = rawDateRangeToNormalizable(rawDateRange)
-  const normalized = normalizeDateRange(raw)
-  if (normalized && (normalized.from || normalized.to)) {
-    setExpenseDateRange([
-      normalized.from ? new Date(normalized.from) : null,
-      normalized.to ? new Date(normalized.to) : null
-    ])
-  } else {
-    setExpenseDateRange(null)
-  }
-}
-
-function applyAmountRangeFromFilters(
-  amt: { min?: number; max?: number } | undefined,
-  setAmountRange: (range: { min?: number; max?: number } | null) => void
-): void {
-  if (amt && (amt.min !== undefined || amt.max !== undefined)) {
-    setAmountRange({ min: amt.min, max: amt.max })
-  } else {
-    setAmountRange(null)
-  }
-}
+import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
+import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../../utils/tableUtils'
+import {
+  CurrencyDropdown,
+  DetailsSheet,
+  RowActionsWrapper,
+  RowActionsIcon
+} from '../../../shared/TableSharedComponents'
+import { createExpenseItemFilterConfig } from '../config/expenseItemFilterConfig'
+import { expenseItemSortableColumns } from '../config/expenseItemSortableColumns'
+import { expenseItemAvailableColumns } from '../config/expenseItemAvailableColumns'
+import {
+  applyAmountRangeFromFilters,
+  applyExpenseDateRangeFromFilters,
+  buildExpenseItemsFiltersObject
+} from '../config/expenseItemsDisplayFilters'
+import { createExpenseItemColumns, EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX } from './expenseItemColumns'
 
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   onAddExpenseItem: () => void
@@ -85,116 +51,6 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   activeWidgetKey?: string
   currencyStats?: CurrencyStat[]
   currenciesInitialized?: boolean
-}
-
-function ExpenseItemsTableSelectAllHeader({
-  items,
-  selectedRowKeys,
-  onSelectAll
-}: Readonly<{
-  items: ExpenseItem[] | undefined
-  selectedRowKeys: React.Key[]
-  onSelectAll: (checked: boolean) => void
-}>) {
-  const itemCount = items?.length ?? 0
-  const allSelected = itemCount > 0 && (items ?? []).every(item => selectedRowKeys.includes(item.id))
-  return (
-    <Checkbox
-      checked={allSelected}
-      onCheckedChange={checked => onSelectAll(checked === true)}
-      data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
-    />
-  )
-}
-
-function ExpenseItemSelectionCell({
-  record,
-  isSelected,
-  onCheckedChange
-}: Readonly<{
-  record: ExpenseItem
-  isSelected: boolean
-  onCheckedChange: (id: string, checked: boolean) => void
-}>) {
-  return (
-    <Checkbox
-      checked={isSelected}
-      onCheckedChange={checked => onCheckedChange(record.id, checked === true)}
-      onClick={e => e.stopPropagation()}
-      data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${record.id}`}
-    />
-  )
-}
-
-function ExpenseItemTitleCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  return (
-    <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="expense-title-cell">
-      {record.title}
-    </div>
-  )
-}
-
-function ExpenseItemExpenseDateCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  if (!record.expenseDate) {
-    return <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
-  }
-  let formatted: string
-  try {
-    formatted = formatDate(record.expenseDate, 'date.long') || 'N/A'
-  } catch {
-    formatted = 'N/A'
-  }
-  return (
-    <div className="gba:text-sm gba:truncate" data-testid="expense-expense-date-cell">
-      {formatted}
-    </div>
-  )
-}
-
-function ExpenseItemStatusCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  const statusConf = getExpenseItemStatusDisplay(record.status)
-  return (
-    <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
-      {statusConf.label}
-    </Badge>
-  )
-}
-
-function ExpenseItemAttachmentCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  const hasFiles = record.expenseItemFile && record.expenseItemFile.length > 0
-  return (
-    <div className="gba:flex gba:items-center gba:justify-center">
-      {hasFiles ? (
-        <FileTextIcon size={24} className="gba:text-blue-500" />
-      ) : (
-        <ImageIcon size={24} className="gba:text-gray-300" />
-      )}
-    </div>
-  )
-}
-
-function ExpenseItemReimbursableAmountCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  return (
-    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="expense-amount-cell">
-      {formatCurrencyDisplay(record.reimbursableAmount ?? 0, record.currency?.code)}
-    </div>
-  )
-}
-
-function renderItemTitleCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemTitleCell record={info.row.original} />
-}
-function renderItemExpenseDateCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemExpenseDateCell record={info.row.original} />
-}
-function renderItemStatusCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemStatusCell record={info.row.original} />
-}
-function renderItemAttachmentCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemAttachmentCell record={info.row.original} />
-}
-function renderItemReimbursableAmountCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemReimbursableAmountCell record={info.row.original} />
 }
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => {
@@ -266,104 +122,20 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     return hookCurrencies.selectedCurrencyRef
   }, [props.currencyStats, allSelectedFilters, hookCurrencies.selectedCurrencyRef])
 
-  // Opportunity-style: FilterConfiguration for DataDisplay filter sheet (currency moved to toolbar)
-  const expenseItemsFilterConfig: FilterConfiguration = useMemo(() => {
-    const statusOptions = (props.availableStatuses || []).map(s => ({
-      id: s.toLowerCase(),
-      label: filterLabelMap[s.toLowerCase()] || s
-    }))
-    const groups: FilterConfiguration['groups'] = []
+  const expenseItemsFilterConfig = useMemo(
+    () =>
+      createExpenseItemFilterConfig({
+        filterLabelMap,
+        availableStatuses: props.availableStatuses || []
+      }),
+    [filterLabelMap, props.availableStatuses]
+  )
 
-    groups.push(
-      {
-        id: 'status-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'statusIds',
-            field: 'statusIds',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
-            type: 'multi-select',
-            config: { options: statusOptions, showSearch: false }
-          }
-        ]
-      },
-      {
-        id: 'expenseDate-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range', 'Expense Date'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'expenseDateRange',
-            field: 'expenseDateRange',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_range', 'Expense Date'),
-            type: 'date',
-            config: {
-              dateType: 'date',
-              mode: 'range',
-              placeholder: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_plan_list.expense_plan_table.start_date',
-                'Start date'
-              ),
-              placeholderEnd: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_plan_list.expense_plan_table.end_date',
-                'End date'
-              ),
-              showClearButton: true
-            }
-          }
-        ]
-      },
-      {
-        id: 'amount-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'amount',
-            field: 'amount',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-            type: 'number',
-            config: {
-              mode: 'range',
-              min: 0,
-              max: 1000000,
-              step: 100,
-              placeholderMin: 'Min Amount',
-              placeholderMax: 'Max Amount'
-            }
-          }
-        ]
-      }
-    )
-
-    return { id: 'expense-items-filters', name: 'Expense Items Filters', groups }
-  }, [filterLabelMap, props.availableStatuses])
-
-  // Opportunity-style: filters object for DataDisplay (from current state; keeps card link)
-  // Use a display string for expenseDateRange so the filter chip shows "Jan 1, 2024 – Jan 31, 2024" instead of [object Object]
-  const filtersObject = useMemo((): Record<string, unknown> => {
-    const statusIds = allSelectedFilters.filter(f =>
-      (props.availableStatuses || []).map(s => s.toLowerCase()).includes(f)
-    )
-    const obj: Record<string, unknown> = {}
-    if (statusIds.length > 0) obj.statusIds = statusIds
-    if (expenseDateRange?.[0] || expenseDateRange?.[1]) {
-      const from = expenseDateRange[0]
-      const to = expenseDateRange[1]
-      const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' }
-      const fmt = (d: Date | null | undefined) => (d ? d.toLocaleDateString('en-GB', opts) : '')
-      obj.expenseDateRange = from && to ? `${fmt(from)} – ${fmt(to)}` : fmt(from) || fmt(to)
-    }
-    if (amountRange && (amountRange.min !== undefined || amountRange.max !== undefined)) {
-      obj.amount = { ...amountRange }
-    }
-    return obj
-  }, [allSelectedFilters, expenseDateRange, amountRange, props.availableStatuses])
+  const filtersObject = useMemo(
+    () =>
+      buildExpenseItemsFiltersObject(allSelectedFilters, expenseDateRange, amountRange, props.availableStatuses || []),
+    [allSelectedFilters, expenseDateRange, amountRange, props.availableStatuses]
+  )
 
   // Currency: derived from filters for toolbar dropdown (currency moved out of sidebar)
   const selectedCurrencyCode = useMemo(
@@ -379,39 +151,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     [allSelectedFilters, currencyStats, setFilters]
   )
 
-  const availableColumnsForDisplay = useMemo(
-    () => [
-      {
-        id: 'selection',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.column_selection', 'Selection')
-      },
-      {
-        id: 'title',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.expense_request_container.current_title_label',
-          'Title'
-        )
-      },
-      {
-        id: 'expenseDate',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date')
-      },
-      {
-        id: 'status',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-      },
-      {
-        id: 'attachment',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment')
-      },
-      {
-        id: 'reimbursableAmount',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
-      }
-    ],
-    []
-  )
-
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, any>) => {
       const statusIds = (filters.statusIds as string[] | undefined) || []
@@ -422,32 +161,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       setCurrentPage(1)
     },
     [allSelectedFilters, setFilters, setExpenseDateRange, setAmountRange]
-  )
-
-  // Sortable columns for DataDisplay (opportunity-style)
-  const sortableColumns = useMemo(
-    () => [
-      {
-        id: 'title',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.expense_request_container.current_title_label',
-          'Title'
-        )
-      },
-      {
-        id: 'expenseDate',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date')
-      },
-      {
-        id: 'status',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-      },
-      {
-        id: 'reimbursableAmount',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
-      }
-    ],
-    []
   )
 
   const buildApiFilters = useCallback(() => {
@@ -468,7 +181,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
       apiFilters.expenseDateStart = start.toISOString().split('T')[0]
       apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
-      apiFilters.status = ['PAID', 'CLOSED']
+      apiFilters.status = ['PAID']
     } else if (props.activeWidgetKey === 'pending-reimbursement') {
       const start = new Date()
       start.setDate(1)
@@ -723,70 +436,14 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   )
 
   const columns = useMemo<ColumnDef<ExpenseItem>[]>(
-    () => [
-      {
-        id: 'selection',
-        size: 40,
-        header: () => (
-          <ExpenseItemsTableSelectAllHeader
-            items={items}
-            selectedRowKeys={selectedRowKeys}
-            onSelectAll={handleSelectAll}
-          />
-        ),
-        cell: ({ row }) => (
-          <ExpenseItemSelectionCell
-            record={row.original}
-            isSelected={selectedRowKeys.includes(row.original.id)}
-            onCheckedChange={handleRowSelectionChange}
-          />
-        )
-      },
-      {
-        id: 'title',
-        accessorKey: 'title',
-        header: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.expense_request_container.current_title_label',
-          'Title'
-        ),
-        size: 200,
-        cell: renderItemTitleCell
-      },
-      {
-        id: 'expenseDate',
-        accessorKey: 'expenseDate',
-        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date'),
-        size: 120,
-        cell: renderItemExpenseDateCell
-      },
-      {
-        id: 'status',
-        accessorKey: 'status',
-        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        size: 100,
-        cell: renderItemStatusCell
-      },
-      {
-        id: 'attachment',
-        accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
-        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
-        enableSorting: false,
-        size: 80,
-        cell: renderItemAttachmentCell
-      },
-      {
-        id: 'reimbursableAmount',
-        accessorKey: 'reimbursableAmount',
-        header: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approve_expense_request.reimbursable',
-          'Reimbursable Amount'
-        ),
-        size: 140,
-        meta: { align: 'right' as const },
-        cell: renderItemReimbursableAmountCell
-      }
-    ],
-    [selectedRowKeys, items?.length, handleSelectAll, handleRowSelectionChange]
+    () =>
+      createExpenseItemColumns({
+        items,
+        selectedRowKeys,
+        onSelectAll: handleSelectAll,
+        onRowSelectionChange: handleRowSelectionChange
+      }),
+    [selectedRowKeys, items, handleSelectAll, handleRowSelectionChange]
   )
 
   const rowActions = useCallback(
@@ -815,9 +472,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
               }
               return action
             })}
-            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
+            prefixDataTestId={`${EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX}-update-expense-item`}
             accessToken={contextProps.accessToken}
-            data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+            data-testid={`${EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
           >
             <RowActionsIcon />
           </AppAction>
@@ -898,7 +555,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     return (
       <div
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
-        data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
+        data-testid={`${EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX}-error-state`}
       >
         <Alert variant="destructive" className="gba:mb-4">
           <div className="gba:text-lg gba:font-medium gba:mb-2">
@@ -916,7 +573,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
             const apiFilters = buildApiFilters()
             fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
           }}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
+          data-testid={`${EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX}-retry-button`}
         >
           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.retry', 'Retry')}
         </Button>
@@ -951,11 +608,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         filterConfiguration={expenseItemsFilterConfig}
         onFilterChange={handleFilterChangeFromDisplay}
         sorting={sorting}
-        sortableColumns={sortableColumns}
+        sortableColumns={expenseItemSortableColumns}
         onSortingChange={handleSortingChange}
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
-        availableColumns={availableColumnsForDisplay}
+        availableColumns={expenseItemAvailableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
@@ -987,7 +644,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           emptyMessage={emptyMessage}
           actions={rowActions}
           onRowClick={handleSelectItem}
-          data-testid={DATA_TEST_ID_PREFIX}
+          data-testid={EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX}
         />
       </DataDisplay>
 

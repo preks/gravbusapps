@@ -17,18 +17,18 @@ import {
 } from '@newwork/nw-design-system'
 import { ImageIcon, FilePdfIcon, FileDocIcon, FileXlsIcon, FileIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
-import { getExpenseItemStatusDisplay } from '../../../utils'
+import { ExpenseItem, useGetExpenseItem } from '../../../../hooks/useGetExpenseItems'
+import { getExpenseItemStatusDisplay } from '../../../../utils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../utils'
+import { formatCurrencyDisplay } from '../../../../utils'
 import { AppAction } from '@/components/app-action'
-import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
+import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
 import { Badge } from '@newwork/nw-design-system'
 import type { UploadFile } from 'antd/es/upload/interface'
 import {
   DetailsPanelContent,
   type DetailsPanelField
-} from '../../../../../common/components/details-panel/DetailsPanelContent'
+} from '../../../../../../common/components/details-panel/DetailsPanelContent'
 
 // Utility function to truncate file names
 const truncateFileName = (fileName: string, maxLength: number = 15): string => {

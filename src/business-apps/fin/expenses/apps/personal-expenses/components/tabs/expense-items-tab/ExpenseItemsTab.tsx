@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react'
 // import dayjs from 'dayjs'
-import { getItemsCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
+import { getItemsCardStrategies, preserveCurrencyAndReset } from './utils/cardStrategies'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_PENDING_ITEMS } from '../../../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 // import { ExpenseStatus } from '../../../utils'
-import ExpenseItemStatistics from './ExpenseItemStatistics'
-import ExpenseItemsTable from './ExpenseItemsTable'
+import ExpenseItemStatistics from './statistics/ExpenseItemStatistics'
+import ExpenseItemsTable from './table/ExpenseItemsTable'
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
 // import { env } from '@/common/env/EnvUtils'
@@ -34,19 +34,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   // Get all available statuses from the enum
   const availableStatuses = useMemo(
-    () => [
-      'PREPARED',
-      'CREATED',
-      'ASSIGNED',
-      'PENDING',
-      'APPROVED',
-      'REJECTED',
-      'VERIFIED',
-      'BOOKED',
-      'PAID',
-      'CLOSED',
-      'TRANSFERRED'
-    ],
+    () => ['CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'TRANSFERRED'],
     []
   )
 
@@ -77,7 +65,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     if (!activeCard) return
     const statusFilters = new Set(selectedFilters.filter(f => !f.includes(':')))
     if (activeCard === 'total-expenses') {
-      if (!statusFilters.has('paid') && !statusFilters.has('closed')) setActiveCard(null)
+      if (!statusFilters.has('paid')) setActiveCard(null)
     } else if (activeCard === 'pending-reimbursement') {
       if (!statusFilters.has('pending')) setActiveCard(null)
     }
