@@ -707,6 +707,8 @@ header-view-only = View Only
 header-comments = Comments
 header-breadcrumb-spreadsheets = Spreadsheets
 header-submitted-at = Submitted - { $date }
+header-rename-file-title = Click to rename file
+header-rename-file-placeholder = Spreadsheet name
 
 # Version History (shared dialog)
 version-history-title = Version History
@@ -946,6 +948,7 @@ toast-no-edit-permission = You do not have permission to edit this spreadsheet
 toast-submit-success = Submitted successfully. Your task is now complete.
 toast-submit-failed = Failed to submit
 toast-checkpoint-flush-warning = Checkpoint saved, but some pending edits may not be included.
+toast-checkpoint-save-failed = Could not save checkpoint. Please try again.
 toast-analytics-no-matching-columns = No matching columns found to insert pivot result.
 toast-analytics-no-rows-inserted = No rows were inserted into the sheet.
 toast-analytics-inserted-rows = Inserted { $count } analytics { $count ->
@@ -960,6 +963,9 @@ toast-formula-applied = Applied formula to { $count } { $count ->
 }
 toast-review-comment-create-failed = Failed to create comment from review finding.
 toast-review-comment-created = Review finding added to comments.
+toast-file-name-required = File name cannot be empty.
+toast-file-rename-success = File name updated.
+toast-file-rename-failed = Failed to rename file.
 
 # Delete confirmation
 delete-confirm = Are you sure you want to delete this spreadsheet?
@@ -997,6 +1003,8 @@ excel-file-size-exceeds = File size exceeds { $maxMb }MB limit
 # Comments (shared - matches document app)
 shared-error-create-comment = Failed to create comment
 shared-error-resolve-comment = Failed to resolve comment
+shared-error-restore-version = Failed to restore version. No changes were applied.
+shared-error-restore-version-owner-only = You can only restore versions for spreadsheets you own. Ask the owner to restore this version.
 shared-comment-panel-title = Comments
 shared-comment-unresolved = unresolved
 shared-comment-unresolved-tab = Unresolved

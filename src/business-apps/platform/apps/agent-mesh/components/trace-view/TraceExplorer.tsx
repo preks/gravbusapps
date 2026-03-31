@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Input, Spinner } from '@newwork/nw-design-system'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { ExecutionTrace, ExecutionListItem } from '../../types/agentMesh'
-import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
 import { TraceDetail } from './TraceDetail'
 
 interface TraceExplorerProps {
@@ -9,7 +9,7 @@ interface TraceExplorerProps {
 }
 
 export const TraceExplorer = ({ accessToken }: TraceExplorerProps) => {
-  const client = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [executions, setExecutions] = useState<ExecutionListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTrace, setSelectedTrace] = useState<ExecutionTrace | null>(null)
@@ -25,14 +25,14 @@ export const TraceExplorer = ({ accessToken }: TraceExplorerProps) => {
       if (statusFilter) params.status = statusFilter
       if (dateRange.start) params.since = new Date(dateRange.start).toISOString()
       if (dateRange.end) params.until = new Date(dateRange.end).toISOString()
-      const data = await client.getExecutions(params)
+      const data = await promptManagerClient.getMeshExecutions(params)
       setExecutions(data)
     } catch (err) {
       console.error('Failed to load executions:', err)
     } finally {
       setLoading(false)
     }
-  }, [client, statusFilter, dateRange])
+  }, [promptManagerClient, statusFilter, dateRange])
 
   useEffect(() => {
     loadExecutions()
@@ -42,7 +42,7 @@ export const TraceExplorer = ({ accessToken }: TraceExplorerProps) => {
     if (!exec.correlation_id) return
     try {
       setLoadingTrace(true)
-      const trace = await client.getExecutionTrace(exec.correlation_id)
+      const trace = await promptManagerClient.getMeshExecutionTrace(exec.correlation_id)
       setSelectedTrace(trace)
     } catch (err) {
       console.error('Failed to load trace:', err)

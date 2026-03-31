@@ -133,6 +133,8 @@ header-view-only = Doar vizualizare
 header-comments = Comentarii
 header-breadcrumb-spreadsheets = Foi de calcul
 header-submitted-at = Trimis – { $date }
+header-rename-file-title = Click pentru a redenumi fișierul
+header-rename-file-placeholder = Nume foaie de calcul
 
 # Version History (shared dialog)
 version-history-title = Istoric versiuni
@@ -369,6 +371,10 @@ toast-export-load-failed = Foaia nu a putut fi încărcată pentru descărcare
 toast-export-download-failed = Foaia nu a putut fi descărcată
 toast-spreadsheet-not-found = Această foaie nu a putut fi găsită sau nu ai acces. Poate fi fost ștearsă sau linkul e invalid.
 toast-no-edit-permission = Nu ai permisiunea de a edita această foaie
+toast-checkpoint-save-failed = Checkpoint-ul nu a putut fi salvat. Încearcă din nou.
+toast-file-name-required = Numele fișierului nu poate fi gol.
+toast-file-rename-success = Numele fișierului a fost actualizat.
+toast-file-rename-failed = Nu s-a putut redenumi fișierul.
 
 # Delete confirmation
 delete-confirm = Sigur vrei să ștergi această foaie de calcul?
@@ -405,6 +411,8 @@ excel-file-size-exceeds = Dimensiunea fișierului depășește limita de { $maxM
 # Comments (shared - matches document app)
 shared-error-create-comment = Crearea comentariului a eșuat
 shared-error-resolve-comment = Rezolvarea comentariului a eșuat
+shared-error-restore-version = Versiunea nu a putut fi restaurată. Nu au fost aplicate modificări.
+shared-error-restore-version-owner-only = Poți restaura versiuni doar pentru foi de calcul pe care le deții. Cere proprietarului să restaureze această versiune.
 shared-comment-panel-title = Comentarii
 shared-comment-unresolved = nerezolvate
 shared-comment-all-caught-up = Totul este în regulă!
