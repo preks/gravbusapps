@@ -1,12 +1,13 @@
-import { useEffect, useCallback, useState, useRef } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { GET_PAYROLL_RUN } from '../queries/payrollQueries'
 import type { PayrollRun, PayrollRunStatus, PayrollCountry, SignOffData, AuditEvent } from '../types/payrollTypes'
+import type { CreatePayrollRunParams } from '../components/shared/CreatePayrollRunDialog'
 
-const SAVE_PROCESS_PATH = '/processes/employee/savePayrollRun'
+const SAVE_PROCESS_PATH = '/employee/savePayrollRun'
 
 function getUserDisplayName(userInfo?: UserInfoProps): string {
   if (!userInfo) return 'System'
@@ -17,13 +18,13 @@ function getUserDisplayName(userInfo?: UserInfoProps): string {
   return userInfo.userName || 'Unknown'
 }
 
-interface UsePayrollRunResult {
+export interface UsePayrollRunResult {
   payrollRun: PayrollRun | null
   loading: boolean
   error: Error | null
   saving: boolean
   auditEvents: AuditEvent[]
-  createRun: () => Promise<PayrollRun | null>
+  createRun: (params: CreatePayrollRunParams) => Promise<PayrollRun | null>
   updateStatus: (status: PayrollRunStatus) => Promise<void>
   signOff: (data: SignOffData) => Promise<void>
   recordExport: (mode: string, count: number) => void
@@ -45,19 +46,25 @@ export function usePayrollRun(
   accessToken: string,
   companyId: string | null,
   companyName: string | null,
-  month: number,
-  year: number,
   country: PayrollCountry | null,
+  activeRun: PayrollRun | null,
   userInfo?: UserInfoProps
 ): UsePayrollRunResult {
   const gqlClient = useGraphqlClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
-  const [payrollRun, setPayrollRun] = useState<PayrollRun | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [payrollRun, setPayrollRun] = useState<PayrollRun | null>(activeRun)
+  const [loading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [saving, setSaving] = useState(false)
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
-  const fetchedKeyRef = useRef<string>('')
+
+  useEffect(() => {
+    setPayrollRun(activeRun)
+    setAuditEvents([])
+    if (activeRun) {
+      setAuditEvents([createAuditEvent('payroll_run_loaded', `Loaded payroll run (${activeRun.status})`, userInfo)])
+    }
+  }, [activeRun?.id])
 
   const addAuditEvent = useCallback(
     (eventType: string, description: string) => {
@@ -68,104 +75,62 @@ export function usePayrollRun(
 
   const authHeaders = { Authorization: `Bearer ${accessToken}` }
 
-  const fetchRun = useCallback(async () => {
-    if (!accessToken || !companyId) {
-      setPayrollRun(null)
-      setLoading(false)
-      return
-    }
-
-    const key = `${year}-${month}-${companyId}`
-    if (fetchedKeyRef.current === key && payrollRun) return
-    fetchedKeyRef.current = key
-
-    setLoading(true)
-    setError(null)
-    setAuditEvents([])
-
+  const refetchRun = useCallback(async () => {
+    if (!payrollRun || !companyId) return
     try {
       const result = await gqlClient.request<{ PayrollRun: PayrollRun[] }>(GET_PAYROLL_RUN, {
-        year,
-        month,
-        legalEntityId: companyId
-      })
-      const existing = result.PayrollRun?.[0] ?? null
-      setPayrollRun(existing)
-      if (existing) {
-        addAuditEvent('payroll_run_loaded', `Loaded existing payroll run (${existing.status})`)
-      }
-    } catch (err) {
-      console.warn('[usePayrollRun] Failed to fetch payroll run:', err)
-      setPayrollRun(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, gqlClient, companyId, month, year, addAuditEvent, payrollRun])
-
-  useEffect(() => {
-    fetchedKeyRef.current = ''
-    setPayrollRun(null)
-    setAuditEvents([])
-    fetchRun()
-  }, [companyId, month, year])
-
-  const refetchAfterSave = useCallback(async () => {
-    if (!companyId) return
-    try {
-      const result = await gqlClient.request<{ PayrollRun: PayrollRun[] }>(GET_PAYROLL_RUN, {
-        year,
-        month,
+        year: payrollRun.year,
+        month: payrollRun.month,
         legalEntityId: companyId
       })
       const updated = result.PayrollRun?.[0] ?? null
       if (updated) setPayrollRun(updated)
     } catch {
-      // refetch is best-effort; the Kogito response already succeeded
+      // best-effort
     }
-  }, [gqlClient, companyId, month, year])
+  }, [gqlClient, payrollRun, companyId])
 
-  const createRun = useCallback(async (): Promise<PayrollRun | null> => {
-    if (!accessToken || !companyId) return null
-    setSaving(true)
-    setError(null)
+  const createRun = useCallback(
+    async (params: CreatePayrollRunParams): Promise<PayrollRun | null> => {
+      if (!accessToken || !companyId) return null
+      setSaving(true)
+      setError(null)
 
-    const cutOffDate = new Date(year, month - 1, 25).toISOString().split('T')[0]
-    const paymentDate = new Date(year, month, 0).toISOString().split('T')[0]
+      const payload = {
+        payrollRun: {
+          month: params.month,
+          year: params.year,
+          country: country || 'DE',
+          legalEntityId: companyId,
+          legalEntityName: companyName || '',
+          cutOffDate: new Date(params.cutOffDate + 'T00:00:00.000Z').toISOString(),
+          paymentDate: new Date(params.paymentDate + 'T00:00:00.000Z').toISOString(),
+          status: 'PAYROLL_IN_PROGRESS'
+        },
+        changeMode: 'INSERT'
+      }
 
-    const payload = {
-      payrollRun: {
-        month,
-        year,
-        country: country || 'DE',
-        legalEntityId: companyId,
-        legalEntityName: companyName || '',
-        cutOffDate,
-        paymentDate,
-        status: 'PAYROLL_IN_PROGRESS'
-      },
-      changeMode: 'INSERT'
-    }
-
-    try {
-      const response = await restClient.post<{ payrollRun: PayrollRun }>(SAVE_PROCESS_PATH, payload, {
-        headers: authHeaders
-      })
-      const created = response.payrollRun
-      setPayrollRun(created)
-      addAuditEvent(
-        'payroll_run_created',
-        `Payroll run created for ${companyName} — ${year}-${String(month).padStart(2, '0')}`
-      )
-      await refetchAfterSave()
-      return created
-    } catch (err) {
-      console.error('[usePayrollRun] Failed to create payroll run:', err)
-      setError(err instanceof Error ? err : new Error('Failed to create payroll run'))
-      return null
-    } finally {
-      setSaving(false)
-    }
-  }, [accessToken, restClient, companyId, companyName, month, year, country, addAuditEvent, refetchAfterSave])
+      try {
+        const response = await restClient.post<{ payrollRun: PayrollRun }>(SAVE_PROCESS_PATH, payload, {
+          headers: authHeaders
+        })
+        const created = response.payrollRun
+        setPayrollRun(created)
+        addAuditEvent(
+          'payroll_run_created',
+          `Payroll run created for ${companyName} — ${params.year}-${String(params.month).padStart(2, '0')}`
+        )
+        return created
+      } catch (err) {
+        console.error('[usePayrollRun] Failed to create payroll run:', err)
+        setError(err instanceof Error ? err : new Error('Failed to create payroll run'))
+        return null
+      } finally {
+        setSaving(false)
+      }
+    },
+    [accessToken, restClient, companyId, companyName, country, addAuditEvent]
+  )
 
   const updateStatus = useCallback(
     async (status: PayrollRunStatus) => {
@@ -185,7 +150,7 @@ export function usePayrollRun(
       try {
         await restClient.post(SAVE_PROCESS_PATH, payload, { headers: authHeaders })
         addAuditEvent('status_changed', `Status changed to ${status}`)
-        await refetchAfterSave()
+        await refetchRun()
       } catch (err) {
         console.error('[usePayrollRun] Failed to update status:', err)
         setError(err instanceof Error ? err : new Error('Failed to update payroll run status'))
@@ -193,7 +158,7 @@ export function usePayrollRun(
         setSaving(false)
       }
     },
-    [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchAfterSave]
+    [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchRun]
   )
 
   const signOff = useCallback(
@@ -237,7 +202,7 @@ export function usePayrollRun(
           'signoff_completed',
           `Sign-off by ${data.reviewedBy || data.preparedBy}: ${data.approvalDecision || 'prepared'}`
         )
-        await refetchAfterSave()
+        await refetchRun()
       } catch (err) {
         console.error('[usePayrollRun] Failed to sign off:', err)
         setError(err instanceof Error ? err : new Error('Failed to complete sign-off'))
@@ -245,7 +210,7 @@ export function usePayrollRun(
         setSaving(false)
       }
     },
-    [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchAfterSave]
+    [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchRun]
   )
 
   const recordExport = useCallback(
@@ -254,11 +219,6 @@ export function usePayrollRun(
     },
     [addAuditEvent]
   )
-
-  const refetch = useCallback(async () => {
-    fetchedKeyRef.current = ''
-    await fetchRun()
-  }, [fetchRun])
 
   return {
     payrollRun,
@@ -270,6 +230,6 @@ export function usePayrollRun(
     updateStatus,
     signOff,
     recordExport,
-    refetch
+    refetch: refetchRun
   }
 }

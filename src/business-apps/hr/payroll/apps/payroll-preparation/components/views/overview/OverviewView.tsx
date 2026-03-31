@@ -1,5 +1,15 @@
 import React, { useMemo } from 'react'
-import { Badge, Card } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Button,
+  Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead
+} from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
   WarningIcon,
@@ -8,15 +18,21 @@ import {
   UsersIcon,
   ArrowsClockwiseIcon,
   ShieldWarningIcon,
-  WarningCircleIcon
+  WarningCircleIcon,
+  PlusIcon,
+  FolderOpenIcon
 } from '@phosphor-icons/react'
 import type { PayrollSummary, PayrollRun, PayrollEmployee } from '../../../types/payrollTypes'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
 interface OverviewViewProps {
+  activeRun: PayrollRun | null
+  runs: PayrollRun[]
+  runsLoading: boolean
   summary: PayrollSummary
   employees: PayrollEmployee[]
-  payrollRun: PayrollRun | null
+  onSelectRun: (run: PayrollRun) => void
+  onCreateRun: () => void
   t: (key: string) => string
 }
 
@@ -44,7 +60,98 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
   </Card>
 )
 
-export const OverviewView: React.FC<OverviewViewProps> = ({ summary, employees, payrollRun, t }) => {
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString()
+}
+
+function RunsListView({
+  runs,
+  runsLoading,
+  onSelectRun,
+  onCreateRun,
+  t
+}: {
+  runs: PayrollRun[]
+  runsLoading: boolean
+  onSelectRun: (run: PayrollRun) => void
+  onCreateRun: () => void
+  t: (key: string) => string
+}) {
+  return (
+    <div className="gba:space-y-6">
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <div>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('runs-title')}</h3>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('runs-description')}</p>
+        </div>
+        <Button onClick={onCreateRun}>
+          <PlusIcon size={16} className="gba:mr-2" />
+          {t('runs-new-button')}
+        </Button>
+      </div>
+
+      {runsLoading ? (
+        <Card className="gba:p-12 gba:text-center gba:text-muted-foreground">{t('loading')}</Card>
+      ) : runs.length === 0 ? (
+        <Card className="gba:p-12 gba:text-center">
+          <FolderOpenIcon size={48} className="gba:mx-auto gba:text-muted-foreground/40 gba:mb-4" />
+          <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-empty')}</h3>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('runs-empty-hint')}</p>
+          <Button onClick={onCreateRun}>
+            <PlusIcon size={16} className="gba:mr-2" />
+            {t('runs-new-button')}
+          </Button>
+        </Card>
+      ) : (
+        <Card className="gba:overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="gba:whitespace-nowrap">{t('runs-col-period')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('runs-col-status')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('runs-col-cutoff')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('runs-col-payment')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('runs-col-created')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {runs.map(run => (
+                <TableRow
+                  key={run.id}
+                  className="gba:cursor-pointer gba:hover:bg-muted"
+                  onClick={() => onSelectRun(run)}
+                >
+                  <TableCell className="gba:font-medium gba:text-foreground">
+                    {t(`month-${run.month}`)} {run.year}
+                  </TableCell>
+                  <TableCell>
+                    <PayrollRunStatusBadge status={run.status} />
+                  </TableCell>
+                  <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
+                  <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
+                  <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.createdAt)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+function RunDashboardView({
+  summary,
+  employees,
+  payrollRun,
+  t
+}: {
+  summary: PayrollSummary
+  employees: PayrollEmployee[]
+  payrollRun: PayrollRun
+  t: (key: string) => string
+}) {
   const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
 
   return (
@@ -75,19 +182,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ summary, employees, 
         </Card>
       )}
 
-      {payrollRun && (
-        <Card className="gba:p-6">
-          <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
-            <div>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{payrollRun.legalEntityName}</h3>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {payrollRun.year}-{String(payrollRun.month).padStart(2, '0')} &middot; {payrollRun.country}
-              </p>
-            </div>
-            <PayrollRunStatusBadge status={payrollRun.status} />
+      <Card className="gba:p-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
+          <div>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{payrollRun.legalEntityName}</h3>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {t(`month-${payrollRun.month}`)} {payrollRun.year} &middot; {payrollRun.country}
+            </p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+              {t('runs-col-cutoff')}: {formatDate(payrollRun.cutOffDate)} &middot; {t('runs-col-payment')}:{' '}
+              {formatDate(payrollRun.paymentDate)}
+            </p>
           </div>
-        </Card>
-      )}
+          <PayrollRunStatusBadge status={payrollRun.status} />
+        </div>
+      </Card>
 
       <div className="gba:grid gba:grid-cols-4 gba:gap-4">
         <KpiCard
@@ -184,5 +293,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ summary, employees, 
         </Card>
       )}
     </div>
+  )
+}
+
+export const OverviewView: React.FC<OverviewViewProps> = ({
+  activeRun,
+  runs,
+  runsLoading,
+  summary,
+  employees,
+  onSelectRun,
+  onCreateRun,
+  t
+}) => {
+  if (activeRun) {
+    return <RunDashboardView summary={summary} employees={employees} payrollRun={activeRun} t={t} />
+  }
+
+  return (
+    <RunsListView runs={runs} runsLoading={runsLoading} onSelectRun={onSelectRun} onCreateRun={onCreateRun} t={t} />
   )
 }

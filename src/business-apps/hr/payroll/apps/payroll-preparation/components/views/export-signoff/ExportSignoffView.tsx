@@ -74,9 +74,29 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     return getExportableEmployees(sourceEmployees, opts).length
   }, [sourceEmployees, exportMode, applyGridFilters])
 
-  const handleExport = async () => {
-    if (!payrollRun) return
+  const fallbackRun: PayrollRun = useMemo(
+    () => ({
+      id: 'draft',
+      month: 0,
+      year: 0,
+      country: 'DE',
+      legalEntityId: '',
+      legalEntityName: '',
+      cutOffDate: '',
+      paymentDate: '',
+      status: 'PAYROLL_IN_PROGRESS' as PayrollRunStatus,
+      version: 0,
+      isDeleted: false,
+      createdBy: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }),
+    []
+  )
 
+  const effectiveRun = payrollRun || fallbackRun
+
+  const handleExport = async () => {
     const options: ExportOptions = {
       mode: exportMode,
       includeIssueSummary: includeIssues,
@@ -86,18 +106,20 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 
     setExporting(true)
     try {
-      const baseFilename = `payroll_${payrollRun.country}_${payrollRun.year}-${String(payrollRun.month).padStart(2, '0')}_${payrollRun.legalEntityName.replace(/\s+/g, '_')}`
+      const baseFilename = `payroll_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}_${(effectiveRun.legalEntityName || 'export').replace(/\s+/g, '_')}`
 
       if (exportFormat === 'xlsx') {
-        const blob = await generatePayrollXLSX(sourceEmployees, payrollRun, options)
+        const blob = await generatePayrollXLSX(sourceEmployees, effectiveRun, options)
         downloadBlob(blob, `${baseFilename}.xlsx`)
       } else {
-        const csv = generatePayrollCSV(sourceEmployees, payrollRun, options)
+        const csv = generatePayrollCSV(sourceEmployees, effectiveRun, options)
         downloadCSV(csv, `${baseFilename}.csv`)
       }
 
       recordExport(options.mode, exportCount)
-      await updateStatus('PAYROLL_EXPORTED')
+      if (payrollRun) {
+        await updateStatus('PAYROLL_EXPORTED')
+      }
       setExportSuccess(true)
       setTimeout(() => setExportSuccess(false), 3000)
     } finally {
@@ -106,10 +128,8 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   }
 
   const handleExportExceptions = () => {
-    if (!payrollRun) return
-
     const csv = generateExceptionsCSV(sourceEmployees)
-    const filename = `payroll_exceptions_${payrollRun.country}_${payrollRun.year}-${String(payrollRun.month).padStart(2, '0')}.csv`
+    const filename = `payroll_exceptions_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}.csv`
     downloadCSV(csv, filename)
   }
 
@@ -207,7 +227,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             </div>
 
             <div className="gba:flex gba:gap-3">
-              <Button onClick={handleExport} disabled={!payrollRun || exportCount === 0 || exporting}>
+              <Button onClick={handleExport} disabled={exportCount === 0 || exporting}>
                 <ExportIcon size={16} className="gba:mr-2" />
                 {t('export-button')} ({exportCount})
               </Button>

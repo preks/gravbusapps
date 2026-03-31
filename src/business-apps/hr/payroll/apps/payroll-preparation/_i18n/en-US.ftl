@@ -58,7 +58,31 @@ label-severity = Severity:
 label-category = Category:
 select-company = Select Company
 select-month = Select Month
-no-company-selected = Please select a company and month to begin payroll preparation.
+no-company-selected = Please select a company to view and manage payroll runs.
+
+runs-title = Payroll Runs
+runs-description = View existing payroll runs or create a new one
+runs-new-button = New Payroll Run
+runs-empty = No payroll runs yet
+runs-empty-hint = Create your first payroll run for this company to get started.
+runs-col-period = Period
+runs-col-status = Status
+runs-col-cutoff = Cut-off Date
+runs-col-payment = Payment Date
+runs-col-created = Created
+
+create-run-title = New Payroll Run
+create-run-description = Set the period and key dates for this payroll run
+create-run-month = Month
+create-run-year = Year
+create-run-cutoff = Cut-off Date
+create-run-payment = Payment Date
+create-run-submit = Create Run
+create-run-cancel = Cancel
+create-run-duplicate-error = A payroll run already exists for this period.
+
+back-to-runs = Back to Runs
+runs-select-hint = Select a payroll run from the Overview tab to get started.
 
 grid-employee = Employee
 grid-employee-id = ID

@@ -8,6 +8,44 @@
  * PayrollRun writes go through the Kogito REST process (savePayrollRun).
  */
 
+const PAYROLL_RUN_FIELDS = `
+  id
+  month
+  year
+  country
+  legalEntityId
+  legalEntityName
+  cutOffDate
+  paymentDate
+  status
+  createdBy
+  createdAt
+  preparedBy
+  preparedAt
+  reviewedBy
+  reviewedAt
+  reviewComment
+  approvalDecision
+  updatedAt
+  updatedBy
+  version
+  isDeleted
+`
+
+export const GET_PAYROLL_RUNS_BY_COMPANY = `
+  query GetPayrollRunsByCompany($legalEntityId: uuid!) {
+    PayrollRun(
+      where: {
+        legalEntityId: { _eq: $legalEntityId }
+        isDeleted: { _eq: false }
+      }
+      orderBy: [{ year: DESC }, { month: DESC }]
+    ) {
+      ${PAYROLL_RUN_FIELDS}
+    }
+  }
+`
+
 export const GET_PAYROLL_RUN = `
   query GetPayrollRun($year: Int!, $month: Int!, $legalEntityId: uuid!) {
     PayrollRun(
@@ -19,27 +57,7 @@ export const GET_PAYROLL_RUN = `
       }
       limit: 1
     ) {
-      id
-      month
-      year
-      country
-      legalEntityId
-      legalEntityName
-      cutOffDate
-      paymentDate
-      status
-      createdBy
-      createdAt
-      preparedBy
-      preparedAt
-      reviewedBy
-      reviewedAt
-      reviewComment
-      approvalDecision
-      updatedAt
-      updatedBy
-      version
-      isDeleted
+      ${PAYROLL_RUN_FIELDS}
     }
   }
 `

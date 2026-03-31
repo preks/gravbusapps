@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Button, PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   HouseLineIcon,
   TableIcon,
   WarningCircleIcon,
   ArrowsClockwiseIcon,
   FlagIcon,
-  ExportIcon
+  ExportIcon,
+  ArrowLeftIcon
 } from '@phosphor-icons/react'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -18,10 +19,13 @@ import {
   useFilteredEmployees
 } from './hooks/usePayrollEmployees'
 import type { PayrollCompany } from './hooks/usePayrollEmployees'
-import type { PayrollGridFilters as FilterState } from './types/payrollTypes'
+import type { PayrollGridFilters as FilterState, PayrollRun } from './types/payrollTypes'
 import { usePayrollRunStore } from './hooks/usePayrollRunStore'
 import { usePayrollRun } from './hooks/usePayrollRun'
+import { usePayrollRuns } from './hooks/usePayrollRuns'
 import { PayrollRunSelector } from './components/shared/PayrollRunSelector'
+import { CreatePayrollRunDialog } from './components/shared/CreatePayrollRunDialog'
+import type { CreatePayrollRunParams } from './components/shared/CreatePayrollRunDialog'
 import { OverviewView } from './components/views/overview/OverviewView'
 import { PayrollGridView } from './components/views/payroll-grid/PayrollGrid'
 import { ExceptionsView } from './components/views/exceptions/ExceptionsView'
@@ -38,36 +42,57 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
   const { accessToken, userInfo } = context
   const { t } = useTranslation(translations)
 
-  const { selectedCompanyId, selectedCompanyName, selectedMonth, selectedYear, detectedCountry, setDetectedCountry } =
+  const { selectedCompanyId, selectedCompanyName, detectedCountry, activeRun, setDetectedCountry, setActiveRun } =
     usePayrollRunStore()
 
   const { companies, loading: companiesLoading } = useCompanyList(accessToken)
+  const { runs, loading: runsLoading, refetch: refetchRuns } = usePayrollRuns(accessToken, selectedCompanyId)
+
+  const activeMonth = activeRun?.month ?? 0
+  const activeYear = activeRun?.year ?? 0
+
   const {
     employees,
     loading,
     error,
     refetch: refetchEmployees
-  } = usePayrollEmployees(accessToken, selectedCompanyId, selectedMonth, selectedYear, detectedCountry)
+  } = usePayrollEmployees(accessToken, activeRun ? selectedCompanyId : null, activeMonth, activeYear, detectedCountry)
   const summary = usePayrollSummary(employees)
 
   const {
     payrollRun,
-    loading: runLoading,
     saving: runSaving,
     auditEvents,
     createRun,
     updateStatus,
     signOff,
     recordExport
-  } = usePayrollRun(
-    accessToken,
-    selectedCompanyId,
-    selectedCompanyName,
-    selectedMonth,
-    selectedYear,
-    detectedCountry,
-    userInfo
+  } = usePayrollRun(accessToken, selectedCompanyId, selectedCompanyName, detectedCountry, activeRun, userInfo)
+
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+
+  const handleCreateRun = useCallback(
+    async (params: CreatePayrollRunParams) => {
+      const created = await createRun(params)
+      if (created) {
+        setActiveRun(created)
+        await refetchRuns()
+      }
+    },
+    [createRun, setActiveRun, refetchRuns]
   )
+
+  const handleSelectRun = useCallback(
+    (run: PayrollRun) => {
+      setActiveRun(run)
+    },
+    [setActiveRun]
+  )
+
+  const handleBackToRuns = useCallback(() => {
+    setActiveRun(null)
+    setActiveTab('overview')
+  }, [setActiveRun])
 
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = useCallback(async () => {
@@ -105,12 +130,6 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     },
     [setDetectedCountry]
   )
-
-  useEffect(() => {
-    if (selectedCompanyId && employees.length > 0 && !payrollRun && !runLoading) {
-      createRun()
-    }
-  }, [selectedCompanyId, employees.length, payrollRun, runLoading, createRun])
 
   const getInitialView = (): ViewKey => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -213,6 +232,31 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
       )
     }
 
+    if (activeTab === 'overview') {
+      return (
+        <OverviewView
+          activeRun={activeRun}
+          runs={runs}
+          runsLoading={runsLoading}
+          summary={summary}
+          employees={employees}
+          onSelectRun={handleSelectRun}
+          onCreateRun={() => setCreateDialogOpen(true)}
+          t={t}
+        />
+      )
+    }
+
+    if (!activeRun) {
+      return (
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-24 gba:text-muted-foreground">
+          <TableIcon size={64} className="gba:mb-4 gba:text-muted-foreground/30" />
+          <p className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-title')}</p>
+          <p className="gba:text-sm">{t('runs-select-hint')}</p>
+        </div>
+      )
+    }
+
     if (loading) {
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:py-24">
@@ -231,8 +275,6 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     }
 
     switch (activeTab) {
-      case 'overview':
-        return <OverviewView summary={summary} employees={employees} payrollRun={payrollRun} t={t} />
       case 'grid':
         return (
           <PayrollGridView
@@ -293,17 +335,39 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
         variant={moduleColor}
         className="gba:min-h-screen"
       >
-        <div className="gba:mb-6">
-          <PayrollRunSelector
-            companies={companies}
-            companiesLoading={companiesLoading}
-            onCompanyChange={handleCompanyChange}
-            t={t}
-          />
+        <div className="gba:mb-6 gba:flex gba:items-center gba:justify-between gba:gap-4">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            {activeRun && (
+              <Button variant="outline" size="sm" onClick={handleBackToRuns}>
+                <ArrowLeftIcon size={16} className="gba:mr-1" />
+                {t('back-to-runs')}
+              </Button>
+            )}
+            <PayrollRunSelector
+              companies={companies}
+              companiesLoading={companiesLoading}
+              onCompanyChange={handleCompanyChange}
+              t={t}
+            />
+          </div>
+          {activeRun && (
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {t(`month-${activeRun.month}`)} {activeRun.year}
+            </div>
+          )}
         </div>
 
         <div className="gba:h-full gba:overflow-auto">{renderContent()}</div>
       </PageLayout>
+
+      <CreatePayrollRunDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        existingRuns={runs}
+        saving={runSaving}
+        onSubmit={handleCreateRun}
+        t={t}
+      />
     </div>
   )
 }
