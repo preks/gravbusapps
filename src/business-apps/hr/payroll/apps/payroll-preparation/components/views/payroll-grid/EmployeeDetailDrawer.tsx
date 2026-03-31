@@ -104,10 +104,13 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
         </Section>
 
         <Section title={t('employee-detail-time')}>
-          <Field label={t('grid-paid-leave')} value={`${employee.paidLeaveDays} days`} />
-          <Field label={t('grid-sick-leave')} value={`${employee.sickLeaveDays} days`} />
+          <Field label={t('grid-paid-leave')} value={`${employee.paidLeaveHours}h (${employee.paidLeaveDays}d)`} />
+          <Field label={t('grid-sick-leave')} value={`${employee.sickLeaveHours}h (${employee.sickLeaveDays}d)`} />
           <Field label={t('grid-unpaid-leave')} value={`${employee.unpaidLeaveDays} days`} />
           <Field label={t('grid-other-leave')} value={`${employee.otherLeaveDays} days`} />
+          {employee.missingPresenceDays > 0 && (
+            <Field label={t('grid-missing-presence')} value={`${employee.missingPresenceDays} day(s)`} />
+          )}
           {employee.loggedHours != null && <Field label={t('grid-logged-hours')} value={`${employee.loggedHours}h`} />}
           {employee.contractCapacityHours != null && (
             <Field label={t('grid-capacity')} value={`${employee.contractCapacityHours}h`} />

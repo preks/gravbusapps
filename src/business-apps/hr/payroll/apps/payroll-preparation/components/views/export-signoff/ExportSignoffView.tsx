@@ -1,7 +1,13 @@
 import React, { useState, useMemo } from 'react'
 import { Card, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { ExportIcon, CheckCircleIcon, ClockIcon, FunnelIcon } from '@phosphor-icons/react'
-import type { UserInfoProps } from '@/common/BusinessAppContext'
+import {
+  ExportIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FunnelIcon,
+  XCircleIcon,
+  ArrowClockwiseIcon
+} from '@phosphor-icons/react'
 import type {
   PayrollEmployee,
   PayrollRun,
@@ -9,7 +15,7 @@ import type {
   ExportOptions,
   AuditEvent,
   PayrollSummary,
-  SignOffData
+  ApprovalDecision
 } from '../../../types/payrollTypes'
 import {
   generatePayrollCSV,
@@ -21,13 +27,22 @@ import {
 } from '../../../utils/exportUtils'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
-function getUserDisplayName(userInfo?: UserInfoProps): string {
-  if (!userInfo) return 'Unknown'
-  const emp = userInfo.employeeDetails
-  if (emp?.displayName) return emp.displayName
-  if (emp?.firstName && emp?.lastName) return `${emp.firstName} ${emp.lastName}`
-  if (userInfo.givenName && userInfo.familyName) return `${userInfo.givenName} ${userInfo.familyName}`
-  return userInfo.userName || 'Unknown'
+const STATUS_ORDER: PayrollRunStatus[] = [
+  'PAYROLL_IN_PROGRESS',
+  'PAYROLL_READY_FOR_REVIEW',
+  'PAYROLL_APPROVED_FOR_EXPORT',
+  'PAYROLL_EXPORTED',
+  'PAYROLL_CLOSED'
+]
+
+function getStepIndex(status: PayrollRunStatus): number {
+  const idx = STATUS_ORDER.indexOf(status)
+  return idx >= 0 ? idx : 0
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  return new Date(iso).toLocaleString()
 }
 
 interface ExportSignoffViewProps {
@@ -37,12 +52,18 @@ interface ExportSignoffViewProps {
   payrollRun: PayrollRun | null
   summary: PayrollSummary
   auditEvents: AuditEvent[]
-  userInfo?: UserInfoProps
   updateStatus: (status: PayrollRunStatus) => Promise<void>
-  signOff: (data: SignOffData) => Promise<void>
+  markReadyForReview: () => Promise<void>
+  submitReview: (decision: ApprovalDecision, comment: string) => Promise<void>
   recordExport: (mode: string, count: number) => void
   saving: boolean
-  t: (key: string) => string
+  t: (key: string, args?: Record<string, string | number>) => string
+}
+
+interface StepDef {
+  number: number
+  label: string
+  state: 'completed' | 'active' | 'pending'
 }
 
 export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
@@ -52,20 +73,47 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   payrollRun,
   summary,
   auditEvents,
-  userInfo,
   updateStatus,
-  signOff,
+  markReadyForReview,
+  submitReview,
   recordExport,
   saving,
   t
 }) => {
+  const [reviewComment, setReviewComment] = useState('')
+  const [commentError, setCommentError] = useState(false)
+
   const [exportMode, setExportMode] = useState<ExportOptions['mode']>('ready_only')
   const [includeIssues, setIncludeIssues] = useState(false)
   const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv')
   const [applyGridFilters, setApplyGridFilters] = useState(false)
   const [exportSuccess, setExportSuccess] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [reviewComment, setReviewComment] = useState('')
+
+  const currentStatus = payrollRun?.status || 'PAYROLL_IN_PROGRESS'
+  const currentStep = getStepIndex(currentStatus)
+
+  const steps: StepDef[] = useMemo(
+    () => [
+      {
+        number: 1,
+        label: t('step-1-label'),
+        state: currentStep > 0 ? 'completed' : currentStep === 0 ? 'active' : 'pending'
+      },
+      {
+        number: 2,
+        label: t('step-2-label'),
+        state: currentStep > 1 ? 'completed' : currentStep === 1 ? 'active' : 'pending'
+      },
+      {
+        number: 3,
+        label: t('step-3-label'),
+        state: currentStep > 2 ? 'completed' : currentStep === 2 ? 'active' : 'pending'
+      },
+      { number: 4, label: t('step-4-label'), state: currentStep >= 3 ? 'completed' : 'pending' }
+    ],
+    [currentStep, t]
+  )
 
   const sourceEmployees = applyGridFilters ? filteredEmployees : employees
 
@@ -95,6 +143,31 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   )
 
   const effectiveRun = payrollRun || fallbackRun
+
+  const handleMarkReady = async () => {
+    await markReadyForReview()
+  }
+
+  const handleApprove = async () => {
+    if (!reviewComment.trim()) {
+      setCommentError(true)
+      return
+    }
+    setCommentError(false)
+    await submitReview('APPROVED', reviewComment.trim())
+    setReviewComment('')
+  }
+
+  const handleReject = async () => {
+    if (!reviewComment.trim()) {
+      setCommentError(true)
+      return
+    }
+    setCommentError(false)
+    if (!window.confirm(t('step-2-reject-confirm'))) return
+    await submitReview('NOT APPROVED', reviewComment.trim())
+    setReviewComment('')
+  }
 
   const handleExport = async () => {
     const options: ExportOptions = {
@@ -133,212 +206,403 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     downloadCSV(csv, filename)
   }
 
-  const displayName = getUserDisplayName(userInfo)
-
-  const handleApprove = async () => {
-    if (!payrollRun) return
-    await signOff({
-      preparedBy: displayName,
-      preparedAt: new Date().toISOString(),
-      reviewedBy: displayName,
-      reviewedAt: new Date().toISOString(),
-      approvalDecision: 'approved',
-      comments: reviewComment
-    })
-  }
-
-  const handleMarkReady = async () => {
-    await updateStatus('PAYROLL_READY_FOR_REVIEW')
-  }
-
-  return (
-    <div className="gba:space-y-6">
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <Card className="gba:p-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-            <ExportIcon size={20} className="gba:inline gba:mr-2" />
-            {t('export-title')}
-          </h3>
-
-          <div className="gba:space-y-4">
-            <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-              <div>
-                <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                  {t('export-mode-label')}
-                </label>
-                <Select value={exportMode} onValueChange={(val: string) => setExportMode(val as ExportOptions['mode'])}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ready_only">{t('export-mode-ready')}</SelectItem>
-                    <SelectItem value="ready_and_warning">{t('export-mode-ready-warning')}</SelectItem>
-                    <SelectItem value="all">{t('export-mode-all')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                  {t('export-format-label')}
-                </label>
-                <Select value={exportFormat} onValueChange={(val: string) => setExportFormat(val as 'csv' | 'xlsx')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="csv">{t('export-format-csv')}</SelectItem>
-                    <SelectItem value="xlsx">{t('export-format-xlsx')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+  const renderStepIndicator = () => (
+    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-8">
+      {steps.map((step, idx) => (
+        <React.Fragment key={step.number}>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div
+              className={`gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-sm gba:font-semibold gba:flex-shrink-0 ${
+                step.state === 'completed'
+                  ? 'gba:bg-success gba:text-success-foreground'
+                  : step.state === 'active'
+                    ? 'gba:bg-primary gba:text-primary-foreground'
+                    : 'gba:bg-muted gba:text-muted-foreground'
+              }`}
+            >
+              {step.state === 'completed' ? <CheckCircleIcon size={16} weight="bold" /> : step.number}
             </div>
+            <span
+              className={`gba:text-sm gba:whitespace-nowrap ${
+                step.state === 'active' ? 'gba:font-semibold gba:text-foreground' : 'gba:text-muted-foreground'
+              }`}
+            >
+              {step.label}
+            </span>
+          </div>
+          {idx < steps.length - 1 && (
+            <div
+              className={`gba:flex-1 gba:h-px gba:min-w-[24px] ${
+                steps[idx + 1].state !== 'pending' ? 'gba:bg-success' : 'gba:bg-border'
+              }`}
+            />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  )
 
-            <div className="gba:space-y-2">
-              <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeIssues}
-                  onChange={e => setIncludeIssues(e.target.checked)}
-                  className="gba:rounded gba:border-border"
-                />
-                {t('export-include-issues')}
-              </label>
+  const renderStep1 = () => {
+    const isActive = currentStatus === 'PAYROLL_IN_PROGRESS'
+    const isCompleted = currentStep > 0
 
-              <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={applyGridFilters}
-                  onChange={e => setApplyGridFilters(e.target.checked)}
-                  className="gba:rounded gba:border-border"
-                />
-                <span
-                  className={gridFiltersActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'}
-                >
-                  {t('export-apply-grid-filters')}
-                </span>
-                {gridFiltersActive && <FunnelIcon size={14} weight="fill" className="gba:text-primary" />}
+    return (
+      <Card className={`gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`}>
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-1-label')}</h3>
+          {isCompleted && (
+            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
+              <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
+            </span>
+          )}
+          {isActive && <PayrollRunStatusBadge status={currentStatus} />}
+        </div>
+
+        {isActive && (
+          <>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('step-1-description')}</p>
+            <Button onClick={handleMarkReady} disabled={saving || summary.blockedCount > 0}>
+              {t('signoff-mark-ready')}
+            </Button>
+            {summary.blockedCount > 0 && (
+              <p className="gba:text-xs gba:text-destructive gba:mt-2">
+                {t('signoff-blocked-warning', { count: summary.blockedCount })}
+              </p>
+            )}
+          </>
+        )}
+
+        {isCompleted && payrollRun?.preparedBy && (
+          <div className="gba:text-sm gba:text-muted-foreground gba:space-y-1">
+            <div className="gba:flex gba:gap-2">
+              <span className="gba:font-medium gba:text-foreground">{t('signoff-prepared-by')}:</span>
+              <span>{payrollRun.preparedBy}</span>
+            </div>
+            <div className="gba:flex gba:gap-2">
+              <span className="gba:font-medium gba:text-foreground">{t('signoff-prepared-at')}:</span>
+              <span>{formatDate(payrollRun.preparedAt)}</span>
+            </div>
+          </div>
+        )}
+      </Card>
+    )
+  }
+
+  const renderStep2 = () => {
+    const isActive = currentStatus === 'PAYROLL_READY_FOR_REVIEW'
+    const isCompleted = currentStep > 1
+
+    return (
+      <Card className={`gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`}>
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-2-label')}</h3>
+          {isCompleted && payrollRun?.approvalDecision === 'APPROVED' && (
+            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
+              <CheckCircleIcon size={14} weight="fill" /> {t('signoff-decision-approved')}
+            </span>
+          )}
+          {isCompleted && payrollRun?.approvalDecision === 'NOT APPROVED' && (
+            <span className="gba:text-xs gba:font-medium gba:text-destructive gba:flex gba:items-center gba:gap-1">
+              <XCircleIcon size={14} weight="fill" /> {t('signoff-decision-not-approved')}
+            </span>
+          )}
+          {isActive && <PayrollRunStatusBadge status={currentStatus} />}
+        </div>
+
+        {(isActive || isCompleted) && payrollRun?.preparedBy && (
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-4 gba:bg-muted gba:rounded-md gba:p-3">
+            {t('step-2-prepared-info', {
+              name: payrollRun.preparedBy,
+              date: formatDate(payrollRun.preparedAt)
+            })}
+          </div>
+        )}
+
+        {isActive && (
+          <>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('step-2-description')}</p>
+            <div className="gba:mb-4">
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                {t('signoff-comments')} <span className="gba:text-destructive">*</span>
               </label>
-              {applyGridFilters && gridFiltersActive && (
-                <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
-                  {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
-                </p>
+              <textarea
+                value={reviewComment}
+                onChange={e => {
+                  setReviewComment(e.target.value)
+                  if (e.target.value.trim()) setCommentError(false)
+                }}
+                className={`gba:w-full gba:border gba:rounded-md gba:p-2 gba:text-sm gba:min-h-[80px] gba:resize-y gba:bg-background ${
+                  commentError ? 'gba:border-destructive' : 'gba:border-border'
+                }`}
+                placeholder={t('signoff-comments-placeholder')}
+              />
+              {commentError && (
+                <p className="gba:text-xs gba:text-destructive gba:mt-1">{t('step-2-comment-required')}</p>
               )}
             </div>
-
             <div className="gba:flex gba:gap-3">
-              <Button onClick={handleExport} disabled={exportCount === 0 || exporting}>
-                <ExportIcon size={16} className="gba:mr-2" />
-                {t('export-button')} ({exportCount})
+              <Button onClick={handleApprove} disabled={saving}>
+                <CheckCircleIcon size={16} weight="fill" className="gba:mr-2" />
+                {t('signoff-approve')}
               </Button>
-              <Button variant="outline" onClick={handleExportExceptions}>
-                {t('export-exceptions-button')}
+              <Button variant="outline" onClick={handleReject} disabled={saving}>
+                <ArrowClockwiseIcon size={16} className="gba:mr-2" />
+                {t('signoff-reject')}
               </Button>
             </div>
+          </>
+        )}
 
-            {exportSuccess && (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                <CheckCircleIcon size={16} weight="fill" className="gba:text-success" />
-                {t('export-success')}
+        {isCompleted && payrollRun?.reviewedBy && (
+          <div className="gba:text-sm gba:text-muted-foreground gba:space-y-1">
+            <div className="gba:flex gba:gap-2">
+              <span className="gba:font-medium gba:text-foreground">{t('signoff-reviewed-by')}:</span>
+              <span>{payrollRun.reviewedBy}</span>
+            </div>
+            <div className="gba:flex gba:gap-2">
+              <span className="gba:font-medium gba:text-foreground">{t('signoff-reviewed-at')}:</span>
+              <span>{formatDate(payrollRun.reviewedAt)}</span>
+            </div>
+            {payrollRun.reviewComment && (
+              <div className="gba:flex gba:gap-2">
+                <span className="gba:font-medium gba:text-foreground">{t('step-3-review-comment')}:</span>
+                <span className="gba:italic">&ldquo;{payrollRun.reviewComment}&rdquo;</span>
               </div>
             )}
           </div>
-        </Card>
+        )}
+      </Card>
+    )
+  }
 
-        <Card className="gba:p-6">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">{t('signoff-title')}</h3>
+  const renderStep3 = () => {
+    const isActive = currentStatus === 'PAYROLL_APPROVED_FOR_EXPORT'
+    const isCompleted = currentStep > 2
 
-          <div className="gba:space-y-4">
+    return (
+      <Card className={`gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`}>
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
+            <ExportIcon size={20} className="gba:inline gba:mr-2" />
+            {t('step-3-label')}
+          </h3>
+          {isCompleted && (
+            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
+              <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
+            </span>
+          )}
+          {isActive && <PayrollRunStatusBadge status={currentStatus} />}
+        </div>
+
+        {(isActive || isCompleted) && payrollRun?.reviewedBy && (
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-4 gba:bg-muted gba:rounded-md gba:p-3">
+            <p>
+              {t('step-3-review-info', {
+                decision: payrollRun.approvalDecision || '',
+                name: payrollRun.reviewedBy,
+                date: formatDate(payrollRun.reviewedAt)
+              })}
+            </p>
+            {payrollRun.reviewComment && (
+              <p className="gba:mt-1 gba:italic">&ldquo;{payrollRun.reviewComment}&rdquo;</p>
+            )}
+          </div>
+        )}
+
+        {isActive && (
+          <>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('step-3-description')}</p>
+
+            <div className="gba:space-y-4">
+              <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                <div>
+                  <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                    {t('export-mode-label')}
+                  </label>
+                  <Select
+                    value={exportMode}
+                    onValueChange={(val: string) => setExportMode(val as ExportOptions['mode'])}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ready_only">{t('export-mode-ready')}</SelectItem>
+                      <SelectItem value="ready_and_warning">{t('export-mode-ready-warning')}</SelectItem>
+                      <SelectItem value="all">{t('export-mode-all')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+                    {t('export-format-label')}
+                  </label>
+                  <Select value={exportFormat} onValueChange={(val: string) => setExportFormat(val as 'csv' | 'xlsx')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="csv">{t('export-format-csv')}</SelectItem>
+                      <SelectItem value="xlsx">{t('export-format-xlsx')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="gba:space-y-2">
+                <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeIssues}
+                    onChange={e => setIncludeIssues(e.target.checked)}
+                    className="gba:rounded gba:border-border"
+                  />
+                  {t('export-include-issues')}
+                </label>
+
+                <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyGridFilters}
+                    onChange={e => setApplyGridFilters(e.target.checked)}
+                    className="gba:rounded gba:border-border"
+                  />
+                  <span
+                    className={gridFiltersActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'}
+                  >
+                    {t('export-apply-grid-filters')}
+                  </span>
+                  {gridFiltersActive && <FunnelIcon size={14} weight="fill" className="gba:text-primary" />}
+                </label>
+                {applyGridFilters && gridFiltersActive && (
+                  <p className="gba:text-xs gba:text-muted-foreground gba:ml-6">
+                    {t('export-grid-filters-active', { count: filteredEmployees.length, total: employees.length })}
+                  </p>
+                )}
+              </div>
+
+              <div className="gba:flex gba:gap-3">
+                <Button onClick={handleExport} disabled={exportCount === 0 || exporting}>
+                  <ExportIcon size={16} className="gba:mr-2" />
+                  {t('export-button')} ({exportCount})
+                </Button>
+                <Button variant="outline" onClick={handleExportExceptions}>
+                  {t('export-exceptions-button')}
+                </Button>
+              </div>
+
+              {exportSuccess && (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
+                  <CheckCircleIcon size={16} weight="fill" className="gba:text-success" />
+                  {t('export-success')}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {isCompleted && <p className="gba:text-sm gba:text-muted-foreground">{t('export-success')}</p>}
+      </Card>
+    )
+  }
+
+  const renderStep4 = () => {
+    const isCompleted = currentStep >= 3
+
+    return (
+      <Card className={`gba:p-6 ${!isCompleted ? 'gba:opacity-50' : ''}`}>
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-4-label')}</h3>
+          {isCompleted && (
+            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
+              <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
+            </span>
+          )}
+        </div>
+
+        {isCompleted ? (
+          <div className="gba:space-y-3">
+            <p className="gba:text-sm gba:text-muted-foreground">{t('step-4-description')}</p>
             {payrollRun && (
-              <div className="gba:space-y-2 gba:text-sm">
+              <div className="gba:bg-muted gba:rounded-md gba:p-4 gba:text-sm gba:space-y-2">
                 <div className="gba:flex gba:justify-between">
                   <span className="gba:text-muted-foreground">{t('signoff-status')}</span>
                   <PayrollRunStatusBadge status={payrollRun.status} />
                 </div>
-                <div className="gba:flex gba:justify-between">
-                  <span className="gba:text-muted-foreground">{t('signoff-current-user')}</span>
-                  <span className="gba:text-foreground gba:font-medium">{displayName}</span>
-                </div>
                 {payrollRun.preparedBy && (
                   <div className="gba:flex gba:justify-between">
                     <span className="gba:text-muted-foreground">{t('signoff-prepared-by')}</span>
-                    <span className="gba:text-foreground">{payrollRun.preparedBy}</span>
-                  </div>
-                )}
-                {payrollRun.preparedAt && (
-                  <div className="gba:flex gba:justify-between">
-                    <span className="gba:text-muted-foreground">{t('signoff-prepared-at')}</span>
-                    <span className="gba:text-foreground">{new Date(payrollRun.preparedAt).toLocaleString()}</span>
+                    <span>
+                      {payrollRun.preparedBy} ({formatDate(payrollRun.preparedAt)})
+                    </span>
                   </div>
                 )}
                 {payrollRun.reviewedBy && (
                   <div className="gba:flex gba:justify-between">
                     <span className="gba:text-muted-foreground">{t('signoff-reviewed-by')}</span>
-                    <span className="gba:text-foreground">{payrollRun.reviewedBy}</span>
+                    <span>
+                      {payrollRun.reviewedBy} ({formatDate(payrollRun.reviewedAt)})
+                    </span>
+                  </div>
+                )}
+                {payrollRun.approvalDecision && (
+                  <div className="gba:flex gba:justify-between">
+                    <span className="gba:text-muted-foreground">{t('signoff-approve')}</span>
+                    <span>{payrollRun.approvalDecision}</span>
+                  </div>
+                )}
+                {payrollRun.reviewComment && (
+                  <div className="gba:flex gba:justify-between">
+                    <span className="gba:text-muted-foreground">{t('step-3-review-comment')}</span>
+                    <span className="gba:italic">&ldquo;{payrollRun.reviewComment}&rdquo;</span>
                   </div>
                 )}
               </div>
             )}
-
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                {t('signoff-comments')}
-              </label>
-              <textarea
-                value={reviewComment}
-                onChange={e => setReviewComment(e.target.value)}
-                className="gba:w-full gba:border gba:border-border gba:rounded-md gba:p-2 gba:text-sm gba:min-h-[80px] gba:resize-y gba:bg-background"
-                placeholder={t('signoff-comments-placeholder')}
-              />
-            </div>
-
-            <div className="gba:flex gba:gap-3">
-              {payrollRun?.status === 'PAYROLL_IN_PROGRESS' && (
-                <Button variant="outline" onClick={handleMarkReady} disabled={saving || summary.blockedCount > 0}>
-                  {t('signoff-mark-ready')}
-                </Button>
-              )}
-              <Button onClick={handleApprove} disabled={!payrollRun || summary.blockedCount > 0 || saving}>
-                <CheckCircleIcon size={16} weight="fill" className="gba:mr-2" />
-                {t('signoff-approve')}
-              </Button>
-            </div>
-            {summary.blockedCount > 0 && (
-              <p className="gba:text-xs gba:text-destructive">
-                {t('signoff-blocked-warning', { count: summary.blockedCount })}
-              </p>
-            )}
           </div>
-        </Card>
-      </div>
-
-      <Card className="gba:p-6">
-        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
-          <ClockIcon size={20} className="gba:inline gba:mr-2" />
-          {t('audit-trail')}
-        </h3>
-        {auditEvents.length === 0 ? (
-          <p className="gba:text-sm gba:text-muted-foreground">{t('audit-empty')}</p>
         ) : (
-          <div className="gba:space-y-2 gba:max-h-[400px] gba:overflow-y-auto">
-            {auditEvents.map(event => (
-              <div
-                key={event.id}
-                className="gba:flex gba:items-start gba:gap-3 gba:py-2 gba:border-b gba:border-border"
-              >
-                <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:mt-1.5 gba:flex-shrink-0" />
-                <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:text-foreground">{event.description}</p>
-                  <div className="gba:flex gba:gap-3 gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                    <span>{new Date(event.timestamp).toLocaleString()}</span>
-                    <span>{event.userName}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('step-pending')}</p>
         )}
       </Card>
+    )
+  }
+
+  const renderAuditTrail = () => (
+    <Card className="gba:p-6">
+      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
+        <ClockIcon size={20} className="gba:inline gba:mr-2" />
+        {t('audit-trail')}
+      </h3>
+      {auditEvents.length === 0 ? (
+        <p className="gba:text-sm gba:text-muted-foreground">{t('audit-empty')}</p>
+      ) : (
+        <div className="gba:space-y-2 gba:max-h-[400px] gba:overflow-y-auto">
+          {auditEvents.map(event => (
+            <div key={event.id} className="gba:flex gba:items-start gba:gap-3 gba:py-2 gba:border-b gba:border-border">
+              <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:mt-1.5 gba:flex-shrink-0" />
+              <div className="gba:flex-1">
+                <p className="gba:text-sm gba:text-foreground">{event.description}</p>
+                <div className="gba:flex gba:gap-3 gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                  <span>{formatDate(event.timestamp)}</span>
+                  <span>{event.userName}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+
+  return (
+    <div className="gba:space-y-6">
+      {renderStepIndicator()}
+      {renderStep1()}
+      {renderStep2()}
+      {renderStep3()}
+      {renderStep4()}
+      {renderAuditTrail()}
     </div>
   )
 }

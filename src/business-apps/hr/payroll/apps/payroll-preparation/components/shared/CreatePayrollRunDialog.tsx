@@ -36,17 +36,28 @@ const MONTH_VALUES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 function getYearOptions(): number[] {
   const current = new Date().getFullYear()
-  return [current - 1, current, current + 1]
+  const years: number[] = []
+  for (let y = current - 2; y <= current + 2; y++) years.push(y)
+  return years
+}
+
+function lastDayOfMonth(month: number, year: number): string {
+  const d = new Date(Date.UTC(year, month, 0))
+  return d.toISOString().split('T')[0]
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().split('T')[0]
 }
 
 function defaultCutOffDate(month: number, year: number): string {
-  const d = new Date(year, month - 1, 25)
-  return d.toISOString().split('T')[0]
+  return lastDayOfMonth(month, year)
 }
 
-function defaultPaymentDate(month: number, year: number): string {
-  const d = new Date(year, month, 0)
-  return d.toISOString().split('T')[0]
+function defaultPaymentDate(cutOff: string): string {
+  return addDays(cutOff, 10)
 }
 
 export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
@@ -58,23 +69,26 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
   t
 }) => {
   const now = new Date()
+  const initCutOff = defaultCutOffDate(now.getMonth() + 1, now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
-  const [cutOffDate, setCutOffDate] = useState(defaultCutOffDate(now.getMonth() + 1, now.getFullYear()))
-  const [paymentDate, setPaymentDate] = useState(defaultPaymentDate(now.getMonth() + 1, now.getFullYear()))
+  const [cutOffDate, setCutOffDate] = useState(initCutOff)
+  const [paymentDate, setPaymentDate] = useState(defaultPaymentDate(initCutOff))
 
   const handleMonthChange = (val: string) => {
     const m = Number(val)
     setMonth(m)
-    setCutOffDate(defaultCutOffDate(m, year))
-    setPaymentDate(defaultPaymentDate(m, year))
+    const cutOff = defaultCutOffDate(m, year)
+    setCutOffDate(cutOff)
+    setPaymentDate(defaultPaymentDate(cutOff))
   }
 
   const handleYearChange = (val: string) => {
     const y = Number(val)
     setYear(y)
-    setCutOffDate(defaultCutOffDate(month, y))
-    setPaymentDate(defaultPaymentDate(month, y))
+    const cutOff = defaultCutOffDate(month, y)
+    setCutOffDate(cutOff)
+    setPaymentDate(defaultPaymentDate(cutOff))
   }
 
   const isDuplicate = useMemo(

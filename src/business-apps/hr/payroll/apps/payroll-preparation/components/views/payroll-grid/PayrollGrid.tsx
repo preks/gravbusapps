@@ -187,6 +187,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <TableHead className="gba:whitespace-nowrap">{t('grid-paid-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-sick-leave')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-unpaid-leave')}</TableHead>
+                <TableHead className="gba:whitespace-nowrap">{t('grid-missing-presence')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-logged-hours')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-capacity')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-balance')}</TableHead>
@@ -210,7 +211,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
             <TableBody>
               {paginated.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={22} className="gba:text-center gba:py-12 gba:text-muted-foreground">
+                  <TableCell colSpan={23} className="gba:text-center gba:py-12 gba:text-muted-foreground">
                     {t('no-data')}
                   </TableCell>
                 </TableRow>
@@ -275,14 +276,21 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                           ? `${emp.totalVariablePay.toLocaleString()} ${emp.variablePayCurrency || ''}`
                           : '—'}
                       </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">
-                        {emp.paidLeaveDays || '—'}
+                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+                        {emp.paidLeaveHours ? `${emp.paidLeaveHours}h (${emp.paidLeaveDays}d)` : '—'}
                       </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">
-                        {emp.sickLeaveDays || '—'}
+                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+                        {emp.sickLeaveHours ? `${emp.sickLeaveHours}h (${emp.sickLeaveDays}d)` : '—'}
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground">
                         {emp.unpaidLeaveDays || '—'}
+                      </TableCell>
+                      <TableCell>
+                        {emp.missingPresenceDays > 0 ? (
+                          <Badge variant="destructive">{emp.missingPresenceDays}d</Badge>
+                        ) : (
+                          <span className="gba:text-sm gba:text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
                         {emp.loggedHours != null ? `${emp.loggedHours}h` : '—'}

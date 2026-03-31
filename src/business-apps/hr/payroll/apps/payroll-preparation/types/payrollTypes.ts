@@ -110,11 +110,14 @@ export interface PayrollEmployee {
   sickLeaveDays: number
   unpaidLeaveDays: number
   otherLeaveDays: number
+  sickLeaveHours: number
+  paidLeaveHours: number
 
   loggedHours: number | null
   contractCapacityHours: number | null
   overtimeHours: number | null
   balanceHours: number | null
+  missingPresenceDays: number
 
   readinessStatus: ReadinessStatus
   issues: PayrollIssue[]
@@ -191,14 +194,7 @@ export interface PayrollBonus {
   status: string
 }
 
-export interface SignOffData {
-  preparedBy: string
-  preparedAt: string
-  reviewedBy?: string
-  reviewedAt?: string
-  approvalDecision?: 'approved' | 'rejected'
-  comments?: string
-}
+export type ApprovalDecision = 'APPROVED' | 'NOT APPROVED'
 
 export interface AuditEvent {
   id: string

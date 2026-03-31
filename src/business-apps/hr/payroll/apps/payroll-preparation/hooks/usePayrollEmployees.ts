@@ -113,6 +113,7 @@ interface RawAbsence {
   type: {
     id: string
     value: string
+    parentEntryId?: string | null
     objectValue: AbsenceTypeObjectValue | null
     translations?: Array<{ value: string }>
   } | null
@@ -152,14 +153,22 @@ function detectCountryFromCode(countryCode: string | null | undefined): PayrollC
   return null
 }
 
+const HEALTH_GROUP = 'AbsenceGroup:v1:HEALTH'
+
+function isHealthAbsence(absenceType: RawAbsence['type']): boolean {
+  if (absenceType?.parentEntryId === HEALTH_GROUP) return true
+  const value = absenceType?.value?.toLowerCase() || ''
+  return value.includes('sick') || value.includes('krank') || value.includes('medical') || value.includes('boala')
+}
+
 function getAbsenceCategory(absenceType: RawAbsence['type']): string {
+  if (isHealthAbsence(absenceType)) return 'sick'
+
   const objVal = absenceType?.objectValue
   if (objVal && typeof objVal === 'object' && 'category' in objVal) {
     return (objVal as AbsenceTypeObjectValue).category || ''
   }
   const value = absenceType?.value?.toLowerCase() || ''
-  if (value.includes('sick') || value.includes('krank') || value.includes('medical') || value.includes('boala'))
-    return 'sick'
   if (value.includes('unpaid') || value.includes('unbezahlt') || value.includes('neplat')) return 'unpaid'
   if (value.includes('vacation') || value.includes('urlaub') || value.includes('concediu')) return 'paid'
   return 'other'
@@ -199,18 +208,24 @@ function buildPayrollEmployee(
 
   const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
 
-  const paidLeave = approvedAbsences
-    .filter(a => getAbsenceCategory(a.type) === 'paid')
+  const sickLeaveDays = approvedAbsences
+    .filter(a => isHealthAbsence(a.type))
     .reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
-  const sickLeave = approvedAbsences
-    .filter(a => getAbsenceCategory(a.type) === 'sick')
-    .reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
+  const nonSickAbsences = approvedAbsences.filter(a => !isHealthAbsence(a.type))
+  const paidLeaveDays = nonSickAbsences.reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
   const unpaidLeave = approvedAbsences
     .filter(a => getAbsenceCategory(a.type) === 'unpaid')
     .reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
   const otherLeave = approvedAbsences
-    .filter(a => getAbsenceCategory(a.type) === 'other')
+    .filter(a => {
+      const cat = getAbsenceCategory(a.type)
+      return cat !== 'sick' && cat !== 'paid' && cat !== 'unpaid'
+    })
     .reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
+
+  const dailyWorkingHours = wh?.weeklyHours ? wh.weeklyHours / 5 : 8
+  const sickLeaveHours = Math.round(sickLeaveDays * dailyWorkingHours * 10) / 10
+  const paidLeaveHours = Math.round(paidLeaveDays * dailyWorkingHours * 10) / 10
 
   const contractTypeLabel = wc?.contractType?.translations?.[0]?.value || wc?.contractType?.value || ''
   const employmentTypeLabel = wc?.employmentType?.translations?.[0]?.value || wc?.employmentType?.value || ''
@@ -246,14 +261,40 @@ function buildPayrollEmployee(
   const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
   const monthEnd = new Date(payrollYear, payrollMonth, 0)
   const cursor = new Date(monthStart)
+  const scheduledWorkingDays: string[] = []
   while (cursor <= monthEnd) {
-    contractTargetMinutes += getPlannedMinutesForDate(toLocalDateKey(cursor), workingHoursForCapacity)
+    const dateKey = toLocalDateKey(cursor)
+    const planned = getPlannedMinutesForDate(dateKey, workingHoursForCapacity)
+    contractTargetMinutes += planned
+    if (planned > 0) scheduledWorkingDays.push(dateKey)
     cursor.setDate(cursor.getDate() + 1)
   }
 
+  const attendanceDateSet = new Set<string>()
   let workedMinutes = 0
   for (const entry of attendance) {
     workedMinutes += parseDurationToMinutes(entry.effectiveTime)
+    if (entry.attendanceDate) {
+      attendanceDateSet.add(entry.attendanceDate.substring(0, 10))
+    }
+  }
+
+  const absenceDateSet = new Set<string>()
+  for (const abs of approvedAbsences) {
+    const start = new Date(abs.startDate)
+    const end = new Date(abs.endDate)
+    const d = new Date(start)
+    while (d <= end && d <= monthEnd) {
+      if (d >= monthStart) absenceDateSet.add(toLocalDateKey(d))
+      d.setDate(d.getDate() + 1)
+    }
+  }
+
+  let missingPresenceDays = 0
+  for (const day of scheduledWorkingDays) {
+    if (!attendanceDateSet.has(day) && !absenceDateSet.has(day)) {
+      missingPresenceDays++
+    }
   }
 
   const overtimeMinutes = Math.max(0, workedMinutes - contractTargetMinutes)
@@ -261,8 +302,8 @@ function buildPayrollEmployee(
 
   const totalVariablePay = bonuses.reduce((sum, b) => sum + (b.amount || 0), 0)
   const bonusCurrency = bonuses[0]?.currency?.code || null
-  const allBonusesApproved = bonuses.length > 0 && bonuses.every(b => b.status === 'APPROVED')
-  const hasPendingBonuses = bonuses.some(b => b.status !== 'APPROVED')
+  const allBonusesApproved = bonuses.length > 0 && bonuses.every(b => b.status === 'APPROVED_COMPENSATION')
+  const hasPendingBonuses = bonuses.some(b => b.status !== 'APPROVED_COMPENSATION')
   const variablePayStatus: PayrollEmployee['variablePayStatus'] =
     bonuses.length === 0 ? 'none' : allBonusesApproved ? 'all_approved' : hasPendingBonuses ? 'pending' : null
 
@@ -356,15 +397,18 @@ function buildPayrollEmployee(
     variablePayCurrency: bonusCurrency,
     variablePayStatus,
 
-    paidLeaveDays: paidLeave,
-    sickLeaveDays: sickLeave,
+    paidLeaveDays: paidLeaveDays,
+    sickLeaveDays: sickLeaveDays,
     unpaidLeaveDays: unpaidLeave,
     otherLeaveDays: otherLeave,
+    sickLeaveHours: sickLeaveHours,
+    paidLeaveHours: paidLeaveHours,
 
     loggedHours: workedMinutes > 0 ? Math.round((workedMinutes / 60) * 10) / 10 : null,
     contractCapacityHours: contractTargetMinutes > 0 ? Math.round((contractTargetMinutes / 60) * 10) / 10 : null,
     overtimeHours: overtimeMinutes > 0 ? Math.round((overtimeMinutes / 60) * 10) / 10 : null,
     balanceHours: contractTargetMinutes > 0 ? Math.round((balanceMinutes / 60) * 10) / 10 : null,
+    missingPresenceDays,
 
     readinessStatus: 'ready',
     issues: [],

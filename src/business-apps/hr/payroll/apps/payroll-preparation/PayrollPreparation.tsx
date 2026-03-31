@@ -65,7 +65,8 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     auditEvents,
     createRun,
     updateStatus,
-    signOff,
+    markReadyForReview,
+    submitReview,
     recordExport
   } = usePayrollRun(accessToken, selectedCompanyId, selectedCompanyName, detectedCountry, activeRun, userInfo)
 
@@ -302,9 +303,9 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
             payrollRun={payrollRun}
             summary={summary}
             auditEvents={auditEvents}
-            userInfo={userInfo}
             updateStatus={updateStatus}
-            signOff={signOff}
+            markReadyForReview={markReadyForReview}
+            submitReview={submitReview}
             recordExport={recordExport}
             saving={runSaving}
             t={t}

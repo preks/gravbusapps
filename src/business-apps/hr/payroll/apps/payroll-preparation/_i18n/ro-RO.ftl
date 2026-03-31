@@ -82,6 +82,7 @@ grid-logged-hours = Ore Înregistrate
 grid-capacity = Capacitate
 grid-balance = Sold
 grid-overtime = Ore Suplimentare
+grid-missing-presence = Zile Lipsă
 grid-issues = Probleme
 grid-readiness = Pregătire
 grid-changed = Modificat

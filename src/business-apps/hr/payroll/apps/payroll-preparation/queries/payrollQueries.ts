@@ -216,6 +216,7 @@ export const GET_PAYROLL_ABSENCES = `
       type {
         id
         value
+        parentEntryId
         objectValue
         translations(where: {localeCode: {_eq: $activeUserLocale}}) {
           value

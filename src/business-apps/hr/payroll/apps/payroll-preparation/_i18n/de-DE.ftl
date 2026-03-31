@@ -82,6 +82,7 @@ grid-logged-hours = Erfasste Stunden
 grid-capacity = Kapazität
 grid-balance = Saldo
 grid-overtime = Überstunden
+grid-missing-presence = Fehlende Tage
 grid-issues = Probleme
 grid-readiness = Bereitschaft
 grid-changed = Geändert

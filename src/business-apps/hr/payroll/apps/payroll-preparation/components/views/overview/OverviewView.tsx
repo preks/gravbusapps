@@ -249,14 +249,14 @@ function RunDashboardView({
           <div className="gba:flex gba:h-4 gba:rounded-full gba:overflow-hidden gba:bg-muted">
             {summary.readyCount > 0 && (
               <div
-                className="gba:bg-[hsl(var(--success))] gba:transition-all"
+                className="gba:bg-success gba:transition-all"
                 style={{ width: `${(summary.readyCount / summary.totalEmployees) * 100}%` }}
                 title={`${t('summary-ready')}: ${summary.readyCount}`}
               />
             )}
             {summary.warningCount > 0 && (
               <div
-                className="gba:bg-[hsl(var(--warning))] gba:transition-all"
+                className="gba:bg-warning gba:transition-all"
                 style={{ width: `${(summary.warningCount / summary.totalEmployees) * 100}%` }}
                 title={`${t('summary-warning')}: ${summary.warningCount}`}
               />

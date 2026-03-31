@@ -4,10 +4,47 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { GET_PAYROLL_RUN } from '../queries/payrollQueries'
-import type { PayrollRun, PayrollRunStatus, PayrollCountry, SignOffData, AuditEvent } from '../types/payrollTypes'
+import type { PayrollRun, PayrollRunStatus, PayrollCountry, ApprovalDecision, AuditEvent } from '../types/payrollTypes'
 import type { CreatePayrollRunParams } from '../components/shared/CreatePayrollRunDialog'
 
 const SAVE_PROCESS_PATH = '/employee/savePayrollRun'
+
+const PAYROLL_RUN_FIELDS = [
+  'id',
+  'version',
+  'month',
+  'year',
+  'country',
+  'legalEntityId',
+  'legalEntityName',
+  'cutOffDate',
+  'paymentDate',
+  'status',
+  'preparedBy',
+  'preparedAt',
+  'reviewedBy',
+  'reviewedAt',
+  'reviewComment',
+  'approvalDecision'
+] as const
+
+const DATE_FIELDS = new Set(['cutOffDate', 'paymentDate', 'preparedAt', 'reviewedAt'])
+
+function toISOTimestamp(value: unknown): string | null {
+  if (!value || typeof value !== 'string') return value as string | null
+  if (value.includes('T')) return value
+  return new Date(value + 'T00:00:00.000Z').toISOString()
+}
+
+function toKogitoPayload(run: Record<string, unknown>): Record<string, unknown> {
+  const payload: Record<string, unknown> = {}
+  for (const key of PAYROLL_RUN_FIELDS) {
+    if (key in run && run[key] !== null && run[key] !== undefined) {
+      payload[key] = DATE_FIELDS.has(key) ? toISOTimestamp(run[key]) : run[key]
+    }
+  }
+  return payload
+}
 
 function getUserDisplayName(userInfo?: UserInfoProps): string {
   if (!userInfo) return 'System'
@@ -26,7 +63,8 @@ export interface UsePayrollRunResult {
   auditEvents: AuditEvent[]
   createRun: (params: CreatePayrollRunParams) => Promise<PayrollRun | null>
   updateStatus: (status: PayrollRunStatus) => Promise<void>
-  signOff: (data: SignOffData) => Promise<void>
+  markReadyForReview: () => Promise<void>
+  submitReview: (decision: ApprovalDecision, comment: string) => Promise<void>
   recordExport: (mode: string, count: number) => void
   refetch: () => Promise<void>
 }
@@ -60,11 +98,46 @@ export function usePayrollRun(
 
   useEffect(() => {
     setPayrollRun(activeRun)
-    setAuditEvents([])
     if (activeRun) {
-      setAuditEvents([createAuditEvent('payroll_run_loaded', `Loaded payroll run (${activeRun.status})`, userInfo)])
+      const persisted: AuditEvent[] = []
+      if (activeRun.createdBy && activeRun.createdAt) {
+        persisted.push({
+          id: `audit-created-${activeRun.id}`,
+          eventType: 'payroll_run_created',
+          description: `Payroll run created`,
+          userId: '',
+          userName: activeRun.createdBy,
+          timestamp: activeRun.createdAt
+        })
+      }
+      if (activeRun.preparedBy && activeRun.preparedAt) {
+        persisted.push({
+          id: `audit-prepared-${activeRun.id}`,
+          eventType: 'marked_ready',
+          description: `Marked ready for review`,
+          userId: '',
+          userName: activeRun.preparedBy,
+          timestamp: activeRun.preparedAt
+        })
+      }
+      if (activeRun.reviewedBy && activeRun.reviewedAt) {
+        const decision = activeRun.approvalDecision || ''
+        const comment = activeRun.reviewComment ? `: ${activeRun.reviewComment}` : ''
+        persisted.push({
+          id: `audit-reviewed-${activeRun.id}`,
+          eventType: decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
+          description: `${decision}${comment}`,
+          userId: '',
+          userName: activeRun.reviewedBy,
+          timestamp: activeRun.reviewedAt
+        })
+      }
+      persisted.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      setAuditEvents(persisted)
+    } else {
+      setAuditEvents([])
     }
-  }, [activeRun?.id])
+  }, [activeRun?.id, activeRun?.status, activeRun?.preparedBy, activeRun?.reviewedBy])
 
   const addAuditEvent = useCallback(
     (eventType: string, description: string) => {
@@ -73,7 +146,11 @@ export function usePayrollRun(
     [userInfo]
   )
 
-  const authHeaders = { Authorization: `Bearer ${accessToken}` }
+  const authHeaders = {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: 'application/json',
+    'Content-Type': 'application/json'
+  }
 
   const refetchRun = useCallback(async () => {
     if (!payrollRun || !companyId) return
@@ -98,6 +175,7 @@ export function usePayrollRun(
 
       const payload = {
         payrollRun: {
+          version: 0,
           month: params.month,
           year: params.year,
           country: country || 'DE',
@@ -140,9 +218,8 @@ export function usePayrollRun(
 
       const payload = {
         payrollRun: {
-          ...payrollRun,
-          status,
-          updatedBy: getUserDisplayName(userInfo)
+          ...toKogitoPayload(payrollRun as unknown as Record<string, unknown>),
+          status
         },
         changeMode: 'UPDATE'
       }
@@ -161,56 +238,60 @@ export function usePayrollRun(
     [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchRun]
   )
 
-  const signOff = useCallback(
-    async (data: SignOffData) => {
+  const markReadyForReview = useCallback(async () => {
+    if (!payrollRun) return
+    setSaving(true)
+    setError(null)
+
+    const cleanRun = toKogitoPayload(payrollRun as unknown as Record<string, unknown>)
+    cleanRun.status = 'PAYROLL_READY_FOR_REVIEW'
+    cleanRun.preparedBy = getUserDisplayName(userInfo)
+    cleanRun.preparedAt = new Date().toISOString()
+
+    try {
+      await restClient.post(SAVE_PROCESS_PATH, { payrollRun: cleanRun, changeMode: 'UPDATE' }, { headers: authHeaders })
+      addAuditEvent('marked_ready', `Marked ready for review by ${cleanRun.preparedBy}`)
+      await refetchRun()
+    } catch (err) {
+      console.error('[usePayrollRun] Failed to mark ready:', err)
+      setError(err instanceof Error ? err : new Error('Failed to mark ready for review'))
+    } finally {
+      setSaving(false)
+    }
+  }, [payrollRun, restClient, userInfo, addAuditEvent, refetchRun])
+
+  const submitReview = useCallback(
+    async (decision: ApprovalDecision, comment: string) => {
       if (!payrollRun) return
       setSaving(true)
       setError(null)
 
-      const displayName = getUserDisplayName(userInfo)
-      const updatedRun: Record<string, unknown> = {
-        ...payrollRun,
-        updatedBy: displayName
-      }
-
-      if (data.preparedBy) {
-        updatedRun.preparedBy = data.preparedBy
-        updatedRun.preparedAt = data.preparedAt || new Date().toISOString()
-      }
-      if (data.reviewedBy) {
-        updatedRun.reviewedBy = data.reviewedBy
-        updatedRun.reviewedAt = data.reviewedAt || new Date().toISOString()
-      }
-      if (data.comments) {
-        updatedRun.reviewComment = data.comments
-      }
-      if (data.approvalDecision) {
-        updatedRun.approvalDecision = data.approvalDecision
-        if (data.approvalDecision === 'approved') {
-          updatedRun.status = 'PAYROLL_APPROVED_FOR_EXPORT'
-        }
-      }
-
-      const payload = {
-        payrollRun: updatedRun,
-        changeMode: 'UPDATE'
-      }
+      const cleanRun = toKogitoPayload(payrollRun as unknown as Record<string, unknown>)
+      cleanRun.reviewedBy = getUserDisplayName(userInfo)
+      cleanRun.reviewedAt = new Date().toISOString()
+      cleanRun.reviewComment = comment
+      cleanRun.approvalDecision = decision
+      cleanRun.status = decision === 'APPROVED' ? 'PAYROLL_APPROVED_FOR_EXPORT' : 'PAYROLL_IN_PROGRESS'
 
       try {
-        await restClient.post(SAVE_PROCESS_PATH, payload, { headers: authHeaders })
+        await restClient.post(
+          SAVE_PROCESS_PATH,
+          { payrollRun: cleanRun, changeMode: 'UPDATE' },
+          { headers: authHeaders }
+        )
         addAuditEvent(
-          'signoff_completed',
-          `Sign-off by ${data.reviewedBy || data.preparedBy}: ${data.approvalDecision || 'prepared'}`
+          decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
+          `${decision} by ${cleanRun.reviewedBy}: ${comment}`
         )
         await refetchRun()
       } catch (err) {
-        console.error('[usePayrollRun] Failed to sign off:', err)
-        setError(err instanceof Error ? err : new Error('Failed to complete sign-off'))
+        console.error('[usePayrollRun] Failed to submit review:', err)
+        setError(err instanceof Error ? err : new Error('Failed to submit review'))
       } finally {
         setSaving(false)
       }
     },
-    [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchRun]
+    [payrollRun, restClient, userInfo, addAuditEvent, refetchRun]
   )
 
   const recordExport = useCallback(
@@ -228,7 +309,8 @@ export function usePayrollRun(
     auditEvents,
     createRun,
     updateStatus,
-    signOff,
+    markReadyForReview,
+    submitReview,
     recordExport,
     refetch: refetchRun
   }
