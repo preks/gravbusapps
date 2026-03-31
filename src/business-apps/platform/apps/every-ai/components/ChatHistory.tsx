@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Button, Input, Spinner } from '@newwork/nw-design-system'
 import { ChatsCircle, Trash, Plus, MagnifyingGlass } from '@phosphor-icons/react'
-import { useFlowBot, type FlowBotSession } from '../hooks/useFlowBot'
+import { fetchChatListFromApi, deleteChatSession, type FlowBotSession } from '../hooks/useFlowBot'
 
 interface ChatHistoryProps {
   accessToken: string
@@ -16,22 +16,22 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   onNewChat,
   currentSessionId
 }) => {
-  const { getAllSessions, deleteSession, clearConversation } = useFlowBot(accessToken)
   const [sessions, setSessions] = useState<FlowBotSession[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const hasFetchedRef = useRef(false)
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     setIsLoading(true)
     try {
-      const sessionList = await getAllSessions()
+      const sessionList = await fetchChatListFromApi(accessToken)
       setSessions(sessionList.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
     } catch (error) {
       console.error('Failed to load sessions:', error)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [accessToken])
 
   const filteredSessions = sessions.filter(session => {
     if (!searchQuery.trim()) return true
@@ -44,12 +44,13 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   })
 
   useEffect(() => {
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true
+      loadSessions()
+      return
+    }
     loadSessions()
-  }, [])
-
-  useEffect(() => {
-    loadSessions()
-  }, [currentSessionId])
+  }, [currentSessionId, loadSessions])
 
   useEffect(() => {
     const handleRefresh = () => {
@@ -59,7 +60,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
     return () => {
       window.removeEventListener('chat-history-refresh', handleRefresh)
     }
-  }, [])
+  }, [loadSessions])
 
   const handleDeleteSession = async (sessionId: string, event: React.MouseEvent) => {
     event.stopPropagation()
@@ -67,10 +68,9 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
       return
     }
     try {
-      await deleteSession(sessionId)
+      await deleteChatSession(sessionId, accessToken)
       await loadSessions()
       if (sessionId === currentSessionId) {
-        clearConversation()
         onNewChat()
       }
     } catch (error) {
