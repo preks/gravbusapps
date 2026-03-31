@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button, Badge, Card, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { env } from '@/common/env/EnvUtils'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -94,14 +95,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     setError(null)
 
     try {
-      let baseUrl = window.location.origin
-
-      // If platform is running on localhost, connect to DEV environment
-      // This handles the case where Reminders is loaded from CDN but platform is running locally
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
+      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || window.location.origin
 
       // Skip if no user ID
       if (!userId) {
@@ -246,13 +240,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
-      let baseUrl = window.location.origin
-
-      // If platform is running on localhost, connect to DEV environment
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
+      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || window.location.origin
 
       // Step 1: Get the task ID from workflow's step_0
       const stepDataResponse = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
