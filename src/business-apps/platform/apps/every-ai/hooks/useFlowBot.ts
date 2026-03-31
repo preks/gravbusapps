@@ -424,15 +424,19 @@ export interface FlowBotSession {
   shortInfo?: string
 }
 
-const CHAT_LIST_LIMIT = 50
+const CHAT_LIST_LIMIT = 15
 
 /**
- * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...
+ * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...&offset=...
  */
-async function fetchChatListFromApi(accessToken: string, limit: number = CHAT_LIST_LIMIT): Promise<FlowBotSession[]> {
+export async function fetchChatListFromApi(
+  accessToken: string,
+  limit: number = CHAT_LIST_LIMIT,
+  offset: number = 0
+): Promise<FlowBotSession[]> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}`
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}&offset=${offset}`
 
     const res = await fetch(url, {
       method: 'GET',
@@ -476,7 +480,7 @@ async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSessio
 /**
  * Delete a chat session on the server: DELETE /flowbot/chat/sessions/:sessionId
  */
-async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
+export async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
