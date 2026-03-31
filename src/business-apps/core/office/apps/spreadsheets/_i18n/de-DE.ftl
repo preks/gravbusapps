@@ -707,6 +707,8 @@ header-view-only = Nur Ansicht
 header-comments = Kommentare
 header-breadcrumb-spreadsheets = Tabellen
 header-submitted-at = Eingereicht – { $date }
+header-rename-file-title = Klicken, um die Datei umzubenennen
+header-rename-file-placeholder = Tabellenname
 
 # Version History (shared dialog)
 version-history-title = Versionsverlauf
@@ -946,6 +948,7 @@ toast-no-edit-permission = Du hast keine Berechtigung, diese Tabelle zu bearbeit
 toast-submit-success = Erfolgreich eingereicht. Deine Aufgabe ist jetzt abgeschlossen.
 toast-submit-failed = Einreichen fehlgeschlagen
 toast-checkpoint-flush-warning = Checkpoint gespeichert, aber einige ausstehende Änderungen sind möglicherweise nicht enthalten.
+toast-checkpoint-save-failed = Checkpoint konnte nicht gespeichert werden. Bitte erneut versuchen.
 toast-analytics-no-matching-columns = Keine passenden Spalten gefunden, um das Pivot-Ergebnis einzufügen.
 toast-analytics-no-rows-inserted = Es wurden keine Zeilen in das Blatt eingefügt.
 toast-analytics-inserted-rows = { $count } Analyse-{ $count ->
@@ -960,6 +963,9 @@ toast-formula-applied = Formel auf { $count } { $count ->
 }
 toast-review-comment-create-failed = Kommentar aus dem Review-Ergebnis konnte nicht erstellt werden.
 toast-review-comment-created = Review-Ergebnis wurde zu den Kommentaren hinzugefügt.
+toast-file-name-required = Der Dateiname darf nicht leer sein.
+toast-file-rename-success = Dateiname wurde aktualisiert.
+toast-file-rename-failed = Datei konnte nicht umbenannt werden.
 
 # Delete confirmation
 delete-confirm = Möchtest du diese Tabelle wirklich löschen?
@@ -997,6 +1003,8 @@ excel-file-size-exceeds = Dateigröße überschreitet das Limit von { $maxMb } M
 # Comments (shared - matches document app)
 shared-error-create-comment = Kommentar konnte nicht erstellt werden
 shared-error-resolve-comment = Kommentar konnte nicht gelöst werden
+shared-error-restore-version = Version konnte nicht wiederhergestellt werden. Es wurden keine Änderungen übernommen.
+shared-error-restore-version-owner-only = Du kannst nur Versionen von Tabellen wiederherstellen, die dir gehören. Bitte den Eigentümer, diese Version wiederherzustellen.
 shared-comment-panel-title = Kommentare
 shared-comment-unresolved = ungelöst
 shared-comment-unresolved-tab = Ungelöst
