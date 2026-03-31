@@ -10,20 +10,49 @@ import {
   Tooltip as RechartsTooltip
 } from 'recharts'
 import { computeRadarAverageScore, getActiveRadarSeries, getNextSelectedReviewers } from '../../utils/detailViewData'
-import { RadarDataPoint, ReviewerKey, REVIEWER_COLORS, REVIEWER_KEYS } from './types'
+import { RadarDataPoint, ReviewerKey, REVIEWER_COLORS } from './types'
+
+const getRadarAxisAngle = (dataPointCount: number): number => {
+  if (dataPointCount <= 1) return 90
+  return 90 - (dataPointCount - 1) * (360 / dataPointCount)
+}
+
+const getRadarTicks = (maxDomain: number): number[] => {
+  const step = maxDomain <= 5 ? 1 : 2
+  const ticks: number[] = []
+  for (let value = 0; value <= maxDomain; value += step) {
+    ticks.push(value)
+  }
+  return ticks
+}
+
+const RadarAxisTick: React.FC<{
+  x?: number
+  y?: number
+  payload?: { value: number }
+}> = ({ x = 0, y = 0, payload }) => {
+  if (!payload || payload.value === 0) return null
+  return (
+    <text x={x} y={y} dx={-10} dy={4} textAnchor="end" fontSize={11} fill="hsl(var(--nw-muted-foreground))">
+      {payload.value}
+    </text>
+  )
+}
 
 const RadarLegend: React.FC<{
   selfLabel: string
   peerLabel: string
   managerLabel: string
+  activeReviewerKeys: ReviewerKey[]
   selectedReviewers: ReviewerKey[]
   onToggleReviewer: (reviewer: ReviewerKey) => void
-}> = ({ selfLabel, peerLabel, managerLabel, selectedReviewers, onToggleReviewer }) => {
-  const entries = [
+}> = ({ selfLabel, peerLabel, managerLabel, activeReviewerKeys, selectedReviewers, onToggleReviewer }) => {
+  const allEntries = [
     { key: 'self' as ReviewerKey, label: selfLabel, color: REVIEWER_COLORS.self },
     { key: 'peer' as ReviewerKey, label: peerLabel, color: REVIEWER_COLORS.peer },
     { key: 'manager' as ReviewerKey, label: managerLabel, color: REVIEWER_COLORS.manager }
   ]
+  const entries = allEntries.filter(entry => activeReviewerKeys.includes(entry.key))
 
   return (
     <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="employee-performance-evaluation-radar-legend">
@@ -66,6 +95,7 @@ interface RadarComparisonCardProps {
   selfLabel: string
   peerLabel: string
   managerLabel: string
+  activeReviewerKeys: ReviewerKey[]
   radarMaxDomain: number
 }
 
@@ -80,15 +110,17 @@ const RadarComparisonCard: React.FC<RadarComparisonCardProps> = ({
   selfLabel,
   peerLabel,
   managerLabel,
+  activeReviewerKeys,
   radarMaxDomain
 }) => {
-  const [selectedReviewers, setSelectedReviewers] = useState<ReviewerKey[]>(REVIEWER_KEYS)
+  const [selectedReviewers, setSelectedReviewers] = useState<ReviewerKey[]>(activeReviewerKeys)
 
   const toggleReviewer = (reviewer: ReviewerKey) =>
     setSelectedReviewers(previous => getNextSelectedReviewers(previous, reviewer))
 
-  const displayedAverageScore =
-    selectedReviewers.length === REVIEWER_KEYS.length ? averageScore : computeRadarAverageScore(data, selectedReviewers)
+  const allActiveSelected =
+    activeReviewerKeys.length > 0 && activeReviewerKeys.every(key => selectedReviewers.includes(key))
+  const displayedAverageScore = allActiveSelected ? averageScore : computeRadarAverageScore(data, selectedReviewers)
   const activeSeries = getActiveRadarSeries(selectedReviewers, { selfLabel, peerLabel, managerLabel })
 
   return (
@@ -108,16 +140,23 @@ const RadarComparisonCard: React.FC<RadarComparisonCardProps> = ({
           selfLabel={selfLabel}
           peerLabel={peerLabel}
           managerLabel={managerLabel}
+          activeReviewerKeys={activeReviewerKeys}
           selectedReviewers={selectedReviewers}
           onToggleReviewer={toggleReviewer}
         />
         {data.length > 0 ? (
           <div className="gba:h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={data} margin={{ top: 16, right: 28, bottom: 8, left: 28 }}>
+              <RadarChart data={data} margin={{ top: 20, right: 32, bottom: 8, left: 32 }}>
                 <PolarGrid />
                 <PolarAngleAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <PolarRadiusAxis domain={[0, radarMaxDomain]} />
+                <PolarRadiusAxis
+                  angle={getRadarAxisAngle(data.length)}
+                  domain={[0, radarMaxDomain]}
+                  tickCount={getRadarTicks(radarMaxDomain).length}
+                  axisLine={false}
+                  tick={<RadarAxisTick />}
+                />
                 <RechartsTooltip />
                 {activeSeries.map(series => (
                   <Radar
