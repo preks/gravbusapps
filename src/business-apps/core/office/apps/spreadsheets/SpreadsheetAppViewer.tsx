@@ -1142,7 +1142,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     apiService: SpreadsheetApiService,
     autoSaveEnabled: true,
     autoSaveInterval: 30000,
-    onVersionRestored: handleVersionRestored
+    onVersionRestored: handleVersionRestored,
+    onError: error => {
+      if (error.name === 'VersionRestoreError') {
+        toast.error(error.message)
+      }
+    },
+    t: sheetT
   })
   const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
 
@@ -2936,6 +2942,40 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     (columns: SpreadsheetColumn[]) => persistSheetPatch({ columns }),
     [persistSheetPatch]
   )
+  const handleRenameAppName = useCallback(
+    async (name: string): Promise<boolean> => {
+      if (!canEditWithLock || !onAppUpdate) {
+        return false
+      }
+      const nextName = name.trim()
+      if (!nextName) {
+        toast.error(sheetT('toast-file-name-required'))
+        return false
+      }
+      if (nextName === app.name) {
+        return true
+      }
+      try {
+        const updatedApp = await Promise.resolve(onAppUpdate({ ...app, name: nextName }) as unknown)
+        if (!updatedApp || typeof updatedApp !== 'object') {
+          toast.error(sheetT('toast-file-rename-failed'))
+          return false
+        }
+        const persistedName = (updatedApp as SpreadsheetApp).name
+        if (persistedName !== nextName) {
+          toast.error(sheetT('toast-file-rename-failed'))
+          return false
+        }
+        toast.success(sheetT('toast-file-rename-success'))
+        return true
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to rename spreadsheet:', error)
+        toast.error(sheetT('toast-file-rename-failed'))
+        return false
+      }
+    },
+    [app, canEditWithLock, onAppUpdate, sheetT]
+  )
 
   // --- Export to Excel ---
   const handleExportToExcel = useCallback(async () => {
@@ -3298,7 +3338,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         versioning={headerSaveStatus.versioning}
         persistenceError={headerSaveStatus.persistenceError}
         onShowCheckpointDialog={() => setShowCheckpointDialog(true)}
-        onShowVersionHistory={() => setShowVersionHistory(true)}
+        onShowVersionHistory={() => {
+          setShowVersionHistory(true)
+          void versioning.loadVersions()
+        }}
         publishingStatus={app.publishMetadata?.status || 'draft'}
         showComments={showComments}
         setShowComments={setShowComments}
@@ -3314,6 +3357,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         }}
         onShare={onShare}
+        onRenameAppName={handleRenameAppName}
         onOpenAICapability={handleOpenAICapability}
         onOpenAnalytics={() => {
           setAnalyticsInitialTab('charts')

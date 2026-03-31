@@ -5,7 +5,7 @@
  * and Univer's workbook/sheet/cell model for initial load and callbacks.
  */
 
-import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
+import type { SpreadsheetSheet, SpreadsheetColumn, SpreadsheetMergeRange } from '../types/spreadsheet'
 
 /** Conversion context for mapping row/column indices to our rowId/columnId/name (used by collaboration and persist). */
 export interface ConversionContext {
@@ -46,6 +46,7 @@ export interface UniverWorksheetData {
   id: string
   name: string
   cellData: UniverSheetCellData
+  mergeData?: SpreadsheetMergeRange[]
   rowCount?: number
   columnCount?: number
   defaultColumnWidth?: number
@@ -361,11 +362,13 @@ export function buildWorkbookSnapshot(
   const cellData = buildCellData(data, visibleColumns)
   const columnData = buildColumnWidths(visibleColumns)
   const rowData = buildRowHeights(data)
+  const mergeData = Array.isArray(sheet.settings.mergeData) ? sheet.settings.mergeData : undefined
 
   const worksheet: UniverWorksheetData = {
     id: sheet.id,
     name: sheet.name,
     cellData,
+    mergeData,
     rowCount: Math.max(data.length, DEFAULT_MIN_ROWS),
     columnCount: Math.max(visibleColumns.length, 1),
     defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
