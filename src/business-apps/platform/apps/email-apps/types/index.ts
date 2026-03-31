@@ -92,9 +92,24 @@ export interface EmailMessageSummary {
   attachments?: EmailAttachment[]
 }
 
+/** Known suggestion kinds from the document-service API (extensible via `string`). */
+export type EmailSummarizeSuggestionTypeKnown = 'task' | 'meeting' | 'service_ticket' | 'sales_activity' | 'contract'
+
+export type EmailSummarizeSuggestionType = EmailSummarizeSuggestionTypeKnown | string
+
+/** Preferred integration for “Create in …” actions (extensible via `string`). */
+export type EmailSummarizeIntegrationTargetKnown =
+  | 'blink'
+  | 'flow_engine'
+  | 'customer_relations'
+  | 'calendar'
+  | 'generic'
+
+export type EmailSummarizeIntegrationTarget = EmailSummarizeIntegrationTargetKnown | string
+
 /** Single AI-extracted suggestion from email/thread summarization */
 export interface EmailSummarizeSuggestion {
-  type: string
+  type: EmailSummarizeSuggestionType
   title: string
   details?: string
   assignee?: string
@@ -103,7 +118,10 @@ export interface EmailSummarizeSuggestion {
   endAt?: string
   confidence?: number
   evidence?: string
+  /** Index into chronologically sorted thread messages (oldest first), 0-based; aligns with thread reader order */
   messageIndex?: number
+  integrationTarget?: EmailSummarizeIntegrationTarget
+  metadata?: Record<string, string>
 }
 
 /** AI summarization result for one message */

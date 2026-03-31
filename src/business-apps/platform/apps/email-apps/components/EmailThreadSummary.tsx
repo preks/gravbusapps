@@ -12,7 +12,7 @@ import { SparkleIcon, CaretDownIcon, CaretUpIcon, UsersIcon, LightningIcon } fro
 import { Loader2 } from 'lucide-react'
 import { EmailSummarizeSuggestions } from './EmailSummarizeSuggestions'
 import { EmailApiService } from '../services/EmailApiService'
-import type { ThreadSummaryResult } from '../types'
+import type { EmailMessage, ThreadSummaryResult } from '../types'
 import { stableKeyPointKey } from '../utils/emailSummarizeSuggestionUtils'
 
 /** Cache key: threadId. Value: { summary, messageCount } */
@@ -21,12 +21,18 @@ const summaryCache = new Map<string, { summary: ThreadSummaryResult; messageCoun
 interface EmailThreadSummaryProps {
   threadId: string
   messageCount: number
+  accessToken?: string
+  primaryMessage?: EmailMessage
+  onJumpToMessageIndex?: (index: number) => void
   'data-testid'?: string
 }
 
 export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
   threadId,
   messageCount,
+  accessToken,
+  primaryMessage,
+  onJumpToMessageIndex,
   'data-testid': testId = 'email-thread-summary'
 }) => {
   const { t } = useTranslation(translations)
@@ -193,6 +199,17 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
           <EmailSummarizeSuggestions
             suggestions={summary.suggestions ?? []}
             variant="thread"
+            onJumpToMessageIndex={onJumpToMessageIndex}
+            createActionContext={
+              accessToken && primaryMessage
+                ? {
+                    message: primaryMessage,
+                    accessToken,
+                    noSubjectLabel: t('reader-no-subject'),
+                    threadId
+                  }
+                : undefined
+            }
             data-testid={`${testId}-suggestions`}
           />
 

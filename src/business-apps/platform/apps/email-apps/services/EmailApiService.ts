@@ -10,6 +10,10 @@ import {
   parseEmailAssistantPolicy,
   parseEmailAssistantResponse
 } from '../utils/emailAssistantParsers'
+import {
+  normalizeMessageSummaryResult,
+  normalizeThreadSummaryResultSuggestions
+} from '../utils/emailSummarizeSuggestionNormalize'
 import type {
   EmailAccount,
   EmailFolder,
@@ -158,7 +162,7 @@ export const EmailApiService = {
     const result = await apiRequest<ThreadSummaryResult>(`/emails/threads/${threadId}/summarize`, {
       method: 'POST'
     })
-    return { ...result, suggestions: result.suggestions ?? [] }
+    return normalizeThreadSummaryResultSuggestions({ ...result, suggestions: result.suggestions ?? [] })
   },
 
   async sendEmail(data: SendEmailRequest): Promise<EmailMessage> {
@@ -212,10 +216,7 @@ export const EmailApiService = {
     const result = await apiRequest<MessageSummaryResult>(`/emails/messages/${messageId}/summarize`, {
       method: 'POST'
     })
-    return {
-      summary: result.summary,
-      suggestions: result.suggestions ?? []
-    }
+    return normalizeMessageSummaryResult(result)
   },
 
   /**

@@ -373,6 +373,24 @@ email-suggestion-type-reminder = Reminder
 email-suggestion-type-meeting = Meeting
 email-suggestion-type-deadline = Deadline
 email-suggestion-type-action-item = Action item
+email-suggestion-type-service-ticket = Support ticket
+email-suggestion-type-sales-activity = Sales activity
+email-suggestion-type-contract = Contract
+email-suggestion-target-blink = Blink
+email-suggestion-target-flow-engine = Flow engine
+email-suggestion-target-customer-relations = Customer relations
+email-suggestion-target-calendar = Calendar
+email-suggestion-target-generic = Generic
+email-suggestion-metadata-show = Show extra fields
+email-suggestion-metadata-hide = Hide extra fields
+email-suggestion-jump-message = Show in thread
+email-suggestion-create-cta-log-activity = Log activity
+email-suggestion-create-cta-coming-soon = Coming soon
+email-suggestion-create-stub-hint = This integration is not available from the email app yet.
+email-suggestion-create-dialog-title = Create activity from suggestion
+email-suggestion-create-dialog-description = Review the draft. Nothing is saved until you finish the flow.
+email-suggestion-create-confirm = Continue
+email-suggestion-create-cancel = Cancel
 
 # Email thread view
 reader-thread-messages = { $count } message(s) in this conversation

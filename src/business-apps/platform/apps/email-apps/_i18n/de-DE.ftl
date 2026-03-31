@@ -379,6 +379,24 @@ email-suggestion-type-reminder = Erinnerung
 email-suggestion-type-meeting = Termin
 email-suggestion-type-deadline = Frist
 email-suggestion-type-action-item = Aktionspunkt
+email-suggestion-type-service-ticket = Support-Ticket
+email-suggestion-type-sales-activity = Vertriebsaktivität
+email-suggestion-type-contract = Vertrag
+email-suggestion-target-blink = Blink
+email-suggestion-target-flow-engine = Flow Engine
+email-suggestion-target-customer-relations = Kundenbeziehungen
+email-suggestion-target-calendar = Kalender
+email-suggestion-target-generic = Allgemein
+email-suggestion-metadata-show = Zusätzliche Felder anzeigen
+email-suggestion-metadata-hide = Zusätzliche Felder ausblenden
+email-suggestion-jump-message = In Konversation anzeigen
+email-suggestion-create-cta-log-activity = Aktivität erfassen
+email-suggestion-create-cta-coming-soon = Demnächst
+email-suggestion-create-stub-hint = Diese Integration ist in der E-Mail-App noch nicht verfügbar.
+email-suggestion-create-dialog-title = Aktivität aus Vorschlag anlegen
+email-suggestion-create-dialog-description = Prüfen Sie den Entwurf. Es wird nichts gespeichert, bis Sie den Vorgang abschließen.
+email-suggestion-create-confirm = Weiter
+email-suggestion-create-cancel = Abbrechen
 
 # Pagination/Admin consent additions
 provider-admin-consent-help = Wenn Benutzer „Admin-Genehmigung erforderlich" sehen, kann ein Admin diesen Link öffnen, um die konfigurierten Bereiche im Mandanten zu genehmigen.

@@ -183,6 +183,12 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
             <EmailSummarizeSuggestions
               suggestions={aiSuggestions}
               variant="crm"
+              createActionContext={{
+                message,
+                accessToken,
+                noSubjectLabel: t('reader-no-subject'),
+                ...(isThread && threadId ? { threadId } : {})
+              }}
               data-testid={`${testId}-suggestions`}
             />
           )}

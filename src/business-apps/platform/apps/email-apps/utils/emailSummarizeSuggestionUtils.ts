@@ -1,5 +1,14 @@
 import type { EmailSummarizeSuggestion } from '../types'
 
+/** Sorted metadata key=value pairs for stable React keys */
+export function serializeMetadataForStableKey(metadata: Record<string, string> | undefined): string {
+  if (!metadata || Object.keys(metadata).length === 0) return ''
+  return Object.keys(metadata)
+    .sort()
+    .map(k => `${k}=${metadata[k]}`)
+    .join('|')
+}
+
 export function hashString(str: string): number {
   let h = 0
   for (let i = 0; i < str.length; i++) {
@@ -14,6 +23,8 @@ export function stableEmailSuggestionKey(s: EmailSummarizeSuggestion): string {
     s.type,
     s.title,
     s.messageIndex ?? 'x',
+    s.integrationTarget ?? '',
+    serializeMetadataForStableKey(s.metadata),
     String(hashString(s.details ?? '')),
     String(hashString(s.evidence ?? '')),
     s.dueAt ?? '',

@@ -227,7 +227,12 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
 
         {/* Thread view OR single-message view */}
         {showThread ? (
-          <EmailThreadView messages={threadMessages} accessToken={accessToken} data-testid={`${testId}-thread`} />
+          <EmailThreadView
+            messages={threadMessages}
+            accessToken={accessToken}
+            primaryMessage={message ?? undefined}
+            data-testid={`${testId}-thread`}
+          />
         ) : (
           <EmailReaderSingleMessageView
             message={message}

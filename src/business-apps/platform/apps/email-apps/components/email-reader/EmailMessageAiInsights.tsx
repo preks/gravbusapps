@@ -10,19 +10,20 @@ import { Loader2 } from 'lucide-react'
 import translations from '../../_i18n'
 import { EmailSummarizeSuggestions } from '../EmailSummarizeSuggestions'
 import { EmailApiService } from '../../services/EmailApiService'
-import type { EmailSummarizeSuggestion } from '../../types'
+import type { EmailMessage, EmailSummarizeSuggestion } from '../../types'
 
 interface EmailMessageAiInsightsProps {
-  messageId: string
+  message: EmailMessage
   accessToken: string
   'data-testid'?: string
 }
 
 export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
-  messageId,
+  message,
   accessToken,
   'data-testid': testId = 'email-message-ai-insights'
 }) => {
+  const messageId = message.id
   const { t } = useTranslation(translations)
   const [open, setOpen] = useState(false)
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
@@ -122,7 +123,16 @@ export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
           {(summary ?? '').trim().length > 0 ? (
             <p className="gba:text-sm gba:leading-relaxed gba:text-muted-foreground">{summary}</p>
           ) : null}
-          <EmailSummarizeSuggestions suggestions={suggestions} variant="reader" data-testid={`${testId}-suggestions`} />
+          <EmailSummarizeSuggestions
+            suggestions={suggestions}
+            variant="reader"
+            createActionContext={{
+              message,
+              accessToken,
+              noSubjectLabel: t('reader-no-subject')
+            }}
+            data-testid={`${testId}-suggestions`}
+          />
           {suggestions.length === 0 && (summary ?? '').trim().length === 0 ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:italic" data-testid={`${testId}-empty`}>
               {t('reader-ai-insights-empty')}

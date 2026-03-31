@@ -379,6 +379,24 @@ email-suggestion-type-reminder = Memento
 email-suggestion-type-meeting = Întâlnire
 email-suggestion-type-deadline = Termen limită
 email-suggestion-type-action-item = Punct de acțiune
+email-suggestion-type-service-ticket = Tichet suport
+email-suggestion-type-sales-activity = Activitate vânzări
+email-suggestion-type-contract = Contract
+email-suggestion-target-blink = Blink
+email-suggestion-target-flow-engine = Flow engine
+email-suggestion-target-customer-relations = Relații clienți
+email-suggestion-target-calendar = Calendar
+email-suggestion-target-generic = Generic
+email-suggestion-metadata-show = Afișează câmpuri suplimentare
+email-suggestion-metadata-hide = Ascunde câmpuri suplimentare
+email-suggestion-jump-message = Arată în conversație
+email-suggestion-create-cta-log-activity = Înregistrează activitate
+email-suggestion-create-cta-coming-soon = În curând
+email-suggestion-create-stub-hint = Această integrare nu e încă disponibilă din aplicația de e-mail.
+email-suggestion-create-dialog-title = Creează activitate din sugestie
+email-suggestion-create-dialog-description = Verificați schița. Nimic nu este salvat până finalizați fluxul.
+email-suggestion-create-confirm = Continuă
+email-suggestion-create-cancel = Anulează
 
 # Pagination/Admin consent additions
 provider-admin-consent-help = Dacă utilizatorii văd „Aprobare admin necesară", un admin poate deschide acest link pentru consimțământ.

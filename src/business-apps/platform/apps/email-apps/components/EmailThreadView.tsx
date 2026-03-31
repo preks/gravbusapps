@@ -3,7 +3,7 @@
  * The most recent message is expanded by default; older messages are collapsed.
  */
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
@@ -19,6 +19,8 @@ import type { EmailMessage } from '../types'
 interface EmailThreadViewProps {
   messages: EmailMessage[]
   accessToken?: string
+  /** Reader’s selected message — used for AI suggestion “create” flows */
+  primaryMessage?: EmailMessage | null
   'data-testid'?: string
 }
 
@@ -28,7 +30,9 @@ const ThreadMessage: React.FC<{
   isLatest: boolean
   testId: string
   accessToken?: string
-}> = ({ message, isLatest, testId, accessToken }) => {
+  highlight: boolean
+  messageCardRef: (el: HTMLDivElement | null) => void
+}> = ({ message, isLatest, testId, accessToken, highlight, messageCardRef }) => {
   const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(isLatest)
   const { downloadingAttId, handleDownloadAttachment } = useAttachmentDownload(t)
@@ -39,7 +43,8 @@ const ThreadMessage: React.FC<{
 
   return (
     <div
-      className={`gba:border gba:rounded-lg gba:bg-card ${isLatest ? 'gba:border-primary/30' : ''}`}
+      ref={messageCardRef}
+      className={`gba:border gba:rounded-lg gba:bg-card gba:transition-shadow gba:duration-300 ${isLatest ? 'gba:border-primary/30' : ''} ${highlight ? 'gba:ring-2 gba:ring-primary/50' : ''}`}
       data-testid={`${testId}-message-${message.id}`}
     >
       {/* Collapsed header — always visible */}
@@ -119,18 +124,47 @@ const ThreadMessage: React.FC<{
 export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
   messages,
   accessToken,
+  primaryMessage,
   'data-testid': testId = 'email-thread'
 }) => {
   const { t } = useTranslation(translations)
-  // Sort messages chronologically (oldest first), latest at bottom
+  const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  const [flashIndex, setFlashIndex] = useState<number | null>(null)
+
+  const attachMessageRef = useCallback(
+    (index: number) => (el: HTMLDivElement | null) => {
+      if (el) {
+        messageRefs.current.set(index, el)
+      } else {
+        messageRefs.current.delete(index)
+      }
+    },
+    []
+  )
+
+  const jumpToMessageIndex = useCallback((index: number) => {
+    const el = messageRefs.current.get(index)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlashIndex(index)
+      window.setTimeout(() => setFlashIndex(null), 2000)
+    }
+  }, [])
+
   const sorted = [...messages].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   const threadId = sorted[0]?.threadId
 
   return (
     <div className="gba:space-y-3" data-testid={testId}>
-      {/* AI Summary - shown for threads with 2+ messages */}
       {threadId && sorted.length > 1 && (
-        <EmailThreadSummary threadId={threadId} messageCount={sorted.length} data-testid={`${testId}-ai-summary`} />
+        <EmailThreadSummary
+          threadId={threadId}
+          messageCount={sorted.length}
+          accessToken={accessToken}
+          primaryMessage={primaryMessage ?? undefined}
+          onJumpToMessageIndex={jumpToMessageIndex}
+          data-testid={`${testId}-ai-summary`}
+        />
       )}
 
       <p className="gba:text-xs gba:text-muted-foreground gba:px-1">
@@ -143,6 +177,8 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
           isLatest={idx === sorted.length - 1}
           testId={testId}
           accessToken={accessToken}
+          highlight={flashIndex === idx}
+          messageCardRef={attachMessageRef(idx)}
         />
       ))}
     </div>

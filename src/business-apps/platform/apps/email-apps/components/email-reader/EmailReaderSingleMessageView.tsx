@@ -73,11 +73,7 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
       />
 
       {accessToken ? (
-        <EmailMessageAiInsights
-          messageId={message.id}
-          accessToken={accessToken}
-          data-testid={`${testId}-ai-insights`}
-        />
+        <EmailMessageAiInsights message={message} accessToken={accessToken} data-testid={`${testId}-ai-insights`} />
       ) : null}
     </>
   )
