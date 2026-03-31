@@ -4,15 +4,15 @@
  */
 
 import React from 'react'
-import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
-import { getImportErrorTitle } from '@/common/components/common-relations/apps/data-import/utils'
 import {
   FileUploadStep,
   MappingReviewStep,
-  ConversionResultStep
+  ConversionResultStep,
+  ImportErrorCard
 } from '@/common/components/common-relations/apps/data-import/components'
 import { equityInvestmentImportConfig } from './config/equityInvestmentImportConfig'
 import { ConvertedEquityInvestment } from './types/equityInvestmentImportTypes'
@@ -72,8 +72,6 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
     await baseConvertData(mappings, undefined, convertToNestedEquityInvestment)
   }
 
-  const importErrorTitle = getImportErrorTitle(step)
-
   return (
     <PageLayout
       headerIcon={SparkleIcon}
@@ -82,21 +80,7 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
       onBack={onBack}
       data-testid={testId}
     >
-      {error && (
-        <Card className="gba:mb-6 gba:border-destructive-ring" data-testid={`${testId}-error`}>
-          <CardContent className="gba:py-10">
-            <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive-secondary">
-                <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
-              </div>
-              <div className="gba:space-y-2">
-                <p className="gba:font-semibold gba:text-base gba:text-destructive">{importErrorTitle}</p>
-                <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {error && <ImportErrorCard step={step} error={error} data-testid={`${testId}-error`} />}
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
