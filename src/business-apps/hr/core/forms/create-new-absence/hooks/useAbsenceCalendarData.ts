@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
+import dayjs from 'dayjs'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   employeeRegionLookupQuery,
   employmentRegionHolidaysInRangeQuery,
   employeeAbsenceCalendarRangeQuery,
+  getEmployeeAbsences,
+  absenceTypePriorityQuery,
   latestEntitlementSnapshotForRangeQuery
 } from '../queries/getEmployeeAbsences'
+import { extractAbsencePriority } from '../utils/absencePriority'
 import { resolveEmploymentRegionRef } from '../utils/employmentRegion'
 
 interface AbsenceCalendarDay {
@@ -15,10 +19,19 @@ interface AbsenceCalendarDay {
   typeRef: string
 }
 
+interface CalendarAbsence {
+  startDate: string
+  endDate: string
+  status: string
+  type?: {
+    objectValue?: unknown
+  }
+}
+
 interface UseAbsenceCalendarDataReturn {
   approvedDates: Date[]
   pendingDates: Date[]
-  requestDates: Date[]
+  blockedRequestDates: Date[]
   bankHolidayDates: Date[]
   entitlementSnapshot: {
     typeRef: string
@@ -42,6 +55,49 @@ const toLocalDateStr = (d: Date): string =>
 
 const normalizeStatus = (status: string | null | undefined): string => String(status ?? '').toUpperCase()
 
+const buildBlockedRequestDates = (
+  absences: CalendarAbsence[],
+  visibleRangeStart: Date,
+  visibleRangeEnd: Date,
+  selectedTypePriority: number | null
+): Date[] => {
+  const blockedDateKeys = new Set<string>()
+  const rangeStart = dayjs(visibleRangeStart).startOf('day')
+  const rangeEnd = dayjs(visibleRangeEnd).startOf('day')
+
+  for (const absence of absences) {
+    const status = normalizeStatus(absence.status)
+    if (status === 'REJECTED' || status === 'CANCELLED') {
+      continue
+    }
+
+    const existingPriority = extractAbsencePriority(absence.type?.objectValue)
+    const canOverrideExistingAbsence =
+      selectedTypePriority !== null && Number.isFinite(selectedTypePriority) && selectedTypePriority < existingPriority
+
+    if (canOverrideExistingAbsence) {
+      continue
+    }
+
+    const absenceStart = dayjs(absence.startDate).startOf('day')
+    const absenceEnd = dayjs(absence.endDate).startOf('day')
+    const boundedStart = absenceStart.isBefore(rangeStart) ? rangeStart : absenceStart
+    const boundedEnd = absenceEnd.isAfter(rangeEnd) ? rangeEnd : absenceEnd
+
+    if (boundedEnd.isBefore(boundedStart, 'day')) {
+      continue
+    }
+
+    let cursor = boundedStart
+    while (cursor.isBefore(boundedEnd, 'day') || cursor.isSame(boundedEnd, 'day')) {
+      blockedDateKeys.add(toLocalDateStr(cursor.toDate()))
+      cursor = cursor.add(1, 'day')
+    }
+  }
+
+  return [...blockedDateKeys].map(parseLocalDate)
+}
+
 /**
  * Fetches absence calendar data and bank holidays for the two months
  * currently visible in the date range picker (visibleMonth + next month).
@@ -58,7 +114,7 @@ export const useAbsenceCalendarData = (
   const [regionRef, setRegionRef] = useState<string | null>(null)
   const [approvedDates, setApprovedDates] = useState<Date[]>([])
   const [pendingDates, setPendingDates] = useState<Date[]>([])
-  const [requestDates, setRequestDates] = useState<Date[]>([])
+  const [blockedRequestDates, setBlockedRequestDates] = useState<Date[]>([])
   const [bankHolidayDates, setBankHolidayDates] = useState<Date[]>([])
   const [entitlementSnapshot, setEntitlementSnapshot] =
     useState<UseAbsenceCalendarDataReturn['entitlementSnapshot']>(null)
@@ -94,10 +150,15 @@ export const useAbsenceCalendarData = (
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const absencePromise = client.request(employeeAbsenceCalendarRangeQuery, {
+        const calendarPromise = client.request(employeeAbsenceCalendarRangeQuery, {
           employeeId,
           from: fromStr,
           to: toStr
+        })
+        const absenceDetailsPromise = client.request(getEmployeeAbsences, {
+          employeeId,
+          startDate: dayjs(monthStart).startOf('day').toISOString(),
+          endDate: dayjs(monthEnd).endOf('day').toISOString()
         })
 
         const holidayPromise =
@@ -118,14 +179,23 @@ export const useAbsenceCalendarData = (
                 to: toStr
               })
             : Promise.resolve(null)
+        const selectedTypePriorityPromise =
+          selectedTypeRef != null && selectedTypeRef !== ''
+            ? client.request(absenceTypePriorityQuery, {
+                typeRef: selectedTypeRef
+              })
+            : Promise.resolve(null)
 
-        const [absenceResult, holidayResult, snapshotResult] = await Promise.all([
-          absencePromise,
-          holidayPromise,
-          snapshotPromise
-        ])
+        const [calendarResult, absenceDetailsResult, holidayResult, snapshotResult, selectedTypePriorityResult] =
+          await Promise.all([
+            calendarPromise,
+            absenceDetailsPromise,
+            holidayPromise,
+            snapshotPromise,
+            selectedTypePriorityPromise
+          ])
 
-        const days: AbsenceCalendarDay[] = absenceResult?.EmployeeAbsenceCalendarView ?? []
+        const days: AbsenceCalendarDay[] = calendarResult?.EmployeeAbsenceCalendarView ?? []
         setApprovedDates(days.filter(d => normalizeStatus(d.status) === 'APPROVED').map(d => parseLocalDate(d.dayDate)))
         setPendingDates(
           days
@@ -135,14 +205,11 @@ export const useAbsenceCalendarData = (
             })
             .map(d => parseLocalDate(d.dayDate))
         )
-        setRequestDates(
-          days
-            .filter(d => {
-              const status = normalizeStatus(d.status)
-              return status !== 'REJECTED' && status !== 'CANCELLED'
-            })
-            .map(d => parseLocalDate(d.dayDate))
-        )
+        const detailedAbsences: CalendarAbsence[] = absenceDetailsResult?.EmployeeAbsence ?? []
+        const selectedTypePriorityEntry = selectedTypePriorityResult?.CatalogEntry?.[0]
+        const selectedTypePriority =
+          selectedTypePriorityEntry != null ? extractAbsencePriority(selectedTypePriorityEntry.objectValue) : null
+        setBlockedRequestDates(buildBlockedRequestDates(detailedAbsences, monthStart, monthEnd, selectedTypePriority))
 
         if (holidayResult === null) {
           setBankHolidayDates([])
@@ -191,5 +258,5 @@ export const useAbsenceCalendarData = (
     fetchData()
   }, [client, employeeId, regionRef, visibleMonth, selectedTypeRef])
 
-  return { approvedDates, pendingDates, requestDates, bankHolidayDates, entitlementSnapshot, isLoading }
+  return { approvedDates, pendingDates, blockedRequestDates, bankHolidayDates, entitlementSnapshot, isLoading }
 }
