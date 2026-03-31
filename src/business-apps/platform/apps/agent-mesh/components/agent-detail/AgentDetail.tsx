@@ -13,7 +13,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { ArrowLeft, BookOpen, Zap, Network, Activity, FileText, Link2, Database, Globe } from 'lucide-react'
-import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AgentRegistryEntry, ExecutionListItem } from '../../types/agentMesh'
 import { AgentOverviewTab } from './AgentOverviewTab'
 
@@ -27,7 +27,7 @@ export const AgentDetail = ({ agentId, accessToken, onBack }: AgentDetailProps) 
   const [agent, setAgent] = useState<AgentRegistryEntry | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const client = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
   useEffect(() => {
     let mounted = true
@@ -35,7 +35,7 @@ export const AgentDetail = ({ agentId, accessToken, onBack }: AgentDetailProps) 
       try {
         setLoading(true)
         setError(null)
-        const data = await client.getAgentDetail(agentId)
+        const data = await promptManagerClient.getAgentDetail(agentId)
         if (!mounted) return
         setAgent(data)
       } catch (err) {
@@ -52,7 +52,7 @@ export const AgentDetail = ({ agentId, accessToken, onBack }: AgentDetailProps) 
     return () => {
       mounted = false
     }
-  }, [agentId, accessToken, client])
+  }, [agentId, accessToken, promptManagerClient])
 
   if (loading) {
     return (
@@ -340,14 +340,14 @@ export const AgentDetail = ({ agentId, accessToken, onBack }: AgentDetailProps) 
 
 /** Fetches and displays execution logs for this agent */
 function AgentActivitySection({ agentId, accessToken }: { agentId: string; accessToken: string }) {
-  const client = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [executions, setExecutions] = useState<ExecutionListItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let mounted = true
-    client
-      .getExecutions({ promptId: agentId, limit: 50 })
+    promptManagerClient
+      .getMeshExecutions({ promptId: agentId, limit: 50 })
       .then(data => {
         if (mounted) setExecutions(data)
       })
@@ -358,7 +358,7 @@ function AgentActivitySection({ agentId, accessToken }: { agentId: string; acces
     return () => {
       mounted = false
     }
-  }, [agentId, client])
+  }, [agentId, promptManagerClient])
 
   if (loading) {
     return (
