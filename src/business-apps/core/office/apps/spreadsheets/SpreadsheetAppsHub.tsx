@@ -1330,11 +1330,25 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const renderCurrentView = () => {
     if (currentView === 'viewer' && currentApp) {
-      return renderViewerContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderViewerContent(currentApp)}
+        </div>
+      )
     }
 
     if (currentView === 'editor' && currentApp) {
-      return renderEditorContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderEditorContent(currentApp)}
+        </div>
+      )
     }
 
     const heroNewButton = (

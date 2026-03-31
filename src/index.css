@@ -690,3 +690,34 @@
   background-color: #f0f9ff !important;
   border-color: #3b82f6 !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Univer spreadsheet embed (gravity-business-apps)                           */
+/* Keep sheet tab bar / footer visible: workbench must not scroll as a whole */
+/* and the native footer stays pinned when an ancestor scrolls (e.g. mobile). */
+/* -------------------------------------------------------------------------- */
+[data-testid='univer-sheet-grid-container'] [data-u-comp='workbench-layout'],
+[data-testid='univer-sheet-grid-container'] [data-u-comp='app-layout'] {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-testid='univer-sheet-grid-container'] [data-u-comp='workbench-layout'] > section,
+[data-testid='univer-sheet-grid-container'] [data-u-comp='app-layout'] > section {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+[data-testid='univer-sheet-grid-container'] [data-u-comp='workbench-layout'] > section > footer,
+[data-testid='univer-sheet-grid-container'] [data-u-comp='app-layout'] > section > footer {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+}
+
+[data-testid='univer-sheet-grid-container'] {
+  overscroll-behavior: contain;
+}

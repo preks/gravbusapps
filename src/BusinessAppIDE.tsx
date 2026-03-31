@@ -1125,21 +1125,25 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   <IDEContextPanel accessToken={accessToken || ''} userInfo={parsedUserInfo()} enabled={enableChat} />
                 }
               >
-                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
+                <div className="gba:flex gba:flex-1 gba:flex-col gba:min-h-0 gba:bg-background gba:rounded-xl">
                   {!selectedApp ? (
-                    <IDEStartScreen
-                      filteredBusinessApps={filteredCatalogBusinessApps}
-                      allBusinessApps={businessApps}
-                      onAppSelect={handleAppSelect}
-                    />
+                    <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto">
+                      <IDEStartScreen
+                        filteredBusinessApps={filteredCatalogBusinessApps}
+                        allBusinessApps={businessApps}
+                        onAppSelect={handleAppSelect}
+                      />
+                    </div>
                   ) : (
-                    <IDERenderer
-                      selectedApp={selectedApp}
-                      userInfo={parsedUserInfo()}
-                      accessToken={accessToken || ''}
-                      additionalData={parsedAdditionalData()}
-                      onAppSelect={setSelectedApp}
-                    />
+                    <div className="gba:flex gba:flex-1 gba:flex-col gba:min-h-0 gba:overflow-hidden">
+                      <IDERenderer
+                        selectedApp={selectedApp}
+                        userInfo={parsedUserInfo()}
+                        accessToken={accessToken || ''}
+                        additionalData={parsedAdditionalData()}
+                        onAppSelect={setSelectedApp}
+                      />
+                    </div>
                   )}
                 </div>
               </ShellLayout>
