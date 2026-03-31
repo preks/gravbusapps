@@ -1,34 +1,9 @@
-/**
- * Utility functions for Expense Management Overview
- *
- * @version 1.0
- * @date 2025-06-05
- */
+import { ExpenseStatus } from '../../../common/utils/statusDisplayUtils'
 
 export type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
 
-/**
- * Enum representing the technical statuses for expenses
- */
-export enum ExpenseStatus {
-  PREPARED = 'PREPARED',
-  CREATED = 'CREATED',
-  ASSIGNED = 'ASSIGNED',
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  RETURNED = 'RETURNED',
-  REJECTED = 'REJECTED',
-  VERIFIED = 'VERIFIED',
-  BOOKED = 'BOOKED',
-  PAID = 'PAID',
-  CLOSED = 'CLOSED',
-  DISCARDED = 'DISCARDED',
-  TRANSFERRED = 'TRANSFERRED'
-}
+export { ExpenseStatus }
 
-/**
- * Type for status display configuration
- */
 export interface StatusDisplayConfig {
   label: string
   badgeVariant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' | 'info' | 'offline'

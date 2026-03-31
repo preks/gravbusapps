@@ -17,7 +17,10 @@ import {
   FolderInput,
   FileSpreadsheet,
   StickyNote,
-  Presentation
+  Presentation,
+  Upload,
+  File,
+  Folder
 } from 'lucide-react'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -40,7 +43,8 @@ const actionConfig: Record<string, { icon: typeof FileText; label: string }> = {
   deleted: { icon: Trash2, label: 'deleted' },
   shared: { icon: Share2, label: 'shared' },
   moved: { icon: FolderInput, label: 'moved' },
-  commented: { icon: MessageCircle, label: 'commented on' }
+  commented: { icon: MessageCircle, label: 'commented on' },
+  uploaded: { icon: Upload, label: 'uploaded' }
 }
 
 const entityTypeConfig: Record<string, { icon: typeof FileText; label: string }> = {
@@ -48,7 +52,9 @@ const entityTypeConfig: Record<string, { icon: typeof FileText; label: string }>
   note: { icon: StickyNote, label: 'note' },
   spreadsheet: { icon: FileSpreadsheet, label: 'spreadsheet' },
   slide: { icon: Presentation, label: 'presentation' },
-  space: { icon: Activity, label: 'space' }
+  space: { icon: Activity, label: 'space' },
+  file: { icon: File, label: 'file' },
+  folder: { icon: Folder, label: 'folder' }
 }
 
 const getInitials = (name: string): string => {
@@ -67,11 +73,9 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
 }) => {
   const handleActivityClick = useCallback(
     (activity: SpaceActivityType) => {
-      // Don't navigate for deleted items or space-level activities
-      if (activity.action === 'deleted' || activity.entityType === 'space') return
+      if (activity.action === 'deleted' || ['space', 'folder', 'file'].includes(activity.entityType)) return
 
-      // Use canonical platform paths (navigateTo() maps them for dev)
-      const basePathByType: Record<SpaceActivityType['entityType'], string> = {
+      const basePathByType: Partial<Record<SpaceActivityType['entityType'], string>> = {
         document: '/platform/every-office/documents',
         note: '/platform/every-office/notes',
         spreadsheet: '/platform/every-office/spreadsheets',
@@ -136,7 +140,8 @@ export const SpaceActivity: React.FC<SpaceActivityProps> = ({
         const action = actionConfig[activity.action] || actionConfig.updated
         const entityType = entityTypeConfig[activity.entityType] || entityTypeConfig.document
         const EntityIcon = entityType.icon
-        const isClickable = activity.action !== 'deleted' && activity.entityType !== 'space'
+        const nonClickableTypes = ['space', 'folder', 'file']
+        const isClickable = activity.action !== 'deleted' && !nonClickableTypes.includes(activity.entityType)
 
         // Get resolved user info (with avatar) from useSpaceUserLookup
         const resolvedUser = getUserInfo?.(activity.userId)

@@ -25,7 +25,8 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  ScrollArea
+  ScrollArea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Search,
@@ -47,6 +48,7 @@ import {
   getTemplatesByCategory,
   createAutomationFromTemplate
 } from '../../data/automationTemplates'
+import translations from '../../_i18n'
 
 export interface AutomationTemplateGalleryProps {
   /** Whether the dialog is open */
@@ -174,6 +176,7 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
   onSelectTemplate,
   'data-testid': testId = 'automation-template-gallery'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<CategoryConfig['id']>('featured')
   const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplate | null>(null)
@@ -225,16 +228,16 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Zap className="gba:w-5 gba:h-5 gba:text-primary" />
-            Automation Templates
+            {t('templates-title')}
           </DialogTitle>
-          <DialogDescription>Choose a pre-built template to quickly set up your automation.</DialogDescription>
+          <DialogDescription>{t('templates-description')}</DialogDescription>
         </DialogHeader>
 
         {/* Search */}
         <div className="gba:relative">
           <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
           <Input
-            placeholder="Search templates..."
+            placeholder={t('templates-search-placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:pl-10"
@@ -265,9 +268,9 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
               {filteredTemplates.length === 0 ? (
                 <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
                   <Zap className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
-                  <p className="gba:text-lg gba:font-medium">No templates found</p>
+                  <p className="gba:text-lg gba:font-medium">{t('templates-empty-title')}</p>
                   <p className="gba:text-sm gba:mt-1">
-                    {searchQuery ? 'Try a different search term' : 'No templates available in this category'}
+                    {searchQuery ? t('templates-empty-search') : t('templates-empty-category')}
                   </p>
                 </div>
               ) : (
@@ -295,7 +298,7 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{selectedTemplate.description}</p>
                 {selectedTemplate.requiredColumns && selectedTemplate.requiredColumns.length > 0 && (
                   <div className="gba:mt-2">
-                    <span className="gba:text-xs gba:text-muted-foreground">Required columns: </span>
+                    <span className="gba:text-xs gba:text-muted-foreground">{t('templates-required-columns')} </span>
                     {selectedTemplate.requiredColumns.map((col, i) => (
                       <React.Fragment key={col}>
                         <code className="gba:text-xs gba:bg-muted gba:px-1 gba:rounded">{col}</code>
@@ -310,7 +313,7 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
                   {selectedTemplate.automationConfig.type.replace('_', ' ')}
                 </Badge>
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  Trigger: {selectedTemplate.automationConfig.trigger}
+                  {t('templates-trigger')}: {selectedTemplate.automationConfig.trigger}
                 </div>
               </div>
             </div>
@@ -319,11 +322,11 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
           <Button onClick={handleUseTemplate} disabled={!selectedTemplate}>
             <Check className="gba:w-4 gba:h-4 gba:mr-2" />
-            Use Template
+            {t('templates-use-template')}
           </Button>
         </DialogFooter>
       </DialogContent>

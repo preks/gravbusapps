@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react'
 import { useMemo } from 'react'
 import type { Editor } from '@tiptap/react'
 import {
@@ -48,6 +49,10 @@ function getCurrentTocAttrs(editor: Editor, tocNodePos: number): TocAttrs | null
   }
 }
 
+function preventEditorBlurOnMouseDown(event: MouseEvent<HTMLElement>) {
+  event.preventDefault()
+}
+
 export function DocumentTocSettingsSidebar({
   editor,
   tocNodePos,
@@ -67,15 +72,31 @@ export function DocumentTocSettingsSidebar({
     editor.commands.setDocumentTableOfContentsOptions(next, tocNodePos)
   }
 
+  const selectContentProps = {
+    'data-document-toc-sidebar-dropdown': '',
+    onOpenAutoFocus: (event: Event) => event.preventDefault(),
+    onCloseAutoFocus: (event: Event) => event.preventDefault()
+  } as const
+
   return (
     <div
       className="gba:fixed gba:right-0 gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col gba:overflow-hidden gba:shadow-lg"
       style={{ top: `${headerHeight}px`, right: rightOffset, width: 360, zIndex: 45 }}
       data-testid={testId}
     >
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-4 gba:py-3 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
-        <h3 className="gba:text-base gba:font-semibold">{t('document-toc-settings-title')}</h3>
-        <Button type="button" variant="ghost" size="sm" onClick={onClose} data-testid={`${testId}-close`}>
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:px-4 gba:py-3.5 gba:border-b gba:border-border/50 gba:bg-muted/15">
+        <h3 className="gba:text-base gba:font-semibold gba:leading-tight gba:tracking-tight">
+          {t('document-toc-settings-title')}
+        </h3>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gba:h-auto gba:shrink-0 gba:px-0 gba:text-sm gba:font-normal gba:underline gba:underline-offset-2"
+          onMouseDown={preventEditorBlurOnMouseDown}
+          onClick={onClose}
+          data-testid={`${testId}-close`}
+        >
           {t('document-toc-settings-close')}
         </Button>
       </div>
@@ -83,20 +104,22 @@ export function DocumentTocSettingsSidebar({
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         <ScrollArea className="gba:flex-1 gba:h-full">
           <div className="gba:flex gba:flex-col gba:gap-4 gba:px-4 gba:py-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label>{t('document-toc-settings-page-numbers')}</Label>
+            <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+              <Label className="gba:text-sm gba:font-medium">{t('document-toc-settings-page-numbers')}</Label>
               <Checkbox
                 checked={attrs.showPageNumbers}
                 onCheckedChange={checked => updateOptions({ showPageNumbers: checked === true })}
+                onMouseDown={preventEditorBlurOnMouseDown}
                 data-testid={`${testId}-page-numbers`}
               />
             </div>
 
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <Label>{t('document-toc-settings-heading-links')}</Label>
+            <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+              <Label className="gba:text-sm gba:font-medium">{t('document-toc-settings-heading-links')}</Label>
               <Checkbox
                 checked={attrs.headingLinks}
                 onCheckedChange={checked => updateOptions({ headingLinks: checked === true })}
+                onMouseDown={preventEditorBlurOnMouseDown}
                 data-testid={`${testId}-heading-links`}
               />
             </div>
@@ -104,53 +127,73 @@ export function DocumentTocSettingsSidebar({
             <Separator />
 
             <div className="gba:space-y-2">
-              <Label>{t('document-toc-settings-page-number-align')}</Label>
+              <Label className="gba:text-xs gba:font-medium">{t('document-toc-settings-page-number-align')}</Label>
               <Select
                 value={attrs.rightAlignPageNumbers ? 'right' : 'inline'}
                 onValueChange={value => updateOptions({ rightAlignPageNumbers: value === 'right' })}
               >
-                <SelectTrigger data-testid={`${testId}-page-number-align`}>
+                <SelectTrigger data-testid={`${testId}-page-number-align`} onMouseDown={preventEditorBlurOnMouseDown}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="right">{t('document-toc-settings-page-number-align-right')}</SelectItem>
-                  <SelectItem value="inline">{t('document-toc-settings-page-number-align-inline')}</SelectItem>
+                <SelectContent {...selectContentProps}>
+                  <SelectItem value="right" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-page-number-align-right')}
+                  </SelectItem>
+                  <SelectItem value="inline" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-page-number-align-inline')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="gba:space-y-2">
-              <Label>{t('document-toc-settings-tab-leader')}</Label>
+              <Label className="gba:text-xs gba:font-medium">{t('document-toc-settings-tab-leader')}</Label>
               <Select
                 value={attrs.tabLeader}
                 onValueChange={value => updateOptions({ tabLeader: value as 'dot' | 'none' })}
               >
-                <SelectTrigger data-testid={`${testId}-tab-leader`}>
+                <SelectTrigger data-testid={`${testId}-tab-leader`} onMouseDown={preventEditorBlurOnMouseDown}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dot">{t('document-toc-settings-tab-leader-dot')}</SelectItem>
-                  <SelectItem value="none">{t('document-toc-settings-tab-leader-none')}</SelectItem>
+                <SelectContent {...selectContentProps}>
+                  <SelectItem value="dot" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-tab-leader-dot')}
+                  </SelectItem>
+                  <SelectItem value="none" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-tab-leader-none')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="gba:space-y-2">
-              <Label>{t('document-toc-settings-max-heading-level')}</Label>
+              <Label className="gba:text-xs gba:font-medium">{t('document-toc-settings-max-heading-level')}</Label>
               <Select
                 value={String(attrs.maxHeadingLevel)}
                 onValueChange={value => updateOptions({ maxHeadingLevel: Number.parseInt(value, 10) || 3 })}
               >
-                <SelectTrigger data-testid={`${testId}-max-level`}>
+                <SelectTrigger data-testid={`${testId}-max-level`} onMouseDown={preventEditorBlurOnMouseDown}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">{t('document-toc-settings-heading-1')}</SelectItem>
-                  <SelectItem value="2">{t('document-toc-settings-heading-2')}</SelectItem>
-                  <SelectItem value="3">{t('document-toc-settings-heading-3')}</SelectItem>
-                  <SelectItem value="4">{t('document-toc-settings-heading-4')}</SelectItem>
-                  <SelectItem value="5">{t('document-toc-settings-heading-5')}</SelectItem>
-                  <SelectItem value="6">{t('document-toc-settings-heading-6')}</SelectItem>
+                <SelectContent {...selectContentProps}>
+                  <SelectItem value="1" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-heading-1')}
+                  </SelectItem>
+                  <SelectItem value="2" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-heading-2')}
+                  </SelectItem>
+                  <SelectItem value="3" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-heading-3')}
+                  </SelectItem>
+                  <SelectItem value="4" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-heading-4')}
+                  </SelectItem>
+                  <SelectItem value="5" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-heading-5')}
+                  </SelectItem>
+                  <SelectItem value="6" onMouseDown={preventEditorBlurOnMouseDown}>
+                    {t('document-toc-settings-heading-6')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -162,6 +205,7 @@ export function DocumentTocSettingsSidebar({
         <Button
           variant="outline"
           className="gba:flex-1"
+          onMouseDown={preventEditorBlurOnMouseDown}
           onClick={() => editor.commands.updateDocumentTableOfContents(tocNodePos)}
           data-testid={`${testId}-update`}
         >

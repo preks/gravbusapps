@@ -1,6 +1,6 @@
+import { X } from '@phosphor-icons/react'
 import { Button, ScrollArea, useTranslation } from '@newwork/nw-design-system'
 import type { Editor } from '@tiptap/react'
-import { X } from 'lucide-react'
 import translations from '../../_i18n'
 import { TableSettingsSidebarContent } from './TableSettingsSidebarContent'
 import { useTableSidebarActions } from './useTableSidebarActions'
@@ -50,11 +50,16 @@ export function TableSettingsSidebar({
       style={{ top: `${headerHeight}px`, right: rightOffset, width: 360, zIndex: 45 }}
       data-testid={testId}
     >
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-4 gba:py-3 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
-        <div className="gba:min-w-0">
-          <h3 className="gba:text-base gba:font-semibold gba:leading-tight gba:min-w-0">{t('table-sidebar-title')}</h3>
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:px-4 gba:py-3.5 gba:border-b gba:border-border/50 gba:bg-muted/15">
+        <div className="gba:min-w-0 gba:pr-1">
+          <h3 className="gba:text-base gba:font-semibold gba:leading-tight gba:tracking-tight">
+            {t('table-sidebar-title')}
+          </h3>
           {contextSubtitle ? (
-            <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-context-subtitle`}>
+            <p
+              className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:leading-relaxed"
+              data-testid={`${testId}-context-subtitle`}
+            >
               {contextSubtitle}
             </p>
           ) : null}

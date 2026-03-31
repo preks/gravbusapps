@@ -16,8 +16,8 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { getFileNameFromEmployeeDocument, type HasEmployeeDocument } from '../utils/fileNameUtils'
-import type { PrintPdfResult } from '../files/useEmployeeDocumentPdfFileService'
+import { getFileNameFromEmployeeDocument, type HasEmployeeDocument } from '../../utils/fileNameUtils'
+import type { PrintPdfResult } from '../../files/useEmployeeDocumentPdfFileService'
 
 export interface EmployeeDocumentPdfPreviewTileProps {
   record: HasEmployeeDocument

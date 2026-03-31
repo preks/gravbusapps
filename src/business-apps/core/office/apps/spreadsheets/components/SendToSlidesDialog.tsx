@@ -14,13 +14,15 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Presentation } from 'lucide-react'
 import { SlidesApiService } from '../../../../../platform/apps/slide-apps/services/SlidesApiService'
 import { createImageElement } from '../../../../../platform/apps/slide-apps/components/slideElements'
 import type { SlideSummary } from '../../../../../platform/apps/slide-apps/types'
 import type { SlideData } from '../../../../../platform/apps/slide-apps/components/slideElements'
+import translations from '../_i18n'
 
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720
@@ -42,6 +44,7 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
   getChartPngDataUrl,
   'data-testid': testId = 'send-to-slides-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [slides, setSlides] = useState<SlideSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [inserting, setInserting] = useState(false)
@@ -59,15 +62,15 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
         setSlides(list)
       })
       .catch(err => {
-        setError(err instanceof Error ? err.message : 'Failed to load presentations')
+        setError(err instanceof Error ? err.message : t('slides-load-failed'))
         setSlides([])
       })
       .finally(() => setLoading(false))
-  }, [open, accessToken])
+  }, [open, accessToken, t])
 
   const handleInsert = useCallback(async () => {
     if (!selectedId) {
-      toast.error('Please select a presentation')
+      toast.error(t('slides-select-presentation'))
       return
     }
     setInserting(true)
@@ -75,13 +78,13 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
     try {
       const dataUrl = await getChartPngDataUrl()
       if (!dataUrl) {
-        toast.error('Could not export chart as image')
+        toast.error(t('slides-chart-export-failed'))
         setInserting(false)
         return
       }
       const slide = await SlidesApiService.getSlide(selectedId)
       if (!slide) {
-        toast.error('Presentation not found')
+        toast.error(t('slides-presentation-not-found'))
         setInserting(false)
         return
       }
@@ -94,7 +97,7 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
           height: SLIDE_HEIGHT - CHART_PADDING * 2
         },
         objectFit: 'contain',
-        alt: 'Chart from spreadsheet'
+        alt: t('slides-chart-alt')
       })
       const newSlidePage: SlideData = {
         id: `slide-${Date.now()}`,
@@ -109,16 +112,16 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
           themeId: content?.themeId ?? 'corporate'
         }
       })
-      toast.success('Chart added to presentation')
+      toast.success(t('slides-chart-added'))
       onOpenChange(false)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to add chart to presentation'
+      const msg = err instanceof Error ? err.message : t('slides-add-chart-failed')
       setError(msg)
       toast.error(msg)
     } finally {
       setInserting(false)
     }
-  }, [selectedId, getChartPngDataUrl, onOpenChange])
+  }, [selectedId, getChartPngDataUrl, onOpenChange, t])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -130,12 +133,10 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Presentation className="gba:w-5 gba:h-5" />
-            Send chart to Slides
+            {t('slides-dialog-title')}
           </DialogTitle>
         </DialogHeader>
-        <p className="gba:text-sm gba:text-muted-foreground">
-          Choose a presentation. The chart will be added as a new slide.
-        </p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('slides-dialog-description')}</p>
         <div className="gba:flex-1 gba:min-h-0">
           {loading && (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
@@ -144,7 +145,7 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
           )}
           {!loading && error && <p className="gba:text-sm gba:text-destructive gba:py-4">{error}</p>}
           {!loading && !error && slides.length === 0 && (
-            <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No presentations found.</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:py-4">{t('slides-no-presentations')}</p>
           )}
           {!loading && !error && slides.length > 0 && (
             <div className="gba:h-full gba:min-h-0 gba:overflow-y-auto gba:rounded-md gba:border gba:border-border">
@@ -159,7 +160,7 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
                     }`}
                     data-testid={`${testId}-slide-${s.id}`}
                   >
-                    {s.title || 'Untitled presentation'}
+                    {s.title || t('slides-untitled-presentation')}
                   </button>
                 ))}
               </div>
@@ -168,11 +169,11 @@ export const SendToSlidesDialog: React.FC<SendToSlidesDialogProps> = ({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={inserting}>
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
           <Button onClick={() => void handleInsert()} disabled={!selectedId || loading || inserting}>
             {inserting ? <Spinner className="gba:w-4 gba:h-4" /> : null}
-            {inserting ? ' Adding...' : ' Add to presentation'}
+            {inserting ? t('slides-adding') : t('slides-add-to-presentation')}
           </Button>
         </DialogFooter>
       </DialogContent>

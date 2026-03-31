@@ -6,9 +6,10 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Input, Label, Button } from '@newwork/nw-design-system'
+import { Input, Label, Button, useTranslation } from '@newwork/nw-design-system'
 import { ExternalLink } from 'lucide-react'
 import { parseMarkdownLink, urlToMarkdown, isValidUrl } from '../utils/linkUtils'
+import translations from '../_i18n'
 
 export interface LinkEditorProps {
   /** The current markdown link value (e.g., "[title](url)") */
@@ -29,6 +30,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
   onCancel,
   'data-testid': testId = 'link-editor'
 }) => {
+  const { t } = useTranslation(translations)
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState('')
@@ -64,7 +66,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
     setUrl(newUrl)
     // Validate URL
     if (newUrl && !isValidUrl(newUrl)) {
-      setUrlError('Please enter a valid URL (must start with http:// or https://)')
+      setUrlError(t('link-editor-invalid-url'))
     } else {
       setUrlError('')
     }
@@ -76,13 +78,13 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
 
     // Validate URL
     if (!trimmedUrl) {
-      setUrlError('URL is required')
+      setUrlError(t('link-editor-url-required'))
       urlInputRef.current?.focus()
       return
     }
 
     if (!isValidUrl(trimmedUrl)) {
-      setUrlError('Please enter a valid URL (must start with http:// or https://)')
+      setUrlError(t('link-editor-invalid-url'))
       urlInputRef.current?.focus()
       return
     }
@@ -130,7 +132,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
       <div className="gba:space-y-3">
         <div>
           <Label htmlFor="link-title" className="gba:text-xs gba:font-medium">
-            Link Title
+            {t('link-editor-title-label')}
           </Label>
           <Input
             ref={titleInputRef}
@@ -145,7 +147,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
             onKeyPress={e => e.stopPropagation()}
             onFocus={e => e.stopPropagation()}
             onBlur={e => e.stopPropagation()}
-            placeholder="Enter link title"
+            placeholder={t('link-editor-title-placeholder')}
             className="gba:mt-1 gba:h-8 gba:text-sm"
             data-testid={`${testId}-title-input`}
             data-link-editor-input="true"
@@ -154,7 +156,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
 
         <div>
           <Label htmlFor="link-url" className="gba:text-xs gba:font-medium">
-            URL <span className="gba:text-destructive">*</span>
+            {t('link-editor-url-label')} <span className="gba:text-destructive">*</span>
           </Label>
           <div className="gba:relative gba:mt-1">
             <Input
@@ -170,7 +172,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
               onKeyPress={e => e.stopPropagation()}
               onFocus={e => e.stopPropagation()}
               onBlur={e => e.stopPropagation()}
-              placeholder="https://example.com"
+              placeholder={t('link-editor-url-placeholder')}
               className={`gba:h-8 gba:text-sm gba:pr-8 ${urlError ? 'gba:border-destructive' : ''}`}
               data-testid={`${testId}-url-input`}
               data-link-editor-input="true"
@@ -182,7 +184,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
                 rel="noopener noreferrer"
                 className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground hover:gba:text-primary"
                 onClick={e => e.stopPropagation()}
-                title="Open link in new tab"
+                title={t('link-editor-open-new-tab')}
                 data-testid={`${testId}-preview-link`}
               >
                 <ExternalLink className="gba:w-4 gba:h-4" />
@@ -204,7 +206,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
             className="gba:h-7 gba:text-xs"
             data-testid={`${testId}-cancel-button`}
           >
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
           <Button
             variant="default"
@@ -214,7 +216,7 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
             disabled={!url.trim() || !!urlError}
             data-testid={`${testId}-save-button`}
           >
-            Save Link
+            {t('link-editor-save')}
           </Button>
         </div>
       </div>

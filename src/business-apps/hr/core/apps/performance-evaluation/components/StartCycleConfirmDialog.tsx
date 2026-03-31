@@ -110,14 +110,14 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       prevOpenRef.current = true
-      setRunFor('self')
+      setRunFor(isManualRun ? 'self' : 'team')
       setSelectedEmployeeId(defaultEmployeeId ?? null)
       setSelectedTeamIds([])
       setSelectedCycleId('')
       if (defaultEmployeeId) fetchStructureEmployees()
     }
     if (!open) prevOpenRef.current = false
-  }, [open, defaultEmployeeId, fetchStructureEmployees])
+  }, [open, defaultEmployeeId, fetchStructureEmployees, isManualRun])
 
   const hasValidEmployee = Boolean(selectedEmployeeId && String(selectedEmployeeId).trim())
   const hasValidTeam = selectedTeamIds.length > 0
@@ -186,24 +186,26 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
               )}
             </div>
           )}
-          <div className="gba:space-y-3">
-            <Label>{t('start-confirm-run-for-label')}</Label>
-            <RadioGroup
-              value={runFor}
-              onValueChange={(v: string) => setRunFor(v as RunForOption)}
-              className="gba:flex gba:flex-col gba:gap-2"
-              data-testid="performance-evaluation-run-for"
-            >
-              <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                <RadioGroupItem value="self" id="run-for-employee" />
-                <span>{t('start-confirm-run-for-employee')}</span>
-              </label>
-              <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                <RadioGroupItem value="team" id="run-for-team" />
-                <span>{t('start-confirm-run-for-team')}</span>
-              </label>
-            </RadioGroup>
-          </div>
+          {isManualRun && (
+            <div className="gba:space-y-3">
+              <Label>{t('start-confirm-run-for-label')}</Label>
+              <RadioGroup
+                value={runFor}
+                onValueChange={(v: string) => setRunFor(v as RunForOption)}
+                className="gba:flex gba:flex-col gba:gap-2"
+                data-testid="performance-evaluation-run-for"
+              >
+                <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                  <RadioGroupItem value="self" id="run-for-employee" />
+                  <span>{t('start-confirm-run-for-employee')}</span>
+                </label>
+                <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                  <RadioGroupItem value="team" id="run-for-team" />
+                  <span>{t('start-confirm-run-for-team')}</span>
+                </label>
+              </RadioGroup>
+            </div>
+          )}
 
           {runFor === 'self' && (
             <div className="gba:space-y-2">

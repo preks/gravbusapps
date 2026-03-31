@@ -5,6 +5,7 @@ request-absence = Request Absence
 calendar = Calendar
 back-to-dashboard = Back to Dashboard
 absence-overview = Absences
+change-entitlement = Change Entitlement
 
 # My Balance
 my-balance = My Balance
