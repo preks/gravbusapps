@@ -68,7 +68,7 @@ const GET_EMPLOYEE_DATA = `
 
 const GET_CATALOG_ENTRIES = `
   query GetCatalogEntries($ids: [String!], $activeUserLocale: String!) {
-    entries: CatalogEntry(where: {id: {_in: $ids}}) {
+    entries: CatalogEntry(where: {id: {_in: $ids}, isDeleted: {_eq: false}}) {
       id
       value
       code
