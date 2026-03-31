@@ -178,7 +178,7 @@ function resolveEmploymentStatus(
 
 function buildPayrollEmployee(
   pos: RawEmployeePosition,
-  salaryMap: Map<string, RawSalary>,
+  salaryMap: Map<string, RawSalary[]>,
   absenceMap: Map<string, RawAbsence[]>,
   attendanceMap: Map<string, RawAttendance[]>,
   bonusMap: Map<string, RawBonus[]>,
@@ -191,7 +191,8 @@ function buildPayrollEmployee(
   const wh = emp.workingHours?.[0]
   const bank = emp.bankAccounts?.[0]
   const tax = emp.taxDetails?.[0]
-  const salary = salaryMap.get(emp.id)
+  const salaries = salaryMap.get(emp.id) || []
+  const salary = salaries[0] || null
   const absences = absenceMap.get(emp.id) || []
   const attendance = attendanceMap.get(emp.id) || []
   const bonuses = bonusMap.get(emp.id) || []
@@ -300,18 +301,21 @@ function buildPayrollEmployee(
       })
     }
   }
-  if (salary?.createdAt) {
-    const salCreated = new Date(salary.createdAt)
-    if (salCreated >= periodStart && salCreated <= periodEnd) {
+  for (let i = 0; i < salaries.length; i++) {
+    const sal = salaries[i]
+    const effectiveDate = sal.startDate || sal.createdAt
+    const effDate = new Date(effectiveDate)
+    if (effDate >= periodStart && effDate <= periodEnd) {
+      const previousSalary = salaries[i + 1] || null
       changes.push({
-        id: `chg-sal-${emp.id}`,
+        id: `chg-sal-${emp.id}-${sal.id}`,
         employeeId: emp.id,
         changeType: 'salary_change',
         fieldName: 'Monthly Gross Salary',
-        oldValue: null,
-        newValue: salary.monthlyGrossSalary != null ? String(salary.monthlyGrossSalary) : null,
-        effectiveDate: salary.startDate || salary.createdAt,
-        changedAt: salary.createdAt
+        oldValue: previousSalary?.monthlyGrossSalary != null ? String(previousSalary.monthlyGrossSalary) : null,
+        newValue: sal.monthlyGrossSalary != null ? String(sal.monthlyGrossSalary) : null,
+        effectiveDate,
+        changedAt: sal.createdAt
       })
     }
   }
@@ -453,11 +457,11 @@ export function usePayrollEmployees(
           .catch(() => ({ EmployeeBonus: [] as RawBonus[] }))
       ])
 
-      const salaryMap = new Map<string, RawSalary>()
+      const salaryMap = new Map<string, RawSalary[]>()
       for (const sal of salaryResult.EmployeeSalary || []) {
-        if (!salaryMap.has(sal.employeeId)) {
-          salaryMap.set(sal.employeeId, sal)
-        }
+        const existing = salaryMap.get(sal.employeeId) || []
+        existing.push(sal)
+        salaryMap.set(sal.employeeId, existing)
       }
 
       const absenceMap = new Map<string, RawAbsence[]>()

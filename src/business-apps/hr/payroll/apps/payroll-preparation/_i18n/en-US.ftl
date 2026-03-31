@@ -209,6 +209,10 @@ signoff-blocked-warning = Cannot approve: { $count } blocked employee(s). Resolv
 audit-trail = Audit Trail
 audit-empty = No audit events yet.
 
+refresh-data = Refresh
+exceptions-hide-addressed = Hide addressed
+exceptions-mark-addressed = Mark as addressed
+
 no-data = No data available
 loading = Loading...
 error-loading = An error occurred while loading data.

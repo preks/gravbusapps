@@ -42,13 +42,12 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     usePayrollRunStore()
 
   const { companies, loading: companiesLoading } = useCompanyList(accessToken)
-  const { employees, loading, error } = usePayrollEmployees(
-    accessToken,
-    selectedCompanyId,
-    selectedMonth,
-    selectedYear,
-    detectedCountry
-  )
+  const {
+    employees,
+    loading,
+    error,
+    refetch: refetchEmployees
+  } = usePayrollEmployees(accessToken, selectedCompanyId, selectedMonth, selectedYear, detectedCountry)
   const summary = usePayrollSummary(employees)
 
   const {
@@ -69,6 +68,16 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     detectedCountry,
     userInfo
   )
+
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await refetchEmployees()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [refetchEmployees])
 
   const [gridFilters, setGridFilters] = useState<FilterState>({
     search: '',
@@ -231,11 +240,13 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
             country={detectedCountry || 'DE'}
             filters={gridFilters}
             onFiltersChange={setGridFilters}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
             t={t}
           />
         )
       case 'exceptions':
-        return <ExceptionsView employees={employees} t={t} />
+        return <ExceptionsView employees={employees} onRefresh={handleRefresh} refreshing={refreshing} t={t} />
       case 'changes':
         return <ChangesView employees={employees} t={t} />
       case 'country-checks':

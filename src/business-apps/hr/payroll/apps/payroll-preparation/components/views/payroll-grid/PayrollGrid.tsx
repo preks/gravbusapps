@@ -15,7 +15,7 @@ import {
   TableCell,
   TableHead
 } from '@newwork/nw-design-system'
-import { UserIcon, CaretUpIcon, CaretDownIcon } from '@phosphor-icons/react'
+import { UserIcon, CaretUpIcon, CaretDownIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollGridFilters as FilterState, PayrollCountry } from '../../../types/payrollTypes'
 import { useFilteredEmployees } from '../../../hooks/usePayrollEmployees'
 import { ReadinessStatusBadge, IssueCountBadge, ChangedBadge, FieldStatusBadge } from '../../shared/StatusBadge'
@@ -27,6 +27,8 @@ interface PayrollGridViewProps {
   country: PayrollCountry
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
+  onRefresh: () => Promise<void>
+  refreshing: boolean
   t: (key: string) => string
 }
 
@@ -72,6 +74,8 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   country,
   filters,
   onFiltersChange,
+  onRefresh,
+  refreshing,
   t
 }) => {
   const [sortField, setSortField] = useState<SortField>('displayName')
@@ -125,15 +129,23 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
 
   return (
     <div className="gba:space-y-4">
-      <PayrollGridFilters
-        filters={filters}
-        onFiltersChange={f => {
-          onFiltersChange(f)
-          setCurrentPage(1)
-        }}
-        employees={employees}
-        t={t}
-      />
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+        <div className="gba:flex-1">
+          <PayrollGridFilters
+            filters={filters}
+            onFiltersChange={f => {
+              onFiltersChange(f)
+              setCurrentPage(1)
+            }}
+            employees={employees}
+            t={t}
+          />
+        </div>
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
+          <ArrowsClockwiseIcon size={16} className={refreshing ? 'gba:animate-spin' : ''} />
+          {t('refresh-data')}
+        </Button>
+      </div>
 
       <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
         <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">

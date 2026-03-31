@@ -4,32 +4,9 @@
  * Fetches employee master data, positions, salaries, absences, bank accounts,
  * and tax details needed to compute payroll readiness per employee.
  *
- * Also includes PayrollRun CRUD operations backed by nw_employee.payroll_run.
+ * PayrollRun reads come from Hasura (read-only).
+ * PayrollRun writes go through the Kogito REST process (savePayrollRun).
  */
-
-const PAYROLL_RUN_FIELDS = `
-  id
-  month
-  year
-  country
-  legalEntityId
-  legalEntityName
-  cutOffDate
-  paymentDate
-  status
-  createdBy
-  createdAt
-  preparedBy
-  preparedAt
-  reviewedBy
-  reviewedAt
-  reviewComment
-  approvalDecision
-  updatedAt
-  updatedBy
-  version
-  isDeleted
-`
 
 export const GET_PAYROLL_RUN = `
   query GetPayrollRun($year: Int!, $month: Int!, $legalEntityId: uuid!) {
@@ -42,28 +19,27 @@ export const GET_PAYROLL_RUN = `
       }
       limit: 1
     ) {
-      ${PAYROLL_RUN_FIELDS}
-    }
-  }
-`
-
-export const INSERT_PAYROLL_RUN = `
-  mutation InsertPayrollRun($run: PayrollRunInsertInput!) {
-    insert_PayrollRun_one(object: $run) {
-      ${PAYROLL_RUN_FIELDS}
-    }
-  }
-`
-
-export const UPDATE_PAYROLL_RUN = `
-  mutation UpdatePayrollRun($id: uuid!, $version: Int!, $changes: PayrollRunSetInput!) {
-    update_PayrollRun(
-      where: { id: { _eq: $id }, version: { _eq: $version } }
-      _set: $changes
-    ) {
-      returning {
-        ${PAYROLL_RUN_FIELDS}
-      }
+      id
+      month
+      year
+      country
+      legalEntityId
+      legalEntityName
+      cutOffDate
+      paymentDate
+      status
+      createdBy
+      createdAt
+      preparedBy
+      preparedAt
+      reviewedBy
+      reviewedAt
+      reviewComment
+      approvalDecision
+      updatedAt
+      updatedBy
+      version
+      isDeleted
     }
   }
 `

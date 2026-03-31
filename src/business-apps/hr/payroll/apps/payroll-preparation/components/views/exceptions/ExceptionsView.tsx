@@ -1,12 +1,23 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
+import {
+  Button,
+  Card,
+  Checkbox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { WarningCircleIcon, ShieldWarningIcon, InfoIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
+  onRefresh: () => Promise<void>
+  refreshing: boolean
   t: (key: string) => string
 }
 
@@ -40,9 +51,23 @@ interface IssueWithEmployee extends PayrollIssue {
   employeeCode: string
 }
 
-export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) => {
+export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRefresh, refreshing, t }) => {
   const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<IssueCategory | 'all'>('all')
+  const [addressedIds, setAddressedIds] = useState<Set<string>>(new Set())
+  const [hideAddressed, setHideAddressed] = useState(false)
+
+  const toggleAddressed = useCallback((issueKey: string) => {
+    setAddressedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(issueKey)) {
+        next.delete(issueKey)
+      } else {
+        next.add(issueKey)
+      }
+      return next
+    })
+  }, [])
 
   const allIssues = useMemo(() => {
     const issues: IssueWithEmployee[] = []
@@ -67,8 +92,11 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
     if (categoryFilter !== 'all') {
       result = result.filter(i => i.category === categoryFilter)
     }
+    if (hideAddressed) {
+      result = result.filter(i => !addressedIds.has(`${i.employeeId}-${i.issueCode}`))
+    }
     return result
-  }, [allIssues, severityFilter, categoryFilter])
+  }, [allIssues, severityFilter, categoryFilter, hideAddressed, addressedIds])
 
   const { blockerCount, warningCount, infoCount, affectedEmployees } = useMemo(() => {
     let blockers = 0
@@ -133,51 +161,65 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
         </Card>
       </div>
 
-      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-            {t('label-severity')}
-          </span>
-          <div className="gba:min-w-[140px]">
-            <Select
-              value={severityFilter}
-              onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Severity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('filter-all')}</SelectItem>
-                <SelectItem value="blocker">{t('severity-blocker')}</SelectItem>
-                <SelectItem value="warning">{t('severity-warning')}</SelectItem>
-                <SelectItem value="info">{t('severity-info')}</SelectItem>
-              </SelectContent>
-            </Select>
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:flex-wrap">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+              {t('label-severity')}
+            </span>
+            <div className="gba:min-w-[140px]">
+              <Select
+                value={severityFilter}
+                onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Severity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('filter-all')}</SelectItem>
+                  <SelectItem value="blocker">{t('severity-blocker')}</SelectItem>
+                  <SelectItem value="warning">{t('severity-warning')}</SelectItem>
+                  <SelectItem value="info">{t('severity-info')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-            {t('label-category')}
-          </span>
-          <div className="gba:min-w-[200px]">
-            <Select
-              value={categoryFilter}
-              onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('filter-all')}</SelectItem>
-                {Object.entries(CATEGORY_KEYS).map(([key, i18nKey]) => (
-                  <SelectItem key={key} value={key}>
-                    {t(i18nKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+              {t('label-category')}
+            </span>
+            <div className="gba:min-w-[200px]">
+              <Select
+                value={categoryFilter}
+                onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('filter-all')}</SelectItem>
+                  {Object.entries(CATEGORY_KEYS).map(([key, i18nKey]) => (
+                    <SelectItem key={key} value={key}>
+                      {t(i18nKey)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          {addressedIds.size > 0 && (
+            <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+              <Checkbox checked={hideAddressed} onCheckedChange={checked => setHideAddressed(!!checked)} />
+              <span className="gba:text-sm gba:text-muted-foreground">
+                {t('exceptions-hide-addressed')} ({addressedIds.size})
+              </span>
+            </label>
+          )}
         </div>
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
+          <ArrowsClockwiseIcon size={16} className={refreshing ? 'gba:animate-spin' : ''} />
+          {t('refresh-data')}
+        </Button>
       </div>
 
       <div className="gba:space-y-2">
@@ -188,31 +230,53 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, t }) 
               : 'No issues match the selected filters.'}
           </Card>
         ) : (
-          filteredIssues.map(issue => (
-            <Card
-              key={`${issue.employeeId}-${issue.issueCode}`}
-              className="gba:p-4 gba:cursor-pointer gba:hover:bg-muted/50 gba:transition-colors"
-              onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
-            >
-              <div className="gba:flex gba:items-start gba:gap-3">
-                <SeverityIcon severity={issue.severity} />
-                <div className="gba:flex-1 gba:min-w-0">
-                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span className="gba:text-sm gba:font-semibold gba:text-foreground">{issue.employeeName}</span>
-                      <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">{issue.employeeCode}</span>
+          filteredIssues.map(issue => {
+            const issueKey = `${issue.employeeId}-${issue.issueCode}`
+            const isAddressed = addressedIds.has(issueKey)
+            return (
+              <Card
+                key={issueKey}
+                className={`gba:p-4 gba:transition-colors ${isAddressed ? 'gba:opacity-50' : 'gba:hover:bg-muted/50'}`}
+              >
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <Checkbox
+                    checked={isAddressed}
+                    onCheckedChange={() => toggleAddressed(issueKey)}
+                    aria-label={t('exceptions-mark-addressed')}
+                    className="gba:mt-0.5"
+                  />
+                  <SeverityIcon severity={issue.severity} />
+                  <div
+                    className="gba:flex-1 gba:min-w-0 gba:cursor-pointer"
+                    onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span
+                          className={`gba:text-sm gba:font-semibold ${isAddressed ? 'gba:line-through gba:text-muted-foreground' : 'gba:text-foreground'}`}
+                        >
+                          {issue.employeeName}
+                        </span>
+                        <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
+                          {issue.employeeCode}
+                        </span>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
+                        <SeverityBadge severity={issue.severity} />
+                      </div>
                     </div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
-                      <SeverityBadge severity={issue.severity} />
-                    </div>
+                    <p
+                      className={`gba:text-sm gba:mb-1 ${isAddressed ? 'gba:line-through gba:text-muted-foreground' : 'gba:text-foreground'}`}
+                    >
+                      {issue.message}
+                    </p>
+                    <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
                   </div>
-                  <p className="gba:text-sm gba:text-foreground gba:mb-1">{issue.message}</p>
-                  <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
                 </div>
-              </div>
-            </Card>
-          ))
+              </Card>
+            )
+          })
         )}
       </div>
     </div>
