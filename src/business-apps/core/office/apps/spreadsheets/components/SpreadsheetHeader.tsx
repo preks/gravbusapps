@@ -210,7 +210,7 @@ function EditingToolbar({
   const { t } = useTranslation(translations)
   const isLocked = fileLock.lock?.isLocked ?? false
   return (
-    <div className="gba:flex gba:items-center gba:gap-1.5">
+    <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap md:gba:flex-nowrap">
       <SpreadsheetSaveStatus
         isSaving={versioning.isSaving}
         lastSaveTime={versioning.lastSaveTime}
@@ -443,75 +443,81 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
 
   return (
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
-      <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
-        <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
+      <div className="gba:flex gba:flex-col gba:gap-2 gba:min-w-0 gba:w-full md:gba:flex-row md:gba:items-center md:gba:justify-between">
+        <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0 gba:w-full md:gba:w-auto">
           <BreadcrumbSection onBack={onBack} app={app} canRename={canEdit} onRenameAppName={onRenameAppName} />
         </div>
 
-        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
-          <StatusIndicators
-            headerParticipants={headerParticipants}
-            isCollaborationConnected={isCollaborationConnected}
-            entityDataSource={activeSheet?.entityDataSource}
-            onRefreshEntityData={onRefreshEntityData}
-            isEntityDataLoading={isEntityDataLoading}
-            data-testid={`${testId}-status-indicators`}
-          />
-
-          <div className="gba:h-6 gba:w-px gba:bg-border/50" />
-
-          {!isCollectionCopy && normalizedPublishStatus !== 'draft' && <StatusBadge status={normalizedPublishStatus} />}
-
-          {!isEditing && (
-            <Badge
-              variant="secondary"
-              className="gba:bg-muted/50 gba:text-muted-foreground gba:border-border/30 gba:backdrop-blur-sm"
-              data-testid="view-only-badge"
-            >
-              <Eye className="gba:h-3 gba:w-3 gba:mr-1" />
-              {t('header-view-only')}
-            </Badge>
-          )}
-
-          {isEditing && (
-            <EditingToolbar
-              versioning={versioning}
-              persistenceError={persistenceError}
-              onShowCheckpointDialog={onShowCheckpointDialog}
-              showComments={showComments}
-              setShowComments={setShowComments}
-              unresolvedCommentCount={unresolvedCommentCount}
-              onOpenAICapability={onOpenAICapability}
-              fileLock={fileLock}
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full md:gba:w-auto md:gba:flex-row md:gba:items-center md:gba:gap-3 md:gba:justify-end">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap md:gba:flex-nowrap">
+            <StatusIndicators
+              headerParticipants={headerParticipants}
+              isCollaborationConnected={isCollaborationConnected}
+              entityDataSource={activeSheet?.entityDataSource}
+              onRefreshEntityData={onRefreshEntityData}
+              isEntityDataLoading={isEntityDataLoading}
+              data-testid={`${testId}-status-indicators`}
             />
-          )}
 
-          <CollectionStatusSection
-            isCollectionCopy={isCollectionCopy}
-            collectionSubmittedAt={collectionSubmittedAt}
-            formattedSubmittedAt={formattedSubmittedAt}
-            onSubmitCollection={onSubmitCollection}
-            isSubmittingCollection={isSubmittingCollection}
-            handleSubmitCollection={handleSubmitCollection}
-          />
+            <div className="gba:hidden md:gba:block gba:h-6 gba:w-px gba:bg-border/50" />
 
-          <div className="gba:h-6 gba:w-px gba:bg-border/50" />
+            {!isCollectionCopy && normalizedPublishStatus !== 'draft' && (
+              <StatusBadge status={normalizedPublishStatus} />
+            )}
 
-          <SpreadsheetActionsMenu
-            onShowVersionHistory={onShowVersionHistory}
-            onShowCheckpointDialog={onShowCheckpointDialog}
-            isLockedByMe={fileLock.isLockedByMe}
-            onAcquireLock={fileLock.acquireLock}
-            onReleaseLock={fileLock.releaseLock}
-            canEdit={canEdit}
-            onShare={onShare}
-            onOpenAnalytics={onOpenAnalytics}
-            onOpenAutomations={onOpenAutomations}
-            onEdit={onEdit}
-            allowExport={activeSheet.settings.allowExport}
-            onExport={onExport}
-            data-testid={`${testId}-actions-menu`}
-          />
+            {!isEditing && (
+              <Badge
+                variant="secondary"
+                className="gba:bg-muted/50 gba:text-muted-foreground gba:border-border/30 gba:backdrop-blur-sm"
+                data-testid="view-only-badge"
+              >
+                <Eye className="gba:h-3 gba:w-3 gba:mr-1" />
+                {t('header-view-only')}
+              </Badge>
+            )}
+
+            <CollectionStatusSection
+              isCollectionCopy={isCollectionCopy}
+              collectionSubmittedAt={collectionSubmittedAt}
+              formattedSubmittedAt={formattedSubmittedAt}
+              onSubmitCollection={onSubmitCollection}
+              isSubmittingCollection={isSubmittingCollection}
+              handleSubmitCollection={handleSubmitCollection}
+            />
+          </div>
+
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap md:gba:flex-nowrap md:gba:gap-3">
+            {isEditing && (
+              <EditingToolbar
+                versioning={versioning}
+                persistenceError={persistenceError}
+                onShowCheckpointDialog={onShowCheckpointDialog}
+                showComments={showComments}
+                setShowComments={setShowComments}
+                unresolvedCommentCount={unresolvedCommentCount}
+                onOpenAICapability={onOpenAICapability}
+                fileLock={fileLock}
+              />
+            )}
+
+            <div className="gba:hidden md:gba:block gba:h-6 gba:w-px gba:bg-border/50" />
+
+            <SpreadsheetActionsMenu
+              onShowVersionHistory={onShowVersionHistory}
+              onShowCheckpointDialog={onShowCheckpointDialog}
+              isLockedByMe={fileLock.isLockedByMe}
+              onAcquireLock={fileLock.acquireLock}
+              onReleaseLock={fileLock.releaseLock}
+              canEdit={canEdit}
+              onShare={onShare}
+              onOpenAnalytics={onOpenAnalytics}
+              onOpenAutomations={onOpenAutomations}
+              onEdit={onEdit}
+              allowExport={activeSheet.settings.allowExport}
+              onExport={onExport}
+              data-testid={`${testId}-actions-menu`}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -192,7 +192,12 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             isOpen={showCheckpointDialog}
             onClose={() => setShowCheckpointDialog(false)}
             onSave={async description => {
-              await versioning.createCheckpoint(description)
+              const checkpoint = await versioning.createCheckpoint(description)
+              if (!checkpoint) {
+                toast.error(t('toast-checkpoint-save-failed'))
+                return false
+              }
+              return true
             }}
             isSaving={versioning.isSaving}
             messages={{
