@@ -19,7 +19,6 @@
     "publish:example": "node ./scripts/publish-dev-example.js",
     "publish:prod:screens": "npm run build:prod && node ./scripts/publish-prod-screens.js",
     "publish:prod:all": "node ./scripts/publish-all-prod-screens.js",
-    "probe:spreadsheet:german-format": "node ./scripts/run-spreadsheet-german-format-probe.mjs",
     "serve": "vite serve --port 5001 --strictPort",
     "test": "jest --maxWorkers=50%",
     "test:watch": "jest --watch",
