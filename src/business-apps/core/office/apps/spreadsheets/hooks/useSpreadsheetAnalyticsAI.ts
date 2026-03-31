@@ -2,8 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { SpreadsheetColumn } from '../types'
 import { summarizeColumn, isNumericColumn } from '../utils/analyticsEngine'
-
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
+import { selectPreferredModel } from '../utils/aiModelSelection'
 const SAMPLE_LIMIT = 120
 
 export interface SpreadsheetSummaryCard {
@@ -280,16 +279,7 @@ export function useSpreadsheetAnalyticsAI({
 
   const executePrompt = useCallback(
     async (systemPrompt: string, userPrompt: string): Promise<unknown> => {
-      const modelsResponse = await promptClient.getAiModels({
-        limit: 10,
-        offset: 0,
-        returnTotalRecords: false
-      })
-      if (!modelsResponse.data?.length) throw new Error('No AI models available')
-
-      const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
-      const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
-      const selectedModel = preferredModel || gpt4Model || modelsResponse.data[0]
+      const selectedModel = await selectPreferredModel(promptClient)
 
       const formData = new FormData()
       formData.append('model_id', selectedModel._id)

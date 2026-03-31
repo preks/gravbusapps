@@ -55,6 +55,11 @@ function createHookParams(overrides?: Partial<Parameters<typeof usePagedDocument
       pageHeightMm: 297
     } as never,
     getImageDataUrl: jest.fn(async () => 'data:image/png;base64,abc'),
+    documentTocExportLabels: {
+      blockTitle: 'Table of contents',
+      emptyMessage: 'No headings',
+      untitledHeading: 'Untitled'
+    },
     ...overrides
   }
 }

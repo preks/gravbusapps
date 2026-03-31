@@ -1,4 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../_i18n'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
@@ -209,6 +211,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     ...contextProps
   } = props
 
+  const { t: tPersonal } = useTranslation(personalTranslations)
+
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 200) // 200ms debounce for responsive feel
 
@@ -411,12 +415,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, any>) => {
       const statusIds = (filters.statusIds as string[] | undefined) || []
-      setFilters(statusIds)
+      const currencyTokens = allSelectedFilters.filter(f => f.startsWith('currency:'))
+      setFilters([...currencyTokens, ...statusIds])
       applyExpenseDateRangeFromFilters(filters.expenseDateRange, setExpenseDateRange)
       applyAmountRangeFromFilters(filters.amount as { min?: number; max?: number } | undefined, setAmountRange)
       setCurrentPage(1)
     },
-    [setFilters, setExpenseDateRange, setAmountRange]
+    [allSelectedFilters, setFilters, setExpenseDateRange, setAmountRange]
   )
 
   // Sortable columns for DataDisplay (opportunity-style)
@@ -765,6 +770,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         id: 'attachment',
         accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
+        enableSorting: false,
         size: 80,
         cell: renderItemAttachmentCell
       },
@@ -954,14 +960,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_list.flows_button.expense_items',
-          'Filter Expense Items'
-        )}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_expense_items_description',
-          'Apply filters to narrow down the expense items list.'
-        )}
+        filterSheetTitle={tPersonal('filter-expense-items-title')}
+        filterSheetDescription={tPersonal('filter-expense-items-description')}
       >
         <DataTable<ExpenseItem>
           data={items || []}

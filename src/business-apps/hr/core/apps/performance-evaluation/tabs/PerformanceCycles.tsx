@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Button,
   Badge,
@@ -13,18 +13,9 @@ import {
   CardTitle,
   CardContent,
   useTranslation,
-  toast,
   Spinner
 } from '@newwork/nw-design-system'
-import {
-  CalendarBlank,
-  CheckCircle,
-  PencilSimple,
-  Play,
-  Plus,
-  Trash,
-  Warning as WarningIcon
-} from '@phosphor-icons/react'
+import { CalendarBlank, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -41,11 +32,7 @@ export interface PerformanceCyclesProps {
   ratingScales: RatingScale[]
   valuesStore: ValueItemStored[]
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
-  onActivate: (cycleId: string) => Promise<void>
-  onDeactivate: (cycleId: string) => Promise<void>
-  onCompleteCycle: (cycleId: string) => Promise<void>
   onDeleteCycle: (cycle: PerformanceCycle) => Promise<void>
-  onStartCycle: (cycleId: string) => void
 }
 
 export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
@@ -55,42 +42,28 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   ratingScales,
   valuesStore,
   onSaveFromModal,
-  onActivate,
-  onDeactivate,
-  onCompleteCycle,
-  onDeleteCycle,
-  onStartCycle
+  onDeleteCycle
 }) => {
   const { t } = useTranslation(translations)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
   const [dateOverlapError, setDateOverlapError] = useState<string | null>(null)
 
-  const isDateWithinCyclePeriod = (cycle: PerformanceCycle): boolean => {
-    const today = new Date()
-    const start = new Date(cycle.startDate)
-    const end = new Date(cycle.endDate)
-    return today >= start && today <= end
-  }
+  const sortedCycles = useMemo(
+    () =>
+      [...cycles].sort(
+        (a, b) =>
+          new Date(b.evaluationPeriodStartDate ?? '').getTime() - new Date(a.evaluationPeriodStartDate ?? '').getTime()
+      ),
+    [cycles]
+  )
 
-  const canStartCycle = (cycle: PerformanceCycle): boolean => {
-    return cycle.status === 'Active' && isDateWithinCyclePeriod(cycle)
-  }
-
-  const canActivateCycle = (cycle: PerformanceCycle): boolean => {
-    return isDateWithinCyclePeriod(cycle)
-  }
-
-  const handleActivateClick = (cycle: PerformanceCycle) => {
-    if (!canActivateCycle(cycle)) {
-      toast.warning(t('error-activate-out-of-period'), {
-        position: 'bottom-right',
-        className: 'gba:text-base',
-        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-      })
-      return
+  const isEvalPeriodActive = (c: PerformanceCycle): boolean => {
+    if (c.evaluationPeriodStartDate && c.evaluationPeriodEndDate) {
+      const today = new Date()
+      return today >= new Date(c.evaluationPeriodStartDate) && today <= new Date(c.evaluationPeriodEndDate)
     }
-    onActivate(cycle.id)
+    return false
   }
 
   const handleEdit = (cycle: PerformanceCycle) => {
@@ -100,14 +73,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   }
 
   const handleAdd = () => {
-    if (ratingScales.length === 0) {
-      toast.warning(t('cycles-error-no-rating-scales'), {
-        position: 'bottom-right',
-        className: 'gba:text-base',
-        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-      })
-      return
-    }
     setDateOverlapError(null)
     setEditing(null)
     setIsModalOpen(true)
@@ -133,10 +98,13 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <CalendarBlank size={20} />
-              {t('tab-cycles')}
-            </CardTitle>
+            <div>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <CalendarBlank size={20} />
+                {t('tab-cycles')}
+              </CardTitle>
+              <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('performance-period-description')}</p>
+            </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-cycles-loading" />}
               <Button variant="default" onClick={handleAdd} data-testid="performance-cycles-add-button">
@@ -161,67 +129,44 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                 <TableRow>
                   <TableHead className="gba:w-[24px]"></TableHead>
                   <TableHead>{t('table-name')}</TableHead>
-                  <TableHead>{t('table-dates')}</TableHead>
                   <TableHead>{t('table-evaluation-period')}</TableHead>
-                  <TableHead>{t('table-type')}</TableHead>
-                  <TableHead>{t('table-scale')}</TableHead>
                   <TableHead>{t('table-values')}</TableHead>
-                  <TableHead>{t('table-participants')}</TableHead>
                   <TableHead>{t('table-status')}</TableHead>
                   <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cyclesLoading && cycles.length === 0 ? (
+                {cyclesLoading && sortedCycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
+                    <TableCell colSpan={6} className="gba:py-8 gba:text-center">
                       <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
                     </TableCell>
                   </TableRow>
-                ) : cycles.length === 0 ? (
+                ) : sortedCycles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="gba:text-center gba:text-muted-foreground">
+                    <TableCell colSpan={6} className="gba:text-center gba:text-muted-foreground">
                       {t('empty-no-cycles')}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  cycles.map((c, i) => {
-                    const participants = c.participants.join(', ')
-                    const dates = `${c.startDate} → ${c.endDate}`
+                  sortedCycles.map((c, i) => {
                     const evalPeriod =
                       c.evaluationPeriodStartDate && c.evaluationPeriodEndDate
                         ? `${c.evaluationPeriodStartDate} → ${c.evaluationPeriodEndDate}`
                         : '-'
-                    const valueTitles =
-                      (c.valueIds ?? [])
-                        .map(id => valuesStore.find(v => v.id === id)?.title)
-                        .filter(Boolean)
-                        .join(', ') || '-'
+                    const valueNames = (c.valueIds ?? [])
+                      .map(vid => valuesStore.find(v => v.id === vid)?.title)
+                      .filter(Boolean)
+                      .join(', ')
                     return (
                       <TableRow key={c.id}>
                         <TableCell>{i + 1}</TableCell>
                         <TableCell className="gba:font-medium">{c.name}</TableCell>
-                        <TableCell>{dates}</TableCell>
                         <TableCell>{evalPeriod}</TableCell>
-                        <TableCell>{c.frequency}</TableCell>
+                        <TableCell>{valueNames || '-'}</TableCell>
                         <TableCell>
-                          {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}
-                        </TableCell>
-                        <TableCell>{valueTitles}</TableCell>
-                        <TableCell>{participants}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              c.status === 'Active'
-                                ? 'success'
-                                : c.status === 'Upcoming'
-                                  ? 'info'
-                                  : c.status === 'Completed'
-                                    ? 'default'
-                                    : 'secondary'
-                            }
-                          >
-                            {c.status === 'Completed' ? t('status-completed') : c.status}
+                          <Badge variant={isEvalPeriodActive(c) ? 'success' : 'secondary'}>
+                            {isEvalPeriodActive(c) ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
                         <TableCell className="gba:text-right">
@@ -237,47 +182,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                               aria-label="Delete"
                             >
                               <Trash />
-                            </Button>
-                            {c.status === 'Inactive' || c.status === 'Completed' ? (
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleActivateClick(c)}
-                                data-testid={`cycle-activate-${c.id}`}
-                              >
-                                {t('button-activate')}
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => onDeactivate(c.id)}
-                                data-testid={`cycle-deactivate-${c.id}`}
-                              >
-                                {t('button-deactivate')}
-                              </Button>
-                            )}
-                            {c.status === 'Active' && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="gba:bg-success gba:hover:bg-success/90"
-                                onClick={() => onCompleteCycle(c.id)}
-                                data-testid={`cycle-complete-${c.id}`}
-                              >
-                                <CheckCircle weight="fill" className="gba:mr-1" size={16} />
-                                {t('button-complete')}
-                              </Button>
-                            )}
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => onStartCycle(c.id)}
-                              disabled={!canStartCycle(c)}
-                              data-testid={`cycle-start-${c.id}`}
-                            >
-                              <Play weight="fill" className="gba:mr-1" size={16} />
-                              {t('button-start')}
                             </Button>
                           </div>
                         </TableCell>
@@ -297,6 +201,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
           setIsModalOpen(open)
         }}
         onSave={handleSaveFromModal}
+        mode="cycle"
         dateOverlapError={dateOverlapError}
         onClearDateError={() => setDateOverlapError(null)}
         availableValues={valuesStore}

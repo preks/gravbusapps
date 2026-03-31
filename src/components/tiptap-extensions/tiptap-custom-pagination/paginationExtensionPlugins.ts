@@ -27,12 +27,17 @@ import { createWindowedPaginationRenderer } from './windowedRenderer'
 import { getMountedEditorView } from './paginationExtensionLifecycle'
 import type { PagesOptions, PagesStorage } from './types'
 import { getPageBodyMeasurementBands, getExistingPageCount, logPaginationDebug, syncStorageFromOptions } from './utils'
-import { resolvePaginationMeasurementState, type AddPagesMeasurementSnapshot } from './paginationPageCountPolicy'
+import {
+  resolvePaginationMeasurementState,
+  type AddPagesMeasurementSnapshot,
+  PAGE_COUNT_HARD_CAP
+} from './paginationPageCountPolicy'
 import { shouldScheduleDeferredRepaginationOnUpdate } from './paginationStabilizationPolicy'
+import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
 import { hasPendingTableMeasurements } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
 import { createTablePaginationController } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
 
-type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | null
+type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | 'collaboration-remote' | null
 
 export function createPaginationExtensionPlugins(options: {
   editor: Editor
@@ -54,6 +59,7 @@ export function createPaginationExtensionPlugins(options: {
       resolveCurrentEditorDom: () => getMountedEditorView(editor)?.dom ?? null
     })
   )
+  const clampPageCount = (value: number) => Math.max(1, Math.min(PAGE_COUNT_HARD_CAP, value))
   let measuredHeaderHeights = new Map<number, number>()
   let measuredFooterHeights = new Map<number, number>()
   let lastKnownDoc: PMNode | null = null
@@ -118,9 +124,12 @@ export function createPaginationExtensionPlugins(options: {
         previousAddPagesMeasurement = null
       },
       onSetGrowthSuppression: currentPageCount => {
-        setPaginationOwnedGrowthSuppression(editor, currentPageCount)
+        const clamped = Math.max(1, Math.min(PAGE_COUNT_HARD_CAP, currentPageCount))
+        setPaginationOwnedGrowthSuppression(editor, clamped)
+        runawayGrowthCapPageCount = clamped
       },
       onClearGrowthSuppression: () => {
+        runawayGrowthCapPageCount = null
         clearPaginationOwnedGrowthSuppression(editor)
       },
       onDecrementStabilizationAttempts: () => {
@@ -137,7 +146,7 @@ export function createPaginationExtensionPlugins(options: {
       },
       onRequestRefresh: (currentView, source, nextStoredPageCount) => {
         if (typeof nextStoredPageCount === 'number') {
-          storage.pageCount = nextStoredPageCount
+          storage.pageCount = clampPageCount(nextStoredPageCount)
         }
         requestRefresh(currentView, source)
       },
@@ -277,6 +286,8 @@ export function createPaginationExtensionPlugins(options: {
               lastDocChangeOrigin = 'pagination-owned'
             } else if (consumePaginationHydrationDocChange(editor)) {
               lastDocChangeOrigin = 'hydration-owned'
+            } else if (isYjsInboundSyncTransaction(tr)) {
+              lastDocChangeOrigin = 'collaboration-remote'
             } else {
               lastDocChangeOrigin = 'external'
             }

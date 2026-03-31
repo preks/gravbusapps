@@ -69,6 +69,15 @@ describe('documentContentUtils pagination sanitization', () => {
     )
   })
 
+  it('preserves data-id on paragraphs and tables (UniqueID / hydration)', () => {
+    const html =
+      '<p data-id="para-uuid-1">Text</p><table data-id="table-uuid-1"><tbody><tr data-id="row-uuid-1"><td>A</td></tr></tbody></table>'
+    const sanitized = sanitizeDocumentHtmlForEditor(html)
+    expect(sanitized).toContain('data-id="para-uuid-1"')
+    expect(sanitized).toContain('data-id="table-uuid-1"')
+    expect(sanitized).toContain('data-id="row-uuid-1"')
+  })
+
   it('sanitizes executable markup while preserving editor-safe attributes', () => {
     const html = [
       '<p onclick="alert(1)" data-comment-id="comment-1">Safe text</p>',

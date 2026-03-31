@@ -9,9 +9,10 @@ import {
   useCurrencySecondaryAction,
   useEmptyMessage
 } from '../../../hooks/useTabState'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../../_i18n'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
 import { useExpensePlansOverviewData } from '../../../hooks/useExpensePlansOverviewData'
@@ -23,7 +24,7 @@ import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
-import { formatDateRangeForChip, applyDateRangeFromFilter } from './config/dataDisplayFilterUtils'
+import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string
@@ -41,6 +42,7 @@ const DEFAULT_VISIBLE_COLUMN_IDS = [
 ]
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
+  const { t } = useTranslation(translations)
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const {
@@ -297,11 +299,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'Filter Expense Plans')}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_expense_plans_description',
-          'Apply filters to narrow down the expense plans list.'
-        )}
+        filterSheetTitle={t('filter-expense-plans-title')}
+        filterSheetDescription={t('filter-expense-plans-description')}
         secondaryActions={secondaryActions}
       >
         <ExpensePlansTable

@@ -314,6 +314,10 @@ notification-working-hours-updated-success = Actualizările programului de lucru
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
 notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
 feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
+entitlements-valid-from-month-start-hint = Data trimisa va fi intotdeauna prima zi a lunii selectate, indiferent de ziua aleasa.
+entitlements-valid-from = Valabil de la
+entitlements-effective-from = Efectiv de la
+entitlements-effective-to = Efectiv pana la
 
 # ============================================
 # Create Employee Form

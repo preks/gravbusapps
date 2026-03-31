@@ -8,6 +8,7 @@ import {
   File,
   Image as ImageIcon,
   Folder,
+  Pencil,
   Trash2,
   Share2,
   Users,
@@ -39,6 +40,7 @@ export interface DriveContentGridProps {
   onRestoreItem?: (item: DriveItem) => void
   onDownloadItem?: (item: DriveItem) => void
   onRenameItem?: (item: DriveItem) => void
+  onRenameFolder?: (folder: DriveFolder) => void
   onShareItem?: (item: DriveItem) => void
   onShareFolder?: (folder: DriveFolder) => void
   selectedKeys?: Set<string>
@@ -212,6 +214,7 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
   onRestoreItem,
   onDownloadItem,
   onRenameItem,
+  onRenameFolder,
   onShareItem,
   onShareFolder,
   selectedKeys,
@@ -418,7 +421,19 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right">
               {formatDate(folder.updatedAt)}
             </span>
-            <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:w-36">
+            <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:w-48">
+              {!isTrash && onRenameFolder && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation()
+                    onRenameFolder(folder)
+                  }}
+                  className="gba:p-1 gba:rounded gba:hover:bg-accent gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity"
+                  data-testid={`${testId}-rename-folder-${folder.id}`}
+                >
+                  <Pencil className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                </button>
+              )}
               {!isTrash && onShareFolder && (
                 <button
                   onClick={e => {

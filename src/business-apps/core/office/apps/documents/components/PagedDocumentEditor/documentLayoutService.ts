@@ -1,4 +1,5 @@
 import type { Editor as TiptapEditor } from '@tiptap/react'
+import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
 import type {
   DocumentLayoutPageBodyBounds,
   DocumentLayoutPageChromeMetrics,
@@ -15,6 +16,20 @@ export interface DocumentLayoutNavigationState {
   activeRange: DocumentLayoutPageRange | null
   pageBreakEls: HTMLElement[]
   flowEls: HTMLElement[]
+}
+
+const PAGINATION_TOTAL_PAGES_HARD_CAP = 2000
+
+/** Align with repagination large-doc threshold: chunk DOM geometry reads across frames. */
+export const LARGE_DOC_LAYOUT_GEOMETRY_CHUNK_THRESHOLD = LARGE_DOC_PAGE_YIELD_THRESHOLD
+
+/** Page breaks per batch before yielding to the next animation frame (large docs only). */
+export const LARGE_DOC_GEOMETRY_BATCH_SIZE = 28
+
+export function yieldToNextAnimationFrame(): Promise<void> {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => resolve())
+  })
 }
 
 export interface DocumentLayoutMeasurement {
@@ -34,15 +49,21 @@ export interface ObserveDocumentLayoutParams {
   onInvalidated: (reason: DocumentLayoutInvalidationReason) => void
 }
 
+export type DocumentLayoutMeasurementResult = {
+  layout: DocumentLayoutMeasurement
+  navigationState: DocumentLayoutNavigationState
+}
+
 export interface DocumentLayoutService {
   readonly source: DocumentLayoutSource
   measureLayout: (
     container: HTMLDivElement,
     request: DocumentLayoutMeasurementRequest
-  ) => {
-    layout: DocumentLayoutMeasurement
-    navigationState: DocumentLayoutNavigationState
-  }
+  ) => DocumentLayoutMeasurementResult
+  measureLayoutAsync?: (
+    container: HTMLDivElement,
+    request: DocumentLayoutMeasurementRequest
+  ) => Promise<DocumentLayoutMeasurementResult>
   resolveCurrentPage: (container: HTMLDivElement, navigationState: DocumentLayoutNavigationState) => number
   observeLayout: (params: ObserveDocumentLayoutParams) => () => void
 }
@@ -113,17 +134,31 @@ export function resolvePaginationRootElement(container: HTMLDivElement): HTMLEle
     (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
   )
   if (!paginationChrome) {
-    return null
+    const nestedPagination = container.querySelector('[data-rm-pagination]')
+    return nestedPagination instanceof HTMLElement ? nestedPagination : null
   }
 
-  return (
+  const directChromePagination =
     Array.from(paginationChrome.children).find(
       (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === ''
     ) ?? null
-  )
+
+  if (directChromePagination) {
+    return directChromePagination
+  }
+
+  const nestedChromePagination = paginationChrome.querySelector('[data-rm-pagination]')
+  return nestedChromePagination instanceof HTMLElement ? nestedChromePagination : null
 }
 
 export function resolveFirstPageHeaderElement(container: HTMLDivElement): HTMLElement | null {
+  const underPagesRoot = container.querySelector(
+    '.rm-pages-root .rm-first-page-header[data-rm-page-number="1"]'
+  ) as HTMLElement | null
+  if (underPagesRoot) {
+    return underPagesRoot
+  }
+
   const directChildFirstPageHeader = Array.from(container.children).find(
     (child): child is HTMLElement =>
       child instanceof HTMLElement &&
@@ -138,17 +173,24 @@ export function resolveFirstPageHeaderElement(container: HTMLDivElement): HTMLEl
     (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPaginationChrome === 'true'
   )
   if (!paginationChrome) {
-    return null
+    const nestedFirstPageHeader = container.querySelector('.rm-first-page-header[data-rm-page-number="1"]')
+    return nestedFirstPageHeader instanceof HTMLElement ? nestedFirstPageHeader : null
   }
 
-  return (
+  const directChromeFirstPageHeader =
     Array.from(paginationChrome.children).find(
       (child): child is HTMLElement =>
         child instanceof HTMLElement &&
         child.classList.contains('rm-first-page-header') &&
         child.dataset.rmPageNumber === '1'
     ) ?? null
-  )
+
+  if (directChromeFirstPageHeader) {
+    return directChromeFirstPageHeader
+  }
+
+  const nestedChromeFirstPageHeader = paginationChrome.querySelector('.rm-first-page-header[data-rm-page-number="1"]')
+  return nestedChromeFirstPageHeader instanceof HTMLElement ? nestedChromeFirstPageHeader : null
 }
 
 export function resolvePageBreakElementsFromPaginationRoot(paginationRoot: HTMLElement | null): HTMLElement[] {
@@ -183,10 +225,10 @@ export function resolvePaginationTotalPagesFromPaginationRoot(
 ): number {
   const explicitTotalPages = Number(paginationRoot?.dataset.rmTotalPages ?? '')
   if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
-    return explicitTotalPages
+    return Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, explicitTotalPages)
   }
 
-  return Math.max(1, pageBreakEls.length)
+  return Math.max(1, Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, pageBreakEls.length))
 }
 
 function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null {
@@ -200,6 +242,16 @@ function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null 
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
+function resolvePageBreakShellState(pageBreakEl: HTMLElement): 'hydrated' | 'placeholder' {
+  const explicitShellState = pageBreakEl.dataset.rmPageShellState
+  if (explicitShellState === 'hydrated' || explicitShellState === 'placeholder') {
+    return explicitShellState
+  }
+
+  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  return breaker?.dataset.rmBreakerMode === 'placeholder' ? 'placeholder' : 'hydrated'
+}
+
 function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLElement | null {
   const bodyLayer = pageBreakEl.querySelector('.rm-page-body-layer[data-rm-page-number]')
   if (bodyLayer instanceof HTMLElement) {
@@ -210,9 +262,17 @@ function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLEleme
   return pageElement instanceof HTMLElement ? pageElement : null
 }
 
-export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+function resolvePageBodyBounds(
+  pageBreakEls: HTMLElement[],
+  options?: { mountedOnly?: boolean }
+): DocumentLayoutPageBodyBounds[] {
+  const mountedOnly = options?.mountedOnly ?? false
   return pageBreakEls
     .map(pageBreakEl => {
+      if (mountedOnly && resolvePageBreakShellState(pageBreakEl) !== 'hydrated') {
+        return null
+      }
+
       const pageNumber = resolvePageNumberForPageBreak(pageBreakEl)
       const bodyElement = resolvePageBodyElementForPageBreak(pageBreakEl)
       if (pageNumber === null || !(bodyElement instanceof HTMLElement)) {
@@ -235,6 +295,14 @@ export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): Docum
     .filter((bounds): bounds is DocumentLayoutPageBodyBounds => bounds !== null)
 }
 
+export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return resolvePageBodyBounds(pageBreakEls, { mountedOnly: true })
+}
+
+export function resolvePageShellBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return resolvePageBodyBounds(pageBreakEls)
+}
+
 function readRegionHeight(region: Element | null): number {
   if (!(region instanceof HTMLElement)) {
     return 0
@@ -243,12 +311,10 @@ function readRegionHeight(region: Element | null): number {
   return Math.max(region.offsetHeight, region.getBoundingClientRect().height, 0)
 }
 
-export function resolveMountedPageChromeMetrics(
+function accumulateMountedPageChromeMetrics(
   pageBreakEls: HTMLElement[],
-  firstPageHeader: HTMLElement | null = null
-): DocumentLayoutPageChromeMetrics[] {
-  const metricsByPageNumber = new Map<number, DocumentLayoutPageChromeMetrics>()
-
+  metricsByPageNumber: Map<number, DocumentLayoutPageChromeMetrics>
+) {
   const assignMetrics = (pageNumber: number, updates: Partial<DocumentLayoutPageChromeMetrics>) => {
     const current = metricsByPageNumber.get(pageNumber) ?? {
       pageNumber,
@@ -279,10 +345,60 @@ export function resolveMountedPageChromeMetrics(
       footerHeight: readRegionHeight(footerRegion)
     })
   })
+}
+
+export async function resolveMountedPageBodyBoundsBatched(
+  pageBreakEls: HTMLElement[],
+  batchSize: number
+): Promise<DocumentLayoutPageBodyBounds[]> {
+  const result: DocumentLayoutPageBodyBounds[] = []
+  for (let offset = 0; offset < pageBreakEls.length; offset += batchSize) {
+    const slice = pageBreakEls.slice(offset, offset + batchSize)
+    result.push(...resolvePageBodyBounds(slice, { mountedOnly: true }))
+    if (offset + batchSize < pageBreakEls.length) {
+      await yieldToNextAnimationFrame()
+    }
+  }
+  return result
+}
+
+export async function resolveMountedPageChromeMetricsBatched(
+  pageBreakEls: HTMLElement[],
+  firstPageHeader: HTMLElement | null,
+  batchSize: number
+): Promise<DocumentLayoutPageChromeMetrics[]> {
+  const metricsByPageNumber = new Map<number, DocumentLayoutPageChromeMetrics>()
+  for (let offset = 0; offset < pageBreakEls.length; offset += batchSize) {
+    const slice = pageBreakEls.slice(offset, offset + batchSize)
+    accumulateMountedPageChromeMetrics(slice, metricsByPageNumber)
+    if (offset + batchSize < pageBreakEls.length) {
+      await yieldToNextAnimationFrame()
+    }
+  }
 
   if (firstPageHeader instanceof HTMLElement) {
-    assignMetrics(1, {
-      headerHeight: Math.max(readRegionHeight(firstPageHeader), metricsByPageNumber.get(1)?.headerHeight ?? 0)
+    const current = metricsByPageNumber.get(1) ?? { pageNumber: 1, headerHeight: 0, footerHeight: 0 }
+    metricsByPageNumber.set(1, {
+      ...current,
+      headerHeight: Math.max(readRegionHeight(firstPageHeader), current.headerHeight)
+    })
+  }
+
+  return Array.from(metricsByPageNumber.values()).sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
+export function resolveMountedPageChromeMetrics(
+  pageBreakEls: HTMLElement[],
+  firstPageHeader: HTMLElement | null = null
+): DocumentLayoutPageChromeMetrics[] {
+  const metricsByPageNumber = new Map<number, DocumentLayoutPageChromeMetrics>()
+  accumulateMountedPageChromeMetrics(pageBreakEls, metricsByPageNumber)
+
+  if (firstPageHeader instanceof HTMLElement) {
+    const current = metricsByPageNumber.get(1) ?? { pageNumber: 1, headerHeight: 0, footerHeight: 0 }
+    metricsByPageNumber.set(1, {
+      ...current,
+      headerHeight: Math.max(readRegionHeight(firstPageHeader), current.headerHeight)
     })
   }
 
@@ -398,21 +514,25 @@ function createFlowIndexedPageList(
       if (pageNumber === null || pageNumber < 1 || pageNumber > pageCount) {
         return
       }
+      const shellState = resolvePageBreakShellState(flowEl)
+      const isMounted = shellState === 'hydrated'
 
       flow.push({
         flowIndex,
         pageRange: createPageRange(pageNumber, pageNumber),
-        kind: 'page-break',
-        isMounted: true
+        kind: shellState === 'hydrated' ? 'page-break' : 'placeholder',
+        isMounted
       })
       pages[pageNumber - 1] = {
         pageNumber,
         flowIndex,
-        mountedIndex,
-        isMounted: true
+        mountedIndex: isMounted ? mountedIndex : null,
+        isMounted
       }
-      mountedIndex += 1
-      updateMountedRange(pageNumber)
+      if (isMounted) {
+        mountedIndex += 1
+        updateMountedRange(pageNumber)
+      }
       return
     }
 
@@ -440,15 +560,12 @@ function createFlowIndexedPageList(
   }
 }
 
-export function buildLayoutMeasurement(
+type FlowIndexedLayoutResult = ReturnType<typeof createFlowIndexedPageList>
+
+function resolveStructuralIndexedLayout(
   pageBreakEls: HTMLElement[],
-  flowEls: HTMLElement[],
-  request: DocumentLayoutMeasurementRequest,
-  firstPageHeader: HTMLElement | null = null
-): {
-  layout: DocumentLayoutMeasurement
-  navigationState: DocumentLayoutNavigationState
-} {
+  flowEls: HTMLElement[]
+): { pageCount: number; indexedLayout: FlowIndexedLayoutResult } {
   const paginationRoot = pageBreakEls[0]?.parentElement
   const resolvedPaginationRoot =
     paginationRoot instanceof HTMLDivElement && paginationRoot.dataset.rmPagination === '' ? paginationRoot : null
@@ -458,13 +575,26 @@ export function buildLayoutMeasurement(
     .filter((pageNumber): pageNumber is number => pageNumber !== null)
   let pageCount = Math.max(1, pageBreakEls.length)
   if (Number.isInteger(explicitTotalPages) && explicitTotalPages > 0) {
-    pageCount = explicitTotalPages
+    pageCount = Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, explicitTotalPages)
   } else if (indexedPageNumbers.length > 0) {
     pageCount = Math.max(...indexedPageNumbers)
   }
+  pageCount = Math.max(1, Math.min(PAGINATION_TOTAL_PAGES_HARD_CAP, pageCount))
   const indexedLayout = createFlowIndexedPageList(pageCount, flowEls)
-  const mountedPageBodyBounds = resolveMountedPageBodyBounds(pageBreakEls)
-  const pageChromeMetrics = resolveMountedPageChromeMetrics(pageBreakEls, firstPageHeader)
+  return { pageCount, indexedLayout }
+}
+
+function assembleMeasuredLayout(
+  pageBreakEls: HTMLElement[],
+  flowEls: HTMLElement[],
+  pageCount: number,
+  indexedLayout: FlowIndexedLayoutResult,
+  mountedPageBodyBounds: DocumentLayoutPageBodyBounds[],
+  pageChromeMetrics: DocumentLayoutPageChromeMetrics[],
+  request: DocumentLayoutMeasurementRequest
+): DocumentLayoutMeasurementResult {
+  const activeRange = resolveActiveRange(pageCount, request)
+  const activePages = resolveActivePages(indexedLayout.pages, activeRange)
 
   return {
     layout: {
@@ -474,11 +604,11 @@ export function buildLayoutMeasurement(
       mountedRange: indexedLayout.mountedRange,
       mountedPageBodyBounds,
       pageChromeMetrics,
-      activePages: [],
-      activeRange: null
+      activePages,
+      activeRange
     },
     navigationState: {
-      activeRange: resolveActiveRange(pageCount, request),
+      activeRange,
       pageBreakEls,
       flowEls,
       boundaryEls: pageBreakEls
@@ -487,6 +617,51 @@ export function buildLayoutMeasurement(
         .filter((el): el is HTMLElement => el instanceof HTMLElement)
     }
   }
+}
+
+export function buildLayoutMeasurement(
+  pageBreakEls: HTMLElement[],
+  flowEls: HTMLElement[],
+  request: DocumentLayoutMeasurementRequest,
+  firstPageHeader: HTMLElement | null = null
+): DocumentLayoutMeasurementResult {
+  const { pageCount, indexedLayout } = resolveStructuralIndexedLayout(pageBreakEls, flowEls)
+  const mountedPageBodyBounds = resolveMountedPageBodyBounds(pageBreakEls)
+  const pageChromeMetrics = resolveMountedPageChromeMetrics(pageBreakEls, firstPageHeader)
+  return assembleMeasuredLayout(
+    pageBreakEls,
+    flowEls,
+    pageCount,
+    indexedLayout,
+    mountedPageBodyBounds,
+    pageChromeMetrics,
+    request
+  )
+}
+
+export async function buildLayoutMeasurementAsync(
+  pageBreakEls: HTMLElement[],
+  flowEls: HTMLElement[],
+  request: DocumentLayoutMeasurementRequest,
+  firstPageHeader: HTMLElement | null = null
+): Promise<DocumentLayoutMeasurementResult> {
+  const { pageCount, indexedLayout } = resolveStructuralIndexedLayout(pageBreakEls, flowEls)
+  const useChunkedGeometry = pageBreakEls.length >= LARGE_DOC_LAYOUT_GEOMETRY_CHUNK_THRESHOLD
+  const mountedPageBodyBounds = useChunkedGeometry
+    ? await resolveMountedPageBodyBoundsBatched(pageBreakEls, LARGE_DOC_GEOMETRY_BATCH_SIZE)
+    : resolveMountedPageBodyBounds(pageBreakEls)
+  const pageChromeMetrics = useChunkedGeometry
+    ? await resolveMountedPageChromeMetricsBatched(pageBreakEls, firstPageHeader, LARGE_DOC_GEOMETRY_BATCH_SIZE)
+    : resolveMountedPageChromeMetrics(pageBreakEls, firstPageHeader)
+  return assembleMeasuredLayout(
+    pageBreakEls,
+    flowEls,
+    pageCount,
+    indexedLayout,
+    mountedPageBodyBounds,
+    pageChromeMetrics,
+    request
+  )
 }
 
 function measureLegacyDomPagination(

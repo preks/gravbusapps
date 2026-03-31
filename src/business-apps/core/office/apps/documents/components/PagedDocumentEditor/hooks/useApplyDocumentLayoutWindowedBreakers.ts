@@ -3,7 +3,6 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { DocumentLayoutPageRange } from '../../../types'
 import { resolvePageBreakElements, type DocumentLayoutNavigationState } from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
-import { resolveViewportMarkerRefreshRange } from './useApplyDocumentLayoutViewportMarkers'
 
 interface UseApplyDocumentLayoutWindowedBreakersParams {
   editor: TiptapEditor | null
@@ -23,6 +22,54 @@ function resolvePageNumberForPageBreak(pageBreakEl: HTMLElement): number | null 
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
+function resolveBreakerElement(pageBreakEl: HTMLElement) {
+  return pageBreakEl.querySelector('.breaker') as HTMLElement | null
+}
+
+function resolvePaginationRoot(container: HTMLDivElement): HTMLElement | null {
+  const directChild = Array.from(container.children).find(
+    (child): child is HTMLElement => child instanceof HTMLElement && child.dataset.rmPagination === 'true'
+  )
+  if (directChild) {
+    return directChild
+  }
+
+  return (container.querySelector('[data-rm-pagination="true"]') as HTMLElement | null) ?? null
+}
+
+function hasParkedPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
+  const breaker = resolveBreakerElement(pageBreakEl)
+  return breaker instanceof HTMLElement ? parkedBreakers.has(breaker) : false
+}
+
+function syncMountedRangeMetadata(
+  paginationRoot: HTMLElement | null,
+  mountedRange: DocumentLayoutPageRange | null,
+  totalPages: number
+) {
+  if (!(paginationRoot instanceof HTMLElement)) return
+
+  const normalizedRange = mountedRange ?? {
+    startPage: 1,
+    endPage: Math.max(1, totalPages)
+  }
+
+  paginationRoot.dataset.rmMountedStartPage = String(normalizedRange.startPage)
+  paginationRoot.dataset.rmMountedEndPage = String(normalizedRange.endPage)
+}
+
+function resolveDesiredHydratedPageNumbers(activePages: Set<number>, totalPages: number) {
+  const desiredHydratedPages = new Set<number>()
+
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+    if (shouldMountPageBreaker(pageNumber, activePages)) {
+      desiredHydratedPages.add(pageNumber)
+    }
+  }
+
+  return desiredHydratedPages
+}
+
 export function collectPageBreakers(pageBreakEls: HTMLElement[]): Map<number, HTMLElement> {
   const pageBreakers = new Map<number, HTMLElement>()
 
@@ -40,12 +87,12 @@ export function shouldMountPageBreaker(pageNumber: number, activePages: Set<numb
 }
 
 export function isPlaceholderPageBreaker(pageBreakEl: HTMLElement) {
-  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
-  return breaker?.dataset.rmBreakerMode === 'placeholder'
-}
+  if (pageBreakEl.dataset.rmPageShellState === 'placeholder') {
+    return true
+  }
 
-function shouldVirtualizeWindowedBreakers(pageBreakEls: HTMLElement[], totalPages: number) {
-  return pageBreakEls.length < Math.max(1, totalPages)
+  const breaker = resolveBreakerElement(pageBreakEl)
+  return breaker?.dataset.rmBreakerMode === 'placeholder'
 }
 
 function resolveMountedRange(activeRange: DocumentLayoutPageRange) {
@@ -56,9 +103,13 @@ function resolveMountedRange(activeRange: DocumentLayoutPageRange) {
 }
 
 export function parkPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
-  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  const breaker = resolveBreakerElement(pageBreakEl)
   if (!(breaker instanceof HTMLElement)) return
   if (breaker.querySelector('[data-rm-overlay-active="true"]')) return
+  if (breaker.dataset.rmBreakerMode === 'placeholder') {
+    pageBreakEl.dataset.rmPageShellState = 'placeholder'
+    return
+  }
   if (parkedBreakers.has(breaker)) return
 
   const childNodes = Array.from(breaker.childNodes)
@@ -90,14 +141,16 @@ export function parkPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMa
   }
 
   breaker.replaceChildren()
+  breaker.dataset.rmBreakerMode = 'placeholder'
   breaker.dataset.rmBreakerPlaceholderHeight = String(Math.max(0, measuredHeight))
   breaker.dataset.rmBreakerFooterHeight = String(Math.max(0, footerHeight))
   breaker.dataset.rmBreakerNextHeaderHeight = String(Math.max(0, nextHeaderHeight))
   breaker.dataset.layoutBreakerMounted = 'false'
+  pageBreakEl.dataset.rmPageShellState = 'placeholder'
 }
 
 export function restorePageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
-  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  const breaker = resolveBreakerElement(pageBreakEl)
   if (!(breaker instanceof HTMLElement)) return
 
   const parkedState = parkedBreakers.get(breaker)
@@ -114,35 +167,12 @@ export function restorePageBreaker(pageBreakEl: HTMLElement, parkedBreakers: Wea
   }
 
   delete breaker.dataset.layoutBreakerMounted
+  delete breaker.dataset.rmBreakerMode
   delete breaker.dataset.rmBreakerPlaceholderHeight
   delete breaker.dataset.rmBreakerFooterHeight
   delete breaker.dataset.rmBreakerNextHeaderHeight
+  pageBreakEl.dataset.rmPageShellState = 'hydrated'
   parkedBreakers.delete(breaker)
-}
-
-function resolvePagesToRefresh(
-  previousActiveRange: DocumentLayoutPageRange | null,
-  nextActiveRange: DocumentLayoutPageRange,
-  refreshAll: boolean,
-  pageBreakers: Map<number, HTMLElement>
-) {
-  const pageNumbersToRefresh = new Set<number>()
-
-  if (refreshAll) {
-    pageBreakers.forEach((_, pageNumber) => {
-      pageNumbersToRefresh.add(pageNumber)
-    })
-    return pageNumbersToRefresh
-  }
-
-  const refreshRange = resolveViewportMarkerRefreshRange(previousActiveRange, nextActiveRange)
-  if (!refreshRange) return pageNumbersToRefresh
-
-  for (let pageNumber = Math.max(1, refreshRange.startPage - 1); pageNumber <= refreshRange.endPage; pageNumber += 1) {
-    pageNumbersToRefresh.add(pageNumber)
-  }
-
-  return pageNumbersToRefresh
 }
 
 export function useApplyDocumentLayoutWindowedBreakers({
@@ -155,12 +185,7 @@ export function useApplyDocumentLayoutWindowedBreakers({
   const pageBreakersRef = useRef<Map<number, HTMLElement>>(new Map())
   const indexedPageBreakElsRef = useRef<HTMLElement[] | null>(null)
   const parkedBreakersRef = useRef<WeakMap<HTMLElement, ParkedBreakerState>>(new WeakMap())
-  const hasParkedBreakersRef = useRef(false)
-  const previousActiveRangeRef = useRef<DocumentLayoutPageRange | null>(null)
-  const previousMountedRangeRef = useRef<DocumentLayoutPageRange | null>(null)
-  const previousWindowKeyRef = useRef<string | null>(null)
-  const hydrationRequestWindowKeyRef = useRef<string | null>(null)
-  const mountedRangeRequestKeyRef = useRef<string | null>(null)
+  const hydrationRequestKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
     const container = editorContainerRef.current
@@ -182,99 +207,66 @@ export function useApplyDocumentLayoutWindowedBreakers({
       if (pageBreakElsChanged) {
         pageBreakersRef.current = collectPageBreakers(pageBreakEls)
         indexedPageBreakElsRef.current = pageBreakEls
-        hydrationRequestWindowKeyRef.current = null
+        hydrationRequestKeyRef.current = null
       }
 
-      const shouldVirtualizeBreakers =
-        viewportModel.isWindowed &&
-        (viewportModel.hasSparseFlow || shouldVirtualizeWindowedBreakers(pageBreakEls, viewportModel.totalPages))
+      const paginationRoot = resolvePaginationRoot(container)
 
-      if (!shouldVirtualizeBreakers) {
-        if (hasParkedBreakersRef.current) {
-          pageBreakersRef.current.forEach(pageBreakEl => {
-            restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
-          })
-          hasParkedBreakersRef.current = false
+      if (!viewportModel.isWindowed) {
+        pageBreakersRef.current.forEach(pageBreakEl => {
+          restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
+        })
+        syncMountedRangeMetadata(paginationRoot, null, viewportModel.totalPages)
+
+        const placeholderPageNumbers = Array.from(pageBreakersRef.current.entries())
+          .filter(([, pageBreakEl]) => isPlaceholderPageBreaker(pageBreakEl))
+          .map(([pageNumber]) => pageNumber)
+
+        if (placeholderPageNumbers.length > 0) {
+          const requestKey = `full:${placeholderPageNumbers.join(',')}`
+          if (hydrationRequestKeyRef.current !== requestKey) {
+            hydrationRequestKeyRef.current = requestKey
+            ;(
+              editor?.commands as { hydratePageBreakShells?: (pageNumbers: number[]) => boolean } | undefined
+            )?.hydratePageBreakShells?.(placeholderPageNumbers)
+          }
+        } else {
+          hydrationRequestKeyRef.current = null
         }
-        hydrationRequestWindowKeyRef.current = null
-        mountedRangeRequestKeyRef.current = null
-        previousActiveRangeRef.current = viewportModel.activeRange
-        previousMountedRangeRef.current = viewportModel.mountedRange
-        previousWindowKeyRef.current = viewportModel.windowKey
+
         return
       }
 
       const desiredMountedRange = resolveMountedRange(viewportModel.activeRange)
-      const desiredMountedRangeKey = `${desiredMountedRange.startPage}-${desiredMountedRange.endPage}`
-      const mountedRangeChanged =
-        viewportModel.mountedRange?.startPage !== desiredMountedRange.startPage ||
-        viewportModel.mountedRange?.endPage !== desiredMountedRange.endPage
-      if (mountedRangeChanged) {
-        hydrationRequestWindowKeyRef.current = null
-        if (mountedRangeRequestKeyRef.current !== desiredMountedRangeKey) {
-          mountedRangeRequestKeyRef.current = desiredMountedRangeKey
-          ;(editor?.commands as { refreshPages?: () => boolean } | undefined)?.refreshPages?.()
-        }
-        previousMountedRangeRef.current = viewportModel.mountedRange
-        previousWindowKeyRef.current = viewportModel.windowKey
-        return
-      }
-
-      if (mountedRangeRequestKeyRef.current === desiredMountedRangeKey) {
-        mountedRangeRequestKeyRef.current = null
-      }
-
-      const mountedRangeStateChanged =
-        previousMountedRangeRef.current?.startPage !== viewportModel.mountedRange?.startPage ||
-        previousMountedRangeRef.current?.endPage !== viewportModel.mountedRange?.endPage
-      const refreshAll =
-        pageBreakElsChanged ||
-        mountedRangeStateChanged ||
-        previousActiveRangeRef.current === null ||
-        previousWindowKeyRef.current !== viewportModel.windowKey
-      const pageNumbersToRefresh = resolvePagesToRefresh(
-        previousActiveRangeRef.current,
-        viewportModel.activeRange,
-        refreshAll,
-        pageBreakersRef.current
-      )
+      syncMountedRangeMetadata(paginationRoot, desiredMountedRange, viewportModel.totalPages)
       const activePages = new Set(viewportModel.activePageNumbers)
-      let needsHydrationRefresh = false
-      let parkedAnyBreakers = false
+      const desiredHydratedPages = resolveDesiredHydratedPageNumbers(activePages, viewportModel.totalPages)
+      const pageNumbersToHydrate: number[] = []
 
-      pageNumbersToRefresh.forEach(pageNumber => {
-        const pageBreakEl = pageBreakersRef.current.get(pageNumber)
-        if (!pageBreakEl) return
-
-        if (shouldMountPageBreaker(pageNumber, activePages)) {
-          if (isPlaceholderPageBreaker(pageBreakEl)) {
-            needsHydrationRefresh = true
+      pageBreakersRef.current.forEach((pageBreakEl, pageNumber) => {
+        if (desiredHydratedPages.has(pageNumber)) {
+          if (hasParkedPageBreaker(pageBreakEl, parkedBreakersRef.current)) {
+            restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
+          } else if (isPlaceholderPageBreaker(pageBreakEl)) {
+            pageNumbersToHydrate.push(pageNumber)
           }
-          restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
-        } else {
-          parkPageBreaker(pageBreakEl, parkedBreakersRef.current)
-          parkedAnyBreakers = true
+          return
         }
+
+        parkPageBreaker(pageBreakEl, parkedBreakersRef.current)
       })
 
-      if (parkedAnyBreakers) {
-        hasParkedBreakersRef.current = true
-      }
-
-      if (needsHydrationRefresh) {
-        if (hydrationRequestWindowKeyRef.current !== viewportModel.windowKey) {
-          hydrationRequestWindowKeyRef.current = viewportModel.windowKey
+      if (pageNumbersToHydrate.length > 0) {
+        const requestKey = `${viewportModel.windowKey}:${pageNumbersToHydrate.join(',')}`
+        if (hydrationRequestKeyRef.current !== requestKey) {
+          hydrationRequestKeyRef.current = requestKey
           ;(
             editor?.commands as { hydratePageBreakShells?: (pageNumbers: number[]) => boolean } | undefined
-          )?.hydratePageBreakShells?.(Array.from(pageNumbersToRefresh))
+          )?.hydratePageBreakShells?.(pageNumbersToHydrate)
         }
-      } else if (hydrationRequestWindowKeyRef.current === viewportModel.windowKey) {
-        hydrationRequestWindowKeyRef.current = null
+      } else {
+        hydrationRequestKeyRef.current = null
       }
-
-      previousActiveRangeRef.current = viewportModel.activeRange
-      previousMountedRangeRef.current = viewportModel.mountedRange
-      previousWindowKeyRef.current = viewportModel.windowKey
     })
 
     return () => {
@@ -289,9 +281,7 @@ export function useApplyDocumentLayoutWindowedBreakers({
     layoutNavigationState.pageBreakEls,
     viewportModel.activePageNumbers,
     viewportModel.activeRange,
-    viewportModel.hasSparseFlow,
     viewportModel.isWindowed,
-    viewportModel.mountedRange,
     viewportModel.totalPages,
     viewportModel.windowKey
   ])
