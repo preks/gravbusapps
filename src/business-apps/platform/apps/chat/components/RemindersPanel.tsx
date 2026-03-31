@@ -95,7 +95,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     setError(null)
 
     try {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || window.location.origin
+      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || globalThis.location.origin
 
       // Skip if no user ID
       if (!userId) {
@@ -240,7 +240,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || window.location.origin
+      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || globalThis.location.origin
 
       // Step 1: Get the task ID from workflow's step_0
       const stepDataResponse = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
