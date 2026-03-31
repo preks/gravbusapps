@@ -15,8 +15,8 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { FilePdfIcon } from '@phosphor-icons/react'
-import translations from '../../apps/personal-expenses/_i18n'
-import { getFileNameFromEmployeeDocument } from '../utils/fileNameUtils'
+import translations from '../../../apps/personal-expenses/_i18n'
+import { getFileNameFromEmployeeDocument } from '../../utils/fileNameUtils'
 
 type PrintResult = { success: boolean; pdfUrl?: string; error?: string }
 

@@ -5,10 +5,11 @@
  */
 
 import React, { memo } from 'react'
-import { Card, Button } from '@newwork/nw-design-system'
+import { Card, Button, useTranslation } from '@newwork/nw-design-system'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { SpreadsheetSheet } from '../types'
 import { formatCellValue } from './utils'
+import translations from '../_i18n'
 
 export interface FormViewProps {
   sheet: SpreadsheetSheet
@@ -31,6 +32,7 @@ export const FormView = memo<FormViewProps>(function FormView({
   canEdit = true,
   testId
 }) {
+  const { t } = useTranslation(translations)
   const visibleColumns = sheet.columns.filter(c => c.isVisible !== false)
 
   return (
@@ -49,11 +51,11 @@ export const FormView = memo<FormViewProps>(function FormView({
             <div className="gba:flex gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t">
               <Button variant="outline" size="sm" onClick={() => onEdit(row)}>
                 <Pencil className="gba:w-4 gba:h-4 gba:mr-1" />
-                Edit
+                {t('settings-edit')}
               </Button>
               <Button variant="outline" size="sm" onClick={() => onDelete(row._id as string)}>
                 <Trash2 className="gba:w-4 gba:h-4 gba:mr-1 gba:text-destructive" />
-                Delete
+                {t('action-delete-spreadsheet')}
               </Button>
             </div>
           )}

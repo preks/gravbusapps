@@ -1350,7 +1350,10 @@ export const SpreadsheetApiService = {
       return result.success
     } catch (error) {
       console.error('[SpreadsheetApiService] Failed to restore version:', error)
-      return false
+      if (error instanceof SpreadsheetApiRequestError) {
+        throw error
+      }
+      throw new Error('Failed to restore version')
     }
   },
 

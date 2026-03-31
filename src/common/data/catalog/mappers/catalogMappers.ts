@@ -105,6 +105,7 @@ export const toCatalog = (baseCatalog: BaseCatalog, options: ToCatalogOptions = 
     lastUpdated: baseCatalog.updatedAt || baseCatalog.createdAt || '',
     status,
     color,
+    isCustomerManaged: baseCatalog.isCustomerManaged ?? false,
     // Initialize enhanced, UI-friendly pagination/search fields
     entries: undefined,
     total: baseCatalog.catalogEntriesAggregate?.aggregate?.count || 0,

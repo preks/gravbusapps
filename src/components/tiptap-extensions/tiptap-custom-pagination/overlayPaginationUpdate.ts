@@ -22,6 +22,17 @@ export function applyOverlayPaginationUpdate(options: {
   if (measuredPageCount !== currentPageCount) {
     onClearGrowthSuppression()
     onSetStoredPageCount(measuredPageCount)
+    // Growing the header/footer while the overlay is open increases measured header/footer
+    // heights; layout can temporarily report a higher page count than the document's page
+    // break count until repagination runs. Closing and reopening on every keystroke
+    // destroys the nested editor and feels like the overlay "closes". Refresh chrome only.
+    if (measuredPageCount > currentPageCount) {
+      onRefreshPresentation()
+      return {
+        reopened: false
+      }
+    }
+
     onCloseOverlay()
     onReopenOverlay()
     return {

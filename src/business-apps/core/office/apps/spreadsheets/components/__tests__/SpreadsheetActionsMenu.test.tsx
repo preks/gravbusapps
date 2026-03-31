@@ -1,9 +1,7 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { SpreadsheetActionsMenu } from '../SpreadsheetActionsMenu'
 
 jest.mock('@newwork/nw-design-system', () => {
-  const React = require('react')
   return {
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
@@ -27,7 +25,6 @@ describe('SpreadsheetActionsMenu', () => {
         canEdit={true}
         onOpenAnalytics={onOpenAnalytics}
         onOpenAutomations={jest.fn()}
-        onEdit={jest.fn()}
       />
     )
 

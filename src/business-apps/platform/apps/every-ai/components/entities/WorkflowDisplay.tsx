@@ -3,6 +3,7 @@ import { Workflow, Zap } from 'lucide-react'
 import { EntityCard } from './EntityCard'
 import { getOperationBadge } from './utils/displayUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getEntityUrl } from '../links/EntityLink'
 
 interface WorkflowDisplayProps {
   workflowId: string
@@ -62,13 +63,18 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
         navigateTo(link, { forceReload: true })
         return
       }
+
+      const resolvedLink = getEntityUrl('service_workflow', workflowId, link)
+      if (resolvedLink) {
+        navigateTo(resolvedLink, { forceReload: true })
+        return
+      }
     }
 
-    // workflowId is the template_id
-    const workflowUrl = buildPlatformUrl('/platform/apps/flow/apps/creator', {
-      templateId: workflowId
+    const workflowUrl = buildPlatformUrl('/platform/create/flow-studio', {
+      flowId: workflowId
     })
-    navigateTo(`${workflowUrl}#manage`, { forceReload: true })
+    navigateTo(`${workflowUrl}#flows`, { forceReload: true })
   }
 
   const title = textTitle || formatWorkflowName(workflowId)

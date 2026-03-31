@@ -5,6 +5,7 @@ request-absence = Abwesenheit beantragen
 calendar = Kalender
 back-to-dashboard = Zurück zur Übersicht
 absence-overview = Abwesenheiten
+change-entitlement = Kontingent ändern
 
 # My Balance
 my-balance = Mein Kontostand

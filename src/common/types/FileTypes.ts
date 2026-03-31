@@ -40,6 +40,13 @@ export type FileQueryParams = {
    * MIME type of the file
    */
   mimeType?: string
+
+  /**
+   * When true, the file service uses originalFileName (derived from the file name + mimeType)
+   * as the fileId instead of generating a random UUID.
+   * Required for predictable fileIds like 'default_logo.svg+xml'.
+   */
+  keepFilename?: boolean
 }
 
 /**
@@ -95,6 +102,30 @@ export interface FileUploadResponse {
     }
     uploadedAt: string
   }
+}
+
+/**
+ * File list entry returned by the file service listing endpoint
+ */
+export interface FileListEntry {
+  fileId: string
+  appName?: string
+  folderPath?: string
+  accessScope?: string
+  path?: string
+  uploadedAt?: string
+  fileMetadata?: {
+    mimeType?: string
+    originalFileName?: string
+    [key: string]: unknown
+  }
+}
+
+/**
+ * File list response from the file service
+ */
+export interface FileListResponse {
+  files: FileListEntry[]
 }
 
 /**
