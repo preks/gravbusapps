@@ -4,7 +4,7 @@
  * Top navigation bar with breadcrumbs, status indicators, and actions.
  */
 
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react'
+import React, { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Button,
   Badge,
@@ -39,6 +39,9 @@ import type { PublishStatus } from '../../../../../platform/apps/shared/types/ve
 import type { CursorParticipant } from '../hooks/useSpreadsheetCellSelection'
 
 const VALID_PUBLISH_STATUSES = ['draft', 'in_review', 'published', 'archived'] as const
+
+/** Use element width (not viewport): header often sits in a narrow hub panel or iframe. */
+const SPREADSHEET_HEADER_SINGLE_ROW_MIN_PX = 640
 
 function getNormalizedPublishStatus(status: string): PublishStatus {
   return (
@@ -193,7 +196,8 @@ function EditingToolbar({
   setShowComments,
   unresolvedCommentCount,
   onOpenAICapability,
-  fileLock
+  fileLock,
+  singleHeaderRow
 }: {
   versioning: { isSaving: boolean; lastSaveTime: Date | null; hasUnsavedChanges: boolean }
   persistenceError?: string | null
@@ -206,11 +210,18 @@ function EditingToolbar({
     lock: { isLocked: boolean; lockedByName?: string } | null
     isLockedByMe: boolean
   }
+  singleHeaderRow: boolean
 }) {
   const { t } = useTranslation(translations)
   const isLocked = fileLock.lock?.isLocked ?? false
   return (
-    <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap md:gba:flex-nowrap">
+    <div
+      className={
+        singleHeaderRow
+          ? 'gba:flex gba:items-center gba:gap-1.5 gba:flex-nowrap'
+          : 'gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap'
+      }
+    >
       <SpreadsheetSaveStatus
         isSaving={versioning.isSaving}
         lastSaveTime={versioning.lastSaveTime}
@@ -422,6 +433,33 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   testId
 }) {
   const { t } = useTranslation(translations)
+  const headerShellRef = useRef<HTMLDivElement>(null)
+  const [singleHeaderRow, setSingleHeaderRow] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = headerShellRef.current
+    if (!el) return
+
+    const applyWidth = () => {
+      const w = el.offsetWidth
+      if (w < 1) return
+      setSingleHeaderRow(w >= SPREADSHEET_HEADER_SINGLE_ROW_MIN_PX)
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        applyWidth()
+      })
+      ro.observe(el)
+      applyWidth()
+      return () => ro.disconnect()
+    }
+
+    applyWidth()
+    globalThis.addEventListener('resize', applyWidth)
+    return () => globalThis.removeEventListener('resize', applyWidth)
+  }, [])
+
   const [isSubmittingCollection, setIsSubmittingCollection] = useState(false)
   const handleSubmitCollection = useCallback(async () => {
     if (!onSubmitCollection || isSubmittingCollection) return
@@ -442,82 +480,99 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   const normalizedPublishStatus = getNormalizedPublishStatus(publishingStatus)
 
   return (
-    <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
-      <div className="gba:flex gba:flex-col gba:gap-2 gba:min-w-0 gba:w-full md:gba:flex-row md:gba:items-center md:gba:justify-between">
-        <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0 gba:w-full md:gba:w-auto">
+    <div
+      ref={headerShellRef}
+      className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50 gba:min-w-0"
+      data-testid={`${testId}-header-shell`}
+    >
+      <div
+        className={
+          singleHeaderRow
+            ? 'gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-3 gba:min-w-0 gba:w-full'
+            : 'gba:flex gba:flex-col gba:gap-2 gba:min-w-0 gba:w-full'
+        }
+      >
+        <div
+          className={
+            singleHeaderRow
+              ? 'gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:gap-1'
+              : 'gba:flex gba:w-full gba:min-w-0 gba:items-center gba:gap-1'
+          }
+        >
           <BreadcrumbSection onBack={onBack} app={app} canRename={canEdit} onRenameAppName={onRenameAppName} />
         </div>
 
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full md:gba:w-auto md:gba:flex-row md:gba:items-center md:gba:gap-3 md:gba:justify-end">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap md:gba:flex-nowrap">
-            <StatusIndicators
-              headerParticipants={headerParticipants}
-              isCollaborationConnected={isCollaborationConnected}
-              entityDataSource={activeSheet?.entityDataSource}
-              onRefreshEntityData={onRefreshEntityData}
-              isEntityDataLoading={isEntityDataLoading}
-              data-testid={`${testId}-status-indicators`}
-            />
+        <div
+          className={
+            singleHeaderRow
+              ? 'gba:flex gba:w-auto gba:min-w-0 gba:flex-shrink-0 gba:flex-row gba:flex-nowrap gba:items-center gba:gap-3 gba:justify-end'
+              : 'gba:flex gba:w-full gba:min-w-0 gba:flex-row gba:flex-wrap gba:items-center gba:gap-2 gba:justify-start'
+          }
+        >
+          <StatusIndicators
+            headerParticipants={headerParticipants}
+            isCollaborationConnected={isCollaborationConnected}
+            entityDataSource={activeSheet?.entityDataSource}
+            onRefreshEntityData={onRefreshEntityData}
+            isEntityDataLoading={isEntityDataLoading}
+            data-testid={`${testId}-status-indicators`}
+          />
 
-            <div className="gba:hidden md:gba:block gba:h-6 gba:w-px gba:bg-border/50" />
+          <div className={singleHeaderRow ? 'gba:block gba:h-6 gba:w-px gba:bg-border/50' : 'gba:hidden'} />
 
-            {!isCollectionCopy && normalizedPublishStatus !== 'draft' && (
-              <StatusBadge status={normalizedPublishStatus} />
-            )}
+          {!isCollectionCopy && normalizedPublishStatus !== 'draft' && <StatusBadge status={normalizedPublishStatus} />}
 
-            {!isEditing && (
-              <Badge
-                variant="secondary"
-                className="gba:bg-muted/50 gba:text-muted-foreground gba:border-border/30 gba:backdrop-blur-sm"
-                data-testid="view-only-badge"
-              >
-                <Eye className="gba:h-3 gba:w-3 gba:mr-1" />
-                {t('header-view-only')}
-              </Badge>
-            )}
+          {!isEditing && (
+            <Badge
+              variant="secondary"
+              className="gba:bg-muted/50 gba:text-muted-foreground gba:border-border/30 gba:backdrop-blur-sm"
+              data-testid="view-only-badge"
+            >
+              <Eye className="gba:h-3 gba:w-3 gba:mr-1" />
+              {t('header-view-only')}
+            </Badge>
+          )}
 
-            <CollectionStatusSection
-              isCollectionCopy={isCollectionCopy}
-              collectionSubmittedAt={collectionSubmittedAt}
-              formattedSubmittedAt={formattedSubmittedAt}
-              onSubmitCollection={onSubmitCollection}
-              isSubmittingCollection={isSubmittingCollection}
-              handleSubmitCollection={handleSubmitCollection}
-            />
-          </div>
+          <CollectionStatusSection
+            isCollectionCopy={isCollectionCopy}
+            collectionSubmittedAt={collectionSubmittedAt}
+            formattedSubmittedAt={formattedSubmittedAt}
+            onSubmitCollection={onSubmitCollection}
+            isSubmittingCollection={isSubmittingCollection}
+            handleSubmitCollection={handleSubmitCollection}
+          />
 
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap md:gba:flex-nowrap md:gba:gap-3">
-            {isEditing && (
-              <EditingToolbar
-                versioning={versioning}
-                persistenceError={persistenceError}
-                onShowCheckpointDialog={onShowCheckpointDialog}
-                showComments={showComments}
-                setShowComments={setShowComments}
-                unresolvedCommentCount={unresolvedCommentCount}
-                onOpenAICapability={onOpenAICapability}
-                fileLock={fileLock}
-              />
-            )}
-
-            <div className="gba:hidden md:gba:block gba:h-6 gba:w-px gba:bg-border/50" />
-
-            <SpreadsheetActionsMenu
-              onShowVersionHistory={onShowVersionHistory}
+          {isEditing && (
+            <EditingToolbar
+              versioning={versioning}
+              persistenceError={persistenceError}
               onShowCheckpointDialog={onShowCheckpointDialog}
-              isLockedByMe={fileLock.isLockedByMe}
-              onAcquireLock={fileLock.acquireLock}
-              onReleaseLock={fileLock.releaseLock}
-              canEdit={canEdit}
-              onShare={onShare}
-              onOpenAnalytics={onOpenAnalytics}
-              onOpenAutomations={onOpenAutomations}
-              onEdit={onEdit}
-              allowExport={activeSheet.settings.allowExport}
-              onExport={onExport}
-              data-testid={`${testId}-actions-menu`}
+              showComments={showComments}
+              setShowComments={setShowComments}
+              unresolvedCommentCount={unresolvedCommentCount}
+              onOpenAICapability={onOpenAICapability}
+              fileLock={fileLock}
+              singleHeaderRow={singleHeaderRow}
             />
-          </div>
+          )}
+
+          <div className={singleHeaderRow ? 'gba:block gba:h-6 gba:w-px gba:bg-border/50' : 'gba:hidden'} />
+
+          <SpreadsheetActionsMenu
+            onShowVersionHistory={onShowVersionHistory}
+            onShowCheckpointDialog={onShowCheckpointDialog}
+            isLockedByMe={fileLock.isLockedByMe}
+            onAcquireLock={fileLock.acquireLock}
+            onReleaseLock={fileLock.releaseLock}
+            canEdit={canEdit}
+            onShare={onShare}
+            onOpenAnalytics={onOpenAnalytics}
+            onOpenAutomations={onOpenAutomations}
+            onEdit={onEdit}
+            allowExport={activeSheet.settings.allowExport}
+            onExport={onExport}
+            data-testid={`${testId}-actions-menu`}
+          />
         </div>
       </div>
     </div>
