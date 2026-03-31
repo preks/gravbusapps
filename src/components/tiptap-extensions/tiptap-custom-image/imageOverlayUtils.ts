@@ -115,11 +115,29 @@ export function resolveImageOverlayMount(params: {
   }
 }
 
+function resolveOverlayFigurePointerEvents(
+  wrapMode: NonNullable<WordLikeImageLayout['wrapMode']>
+): CSSProperties['pointerEvents'] {
+  return wrapMode === 'behind' ? 'none' : 'auto'
+}
+
+function resolveOverlayFigureZIndex(
+  wrapMode: NonNullable<WordLikeImageLayout['wrapMode']>,
+  attributeZIndex: number | null | undefined
+): number {
+  if (wrapMode === 'behind') {
+    return 0
+  }
+
+  return Math.max(1, attributeZIndex ?? 1)
+}
+
 function resolveFlowOverlayFigureStyle(params: {
-  layout: Pick<WordLikeImageLayout, 'align' | 'figureLeft' | 'figureTop' | 'frameWidth'>
+  layout: Pick<WordLikeImageLayout, 'align' | 'figureLeft' | 'figureTop' | 'frameWidth' | 'wrapMode'>
   attributes: CustomImageAttributes
   mount: ImageOverlayMount
 }): CSSProperties {
+  const wrapMode = params.layout.wrapMode
   return {
     margin: 0,
     display: 'flex',
@@ -130,8 +148,8 @@ function resolveFlowOverlayFigureStyle(params: {
     position: 'absolute',
     left: params.mount.anchorLeft + params.layout.figureLeft,
     top: params.mount.anchorTop + params.layout.figureTop,
-    zIndex: Math.max(1, params.attributes.zIndex ?? 1),
-    pointerEvents: 'auto'
+    zIndex: resolveOverlayFigureZIndex(wrapMode, params.attributes.zIndex),
+    pointerEvents: resolveOverlayFigurePointerEvents(wrapMode)
   }
 }
 
@@ -143,6 +161,8 @@ export function resolveImageOverlayFigureStyle(params: {
   attributes: CustomImageAttributes
   mount: ImageOverlayMount
 }): CSSProperties {
+  const wrapMode = params.layout.wrapMode
+
   if (params.layout.flowMode === 'float' && params.layout.anchorMode !== 'fixed') {
     return resolveFlowOverlayFigureStyle({
       layout: params.layout,
@@ -167,8 +187,8 @@ export function resolveImageOverlayFigureStyle(params: {
     textAlign: align,
     position: 'absolute',
     top: anchorMode === 'fixed' ? offsetY : params.mount.anchorTop + offsetY,
-    zIndex: Math.max(1, params.attributes.zIndex ?? 1),
-    pointerEvents: 'auto',
+    zIndex: resolveOverlayFigureZIndex(wrapMode, params.attributes.zIndex),
+    pointerEvents: resolveOverlayFigurePointerEvents(wrapMode),
     ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
   }
 }

@@ -549,6 +549,18 @@ export function ensurePagesStyles(targetDocument: Document) {
       height: 0;
       overflow: visible;
     }
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .ProseMirror :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
+      position: relative;
+      z-index: 1;
+    }
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-header-region :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-footer-region :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-first-page-header :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-overlay :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
+      position: static;
+      z-index: auto;
+    }
     .rm-pages-root .rm-page-body-layer {
       position: absolute;
       left: calc(-1 * var(--rm-page-margin-left));
@@ -575,6 +587,12 @@ export function ensurePagesStyles(targetDocument: Document) {
       z-index: 4;
     }
     .rm-pages-root .rm-page-image-overlay-layer > * {
+      pointer-events: auto;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] > * {
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] [data-image-handle="true"] {
       pointer-events: auto;
     }
     .rm-pages-root .breaker {

@@ -64,6 +64,18 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')
   })
 
+  it('lifts body prose above behind-image overlays when editor root is .rm-pages-root.ProseMirror', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+
+    expect(style?.textContent).toContain(
+      '.rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li,'
+    )
+  })
+
   it('keeps the standalone first page header shell behind overlapping body content', () => {
     const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
 

@@ -48,6 +48,12 @@ export function CustomImageFigure({
   getHandleCursor
 }: Readonly<CustomImageFigureProps>) {
   const figureStyle = figureStyleOverride ?? layout.figureStyle
+  const overlayPassesPointerEventsThrough = figureStyle.pointerEvents === 'none'
+  const interactivePointerClass = overlayPassesPointerEventsThrough && selected ? 'gba:pointer-events-auto' : ''
+  const behindTextPassThroughStyle =
+    interactiveAttributes.wrapMode === 'behind'
+      ? ({ pointerEvents: 'none' as const } satisfies React.CSSProperties)
+      : null
 
   return (
     <span
@@ -69,6 +75,7 @@ export function CustomImageFigure({
             <span className="gba:relative gba:inline-block" style={layout.cropViewportStyle}>
               <span
                 className="gba:inline-flex gba:h-full gba:w-full gba:items-center gba:justify-center gba:rounded gba:bg-muted gba:text-muted-foreground gba:text-sm"
+                style={behindTextPassThroughStyle ?? undefined}
                 data-testid="document-editor-image-broken"
               >
                 {error ? 'Image' : 'Loading image...'}
@@ -78,7 +85,7 @@ export function CustomImageFigure({
         ) : (
           <span
             ref={imageFrameRef}
-            className={`gba:relative gba:inline-flex gba:max-w-full ${isFloatingImage && selected && !isCropMode ? 'gba:cursor-move' : ''}`}
+            className={`gba:relative gba:inline-flex gba:max-w-full ${interactivePointerClass} ${isFloatingImage && selected && !isCropMode ? 'gba:cursor-move' : ''}`}
             style={layout.imageFrameStyle}
             onMouseDown={onStartMove}
             data-testid="document-editor-image-frame"
@@ -89,7 +96,11 @@ export function CustomImageFigure({
                 alt={interactiveAttributes.alt ?? ''}
                 title={interactiveAttributes.title ?? undefined}
                 className="editor-image gba:block"
-                style={layout.renderedImageStyle}
+                style={
+                  behindTextPassThroughStyle
+                    ? { ...layout.renderedImageStyle, ...behindTextPassThroughStyle }
+                    : layout.renderedImageStyle
+                }
                 contentEditable={false}
                 draggable={false}
                 onLoad={onImageLoad}
@@ -141,7 +152,7 @@ export function CustomImageFigure({
                     <button
                       key={direction}
                       type="button"
-                      className={`gba:absolute gba:z-20 gba:h-3 gba:w-3 gba:rounded-full gba:border gba:border-primary gba:bg-background gba:p-0 ${directionClasses[direction]}`}
+                      className={`gba:absolute gba:z-20 gba:h-3 gba:w-3 gba:rounded-full gba:border gba:border-primary gba:bg-background gba:p-0 gba:pointer-events-auto ${directionClasses[direction]}`}
                       style={{ cursor: getHandleCursor(direction, isCropMode) }}
                       onMouseDown={event => onStartResize(direction, event)}
                       data-image-handle="true"
@@ -152,13 +163,13 @@ export function CustomImageFigure({
               : null}
             {selected && !error && displaySrc ? (
               <span
-                className="gba:absolute gba:bottom-full gba:left-1/2 gba:z-10 gba:flex gba:flex-col gba:items-center gba:-translate-x-1/2 gba:pb-2"
+                className="gba:absolute gba:bottom-full gba:left-1/2 gba:z-10 gba:flex gba:flex-col gba:items-center gba:-translate-x-1/2 gba:pb-2 gba:pointer-events-auto"
                 data-image-handle="true"
               >
                 <button
                   type="button"
                   aria-label="Rotate image"
-                  className="gba:flex gba:h-6 gba:w-6 gba:items-center gba:justify-center gba:rounded-full gba:border gba:border-primary gba:bg-background gba:p-0 gba:text-primary gba:shadow-sm gba:cursor-grab hover:gba:bg-accent"
+                  className="gba:flex gba:h-6 gba:w-6 gba:items-center gba:justify-center gba:rounded-full gba:border gba:border-primary gba:bg-background gba:p-0 gba:text-primary gba:shadow-sm gba:cursor-grab gba:pointer-events-auto hover:gba:bg-accent"
                   onMouseDown={onStartRotate}
                   data-image-handle="true"
                   data-testid="document-editor-image-rotate-handle"
