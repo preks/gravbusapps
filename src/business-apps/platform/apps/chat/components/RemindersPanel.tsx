@@ -42,6 +42,14 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
 
   // Use Keycloak ID (userInfo.id) to match reminder creation in FlowBot
   const userId = useMemo(() => userInfo?.id || '', [userInfo?.id])
+  const flowEngineBaseUrl = useMemo(() => env('NEXT_PUBLIC_BASE_URL') || globalThis.location.origin, [])
+  const authHeaders = useMemo(
+    () => ({
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }),
+    [accessToken]
+  )
 
   // Use refs for callbacks to avoid re-creating dependent functions
   const onReminderDueRef = useRef(onReminderDue)
@@ -95,8 +103,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     setError(null)
 
     try {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || globalThis.location.origin
-
       // Skip if no user ID
       if (!userId) {
         setReminders([])
@@ -112,12 +118,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         'tag.userId': userId
       })
 
-      const response = await fetch(`${baseUrl}/flow-engine/api/flows/user/${userId}/initiated?${searchParams}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `${flowEngineBaseUrl}/flow-engine/api/flows/user/${userId}/initiated?${searchParams}`,
+        {
+          headers: authHeaders
         }
-      })
+      )
 
       if (!response.ok) {
         setReminders([])
@@ -204,7 +210,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, userId, notifyReminder])
+  }, [accessToken, userId, notifyReminder, flowEngineBaseUrl, authHeaders])
 
   useEffect(() => {
     // Only load if we have accessToken and userId
@@ -240,15 +246,13 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
-      const baseUrl = env('NEXT_PUBLIC_BASE_URL') || globalThis.location.origin
-
       // Step 1: Get the task ID from workflow's step_0
-      const stepDataResponse = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+      const stepDataResponse = await fetch(
+        `${flowEngineBaseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`,
+        {
+          headers: authHeaders
         }
-      })
+      )
 
       if (!stepDataResponse.ok) {
         throw new Error('Failed to get reminder task')
@@ -267,12 +271,9 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       }
 
       // Step 2: Complete the task
-      const completeResponse = await fetch(`${baseUrl}/flow-engine/api/tasks/${taskId}/complete`, {
+      const completeResponse = await fetch(`${flowEngineBaseUrl}/flow-engine/api/tasks/${taskId}/complete`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           userId: userId,
           formData: {},
