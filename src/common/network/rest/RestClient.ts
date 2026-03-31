@@ -31,7 +31,7 @@ export type RequestOptionsWithBody = RequestOptions & {
 
 function createRequestUrl(baseUrl: string, path: string, params?: Record<string, string | number | boolean>): URL {
   const fullPath = baseUrl + path
-  const url = fullPath.startsWith('http') ? new URL(fullPath) : new URL(fullPath, window.location.origin)
+  const url = fullPath.startsWith('http') ? new URL(fullPath) : new URL(fullPath, globalThis.location.origin)
   if (!params) {
     return url
   }
@@ -48,10 +48,7 @@ function mergeHeadersForRequest(
   optionHeaders: Record<string, string> | undefined,
   isFormData: boolean
 ): Record<string, string> {
-  const headers = {
-    ...baseHeaders,
-    ...(optionHeaders || {})
-  }
+  const headers = optionHeaders ? { ...baseHeaders, ...optionHeaders } : { ...baseHeaders }
   if (!isFormData) {
     return {
       'Content-Type': 'application/json',
@@ -71,12 +68,10 @@ function extractHttpErrorMessage(errorData: any, statusFallback: string): string
   let message = statusFallback
   if (errorData.detail === undefined) {
     message = errorData.message || errorData.error || message
-  } else {
-    if (typeof errorData.detail === 'string') {
-      message = errorData.detail
-    } else if (Array.isArray(errorData.detail)) {
-      message = errorData.detail.map((e: any) => (e.msg ? `${e.loc?.join('.')} — ${e.msg}` : String(e))).join('; ')
-    }
+  } else if (typeof errorData.detail === 'string') {
+    message = errorData.detail
+  } else if (Array.isArray(errorData.detail)) {
+    message = errorData.detail.map((e: any) => (e.msg ? `${e.loc?.join('.')} — ${e.msg}` : String(e))).join('; ')
   }
   if (errorData.errors && Array.isArray(errorData.errors)) {
     const details = errorData.errors.map((e: any) => e.detail || e.title).join('; ')
@@ -207,10 +202,7 @@ export class RestClient {
   public async head(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<Headers> {
     const response = await fetch(this.baseUrl + path, {
       method: HttpMethod.HEAD,
-      headers: {
-        ...this.headers,
-        ...(options.headers || {})
-      },
+      headers: options.headers ? { ...this.headers, ...options.headers } : { ...this.headers },
       credentials: 'same-origin',
       mode: 'cors'
     })
@@ -220,10 +212,7 @@ export class RestClient {
   public async options(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<Response> {
     return fetch(this.baseUrl + path, {
       method: HttpMethod.OPTIONS,
-      headers: {
-        ...this.headers,
-        ...(options.headers || {})
-      },
+      headers: options.headers ? { ...this.headers, ...options.headers } : { ...this.headers },
       credentials: 'same-origin',
       mode: 'cors'
     })
