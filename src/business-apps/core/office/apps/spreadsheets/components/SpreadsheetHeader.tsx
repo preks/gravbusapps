@@ -4,7 +4,7 @@
  * Top navigation bar with breadcrumbs, status indicators, and actions.
  */
 
-import React, { memo, useCallback, useState } from 'react'
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   Button,
   Badge,
@@ -54,8 +54,68 @@ function AppIcon({ app }: { app: SpreadsheetApp }) {
   return <FileSpreadsheet className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
 }
 
-function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: SpreadsheetApp }) {
+function BreadcrumbSection({
+  onBack,
+  app,
+  canRename,
+  onRenameAppName
+}: {
+  onBack?: () => void
+  app: SpreadsheetApp
+  canRename: boolean
+  onRenameAppName?: (name: string) => Promise<boolean> | boolean
+}) {
   const { t } = useTranslation(translations)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [draftName, setDraftName] = useState(app.name)
+  const [isRenamePending, setIsRenamePending] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isRenaming) {
+      setDraftName(app.name)
+    }
+  }, [app.name, isRenaming])
+
+  useEffect(() => {
+    if (!isRenaming) return
+    renameInputRef.current?.focus()
+    renameInputRef.current?.select()
+  }, [isRenaming])
+
+  const beginRenaming = useCallback(() => {
+    if (!canRename || isRenamePending) return
+    setDraftName(app.name)
+    setIsRenaming(true)
+  }, [app.name, canRename, isRenamePending])
+
+  const cancelRenaming = useCallback(() => {
+    setDraftName(app.name)
+    setIsRenaming(false)
+  }, [app.name])
+
+  const commitRenaming = useCallback(async () => {
+    if (!isRenaming || isRenamePending) return
+    const nextName = draftName.trim()
+    if (!nextName || nextName === app.name) {
+      setDraftName(app.name)
+      setIsRenaming(false)
+      return
+    }
+    if (!onRenameAppName) {
+      setIsRenaming(false)
+      return
+    }
+    setIsRenamePending(true)
+    try {
+      const didRename = await onRenameAppName(nextName)
+      if (didRename !== false) {
+        setIsRenaming(false)
+      }
+    } finally {
+      setIsRenamePending(false)
+    }
+  }, [app.name, draftName, isRenaming, isRenamePending, onRenameAppName])
 
   return (
     <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
@@ -78,7 +138,44 @@ function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: Spreadsh
           </div>
         </div>
         <div className="gba:min-w-0 gba:flex-1">
-          <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={draftName}
+              onChange={event => setDraftName(event.target.value)}
+              onBlur={() => {
+                void commitRenaming()
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  ;(event.currentTarget as HTMLInputElement).blur()
+                  return
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  cancelRenaming()
+                }
+              }}
+              disabled={isRenamePending}
+              className="gba:w-full gba:max-w-[320px] gba:h-8 gba:px-2 gba:text-base gba:font-semibold gba:text-foreground gba:border gba:border-input gba:rounded-md gba:bg-background focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+              placeholder={t('header-rename-file-placeholder')}
+              data-testid="spreadsheet-header-name-input"
+            />
+          ) : canRename ? (
+            <button
+              type="button"
+              className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate gba:text-left hover:gba:text-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring gba:rounded-sm"
+              onClick={beginRenaming}
+              title={t('header-rename-file-title')}
+              data-testid="spreadsheet-header-name-button"
+            >
+              {app.name}
+            </button>
+          ) : (
+            <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+          )}
           {app.description && (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">{app.description}</p>
           )}
@@ -279,6 +376,7 @@ export interface SpreadsheetHeaderProps {
   }
 
   // Actions
+  onRenameAppName?: (name: string) => Promise<boolean> | boolean
   onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   onShare?: () => void
   onOpenAnalytics: () => void
@@ -311,6 +409,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   setShowComments,
   unresolvedCommentCount,
   fileLock,
+  onRenameAppName,
   onShare,
   onOpenAICapability,
   onOpenAnalytics,
@@ -346,7 +445,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
       <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
         <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
-          <BreadcrumbSection onBack={onBack} app={app} />
+          <BreadcrumbSection onBack={onBack} app={app} canRename={canEdit} onRenameAppName={onRenameAppName} />
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
