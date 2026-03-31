@@ -3,6 +3,8 @@ import { Button, Input, Spinner } from '@newwork/nw-design-system'
 import { ChatsCircle, Trash, Plus, MagnifyingGlass } from '@phosphor-icons/react'
 import { fetchChatListFromApi, deleteChatSession, type FlowBotSession } from '../hooks/useFlowBot'
 
+const PAGE_SIZE = 15
+
 interface ChatHistoryProps {
   accessToken: string
   onSessionSelect: (sessionId: string) => void
@@ -18,20 +20,45 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
 }) => {
   const [sessions, setSessions] = useState<FlowBotSession[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const hasFetchedRef = useRef(false)
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true)
     try {
-      const sessionList = await fetchChatListFromApi(accessToken)
+      const sessionList = await fetchChatListFromApi(accessToken, PAGE_SIZE, 0)
       setSessions(sessionList.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+      setHasMore(sessionList.length >= PAGE_SIZE)
     } catch (error) {
       console.error('Failed to load sessions:', error)
     } finally {
       setIsLoading(false)
     }
   }, [accessToken])
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return
+    setIsLoadingMore(true)
+    try {
+      const nextPage = await fetchChatListFromApi(accessToken, PAGE_SIZE, sessions.length)
+      if (nextPage.length === 0) {
+        setHasMore(false)
+      } else {
+        const existingIds = new Set(sessions.map(s => s.id))
+        const newSessions = nextPage.filter(s => !existingIds.has(s.id))
+        setSessions(prev =>
+          [...prev, ...newSessions].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        )
+        setHasMore(nextPage.length >= PAGE_SIZE)
+      }
+    } catch (error) {
+      console.error('Failed to load more sessions:', error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [accessToken, sessions, isLoadingMore, hasMore])
 
   const filteredSessions = sessions.filter(session => {
     if (!searchQuery.trim()) return true
@@ -205,6 +232,20 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
                 </div>
               </div>
             ))}
+
+            {hasMore && !searchQuery && (
+              <div className="gba:px-3 gba:py-3 gba:flex gba:justify-center">
+                <Button
+                  onClick={loadMore}
+                  variant="ghost"
+                  disabled={isLoadingMore}
+                  className="gba:w-full gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+                  data-testid="chat-history-load-more"
+                >
+                  {isLoadingMore ? <Spinner size="sm" /> : 'Load more'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
