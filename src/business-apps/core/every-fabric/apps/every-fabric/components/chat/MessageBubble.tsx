@@ -6,9 +6,10 @@ import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
 import { ReflectionRenderer } from '../renderers/ReflectionRenderer'
 import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
-import { HumanInterruptCard } from '../renderers/HumanInterruptCard'
+import { StructuredInputForm } from '../renderers/StructuredInputForm'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+import type { StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 
 const formatMessageTimestamp = (timestamp: string) => {
   const date = new Date(timestamp)
@@ -83,11 +84,13 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
 interface MessageBubbleProps {
   message: ChatMessage
   sessionId: string
-  onReply?: (answer: string) => void
+  onReply?: (answer?: string, structuredInput?: Record<string, any>) => void
   onViewArtifact?: (artifactName: string) => void
 }
 
-export const MessageBubble = ({ message, sessionId, onReply, onViewArtifact }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbleProps) => {
+  console.log('[MessageBubble] Rendering message type:', message.type, 'id:', message.id)
+
   switch (message.type) {
     case 'user_input': {
       return <UserMessageBubble message={message} />
@@ -157,11 +160,37 @@ export const MessageBubble = ({ message, sessionId, onReply, onViewArtifact }: M
       )
     }
 
-    case 'human_interrupt': {
-      const { question } = message.content as { question: string }
+    case 'structured_input_request': {
+      console.log('[MessageBubble] Rendering structured input form:', message.content)
+      const formData = message.content as StructuredInputRequestEvent
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
-          <HumanInterruptCard question={question} sessionId={sessionId} onAnswer={onReply ?? (() => undefined)} />
+          <StructuredInputForm
+            formId={formData.form_id}
+            title={formData.title}
+            description={formData.description}
+            fields={formData.fields}
+            allowPartialSubmit={formData.allow_partial_submit}
+            onSubmit={(values, aiDelegated) => {
+              console.log('[StructuredInputForm] Submit:', { values, aiDelegated })
+              console.log('[StructuredInputForm] Submit - values type:', typeof values, 'keys:', Object.keys(values))
+              console.log(
+                '[StructuredInputForm] Submit - aiDelegated type:',
+                typeof aiDelegated,
+                'length:',
+                aiDelegated.length
+              )
+              if (onReply) {
+                const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
+                console.log(
+                  '[MessageBubble] About to call onReply with structuredPayload:',
+                  JSON.stringify(structuredPayload)
+                )
+                // Don't pass empty message - only structured input
+                onReply(undefined, structuredPayload)
+              }
+            }}
+          />
         </div>
       )
     }

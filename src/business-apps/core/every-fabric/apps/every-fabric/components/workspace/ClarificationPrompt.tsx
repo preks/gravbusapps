@@ -33,15 +33,37 @@ function parseQuestion(question: string): ParsedQuestion {
     }
   }
 
-  // If no embedded options were found, fall back to generic quick-answers
   return {
     headline: rest.join(' ') || question,
     options: options.length > 0 ? options : []
   }
 }
 
-// Quick-answers shown when the question has no embedded options
-const FALLBACK_OPTIONS = ['Yes, proceed', 'No, stop', 'Continue', 'Clarify more']
+// Detect if this is an open-ended information request vs a choice question
+function isOpenEndedQuestion(question: string): boolean {
+  const lowerQ = question.toLowerCase()
+  // Keywords that indicate the user needs to provide information
+  const openEndedIndicators = [
+    'what is',
+    'what are',
+    'which',
+    'please provide',
+    'tell me',
+    'describe',
+    'specify',
+    'enter',
+    'type',
+    'explain',
+    'topic',
+    'domain',
+    'name',
+    'details'
+  ]
+  return openEndedIndicators.some(indicator => lowerQ.includes(indicator))
+}
+
+// Quick-answers shown when the question has no embedded options and is not open-ended
+const FALLBACK_OPTIONS = ['Yes', 'No']
 
 // ─── Keyboard trap ────────────────────────────────────────────────────────────
 
@@ -88,33 +110,26 @@ export interface ClarificationPromptProps {
 export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ question, isOpen, onAnswer, onDismiss }) => {
   const [freeText, setFreeText] = useState('')
   const [isCustomOpen, setIsCustomOpen] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [forceClosed, setForceClosed] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const { headline, options } = parseQuestion(question)
-  const displayOptions = options.length > 0 ? options : FALLBACK_OPTIONS
-  const visible = isOpen && !forceClosed
+  const isOpenEnded = options.length === 0 && isOpenEndedQuestion(question)
+  const displayOptions = options.length > 0 ? options : isOpenEnded ? [] : FALLBACK_OPTIONS
 
-  useFocusTrap(panelRef, visible)
+  useFocusTrap(panelRef, isOpen)
 
   // Reset on new question
   useEffect(() => {
     setFreeText('')
-    setIsCustomOpen(false)
-    setSubmitted(false)
-    setForceClosed(false)
-  }, [question])
+    // Auto-open textarea for open-ended questions
+    setIsCustomOpen(isOpenEnded)
+  }, [question, isOpenEnded])
 
   const submit = (value: string) => {
-    if (!value.trim() || submitted) return
-    setSubmitted(true)
-    setForceClosed(true)
-    onDismiss?.()
+    if (!value.trim()) return
     onAnswer(value.trim())
   }
 
   const dismiss = () => {
-    setForceClosed(true)
     onDismiss?.()
   }
 
@@ -124,7 +139,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
       <div
         aria-hidden="true"
         className={`gba:fixed gba:inset-0 gba:bg-background/18 gba:z-[55] gba:transition-opacity gba:duration-200 ${
-          visible ? 'gba:opacity-100 gba:pointer-events-auto' : 'gba:opacity-0 gba:pointer-events-none'
+          isOpen ? 'gba:opacity-100 gba:pointer-events-auto' : 'gba:opacity-0 gba:pointer-events-none'
         }`}
         onClick={dismiss}
       />
@@ -136,7 +151,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
         aria-label="Agent clarification"
         data-testid="fabric-clarification-prompt"
         className={`gba:fixed gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:pointer-events-none gba:transition-all gba:duration-300 gba:ease-out ${
-          visible ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
+          isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
         }`}
       >
         <div className={WORKSPACE_CHAT_GUTTER_CLASS}>
@@ -163,30 +178,32 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                 <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">{headline}</p>
               </div>
 
-              <div className="gba:px-3 sm:gba:px-4 gba:pb-3 gba:space-y-2">
-                {displayOptions.map((opt, i) => (
-                  <button
-                    key={`${opt}-${i}`}
-                    onClick={() => submit(opt)}
-                    disabled={submitted}
-                    data-testid={`fabric-clarification-option-${i}`}
-                    className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:px-3.5 gba:py-3 gba:rounded-[1.05rem] gba:border gba:border-border/75 gba:bg-background/95 gba:text-left gba:transition-all gba:hover:border-primary/55 gba:hover:bg-primary/5 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed"
-                  >
-                    <span className="gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:bg-muted gba:text-xs gba:font-semibold gba:text-foreground/80 gba:shrink-0">
-                      {i + 1}
-                    </span>
-                    <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground">{opt}</span>
-                    <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground/60" />
-                  </button>
-                ))}
-              </div>
+              {/* Only show option buttons if there are options */}
+              {displayOptions.length > 0 && (
+                <div className="gba:px-3 sm:gba:px-4 gba:pb-3 gba:space-y-2">
+                  {displayOptions.map((opt, i) => (
+                    <button
+                      key={`${opt}-${i}`}
+                      onClick={() => submit(opt)}
+                      data-testid={`fabric-clarification-option-${i}`}
+                      className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:px-3.5 gba:py-3 gba:rounded-[1.05rem] gba:border gba:border-border/75 gba:bg-background/95 gba:text-left gba:transition-all gba:hover:border-primary/55 gba:hover:bg-primary/5"
+                    >
+                      <span className="gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:bg-muted gba:text-xs gba:font-semibold gba:text-foreground/80 gba:shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground">{opt}</span>
+                      <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground/60" />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="gba:px-3 sm:gba:px-4 gba:pb-4">
-                {!isCustomOpen ? (
+                {/* For open-ended questions, show textarea directly. For choice questions with options, show toggle button. */}
+                {!isCustomOpen && displayOptions.length > 0 ? (
                   <button
                     onClick={() => setIsCustomOpen(true)}
-                    disabled={submitted}
-                    className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:px-3.5 gba:py-3 gba:rounded-[1.05rem] gba:border gba:border-dashed gba:border-border/70 gba:bg-background/70 gba:text-left gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/25 gba:transition-colors gba:disabled:opacity-50"
+                    className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:px-3.5 gba:py-3 gba:rounded-[1.05rem] gba:border gba:border-dashed gba:border-border/70 gba:bg-background/70 gba:text-left gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/25 gba:transition-colors"
                     data-testid="fabric-clarification-open-custom"
                   >
                     <PencilSimple className="gba:h-4 gba:w-4 gba:shrink-0" />
@@ -198,9 +215,10 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                     <Textarea
                       value={freeText}
                       onChange={e => setFreeText(e.target.value)}
-                      placeholder="Type your answer and press Enter…"
+                      placeholder={
+                        isOpenEnded ? 'Type your answer and press Enter…' : 'Type your answer and press Enter…'
+                      }
                       rows={2}
-                      disabled={submitted}
                       className="gba:resize-none gba:text-sm gba:rounded-[1.05rem]"
                       data-testid="fabric-clarification-input"
                       onKeyDown={e => {
@@ -209,6 +227,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                           submit(freeText)
                         }
                       }}
+                      autoFocus={isOpenEnded}
                     />
                     <div className="gba:flex gba:items-center gba:justify-between gba:px-1">
                       <span className="gba:text-[11px] gba:text-muted-foreground">
@@ -218,7 +237,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                         variant="ghost"
                         size="sm"
                         className="gba:h-7 gba:text-xs"
-                        disabled={!freeText.trim() || submitted}
+                        disabled={!freeText.trim()}
                         onClick={() => submit(freeText)}
                         data-testid="fabric-clarification-submit"
                       >
