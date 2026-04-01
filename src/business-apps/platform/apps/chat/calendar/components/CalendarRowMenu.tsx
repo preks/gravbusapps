@@ -10,7 +10,7 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArchiveBoxIcon, CheckIcon, DotsThreeIcon, PencilSimple, UsersThree } from '@phosphor-icons/react'
+import { ArchiveBoxIcon, CheckIcon, DotsThreeIcon, PencilSimpleIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import { getCalendarColors } from '../utils/calendarColors'
 
@@ -98,14 +98,14 @@ export const CalendarRowMenu: React.FC<CalendarRowMenuProps> = ({
 
         {onEdit ? (
           <DropdownMenuItem onClick={onEdit} data-testid={`calendar-sidebar-edit-button-${rowId}`}>
-            <PencilSimple className="gba:h-4 gba:w-4 gba:mr-2" />
+            <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
             {t('calendar-sidebar-editCalendar')}
           </DropdownMenuItem>
         ) : null}
 
         {onManageAccess ? (
           <DropdownMenuItem onClick={onManageAccess} data-testid={`calendar-sidebar-manage-access-button-${rowId}`}>
-            <UsersThree className="gba:h-4 gba:w-4 gba:mr-2" />
+            <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
             {t('calendar-sidebar-manageAccess')}
           </DropdownMenuItem>
         ) : null}

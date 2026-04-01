@@ -2,7 +2,8 @@ import React from 'react'
 import { CheckIcon } from '@phosphor-icons/react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 
-export function TruncatedCalendarTitle({ rowId, title }: { rowId: string; title: string }) {
+export function TruncatedCalendarTitle(props: Readonly<{ rowId: string; title: string }>) {
+  const { rowId, title } = props
   const ref = React.useRef<HTMLParagraphElement>(null)
   const [isTruncated, setIsTruncated] = React.useState(false)
 
@@ -68,7 +69,7 @@ interface CalendarVisibilityRowProps {
   toggleDataTestId?: string
 }
 
-export const CalendarVisibilityRow: React.FC<CalendarVisibilityRowProps> = ({
+export const CalendarVisibilityRow: React.FC<Readonly<CalendarVisibilityRowProps>> = ({
   rowId,
   title,
   subtitle,
@@ -87,25 +88,32 @@ export const CalendarVisibilityRow: React.FC<CalendarVisibilityRowProps> = ({
             : 'gba:grid gba:min-w-0 gba:grid-cols-[auto_minmax(0,1fr)_auto] gba:items-center gba:gap-x-2.5'
         }
       >
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={checked}
-          aria-label={title}
-          onClick={() => onToggle(!checked)}
+        <div
           className={
             subtitle
-              ? 'gba:mt-0.5 gba:flex gba:h-4.5 gba:w-4.5 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-sm gba:border gba:transition-opacity focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-ring focus-visible:gba:ring-offset-2'
-              : 'gba:flex gba:h-4.5 gba:w-4.5 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-sm gba:border gba:transition-opacity focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-ring focus-visible:gba:ring-offset-2'
+              ? 'gba:relative gba:mt-0.5 gba:inline-flex gba:h-4.5 gba:w-4.5 gba:shrink-0 gba:rounded-sm focus-within:gba:outline-none focus-within:gba:ring-2 focus-within:gba:ring-ring focus-within:gba:ring-offset-2'
+              : 'gba:relative gba:inline-flex gba:h-4.5 gba:w-4.5 gba:shrink-0 gba:rounded-sm focus-within:gba:outline-none focus-within:gba:ring-2 focus-within:gba:ring-ring focus-within:gba:ring-offset-2'
           }
-          style={{
-            backgroundColor: checked ? color : 'transparent',
-            borderColor: color
-          }}
-          data-testid={toggleDataTestId ?? `calendar-visibility-toggle-${rowId}`}
         >
-          {checked ? <CheckIcon className="gba:h-3 gba:w-3 gba:text-white" weight="bold" /> : null}
-        </button>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={event => onToggle(event.target.checked)}
+            aria-label={title}
+            className="gba:absolute gba:inset-0 gba:z-10 gba:h-full gba:w-full gba:cursor-pointer gba:opacity-0 focus-visible:gba:outline-none"
+            data-testid={toggleDataTestId ?? `calendar-visibility-toggle-${rowId}`}
+          />
+          <span
+            aria-hidden
+            className="gba:pointer-events-none gba:flex gba:h-4.5 gba:w-4.5 gba:items-center gba:justify-center gba:rounded-sm gba:border gba:transition-opacity"
+            style={{
+              backgroundColor: checked ? color : 'transparent',
+              borderColor: color
+            }}
+          >
+            {checked ? <CheckIcon className="gba:h-3 gba:w-3 gba:text-white" weight="bold" /> : null}
+          </span>
+        </div>
 
         <div className="gba:min-w-0 gba:overflow-hidden">
           <TruncatedCalendarTitle rowId={rowId} title={title} />

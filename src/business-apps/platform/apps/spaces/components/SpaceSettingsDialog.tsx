@@ -67,7 +67,7 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
       setName(space.name ?? '')
       setDescription(space.description ?? '')
       setIsPublic(space.isPublic ?? false)
-      setCalendarLink(space.settings?.calendar as SpaceCalendarLink | undefined)
+      setCalendarLink(space.settings?.calendar)
       setCreateCalendarRequested(false)
     }
     if (!open) setDeleteAlertOpen(false)
@@ -116,8 +116,8 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
         description: description.trim() || undefined,
         isPublic,
         settings: {
-          ...(space?.settings || {}),
-          ...(nextCalendarLink ? { calendar: nextCalendarLink } : {})
+          ...space?.settings,
+          ...(nextCalendarLink && { calendar: nextCalendarLink })
         }
       })
       onOpenChange(false)
@@ -159,6 +159,27 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
       setIsDeleting(false)
     }
   }, [onDeleteSpace, onOpenChange])
+
+  let spaceCalendarConnectionBadge: React.ReactNode
+  if (calendarLink) {
+    spaceCalendarConnectionBadge = (
+      <Badge variant="secondary" data-testid={`${testId}-calendar-badge`}>
+        Connected
+      </Badge>
+    )
+  } else if (createCalendarRequested) {
+    spaceCalendarConnectionBadge = (
+      <Badge variant="outline" data-testid={`${testId}-calendar-badge`}>
+        Will create on save
+      </Badge>
+    )
+  } else {
+    spaceCalendarConnectionBadge = (
+      <Badge variant="outline" data-testid={`${testId}-calendar-badge`}>
+        Not set
+      </Badge>
+    )
+  }
 
   return (
     <>
@@ -227,19 +248,7 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
                     Link this space to an internal shared calendar for planning and scheduling
                   </p>
                 </div>
-                {calendarLink ? (
-                  <Badge variant="secondary" data-testid={`${testId}-calendar-badge`}>
-                    Connected
-                  </Badge>
-                ) : createCalendarRequested ? (
-                  <Badge variant="outline" data-testid={`${testId}-calendar-badge`}>
-                    Will create on save
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" data-testid={`${testId}-calendar-badge`}>
-                    Not set
-                  </Badge>
-                )}
+                {spaceCalendarConnectionBadge}
               </div>
 
               {calendarLink ? (

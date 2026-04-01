@@ -225,12 +225,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   useEffect(() => {
     const offReminder = chatSocket.on('meeting:reminder', (payload: { title?: string; minutesBefore?: number }) => {
       const minutesBefore = payload?.minutesBefore ?? 0
-      toast.info(
-        minutesBefore > 0
-          ? `${payload?.title || 'Meeting'} starts in ${minutesBefore} minute${minutesBefore === 1 ? '' : 's'}`
-          : `${payload?.title || 'Meeting'} is starting now`,
-        { duration: 5000 }
-      )
+      const titleText = payload?.title || 'Meeting'
+      let reminderMessage: string
+      if (minutesBefore > 0) {
+        const minuteSuffix = minutesBefore === 1 ? '' : 's'
+        reminderMessage = `${titleText} starts in ${minutesBefore} minute${minuteSuffix}`
+      } else {
+        reminderMessage = `${titleText} is starting now`
+      }
+      toast.info(reminderMessage, { duration: 5000 })
     })
 
     const offStarting = chatSocket.on('meeting:starting', (payload: { title?: string }) => {

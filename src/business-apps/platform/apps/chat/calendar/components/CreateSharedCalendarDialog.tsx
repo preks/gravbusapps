@@ -17,7 +17,7 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
-import { CalendarBlank } from '@phosphor-icons/react'
+import { CalendarBlankIcon } from '@phosphor-icons/react'
 import type { CreateSharedCalendarData } from '../types'
 import { MEETING_COLORS, getDefaultCalendarColor } from '../types'
 import translations from '../../_i18n'
@@ -70,7 +70,7 @@ export const CreateSharedCalendarDialog: React.FC<CreateSharedCalendarDialogProp
       <DialogContent className="gba:max-w-md" data-testid="create-shared-calendar-dialog">
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <CalendarBlank className="gba:h-5 gba:w-5" />
+            <CalendarBlankIcon className="gba:h-5 gba:w-5" />
             {t('calendar-sidebar-newSharedCalendar')}
           </DialogTitle>
           <DialogDescription>{t('calendar-sidebar-newSharedCalendarDescription')}</DialogDescription>

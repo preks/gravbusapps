@@ -21,7 +21,7 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { MagnifyingGlass, Trash, UserIcon } from '@phosphor-icons/react'
+import { MagnifyingGlassIcon, TrashIcon, UserIcon } from '@phosphor-icons/react'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { CalendarEmployee } from '../services/employeeSearchService'
 import { createEmployeeSearchService } from '../services/employeeSearchService'
@@ -60,7 +60,7 @@ function getMemberName(member: {
   )
 }
 
-function PersonAvatar({ label, imageUrl }: { label: string; imageUrl?: string }) {
+function PersonAvatar({ label, imageUrl }: Readonly<{ label: string; imageUrl?: string }>) {
   if (imageUrl) {
     return (
       <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
@@ -211,6 +211,100 @@ export const ManageCalendarAccessDialog: React.FC<ManageCalendarAccessDialogProp
     })
   }
 
+  const renderMembersPanel = () => {
+    if (isLoadingMembers) {
+      return (
+        <div
+          className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:p-6 gba:text-sm gba:text-muted-foreground"
+          data-testid="manage-calendar-access-members-loading"
+        >
+          <Spinner className="gba:h-4 gba:w-4" />
+          {t('common-loading')}
+        </div>
+      )
+    }
+
+    if (loadError) {
+      return (
+        <div className="gba:p-4 gba:text-sm gba:text-destructive" data-testid="manage-calendar-access-members-error">
+          {loadError}
+        </div>
+      )
+    }
+
+    return (
+      <ScrollArea className="gba:max-h-80">
+        <div className="gba:divide-y gba:divide-border/50" data-testid="manage-calendar-access-members-list">
+          {members.map(member => {
+            const isCurrentUser = currentUserId === member.userId
+            const canModifyMember = !member.isOwner && !isCurrentUser
+
+            return (
+              <div
+                key={member.userId}
+                className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3"
+              >
+                <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                  <PersonAvatar label={getMemberName(member)} imageUrl={member.avatarUrl} />
+                  <div className="gba:min-w-0">
+                    <p className="gba:text-sm gba:font-medium gba:truncate">{getMemberName(member)}</p>
+                    {member.email && (
+                      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{member.email}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+                  {member.isOwner ? (
+                    <Badge variant="secondary">{t('calendar-sidebar-owner')}</Badge>
+                  ) : (
+                    <Select
+                      value={member.permission}
+                      onValueChange={value =>
+                        handlePermissionChange(member.userId, value as InternalCalendarPermission)
+                      }
+                      disabled={!canModifyMember || isSubmitting}
+                    >
+                      <SelectTrigger
+                        className="gba:w-40"
+                        data-testid={`manage-calendar-access-permission-select-${member.userId}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PERMISSION_OPTIONS.map(option => (
+                          <SelectItem key={option} value={option}>
+                            {t(`calendar-sidebar-permission-${option}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveMember(member.userId)}
+                    disabled={!canModifyMember || isSubmitting}
+                    data-testid={`manage-calendar-access-remove-button-${member.userId}`}
+                  >
+                    <TrashIcon className="gba:h-4 gba:w-4" />
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+
+          {members.length === 0 && (
+            <div className="gba:p-4 gba:text-sm gba:text-muted-foreground" data-testid="manage-calendar-access-empty">
+              {t('calendar-sidebar-noMembers')}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    )
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && !isSubmitting && onClose()}>
       <DialogContent className="gba:max-w-2xl" data-testid="manage-calendar-access-dialog">
@@ -227,7 +321,7 @@ export const ManageCalendarAccessDialog: React.FC<ManageCalendarAccessDialogProp
           <div className="gba:space-y-2">
             <Label htmlFor="calendar-member-search">{t('calendar-sidebar-addPeople')}</Label>
             <div className="gba:relative">
-              <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
               <Input
                 id="calendar-member-search"
                 value={searchQuery}
@@ -298,95 +392,7 @@ export const ManageCalendarAccessDialog: React.FC<ManageCalendarAccessDialogProp
             </div>
 
             <div className="gba:rounded-lg gba:border gba:border-border/50 gba:bg-background">
-              {isLoadingMembers ? (
-                <div
-                  className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:p-6 gba:text-sm gba:text-muted-foreground"
-                  data-testid="manage-calendar-access-members-loading"
-                >
-                  <Spinner className="gba:h-4 gba:w-4" />
-                  {t('common-loading')}
-                </div>
-              ) : loadError ? (
-                <div
-                  className="gba:p-4 gba:text-sm gba:text-destructive"
-                  data-testid="manage-calendar-access-members-error"
-                >
-                  {loadError}
-                </div>
-              ) : (
-                <ScrollArea className="gba:max-h-80">
-                  <div className="gba:divide-y gba:divide-border/50" data-testid="manage-calendar-access-members-list">
-                    {members.map(member => {
-                      const isCurrentUser = currentUserId === member.userId
-                      const canModifyMember = !member.isOwner && !isCurrentUser
-
-                      return (
-                        <div
-                          key={member.userId}
-                          className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3"
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
-                            <PersonAvatar label={getMemberName(member)} imageUrl={member.avatarUrl} />
-                            <div className="gba:min-w-0">
-                              <p className="gba:text-sm gba:font-medium gba:truncate">{getMemberName(member)}</p>
-                              {member.email && (
-                                <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{member.email}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-                            {member.isOwner ? (
-                              <Badge variant="secondary">{t('calendar-sidebar-owner')}</Badge>
-                            ) : (
-                              <Select
-                                value={member.permission}
-                                onValueChange={value =>
-                                  handlePermissionChange(member.userId, value as InternalCalendarPermission)
-                                }
-                                disabled={!canModifyMember || isSubmitting}
-                              >
-                                <SelectTrigger
-                                  className="gba:w-40"
-                                  data-testid={`manage-calendar-access-permission-select-${member.userId}`}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {PERMISSION_OPTIONS.map(option => (
-                                    <SelectItem key={option} value={option}>
-                                      {t(`calendar-sidebar-permission-${option}`)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveMember(member.userId)}
-                              disabled={!canModifyMember || isSubmitting}
-                              data-testid={`manage-calendar-access-remove-button-${member.userId}`}
-                            >
-                              <Trash className="gba:h-4 gba:w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                    {members.length === 0 && (
-                      <div
-                        className="gba:p-4 gba:text-sm gba:text-muted-foreground"
-                        data-testid="manage-calendar-access-empty"
-                      >
-                        {t('calendar-sidebar-noMembers')}
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              )}
+              {renderMembersPanel()}
             </div>
           </div>
         </div>

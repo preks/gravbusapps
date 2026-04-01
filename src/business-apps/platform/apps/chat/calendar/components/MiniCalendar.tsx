@@ -142,25 +142,31 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({ selectedDate, onSele
           </div>
         ))}
 
-        {days.map(day => (
-          <button
-            key={toLocalDateKey(day.date)}
-            type="button"
-            onClick={() => onSelectDate(day.date)}
-            className={`gba:mx-auto gba:flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-full gba:text-xs gba:transition-colors ${
-              day.isSelected
-                ? 'gba:bg-primary gba:font-semibold gba:text-primary-foreground'
-                : day.isToday
-                  ? 'gba:bg-muted gba:text-foreground'
-                  : day.isCurrentMonth
-                    ? 'gba:text-foreground hover:gba:bg-muted/70'
-                    : 'gba:text-muted-foreground hover:gba:bg-muted/50'
-            }`}
-            data-testid={`calendar-mini-day-${toLocalDateKey(day.date)}`}
-          >
-            {day.date.getDate()}
-          </button>
-        ))}
+        {days.map(day => {
+          let dayClassName =
+            'gba:mx-auto gba:flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-full gba:text-xs gba:transition-colors '
+          if (day.isSelected) {
+            dayClassName += 'gba:bg-primary gba:font-semibold gba:text-primary-foreground'
+          } else if (day.isToday) {
+            dayClassName += 'gba:bg-muted gba:text-foreground'
+          } else if (day.isCurrentMonth) {
+            dayClassName += 'gba:text-foreground hover:gba:bg-muted/70'
+          } else {
+            dayClassName += 'gba:text-muted-foreground hover:gba:bg-muted/50'
+          }
+
+          return (
+            <button
+              key={toLocalDateKey(day.date)}
+              type="button"
+              onClick={() => onSelectDate(day.date)}
+              className={dayClassName}
+              data-testid={`calendar-mini-day-${toLocalDateKey(day.date)}`}
+            >
+              {day.date.getDate()}
+            </button>
+          )
+        })}
       </div>
     </section>
   )

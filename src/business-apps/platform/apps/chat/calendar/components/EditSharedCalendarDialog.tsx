@@ -17,7 +17,7 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
-import { CalendarBlank, PencilSimple } from '@phosphor-icons/react'
+import { CalendarBlankIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import type { InternalCalendarSummary, UpdateSharedCalendarData } from '../types'
 import { MEETING_COLORS, getDefaultCalendarColor } from '../types'
 import translations from '../../_i18n'
@@ -74,7 +74,7 @@ export const EditSharedCalendarDialog: React.FC<EditSharedCalendarDialogProps> =
       <DialogContent className="gba:max-w-md" data-testid="edit-shared-calendar-dialog">
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <PencilSimple className="gba:h-5 gba:w-5" />
+            <PencilSimpleIcon className="gba:h-5 gba:w-5" />
             {t('calendar-sidebar-editCalendar')}
           </DialogTitle>
           <DialogDescription>{t('calendar-sidebar-editCalendarDescription')}</DialogDescription>
@@ -112,7 +112,7 @@ export const EditSharedCalendarDialog: React.FC<EditSharedCalendarDialogProps> =
               <SelectTrigger id="edit-shared-calendar-color" data-testid="edit-shared-calendar-color-select">
                 <SelectValue>
                   <span className="gba:flex gba:items-center gba:gap-2">
-                    <CalendarBlank className="gba:h-4 gba:w-4" style={{ color }} />
+                    <CalendarBlankIcon className="gba:h-4 gba:w-4" style={{ color }} />
                     {selectedColorName}
                   </span>
                 </SelectValue>

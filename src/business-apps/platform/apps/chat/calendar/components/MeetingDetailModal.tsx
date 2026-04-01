@@ -151,20 +151,28 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
     event.organizer.email
 
   const isExternal = event.source && event.source !== 'internal'
-  const calendarName =
-    event.calendarName ||
-    (event.source === 'microsoft'
-      ? 'Microsoft'
-      : event.source === 'google'
-        ? 'Google Calendar'
-        : t('calendar-sidebar-myCalendar'))
-  const calendarTypeLabel = isExternal
-    ? t('calendar-sidebar-external')
-    : event.calendarType === InternalCalendarType.SPACE
-      ? t('calendar-sidebar-spaceCalendar')
-      : event.calendarType === InternalCalendarType.SHARED
-        ? t('calendar-sidebar-sharedCalendar')
-        : t('calendar-sidebar-myCalendar')
+
+  let calendarName = event.calendarName
+  if (!calendarName) {
+    if (event.source === 'microsoft') {
+      calendarName = 'Microsoft'
+    } else if (event.source === 'google') {
+      calendarName = 'Google Calendar'
+    } else {
+      calendarName = t('calendar-sidebar-myCalendar')
+    }
+  }
+
+  let calendarTypeLabel: string
+  if (isExternal) {
+    calendarTypeLabel = t('calendar-sidebar-external')
+  } else if (event.calendarType === InternalCalendarType.SPACE) {
+    calendarTypeLabel = t('calendar-sidebar-spaceCalendar')
+  } else if (event.calendarType === InternalCalendarType.SHARED) {
+    calendarTypeLabel = t('calendar-sidebar-sharedCalendar')
+  } else {
+    calendarTypeLabel = t('calendar-sidebar-myCalendar')
+  }
   const CalendarSourceIcon = isExternal ? Globe : Calendar
   const isInvitedParticipant = event.participantStatus !== undefined
   const canEdit = Boolean(onEdit) && event.status === 'scheduled' && !isExternal

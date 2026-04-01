@@ -135,7 +135,7 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
             })
 
             const settingsWithCalendar = {
-              ...(space.settings || {}),
+              ...(space.settings ?? undefined),
               calendar: {
                 id: calendarResponse.calendar.id,
                 name: calendarResponse.calendar.name,

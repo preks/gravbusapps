@@ -7,7 +7,7 @@ import {
   DropdownMenuTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArchiveBoxIcon, DotsThreeIcon, PencilSimple, UsersThree } from '@phosphor-icons/react'
+import { ArchiveBoxIcon, DotsThreeIcon, PencilSimpleIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import type { InternalCalendarSummary } from '../types'
 import translations from '../../_i18n'
 
@@ -46,7 +46,7 @@ export const SharedCalendarRowMenu: React.FC<SharedCalendarRowMenuProps> = ({
 
       <DropdownMenuContent align="end" className="gba:w-48">
         <DropdownMenuItem onClick={() => onEdit(calendar)} data-testid={`calendar-sidebar-edit-button-${calendar.id}`}>
-          <PencilSimple className="gba:h-4 gba:w-4 gba:mr-2" />
+          <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {t('calendar-sidebar-editCalendar')}
         </DropdownMenuItem>
 
@@ -54,7 +54,7 @@ export const SharedCalendarRowMenu: React.FC<SharedCalendarRowMenuProps> = ({
           onClick={() => onManageAccess(calendar)}
           data-testid={`calendar-sidebar-manage-access-button-${calendar.id}`}
         >
-          <UsersThree className="gba:h-4 gba:w-4 gba:mr-2" />
+          <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
           {t('calendar-sidebar-manageAccess')}
         </DropdownMenuItem>
 
