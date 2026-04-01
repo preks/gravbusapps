@@ -1143,23 +1143,23 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }
 
   return (
-    <div className="gba:opportunity-details-container" data-testid="investment-opportunity-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
-        headerOverline="OPPORTUNITY"
-        onBack={handleDealTypeBack}
-        headerTitle={opportunityData?.name || ''}
-        headerMeta={headerMeta}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-opportunity-detail"
+      className="gba:opportunity-details-container"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+      headerOverline="OPPORTUNITY"
+      onBack={handleDealTypeBack}
+      headerTitle={opportunityData?.name || ''}
+      headerMeta={headerMeta}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

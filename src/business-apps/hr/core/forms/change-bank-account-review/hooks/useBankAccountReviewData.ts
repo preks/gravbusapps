@@ -69,7 +69,7 @@ const GET_BANK_REVIEW_AUX = `
     $oldAddressId: uuid,
     $newAddressId: uuid
   ) {
-    entries: CatalogEntry(where: {id: {_in: $ids}}) {
+    entries: CatalogEntry(where: {id: {_in: $ids}, isDeleted: {_eq: false}}) {
       id
       value
       code

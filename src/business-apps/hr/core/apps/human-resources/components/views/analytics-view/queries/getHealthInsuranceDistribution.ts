@@ -21,6 +21,7 @@ export const GET_HEALTH_INSURANCE_DISTRIBUTION = `
     CatalogEntry(
       where: {
         type: { _eq: "HealthInsurer" }
+        isDeleted: { _eq: false }
       }
     ) {
       id
