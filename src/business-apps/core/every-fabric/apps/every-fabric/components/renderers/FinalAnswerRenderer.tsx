@@ -1,15 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import {
-  CaretDown,
-  CaretRight,
-  CheckCircle,
-  DownloadSimple,
-  File,
-  Globe,
-  NotePencil,
-  Code
-} from '@phosphor-icons/react'
+import { CaretDown, CaretRight, DownloadSimple, File, Globe, NotePencil, Code } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { TodoItem, ActionSummary } from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
@@ -26,7 +17,6 @@ export interface FinalAnswerRendererProps {
   output: string
   todos?: TodoItem[]
   actionsPerformed?: ActionSummary[]
-  recommendations?: string
   durationMs?: number
   artifacts?: FinalAnswerArtifact[]
   onViewArtifact?: (artifactName: string) => void
@@ -35,7 +25,6 @@ export interface FinalAnswerRendererProps {
 export const FinalAnswerRenderer = ({
   output,
   actionsPerformed,
-  recommendations,
   durationMs,
   artifacts,
   onViewArtifact
@@ -54,33 +43,23 @@ export const FinalAnswerRenderer = ({
   }
 
   return (
-    <div
-      className="gba:w-full gba:rounded-xl gba:border gba:border-border gba:bg-card gba:overflow-hidden"
-      data-testid="enterprise-agent-final-answer"
-    >
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:border-b gba:border-border gba:bg-muted/40">
-        <CheckCircle className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0" weight="fill" />
-        <span className="gba:text-sm gba:font-semibold gba:text-foreground">Completed</span>
+    <div className="gba:w-full gba:overflow-hidden" data-testid="enterprise-agent-final-answer">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+        <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
+          NEWWORK Enterprise Agents
+        </span>
+        <span className="gba:text-[11px] gba:text-muted-foreground">Completed</span>
       </div>
 
+      <div className="gba:border-t gba:border-border/70" />
+
       {/* Output / findings */}
-      <div className="gba:px-4 gba:py-4">
+      <div className="gba:pt-5">
         <MarkdownWithChipsRenderer content={output} />
       </div>
 
-      {/* Recommendations */}
-      {recommendations && (
-        <div className="gba:px-4 gba:pb-4">
-          <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
-            Recommendations
-          </p>
-          <MarkdownWithChipsRenderer content={recommendations} />
-        </div>
-      )}
-
       {artifacts && artifacts.length > 0 && (
-        <div className="gba:px-4 gba:pb-4">
+        <div className="gba:pt-4">
           <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
             Artifacts
           </p>
@@ -110,9 +89,9 @@ export const FinalAnswerRenderer = ({
 
       {/* Actions accordion */}
       {actionsPerformed && actionsPerformed.length > 0 && (
-        <div className="gba:border-t gba:border-border">
+        <div className="gba:mt-4 gba:border-t gba:border-border/70">
           <button
-            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:text-left"
+            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:py-2.5 gba:hover:bg-muted/15 gba:transition-colors gba:text-left"
             onClick={() => setActionsExpanded(v => !v)}
             data-testid="enterprise-agent-final-actions-toggle"
           >
@@ -126,7 +105,7 @@ export const FinalAnswerRenderer = ({
             )}
           </button>
           {actionsExpanded && (
-            <div className="gba:px-4 gba:pb-3 gba:space-y-1">
+            <div className="gba:pb-3 gba:space-y-1">
               {actionsPerformed.map((action, index) => (
                 <div
                   key={`${action.step}-${action.tool ?? 'none'}`}
@@ -147,7 +126,7 @@ export const FinalAnswerRenderer = ({
       )}
 
       {/* Stats footer */}
-      <div className="gba:flex gba:items-center gba:gap-4 gba:px-4 gba:py-2.5 gba:border-t gba:border-border gba:bg-muted/30">
+      <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border/70">
         {durationMs !== undefined && (
           <span className="gba:text-xs gba:text-muted-foreground">
             Duration: <strong>{formatDuration(durationMs)}</strong>

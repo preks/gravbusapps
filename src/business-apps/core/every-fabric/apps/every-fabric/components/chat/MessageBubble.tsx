@@ -1,5 +1,6 @@
+import { useCallback, useMemo, useState } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
-import { Brain, WarningCircle } from '@phosphor-icons/react'
+import { Brain, CaretDown, CaretUp, Check, Copy, WarningCircle } from '@phosphor-icons/react'
 import { PlanRenderer } from '../renderers/PlanRenderer'
 import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
@@ -8,6 +9,76 @@ import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
 import { HumanInterruptCard } from '../renderers/HumanInterruptCard'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+
+const formatMessageTimestamp = (timestamp: string) => {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const USER_PROMPT_COLLAPSE_CHARS = 260
+
+const AssistantLockup = ({ trailing }: { trailing?: React.ReactNode }) => (
+  <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:mb-3">
+    <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
+      NEWWORK Enterprise Agents
+    </span>
+    {trailing}
+  </div>
+)
+
+const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
+  const [copied, setCopied] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const content = message.content as string
+  const timestampLabel = useMemo(() => formatMessageTimestamp(message.timestamp), [message.timestamp])
+  const isCollapsible = content.length > USER_PROMPT_COLLAPSE_CHARS
+  const visibleContent =
+    isCollapsible && !expanded ? `${content.slice(0, USER_PROMPT_COLLAPSE_CHARS).trimEnd()}…` : content
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    })
+  }, [content])
+
+  return (
+    <div className="gba:flex gba:flex-col gba:items-end gba:py-2" data-testid={`msg-${message.id}`}>
+      <div className="gba:w-full gba:max-w-full gba:rounded-[1.15rem] gba:border gba:border-border/80 gba:bg-background gba:px-4 gba:py-2.5 gba:text-[14px] gba:leading-6 gba:font-normal gba:text-foreground gba:shadow-[0_3px_10px_rgba(15,23,42,0.035)]">
+        {visibleContent}
+      </div>
+      <div className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:px-1">
+        <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground">You</span>
+        {timestampLabel && <span className="gba:text-[11px] gba:text-muted-foreground/70">{timestampLabel}</span>}
+        {isCollapsible && (
+          <button
+            type="button"
+            onClick={() => setExpanded(value => !value)}
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:h-6 gba:px-2 gba:rounded-full gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+            aria-label={expanded ? 'Collapse prompt' : 'Expand prompt'}
+            data-testid={`toggle-${message.id}`}
+          >
+            <span>{expanded ? 'Less' : 'More'}</span>
+            {expanded ? <CaretUp className="gba:h-3 gba:w-3" /> : <CaretDown className="gba:h-3 gba:w-3" />}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          aria-label="Copy prompt"
+          data-testid={`copy-${message.id}`}
+        >
+          {copied ? <Check className="gba:h-3.5 gba:w-3.5" weight="bold" /> : <Copy className="gba:h-3.5 gba:w-3.5" />}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -19,24 +90,22 @@ interface MessageBubbleProps {
 export const MessageBubble = ({ message, sessionId, onReply, onViewArtifact }: MessageBubbleProps) => {
   switch (message.type) {
     case 'user_input': {
-      const content = message.content as string
-      return (
-        <div className="gba:flex gba:justify-end gba:py-2" data-testid={`msg-${message.id}`}>
-          <div className="gba:w-full gba:max-w-full gba:bg-primary gba:text-primary-foreground gba:rounded-[1.5rem] gba:rounded-tr-md gba:px-5 gba:py-3.5 gba:text-[15px] gba:leading-7 gba:font-medium gba:shadow-[0_4px_14px_rgba(15,23,42,0.06)]">
-            {content}
-          </div>
-        </div>
-      )
+      return <UserMessageBubble message={message} />
     }
 
     case 'agent_thinking': {
       const content = message.content as string
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
-          <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-2xl gba:bg-background gba:border gba:border-border/45 gba:px-5 gba:py-4 gba:shadow-[0_4px_16px_rgba(15,23,42,0.035)]">
-            <Brain className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:mt-0.5 gba:shrink-0" />
-            <div className="gba:text-[15px] gba:text-foreground/88 gba:leading-7">
-              <MarkdownWithChipsRenderer content={content} />
+          <div className="gba:rounded-2xl gba:border gba:border-border/45 gba:bg-background gba:px-5 gba:py-4 gba:shadow-[0_4px_16px_rgba(15,23,42,0.035)]">
+            <AssistantLockup
+              trailing={<span className="gba:text-[11px] gba:text-muted-foreground">Working on it</span>}
+            />
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <Brain className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:mt-0.5 gba:shrink-0" />
+              <div className="gba:text-[15px] gba:text-foreground/88 gba:leading-7">
+                <MarkdownWithChipsRenderer content={content} />
+              </div>
             </div>
           </div>
         </div>

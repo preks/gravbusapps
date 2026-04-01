@@ -10,6 +10,20 @@ export interface ExpertCallRendererProps {
   durationMs?: number
 }
 
+const normalizeText = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
+
+const isLikelyTaskText = (value: string) => {
+  const compact = value.trim()
+  if (!compact) return false
+  return compact.length > 42 || compact.split(/\s+/).length > 5
+}
+
+const isCompactRoleLabel = (value: string) => {
+  const compact = value.trim()
+  if (!compact) return false
+  return compact.length <= 42 && compact.split(/\s+/).length <= 6
+}
+
 export const ExpertCallRenderer = ({
   agentId,
   task,
@@ -18,28 +32,44 @@ export const ExpertCallRenderer = ({
   outputPreview,
   durationMs
 }: ExpertCallRendererProps) => {
+  const normalizedAgentId = agentId.trim()
+  const normalizedTask = task.trim()
+  const hasDistinctName =
+    !!normalizedAgentId &&
+    !isLikelyTaskText(normalizedAgentId) &&
+    normalizeText(normalizedAgentId) !== normalizeText(normalizedTask)
+  const displayName = hasDistinctName
+    ? normalizedAgentId
+    : isCompactRoleLabel(normalizedTask)
+      ? normalizedTask
+      : 'Sub-agent'
+  const subtitle =
+    normalizeText(displayName) !== normalizeText(normalizedTask) ? normalizedTask || 'Working on a delegated task' : ''
+
   return (
     <div
-      className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/35 gba:overflow-hidden"
+      className="gba:overflow-hidden gba:rounded-xl gba:border gba:border-border gba:bg-muted/28"
       data-testid={`enterprise-agent-expert-${agentId}`}
     >
-      <div className="gba:flex gba:items-center gba:gap-2.5 gba:px-4 gba:py-2.5">
-        <ShareNetwork className="gba:h-4 gba:w-4 gba:text-purple-500 gba:shrink-0" />
+      <div className="gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-3">
+        <span className="gba:flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
+          <ShareNetwork className="gba:h-4 gba:w-4" />
+        </span>
         <div className="gba:flex-1 gba:min-w-0">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">Expert</span>
-            <span className="gba:text-xs gba:font-semibold gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300 gba:px-2 gba:py-0.5 gba:rounded-full">
-              {agentId}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:mb-1">
+            <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
+              Enterprise expert:
+            </span>
+            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
+              {displayName}
             </span>
             {durationMs !== undefined && (
-              <span className="gba:text-xs gba:text-muted-foreground/60">{(durationMs / 1000).toFixed(2)}s</span>
+              <span className="gba:text-[11px] gba:text-muted-foreground/65">{(durationMs / 1000).toFixed(2)}s</span>
             )}
           </div>
-          <p className="gba:text-sm gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">
-            {task || 'Working on a delegated task'}
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:leading-5 gba:line-clamp-2">{subtitle}</p>
         </div>
-        <div className="gba:shrink-0">
+        <div className="gba:shrink-0 gba:pt-0.5">
           {status === 'running' ? (
             <SpinnerGap className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-primary" />
           ) : status === 'done' ? (
@@ -51,7 +81,7 @@ export const ExpertCallRenderer = ({
       </div>
 
       {(output || outputPreview) && (
-        <div className="gba:border-t gba:border-border gba:px-4 gba:py-3 gba:bg-background">
+        <div className="gba:border-t gba:border-border gba:bg-background gba:px-4 gba:py-3">
           {output ? (
             <MarkdownWithChipsRenderer content={output} />
           ) : (

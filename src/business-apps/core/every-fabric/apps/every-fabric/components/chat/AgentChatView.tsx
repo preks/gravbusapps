@@ -21,7 +21,6 @@ const isTranscriptMessage = (message: ChatMessage) =>
   message.type === 'user_input' ||
   message.type === 'expert_call' ||
   message.type === 'final_answer' ||
-  message.type === 'human_interrupt' ||
   message.type === 'error'
 
 export const AgentChatView = ({
@@ -65,10 +64,7 @@ export const AgentChatView = ({
     [session, onStartSession, onReply]
   )
 
-  const lastInterrupt = [...messages].reverse().find(m => m.type === 'human_interrupt')
-  const interruptQuestion = lastInterrupt
-    ? (lastInterrupt.content as { question: string } | undefined)?.question
-    : undefined
+  const interruptQuestion = session && isWaitingForInput ? (session.human_question ?? undefined) : undefined
 
   if (!session) {
     return (
