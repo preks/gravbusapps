@@ -217,6 +217,15 @@ export function eventToMessage(
       }
     }
 
+    case 'structured_input_request': {
+      return {
+        id: event.event_id,
+        type: 'structured_input_request',
+        timestamp: event.timestamp,
+        content: event
+      }
+    }
+
     case 'terminal':
       if (event.status === 'completed') {
         const qualityScore = event.reflection ? (event.reflection.complete ? 1.0 : 0.5) : undefined
@@ -243,6 +252,21 @@ export function eventToMessage(
         }
       }
       if (event.status === 'waiting_for_human') {
+        // Check if there's a structured input request
+        if (event.structured_input_request) {
+          console.log(
+            '[eventToMessage] Converting terminal to structured_input_request:',
+            event.structured_input_request.form_id
+          )
+          return {
+            id: event.event_id,
+            type: 'structured_input_request',
+            timestamp: event.timestamp ?? new Date().toISOString(),
+            content: event.structured_input_request
+          }
+        }
+        // Fall back to plain text interrupt
+        console.log('[eventToMessage] Converting terminal to human_interrupt')
         return {
           id: event.event_id,
           type: 'human_interrupt',
@@ -365,7 +389,8 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
 
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   const traceMessages = deriveMessagesFromEvents(session.trace ?? [])
-    .filter(message => !['final_answer', 'human_interrupt', 'error'].includes(message.type))
+    // Only filter out final_answer and error (not human_interrupt/structured_input_request - those should come from trace)
+    .filter(message => !['final_answer', 'error'].includes(message.type))
     .filter(message => !(message.type === 'user_input' && message.content === session.input))
 
   const initialUserMessage = session.input
@@ -432,12 +457,35 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   }
 
   if (session.status === 'waiting_for_human') {
-    terminalMessages.push({
-      id: `terminal-${session.session_id}-${session.updated_at}`,
-      type: 'human_interrupt',
-      timestamp: session.updated_at,
-      content: { question: terminalQuestion(session.output, session.human_question) }
-    })
+    // Check if we already have a waiting message from trace events
+    const alreadyHasWaitingMessage = traceMessages.some(
+      m => m.type === 'human_interrupt' || m.type === 'structured_input_request'
+    )
+
+    if (!alreadyHasWaitingMessage) {
+      console.log('[sessionToMessages] No waiting message in trace, adding from session state')
+      // Check if there's a structured input request
+      if (session.structured_input_request) {
+        console.log('[sessionToMessages] Creating structured_input_request message from session')
+        terminalMessages.push({
+          id: `terminal-${session.session_id}-${session.updated_at}`,
+          type: 'structured_input_request',
+          timestamp: session.updated_at,
+          content: session.structured_input_request
+        })
+      } else {
+        // Fall back to plain text interrupt
+        console.log('[sessionToMessages] Creating human_interrupt message from session')
+        terminalMessages.push({
+          id: `terminal-${session.session_id}-${session.updated_at}`,
+          type: 'human_interrupt',
+          timestamp: session.updated_at,
+          content: { question: terminalQuestion(session.output, session.human_question) }
+        })
+      }
+    } else {
+      console.log('[sessionToMessages] Skipping - already have waiting message from trace')
+    }
   }
 
   return [...(initialUserMessage ? [initialUserMessage] : []), ...traceMessages, ...terminalMessages]
@@ -453,6 +501,7 @@ export function messageTypeLabel(type: ChatMessageType): string {
     expert_call: 'Expert delegated',
     reflection: 'Reflection',
     human_interrupt: 'Waiting for input',
+    structured_input_request: 'Form input required',
     final_answer: 'Completed',
     error: 'Error'
   }

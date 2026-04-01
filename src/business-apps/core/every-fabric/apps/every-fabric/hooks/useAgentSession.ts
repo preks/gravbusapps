@@ -8,16 +8,25 @@ const POLL_INTERVAL_MS = 3000
 
 const isTerminalStatus = (status: string) => status !== 'running' && status !== 'pending'
 
+const extractSeq = (messageId: string): number | null => {
+  const match = messageId.match(/:(\d+)$/)
+  if (!match) return null
+  const seq = parseInt(match[1], 10)
+  return Number.isNaN(seq) ? null : seq
+}
+
 const messageSignature = (message: ChatMessage): string => {
   if (message.type === 'final_answer') return 'final_answer'
   if (message.type === 'human_interrupt') return 'human_interrupt'
+  if (message.type === 'structured_input_request') return 'structured_input_request'
   if (message.type === 'error') return `error:${message.type}`
 
-  const content =
-    typeof message.content === 'string'
-      ? message.content
-      : JSON.stringify(message.content, (_key, value) => (typeof value === 'function' ? undefined : value))
-  return `${message.type}:${content}`
+  if (message.type === 'user_input') {
+    const content = typeof message.content === 'string' ? message.content.trim() : String(message.content)
+    return `user_input:${content}`
+  }
+
+  return `${message.id}`
 }
 
 const toEpoch = (timestamp: string): number => {
@@ -43,12 +52,14 @@ const messageTypeOrder = (type: ChatMessage['type']): number => {
       return 6
     case 'human_interrupt':
       return 7
-    case 'final_answer':
+    case 'structured_input_request':
       return 8
-    case 'error':
+    case 'final_answer':
       return 9
-    default:
+    case 'error':
       return 10
+    default:
+      return 11
   }
 }
 
@@ -59,7 +70,12 @@ const mergeDuplicateMessage = (existing: ChatMessage, incoming: ChatMessage): Ch
     return toEpoch(existing.timestamp) <= toEpoch(incoming.timestamp) ? existing : incoming
   }
 
-  if (incoming.type === 'final_answer' || incoming.type === 'human_interrupt' || incoming.type === 'error') {
+  if (
+    incoming.type === 'final_answer' ||
+    incoming.type === 'human_interrupt' ||
+    incoming.type === 'structured_input_request' ||
+    incoming.type === 'error'
+  ) {
     return toEpoch(existing.timestamp) >= toEpoch(incoming.timestamp) ? existing : incoming
   }
 
@@ -75,6 +91,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   // new events. Terminal events clear this. Resets on session switch.
   const [isAgentRunning, setIsAgentRunning] = useState(false)
   const [dismissedInterruptKey, setDismissedInterruptKey] = useState<string | null>(null)
+  const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
 
   const sessionRef = useRef<DeepAgentSession | null>(null)
   sessionRef.current = session
@@ -96,6 +113,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     setSession(null)
     setIsAgentRunning(false)
     setDismissedInterruptKey(null)
+    setOptimisticMessages([])
     if (!sessionId) {
       setStreamVersion(0)
       return
@@ -126,6 +144,14 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     setIsAgentRunning(false)
     void fetchSession()
   }, [events, fetchSession])
+
+  useEffect(() => {
+    if (streamMessages.length === 0) return
+    const hasRealUserMessages = streamMessages.some(m => m.type === 'user_input' && !m.id.startsWith('optimistic-'))
+    if (hasRealUserMessages) {
+      setOptimisticMessages([])
+    }
+  }, [streamMessages])
 
   const currentInterruptKey =
     sessionId && session?.status === 'waiting_for_human' && session.human_question
@@ -164,27 +190,26 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
 
   const messages: ChatMessage[] = useMemo(() => {
     const snapshotMessages = mergedSession ? sessionToMessages(mergedSession) : []
-    if (snapshotMessages.length === 0) return streamMessages
-    if (streamMessages.length === 0) return snapshotMessages
+    const allMessages = [...snapshotMessages, ...streamMessages, ...optimisticMessages]
+    if (allMessages.length === 0) return []
 
     const mergedBySignature = new Map<string, ChatMessage>()
 
-    for (const message of snapshotMessages) {
-      mergedBySignature.set(messageSignature(message), message)
-    }
-
-    for (const message of streamMessages) {
+    for (const message of allMessages) {
       const signature = messageSignature(message)
       const existing = mergedBySignature.get(signature)
       mergedBySignature.set(signature, existing ? mergeDuplicateMessage(existing, message) : message)
     }
 
     return [...mergedBySignature.values()].sort((a, b) => {
+      const aSeq = extractSeq(a.id)
+      const bSeq = extractSeq(b.id)
+      if (aSeq !== null && bSeq !== null && aSeq !== bSeq) return aSeq - bSeq
       const timestampDelta = toEpoch(a.timestamp) - toEpoch(b.timestamp)
       if (timestampDelta !== 0) return timestampDelta
       return messageTypeOrder(a.type) - messageTypeOrder(b.type)
     })
-  }, [streamMessages, mergedSession])
+  }, [streamMessages, mergedSession, optimisticMessages])
 
   const startSession = useCallback(
     async (task: string, config?: SessionConfig) => {
@@ -195,7 +220,14 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   )
 
   const reply = useCallback(
-    async (message: string) => {
+    async (message?: string, structuredInput?: Record<string, any>) => {
+      console.log('[reply] Called with:', {
+        message,
+        structuredInput,
+        hasStructuredInput: !!structuredInput,
+        structuredInputType: typeof structuredInput,
+        structuredInputKeys: structuredInput ? Object.keys(structuredInput) : null
+      })
       if (!sessionId) return
       const current = sessionRef.current
       const interruptKey =
@@ -205,14 +237,31 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       if (current?.status === 'waiting_for_human' && current.human_question) {
         setDismissedInterruptKey(interruptKey)
       }
+
+      const optimisticId = `optimistic-${Date.now()}`
+      if (message && !structuredInput) {
+        const optimisticMessage: ChatMessage = {
+          id: optimisticId,
+          type: 'user_input',
+          timestamp: new Date().toISOString(),
+          content: message
+        }
+        setOptimisticMessages(prev => [...prev, optimisticMessage])
+      }
+
       setIsAgentRunning(true)
       try {
-        await client.replyToInterrupt(sessionId, message)
+        console.log('[reply] About to call client.replyToInterrupt with:', { sessionId, message, structuredInput })
+        await client.replyToInterrupt(sessionId, message, structuredInput)
+        console.log('[reply] Backend response received, refreshing session')
         setStreamVersion(v => v + 1)
         await fetchSession()
+        setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))
       } catch (error) {
+        console.error('[reply] Error sending to backend:', error)
         setIsAgentRunning(false)
         if (interruptKey) setDismissedInterruptKey(null)
+        setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))
         throw error
       }
     },

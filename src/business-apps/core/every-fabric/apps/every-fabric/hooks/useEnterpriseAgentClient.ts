@@ -29,7 +29,38 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   const replyToInterrupt = useCallback(
-    (sessionId: string, message: string) => client.post(`/deep-agent/sessions/${sessionId}/message`, { message }),
+    (sessionId: string, message?: string, structuredInput?: Record<string, any>) => {
+      console.log('[replyToInterrupt] Called with:', {
+        sessionId,
+        message,
+        structuredInput,
+        hasStructuredInput: !!structuredInput,
+        structuredInputType: typeof structuredInput,
+        structuredInputKeys: structuredInput ? Object.keys(structuredInput) : null
+      })
+      // Build payload based on what's provided
+      const payload: any = {}
+      if (structuredInput) {
+        payload.structured_input = structuredInput
+        console.log('[replyToInterrupt] Added structured_input to payload:', payload.structured_input)
+      }
+      if (message && message.trim()) {
+        payload.message = message
+        console.log('[replyToInterrupt] Added message to payload:', payload.message)
+      }
+      console.log('[replyToInterrupt] Final payload check:', {
+        hasStructuredInput: !!payload.structured_input,
+        hasMessage: !!payload.message,
+        payload
+      })
+      // Ensure at least one is provided
+      if (!payload.structured_input && !payload.message) {
+        console.error('[replyToInterrupt] VALIDATION ERROR - payload:', JSON.stringify(payload))
+        throw new Error('Either message or structured_input must be provided')
+      }
+      console.log('[replyToInterrupt] Sending POST with payload:', JSON.stringify(payload))
+      return client.post(`/deep-agent/sessions/${sessionId}/message`, payload)
+    },
     [client]
   )
 
