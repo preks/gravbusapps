@@ -1,5 +1,5 @@
 export const ruleDataQuery = `query ruleDataQuery($activeUserLocale: String!){
-   Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+   Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
     code
      value
      id
@@ -11,7 +11,7 @@ export const ruleDataQuery = `query ruleDataQuery($activeUserLocale: String!){
             defaultLocale
           }
    }
-   CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+   CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
     value
     id
     code
@@ -24,7 +24,7 @@ export const ruleDataQuery = `query ruleDataQuery($activeUserLocale: String!){
           }
   }
   Countries: CatalogEntry(
-    where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }
+    where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } }, isDeleted: { _eq: false } }
     orderBy: { value: ASC }
   ) {
     code
@@ -168,7 +168,7 @@ export const getExpenseRuleAggregateByCode = `query ExpenseRuleAggregateByCode($
 // Combined query for Edit mode - fetches everything in one call
 export const getEditModeData = `query getEditModeData($calculationId: uuid!, $activeUserLocale: String!) {
   # Catalog data
-  Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+  Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
     code
     value
     id
@@ -178,7 +178,7 @@ export const getEditModeData = `query getEditModeData($calculationId: uuid!, $ac
     }
     catalog { defaultLocale }
   }
-  CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+  CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
     value
     id
     code
@@ -188,7 +188,7 @@ export const getEditModeData = `query getEditModeData($calculationId: uuid!, $ac
     }
     catalog { defaultLocale }
   }
-  Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+  Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } }, isDeleted: { _eq: false } }, orderBy: { value: ASC }) {
     code
     id
     value
@@ -242,7 +242,7 @@ export const getEditModeData = `query getEditModeData($calculationId: uuid!, $ac
 // Combined query for Create mode - fetches catalogs and last rule
 export const getCreateModeData = `query getCreateModeData($activeUserLocale: String!) {
   # Catalog data
-  Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+  Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
     code
     value
     id
@@ -252,7 +252,7 @@ export const getCreateModeData = `query getCreateModeData($activeUserLocale: Str
     }
     catalog { defaultLocale }
   }
-  CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+  CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
     value
     id
     code
@@ -262,7 +262,7 @@ export const getCreateModeData = `query getCreateModeData($activeUserLocale: Str
     }
     catalog { defaultLocale }
   }
-  Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+  Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } }, isDeleted: { _eq: false } }, orderBy: { value: ASC }) {
     code
     id
     value

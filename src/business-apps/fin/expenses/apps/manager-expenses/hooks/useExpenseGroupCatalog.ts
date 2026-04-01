@@ -33,6 +33,7 @@ const GET_EXPENSE_GROUPS = `
           version: { _eq: "v1" },
           identifier: { _eq: "ExpenseGroup" }
         }
+        isDeleted: { _eq: false }
       }
     ) {
       id

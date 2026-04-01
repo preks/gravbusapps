@@ -151,6 +151,7 @@ export const GET_ABSENCE_TYPES = (): string => {
     query GetAbsenceTypes {
       CatalogEntry(
         where: { 
+          isDeleted: { _eq: false }
           catalog: { 
             identifier: { _eq: "AbsenceType" }
           }
@@ -172,7 +173,8 @@ export const GET_ABSENCE_GROUPS = (): string => {
         where: { 
           catalog: { 
             identifier: { _eq: "AbsenceGroup" }
-          }
+          },
+          isDeleted: { _eq: false }
         }
       ) {
         id
