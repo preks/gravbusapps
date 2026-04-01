@@ -1,9 +1,8 @@
 import { CaretDown, Check, ClockCounterClockwise, Sparkle } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { FabricInput } from './FabricInput'
-import { SuggestionChips } from './SuggestionChips'
 
 interface LandingScreenProps {
   accessToken: string
@@ -30,23 +29,14 @@ const GlowStyle: React.FC = () => (
   />
 )
 
-// ─── Pulsing status dot ────────────────────────────────────────────────────────
-
-const PulseDot: React.FC = () => (
-  <span className="gba:relative gba:flex gba:h-1.5 gba:w-1.5 gba:shrink-0">
-    <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-green-400 gba:opacity-75" />
-    <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-1.5 gba:w-1.5 gba:bg-green-500" />
-  </span>
-)
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession, onOpenHistory }) => {
   const client = useEnterpriseAgentClient(accessToken)
-  const [inputValue, setInputValue] = useState('')
   const [selectedAgent, setSelectedAgent] = useState<SpecialistAgent | undefined>(undefined)
   const [agents, setAgents] = useState<SpecialistAgent[]>([])
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false)
+  const agentMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     client
@@ -55,14 +45,18 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
       .catch(() => setAgents([]))
   }, [client])
 
-  const handleChipSelect = (prompt: string) => {
-    setInputValue(prompt)
-  }
+  useEffect(() => {
+    if (!isAgentMenuOpen) return
 
-  // FabricInput is self-contained — we use its onSubmit to trigger the session.
-  // The chip selection sets the initial value, which we surface via a controlled
-  // textarea approach by re-rendering with a key trick isn't needed — instead we
-  // pass the prefillValue and let FabricInput manage its own state after prefill.
+    const handleClickOutside = (event: MouseEvent) => {
+      if (agentMenuRef.current && !agentMenuRef.current.contains(event.target as Node)) {
+        setIsAgentMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isAgentMenuOpen])
 
   return (
     <div
@@ -86,12 +80,15 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
         <div className="gba:min-h-full gba:px-6 gba:py-12">
           <div className="gba:mx-auto gba:flex gba:min-h-[calc(100vh-6rem)] gba:w-full gba:max-w-[58rem] gba:flex-col gba:items-center">
             <div className="gba:flex-[0.84] gba:flex gba:flex-col gba:items-center gba:justify-end gba:pb-6">
-              <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-full gba:border gba:border-border gba:bg-card gba:text-xs gba:font-medium gba:text-muted-foreground gba:shadow-sm">
-                <PulseDot />
-                Every Fabric — Autonomous Agent
+              <div className="gba:inline-flex gba:items-center gba:px-3 gba:py-1.5 gba:rounded-full gba:border gba:border-border gba:bg-card gba:text-xs gba:font-medium gba:text-muted-foreground gba:shadow-sm">
+                Every Fabric
               </div>
 
-              <div className="gba:mt-5 gba:text-center gba:space-y-2">
+              <h2 className="gba:mt-3 gba:text-xl gba:font-bold gba:tracking-tight gba:text-foreground">
+                NEWWORK Enterprise Agents
+              </h2>
+
+              <div className="gba:mt-10 gba:text-center gba:space-y-2">
                 <h1 className="gba:text-[3rem] sm:gba:text-[3.5rem] gba:font-semibold gba:tracking-[-0.04em] gba:text-foreground gba:leading-[0.98]">
                   What would you like to do?
                 </h1>
@@ -105,14 +102,13 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
               <FabricInput
                 variant="landing"
                 onSubmit={onStartSession}
-                prefillValue={inputValue}
                 selectedAgent={selectedAgent}
                 onClearAgent={() => setSelectedAgent(undefined)}
                 autoFocus
               />
 
               {agents.length > 0 && (
-                <div className="gba:absolute gba:top-4 gba:right-5 gba:z-20">
+                <div ref={agentMenuRef} className="gba:absolute gba:top-4 gba:right-5 gba:z-20">
                   <button
                     onClick={() => setIsAgentMenuOpen(open => !open)}
                     className="gba:inline-flex gba:h-9 gba:items-center gba:gap-2 gba:rounded-full gba:border gba:border-border/75 gba:bg-card/96 gba:px-3.5 gba:text-sm gba:text-muted-foreground gba:shadow-[0_6px_18px_rgba(15,23,42,0.04)] gba:transition-colors gba:hover:bg-card gba:hover:text-foreground"
@@ -164,11 +160,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
               )}
             </div>
 
-            <div className="gba:flex-[1.16] gba:flex gba:w-full gba:flex-col gba:items-center gba:pt-5 gba:overflow-visible">
-              <div className="gba:w-full gba:max-w-[46rem] gba:flex gba:flex-col gba:gap-4">
-                <SuggestionChips onSelect={handleChipSelect} />
-              </div>
-            </div>
+            <div className="gba:flex-[1.16] gba:flex gba:w-full gba:flex-col gba:items-center gba:pt-5 gba:overflow-visible" />
           </div>
         </div>
       </div>

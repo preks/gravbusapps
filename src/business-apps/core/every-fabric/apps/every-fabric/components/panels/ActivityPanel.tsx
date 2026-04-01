@@ -22,17 +22,29 @@ const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
   tool_result: <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   plan_update: <ListChecksIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   reflection: <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  subagent_spawn: <ShareNetworkIcon className="gba:h-3.5 gba:w-3.5 gba:text-purple-500" />,
+  subagent_spawn: <ShareNetworkIcon className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
   memory_access: <DatabaseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+}
+
+const normalizeActivityText = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+const isLikelyTaskText = (value?: string) => {
+  const compact = (value ?? '').trim()
+  if (!compact) return false
+  return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
   const isSubagent = event.type === 'subagent_spawn'
+  const showAgentBadge =
+    isSubagent &&
+    !!event.agent &&
+    !isLikelyTaskText(event.agent) &&
+    normalizeActivityText(event.agent) !== normalizeActivityText(event.summary)
 
   return (
     <div
       className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/30 gba:transition-colors ${
-        isSubagent ? 'gba:border-l-2 gba:border-purple-400/60 gba:pl-5' : ''
+        isSubagent ? 'gba:border-l-2 gba:border-sky-400/60 gba:pl-5' : ''
       }`}
       data-testid={`enterprise-agent-activity-${event.id}`}
     >
@@ -45,8 +57,8 @@ function ActivityRow({ event }: { event: ActivityEvent }) {
             {event.toolName}
           </span>
         )}
-        {isSubagent && event.agent && (
-          <span className="gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-xs gba:font-mono gba:font-semibold gba:mb-0.5 gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300">
+        {showAgentBadge && (
+          <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
             {event.agent}
           </span>
         )}
