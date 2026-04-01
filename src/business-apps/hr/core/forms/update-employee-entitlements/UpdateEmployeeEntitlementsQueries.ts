@@ -59,7 +59,7 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
     total
     approved
   }  
-      absenceType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "AbsenceType"}}, objectValue: {_contains: { checkEntitlement: true }}}, orderBy: {value: ASC}) {
+      absenceType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "AbsenceType"}}, objectValue: {_contains: { checkEntitlement: true }}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     code
