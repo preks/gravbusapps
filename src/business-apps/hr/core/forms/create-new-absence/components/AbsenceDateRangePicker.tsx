@@ -1,11 +1,21 @@
 import React, { useState, useCallback } from 'react'
 import type { DateRange } from 'react-day-picker'
-import { Badge, Button, Calendar, Popover, PopoverContent, PopoverTrigger, Spinner } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Button,
+  Calendar,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { CalendarIcon, XIcon } from 'lucide-react'
 import { useAbsenceCalendarData } from '../hooks/useAbsenceCalendarData'
 import { useAbsencePrevalidate } from '../hooks/useAbsencePrevalidate'
-import { getPrevalidateErrorLabel } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
+import { getPrevalidateErrorPresentation } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import formsTranslations from '../../_i18n'
 
 interface AbsenceDateRangePickerProps {
   startDate?: Date
@@ -40,20 +50,17 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
   disabled = false,
   'data-testid': testId = 'absence-date-range-input'
 }) => {
+  const { t } = useTranslation(formsTranslations)
   const [open, setOpen] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState<Date>(() => startDate ?? new Date())
 
-  const { approvedDates, pendingDates, requestDates, bankHolidayDates, entitlementSnapshot } = useAbsenceCalendarData(
-    accessToken,
-    employeeId,
-    visibleMonth,
-    selectedTypeRef
-  )
+  const { approvedDates, pendingDates, blockedRequestDates, bankHolidayDates, entitlementSnapshot } =
+    useAbsenceCalendarData(accessToken, employeeId, visibleMonth, selectedTypeRef)
   const startDateStr = startDate ? toLocalDateStr(startDate) : null
   const endDateStr = endDate ? toLocalDateStr(endDate) : null
   const prevalidate = useAbsencePrevalidate(accessToken, employeeId, selectedTypeRef, startDateStr, endDateStr)
 
-  const blockedDateSet = new Set([...requestDates, ...bankHolidayDates].map(toLocalDateStr))
+  const blockedDateSet = new Set([...blockedRequestDates, ...bankHolidayDates].map(toLocalDateStr))
 
   const handleSelect = useCallback(
     (range: DateRange | undefined) => {
@@ -98,10 +105,16 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
     }
 
     if (prevalidate.errorCode) {
+      const errorPresentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
       return (
-        <Badge variant="destructive" data-testid="prevalidate-error">
-          {getPrevalidateErrorLabel(prevalidate.errorCode)}
-        </Badge>
+        <div className="gba:flex gba:flex-col gba:items-start gba:gap-1.5" data-testid="prevalidate-error">
+          <Badge variant="destructive" data-testid="prevalidate-error-badge">
+            {t(errorPresentation.messageKey) || errorPresentation.messageFallback}
+          </Badge>
+          <p className="gba:text-xs gba:text-muted-foreground" data-testid="prevalidate-error-detail">
+            {t(errorPresentation.detailKey) || errorPresentation.detailFallback}
+          </p>
+        </div>
       )
     }
 

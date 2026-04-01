@@ -7,7 +7,7 @@ type DirectMemberProps = {
   handleNavigateToEmployee: (_employeeId: string) => void
 }
 
-const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) => {
+export const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) => {
   return (
     <button
       key={report.id}
