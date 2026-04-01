@@ -153,11 +153,52 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
       const group = absenceGroups.find(g => g.id === groupId)
       if (group) {
         const name = getAbsenceGroupDisplayValue(group).toLowerCase()
-        if (name.includes('sick') || name.includes('illness')) return 'createEmployeeSickLeave'
-        if (name.includes('special') || name.includes('personal')) return 'createEmployeeSpecialLeave'
-        if (name.includes('vacation') || name.includes('holiday') || name.includes('annual'))
+        const idValue = String(group.id || '').toLowerCase()
+        const combined = `${idValue} ${name}`
+
+        // Check special leave first so "Sonderurlaub" is not misclassified as vacation by "urlaub".
+        if (
+          combined.includes('special') ||
+          combined.includes('personal') ||
+          combined.includes('sonderurlaub') ||
+          combined.includes('concediu special')
+        ) {
+          return 'createEmployeeSpecialLeave'
+        }
+
+        if (
+          combined.includes('sick') ||
+          combined.includes('illness') ||
+          combined.includes('krank') ||
+          combined.includes('medical') ||
+          combined.includes('boala') ||
+          combined.includes('concediu medical')
+        ) {
+          return 'createEmployeeSickLeave'
+        }
+
+        if (
+          combined.includes('work') ||
+          combined.includes('training') ||
+          combined.includes('arbeitsbezogen') ||
+          combined.includes('beruf') ||
+          combined.includes('business') ||
+          combined.includes('serviciu') ||
+          combined.includes('munca')
+        ) {
+          return 'createEmployeeWorkLeave'
+        }
+
+        if (
+          combined.includes('vacation') ||
+          combined.includes('holiday') ||
+          combined.includes('annual') ||
+          combined.includes('urlaub') ||
+          combined.includes('concediu') ||
+          combined.includes('odihna')
+        ) {
           return 'createEmployeeVacation'
-        if (name.includes('work') || name.includes('training')) return 'createEmployeeWorkLeave'
+        }
       }
       return map[groupId] || 'createEmployeeVacation'
     },

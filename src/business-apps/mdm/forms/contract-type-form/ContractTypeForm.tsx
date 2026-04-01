@@ -30,6 +30,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import translations from './_i18n'
 import {
+  getContractTypeObjectValue,
+  getContractTypePayrollRelevant,
+  isContractTypeMarkedDeleted,
   mergeCatalogEntryForPut,
   parseContractTypeJson,
   serializeContractTypeAdditionalJson,
@@ -261,13 +264,9 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
     const hasProbationValue = trimmedData.probationValue && trimmedData.probationValue.trim() !== ''
     const hasProbationUnit = trimmedData.probationUnit && trimmedData.probationUnit.trim() !== ''
 
-    const existingJson = contractType ? parseContractTypeJson(contractType.probationPeriod) : {}
-
     const additionalJson = serializeContractTypeAdditionalJson({
       value: hasProbationValue && hasProbationUnit ? Number(trimmedData.probationValue) : null,
-      unit: hasProbationValue && hasProbationUnit ? String(trimmedData.probationUnit) : '',
-      payroll_relevant: trimmedData.payrollRelevant === true,
-      is_deleted: existingJson.is_deleted === true
+      unit: hasProbationValue && hasProbationUnit ? String(trimmedData.probationUnit) : ''
     })
 
     if (contractType) {
@@ -280,6 +279,11 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
         additionalValue2: additionalJson,
+        objectValue: {
+          ...getContractTypeObjectValue(fresh),
+          payroll_relevant: trimmedData.payrollRelevant === true
+        },
+        isDeleted: isContractTypeMarkedDeleted(fresh),
         translations
       })
       await catalogClient.updateCatalogEntry(
@@ -294,6 +298,10 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
         additionalValue2: additionalJson,
+        objectValue: {
+          payroll_relevant: trimmedData.payrollRelevant === true
+        },
+        isDeleted: false,
         translations: []
       } as Omit<CatalogEntry, 'id' | 'type'>)
     }
@@ -313,7 +321,11 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       description: contractType?.description || '',
       probationValue: existingParsed.value != null && existingParsed.unit ? String(existingParsed.value) : '',
       probationUnit: existingParsed.unit || undefined,
-      payrollRelevant: existingParsed.payroll_relevant === true
+      payrollRelevant: contractType
+        ? getContractTypePayrollRelevant({
+            objectValue: contractType.objectValue
+          })
+        : false
     }),
     [contractType, existingParsed]
   )

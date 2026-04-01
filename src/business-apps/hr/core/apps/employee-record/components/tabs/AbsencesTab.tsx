@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import {
   Tabs,
   TabsContent,
@@ -25,7 +24,6 @@ dayjs.extend(customParseFormat)
 dayjs.extend(updateLocale)
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { AppAction } from '@/components/app-action/AppAction'
 
 import { AbsencesTabProps } from '../../queries/types'
 import { useAbsenceData } from '../../hooks/useAbsenceData'
@@ -45,6 +43,7 @@ import { useAbsenceEffectiveDates } from '../../hooks/useAbsenceEffectiveDates'
 import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
 import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
 import translations from './_i18n'
+import { AbsenceRequestMenuButton } from './components/AbsenceRequestMenuButton'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -436,34 +435,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </div>
 
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
-            {(() => {
-              return (
-                <AppAction
-                  variant="update-primary"
-                  key={`primary-${startDateFormatted}-${endDateFormatted}`}
-                  data-testid="employee-absence-request-button"
-                  lazyLoad
-                  emptyState="enable"
-                  contexts={[
-                    {
-                      context: FlowContextName.employeeAbsenceRecord,
-                      contextData: {
-                        employeeId: employee.id,
-                        absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type
-                          ?.id,
-                        flowType: 'vacation',
-                        startDate: startDateFormatted,
-                        endDate: endDateFormatted
-                      }
-                    }
-                  ]}
-                  prefixDataTestId="employee-absence-request"
-                  accessToken={accessToken}
-                >
-                  {requestAbsenceLabel}
-                </AppAction>
-              )
-            })()}
+            <AbsenceRequestMenuButton
+              employeeId={employee?.id}
+              label={requestAbsenceLabel}
+              buttonTestId="employee-absence-request-button"
+              menuTestIdPrefix="employee-absence-request"
+              startDate={startDateFormatted || undefined}
+              endDate={endDateFormatted || undefined}
+            />
 
             {canAddEntitlements && (
               <div
@@ -498,29 +477,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       {(shownTab === 'calendar' || shownTab === 'absence-list' || shownTab === 'entitlements') && (
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
           <div className="gba:flex gba:items-center gba:gap-4">
-            <AppAction
-              variant="update-primary"
-              key={`inline-${startDateFormatted}-${endDateFormatted}`}
-              data-testid="employee-absence-request-inline-button"
-              lazyLoad
-              emptyState="enable"
-              contexts={[
-                {
-                  context: FlowContextName.employeeAbsenceRecord,
-                  contextData: {
-                    employeeId: employee.id,
-                    absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                    flowType: 'vacation',
-                    startDate: startDateFormatted,
-                    endDate: endDateFormatted
-                  }
-                }
-              ]}
-              prefixDataTestId="employee-absence-request-inline"
-              accessToken={accessToken}
-            >
-              {requestAbsenceLabel}
-            </AppAction>
+            <AbsenceRequestMenuButton
+              employeeId={employee?.id}
+              label={requestAbsenceLabel}
+              buttonTestId="employee-absence-request-inline-button"
+              menuTestIdPrefix="employee-absence-request-inline"
+              startDate={startDateFormatted || undefined}
+              endDate={endDateFormatted || undefined}
+            />
             {shownTab === 'entitlements' && canAddEntitlements && (
               <div
                 data-testid="employee-entitlements-update-inline-button"
