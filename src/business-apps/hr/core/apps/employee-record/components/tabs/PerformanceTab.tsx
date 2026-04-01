@@ -76,6 +76,8 @@ interface GoalUpdate {
   updateTime?: string
   updateDelta?: { milestones?: MilestoneDelta[] } | null
   employee?: { firstName?: string; lastName?: string }
+  completedMilestones?: string[]
+  reopenedMilestones?: string[]
 }
 
 interface GoalUpdateEvent {
@@ -83,6 +85,8 @@ interface GoalUpdateEvent {
   progress: number
   details?: string
   author?: string
+  completedMilestones?: string[]
+  reopenedMilestones?: string[]
 }
 
 interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
@@ -131,6 +135,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   const [goalToDelete, setGoalToDelete] = useState<ExtendedEmployeePerformanceGoal | null>(null)
 
   const supervisorId = useMemo(() => employee.employeePosition?.supervisor?.id, [employee])
+  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
+  const isSelfView = currentUserEmployeeId === employee.id
+  const isManagerView = currentUserEmployeeId === supervisorId
+  const canManageGoals = isSelfView || isManagerView
 
   const fetchPerformanceData = useCallback(async () => {
     if (!employee?.id) return
@@ -167,10 +175,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   }, [fetchPerformanceData])
 
   useEffect(() => {
-    if (!selectedCycleId && cycles.length > 0) {
-      const active = cycles.find(cycle => cycle.status === 'Active')
-      setSelectedCycleId((active || cycles[0]).id)
-    }
+    if (cycles.length === 0) return
+
+    const cycleExists = cycles.some(cycle => cycle.id === selectedCycleId)
+    if (cycleExists) return
+
+    const active = cycles.find(cycle => cycle.status === 'Active')
+    setSelectedCycleId((active || cycles[0]).id)
   }, [cycles, selectedCycleId])
 
   const getGoalType = (goal: ExtendedEmployeePerformanceGoal): GoalType => {
@@ -188,7 +199,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
   const isGoalValid = (goal: ExtendedEmployeePerformanceGoal) => Boolean(goal.title && goal.startDate && goal.dueDate)
 
-  const selectedCycle = useMemo(() => cycles.find(cycle => cycle.id === selectedCycleId), [cycles, selectedCycleId])
+  const selectedCycle = useMemo(() => {
+    const cycleFromSelection = cycles.find(cycle => cycle.id === selectedCycleId)
+    if (cycleFromSelection) return cycleFromSelection
+
+    const activeCycle = cycles.find(cycle => cycle.status === 'Active')
+    return activeCycle || cycles[0]
+  }, [cycles, selectedCycleId])
+  const selectedCycleStartDate = selectedCycle?.evaluationPeriodStartDate || selectedCycle?.startDate
+  const selectedCycleEndDate = selectedCycle?.evaluationPeriodEndDate || selectedCycle?.endDate
 
   const isGoalContainedInCycle = useCallback(
     (goal: ExtendedEmployeePerformanceGoal, cycleStart: string, cycleEnd: string) => {
@@ -229,13 +248,44 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
     // Use real update records from the DB when available
     if (goal.employeePerformanceGoalUpdate?.length) {
+      const milestoneTitleMap = new Map(
+        (goal.employeePerformanceGoalMilestone || []).map(milestone => [milestone.id, milestone.title])
+      )
+      let previousMilestoneState = new Map(
+        (goal.employeePerformanceGoalMilestone || []).map(milestone => [milestone.id, milestone.done ?? false])
+      )
+
       goal.employeePerformanceGoalUpdate.forEach(update => {
         const author = [update.employee?.firstName, update.employee?.lastName].filter(Boolean).join(' ')
+        const completedMilestones = [...(update.completedMilestones || [])]
+        const reopenedMilestones = [...(update.reopenedMilestones || [])]
+        const milestoneSnapshot = update.updateDelta?.milestones
+
+        if (!completedMilestones.length && !reopenedMilestones.length) {
+          milestoneSnapshot?.forEach(milestone => {
+            const wasDone = previousMilestoneState.get(milestone.id) ?? false
+            const title = milestoneTitleMap.get(milestone.id)
+            if (!title || wasDone === milestone.done) return
+
+            if (milestone.done) {
+              completedMilestones.push(title)
+            } else {
+              reopenedMilestones.push(title)
+            }
+          })
+        }
+
+        if (milestoneSnapshot?.length) {
+          previousMilestoneState = new Map(milestoneSnapshot.map(milestone => [milestone.id, milestone.done]))
+        }
+
         events.push({
           at: update.updateTime || baselineDate.toISOString(),
           progress: normalizeProgress(update.progressPercent ?? 0),
           details: update.comment || undefined,
-          author: author || undefined
+          author: author || undefined,
+          completedMilestones: completedMilestones.length ? completedMilestones : undefined,
+          reopenedMilestones: reopenedMilestones.length ? reopenedMilestones : undefined
         })
       })
     } else if ((goal.progressPercent || 0) > 0) {
@@ -277,26 +327,26 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   )
 
   const cycleRelevantGoals = useMemo(() => {
-    if (!selectedCycle) return []
+    if (!selectedCycleStartDate || !selectedCycleEndDate) return []
     return localPerformanceGoals
       .filter(isGoalValid)
-      .filter(goal => doesGoalOverlapCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
+      .filter(goal => doesGoalOverlapCycle(goal, selectedCycleStartDate, selectedCycleEndDate))
       .filter(matchesGoalFilters)
-  }, [localPerformanceGoals, selectedCycle, doesGoalOverlapCycle, matchesGoalFilters])
+  }, [localPerformanceGoals, selectedCycleStartDate, selectedCycleEndDate, doesGoalOverlapCycle, matchesGoalFilters])
 
   const containedGoals = useMemo(() => {
-    if (!selectedCycle) return []
+    if (!selectedCycleStartDate || !selectedCycleEndDate) return []
     return sortGoals(
-      cycleRelevantGoals.filter(goal => isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate))
+      cycleRelevantGoals.filter(goal => isGoalContainedInCycle(goal, selectedCycleStartDate, selectedCycleEndDate))
     )
-  }, [cycleRelevantGoals, selectedCycle, sortGoals, isGoalContainedInCycle])
+  }, [cycleRelevantGoals, selectedCycleStartDate, selectedCycleEndDate, sortGoals, isGoalContainedInCycle])
 
   const outOfCycleGoals = useMemo(() => {
-    if (!selectedCycle) return []
+    if (!selectedCycleStartDate || !selectedCycleEndDate) return []
     return cycleRelevantGoals.filter(
-      goal => !isGoalContainedInCycle(goal, selectedCycle.startDate, selectedCycle.endDate)
+      goal => !isGoalContainedInCycle(goal, selectedCycleStartDate, selectedCycleEndDate)
     )
-  }, [cycleRelevantGoals, selectedCycle, isGoalContainedInCycle])
+  }, [cycleRelevantGoals, selectedCycleStartDate, selectedCycleEndDate, isGoalContainedInCycle])
 
   useEffect(() => {
     const visibleGoalIds = [...containedGoals, ...outOfCycleGoals].map(goal => goal.id)
@@ -345,10 +395,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   )
 
   const summary = useMemo(() => {
+    const activeContainedGoals = containedGoals
     const total = containedGoals.length
-    const achieved = containedGoals.filter(goal => goal.status === 'ACHIEVED' || goal.progressPercent >= 100).length
-    const onTrack = containedGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
-    const behind = containedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
+    const achieved = activeContainedGoals.filter(
+      goal => goal.status === 'ACHIEVED' || goal.progressPercent >= 100
+    ).length
+    const onTrack = activeContainedGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
+    const behind = activeContainedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
     return { total, achieved, onTrack, behind }
   }, [containedGoals, getTrackState])
 
@@ -472,19 +525,42 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     }
 
     const now = dayjs().toISOString()
-    const userComment = detailsInput.trim()
-
-    // Backend requires a comment whenever progressPercent changes — auto-generate if empty
-    const autoComment =
-      type === 'MILESTONE'
-        ? `${milestoneDraft.filter(m => m.done).length} of ${milestoneDraft.length} completed`
-        : `Progress updated to ${Math.round(nextProgress)}%`
-    const comment = userComment || autoComment
+    const comment = detailsInput.trim()
+    if (!comment) return
 
     // Build milestone snapshot for updateDelta so we can restore done states on reload
     const milestoneDeltaForUpdate =
       type === 'MILESTONE'
         ? milestoneDraft.map(m => ({ id: m.id, done: m.done, doneAt: m.done ? (m.doneAt ?? now) : null }))
+        : undefined
+    const latestMilestoneSnapshot = selectedGoal.employeePerformanceGoalUpdate
+      ?.slice()
+      .reverse()
+      .find(update => update.updateDelta?.milestones?.length)?.updateDelta?.milestones
+    const previousMilestoneState =
+      type === 'MILESTONE'
+        ? new Map(
+            (
+              latestMilestoneSnapshot ||
+              selectedGoal.employeePerformanceGoalMilestone?.map(milestone => ({
+                id: milestone.id,
+                done: milestone.done ?? false
+              })) ||
+              []
+            ).map(milestone => [milestone.id, milestone.done])
+          )
+        : new Map<string, boolean>()
+    const completedMilestones =
+      type === 'MILESTONE'
+        ? milestoneDraft
+            .filter(milestone => !(previousMilestoneState.get(milestone.id) ?? false) && milestone.done)
+            .map(milestone => milestone.title)
+        : undefined
+    const reopenedMilestones =
+      type === 'MILESTONE'
+        ? milestoneDraft
+            .filter(milestone => (previousMilestoneState.get(milestone.id) ?? false) && !milestone.done)
+            .map(milestone => milestone.title)
         : undefined
 
     // Build the optimistic update record so the history panel updates immediately
@@ -494,7 +570,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       comment,
       updateTime: now,
       updateDelta: milestoneDeltaForUpdate ? { milestones: milestoneDeltaForUpdate } : null,
-      employee: { firstName: employee.firstName, lastName: employee.lastName }
+      employee: { firstName: employee.firstName, lastName: employee.lastName },
+      completedMilestones: completedMilestones?.length ? completedMilestones : undefined,
+      reopenedMilestones: reopenedMilestones?.length ? reopenedMilestones : undefined
     }
 
     // Optimistic local update — also append the new update record so getInitialEvents
@@ -651,15 +729,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-3">
-          <Select value={selectedCycleId} onValueChange={setSelectedCycleId}>
+          <Select value={selectedCycle?.id || ''} onValueChange={setSelectedCycleId}>
             <SelectTrigger className="gba:min-w-[260px]" data-testid="performance-cycle-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {cycles.map(cycle => (
                 <SelectItem value={cycle.id} key={cycle.id}>
-                  {cycle.name} ({dayjs(cycle.startDate).format('MMM D, YYYY')} -{' '}
-                  {dayjs(cycle.endDate).format('MMM D, YYYY')})
+                  {cycle.name} ({dayjs(cycle.evaluationPeriodStartDate || cycle.startDate).format('MMM D, YYYY')} -{' '}
+                  {dayjs(cycle.evaluationPeriodEndDate || cycle.endDate).format('MMM D, YYYY')})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -668,14 +746,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
           <AppAction
             variant="update-primary"
             data-testid="employee-goal-add-button"
+            disabled={!selectedCycle}
             contexts={[
               {
                 context: FlowContextName.employeePerformanceGoal,
                 contextData: {
                   employeeId: employee.id,
                   employee,
-                  cycleStartDate: selectedCycle?.startDate,
-                  cycleEndDate: selectedCycle?.endDate,
+                  cycleId: selectedCycle?.id,
+                  cycleStartDate: selectedCycleStartDate,
+                  cycleEndDate: selectedCycleEndDate,
                   cycleName: selectedCycle?.name
                 }
               }
@@ -784,17 +864,19 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                           <span className="gba:text-xs gba:text-muted-foreground gba:capitalize gba:lowercase">
                             {getGoalType(goal).charAt(0) + getGoalType(goal).slice(1).toLowerCase()}
                           </span>
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation()
-                              setGoalToDelete(goal)
-                            }}
-                            className="gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
-                            aria-label="Delete goal"
-                          >
-                            <Trash className="gba:w-3.5 gba:h-3.5" />
-                          </button>
+                          {canManageGoals && (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation()
+                                setGoalToDelete(goal)
+                              }}
+                              className="gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
+                              aria-label="Delete goal"
+                            >
+                              <Trash className="gba:w-3.5 gba:h-3.5" />
+                            </button>
+                          )}
                         </div>
                         {(() => {
                           const badge = statusMap[getGoalLabel(goal)]
@@ -872,8 +954,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         Mark Completed
                       </button>
                     )}
-                    {(userInfo?.employeeDetails?.employeeId === employee.id ||
-                      userInfo?.employeeDetails?.employeeId === supervisorId) &&
+                    {canManageGoals &&
                       selectedGoal.status !== 'ACHIEVED' &&
                       (selectedGoal.progressPercent || 0) < 100 && (
                         <AppAction
@@ -895,8 +976,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                                 startValue: selectedGoal.startValue,
                                 targetValue: selectedGoal.targetValue,
                                 version: selectedGoal.version,
-                                cycleStartDate: selectedCycle?.startDate,
-                                cycleEndDate: selectedCycle?.endDate,
+                                cycleId: selectedCycle?.id,
+                                cycleStartDate: selectedCycleStartDate,
+                                cycleEndDate: selectedCycleEndDate,
                                 cycleName: selectedCycle?.name,
                                 additionalProperties: selectedGoal.additionalProperties,
                                 existingMilestonesJson: JSON.stringify(
@@ -928,8 +1010,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                 </div>
               </CardHeader>
               <CardContent className="gba:space-y-6">
-                {selectedCycle &&
-                  !isGoalContainedInCycle(selectedGoal, selectedCycle.startDate, selectedCycle.endDate) && (
+                {selectedCycleStartDate &&
+                  selectedCycleEndDate &&
+                  !isGoalContainedInCycle(selectedGoal, selectedCycleStartDate, selectedCycleEndDate) && (
                     <div className="gba:text-sm gba:text-warning gba:bg-warning/10 gba:rounded-md gba:px-3 gba:py-2">
                       This goal is outside the selected cycle and cannot be edited until dates are corrected.
                     </div>
@@ -1008,12 +1091,21 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                             }
                             className={`gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:resize-none gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring ${isCompleted ? 'gba:opacity-50 gba:cursor-not-allowed' : ''}`}
                           />
+                          {!isCompleted && !detailsInput.trim() && (
+                            <p
+                              className="gba:mt-1 gba:text-xs gba:text-destructive"
+                              data-testid="performance-goal-update-comment-required"
+                            >
+                              Please add a comment before saving this update.
+                            </p>
+                          )}
                         </div>
 
                         {!isCompleted && (
                           <button
                             type="button"
-                            className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm"
+                            className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm disabled:gba:opacity-40 disabled:gba:cursor-not-allowed"
+                            disabled={!detailsInput.trim()}
                             onClick={applyProgressUpdate}
                           >
                             Save Update
@@ -1046,10 +1138,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={buildChartData(selectedGoal)}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} padding={{ left: 2, right: 2 }} />
                         <YAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 11 }} />
                         <RechartsTooltip
-                          formatter={(value: number | undefined) => (value != null ? `${Math.round(value)}%` : '')}
+                          formatter={value => (typeof value === 'number' ? `${Math.round(value)}%` : '')}
                         />
                         <Line dataKey="ideal" type="monotone" stroke="var(--nw-chart-2)" dot={false} name="Ideal" />
                         <Line
@@ -1061,7 +1153,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                           strokeWidth={2}
                           connectNulls={false}
                         />
-                        <ReferenceLine x={dayjs().format('MMM D')} stroke="var(--warning)" strokeDasharray="3 3" />
+                        <ReferenceLine
+                          x={dayjs().format('MMM D')}
+                          stroke="var(--nw-warning)"
+                          strokeDasharray="3 3"
+                          strokeWidth={2}
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -1069,7 +1166,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
                 {(() => {
                   const events = (goalEvents[selectedGoal.id] || []).filter(
-                    e => e.progress > 0 || e.details || e.author
+                    e =>
+                      e.progress > 0 ||
+                      e.details ||
+                      e.author ||
+                      e.completedMilestones?.length ||
+                      e.reopenedMilestones?.length
                   )
                   if (events.length === 0) return null
                   return (
@@ -1099,6 +1201,22 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                               {event.details && (
                                 <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{event.details}</p>
                               )}
+                              {event.completedMilestones?.length ? (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground gba:mt-0.5"
+                                  data-testid={`performance-goal-update-history-completed-${index}`}
+                                >
+                                  Completed: {event.completedMilestones.join(', ')}
+                                </p>
+                              ) : null}
+                              {event.reopenedMilestones?.length ? (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground gba:mt-0.5"
+                                  data-testid={`performance-goal-update-history-reopened-${index}`}
+                                >
+                                  Reopened: {event.reopenedMilestones.join(', ')}
+                                </p>
+                              ) : null}
                             </div>
                           </div>
                         ))}

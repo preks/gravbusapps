@@ -39,6 +39,10 @@ export interface IgnoredWord {
   addedAt: string
 }
 
+export interface IgnoredWordsStore {
+  words: IgnoredWord[]
+}
+
 export interface SlideSpellCheckConfig {
   language?: string
   ignoredWords: string[]
@@ -94,6 +98,27 @@ export function getAnnotationColorClass(annotation: DocumentAnnotation): string 
     case 'punctuation':
       return 'spell-warning'
     case 'style':
+      return 'spell-info'
+    default:
+      return 'spell-info'
+  }
+}
+
+export function getAnnotationClass(annotation: DocumentAnnotation): string {
+  return getAnnotationColorClass(annotation)
+}
+
+export function getSeverityClass(severity: AnnotationSeverity): string {
+  switch (severity) {
+    case 'high':
+    case 'critical':
+    case 'error':
+      return 'spell-error'
+    case 'medium':
+    case 'warning':
+      return 'spell-warning'
+    case 'low':
+    case 'info':
       return 'spell-info'
     default:
       return 'spell-info'

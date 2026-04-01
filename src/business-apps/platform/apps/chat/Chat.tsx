@@ -1049,10 +1049,21 @@ const ChatInner: React.FC<ChatProps> = memo(
       return t('chat-connectionError')
     }
 
+    // Mobile webview fix: the webview viewport can be wider than the device
+    // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
+    // Constrain this component to the screen width when a mismatch is detected.
+    const [webviewMaxWidth, setWebviewMaxWidth] = useState<number | undefined>(undefined)
+    useEffect(() => {
+      if (typeof screen !== 'undefined' && window.innerWidth > screen.width * 1.1) {
+        setWebviewMaxWidth(screen.width)
+      }
+    }, [])
+
     return (
       <div
         ref={containerRef}
         className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+        style={webviewMaxWidth ? { maxWidth: webviewMaxWidth, width: webviewMaxWidth } : undefined}
         data-testid={`${prefixDataTestId}-container`}
       >
         {connectionError && (
