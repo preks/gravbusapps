@@ -18,6 +18,7 @@ export interface DeepAgentSession {
   completed_at?: string
   config?: SessionConfig
   human_question?: string | null
+  structured_input_request?: StructuredInputRequestEvent | null
 }
 
 export interface TodoItem {
@@ -53,6 +54,7 @@ export interface AgentTerminalEvent {
   todos?: TodoItem[]
   reflection?: ReflectionResult | null
   human_question?: string | null
+  structured_input_request?: StructuredInputRequestEvent | null
   duration_ms?: number
   cost_summary?: CostSummary | null
   artifacts?: SessionArtifactMeta[]
@@ -151,6 +153,31 @@ export interface AgentArtifactCreatedEvent {
   size: number
 }
 
+export interface StructuredInputRequestEvent {
+  type: 'structured_input_request'
+  seq: number
+  event_id: string
+  timestamp: string
+  form_id: string
+  title: string
+  description: string
+  fields: InputFieldSchema[]
+  allow_partial_submit: boolean
+}
+
+export interface InputFieldSchema {
+  field_id: string
+  label: string
+  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'number'
+  description?: string
+  required: boolean
+  default_value?: any
+  options?: string[]
+  placeholder?: string
+  ai_generated?: boolean
+  validation_pattern?: string
+}
+
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
@@ -162,6 +189,7 @@ export type AgentStreamEvent =
   | AgentSubagentSpawnedEvent
   | AgentSubagentCompletedEvent
   | AgentArtifactCreatedEvent
+  | StructuredInputRequestEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -220,6 +248,7 @@ export type ChatMessageType =
   | 'expert_call'
   | 'reflection'
   | 'human_interrupt'
+  | 'structured_input_request'
   | 'final_answer'
   | 'error'
 
