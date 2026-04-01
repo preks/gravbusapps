@@ -130,8 +130,8 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         margin: 0 0 6pt 0;
       }
 
+      /* Do not set display:inline on list paragraphs — it breaks ProseMirror caret/backspace at list boundaries. */
       .paged-document-editor .ProseMirror li > p {
-        display: inline;
         margin: 0;
       }
 
@@ -154,7 +154,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       }
 
       .document-ai-selection-preview-content li > p {
-        display: inline;
         margin: 0;
       }
 

@@ -3,6 +3,8 @@ import { normalizeImageAlign, normalizeImageAnchorMode } from './styleUtils'
 import type { CustomImageAttributes } from './types'
 import type { WordLikeImageLayout } from './wrapLayoutEngine'
 
+const IMAGE_BLOCK_ANCHOR_SELECTOR = 'p, li, blockquote, pre, h1, h2, h3, h4, h5, h6, td, th'
+
 export type ImageOverlayLayerMode = 'behind' | 'floating' | 'front'
 
 export interface ImageOverlayMount {
@@ -12,6 +14,10 @@ export interface ImageOverlayMount {
   anchorTop: number
   anchorWidth: number
   anchorHeight: number
+  /** Paragraph (or block) origin relative to the page body layer — used for square wrap horizontal placement */
+  blockLeft: number
+  /** Paragraph (or block) width — used for square-right / square-left margin alignment */
+  blockWidth: number
 }
 
 function resolveOverlayLayerMode(
@@ -105,13 +111,21 @@ export function resolveImageOverlayMount(params: {
     return null
   }
 
+  const bodyRect = bestLayer.element.getBoundingClientRect()
+  const blockEl = params.anchorElement.closest(IMAGE_BLOCK_ANCHOR_SELECTOR)
+  const blockRect = blockEl?.getBoundingClientRect()
+  const blockLeft = blockRect ? blockRect.left - bodyRect.left : anchorRect.left - bodyRect.left
+  const blockWidth = blockRect ? blockRect.width : 0
+
   return {
     layer,
     pageNumber: bestLayer.pageNumber,
-    anchorLeft: anchorRect.left - bestLayer.element.getBoundingClientRect().left,
-    anchorTop: anchorRect.top - bestLayer.element.getBoundingClientRect().top,
+    anchorLeft: anchorRect.left - bodyRect.left,
+    anchorTop: anchorRect.top - bodyRect.top,
     anchorWidth: anchorRect.width,
-    anchorHeight: anchorRect.height
+    anchorHeight: anchorRect.height,
+    blockLeft,
+    blockWidth
   }
 }
 
@@ -133,11 +147,29 @@ function resolveOverlayFigureZIndex(
 }
 
 function resolveFlowOverlayFigureStyle(params: {
-  layout: Pick<WordLikeImageLayout, 'align' | 'figureLeft' | 'figureTop' | 'frameWidth' | 'wrapMode'>
+  layout: Pick<WordLikeImageLayout, 'align' | 'figureLeft' | 'figureTop' | 'frameWidth' | 'wrapMode' | 'layoutWidth'>
   attributes: CustomImageAttributes
   mount: ImageOverlayMount
 }): CSSProperties {
   const wrapMode = params.layout.wrapMode
+  const offsetX = params.attributes.offsetX ?? 0
+  const top = params.mount.anchorTop + params.layout.figureTop
+
+  let left: number
+  if (
+    (wrapMode === 'square-left' || wrapMode === 'square-right') &&
+    params.mount.blockWidth > 0 &&
+    params.layout.layoutWidth > 0
+  ) {
+    if (wrapMode === 'square-left') {
+      left = params.mount.blockLeft + params.layout.figureLeft
+    } else {
+      left = params.mount.blockLeft + params.mount.blockWidth - params.layout.layoutWidth + offsetX
+    }
+  } else {
+    left = params.mount.anchorLeft + params.layout.figureLeft
+  }
+
   return {
     margin: 0,
     display: 'flex',
@@ -146,8 +178,8 @@ function resolveFlowOverlayFigureStyle(params: {
     maxWidth: '100%',
     textAlign: params.layout.align,
     position: 'absolute',
-    left: params.mount.anchorLeft + params.layout.figureLeft,
-    top: params.mount.anchorTop + params.layout.figureTop,
+    left,
+    top,
     zIndex: resolveOverlayFigureZIndex(wrapMode, params.attributes.zIndex),
     pointerEvents: resolveOverlayFigurePointerEvents(wrapMode)
   }
@@ -156,7 +188,7 @@ function resolveFlowOverlayFigureStyle(params: {
 export function resolveImageOverlayFigureStyle(params: {
   layout: Pick<
     WordLikeImageLayout,
-    'wrapMode' | 'align' | 'anchorMode' | 'frameWidth' | 'figureLeft' | 'figureTop' | 'flowMode'
+    'wrapMode' | 'align' | 'anchorMode' | 'frameWidth' | 'figureLeft' | 'figureTop' | 'flowMode' | 'layoutWidth'
   >
   attributes: CustomImageAttributes
   mount: ImageOverlayMount

@@ -10,7 +10,8 @@ describe('imageOverlayUtils', () => {
         frameWidth: 120,
         figureLeft: 0,
         figureTop: 0,
-        flowMode: 'float'
+        flowMode: 'float',
+        layoutWidth: 120
       },
       attributes: {
         align: 'right',
@@ -26,7 +27,9 @@ describe('imageOverlayUtils', () => {
         anchorLeft: 160,
         anchorTop: 80,
         anchorWidth: 120,
-        anchorHeight: 90
+        anchorHeight: 90,
+        blockLeft: 0,
+        blockWidth: 0
       }
     })
 
@@ -44,7 +47,8 @@ describe('imageOverlayUtils', () => {
         frameWidth: 120,
         figureLeft: 0,
         figureTop: 0,
-        flowMode: 'overlay-anchor'
+        flowMode: 'overlay-anchor',
+        layoutWidth: 120
       },
       attributes: { zIndex: 5 },
       mount: {
@@ -53,7 +57,9 @@ describe('imageOverlayUtils', () => {
         anchorLeft: 0,
         anchorTop: 40,
         anchorWidth: 0,
-        anchorHeight: 0
+        anchorHeight: 0,
+        blockLeft: 0,
+        blockWidth: 0
       }
     })
 
@@ -70,7 +76,8 @@ describe('imageOverlayUtils', () => {
         frameWidth: 120,
         figureLeft: 0,
         figureTop: 0,
-        flowMode: 'overlay-anchor'
+        flowMode: 'overlay-anchor',
+        layoutWidth: 120
       },
       attributes: { zIndex: 2 },
       mount: {
@@ -79,11 +86,42 @@ describe('imageOverlayUtils', () => {
         anchorLeft: 0,
         anchorTop: 40,
         anchorWidth: 0,
-        anchorHeight: 0
+        anchorHeight: 0,
+        blockLeft: 0,
+        blockWidth: 0
       }
     })
 
     expect(style.pointerEvents).toBe('auto')
     expect(style.zIndex).toBe(2)
+  })
+
+  it('places square-right float overlay using the paragraph block width, not the inline anchor', () => {
+    const style = resolveImageOverlayFigureStyle({
+      layout: {
+        wrapMode: 'square-right',
+        align: 'right',
+        anchorMode: 'move-with-text',
+        frameWidth: 120,
+        figureLeft: 10,
+        figureTop: 4,
+        flowMode: 'float',
+        layoutWidth: 132
+      },
+      attributes: { align: 'right', offsetX: 0, offsetY: 0 },
+      mount: {
+        layer: document.createElement('div'),
+        pageNumber: 1,
+        anchorLeft: 100,
+        anchorTop: 50,
+        anchorWidth: 0,
+        anchorHeight: 0,
+        blockLeft: 40,
+        blockWidth: 280
+      }
+    })
+
+    expect(style.left).toBe(188)
+    expect(style.top).toBe(54)
   })
 })
