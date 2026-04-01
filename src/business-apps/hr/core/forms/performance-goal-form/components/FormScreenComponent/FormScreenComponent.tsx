@@ -5,6 +5,7 @@ import { UseFormReturn, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import {
   Input,
+  DateInput,
   Select,
   SelectContent,
   SelectItem,
@@ -16,7 +17,7 @@ import {
   FormLabel,
   FormMessage
 } from '@newwork/nw-design-system'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { PercentIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 
@@ -39,11 +40,11 @@ interface FormScreenComponentProps {
 
 export interface FormData {
   title: string
-  startDate: Date
-  dueDate: Date
+  startDate: string
+  dueDate: string
   status: string
   progressPercent: number
-  completionDate?: Date
+  completionDate?: string
   objectiveType: string
   startValue?: number
   targetValue?: number
@@ -79,7 +80,7 @@ const FormScreenComponentInner: React.FC<FormScreenComponentProps> = ({
     name: ['progressPercent', 'completionDate', 'objectiveType', 'milestones']
   })
   const progressPercent = (watched?.[0] as number | undefined) ?? 0
-  const completionDate = watched?.[1] as Date | undefined
+  const completionDate = watched?.[1] as string | undefined
   const objectiveType = (watched?.[2] as string | undefined) || 'PERCENTAGE_PERFORMANCE_GOAL'
   const milestones = (watched?.[3] as MilestoneItem[] | undefined) ?? []
 
@@ -92,7 +93,7 @@ const FormScreenComponentInner: React.FC<FormScreenComponentProps> = ({
 
   useEffect(() => {
     if (progressPercent === 100 && !completionDate) {
-      form.setValue('completionDate', new Date())
+      form.setValue('completionDate', dayjs().format('YYYY-MM-DD'))
     } else if (progressPercent < 100 && completionDate) {
       form.setValue('completionDate', undefined)
     }
@@ -202,23 +203,21 @@ const FormScreenComponentInner: React.FC<FormScreenComponentProps> = ({
           <FormItem>
             <FormLabel>{t('performance_goal.start_date_placeholder', 'Start date')} *</FormLabel>
             <FormControl>
-              <Input
-                {...field}
+              <DateInput
                 type="date"
+                value={field.value || ''}
+                onChange={value => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  field.onChange(stringValue)
+                }}
                 disabled={isStartDateDisabled}
                 data-testid="flw_changePersonalData_startDate"
-                value={
-                  field.value
-                    ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
-                    : ''
-                }
                 className="gba:w-full"
                 min={cycleStartValue}
                 max={cycleEndValue}
-                onChange={e => {
-                  const dateValue = e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
-                  field.onChange(dateValue)
-                }}
+                outputFormat="iso"
+                locale={getCurrentActiveUserLocale()}
+                captionLayout="dropdown"
               />
             </FormControl>
             <FormMessage />
@@ -252,23 +251,21 @@ const FormScreenComponentInner: React.FC<FormScreenComponentProps> = ({
           <FormItem>
             <FormLabel>{t('performance_goal.Due_date_placeholder', 'Due date')} *</FormLabel>
             <FormControl>
-              <Input
-                className="gba:w-full"
-                {...field}
+              <DateInput
                 type="date"
+                value={field.value || ''}
+                onChange={value => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  field.onChange(stringValue)
+                }}
                 disabled={isFieldsDisabled}
                 data-testid="flw_changePersonalData_dueDate"
+                className="gba:w-full"
                 min={cycleStartValue}
                 max={cycleEndValue}
-                value={
-                  field.value
-                    ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
-                    : ''
-                }
-                onChange={e => {
-                  const dateValue = e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
-                  field.onChange(dateValue)
-                }}
+                outputFormat="iso"
+                locale={getCurrentActiveUserLocale()}
+                captionLayout="dropdown"
               />
             </FormControl>
             <FormMessage />

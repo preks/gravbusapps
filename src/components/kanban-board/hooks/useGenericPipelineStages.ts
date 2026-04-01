@@ -26,6 +26,7 @@ export const useGenericPipelineStages = (
         where: {
           catalog: { identifier: { _eq: $stagesCatalogIdentifier } }
           parentEntryId: { _eq: $pipelineRef }
+          isDeleted: { _eq: false }
         }
         orderBy: { additionalValue1: ASC }
       ) {

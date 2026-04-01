@@ -34,6 +34,7 @@ export const fetchInvestmentTypeSubSections = async (groupCode: string, accessTo
         where: {
           catalog: { name: { _eq: "Investment Type" } }
           parentEntryId: { _eq: $groupId }
+          isDeleted: { _eq: false }
         }
         limit: 50
       ) {
