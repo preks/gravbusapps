@@ -12,6 +12,7 @@ interface CalendarVisibilityPanelProps {
   onSelectDate: (date: Date) => void
   includePersonal: boolean
   onTogglePersonal: (checked: boolean) => void
+  personalCalendarLabel: string
   personalCalendarColor: string
   personalHasColorOverride: boolean
   isLoadingPersonalColor?: boolean
@@ -40,6 +41,7 @@ export const CalendarVisibilityPanel: React.FC<CalendarVisibilityPanelProps> = (
   onSelectDate,
   includePersonal,
   onTogglePersonal,
+  personalCalendarLabel,
   personalCalendarColor,
   personalHasColorOverride,
   isLoadingPersonalColor = false,
@@ -61,7 +63,7 @@ export const CalendarVisibilityPanel: React.FC<CalendarVisibilityPanelProps> = (
   const { t } = useTranslation(translations)
 
   return (
-    <aside className="gba:w-72 gba:border-r gba:border-border/50 gba:bg-card/40 gba:flex gba:flex-col">
+    <div className="gba:flex gba:h-full gba:flex-col" data-testid="calendar-visibility-panel">
       <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
         <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('calendar-sidebar-title')}</h3>
       </div>
@@ -88,14 +90,14 @@ export const CalendarVisibilityPanel: React.FC<CalendarVisibilityPanelProps> = (
             <div className="gba:space-y-0">
               <CalendarVisibilityRow
                 rowId="personal"
-                title={t('calendar-sidebar-myCalendar')}
+                title={personalCalendarLabel}
                 checked={includePersonal}
                 onToggle={onTogglePersonal}
                 color={personalCalendarColor}
                 menu={
                   <CalendarRowMenu
                     rowId="personal"
-                    title={t('calendar-sidebar-myCalendar')}
+                    title={personalCalendarLabel}
                     color={personalCalendarColor}
                     hasColorOverride={personalHasColorOverride}
                     isColorUpdating={isLoadingPersonalColor || isUpdatingPersonalColor}
@@ -179,6 +181,6 @@ export const CalendarVisibilityPanel: React.FC<CalendarVisibilityPanelProps> = (
           </section>
         </div>
       </ScrollArea>
-    </aside>
+    </div>
   )
 }

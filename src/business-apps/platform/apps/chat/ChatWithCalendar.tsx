@@ -580,6 +580,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             activeCalls={activeCalls}
             externalCalendarEvents={externalCalendarEvents}
             externalCalendarSources={externalCalendarSources}
+            defaultSidebarOpen={!isInSidepanel && !isNarrowViewport}
             onOpenChat={conversationId => {
               setActiveTab('chat')
               setTimeout(() => {

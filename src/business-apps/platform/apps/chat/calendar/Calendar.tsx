@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Alert, AlertDescription, Button, Spinner, toast, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Button, Collapsible, Spinner, toast, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl, getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 import translations from '../_i18n'
@@ -44,6 +44,7 @@ interface CalendarProps extends BusinessAppContextProps {
   externalCalendarSources?: ExternalCalendarSource[]
   /** When provided, opens chat in-app (same as dashboard). When omitted, navigates to chat URL. */
   onOpenChat?: (conversationId: string) => void
+  defaultSidebarOpen?: boolean
 }
 
 const CALENDAR_VISIBILITY_STORAGE_KEY = 'chat-calendar-visibility'
@@ -55,7 +56,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
   activeCalls = {},
   externalCalendarEvents = [],
   externalCalendarSources = [],
-  onOpenChat
+  onOpenChat,
+  defaultSidebarOpen = true
 }) => {
   // Convert activeCalls to Map for component compatibility
   const activeConversationCalls = useMemo(() => {
@@ -206,9 +208,15 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
   const [updatingCalendarPreferenceId, setUpdatingCalendarPreferenceId] = useState<string | null>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
 
   const { t } = useTranslation(translations)
   const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
+  const personalCalendarLabel = useMemo(() => {
+    const displayName = userInfo?.displayName?.trim()
+
+    return displayName || t('calendar-sidebar-myCalendar')
+  }, [t, userInfo?.displayName])
   const defaultMeetingCalendarId = useMemo(() => {
     const selectedEditableCalendar = sharedCalendars.find(
       calendar => selectedInternalCalendarIds.includes(calendar.id) && calendar.canEdit
@@ -1006,36 +1014,43 @@ const CalendarInner: React.FC<CalendarProps> = ({
   }
 
   return (
-    <div
+    <Collapsible
+      open={isSidebarOpen}
+      onOpenChange={setIsSidebarOpen}
       className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
       data-testid={prefixDataTestId}
     >
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0">
-        <CalendarVisibilityPanel
-          currentDate={currentDate}
-          onSelectDate={setCurrentDate}
-          includePersonal={includePersonal}
-          onTogglePersonal={setIncludePersonal}
-          personalCalendarColor={personalCalendarColor}
-          personalHasColorOverride={personalCalendarHasColorOverride}
-          isLoadingPersonalColor={isLoadingPersonalCalendarColor}
-          isUpdatingPersonalColor={isUpdatingPersonalCalendarColor}
-          onSelectPersonalColor={handleSelectPersonalCalendarColor}
-          onCreateSharedCalendar={handleOpenCreateSharedCalendar}
-          onEditInternalCalendar={handleEditInternalCalendar}
-          onManageInternalCalendarAccess={handleManageInternalCalendarAccess}
-          onArchiveInternalCalendar={handleArchiveInternalCalendar}
-          internalCalendars={sharedCalendars}
-          updatingCalendarPreferenceId={updatingCalendarPreferenceId}
-          onSelectInternalCalendarColor={handleSelectInternalCalendarColor}
-          selectedInternalCalendarIds={selectedInternalCalendarIds}
-          onToggleInternalCalendar={handleToggleInternalCalendar}
-          externalSources={externalCalendarSources}
-          selectedExternalSourceIds={selectedExternalSourceIds}
-          onToggleExternalSource={handleToggleExternalSource}
-        />
+        {isSidebarOpen ? (
+          <div className="gba:w-64 gba:md:w-72 gba:h-full gba:border-r gba:border-border/50 gba:bg-card/40">
+            <CalendarVisibilityPanel
+              currentDate={currentDate}
+              onSelectDate={setCurrentDate}
+              includePersonal={includePersonal}
+              onTogglePersonal={setIncludePersonal}
+              personalCalendarLabel={personalCalendarLabel}
+              personalCalendarColor={personalCalendarColor}
+              personalHasColorOverride={personalCalendarHasColorOverride}
+              isLoadingPersonalColor={isLoadingPersonalCalendarColor}
+              isUpdatingPersonalColor={isUpdatingPersonalCalendarColor}
+              onSelectPersonalColor={handleSelectPersonalCalendarColor}
+              onCreateSharedCalendar={handleOpenCreateSharedCalendar}
+              onEditInternalCalendar={handleEditInternalCalendar}
+              onManageInternalCalendarAccess={handleManageInternalCalendarAccess}
+              onArchiveInternalCalendar={handleArchiveInternalCalendar}
+              internalCalendars={sharedCalendars}
+              updatingCalendarPreferenceId={updatingCalendarPreferenceId}
+              onSelectInternalCalendarColor={handleSelectInternalCalendarColor}
+              selectedInternalCalendarIds={selectedInternalCalendarIds}
+              onToggleInternalCalendar={handleToggleInternalCalendar}
+              externalSources={externalCalendarSources}
+              selectedExternalSourceIds={selectedExternalSourceIds}
+              onToggleExternalSource={handleToggleExternalSource}
+            />
+          </div>
+        ) : null}
 
-        <div className="gba:flex gba:flex-1 gba:flex-col gba:min-w-0 gba:min-h-0 gba:relative">
+        <div className="gba:relative gba:flex gba:flex-1 gba:flex-col gba:min-w-0 gba:min-h-0 gba:bg-background gba:overflow-hidden">
           <CalendarHeader
             viewTitle={viewTitle}
             view={view}
@@ -1050,6 +1065,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
               refreshCalendars()
             }}
             pendingInvitationsCount={pendingInvitations.length}
+            showSidebarToggle
+            onToggleSidebar={() => setIsSidebarOpen(currentOpen => !currentOpen)}
           />
 
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden gba:relative">
@@ -1061,7 +1078,6 @@ const CalendarInner: React.FC<CalendarProps> = ({
             {renderCalendarView()}
           </div>
 
-          {/* Floating pending invitations badge */}
           {pendingInvitations.length > 0 && (
             <div className="gba:absolute gba:bottom-3 gba:right-3 gba:z-20">
               <button
@@ -1164,7 +1180,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onOpenChat={onOpenChat ? handleOpenChat : undefined}
         activeConversationCalls={activeConversationCalls}
       />
-    </div>
+    </Collapsible>
   )
 }
 

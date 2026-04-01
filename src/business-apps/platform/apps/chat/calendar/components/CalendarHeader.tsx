@@ -8,7 +8,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react'
+import { ArrowsClockwiseIcon, CaretLeftIcon, CaretRightIcon, PlusIcon, SidebarSimpleIcon } from '@phosphor-icons/react'
 import type { CalendarView } from '../types'
 import translations from '../../_i18n'
 
@@ -22,6 +22,8 @@ interface CalendarHeaderProps {
   onCreateMeeting: () => void
   onRefresh?: () => void
   pendingInvitationsCount: number
+  showSidebarToggle?: boolean
+  onToggleSidebar?: () => void
 }
 
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
@@ -33,7 +35,9 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onToday,
   onCreateMeeting,
   onRefresh,
-  pendingInvitationsCount
+  pendingInvitationsCount,
+  showSidebarToggle = false,
+  onToggleSidebar
 }) => {
   const { t } = useTranslation(translations)
 
@@ -44,6 +48,19 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     >
       {/* Left: Navigation */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
+        {showSidebarToggle ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleSidebar}
+            className="gba:h-6 gba:w-6"
+            data-testid="calendar-sidebar-trigger"
+            aria-label={t('calendar-sidebar-title')}
+          >
+            <SidebarSimpleIcon className="gba:h-3.5 gba:w-3.5" />
+          </Button>
+        ) : null}
+
         <div className="gba:flex gba:items-center gba:border gba:border-border gba:rounded-md">
           <Button
             variant="ghost"
@@ -52,7 +69,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             className="gba:h-6 gba:w-6"
             data-testid="calendar-prev-button"
           >
-            <ChevronLeft className="gba:h-3.5 gba:w-3.5" />
+            <CaretLeftIcon className="gba:h-3.5 gba:w-3.5" />
           </Button>
           <Button
             variant="ghost"
@@ -61,7 +78,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             className="gba:h-6 gba:w-6"
             data-testid="calendar-next-button"
           >
-            <ChevronRight className="gba:h-3.5 gba:w-3.5" />
+            <CaretRightIcon className="gba:h-3.5 gba:w-3.5" />
           </Button>
         </div>
 
@@ -118,7 +135,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             data-testid="calendar-refresh-button"
             title={t('calendar-refresh')}
           >
-            <RefreshCw className="gba:h-3.5 gba:w-3.5" />
+            <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
           </Button>
         )}
 
@@ -129,7 +146,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           className="gba:h-6 gba:w-6 gba:flex-shrink-0"
           data-testid="calendar-create-meeting-button"
         >
-          <Plus className="gba:h-3.5 gba:w-3.5" />
+          <PlusIcon className="gba:h-3.5 gba:w-3.5" />
         </Button>
       </div>
     </div>
