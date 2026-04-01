@@ -140,18 +140,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     }
   }, [])
 
-  const handleIssueKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, employeeId: string, category: IssueCategory) => {
-      if (event.key !== 'Enter' && event.key !== ' ') {
-        return
-      }
-
-      event.preventDefault()
-      handleNavigateForIssue(employeeId, category)
-    },
-    [handleNavigateForIssue]
-  )
-
   return (
     <div className="gba:space-y-6">
       <div className="gba:grid gba:grid-cols-4 gba:gap-4">
@@ -258,12 +246,10 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                     className="gba:mt-0.5"
                   />
                   <SeverityIcon severity={issue.severity} />
-                  <div
-                    className="gba:flex-1 gba:min-w-0 gba:cursor-pointer"
+                  <button
+                    type="button"
+                    className="gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:text-left"
                     onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
-                    onKeyDown={event => handleIssueKeyDown(event, issue.employeeId, issue.category)}
-                    role="button"
-                    tabIndex={0}
                   >
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -287,7 +273,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                       {issue.message}
                     </p>
                     <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
-                  </div>
+                  </button>
                 </div>
               </Card>
             )

@@ -63,6 +63,22 @@ const BASE_HEADERS = [
 
 const ISSUE_HEADERS = ['Issue Codes', 'Blocker Count', 'Warning Count']
 
+function toOptionalStringValue(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  return String(value)
+}
+
+function toNumberStringValue(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  return String(value)
+}
+
 function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): string[] {
   const row = [
     employee.employeeId,
@@ -78,9 +94,9 @@ function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): strin
     employee.costCenter,
     employee.workLocation,
     employee.contractType,
-    employee.fte != null ? String(employee.fte) : '',
-    employee.weeklyHours != null ? String(employee.weeklyHours) : '',
-    employee.baseSalary != null ? String(employee.baseSalary) : '',
+    toNumberStringValue(employee.fte),
+    toNumberStringValue(employee.weeklyHours),
+    toNumberStringValue(employee.baseSalary),
     employee.currency,
     String(employee.bankDetailsPresent),
     employee.bankAccountIban || '',
@@ -91,11 +107,11 @@ function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): strin
     String(employee.unpaidLeaveDays),
     String(employee.otherLeaveDays),
     String(employee.missingPresenceDays),
-    employee.loggedHours != null ? String(employee.loggedHours) : '',
-    employee.contractCapacityHours != null ? String(employee.contractCapacityHours) : '',
-    employee.balanceHours != null ? String(employee.balanceHours) : '',
-    employee.overtimeHours != null ? String(employee.overtimeHours) : '',
-    employee.totalVariablePay != null ? String(employee.totalVariablePay) : '',
+    toOptionalStringValue(employee.loggedHours),
+    toOptionalStringValue(employee.contractCapacityHours),
+    toOptionalStringValue(employee.balanceHours),
+    toOptionalStringValue(employee.overtimeHours),
+    toOptionalStringValue(employee.totalVariablePay),
     employee.variablePayCurrency || '',
     employee.variablePayStatus || '',
     employee.readinessStatus,

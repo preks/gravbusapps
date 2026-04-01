@@ -28,6 +28,22 @@ const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, val
   </div>
 )
 
+function formatHoursValue(value: number | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  return `${value}h`
+}
+
+function formatOptionalValue(value: number | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  return String(value)
+}
+
 export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ employee, country, onClose, t }) => {
   if (employee === null) return null
 
@@ -91,11 +107,15 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
             label={t('grid-termination-date')}
             value={employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : null}
           />
-          <Field label={t('grid-fte')} value={employee.fte != null ? String(employee.fte) : null} />
-          <Field label={t('grid-capacity')} value={employee.weeklyHours != null ? `${employee.weeklyHours}h` : null} />
+          <Field label={t('grid-fte')} value={formatOptionalValue(employee.fte)} />
+          <Field label={t('grid-capacity')} value={formatHoursValue(employee.weeklyHours)} />
           <Field
             label={t('grid-base-salary')}
-            value={employee.baseSalary != null ? `${employee.baseSalary.toLocaleString()} ${employee.currency}` : null}
+            value={
+              employee.baseSalary === null || employee.baseSalary === undefined
+                ? null
+                : `${employee.baseSalary.toLocaleString()} ${employee.currency}`
+            }
           />
           <Field
             label={t('grid-bank-details')}
@@ -111,11 +131,13 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
           {employee.missingPresenceDays > 0 && (
             <Field label={t('grid-missing-presence')} value={`${employee.missingPresenceDays} day(s)`} />
           )}
-          {employee.loggedHours != null && <Field label={t('grid-logged-hours')} value={`${employee.loggedHours}h`} />}
-          {employee.contractCapacityHours != null && (
-            <Field label={t('grid-capacity')} value={`${employee.contractCapacityHours}h`} />
+          {employee.loggedHours !== null && employee.loggedHours !== undefined && (
+            <Field label={t('grid-logged-hours')} value={formatHoursValue(employee.loggedHours)} />
           )}
-          {employee.balanceHours != null && (
+          {employee.contractCapacityHours !== null && employee.contractCapacityHours !== undefined && (
+            <Field label={t('grid-capacity')} value={formatHoursValue(employee.contractCapacityHours)} />
+          )}
+          {employee.balanceHours !== null && employee.balanceHours !== undefined && (
             <Field
               label={t('grid-balance')}
               value={
@@ -126,8 +148,8 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               }
             />
           )}
-          {employee.overtimeHours != null && employee.overtimeHours > 0 && (
-            <Field label={t('grid-overtime')} value={`${employee.overtimeHours}h`} />
+          {employee.overtimeHours !== null && employee.overtimeHours !== undefined && employee.overtimeHours > 0 && (
+            <Field label={t('grid-overtime')} value={formatHoursValue(employee.overtimeHours)} />
           )}
         </Section>
 

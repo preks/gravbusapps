@@ -279,7 +279,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
           {idx < steps.length - 1 && (
             <div
               className={`gba:flex-1 gba:h-px gba:min-w-[24px] ${
-                steps[idx + 1].state !== 'pending' ? 'gba:bg-success' : 'gba:bg-border'
+                steps[idx + 1].state === 'pending' ? 'gba:bg-border' : 'gba:bg-success'
               }`}
             />
           )}

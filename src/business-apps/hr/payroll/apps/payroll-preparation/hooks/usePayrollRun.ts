@@ -55,6 +55,23 @@ function getUserDisplayName(userInfo?: UserInfoProps): string {
   return userInfo.userName || 'Unknown'
 }
 
+function generateAuditEventId(): string {
+  const cryptoApi = globalThis.crypto
+
+  if (cryptoApi?.randomUUID) {
+    return `audit-${cryptoApi.randomUUID()}`
+  }
+
+  if (cryptoApi?.getRandomValues) {
+    const randomBytes = new Uint8Array(8)
+    cryptoApi.getRandomValues(randomBytes)
+    const suffix = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')
+    return `audit-${Date.now()}-${suffix}`
+  }
+
+  return `audit-${Date.now()}`
+}
+
 export interface UsePayrollRunResult {
   payrollRun: PayrollRun | null
   loading: boolean
@@ -71,7 +88,7 @@ export interface UsePayrollRunResult {
 
 function createAuditEvent(eventType: string, description: string, userInfo?: UserInfoProps): AuditEvent {
   return {
-    id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: generateAuditEventId(),
     eventType,
     description,
     userId: userInfo?.id || 'system',

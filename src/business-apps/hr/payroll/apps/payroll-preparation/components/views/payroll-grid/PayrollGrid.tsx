@@ -37,6 +37,34 @@ type SortOrder = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
 
+function getVariablePayDisplay(employee: PayrollEmployee): string {
+  if (employee.totalVariablePay === null || employee.totalVariablePay === undefined) {
+    return '—'
+  }
+
+  return `${employee.totalVariablePay.toLocaleString()} ${employee.variablePayCurrency || ''}`
+}
+
+function formatHoursOrDash(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return '—'
+  }
+
+  return `${value}h`
+}
+
+function formatSalaryOrDash(value: number | null | undefined, currency: string): string {
+  if (value === null || value === undefined) {
+    return '—'
+  }
+
+  return `${value.toLocaleString()} ${currency}`
+}
+
+function hasNumberValue(value: number | null | undefined): value is number {
+  return value !== null && value !== undefined
+}
+
 const SortIcon: React.FC<{ field: SortField; activeField: SortField; order: SortOrder }> = ({
   field,
   activeField,
@@ -68,6 +96,112 @@ const SortableHead: React.FC<{
     </span>
   </TableHead>
 )
+
+interface PayrollGridRowProps {
+  employee: PayrollEmployee
+  onSelectEmployee: (employee: PayrollEmployee) => void
+}
+
+const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmployee }) => {
+  const openIssues = employee.issues.filter(i => i.status === 'open')
+  const hasBlockers = openIssues.some(i => i.severity === 'blocker')
+
+  return (
+    <TableRow
+      key={employee.id}
+      className="gba:cursor-pointer gba:hover:bg-muted"
+      onClick={() => onSelectEmployee(employee)}
+    >
+      <TableCell className="gba:sticky gba:left-0 gba:z-10 gba:bg-card">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+            {employee.pictureThumbnail ? (
+              <img
+                src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
+                alt=""
+                className="gba:w-8 gba:h-8 gba:rounded-full gba:object-cover"
+              />
+            ) : (
+              <UserIcon size={14} className="gba:text-muted-foreground" />
+            )}
+          </div>
+          <div>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+              {employee.displayName}
+            </p>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="gba:text-xs gba:text-muted-foreground gba:font-mono">{employee.code}</TableCell>
+      <TableCell>
+        <Badge variant={employee.employmentStatus === 'terminated' ? 'destructive' : 'success'}>
+          {employee.employmentStatus}
+        </Badge>
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.department}</TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {employee.hireDate ? new Date(employee.hireDate).toLocaleDateString() : '—'}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : '—'}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.costCenter}</TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.workLocation || '—'}</TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.contractType}</TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">
+        {employee.fte === null || employee.fte === undefined ? '—' : employee.fte.toFixed(2)}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
+        {formatSalaryOrDash(employee.baseSalary, employee.currency)}
+      </TableCell>
+      <TableCell>
+        <FieldStatusBadge present={employee.bankDetailsPresent} />
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {getVariablePayDisplay(employee)}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {employee.paidLeaveHours ? `${employee.paidLeaveHours}h (${employee.paidLeaveDays}d)` : '—'}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {employee.sickLeaveHours ? `${employee.sickLeaveHours}h (${employee.sickLeaveDays}d)` : '—'}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.unpaidLeaveDays || '—'}</TableCell>
+      <TableCell>
+        {employee.missingPresenceDays > 0 ? (
+          <Badge variant="destructive">{employee.missingPresenceDays}d</Badge>
+        ) : (
+          <span className="gba:text-sm gba:text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {formatHoursOrDash(employee.loggedHours)}
+      </TableCell>
+      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
+        {formatHoursOrDash(employee.contractCapacityHours)}
+      </TableCell>
+      <TableCell className="gba:whitespace-nowrap">
+        {hasNumberValue(employee.balanceHours) ? (
+          <Badge variant={employee.balanceHours >= 0 ? 'success' : 'destructive'}>
+            {employee.balanceHours >= 0 ? '+' : ''}
+            {employee.balanceHours}h
+          </Badge>
+        ) : (
+          '—'
+        )}
+      </TableCell>
+      <TableCell>
+        <IssueCountBadge count={openIssues.length} hasBlockers={hasBlockers} />
+      </TableCell>
+      <TableCell>
+        <ReadinessStatusBadge status={employee.readinessStatus} />
+      </TableCell>
+      <TableCell>
+        <ChangedBadge changed={employee.changedSinceLastPayroll} />
+      </TableCell>
+    </TableRow>
+  )
+}
 
 export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   employees,
@@ -216,110 +350,13 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                paginated.map(emp => {
-                  const openIssues = emp.issues.filter(i => i.status === 'open')
-                  const hasBlockers = openIssues.some(i => i.severity === 'blocker')
-
-                  return (
-                    <TableRow
-                      key={emp.id}
-                      className="gba:cursor-pointer gba:hover:bg-muted"
-                      onClick={() => setSelectedEmployee(emp)}
-                    >
-                      <TableCell className="gba:sticky gba:left-0 gba:z-10 gba:bg-card">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                            {emp.pictureThumbnail ? (
-                              <img
-                                src={`data:image/jpeg;base64,${emp.pictureThumbnail}`}
-                                alt=""
-                                className="gba:w-8 gba:h-8 gba:rounded-full gba:object-cover"
-                              />
-                            ) : (
-                              <UserIcon size={14} className="gba:text-muted-foreground" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-                              {emp.displayName}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-xs gba:text-muted-foreground gba:font-mono">{emp.code}</TableCell>
-                      <TableCell>
-                        <Badge variant={emp.employmentStatus === 'terminated' ? 'destructive' : 'success'}>
-                          {emp.employmentStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.department}</TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.hireDate ? new Date(emp.hireDate).toLocaleDateString() : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.terminationDate ? new Date(emp.terminationDate).toLocaleDateString() : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.costCenter}</TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.workLocation || '—'}</TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.contractType}</TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">
-                        {emp.fte != null ? emp.fte.toFixed(2) : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-                        {emp.baseSalary != null ? `${emp.baseSalary.toLocaleString()} ${emp.currency}` : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <FieldStatusBadge present={emp.bankDetailsPresent} />
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.totalVariablePay != null
-                          ? `${emp.totalVariablePay.toLocaleString()} ${emp.variablePayCurrency || ''}`
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.paidLeaveHours ? `${emp.paidLeaveHours}h (${emp.paidLeaveDays}d)` : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.sickLeaveHours ? `${emp.sickLeaveHours}h (${emp.sickLeaveDays}d)` : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground">
-                        {emp.unpaidLeaveDays || '—'}
-                      </TableCell>
-                      <TableCell>
-                        {emp.missingPresenceDays > 0 ? (
-                          <Badge variant="destructive">{emp.missingPresenceDays}d</Badge>
-                        ) : (
-                          <span className="gba:text-sm gba:text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.loggedHours != null ? `${emp.loggedHours}h` : '—'}
-                      </TableCell>
-                      <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-                        {emp.contractCapacityHours != null ? `${emp.contractCapacityHours}h` : '—'}
-                      </TableCell>
-                      <TableCell className="gba:whitespace-nowrap">
-                        {emp.balanceHours != null ? (
-                          <Badge variant={emp.balanceHours >= 0 ? 'success' : 'destructive'}>
-                            {emp.balanceHours >= 0 ? '+' : ''}
-                            {emp.balanceHours}h
-                          </Badge>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <IssueCountBadge count={openIssues.length} hasBlockers={hasBlockers} />
-                      </TableCell>
-                      <TableCell>
-                        <ReadinessStatusBadge status={emp.readinessStatus} />
-                      </TableCell>
-                      <TableCell>
-                        <ChangedBadge changed={emp.changedSinceLastPayroll} />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
+                paginated.map(employee => (
+                  <PayrollGridRow
+                    key={employee.id}
+                    employee={employee}
+                    onSelectEmployee={selected => setSelectedEmployee(selected)}
+                  />
+                ))
               )}
             </TableBody>
           </Table>
