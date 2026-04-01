@@ -2501,10 +2501,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   }}
                 >
                   <div
-                    className="gba:absolute gba:-top-6 gba:left-0 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-white gba:rounded-sm gba:whitespace-nowrap"
+                    className="gba:absolute gba:-top-2 gba:-right-2 gba:h-5 gba:min-w-5 gba:px-1 gba:text-[9px] gba:leading-5 gba:font-semibold gba:text-white gba:rounded-full gba:text-center gba:whitespace-nowrap gba:shadow-sm"
                     style={{ backgroundColor: cursor.userColor }}
+                    title={cursor.userName}
                   >
-                    {cursor.userName}
+                    {getInitials(cursor.userName)}
                   </div>
                 </div>
               )

@@ -225,7 +225,7 @@ function generateSheetSchema(analysis: SheetAnalysis, parsedSheet: ParsedSheet):
     views,
     data,
     chartConfigs,
-    settings: generateSheetSettings(analysis)
+    settings: generateSheetSettings(analysis, parsedSheet)
   }
 }
 
@@ -283,7 +283,8 @@ function generateSheetSchemaFromParsedSheet(parsedSheet: ParsedSheet): Spreadshe
       allowExport: true,
       allowImport: true,
       rowsPerPage: 25,
-      showRowNumbers: true
+      showRowNumbers: true,
+      mergeData: parsedSheet.mergeData
     }
   }
 }
@@ -405,7 +406,7 @@ function generateChartConfigs(analysis: SheetAnalysis, columns: SpreadsheetColum
 /**
  * Generate sheet settings
  */
-function generateSheetSettings(analysis: SheetAnalysis): SheetSettings {
+function generateSheetSettings(analysis: SheetAnalysis, parsedSheet: ParsedSheet): SheetSettings {
   return {
     allowAdd: !analysis.isLookupTable,
     allowEdit: true,
@@ -413,7 +414,8 @@ function generateSheetSettings(analysis: SheetAnalysis): SheetSettings {
     allowExport: true,
     allowImport: true,
     rowsPerPage: 25,
-    showRowNumbers: true
+    showRowNumbers: true,
+    mergeData: parsedSheet.mergeData
   }
 }
 
