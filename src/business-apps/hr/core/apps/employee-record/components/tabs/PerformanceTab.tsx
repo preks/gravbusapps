@@ -424,8 +424,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     const achieved = activeContainedGoals.filter(
       goal => goal.status === 'ACHIEVED' || goal.progressPercent >= 100
     ).length
-    const onTrack = activeContainedGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
-    const behind = activeContainedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
+    const inProgressGoals = activeContainedGoals.filter(
+      goal => goal.status !== 'ACHIEVED' && (goal.progressPercent || 0) < 100
+    )
+    const onTrack = inProgressGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
+    const behind = inProgressGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
     return { total, achieved, onTrack, behind }
   }, [containedGoals, getTrackState])
 
