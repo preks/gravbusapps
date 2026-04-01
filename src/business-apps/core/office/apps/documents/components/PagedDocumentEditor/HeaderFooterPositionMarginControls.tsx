@@ -1,5 +1,6 @@
 import { Input, cn, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import { headerFooterSidebarPreventBlur } from './headerFooterSidebarPreventBlur'
 
 function HeaderFromTopIllustration({ className }: Readonly<{ className?: string }>) {
   return (
@@ -86,6 +87,7 @@ export function HeaderFooterPositionMarginControls({
     <div
       className="gba:flex gba:w-full gba:flex-col gba:gap-4 gba:rounded-md gba:border gba:border-border/50 gba:bg-muted/15 gba:p-3"
       data-testid={`${testId}-position-margins`}
+      onMouseDown={headerFooterSidebarPreventBlur}
     >
       <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
         <HeaderFromTopIllustration />
