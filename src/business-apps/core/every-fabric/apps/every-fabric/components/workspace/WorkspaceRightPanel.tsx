@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ArrowsClockwise,
   Brain,
@@ -20,7 +20,7 @@ import {
   XCircle
 } from '@phosphor-icons/react'
 import type { ActivityEvent } from '../../types/enterpriseAgent'
-import type { ArtifactFile, FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
+import type { ArtifactFile, FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
 import { formatRelativeTime, toolCategoryColor } from '../../utils/renderUtils'
 
 // ─── Shared card shell ────────────────────────────────────────────────────────
@@ -150,6 +150,7 @@ interface ProgressCardProps {
   totalCount: number
   progressPercent: number
   isConnected: boolean
+  isStreaming: boolean
 }
 
 const ProgressCard: React.FC<ProgressCardProps> = ({
@@ -157,8 +158,19 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
   completedCount,
   totalCount,
   progressPercent,
-  isConnected
+  isConnected,
+  isStreaming
 }) => {
+  const hasActiveWork = nodes.some(node => node.status === 'active' || node.status === 'pending')
+  const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
+  const progressLabel =
+    totalCount === 0
+      ? 'Waiting to start'
+      : isStreaming && hasActiveWork
+        ? `${completedCount} of ${totalCount} done`
+        : isStreaming && completedCount >= totalCount
+          ? 'Finalizing response…'
+          : `${completedCount} of ${totalCount} done`
   const connectionBadge = (
     <div className="gba:flex gba:items-center gba:gap-1">
       {isConnected ? (
@@ -179,15 +191,13 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
         {totalCount > 0 && (
           <div className="gba:mb-3">
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
-              <span className="gba:text-[11px] gba:text-muted-foreground/60">
-                {completedCount} of {totalCount} done
-              </span>
-              <span className="gba:text-[11px] gba:font-semibold gba:text-foreground">{progressPercent}%</span>
+              <span className="gba:text-[11px] gba:text-muted-foreground/60">{progressLabel}</span>
+              <span className="gba:text-[11px] gba:font-semibold gba:text-foreground">{displayPercent}%</span>
             </div>
             <div className="gba:h-1 gba:w-full gba:rounded-full gba:bg-border gba:overflow-hidden">
               <div
                 className="gba:h-full gba:rounded-full gba:bg-primary gba:transition-all gba:duration-500"
-                style={{ width: `${progressPercent}%` }}
+                style={{ width: `${displayPercent}%` }}
               />
             </div>
           </div>
@@ -237,7 +247,7 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
   artifacts,
   onView
 }) => (
-  <Card title="Files" badge={artifacts.length} defaultOpen>
+  <Card title="Artifacts" badge={artifacts.length} defaultOpen>
     <div className="gba:py-1">
       {artifacts.map(file => (
         <div
@@ -275,6 +285,111 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
   </Card>
 )
 
+const ENTERPRISE_EXPERT_ACCENT = {
+  badge: 'gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300',
+  running: 'gba:text-sky-600',
+  done: 'gba:text-green-500',
+  failed: 'gba:text-destructive'
+}
+
+const normalizeExpertName = (value: string) => value.trim().replace(/\s+/g, ' ')
+const inferExpertLabelFromSummary = (summary?: string) => {
+  const normalized = (summary ?? '').trim().toLowerCase()
+  if (!normalized) return 'Enterprise expert'
+  if (/\b(market|competitor|industry|research|trend)\b/.test(normalized)) return 'Market research'
+  if (/\b(hr|human resources|manager|employee|role|permission|admin)\b/.test(normalized)) return 'HR operations'
+  if (/\b(salary|bonus|stock|compensation|budget|pay|allocation)\b/.test(normalized)) return 'Compensation'
+  if (/\b(expense|spend|cost|finance|financial|pricing|revenue)\b/.test(normalized)) return 'Finance'
+  if (/\b(workflow|approval|process|submission|orchestrat)\b/.test(normalized)) return 'Workflow design'
+  if (/\b(report|write|summary|brief|document)\b/.test(normalized)) return 'Writing'
+  if (/\b(chart|diagram|visual|analysis|analytics|data)\b/.test(normalized)) return 'Data analysis'
+  if (/\b(vpn|access|security|infrastructure|diagnos|troubleshoot|it\b)\b/.test(normalized)) return 'IT support'
+  return 'Enterprise expert'
+}
+
+const isMeaningfulExpertLabel = (value?: string) => {
+  const normalized = normalizeExpertName(value ?? '').toLowerCase()
+  return !!normalized && normalized !== 'sub-agent' && normalized !== 'enterprise expert'
+}
+
+const EnterpriseExpertsCard: React.FC<{ nodes: FabricTaskNode[]; events: ActivityEvent[] }> = ({ nodes, events }) => {
+  const experts = useMemo(() => {
+    const seen = new Map<string, FabricSubAgent>()
+
+    for (const node of nodes) {
+      for (const expert of node.subAgents) {
+        const normalizedName = normalizeExpertName(expert.name)
+        const displayName =
+          normalizedName && normalizedName.toLowerCase() !== 'sub-agent'
+            ? normalizedName
+            : inferExpertLabelFromSummary(expert.summary)
+        const key = `${displayName.toLowerCase()}::${(expert.summary ?? '').trim().toLowerCase()}`
+        const existing = seen.get(key)
+        if (!existing || (existing.status !== 'running' && expert.status === 'running')) {
+          seen.set(key, { ...expert, name: displayName })
+        }
+      }
+    }
+
+    for (const event of events) {
+      if (event.type !== 'subagent_spawn') continue
+      const displayName = isMeaningfulExpertLabel(event.agent)
+        ? normalizeExpertName(event.agent!)
+        : inferExpertLabelFromSummary(event.summary)
+      const key = `${displayName.toLowerCase()}::${(event.summary ?? '').trim().toLowerCase()}`
+      const existing = seen.get(key)
+      if (!existing) {
+        seen.set(key, {
+          id: event.id,
+          name: displayName,
+          summary: event.summary,
+          status: 'running'
+        })
+      }
+    }
+
+    return [...seen.values()]
+  }, [nodes, events])
+
+  if (experts.length === 0) return null
+
+  return (
+    <Card title="Enterprise experts" badge={experts.length} defaultOpen>
+      <div className="gba:py-1 gba:space-y-1">
+        {experts.map(expert => (
+          <div
+            key={expert.id}
+            className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/20 gba:transition-colors"
+            data-testid={`fabric-expert-${expert.id}`}
+          >
+            <span
+              className={`gba:flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full ${ENTERPRISE_EXPERT_ACCENT.badge}`}
+            >
+              <ShareNetwork className="gba:h-4 gba:w-4" />
+            </span>
+            <div className="gba:flex-1 gba:min-w-0">
+              <p className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate">{expert.name}</p>
+              {expert.summary && (
+                <p className="gba:text-[11px] gba:text-muted-foreground/70 gba:line-clamp-2">{expert.summary}</p>
+              )}
+              <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:mt-0.5">
+                {expert.status === 'running' ? 'Running' : expert.status === 'failed' ? 'Failed' : 'Done'}
+              </p>
+            </div>
+            {expert.status === 'running' ? (
+              <SpinnerGap className={`gba:h-3.5 gba:w-3.5 gba:animate-spin ${ENTERPRISE_EXPERT_ACCENT.running}`} />
+            ) : expert.status === 'done' ? (
+              <CheckCircle className={`gba:h-3.5 gba:w-3.5 ${ENTERPRISE_EXPERT_ACCENT.done}`} weight="fill" />
+            ) : (
+              <XCircle className={`gba:h-3.5 gba:w-3.5 ${ENTERPRISE_EXPERT_ACCENT.failed}`} weight="fill" />
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
 // ─── Activity card ────────────────────────────────────────────────────────────
 
 const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
@@ -282,8 +397,15 @@ const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
   tool_result: <ArrowsClockwise className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   plan_update: <ListChecks className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
   reflection: <Brain className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  subagent_spawn: <ShareNetwork className="gba:h-3.5 gba:w-3.5 gba:text-purple-500" />,
+  subagent_spawn: <ShareNetwork className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
   memory_access: <Database className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+}
+
+const normalizeActivityText = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+const isLikelyTaskText = (value?: string) => {
+  const compact = (value ?? '').trim()
+  if (!compact) return false
+  return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
 const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => (
@@ -294,11 +416,16 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => (
         .slice(0, 20)
         .map(event => {
           const isSubagent = event.type === 'subagent_spawn'
+          const showAgentBadge =
+            isSubagent &&
+            !!event.agent &&
+            !isLikelyTaskText(event.agent) &&
+            normalizeActivityText(event.agent) !== normalizeActivityText(event.summary)
           return (
             <div
               key={event.id}
               className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${
-                isSubagent ? 'gba:border-l-2 gba:border-purple-400/60' : ''
+                isSubagent ? 'gba:border-l-2 gba:border-sky-400/60' : ''
               }`}
               data-testid={`fabric-activity-${event.id}`}
             >
@@ -311,8 +438,8 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => (
                     {event.toolName}
                   </span>
                 )}
-                {isSubagent && event.agent && (
-                  <span className="gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300">
+                {showAgentBadge && (
+                  <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
                     {event.agent}
                   </span>
                 )}
@@ -345,6 +472,7 @@ interface WorkspaceRightPanelProps {
   activityEvents: ActivityEvent[]
   artifacts: ArtifactFile[]
   isConnected: boolean
+  isStreaming: boolean
   onViewArtifact: (name: string) => void
 }
 
@@ -356,6 +484,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   activityEvents,
   artifacts,
   isConnected,
+  isStreaming,
   onViewArtifact
 }) => (
   <div
@@ -368,7 +497,10 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
       totalCount={totalCount}
       progressPercent={progressPercent}
       isConnected={isConnected}
+      isStreaming={isStreaming}
     />
+
+    <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} />
 
     {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
 

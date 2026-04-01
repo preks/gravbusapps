@@ -89,23 +89,33 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
   const [freeText, setFreeText] = useState('')
   const [isCustomOpen, setIsCustomOpen] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [forceClosed, setForceClosed] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const { headline, options } = parseQuestion(question)
   const displayOptions = options.length > 0 ? options : FALLBACK_OPTIONS
+  const visible = isOpen && !forceClosed
 
-  useFocusTrap(panelRef, isOpen)
+  useFocusTrap(panelRef, visible)
 
   // Reset on new question
   useEffect(() => {
     setFreeText('')
     setIsCustomOpen(false)
     setSubmitted(false)
+    setForceClosed(false)
   }, [question])
 
   const submit = (value: string) => {
     if (!value.trim() || submitted) return
     setSubmitted(true)
+    setForceClosed(true)
+    onDismiss?.()
     onAnswer(value.trim())
+  }
+
+  const dismiss = () => {
+    setForceClosed(true)
+    onDismiss?.()
   }
 
   return (
@@ -114,9 +124,9 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
       <div
         aria-hidden="true"
         className={`gba:fixed gba:inset-0 gba:bg-background/18 gba:z-[55] gba:transition-opacity gba:duration-200 ${
-          isOpen ? 'gba:opacity-100 gba:pointer-events-auto' : 'gba:opacity-0 gba:pointer-events-none'
+          visible ? 'gba:opacity-100 gba:pointer-events-auto' : 'gba:opacity-0 gba:pointer-events-none'
         }`}
-        onClick={onDismiss}
+        onClick={dismiss}
       />
 
       <div
@@ -126,7 +136,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
         aria-label="Agent clarification"
         data-testid="fabric-clarification-prompt"
         className={`gba:fixed gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:pointer-events-none gba:transition-all gba:duration-300 gba:ease-out ${
-          isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
+          visible ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
         }`}
       >
         <div className={WORKSPACE_CHAT_GUTTER_CLASS}>
@@ -139,7 +149,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                 </span>
                 {onDismiss && (
                   <button
-                    onClick={onDismiss}
+                    onClick={dismiss}
                     className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
                     data-testid="fabric-clarification-dismiss"
                     aria-label="Dismiss"

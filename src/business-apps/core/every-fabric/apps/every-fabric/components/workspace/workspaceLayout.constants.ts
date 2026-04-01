@@ -4,6 +4,7 @@ export const WORKSPACE_CHAT_RAIL_CLASS =
 export const WORKSPACE_CHAT_GUTTER_CLASS = 'gba:px-4 sm:gba:px-6 lg:gba:px-8'
 
 export const WORKSPACE_COMPOSER_OFFSET_CLASS = 'gba:pb-[9.75rem] sm:gba:pb-[11.5rem] lg:gba:pb-[12.5rem]'
+export const WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS = 'gba:pb-[20rem] sm:gba:pb-[22rem] lg:gba:pb-[24rem]'
 
 export const WORKSPACE_TOP_CONTROLS_OFFSET_CLASS = 'gba:top-20 sm:gba:top-20 lg:gba:top-[5rem]'
 

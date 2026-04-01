@@ -5,7 +5,8 @@ import { MessageBubble } from '../chat/MessageBubble'
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
-  WORKSPACE_COMPOSER_OFFSET_CLASS
+  WORKSPACE_COMPOSER_OFFSET_CLASS,
+  WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS
 } from './workspaceLayout.constants'
 
 interface ConversationPanelProps {
@@ -13,6 +14,7 @@ interface ConversationPanelProps {
   messages: ChatMessage[]
   isStreaming: boolean
   isWaitingForInput: boolean
+  hasFixedFollowUps?: boolean
   onReply: (message: string) => void | Promise<unknown>
   onViewArtifact?: (artifactName: string) => void
   composer?: React.ReactNode
@@ -22,13 +24,13 @@ const isTranscriptMessage = (message: ChatMessage) =>
   message.type === 'user_input' ||
   message.type === 'expert_call' ||
   message.type === 'final_answer' ||
-  message.type === 'human_interrupt' ||
   message.type === 'error'
 
 export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   sessionId,
   messages,
   isStreaming,
+  hasFixedFollowUps = false,
   onReply,
   onViewArtifact,
   composer
@@ -59,7 +61,9 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${WORKSPACE_COMPOSER_OFFSET_CLASS}`}
+        className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${
+          hasFixedFollowUps ? WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS : WORKSPACE_COMPOSER_OFFSET_CLASS
+        }`}
       >
         <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:space-y-4`}>
           {visibleMessages.map(msg => (
