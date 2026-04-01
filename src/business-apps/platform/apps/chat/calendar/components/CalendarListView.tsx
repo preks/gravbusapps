@@ -110,6 +110,7 @@ export const CalendarListView: React.FC<CalendarListViewProps> = ({
                     <CalendarEventItem
                       event={event}
                       compact={false}
+                      listLayout
                       onClick={() => onEventClick(event)}
                       t={t}
                       activeConversationCalls={activeConversationCalls}

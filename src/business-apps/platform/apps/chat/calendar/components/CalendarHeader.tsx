@@ -81,8 +81,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
     }
   }, [t, timeScope])
 
-  const triggerLabel = calendarLayout === 'list' ? `${scopeLabel} · ${t('calendar-layout-list')}` : scopeLabel
-
   const scopeIcon = (scope: CalendarTimeScope) => {
     const className = 'gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground'
     switch (scope) {
@@ -190,7 +188,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
               aria-label={t('calendar-view-menu-aria')}
             >
               {scopeIcon(timeScope)}
-              <span className="gba:truncate">{triggerLabel}</span>
+              <span className="gba:truncate">{scopeLabel}</span>
               {menuOpen ? (
                 <CaretUpIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0" aria-hidden />
               ) : (

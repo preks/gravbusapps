@@ -417,8 +417,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
           }
           // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
-      } else if (meetingIdParam && events.length > 0) {
-        // meetingId without date: find meeting in loaded events, go to its day and select it (URL keeps meetingId for shareable link)
+      } else if (meetingIdParam && events.length > 0 && !isDetailModalOpen && !isCreateModalOpen) {
+        // meetingId without date: find meeting in loaded events, go to its day and select it (URL keeps meetingId for shareable link).
+        // Skip while detail/create modal is open: handleEventClick syncs meetingId into the URL without intending to change time scope;
+        // this effect also re-runs when `events` updates, which would wrongly force day view (e.g. from 3-day).
         const meetingEvent = events.find(e => e.id === meetingIdParam)
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           const meetingDate = meetingEvent.start
@@ -443,7 +445,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
       if (timeoutId !== null) clearTimeout(timeoutId)
       globalThis.window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
-  }, [canOpenEventDetails, events, setCurrentDate, selectEvent, refresh, viewPreferences])
+  }, [
+    canOpenEventDetails,
+    events,
+    setCurrentDate,
+    selectEvent,
+    refresh,
+    viewPreferences,
+    isDetailModalOpen,
+    isCreateModalOpen
+  ])
 
   // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available.
   // Skip re-opening detail when create/edit modal is open (e.g. user clicked Edit).
