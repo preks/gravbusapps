@@ -6,6 +6,7 @@ import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent, DateRange } from '../types'
+import { getDaysInDateRange } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
 import translations from '../../_i18n'
 
@@ -28,16 +29,6 @@ const formatHour = (hour: number, locale: string): string => {
   // Create a date at the specified hour to format it
   const date = dayjs().hour(hour).minute(0).second(0)
   return date.locale(baseLocale).format('LT')
-}
-
-const getDaysInWeek = (startDate: Date): Date[] => {
-  const days: Date[] = []
-  const current = new Date(startDate)
-  for (let i = 0; i < 7; i++) {
-    days.push(new Date(current))
-    current.setDate(current.getDate() + 1)
-  }
-  return days
 }
 
 // Get date key in local timezone (YYYY-MM-DD format)
@@ -102,7 +93,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
   const { locale } = useLocale()
   const { t } = useTranslation(translations)
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
-  const days = useMemo(() => getDaysInWeek(dateRange.start), [dateRange.start])
+  const days = useMemo(() => getDaysInDateRange(dateRange), [dateRange])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef(false)
 

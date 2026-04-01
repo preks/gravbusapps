@@ -1,21 +1,39 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowsClockwiseIcon, CaretLeftIcon, CaretRightIcon, PlusIcon, SidebarSimpleIcon } from '@phosphor-icons/react'
-import type { CalendarView } from '../types'
+import {
+  ArrowsClockwiseIcon,
+  BriefcaseIcon,
+  CalendarBlankIcon,
+  CalendarIcon,
+  CaretDownIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  CaretUpIcon,
+  ListBulletsIcon,
+  PlusIcon,
+  SidebarSimpleIcon,
+  SquaresFourIcon
+} from '@phosphor-icons/react'
+import type { CalendarLayout, CalendarTimeScope } from '../types'
+import { CalendarThreeDayScopeIcon } from './CalendarThreeDayScopeIcon'
 import translations from '../../_i18n'
 
 interface CalendarHeaderProps {
   viewTitle: string
-  view: CalendarView
-  onViewChange: (view: CalendarView) => void
+  timeScope: CalendarTimeScope
+  calendarLayout: CalendarLayout
+  onTimeScopeChange: (scope: CalendarTimeScope) => void
+  onCalendarLayoutChange: (layout: CalendarLayout) => void
   onPrevious: () => void
   onNext: () => void
   onToday: () => void
@@ -26,10 +44,14 @@ interface CalendarHeaderProps {
   onToggleSidebar?: () => void
 }
 
+const TIME_SCOPES: CalendarTimeScope[] = ['day', 'threeDay', 'workWeek', 'week', 'month']
+
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   viewTitle,
-  view,
-  onViewChange,
+  timeScope,
+  calendarLayout,
+  onTimeScopeChange,
+  onCalendarLayoutChange,
   onPrevious,
   onNext,
   onToday,
@@ -40,13 +62,67 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onToggleSidebar
 }) => {
   const { t } = useTranslation(translations)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+
+  const scopeLabel = useMemo(() => {
+    switch (timeScope) {
+      case 'day':
+        return t('calendar-viewDay')
+      case 'threeDay':
+        return t('calendar-threeDay')
+      case 'workWeek':
+        return t('calendar-workWeek')
+      case 'week':
+        return t('calendar-viewWeek')
+      case 'month':
+        return t('calendar-viewMonth')
+      default:
+        return t('calendar-viewWeek')
+    }
+  }, [t, timeScope])
+
+  const triggerLabel = calendarLayout === 'list' ? `${scopeLabel} · ${t('calendar-layout-list')}` : scopeLabel
+
+  const scopeIcon = (scope: CalendarTimeScope) => {
+    const className = 'gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground'
+    switch (scope) {
+      case 'day':
+        return <CalendarBlankIcon className={className} aria-hidden />
+      case 'threeDay':
+        return <CalendarThreeDayScopeIcon className={className} />
+      case 'workWeek':
+        return <BriefcaseIcon className={className} aria-hidden />
+      case 'week':
+        return <CalendarIcon className={className} aria-hidden />
+      case 'month':
+        return <SquaresFourIcon className={className} aria-hidden />
+      default:
+        return <CalendarIcon className={className} aria-hidden />
+    }
+  }
+
+  const scopeLabelFor = (scope: CalendarTimeScope) => {
+    switch (scope) {
+      case 'day':
+        return t('calendar-viewDay')
+      case 'threeDay':
+        return t('calendar-threeDay')
+      case 'workWeek':
+        return t('calendar-workWeek')
+      case 'week':
+        return t('calendar-viewWeek')
+      case 'month':
+        return t('calendar-viewMonth')
+      default:
+        return ''
+    }
+  }
 
   return (
     <div
       className="gba:flex gba:items-center gba:justify-between gba:gap-1 gba:px-2 gba:py-1.5 gba:border-b gba:border-border/50 gba:bg-background gba:min-w-0"
       data-testid="calendar-header"
     >
-      {/* Left: Navigation */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
         {showSidebarToggle ? (
           <Button
@@ -86,46 +162,69 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           variant="ghost"
           size="sm"
           onClick={onToday}
-          className="gba:h-6 gba:px-1.5 gba:text-[10px] gba:font-medium"
+          className="gba:h-6 gba:px-1.5 gba:text-xs gba:font-medium"
           data-testid="calendar-today-button"
         >
           {t('calendar-today')}
         </Button>
       </div>
 
-      {/* Center: Title - can shrink */}
       <h2 className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate gba:min-w-0 gba:flex-1 gba:text-center gba:px-1">
         {viewTitle}
       </h2>
 
-      {/* Right: Actions */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
-        {/* Pending invitations badge - only show count */}
         {pendingInvitationsCount > 0 && (
-          <div className="gba:hidden gba:md:flex gba:items-center gba:justify-center gba:h-5 gba:w-5 gba:bg-warning gba:text-warning-foreground gba:rounded-full gba:text-[10px] gba:font-bold">
+          <div className="gba:hidden gba:md:flex gba:items-center gba:justify-center gba:h-5 gba:w-5 gba:bg-warning gba:text-warning-foreground gba:rounded-full gba:text-xs gba:font-bold">
             {pendingInvitationsCount}
           </div>
         )}
 
-        {/* View selector - compact */}
-        <Select value={view} onValueChange={v => onViewChange(v as CalendarView)}>
-          <SelectTrigger className="gba:w-[80px] gba:h-8 gba:text-[10px] gba:px-2" data-testid="calendar-view-select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="gba:min-w-[120px]">
-            <SelectItem value="day" className="gba:text-sm gba:py-2">
-              {t('calendar-viewDay')}
-            </SelectItem>
-            <SelectItem value="week" className="gba:text-sm gba:py-2">
-              {t('calendar-viewWeek')}
-            </SelectItem>
-            <SelectItem value="month" className="gba:text-sm gba:py-2">
-              {t('calendar-viewMonth')}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gba:h-8 gba:gap-1 gba:px-2 gba:text-xs gba:font-medium gba:max-w-40 gba:sm:max-w-none"
+              data-testid="calendar-view-select"
+              aria-label={t('calendar-view-menu-aria')}
+            >
+              {scopeIcon(timeScope)}
+              <span className="gba:truncate">{triggerLabel}</span>
+              {menuOpen ? (
+                <CaretUpIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0" aria-hidden />
+              ) : (
+                <CaretDownIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0" aria-hidden />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="gba:min-w-52">
+            <DropdownMenuRadioGroup value={timeScope} onValueChange={v => onTimeScopeChange(v as CalendarTimeScope)}>
+              {TIME_SCOPES.map(scope => (
+                <DropdownMenuRadioItem
+                  key={scope}
+                  value={scope}
+                  className="gba:gap-2"
+                  data-testid={`calendar-scope-${scope}`}
+                >
+                  {scopeIcon(scope)}
+                  <span className="gba:flex-1">{scopeLabelFor(scope)}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem
+              checked={calendarLayout === 'list'}
+              onCheckedChange={checked => onCalendarLayoutChange(checked ? 'list' : 'calendar')}
+              className="gba:gap-2"
+              data-testid="calendar-layout-list-toggle"
+            >
+              <ListBulletsIcon className="gba:h-4 gba:w-4 gba:shrink-0" aria-hidden />
+              {t('calendar-layout-list')}
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-        {/* Refresh button - reload events for current time frame */}
         {onRefresh && (
           <Button
             variant="ghost"
@@ -139,7 +238,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </Button>
         )}
 
-        {/* Create meeting button - always icon only to save space */}
         <Button
           onClick={onCreateMeeting}
           size="icon"

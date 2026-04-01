@@ -5,6 +5,7 @@ import { navigateTo, buildPlatformUrl, getCurrentUrlWithUpdatedSearchParams } fr
 import translations from '../_i18n'
 import { setPendingJoinMeeting } from '../pendingJoinMeetingFromPlatform'
 import { useCalendar } from './hooks/useCalendar'
+import { useCalendarViewPreferences } from './hooks/useCalendarViewPreferences'
 import { useInternalCalendars } from './hooks/useInternalCalendars'
 import { usePersonalCalendarColorPreference } from './hooks/usePersonalCalendarColorPreference'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
@@ -18,6 +19,7 @@ import {
   ManageCalendarAccessDialog,
   WeekView,
   MonthView,
+  CalendarListView,
   CreateMeetingModal,
   MeetingDetailModal
 } from './components'
@@ -160,10 +162,12 @@ const CalendarInner: React.FC<CalendarProps> = ({
     [externalCalendarEvents, selectedExternalSourceIds]
   )
 
+  const viewPreferences = useCalendarViewPreferences(accessToken)
+
   // Calendar hook
   const {
     currentDate,
-    view,
+    timeScope,
     events,
     pendingInvitations,
     selectedEvent,
@@ -171,7 +175,6 @@ const CalendarInner: React.FC<CalendarProps> = ({
     error,
     apiClient,
     setCurrentDate,
-    setView,
     goToToday,
     goToPrevious,
     goToNext,
@@ -187,6 +190,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     viewTitle
   } = useCalendar({
     accessToken,
+    timeScope: viewPreferences.timeScope,
     externalEvents: filteredExternalEvents,
     selectedCalendarIds: selectedInternalCalendarIds,
     includePersonal
@@ -394,7 +398,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         const targetDate = new Date(dateParam)
         if (!Number.isNaN(targetDate.getTime())) {
           setCurrentDate(targetDate)
-          setView('day')
+          void viewPreferences.setTimeScope('day')
 
           // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId for shareable link)
           if (meetingIdParam) {
@@ -420,7 +424,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
           const meetingDate = meetingEvent.start
           if (!Number.isNaN(meetingDate.getTime())) {
             setCurrentDate(meetingDate)
-            setView('day')
+            void viewPreferences.setTimeScope('day')
             selectEvent(meetingEvent)
             setIsDetailModalOpen(true)
           }
@@ -439,7 +443,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
       if (timeoutId !== null) clearTimeout(timeoutId)
       globalThis.window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
-  }, [canOpenEventDetails, events, setCurrentDate, setView, selectEvent, refresh])
+  }, [canOpenEventDetails, events, setCurrentDate, selectEvent, refresh, viewPreferences])
 
   // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available.
   // Skip re-opening detail when create/edit modal is open (e.g. user clicked Edit).
@@ -450,11 +454,11 @@ const CalendarInner: React.FC<CalendarProps> = ({
     const meetingEvent = events.find(e => e.id === meetingIdParam)
     if (meetingEvent && canOpenEventDetails(meetingEvent)) {
       setCurrentDate(meetingEvent.start)
-      setView('day')
+      void viewPreferences.setTimeScope('day')
       selectEvent(meetingEvent)
       setIsDetailModalOpen(true)
     }
-  }, [canOpenEventDetails, events, isDetailModalOpen, isCreateModalOpen, selectEvent, setCurrentDate, setView])
+  }, [canOpenEventDetails, events, isDetailModalOpen, isCreateModalOpen, selectEvent, setCurrentDate, viewPreferences])
 
   // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
   useEffect(() => {
@@ -465,7 +469,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         const meetingEvent = events.find(e => e.id === meetingIdParam)
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           setCurrentDate(meetingEvent.start)
-          setView('day')
+          void viewPreferences.setTimeScope('day')
           selectEvent(meetingEvent)
           setIsDetailModalOpen(true)
         }
@@ -476,7 +480,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     }
     globalThis.window.addEventListener('popstate', handlePopState)
     return () => globalThis.window.removeEventListener('popstate', handlePopState)
-  }, [canOpenEventDetails, events, isDetailModalOpen, selectEvent, setCurrentDate, setView])
+  }, [canOpenEventDetails, events, isDetailModalOpen, selectEvent, setCurrentDate, viewPreferences])
 
   // Refresh calendar when backend sends meeting_created (so user sees new meetings without reload)
   useEffect(() => {
@@ -526,9 +530,9 @@ const CalendarInner: React.FC<CalendarProps> = ({
     (date: Date) => {
       // Switch to day view for that date
       setCurrentDate(date)
-      setView('day')
+      void viewPreferences.setTimeScope('day')
     },
-    [setCurrentDate, setView]
+    [setCurrentDate, viewPreferences]
   )
 
   // Handle create meeting
@@ -974,7 +978,19 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
   // Render calendar view based on current view mode
   const renderCalendarView = () => {
-    switch (view) {
+    if (viewPreferences.calendarLayout === 'list') {
+      return (
+        <CalendarListView
+          dateRange={dateRange}
+          events={events}
+          onEventClick={handleEventClick}
+          activeConversationCalls={activeConversationCalls}
+          onJoinCall={handleQuickJoinCall}
+        />
+      )
+    }
+
+    switch (timeScope) {
       case 'day':
         return (
           <DayView
@@ -986,6 +1002,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
             onJoinCall={handleQuickJoinCall}
           />
         )
+      case 'threeDay':
+      case 'workWeek':
       case 'week':
         return (
           <WeekView
@@ -1053,8 +1071,14 @@ const CalendarInner: React.FC<CalendarProps> = ({
         <div className="gba:relative gba:flex gba:flex-1 gba:flex-col gba:min-w-0 gba:min-h-0 gba:bg-background gba:overflow-hidden">
           <CalendarHeader
             viewTitle={viewTitle}
-            view={view}
-            onViewChange={setView}
+            timeScope={timeScope}
+            calendarLayout={viewPreferences.calendarLayout}
+            onTimeScopeChange={scope => {
+              void viewPreferences.setTimeScope(scope)
+            }}
+            onCalendarLayoutChange={layout => {
+              void viewPreferences.setCalendarLayout(layout)
+            }}
             onPrevious={goToPrevious}
             onNext={goToNext}
             onToday={goToToday}

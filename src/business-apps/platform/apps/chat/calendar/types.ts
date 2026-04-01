@@ -37,7 +37,28 @@ export enum InternalCalendarPermission {
   FREE_BUSY = 'free_busy'
 }
 
-export type CalendarView = 'day' | 'week' | 'month'
+/** Time window for the calendar (Outlook-style scopes) */
+export type CalendarTimeScope = 'day' | 'threeDay' | 'workWeek' | 'week' | 'month'
+
+/** Time grid vs agenda list for the same date range */
+export type CalendarLayout = 'calendar' | 'list'
+
+export const DEFAULT_CALENDAR_TIME_SCOPE: CalendarTimeScope = 'workWeek'
+export const DEFAULT_CALENDAR_LAYOUT: CalendarLayout = 'calendar'
+
+const CALENDAR_TIME_SCOPE_SET = new Set<string>(['day', 'threeDay', 'workWeek', 'week', 'month'])
+const CALENDAR_LAYOUT_SET = new Set<string>(['calendar', 'list'])
+
+export function parseCalendarTimeScope(value: unknown): CalendarTimeScope | null {
+  return typeof value === 'string' && CALENDAR_TIME_SCOPE_SET.has(value) ? (value as CalendarTimeScope) : null
+}
+
+export function parseCalendarLayout(value: unknown): CalendarLayout | null {
+  return typeof value === 'string' && CALENDAR_LAYOUT_SET.has(value) ? (value as CalendarLayout) : null
+}
+
+/** @deprecated Use CalendarTimeScope — kept for gradual migration in chat calendar only */
+export type CalendarView = CalendarTimeScope
 
 export interface MeetingParticipant {
   id: string
@@ -297,6 +318,66 @@ export const getWeekRange = (date: Date): DateRange => {
   end.setHours(23, 59, 59, 999)
 
   return { start, end }
+}
+
+/** Monday 00:00 through Friday 23:59:59 of the week containing `date` */
+export const getWorkWeekRange = (date: Date): DateRange => {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+  const dayOfWeek = start.getDay()
+  const daysFromMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  start.setDate(start.getDate() + daysFromMonday)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + 4)
+  end.setHours(23, 59, 59, 999)
+
+  return { start, end }
+}
+
+/** Three consecutive days starting at `date` (local midnight) */
+export const getThreeDayRange = (date: Date): DateRange => {
+  const start = new Date(date)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + 2)
+  end.setHours(23, 59, 59, 999)
+
+  return { start, end }
+}
+
+export const getDateRangeForTimeScope = (date: Date, scope: CalendarTimeScope): DateRange => {
+  switch (scope) {
+    case 'day':
+      return getDayRange(date)
+    case 'threeDay':
+      return getThreeDayRange(date)
+    case 'workWeek':
+      return getWorkWeekRange(date)
+    case 'week':
+      return getWeekRange(date)
+    case 'month':
+      return getMonthRange(date)
+    default:
+      return getWorkWeekRange(date)
+  }
+}
+
+/** Inclusive local calendar days between range start and end (midnight boundaries). */
+export const getDaysInDateRange = (dateRange: DateRange): Date[] => {
+  const days: Date[] = []
+  const cur = new Date(dateRange.start)
+  cur.setHours(0, 0, 0, 0)
+  const endDay = new Date(dateRange.end)
+  endDay.setHours(0, 0, 0, 0)
+
+  while (cur.getTime() <= endDay.getTime()) {
+    days.push(new Date(cur))
+    cur.setDate(cur.getDate() + 1)
+  }
+
+  return days
 }
 
 export const getMonthRange = (date: Date): DateRange => {
