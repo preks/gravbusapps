@@ -43,7 +43,7 @@ export const PeopleMomentsSection: React.FC<PeopleMomentsSectionProps> = ({
   const totalMoments = birthdays.length + anniversaries.length
 
   return (
-    <Card data-testid="people-moments-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+    <Card data-testid="people-moments-section" style={{ borderRadius: '12px' }} className="gba:p-4 gba:h-full">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base gba:font-semibold">People & Moments</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">

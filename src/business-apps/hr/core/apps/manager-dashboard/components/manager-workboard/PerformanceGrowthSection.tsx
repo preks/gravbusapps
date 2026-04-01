@@ -31,7 +31,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
     return (
       <Card style={{ borderRadius: '12px' }} className="gba:p-4">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
+          <CardTitle className="gba:text-base">Current Cycle Performance</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:animate-pulse gba:space-y-2">
@@ -48,8 +48,8 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   return (
     <Card data-testid="performance-growth-section" style={{ borderRadius: '12px' }} className="gba:p-4">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Performance & Growth</CardTitle>
-        <p className="gba:text-xs gba:text-muted-foreground">Goals progress distribution</p>
+        <CardTitle className="gba:text-base gba:font-semibold">Current Cycle Performance</CardTitle>
+        <p className="gba:text-xs gba:text-muted-foreground">Active cycle goal progress</p>
       </CardHeader>
       <CardContent className="gba:space-y-2">
         {hasGoals ? (
@@ -121,7 +121,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
               className="gba:w-full gba:h-8"
             >
               <BarChart3 size={14} className="gba:mr-1.5" />
-              Team Performance Dashboard
+              Performance Trends
             </Button>
           </div>
         )}

@@ -155,7 +155,34 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           </div>
         </div>
 
-        {/* MAIN LAYOUT: 2-column grid (2fr 1fr) on desktop, stacks on mobile */}
+        {/* Responsive scaling for large screens */}
+        <style>{String.raw`
+          @media (min-width: 1024px) {
+            [data-desktop-grid="2fr-1fr-main"] {
+              grid-template-columns: 2fr 1fr !important;
+            }
+          }
+          [data-layout="bottom-row-3col"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+          }
+          [data-layout="bottom-row-3col"] > div {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+          }
+          @media (min-width: 1920px) {
+            [data-testid="manager-dashboard-content"] { font-size: 110%; }
+          }
+          @media (min-width: 2560px) {
+            [data-testid="manager-dashboard-content"] { font-size: 120%; }
+          }
+          @media (min-width: 3840px) {
+            [data-testid="manager-dashboard-content"] { font-size: 135%; }
+          }
+        `}</style>
+
+        {/* MAIN LAYOUT: 2-column grid (2fr 1fr) — same as original */}
         <div
           className="gba:grid gba:grid-cols-1"
           style={{
@@ -165,46 +192,8 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           }}
           data-desktop-grid="2fr-1fr-main"
         >
-          <style>{String.raw`
-            @media (min-width: 1024px) {
-              [data-desktop-grid="2fr-1fr-main"] {
-                grid-template-columns: 2fr 1fr !important;
-              }
-            }
-            
-            /* Enhanced scaling for large screens only */
-            @media (min-width: 1920px) {
-              [data-testid="manager-dashboard-content"] {
-                font-size: 110%;
-              }
-            }
-            
-            @media (min-width: 2560px) {
-              [data-testid="manager-dashboard-content"] {
-                font-size: 120%;
-              }
-            }
-            
-            @media (min-width: 3840px) {
-              [data-testid="manager-dashboard-content"] {
-                font-size: 135%;
-              }
-            }
-            
-            /* Responsive card spacing for smaller screens */
-            @media (max-height: 800px) {
-              [data-testid="manager-dashboard-content"] .gba\\:space-y-2 > * + * {
-                margin-top: 0.375rem !important;
-              }
-              [data-testid="manager-dashboard-content"] .gba\\:space-y-3 > * + * {
-                margin-top: 0.5rem !important;
-              }
-            }
-          `}</style>
-
           {/* LEFT COLUMN: Today's Priorities + Your Team */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
-            {/* Today's Priorities */}
             <TodaysPrioritiesSection
               items={vm.priorities.items}
               loading={vm.priorities.loading}
@@ -219,7 +208,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onAssignProject={handleAssignProject}
             />
 
-            {/* Your Team */}
             <TeamAvatarsSection
               directReports={directReportsForWorkboard}
               unallocatedIds={vm.teamMembers.unallocatedIds}
@@ -229,9 +217,8 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             />
           </div>
 
-          {/* RIGHT COLUMN: Team Health + 2-column grid for Performance/Work and People/Positions */}
+          {/* RIGHT COLUMN: Team Health + Current Cycle Performance */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}>
-            {/* Team Health */}
             <TeamHealthSection
               summary={vm.teamHealth.summary}
               employees={vm.teamHealth.employees}
@@ -241,56 +228,51 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onToggleSentimentAnalysis={vm.actions.toggleSentimentAnalysis}
             />
 
-            {/* 2x2 Grid: Performance/Open Positions (left column) and Work/People (right column) */}
-            <div
-              className="gba:grid gba:grid-cols-1"
-              style={{ gap: 'clamp(1.5rem, 1.5vw, 2rem)' }}
-              data-desktop-grid="stacked-cards-grid"
-            >
-              <style>{`
-                @media (min-width: 1024px) {
-                  [data-desktop-grid="stacked-cards-grid"] {
-                    grid-template-columns: 1fr 1fr !important;
-                  }
-                }
-              `}</style>
+            <PerformanceGrowthSection
+              onTrack={vm.performanceGrowth.onTrack}
+              atRisk={vm.performanceGrowth.atRisk}
+              behind={vm.performanceGrowth.behind}
+              totalGoals={vm.performanceGrowth.totalGoals}
+              averageProgress={vm.performanceGrowth.averageProgress}
+              loading={vm.performanceGrowth.loading}
+              onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
+              onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
+              onNavigateToTeamPerformanceOverview={vm.actions.navigateToTeamPerformanceOverview}
+            />
+          </div>
+        </div>
 
-              {/* LEFT COLUMN: Performance & Growth + Open Positions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.2vw, 1.75rem)' }}>
-                <PerformanceGrowthSection
-                  onTrack={vm.performanceGrowth.onTrack}
-                  atRisk={vm.performanceGrowth.atRisk}
-                  behind={vm.performanceGrowth.behind}
-                  totalGoals={vm.performanceGrowth.totalGoals}
-                  averageProgress={vm.performanceGrowth.averageProgress}
-                  loading={vm.performanceGrowth.loading}
-                  onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
-                  onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
-                  onNavigateToTeamPerformanceOverview={vm.actions.navigateToTeamPerformanceOverview}
-                />
-                <OpenPositionsSection
-                  openPositions={vm.workCapacity.openPositions}
-                  loading={vm.workCapacity.loading.positions}
-                  onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
-                />
-              </div>
-
-              {/* RIGHT COLUMN: Work & Capacity + People & Moments */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 1.2vw, 1.75rem)' }}>
-                <WorkCapacitySection
-                  utilizationPercent={vm.workCapacity.utilizationPercent}
-                  idleCount={vm.workCapacity.idleCount}
-                  loading={vm.workCapacity.loading.allocation}
-                  onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
-                />
-                <PeopleMomentsSection
-                  birthdays={vm.peopleMoments.birthdays}
-                  anniversaries={vm.peopleMoments.anniversaries}
-                  loading={vm.peopleMoments.loading.birthdays}
-                  onNavigateToInsights={vm.actions.navigateToInsights}
-                />
-              </div>
-            </div>
+        {/* BOTTOM ROW: Secondary utility cards — 3 equal columns */}
+        <div
+          data-layout="bottom-row-3col"
+          style={{
+            display: 'flex',
+            gap: 'clamp(1rem, 1.2vw, 1.5rem)',
+            marginBottom: 'clamp(1.5rem, 1.5vw, 2rem)'
+          }}
+        >
+          <div style={{ flex: '1 1 0', minWidth: 0 }}>
+            <WorkCapacitySection
+              utilizationPercent={vm.workCapacity.utilizationPercent}
+              idleCount={vm.workCapacity.idleCount}
+              loading={vm.workCapacity.loading.allocation}
+              onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
+            />
+          </div>
+          <div style={{ flex: '1 1 0', minWidth: 0 }}>
+            <OpenPositionsSection
+              openPositions={vm.workCapacity.openPositions}
+              loading={vm.workCapacity.loading.positions}
+              onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
+            />
+          </div>
+          <div style={{ flex: '1 1 0', minWidth: 0 }}>
+            <PeopleMomentsSection
+              birthdays={vm.peopleMoments.birthdays}
+              anniversaries={vm.peopleMoments.anniversaries}
+              loading={vm.peopleMoments.loading.birthdays}
+              onNavigateToInsights={vm.actions.navigateToInsights}
+            />
           </div>
         </div>
       </div>

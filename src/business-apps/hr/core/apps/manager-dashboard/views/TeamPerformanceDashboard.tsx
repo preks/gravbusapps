@@ -149,7 +149,7 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
             <ChevronLeft className="gba:h-5 gba:w-5" />
           </Button>
           <LayoutDashboard className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
-          <h2 className="gba:text-xl gba:font-semibold">Team Performance Dashboard</h2>
+          <h2 className="gba:text-xl gba:font-semibold">Performance Trends</h2>
         </div>
         <div className="gba:flex gba:items-center gba:gap-3">
           <Button
