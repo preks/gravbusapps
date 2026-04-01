@@ -119,6 +119,7 @@ menu-add-column = Adaugă coloană
 menu-manage-columns = Gestionează coloanele
 menu-ai-analytics = Analiză AI
 menu-automations = Automatizări
+menu-check-collection-responses = Verifică răspunsurile colectării
 menu-settings = Setări
 
 # AI Capability Menu
@@ -337,6 +338,9 @@ automation-toolbar-pending = { $count } în așteptare
 automation-toolbar-completed = { $count } finalizate
 automation-toolbar-failed = { $count } eșuate
 automation-toolbar-refresh-tooltip = Actualizează statusurile fluxurilor
+automation-toolbar-check-responses = Verifică răspunsurile
+automation-toolbar-check-responses-tooltip = Preia trimiterile finalizate și actualizează foaia acum
+automation-toolbar-check-responses-error = Nu s-au putut verifica răspunsurile
 automation-toolbar-manage = Gestionează automatizările
 automation-toolbar-create-new = Creează automatizare nouă
 
@@ -460,6 +464,9 @@ sa-started = Început
 sa-status-completed = Finalizat
 sa-status-sent = Trimis
 sa-stat-collections = Colecții de foi
+sa-stat-collection-breakdown = Colectări de date
+sa-stat-form-collections = Formular (rânduri)
+sa-stat-template-collections = Șablon (copie foaie)
 sa-stat-total-runs = Execuții totale
 sa-filter-all = Toate
 sa-filter-collection = Colecție foi de calcul

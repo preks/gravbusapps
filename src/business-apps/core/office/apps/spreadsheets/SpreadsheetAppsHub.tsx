@@ -1128,6 +1128,16 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     navigateTo(Navigation.OFFICE_SPREADSHEETS)
   }, [])
 
+  /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
+  const handleSpreadsheetHubHome = useCallback(() => {
+    try {
+      sessionStorage.removeItem('space_return_url')
+    } catch (e) {
+      console.warn('Failed to clear space_return_url:', e)
+    }
+    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+  }, [])
+
   const handleStartUpload = useCallback(() => {
     setCurrentView('upload')
   }, [])
@@ -1248,6 +1258,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           <SpreadsheetAppViewer
             app={app}
             onBack={handleBack}
+            onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
             onShare={() => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
@@ -1295,6 +1306,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleRefreshShares,
       handleShare,
       handleShareApp,
+      handleSpreadsheetHubHome,
       handleUnshare,
       selectedAppForShare,
       setShareDialogOpen,

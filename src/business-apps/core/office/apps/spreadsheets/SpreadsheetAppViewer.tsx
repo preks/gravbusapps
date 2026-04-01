@@ -25,7 +25,7 @@ import translations from './_i18n'
 import { useSpreadsheetViewerCollaboration } from './hooks/useSpreadsheetViewerCollaboration'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
-import { useSpreadsheetBulkRows } from './hooks/useSpreadsheetBulkRows'
+import { useSpreadsheetBulkRows, syncTrackingHeaderRowWithColumnLabels } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
 import { useVersionUserDisplays } from '@/business-apps/core/office/apps/documents/hooks/useVersionUserDisplays'
 
@@ -39,7 +39,8 @@ import type { UniverSheetGridHandle, CellDimensionsPayload } from './components/
 import {
   buildMultiSheetWorkbookFromAppSheets,
   countWorksheetsInUniverSnapshot,
-  createUniverConversionContext
+  createUniverConversionContext,
+  snapshotTrackingHeaderMatchesColumnLabels
 } from './utils/univerAdapter'
 import {
   readLatestUniverSnapshot,
@@ -841,6 +842,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onAppUpdate,
   onSheetUpdate,
   onBack,
+  onNavigateToSpreadsheetHub,
   onShare,
   onEdit,
   isEditing = true,
@@ -1224,6 +1226,66 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onRequestGridRefresh: requestGridRefresh
   })
 
+  const collectionHeaderColumnSignature = useMemo(() => {
+    const sheet = app.sheets.find(s => s.id === activeSheetId)
+    return (
+      sheet?.columns
+        ?.filter(c => c.isVisible !== false)
+        .map(c => `${c.id}\0${(c.label ?? '').trim()}\0${c.name}`)
+        .join('|') ?? ''
+    )
+  }, [app.sheets, activeSheetId])
+
+  /** Re-run header sync when row data hydrates (tracking header row appears), not only on mount. */
+  const collectionTrackingHeaderSyncKey = useMemo(() => {
+    const idx = localSheetData.findIndex(r => r._isTrackingHeader === true)
+    return idx >= 0 ? `${idx}:${localSheetData.length}` : 'none'
+  }, [localSheetData])
+
+  // Collection sheets store human-readable titles in a synthetic header row; keep it in sync when column labels load/update.
+  // Univer bootstraps from persisted snapshots and does not follow React `data` edits until snapshotSeed bumps — refresh when snapshot titles are stale.
+  useEffect(() => {
+    const sheet = app.sheets.find(s => s.id === activeSheetId)
+    if (!sheet?.columns?.length) return
+    const rows = localSheetDataRef.current
+    if (!rows.some(r => r._isTrackingHeader === true)) return
+    const synced = syncTrackingHeaderRowWithColumnLabels(rows, sheet.columns)
+    const dataForGrid = synced === rows ? rows : synced
+    if (synced !== rows) {
+      localSheetDataRef.current = synced
+      setLocalSheetData(synced)
+      onDataChange?.(activeSheetId, synced)
+    }
+    if (entityEnabled || isBootstrapSnapshotLoading) return
+    const snapshotForCompare = preferUniverNativeSheetTabs ? tableUniverSnapshot : bootstrapSnapshot
+    if (!snapshotForCompare || typeof snapshotForCompare !== 'object') return
+    if (
+      snapshotTrackingHeaderMatchesColumnLabels(
+        snapshotForCompare as Record<string, unknown>,
+        activeSheetId,
+        dataForGrid,
+        sheet.columns
+      )
+    ) {
+      return
+    }
+    requestGridRefresh()
+  }, [
+    activeSheetId,
+    app.sheets,
+    bootstrapSnapshot,
+    collectionHeaderColumnSignature,
+    collectionTrackingHeaderSyncKey,
+    entityEnabled,
+    isBootstrapSnapshotLoading,
+    localSheetDataRef,
+    onDataChange,
+    preferUniverNativeSheetTabs,
+    requestGridRefresh,
+    setLocalSheetData,
+    tableUniverSnapshot
+  ])
+
   // Persist automations/workflow links back into the sheet config
   const persistSheetPatch = useCallback(
     (patch: Partial<SpreadsheetSheet>) => {
@@ -1254,6 +1316,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     enablePolling: true,
     pollInterval: 30000
   })
+
+  const hasEnabledSheetCollectionAutomation = useMemo(
+    () =>
+      (activeSheet.automations ?? []).some(
+        a => (a.type === 'bulk_collection' || a.type === 'excel_collection') && a.isEnabled
+      ),
+    [activeSheet.automations]
+  )
+
+  const handleCheckCollectionResponses = useCallback(() => {
+    void automations.fetchBulkCollectionResponses()
+  }, [automations.fetchBulkCollectionResponses])
 
   const [hasTaskForCollectionCopy, setHasTaskForCollectionCopy] = useState(false)
   const fromCollectionLink =
@@ -1372,6 +1446,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [activeSheet.columns, app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isAutomationsOpen || !accessToken) return
+    void automations.refreshAutomationsFromDocumentService()
+  }, [isAutomationsOpen, activeSheetId, accessToken, automations.refreshAutomationsFromDocumentService])
+
   const handleOpenAICapability = useCallback((capability: AICapability) => {
     if (capability === 'charts') {
       setAnalyticsInitialTab('charts')
@@ -2942,6 +3022,32 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     (columns: SpreadsheetColumn[]) => persistSheetPatch({ columns }),
     [persistSheetPatch]
   )
+
+  /** When saving bulk collection automations, sync form field titles onto sheet column labels (wizard awaits this before onSave). */
+  const onBulkCollectionColumnLabelsUpdate = useCallback(
+    async (updates: Array<{ columnId: string; newLabel: string }>) => {
+      if (!canEditWithLock || updates.length === 0) return
+      const byId = new Map(updates.map(u => [u.columnId, u.newLabel]))
+      const nextColumns = activeSheet.columns.map(col => {
+        const label = byId.get(col.id)
+        if (label === undefined) return col
+        return { ...col, label }
+      })
+      // Await so column PATCH finishes before the next sheet PATCH (automations); otherwise the second response can overwrite new labels with stale columns.
+      if (onSheetUpdate) {
+        await onSheetUpdate(app.id, activeSheetId, { columns: nextColumns })
+        return
+      }
+      if (onAppUpdate) {
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheetId ? { ...sheet, columns: nextColumns, data: localSheetDataRef.current } : sheet
+        )
+        await Promise.resolve(onAppUpdate({ ...app, sheets: updatedSheets }) as unknown as Promise<unknown>)
+      }
+    },
+    [activeSheet.columns, activeSheetId, app, app.id, canEditWithLock, localSheetDataRef, onAppUpdate, onSheetUpdate]
+  )
+
   const handleRenameAppName = useCallback(
     async (name: string): Promise<boolean> => {
       if (!canEditWithLock || !onAppUpdate) {
@@ -3329,6 +3435,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         app={app}
         activeSheet={activeSheet}
         onBack={onBack}
+        onNavigateToSpreadsheetHub={onNavigateToSpreadsheetHub}
         isEditing={isEditing}
         canEdit={canEditWithLock}
         headerParticipants={collaboration.headerParticipants}
@@ -3370,6 +3477,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           setIsAnalyticsOpen(false)
           setIsAutomationsOpen(true)
         }}
+        showCheckCollectionResponses={hasEnabledSheetCollectionAutomation}
+        onCheckCollectionResponses={handleCheckCollectionResponses}
         onEdit={onEdit}
         onExport={() => void handleExportToExcel()}
         isCollectionCopy={isCollectionCopy}
@@ -3499,6 +3608,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onDuplicateAutomation={automations.duplicateAutomation}
         onRunAutomation={(id, rows) => automations.runAutomation(id, rows)}
         onRefreshWorkflowStatuses={() => void automations.refreshWorkflowStatuses()}
+        onRefreshAutomations={() => void automations.refreshAutomationsFromDocumentService()}
+        onCheckCollectionResponses={handleCheckCollectionResponses}
+        onColumnLabelsUpdate={onBulkCollectionColumnLabelsUpdate}
         data-testid={`${testId}-automations-panel`}
       />
 

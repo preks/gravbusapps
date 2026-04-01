@@ -519,6 +519,18 @@ const COMMENT_ICON_SVG =
 
 const CONTEXT_MENU_ANCHOR_LABELS = ['Copy Special', 'Paste Special', 'Clear', 'Insert', 'Delete', 'Freeze', 'Protect']
 
+/** True for inputs the browser should handle (copy/paste) outside the grid container. */
+function isDomTextEditingTarget(target: unknown): boolean {
+  if (!(target instanceof Element)) return false
+  const el = target
+  const tag = el.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if ((el as HTMLElement).isContentEditable) return true
+  const role = el.getAttribute('role')
+  if (role === 'textbox' || role === 'searchbox' || role === 'combobox') return true
+  return Boolean(el.closest('[contenteditable="true"]'))
+}
+
 function distanceToRect(x: number, y: number, rect: DOMRect): number {
   const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
   const dy = y < rect.top ? rect.top - y : y > rect.bottom ? y - rect.bottom : 0
@@ -919,15 +931,47 @@ function scheduleContextMenuInjectionPoll(run: () => void): void {
   })
 }
 
-function applyGermanNumfmtLocale(workbook: unknown): void {
+/**
+ * Apply German number-format locale on the active workbook.
+ * Returns false if skipped or failed (caller may retry after Univer injector is ready).
+ */
+function applyGermanNumfmtLocale(workbook: unknown, opts?: { silent?: boolean }): boolean {
   const setNumfmtLocal = (workbook as { setNumfmtLocal?: (locale: string) => unknown } | null | undefined)
     ?.setNumfmtLocal
-  if (typeof setNumfmtLocal !== 'function') return
+  if (typeof setNumfmtLocal !== 'function') return false
   try {
-    setNumfmtLocal(GERMAN_NUMFMT_LOCALE)
+    setNumfmtLocal.call(workbook, GERMAN_NUMFMT_LOCALE)
+    return true
   } catch (error) {
-    console.error('[UniverSheetGrid] setNumfmtLocal failed:', error)
+    if (!opts?.silent) {
+      console.error('[UniverSheetGrid] setNumfmtLocal failed:', error)
+    }
+    return false
   }
+}
+
+/**
+ * Univer's workbook can expose setNumfmtLocal before the internal injector is wired;
+ * calling immediately after createWorkbook throws (e.g. reading '_injector' of undefined).
+ * Defer and retry briefly; failures are silent so devtools are not spammed for this race.
+ */
+function scheduleApplyGermanNumfmtLocale(univerAPI: { getActiveWorkbook?: () => unknown }): void {
+  const tryApply = (): boolean => {
+    const wb = univerAPI.getActiveWorkbook?.()
+    return Boolean(wb && applyGermanNumfmtLocale(wb, { silent: true }))
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (tryApply()) return
+      globalThis.setTimeout(() => {
+        if (tryApply()) return
+        globalThis.setTimeout(() => {
+          tryApply()
+        }, 150)
+      }, 0)
+    })
+  })
 }
 
 function normalizeMenuText(value: string): string {
@@ -1942,7 +1986,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPIRef.current = univerAPI
       try {
         univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
-        applyGermanNumfmtLocale(univerAPI.getActiveWorkbook?.())
+        scheduleApplyGermanNumfmtLocale(univerAPI)
       } catch (error) {
         console.error('[UniverSheetGrid] createWorkbook error:', error)
         if (initialSnapshotForSheet && forceRowSnapshotSeed === 0) {
@@ -2457,6 +2501,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (!api || !container) return
 
         const activeEl = typeof document !== 'undefined' ? document.activeElement : null
+        if (isDomTextEditingTarget(activeEl) && activeEl instanceof Element && !container.contains(activeEl)) {
+          return
+        }
+
         const inSheet =
           (activeEl instanceof Element && container.contains(activeEl)) || isSheetInteractionActiveRef.current
         if (!inSheet) return
@@ -2510,6 +2558,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // Hijack these shortcuts when the user is focused inside the spreadsheet so Univer handles them.
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
       if (!containerRef.current?.contains(e.target as Node)) return
+      const activeEl = typeof document !== 'undefined' ? document.activeElement : null
+      if (isDomTextEditingTarget(activeEl) && activeEl instanceof Element && !containerRef.current.contains(activeEl)) {
+        return
+      }
       const isMod = e.metaKey || e.ctrlKey
       if (!isMod) return
       const key = e.key.toLowerCase()
