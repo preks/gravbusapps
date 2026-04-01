@@ -69,6 +69,28 @@ interface UseCalendarReturn {
   viewTitle: string
 }
 
+type CalendarEventResponse = Omit<CalendarEvent, 'start' | 'end' | 'recurrenceEndDate'> & {
+  start: string | Date
+  end: string | Date
+  recurrenceEndDate?: string | Date
+}
+
+const parseOptionalDate = (value?: string | Date): Date | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  const parsedDate = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate
+}
+
+const normalizeCalendarEvent = (event: CalendarEventResponse): CalendarEvent => ({
+  ...event,
+  start: event.start instanceof Date ? event.start : new Date(event.start),
+  end: event.end instanceof Date ? event.end : new Date(event.end),
+  recurrenceEndDate: parseOptionalDate(event.recurrenceEndDate)
+})
+
 export const useCalendar = ({
   accessToken,
   timeScope,
@@ -126,7 +148,7 @@ export const useCalendar = ({
     setError(null)
 
     try {
-      const response = await apiClient.getCalendarEventsFiltered<{ events: CalendarEvent[] }>(
+      const response = await apiClient.getCalendarEventsFiltered<{ events: CalendarEventResponse[] }>(
         dateRange.start.toISOString(),
         dateRange.end.toISOString(),
         {
@@ -134,11 +156,7 @@ export const useCalendar = ({
           includePersonal
         }
       )
-      const loadedEvents = (response.events || []).map(evt => ({
-        ...evt,
-        start: new Date(evt.start),
-        end: new Date(evt.end)
-      }))
+      const loadedEvents = (response.events || []).map(normalizeCalendarEvent)
 
       setInternalEvents(
         loadedEvents.map(evt => ({
@@ -164,17 +182,13 @@ export const useCalendar = ({
     const start = new Date(rangeStartMs)
     const end = new Date(rangeEndMs)
     apiClient
-      .getCalendarEventsFiltered<{ events: CalendarEvent[] }>(start.toISOString(), end.toISOString(), {
+      .getCalendarEventsFiltered<{ events: CalendarEventResponse[] }>(start.toISOString(), end.toISOString(), {
         calendarIds: selectedCalendarIds,
         includePersonal
       })
       .then(response => {
         if (cancelled) return
-        const loadedEvents = (response.events || []).map(evt => ({
-          ...evt,
-          start: new Date(evt.start),
-          end: new Date(evt.end)
-        }))
+        const loadedEvents = (response.events || []).map(normalizeCalendarEvent)
         setInternalEvents(
           loadedEvents.map(evt => ({
             ...evt,

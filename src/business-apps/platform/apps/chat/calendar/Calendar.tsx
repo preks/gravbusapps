@@ -257,6 +257,9 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const eventsRef = useRef<CalendarEvent[]>(events)
   eventsRef.current = events
 
+  /** True while meeting detail was opened from the calendar UI and meetingId was written to the URL. Skips URL-driven navigation so event refetches do not change time scope (e.g. 3-day → day). */
+  const meetingDetailOpenedInAppRef = useRef(false)
+
   const applyLocalCalendarSurfaceColor = useCallback(
     ({ calendarId, color, isPersonal = false }: { calendarId?: string; color: string; isPersonal?: boolean }) => {
       const matchesCalendar = (targetCalendarId?: string) => {
@@ -417,10 +420,9 @@ const CalendarInner: React.FC<CalendarProps> = ({
           }
           // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
-      } else if (meetingIdParam && events.length > 0 && !isDetailModalOpen && !isCreateModalOpen) {
-        // meetingId without date: find meeting in loaded events, go to its day and select it (URL keeps meetingId for shareable link).
-        // Skip while detail/create modal is open: handleEventClick syncs meetingId into the URL without intending to change time scope;
-        // this effect also re-runs when `events` updates, which would wrongly force day view (e.g. from 3-day).
+      } else if (meetingIdParam && events.length > 0 && !meetingDetailOpenedInAppRef.current && !isCreateModalOpen) {
+        // meetingId without date: deep link / external open — go to day and open modal.
+        // When opened in-app, meetingDetailOpenedInAppRef is set before the URL is updated so refetches do not force day view.
         const meetingEvent = events.find(e => e.id === meetingIdParam)
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           const meetingDate = meetingEvent.start
@@ -445,31 +447,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
       if (timeoutId !== null) clearTimeout(timeoutId)
       globalThis.window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
-  }, [
-    canOpenEventDetails,
-    events,
-    setCurrentDate,
-    selectEvent,
-    refresh,
-    viewPreferences,
-    isDetailModalOpen,
-    isCreateModalOpen
-  ])
-
-  // When events load and meetingId is in URL (e.g. opened from task link), open meeting once events are available.
-  // Skip re-opening detail when create/edit modal is open (e.g. user clicked Edit).
-  useEffect(() => {
-    if (events.length === 0) return
-    const meetingIdParam = new URLSearchParams(globalThis.window.location.search).get('meetingId')
-    if (!meetingIdParam || isDetailModalOpen || isCreateModalOpen) return
-    const meetingEvent = events.find(e => e.id === meetingIdParam)
-    if (meetingEvent && canOpenEventDetails(meetingEvent)) {
-      setCurrentDate(meetingEvent.start)
-      void viewPreferences.setTimeScope('day')
-      selectEvent(meetingEvent)
-      setIsDetailModalOpen(true)
-    }
-  }, [canOpenEventDetails, events, isDetailModalOpen, isCreateModalOpen, selectEvent, setCurrentDate, viewPreferences])
+  }, [canOpenEventDetails, events, setCurrentDate, selectEvent, refresh, viewPreferences, isCreateModalOpen])
 
   // Sync modal with browser back/forward: open/close modal when URL meetingId appears/disappears
   useEffect(() => {
@@ -485,6 +463,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
           setIsDetailModalOpen(true)
         }
       } else if (!meetingIdParam && isDetailModalOpen) {
+        meetingDetailOpenedInAppRef.current = false
         setIsDetailModalOpen(false)
         selectEvent(null)
       }
@@ -506,10 +485,11 @@ const CalendarInner: React.FC<CalendarProps> = ({
   // Sync meeting detail modal state with URL (bookmarkable / shareable). Mutate current URL so it works from menu or sidebar.
   const setMeetingInUrl = useCallback((meetingId: string, _date?: Date) => {
     void _date // kept for API compatibility with callers; URL only stores meetingId
-    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId })
+    const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ view: 'calendar', meetingId, date: null })
     globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
   }, [])
   const clearMeetingFromUrl = useCallback(() => {
+    meetingDetailOpenedInAppRef.current = false
     const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ meetingId: null, date: null })
     globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
   }, [])
@@ -521,6 +501,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         return
       }
 
+      meetingDetailOpenedInAppRef.current = true
       selectEvent(event)
       setIsDetailModalOpen(true)
       setMeetingInUrl(event.id, event.start)
@@ -638,6 +619,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         calendarName: meeting.calendar?.name,
         calendarType: meeting.calendar?.type
       }
+      meetingDetailOpenedInAppRef.current = true
       selectEvent(event)
       setIsDetailModalOpen(true)
       setMeetingInUrl(meeting.id, new Date(meeting.startTime))

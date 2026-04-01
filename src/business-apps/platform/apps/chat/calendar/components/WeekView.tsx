@@ -77,7 +77,7 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   const endHour = effectiveEnd.getHours() + effectiveEnd.getMinutes() / 60
 
   const top = startHour * HOUR_HEIGHT
-  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 16) // Minimum height of 16px
+  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20) // Keep 15-minute meetings tall enough for the short title card
 
   return { top, height }
 }

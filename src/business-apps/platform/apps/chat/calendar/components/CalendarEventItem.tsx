@@ -115,12 +115,13 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
   const pendingClasses = getPendingClasses()
 
   // Determine what to show based on available height
-  // Height thresholds: <25px = just color bar, 25-40px = title only, 40-60px = title + time, >60px = full
-  const showTitle = !height || height >= 20
+  // Height thresholds: <18px = color bar only, 18-39px = one-line title card, 40-54px = title + time, 55-74px = add organizer/location, >=75px = full meta
+  const showTitle = !height || height >= 18
   const showTime = !height || height >= 40
   const showLocation = !height || height >= 55
   const showParticipants = !height || height >= 75
-  const isMinimal = height && height < 25
+  const isMinimal = Boolean(height && height < 18)
+  const isCompactSingleLine = Boolean(compact && height && height < 40)
 
   // Minimal view - just a colored bar with tooltip
   if (isMinimal) {
@@ -158,7 +159,10 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
   // Compact view for week/day grid: calendar-color left bar + card body (not full-bleed fill)
   if (compact) {
     const compactShowOrganizer =
-      showLocation && !event.isBusyBlock && (event.isOrganizer || organizerNameTrimmed.length > 0)
+      !isCompactSingleLine &&
+      showLocation &&
+      !event.isBusyBlock &&
+      (event.isOrganizer || organizerNameTrimmed.length > 0)
 
     return (
       <TooltipProvider>
@@ -175,39 +179,49 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
                 style={{ backgroundColor: event.color }}
                 aria-hidden
               />
-              <div className="gba:flex-1 gba:min-w-0 gba:py-1 gba:px-1.5 sm:gba:px-2 gba:flex gba:flex-col gba:justify-center gba:bg-card">
+              <div
+                className={`gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:justify-center gba:bg-card ${
+                  isCompactSingleLine ? 'gba:px-1.5 gba:py-0 sm:gba:px-2' : 'gba:px-1.5 gba:py-1 sm:gba:px-2'
+                }`}
+              >
                 {showTitle && (
-                  <div className="gba:flex gba:items-start gba:justify-between gba:gap-1 gba:mb-0.5">
+                  <div
+                    className={`gba:flex gba:min-w-0 gba:gap-1 ${isCompactSingleLine ? 'gba:items-center' : 'gba:items-start gba:justify-between gba:mb-0.5'}`}
+                  >
                     <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-0.5 gba:flex-1">
-                      {event.source && event.source !== 'internal' && (
+                      {!isCompactSingleLine && event.source && event.source !== 'internal' && (
                         <Globe className="gba:h-2.5 gba:w-2.5 gba:text-info gba:flex-shrink-0" />
                       )}
                       <span
-                        className={`gba:font-semibold gba:text-foreground gba:text-[10px] sm:gba:text-xs gba:truncate gba:leading-tight ${
-                          event.status === 'cancelled' ? 'gba:line-through gba:text-muted-foreground' : ''
-                        }`}
+                        className={`gba:font-semibold gba:text-foreground gba:truncate ${
+                          isCompactSingleLine
+                            ? 'gba:text-[9px] sm:gba:text-[10px] gba:leading-none'
+                            : 'gba:text-[10px] sm:gba:text-xs gba:leading-tight'
+                        } ${event.status === 'cancelled' ? 'gba:line-through gba:text-muted-foreground' : ''}`}
                       >
                         {displayTitle}
                       </span>
                     </div>
-                    <div className="gba:flex gba:flex-shrink-0 gba:items-center gba:gap-0.5">
-                      {isLive && (
-                        <Badge
-                          variant="default"
-                          className="gba:bg-success gba:text-success-foreground gba:text-[8px] gba:px-1 gba:py-0"
-                        >
-                          Live
-                        </Badge>
-                      )}
-                      {event.source && event.source !== 'internal' && (
-                        <Badge variant="secondary" className="gba:text-[8px] gba:px-1 gba:py-0">
-                          {event.source === 'microsoft' ? 'MS' : 'G'}
-                        </Badge>
-                      )}
-                      {!event.isOrganizer && event.participantStatus && (
-                        <span>{getInvitationStatusIcon(event.participantStatus)}</span>
-                      )}
-                    </div>
+                    {!isCompactSingleLine && (
+                      <div className="gba:flex gba:flex-shrink-0 gba:items-center gba:gap-0.5">
+                        {isLive && (
+                          <Badge
+                            variant="default"
+                            className="gba:bg-success gba:text-success-foreground gba:text-[8px] gba:px-1 gba:py-0"
+                          >
+                            Live
+                          </Badge>
+                        )}
+                        {event.source && event.source !== 'internal' && (
+                          <Badge variant="secondary" className="gba:text-[8px] gba:px-1 gba:py-0">
+                            {event.source === 'microsoft' ? 'MS' : 'G'}
+                          </Badge>
+                        )}
+                        {!event.isOrganizer && event.participantStatus && (
+                          <span>{getInvitationStatusIcon(event.participantStatus)}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 {showTime && (
