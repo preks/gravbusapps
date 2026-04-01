@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { ChatMessage, DeepAgentSession, SessionConfig } from '../types/enterpriseAgent'
+import type { ChatMessage, DeepAgentSession, SessionConfig, WorkspaceDocument } from '../types/enterpriseAgent'
 import type { ActivityEvent, AgentStreamEvent } from '../types/enterpriseAgent'
 import type { ArtifactFile, FabricSessionSummary, FabricTaskNode } from '../types/fabric'
 import { useAgentSession } from '../hooks/useAgentSession'
@@ -40,6 +40,7 @@ interface FabricContextValue {
 
   // Artifacts
   artifacts: ArtifactFile[]
+  workspaceDocs: WorkspaceDocument[]
   activeArtifactId: string | null
   activeArtifact: ArtifactFile | null
 
@@ -91,11 +92,8 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   const { taskNodes, completedCount, totalCount, progressPercent } = useFabricProgress(session, events)
 
   // Artifacts
-  const { artifacts, activeArtifactId, activeArtifact, setActiveArtifactId, refreshArtifacts } = useFabricArtifacts(
-    activeSessionId,
-    events,
-    accessToken
-  )
+  const { artifacts, workspaceDocs, activeArtifactId, activeArtifact, setActiveArtifactId, refreshArtifacts } =
+    useFabricArtifacts(activeSessionId, events, accessToken)
 
   // Activity events for the chronological feed
   const activityEvents = useMemo(() => deriveActivityFromEvents(events), [events])
@@ -167,6 +165,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       totalCount,
       progressPercent,
       artifacts,
+      workspaceDocs,
       activeArtifactId,
       activeArtifact,
       startSession,
@@ -194,6 +193,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       totalCount,
       progressPercent,
       artifacts,
+      workspaceDocs,
       activeArtifactId,
       activeArtifact,
       startSession,

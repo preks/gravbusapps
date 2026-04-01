@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AgentStreamEvent } from '../types/enterpriseAgent'
+import type { AgentStreamEvent, WorkspaceDocument } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
@@ -66,6 +66,14 @@ export const useFabricArtifacts = (sessionId: string | null, events: AgentStream
       }))
   }, [events, sessionId, client])
 
+  // Workspace documents from the terminal event (created by document creation tools)
+  const workspaceDocs = useMemo((): WorkspaceDocument[] => {
+    const terminalEvent = events.find(
+      (e): e is Extract<AgentStreamEvent, { type: 'terminal' }> => e.type === 'terminal' && e.status === 'completed'
+    )
+    return terminalEvent?.workspace_documents ?? []
+  }, [events])
+
   // Merge SSE artifacts with REST artifacts, deduplicating by artifact key
   const artifacts = useMemo((): ArtifactFile[] => {
     const normalizeKey = (artifact: ArtifactFile) =>
@@ -99,6 +107,7 @@ export const useFabricArtifacts = (sessionId: string | null, events: AgentStream
 
   return {
     artifacts,
+    workspaceDocs,
     activeArtifactId,
     activeArtifact,
     setActiveArtifactId,

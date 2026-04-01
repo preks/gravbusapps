@@ -7,6 +7,7 @@ export interface DeepAgentSession {
   todos?: TodoItem[]
   trace?: AgentStreamEvent[]
   artifacts?: SessionArtifactMeta[]
+  workspace_documents?: WorkspaceDocument[]
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
@@ -55,6 +56,7 @@ export interface AgentTerminalEvent {
   duration_ms?: number
   cost_summary?: CostSummary | null
   artifacts?: SessionArtifactMeta[]
+  workspace_documents?: WorkspaceDocument[]
 }
 
 export interface AgentErrorEvent {
@@ -191,6 +193,13 @@ export interface SessionArtifactMeta {
   size: number
   created_at?: string
   modified_at?: string
+}
+
+export interface WorkspaceDocument {
+  type: 'document' | 'slides' | 'note'
+  id: string
+  title: string
+  url: string
 }
 
 export interface SessionConfig {

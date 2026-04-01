@@ -237,7 +237,8 @@ export function eventToMessage(
             actionsPerformed,
             durationMs: event.duration_ms,
             costSummary: event.cost_summary ?? undefined,
-            artifacts: toArtifactRefsFromMeta(event.artifacts)
+            artifacts: toArtifactRefsFromMeta(event.artifacts),
+            workspaceDocuments: event.workspace_documents
           }
         }
       }
@@ -406,7 +407,8 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
         durationMs,
         actionsPerformed: actionsPerformed.length > 0 ? actionsPerformed : undefined,
         costSummary: session.cost_summary,
-        artifacts: toArtifactRefs(session)
+        artifacts: toArtifactRefs(session),
+        workspaceDocuments: session.workspace_documents
       }
     })
   }
