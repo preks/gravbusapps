@@ -2,6 +2,10 @@
 
 # Header & navigation
 request-absence = Solicitare concediu
+absence-request-option-sick = Concediu medical
+absence-request-option-special = Concediu special
+absence-request-option-vacation = Concediu de odihna
+absence-request-option-work = Concediu de munca
 calendar = Calendar
 back-to-dashboard = Înapoi la panou
 absence-overview = Absențe
