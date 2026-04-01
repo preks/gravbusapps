@@ -1,10 +1,14 @@
 /**
- * Enterprise Agent Module
+ * Every Fabric — Autonomous Agent Workspace
  *
+ * Redesigned UI: Manus-style landing → Claude co-work split-panel workspace.
  * Deep agent UI — goal-oriented task execution with live streaming,
- * human-in-the-loop interrupts, memory, and full observability.
+ * human-in-the-loop interrupts, task progress tree, and artifact viewer.
  */
 
-export { EnterpriseAgentApp, type EnterpriseAgentAppProps } from './EnterpriseAgentApp'
+export { EveryFabricApp, type EveryFabricAppProps } from './EveryFabricApp'
 
-export { EnterpriseAgentApp as default } from './EnterpriseAgentApp'
+export { EveryFabricApp as default } from './EveryFabricApp'
+
+// Legacy export — kept for backward compatibility during transition
+export { EnterpriseAgentApp, type EnterpriseAgentAppProps } from './EnterpriseAgentApp'
