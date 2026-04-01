@@ -200,12 +200,6 @@ export const formatRatingForDisplay = (value: string): string => {
     const starsCount = Math.max(0, Math.min(Number.parseInt(starLabelMatch[1], 10), 10))
     return '★'.repeat(starsCount)
   }
-
-  const numericMatch = /^(\d+)$/.exec(trimmedValue)
-  if (numericMatch) {
-    const starsCount = Math.max(0, Math.min(Number.parseInt(numericMatch[1], 10), 10))
-    return '★'.repeat(starsCount)
-  }
   return value
 }
 

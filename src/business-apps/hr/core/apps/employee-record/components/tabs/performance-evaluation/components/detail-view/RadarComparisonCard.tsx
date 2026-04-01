@@ -12,10 +12,7 @@ import {
 import { computeRadarAverageScore, getActiveRadarSeries, getNextSelectedReviewers } from '../../utils/detailViewData'
 import { RadarDataPoint, ReviewerKey, REVIEWER_COLORS } from './types'
 
-const getRadarAxisAngle = (dataPointCount: number): number => {
-  if (dataPointCount <= 1) return 90
-  return 90 - (dataPointCount - 1) * (360 / dataPointCount)
-}
+const RADAR_AXIS_ANGLE = 90
 
 const getRadarTicks = (maxDomain: number): number[] => {
   const step = maxDomain <= 5 ? 1 : 2
@@ -151,7 +148,7 @@ const RadarComparisonCard: React.FC<RadarComparisonCardProps> = ({
                 <PolarGrid />
                 <PolarAngleAxis dataKey="label" tick={{ fontSize: 12 }} />
                 <PolarRadiusAxis
-                  angle={getRadarAxisAngle(data.length)}
+                  angle={RADAR_AXIS_ANGLE}
                   domain={[0, radarMaxDomain]}
                   tickCount={getRadarTicks(radarMaxDomain).length}
                   axisLine={false}
