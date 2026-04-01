@@ -622,7 +622,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             data-testid="conversation-area"
           >
             {conversation.length === 0 && !isLoading ? (
-              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-full">
+              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
                 <HeroSection data-testid="every-ai-hero" />
               </div>
             ) : (
