@@ -168,7 +168,7 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
   }
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} className="gba:record-layout-no-padding">
+    <>
       <style>
         {String.raw`
           .gba\:record-layout-no-padding .layout-content {
@@ -179,6 +179,8 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
         `}
       </style>
       <RecordLayout
+        data-testid={`${DATA_TEST_ID_PREFIX}-container`}
+        className="gba:record-layout-no-padding"
         headerOrientation="horizontal"
         headerIcon={UserIcon}
         headerImageSrc={
@@ -200,7 +202,7 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
-    </div>
+    </>
   )
 }
 

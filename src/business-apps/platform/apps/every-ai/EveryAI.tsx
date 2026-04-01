@@ -728,7 +728,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       {/* Overlay for sidebar - click to close */}
       {showHistory && (
         <div
-          className="gba:absolute gba:inset-0 gba:bg-black gba:bg-opacity-50 gba:z-20 gba:cursor-pointer"
+          className="gba:absolute gba:inset-0 gba:bg-black/20 gba:z-20 gba:cursor-pointer"
           onClick={() => setShowHistory(false)}
           onKeyDown={e => {
             if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {

@@ -185,7 +185,7 @@ export const usePipelineDetailsData = ({
   const fetchPipelineStages = useCallback(
     async (pipelineRef: string): Promise<PipelineStage[]> => {
       const query = `query GetPipelineStages($pipelineRef: String!) {
-      CatalogEntry(where: {parentEntryId: {_eq: $pipelineRef}}) {
+      CatalogEntry(where: {parentEntryId: {_eq: $pipelineRef}, isDeleted: {_eq: false}}) {
         id
         value
         code

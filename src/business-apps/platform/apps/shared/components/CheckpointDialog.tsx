@@ -30,7 +30,7 @@ export interface CheckpointDialogMessages {
 export interface CheckpointDialogProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (description: string) => Promise<void>
+  onSave: (description: string) => Promise<void | boolean>
   isSaving?: boolean
   /** Optional translated strings */
   messages?: CheckpointDialogMessages
@@ -52,7 +52,10 @@ export const CheckpointDialog: React.FC<CheckpointDialogProps> = ({
   const [description, setDescription] = useState('')
 
   const handleSave = async () => {
-    await onSave(description)
+    const saveResult = await onSave(description)
+    if (saveResult === false) {
+      return
+    }
     setDescription('')
     onClose()
   }
