@@ -923,7 +923,6 @@ header-footer-sidebar-section-insert = Einfügen
 header-footer-menu-page-numbers = Seitenzahlen
 header-footer-menu-inserts = Einfügen
 header-footer-pn-add-to-header-footer = Seitenzahlen in Kopf- oder Fußzeile hinzufügen
-header-footer-pn-include-page-count = Seitenanzahl einbeziehen
 header-footer-pn-manage = Seitenzahlen verwalten
 header-footer-sidebar-section-options = Optionen
 header-footer-sidebar-section-position = Position

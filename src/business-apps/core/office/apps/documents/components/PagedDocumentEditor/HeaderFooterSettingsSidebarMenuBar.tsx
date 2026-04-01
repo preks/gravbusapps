@@ -1,10 +1,7 @@
 import type { PageNumberAlignment } from '../../types/document'
 import type { HeaderFooterPaginationCmd } from './headerFooterSidebarUtils'
 import { HeaderFooterMenuBarInsertsDropdown } from './HeaderFooterMenuBarInsertsDropdown'
-import {
-  HeaderFooterMenuBarPageNumbersDropdown,
-  type PlacePageNumberInBodyParams
-} from './HeaderFooterMenuBarPageNumbersDropdown'
+import { HeaderFooterMenuBarPageNumbersDropdown } from './HeaderFooterMenuBarPageNumbersDropdown'
 import { HeaderFooterOptionsControls } from './HeaderFooterOptionsControls'
 import { HeaderFooterPositionMarginControls } from './HeaderFooterPositionMarginControls'
 
@@ -28,7 +25,6 @@ export interface HeaderFooterSettingsSidebarMenuBarProps {
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
   onRemovePageNumber: () => void
-  onPlacePageNumberInBody: (params: PlacePageNumberInBodyParams) => void
 }
 
 export function HeaderFooterSettingsSidebarMenuBar({
@@ -50,8 +46,7 @@ export function HeaderFooterSettingsSidebarMenuBar({
   onOpenDate,
   onOpenPageNumbers,
   onQuickPageNumberPlacement,
-  onRemovePageNumber,
-  onPlacePageNumberInBody
+  onRemovePageNumber
 }: Readonly<HeaderFooterSettingsSidebarMenuBarProps>) {
   return (
     <div className="gba:flex gba:w-full gba:flex-col gba:gap-3" data-testid={`${testId}-menu-bar`}>
@@ -61,7 +56,6 @@ export function HeaderFooterSettingsSidebarMenuBar({
           onOpenPageNumbers={onOpenPageNumbers}
           onQuickPageNumberPlacement={onQuickPageNumberPlacement}
           onRemovePageNumber={onRemovePageNumber}
-          onPlacePageNumberInBody={onPlacePageNumberInBody}
         />
 
         <HeaderFooterMenuBarInsertsDropdown

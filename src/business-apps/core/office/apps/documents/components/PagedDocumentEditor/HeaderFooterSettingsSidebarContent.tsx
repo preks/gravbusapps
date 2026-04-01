@@ -1,5 +1,4 @@
 import type { PageNumberAlignment } from '../../types/document'
-import type { PlacePageNumberInBodyParams } from './HeaderFooterMenuBarPageNumbersDropdown'
 import type { HeaderFooterPaginationCmd } from './headerFooterSidebarUtils'
 import { HeaderFooterSettingsSidebarMenuBar } from './HeaderFooterSettingsSidebarMenuBar'
 
@@ -23,7 +22,6 @@ export interface HeaderFooterSettingsSidebarContentProps {
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
   onRemovePageNumber: () => void
-  onPlacePageNumberInBody: (params: PlacePageNumberInBodyParams) => void
 }
 
 export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterSettingsSidebarContentProps>) {
@@ -46,8 +44,7 @@ export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterS
     canInsertInOverlay,
     onOpenPageNumbers,
     onQuickPageNumberPlacement,
-    onRemovePageNumber,
-    onPlacePageNumberInBody
+    onRemovePageNumber
   } = props
 
   return (
@@ -72,7 +69,6 @@ export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterS
         onOpenPageNumbers={onOpenPageNumbers}
         onQuickPageNumberPlacement={onQuickPageNumberPlacement}
         onRemovePageNumber={onRemovePageNumber}
-        onPlacePageNumberInBody={onPlacePageNumberInBody}
       />
     </div>
   )

@@ -1,38 +1,4 @@
-/** TipTap-compatible HTML snippets for header/footer page-number placement */
-
-function createHeaderFooterPresetCell(content: string, align: 'left' | 'center' | 'right') {
-  const paragraph = content.length > 0 ? `<p>${content}</p>` : '<p></p>'
-
-  return `<td style="text-align: ${align}; vertical-align: middle; border-color: #d1d5db">${paragraph}</td>`
-}
-
-function createThreeColumnPreset(cells: { left?: string; center?: string; right?: string }) {
-  return [
-    '<table style="width: 100%">',
-    '<tbody>',
-    '<tr>',
-    createHeaderFooterPresetCell(cells.left ?? '', 'left'),
-    createHeaderFooterPresetCell(cells.center ?? '', 'center'),
-    createHeaderFooterPresetCell(cells.right ?? '', 'right'),
-    '</tr>',
-    '</tbody>',
-    '</table>'
-  ].join('')
-}
-
-/** Header/footer body placement for page numbers (not the margin slot). */
-export function createPageNumberPlacementHtml(params: {
-  alignment: 'left' | 'center' | 'right'
-  includeTotal: boolean
-}): string {
-  const { alignment, includeTotal } = params
-  const content = includeTotal ? '{page} of {total}' : '{page}'
-  return createThreeColumnPreset({
-    left: alignment === 'left' ? content : '',
-    center: alignment === 'center' ? content : '',
-    right: alignment === 'right' ? content : ''
-  })
-}
+/** Date/time format options for header/footer insert dialog */
 
 export interface DateFormatOption {
   id: string

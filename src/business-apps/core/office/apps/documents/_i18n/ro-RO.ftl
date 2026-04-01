@@ -923,7 +923,6 @@ header-footer-sidebar-section-insert = Inserare
 header-footer-menu-page-numbers = Numere de pagină
 header-footer-menu-inserts = Inserări
 header-footer-pn-add-to-header-footer = Adaugă numere de pagină în antet sau subsol
-header-footer-pn-include-page-count = Include numărul total de pagini
 header-footer-pn-manage = Gestionează numerele de pagină
 header-footer-sidebar-section-options = Opțiuni
 header-footer-sidebar-section-position = Poziție

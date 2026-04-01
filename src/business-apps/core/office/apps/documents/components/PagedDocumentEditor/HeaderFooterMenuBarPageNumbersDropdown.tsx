@@ -1,7 +1,5 @@
-import { useState } from 'react'
 import {
   Button,
-  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -17,18 +15,11 @@ import { headerFooterSidebarPreventBlur } from './headerFooterSidebarPreventBlur
 import { HEADER_FOOTER_MENU_TRIGGER_CLASS } from './headerFooterMenuBarShared'
 import { HeaderFooterPageNumberGridCell } from './HeaderFooterPageNumberGridCell'
 
-export interface PlacePageNumberInBodyParams {
-  region: 'header' | 'footer'
-  alignment: 'left' | 'center' | 'right'
-  includeTotal: boolean
-}
-
 export interface HeaderFooterMenuBarPageNumbersDropdownProps {
   testId: string
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
   onRemovePageNumber: () => void
-  onPlacePageNumberInBody: (params: PlacePageNumberInBodyParams) => void
 }
 
 const GRID: Array<{ region: 'header' | 'footer'; align: 'left' | 'center' | 'right'; testSuffix: string }> = [
@@ -44,20 +35,10 @@ export function HeaderFooterMenuBarPageNumbersDropdown({
   testId,
   onOpenPageNumbers,
   onQuickPageNumberPlacement,
-  onRemovePageNumber,
-  onPlacePageNumberInBody
+  onRemovePageNumber
 }: Readonly<HeaderFooterMenuBarPageNumbersDropdownProps>) {
   const { t } = useTranslation(translations)
   const onMouseDown = headerFooterSidebarPreventBlur
-  const [includePageCount, setIncludePageCount] = useState(false)
-
-  const handleCellClick = (region: 'header' | 'footer', align: 'left' | 'center' | 'right') => {
-    if (includePageCount) {
-      onPlacePageNumberInBody({ region, alignment: align, includeTotal: true })
-      return
-    }
-    onQuickPageNumberPlacement(region, align)
-  }
 
   return (
     <DropdownMenu>
@@ -89,26 +70,12 @@ export function HeaderFooterMenuBarPageNumbersDropdown({
               region={region}
               alignment={align}
               testId={`${testId}-pn-grid-${testSuffix}`}
-              onClick={() => handleCellClick(region, align)}
+              onClick={() => onQuickPageNumberPlacement(region, align)}
             />
           ))}
         </div>
 
         <DropdownMenuSeparator className="gba:my-1" />
-
-        <div className="gba:flex gba:items-center gba:gap-2 gba:px-1 gba:py-1" onMouseDown={e => e.preventDefault()}>
-          <Checkbox
-            id={`${testId}-pn-include-count`}
-            checked={includePageCount}
-            onCheckedChange={v => setIncludePageCount(v === true)}
-            data-testid={`${testId}-pn-include-count`}
-          />
-          <label htmlFor={`${testId}-pn-include-count`} className="gba:cursor-pointer gba:text-sm gba:leading-tight">
-            {t('header-footer-pn-include-page-count')}
-          </label>
-        </div>
-
-        <DropdownMenuSeparator />
 
         <DropdownMenuItem
           onClick={() => onOpenPageNumbers()}

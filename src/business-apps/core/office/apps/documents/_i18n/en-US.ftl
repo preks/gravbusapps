@@ -927,7 +927,6 @@ header-footer-sidebar-section-insert = Insert
 header-footer-menu-page-numbers = Page numbers
 header-footer-menu-inserts = Inserts
 header-footer-pn-add-to-header-footer = Add page numbers to header or footer
-header-footer-pn-include-page-count = Include page count
 header-footer-pn-manage = Manage page numbers
 header-footer-sidebar-section-options = Options
 header-footer-sidebar-section-position = Position
