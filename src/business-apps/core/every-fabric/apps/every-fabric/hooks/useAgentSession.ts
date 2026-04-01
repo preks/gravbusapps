@@ -8,6 +8,64 @@ const POLL_INTERVAL_MS = 3000
 
 const isTerminalStatus = (status: string) => status !== 'running' && status !== 'pending'
 
+const messageSignature = (message: ChatMessage): string => {
+  if (message.type === 'final_answer') return 'final_answer'
+  if (message.type === 'human_interrupt') return 'human_interrupt'
+  if (message.type === 'error') return `error:${message.type}`
+
+  const content =
+    typeof message.content === 'string'
+      ? message.content
+      : JSON.stringify(message.content, (_key, value) => (typeof value === 'function' ? undefined : value))
+  return `${message.type}:${content}`
+}
+
+const toEpoch = (timestamp: string): number => {
+  const parsed = Date.parse(timestamp)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+const messageTypeOrder = (type: ChatMessage['type']): number => {
+  switch (type) {
+    case 'user_input':
+      return 0
+    case 'agent_thinking':
+      return 1
+    case 'plan':
+      return 2
+    case 'tool_call':
+      return 3
+    case 'tool_result':
+      return 4
+    case 'reflection':
+      return 5
+    case 'expert_call':
+      return 6
+    case 'human_interrupt':
+      return 7
+    case 'final_answer':
+      return 8
+    case 'error':
+      return 9
+    default:
+      return 10
+  }
+}
+
+const mergeDuplicateMessage = (existing: ChatMessage, incoming: ChatMessage): ChatMessage => {
+  if (existing.type !== incoming.type) return incoming
+
+  if (incoming.type === 'user_input') {
+    return toEpoch(existing.timestamp) <= toEpoch(incoming.timestamp) ? existing : incoming
+  }
+
+  if (incoming.type === 'final_answer' || incoming.type === 'human_interrupt' || incoming.type === 'error') {
+    return toEpoch(existing.timestamp) >= toEpoch(incoming.timestamp) ? existing : incoming
+  }
+
+  return toEpoch(existing.timestamp) <= toEpoch(incoming.timestamp) ? existing : incoming
+}
+
 export const useAgentSession = (sessionId: string | null, accessToken: string) => {
   const client = useEnterpriseAgentClient(accessToken)
   const [streamVersion, setStreamVersion] = useState(0)
@@ -77,12 +135,27 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   }, [session, events])
 
   const messages: ChatMessage[] = useMemo(() => {
-    // Stream accumulates all events across reconnects (events are not cleared on same-session
-    // reconnect). Use stream as the authoritative source; fall back to session snapshot only
-    // while the stream hasn't delivered its first event yet.
-    if (streamMessages.length > 0) return streamMessages
-    if (!mergedSession) return []
-    return sessionToMessages(mergedSession)
+    const snapshotMessages = mergedSession ? sessionToMessages(mergedSession) : []
+    if (snapshotMessages.length === 0) return streamMessages
+    if (streamMessages.length === 0) return snapshotMessages
+
+    const mergedBySignature = new Map<string, ChatMessage>()
+
+    for (const message of snapshotMessages) {
+      mergedBySignature.set(messageSignature(message), message)
+    }
+
+    for (const message of streamMessages) {
+      const signature = messageSignature(message)
+      const existing = mergedBySignature.get(signature)
+      mergedBySignature.set(signature, existing ? mergeDuplicateMessage(existing, message) : message)
+    }
+
+    return [...mergedBySignature.values()].sort((a, b) => {
+      const timestampDelta = toEpoch(a.timestamp) - toEpoch(b.timestamp)
+      if (timestampDelta !== 0) return timestampDelta
+      return messageTypeOrder(a.type) - messageTypeOrder(b.type)
+    })
   }, [streamMessages, mergedSession])
 
   const startSession = useCallback(
