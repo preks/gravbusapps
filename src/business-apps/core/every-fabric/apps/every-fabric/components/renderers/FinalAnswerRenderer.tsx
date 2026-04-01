@@ -1,28 +1,44 @@
 import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { CaretDown, CaretRight, CheckCircle, DownloadSimple, Star } from '@phosphor-icons/react'
+import {
+  CaretDown,
+  CaretRight,
+  CheckCircle,
+  DownloadSimple,
+  File,
+  Globe,
+  NotePencil,
+  Code
+} from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import type { TodoItem, CostSummary, ActionSummary } from '../../types/enterpriseAgent'
-import { formatDuration, formatCost } from '../../utils/renderUtils'
+import type { TodoItem, ActionSummary } from '../../types/enterpriseAgent'
+import { formatDuration } from '../../utils/renderUtils'
+
+interface FinalAnswerArtifact {
+  name: string
+  path: string
+  mime_type: string
+  size: number
+  rendererType: string
+}
 
 export interface FinalAnswerRendererProps {
   output: string
-  qualityScore?: number
   todos?: TodoItem[]
   actionsPerformed?: ActionSummary[]
   recommendations?: string
-  costSummary?: CostSummary
   durationMs?: number
+  artifacts?: FinalAnswerArtifact[]
+  onViewArtifact?: (artifactName: string) => void
 }
 
 export const FinalAnswerRenderer = ({
   output,
-  qualityScore,
-  todos,
   actionsPerformed,
   recommendations,
-  costSummary,
-  durationMs
+  durationMs,
+  artifacts,
+  onViewArtifact
 }: FinalAnswerRendererProps) => {
   const [actionsExpanded, setActionsExpanded] = useState(false)
 
@@ -37,24 +53,15 @@ export const FinalAnswerRenderer = ({
     URL.revokeObjectURL(url)
   }
 
-  const stepsCompleted = todos ? todos.filter(t => t.status === 'done').length : undefined
-  const totalSteps = todos?.length
-
   return (
     <div
-      className="gba:rounded-xl gba:border gba:border-border gba:bg-card gba:overflow-hidden gba:max-w-4xl"
+      className="gba:w-full gba:rounded-xl gba:border gba:border-border gba:bg-card gba:overflow-hidden"
       data-testid="enterprise-agent-final-answer"
     >
       {/* Header */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:border-b gba:border-border gba:bg-muted/40">
         <CheckCircle className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0" weight="fill" />
         <span className="gba:text-sm gba:font-semibold gba:text-foreground">Completed</span>
-        {qualityScore !== undefined && (
-          <div className="gba:flex gba:items-center gba:gap-1 gba:ml-auto">
-            <Star className="gba:h-3.5 gba:w-3.5 gba:text-primary" weight="fill" />
-            <span className="gba:text-xs gba:font-medium gba:text-foreground">{qualityScore.toFixed(2)}</span>
-          </div>
-        )}
       </div>
 
       {/* Output / findings */}
@@ -69,6 +76,35 @@ export const FinalAnswerRenderer = ({
             Recommendations
           </p>
           <MarkdownWithChipsRenderer content={recommendations} />
+        </div>
+      )}
+
+      {artifacts && artifacts.length > 0 && (
+        <div className="gba:px-4 gba:pb-4">
+          <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
+            Artifacts
+          </p>
+          <div className="gba:grid gba:gap-2 sm:gba:grid-cols-2">
+            {artifacts.map(artifact => (
+              <button
+                key={artifact.path || artifact.name}
+                onClick={() => onViewArtifact?.(artifact.path || artifact.name)}
+                className="gba:flex gba:flex-col gba:items-stretch gba:gap-0 gba:overflow-hidden gba:rounded-xl gba:border gba:border-border gba:bg-background gba:text-left gba:hover:bg-muted/25 gba:transition-colors"
+                data-testid={`enterprise-agent-final-artifact-${artifact.name}`}
+              >
+                <ArtifactCardPreview artifact={artifact} />
+                <div className="gba:flex gba:items-start gba:gap-3 gba:px-3 gba:py-3">
+                  <File className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
+                  <div className="gba:min-w-0 gba:flex-1">
+                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{artifact.name}</p>
+                    <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
+                      {artifact.rendererType} · {(artifact.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -112,22 +148,9 @@ export const FinalAnswerRenderer = ({
 
       {/* Stats footer */}
       <div className="gba:flex gba:items-center gba:gap-4 gba:px-4 gba:py-2.5 gba:border-t gba:border-border gba:bg-muted/30">
-        {costSummary && (
-          <span className="gba:text-xs gba:text-muted-foreground">
-            Cost: <strong>{formatCost(costSummary.estimated_cost_usd)}</strong>
-          </span>
-        )}
         {durationMs !== undefined && (
           <span className="gba:text-xs gba:text-muted-foreground">
             Duration: <strong>{formatDuration(durationMs)}</strong>
-          </span>
-        )}
-        {stepsCompleted !== undefined && totalSteps !== undefined && (
-          <span className="gba:text-xs gba:text-muted-foreground">
-            Steps:{' '}
-            <strong>
-              {stepsCompleted}/{totalSteps}
-            </strong>
           </span>
         )}
         <Button
@@ -140,6 +163,58 @@ export const FinalAnswerRenderer = ({
           <DownloadSimple className="gba:h-3.5 gba:w-3.5" />
           Export
         </Button>
+      </div>
+    </div>
+  )
+}
+
+const ArtifactCardPreview = ({ artifact }: { artifact: FinalAnswerArtifact }) => {
+  if (artifact.rendererType === 'html') {
+    return (
+      <div className="gba:h-24 gba:border-b gba:border-border gba:bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_100%)] gba:px-3 gba:py-3">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <Globe className="gba:h-4 gba:w-4 gba:text-sky-600" />
+          <span className="gba:text-xs gba:font-semibold gba:text-slate-700">HTML Preview</span>
+        </div>
+        <div className="gba:rounded-lg gba:border gba:border-slate-200 gba:bg-white gba:px-3 gba:py-2 gba:shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+          <div className="gba:h-2 gba:w-24 gba:rounded-full gba:bg-slate-200" />
+          <div className="gba:mt-2 gba:space-y-1.5">
+            <div className="gba:h-2 gba:w-full gba:rounded-full gba:bg-slate-100" />
+            <div className="gba:h-2 gba:w-4/5 gba:rounded-full gba:bg-slate-100" />
+            <div className="gba:h-2 gba:w-2/3 gba:rounded-full gba:bg-slate-100" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (artifact.rendererType === 'markdown' || artifact.rendererType === 'document') {
+    return (
+      <div className="gba:h-24 gba:border-b gba:border-border gba:bg-[linear-gradient(135deg,#fafaf9_0%,#f8fafc_100%)] gba:px-3 gba:py-3">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <NotePencil className="gba:h-4 gba:w-4 gba:text-blue-600" />
+          <span className="gba:text-xs gba:font-semibold gba:text-slate-700">Document Preview</span>
+        </div>
+        <div className="gba:space-y-1.5">
+          <div className="gba:h-2.5 gba:w-3/4 gba:rounded-full gba:bg-slate-300" />
+          <div className="gba:h-2 gba:w-full gba:rounded-full gba:bg-slate-200" />
+          <div className="gba:h-2 gba:w-5/6 gba:rounded-full gba:bg-slate-200" />
+          <div className="gba:h-2 gba:w-2/3 gba:rounded-full gba:bg-slate-200" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:h-24 gba:border-b gba:border-border gba:bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] gba:px-3 gba:py-3">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+        <Code className="gba:h-4 gba:w-4 gba:text-emerald-600" />
+        <span className="gba:text-xs gba:font-semibold gba:text-slate-700">Generated File</span>
+      </div>
+      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+        <div className="gba:h-8 gba:rounded-lg gba:bg-white/85 gba:border gba:border-slate-200" />
+        <div className="gba:h-8 gba:rounded-lg gba:bg-white/85 gba:border gba:border-slate-200" />
+        <div className="gba:col-span-2 gba:h-8 gba:rounded-lg gba:bg-white/85 gba:border gba:border-slate-200" />
       </div>
     </div>
   )
