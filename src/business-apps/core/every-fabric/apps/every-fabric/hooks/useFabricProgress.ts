@@ -2,17 +2,50 @@ import { useMemo } from 'react'
 import type { AgentStreamEvent, DeepAgentSession, TodoItem } from '../types/enterpriseAgent'
 import type { FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../types/fabric'
 
+const GENERIC_DELEGATION_NAMES = new Set(['task', 'newwork_ask_expert', 'invoke_agent', 'subagent', 'dispatch_agent'])
+
+const pickDisplayName = (value?: string | null): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return GENERIC_DELEGATION_NAMES.has(trimmed.toLowerCase()) ? null : trimmed
+}
+
+const inferDelegatedAgentName = (taskSummary?: string | null): string | null => {
+  if (typeof taskSummary !== 'string') return null
+  const compact = taskSummary.trim()
+  if (!compact) return null
+  const normalized = compact.toLowerCase()
+
+  if (/\b(market|competitor|industry|research|trend)\b/.test(normalized)) return 'Market research'
+  if (/\b(vpn|access|it\b|infrastructure|security|diagnos|troubleshoot)\b/.test(normalized)) return 'IT support'
+  if (/\b(hr|human resources|manager|employee|role|permission|admin)\b/.test(normalized)) return 'HR operations'
+  if (/\b(salary|bonus|stock|compensation|budget|pay|allocation)\b/.test(normalized)) return 'Compensation'
+  if (/\b(expense|spend|cost|finance|financial|pricing|revenue)\b/.test(normalized)) return 'Finance'
+  if (/\b(workflow|approval|process|orchestrat|submission)\b/.test(normalized)) return 'Workflow design'
+  if (/\b(report|write|summary|brief|document)\b/.test(normalized)) return 'Writing'
+  if (/\b(chart|diagram|visual|analysis|analytics|data)\b/.test(normalized)) return 'Data analysis'
+
+  return null
+}
+
 const resolveDelegatedAgentName = (
   event: Extract<
     AgentStreamEvent,
     { type: 'subagent_spawned' | 'subagent_completed' | 'expert_called' | 'expert_completed' }
-  >
+  >,
+  completion?: Extract<AgentStreamEvent, { type: 'subagent_completed' | 'expert_completed' }>
 ) =>
-  ('expert_name' in event && event.expert_name) ||
-  ('agent_name' in event && event.agent_name) ||
-  ('name' in event && event.name) ||
+  pickDisplayName('expert_name' in event ? event.expert_name : undefined) ||
+  pickDisplayName('agent_name' in event ? event.agent_name : undefined) ||
+  pickDisplayName('name' in event ? event.name : undefined) ||
+  pickDisplayName(completion && 'expert_name' in completion ? completion.expert_name : undefined) ||
+  pickDisplayName(completion && 'agent_name' in completion ? completion.agent_name : undefined) ||
+  pickDisplayName(completion && 'name' in completion ? completion.name : undefined) ||
+  inferDelegatedAgentName('task_summary' in event ? event.task_summary : undefined) ||
+  inferDelegatedAgentName(completion && 'task_summary' in completion ? completion.task_summary : undefined) ||
   event.subagent_id ||
-  'sub-agent'
+  'Sub-agent'
 
 const todoStatusToFabric = (status: TodoItem['status']): FabricTaskStatus => {
   switch (status) {
@@ -83,7 +116,8 @@ export const useFabricProgress = (
       const completion = subagentCompletions.get(ev.step_id)
       const agent: FabricSubAgent = {
         id: ev.step_id,
-        name: resolveDelegatedAgentName(ev),
+        name: resolveDelegatedAgentName(ev, completion),
+        summary: 'task_summary' in ev ? ev.task_summary : undefined,
         status: completion
           ? completion.status
           : terminalStatus === 'failed' || terminalStatus === 'cancelled'

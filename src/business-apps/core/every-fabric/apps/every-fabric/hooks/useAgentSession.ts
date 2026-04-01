@@ -74,6 +74,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   // Tracks that a reply POST was sent and the agent is running, even before the stream delivers
   // new events. Terminal events clear this. Resets on session switch.
   const [isAgentRunning, setIsAgentRunning] = useState(false)
+  const [dismissedInterruptKey, setDismissedInterruptKey] = useState<string | null>(null)
 
   const sessionRef = useRef<DeepAgentSession | null>(null)
   sessionRef.current = session
@@ -94,6 +95,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     // session's messages while the new session loads.
     setSession(null)
     setIsAgentRunning(false)
+    setDismissedInterruptKey(null)
     if (!sessionId) {
       setStreamVersion(0)
       return
@@ -125,14 +127,40 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     void fetchSession()
   }, [events, fetchSession])
 
+  const currentInterruptKey =
+    sessionId && session?.status === 'waiting_for_human' && session.human_question
+      ? `${sessionId}:${session.human_question}`
+      : null
+
+  useEffect(() => {
+    if (!dismissedInterruptKey) return
+    if (!currentInterruptKey || currentInterruptKey !== dismissedInterruptKey) {
+      setDismissedInterruptKey(null)
+    }
+  }, [currentInterruptKey, dismissedInterruptKey])
+
   const mergedSession = useMemo((): DeepAgentSession | null => {
     if (!session) return null
     let status = session.status
     for (const ev of events) {
       if (ev.type === 'terminal') status = ev.status
     }
+    const isDismissedInterrupt =
+      status === 'waiting_for_human' &&
+      sessionId &&
+      session.human_question &&
+      dismissedInterruptKey === `${sessionId}:${session.human_question}`
+
+    if (isDismissedInterrupt) {
+      return {
+        ...session,
+        status: 'running',
+        human_question: null
+      }
+    }
+
     return { ...session, status }
-  }, [session, events])
+  }, [session, events, sessionId, dismissedInterruptKey])
 
   const messages: ChatMessage[] = useMemo(() => {
     const snapshotMessages = mergedSession ? sessionToMessages(mergedSession) : []
@@ -169,10 +197,24 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   const reply = useCallback(
     async (message: string) => {
       if (!sessionId) return
+      const current = sessionRef.current
+      const interruptKey =
+        current?.status === 'waiting_for_human' && current.human_question
+          ? `${sessionId}:${current.human_question}`
+          : null
+      if (current?.status === 'waiting_for_human' && current.human_question) {
+        setDismissedInterruptKey(interruptKey)
+      }
       setIsAgentRunning(true)
-      await client.replyToInterrupt(sessionId, message)
-      setStreamVersion(v => v + 1)
-      await fetchSession()
+      try {
+        await client.replyToInterrupt(sessionId, message)
+        setStreamVersion(v => v + 1)
+        await fetchSession()
+      } catch (error) {
+        setIsAgentRunning(false)
+        if (interruptKey) setDismissedInterruptKey(null)
+        throw error
+      }
     },
     [sessionId, client, fetchSession]
   )

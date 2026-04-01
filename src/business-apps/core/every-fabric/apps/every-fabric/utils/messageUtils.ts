@@ -27,13 +27,47 @@ const terminalQuestion = (output: unknown, humanQuestion?: string | null): strin
 
 type StepCompletion = AgentStepCompletedEvent | AgentSubagentCompletedEvent | AgentExpertCompletedEvent
 
+const GENERIC_DELEGATION_NAMES = new Set(['task', 'newwork_ask_expert', 'invoke_agent', 'subagent', 'dispatch_agent'])
+
+const pickDisplayName = (value?: string | null): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return GENERIC_DELEGATION_NAMES.has(trimmed.toLowerCase()) ? null : trimmed
+}
+
+const inferDelegatedAgentName = (taskSummary?: string | null): string | null => {
+  if (typeof taskSummary !== 'string') return null
+  const compact = taskSummary.trim()
+  if (!compact) return null
+  const normalized = compact.toLowerCase()
+
+  if (/\b(market|competitor|industry|research|trend)\b/.test(normalized)) return 'Market research'
+  if (/\b(vpn|access|it\b|infrastructure|security|diagnos|troubleshoot)\b/.test(normalized)) return 'IT support'
+  if (/\b(hr|human resources|manager|employee|role|permission|admin)\b/.test(normalized)) return 'HR operations'
+  if (/\b(salary|bonus|stock|compensation|budget|pay|allocation)\b/.test(normalized)) return 'Compensation'
+  if (/\b(expense|spend|cost|finance|financial|pricing|revenue)\b/.test(normalized)) return 'Finance'
+  if (/\b(workflow|approval|process|orchestrat|submission)\b/.test(normalized)) return 'Workflow design'
+  if (/\b(report|write|summary|brief|document)\b/.test(normalized)) return 'Writing'
+  if (/\b(chart|diagram|visual|analysis|analytics|data)\b/.test(normalized)) return 'Data analysis'
+
+  return null
+}
+
 const resolveDelegatedAgentName = (
-  event: AgentSubagentSpawnedEvent | AgentSubagentCompletedEvent | AgentExpertCalledEvent | AgentExpertCompletedEvent
+  event: AgentSubagentSpawnedEvent | AgentSubagentCompletedEvent | AgentExpertCalledEvent | AgentExpertCompletedEvent,
+  completion?: StepCompletion
 ): string =>
-  ('expert_name' in event && event.expert_name) ||
-  ('agent_name' in event && event.agent_name) ||
-  ('name' in event && event.name) ||
+  pickDisplayName('expert_name' in event ? event.expert_name : undefined) ||
+  pickDisplayName('agent_name' in event ? event.agent_name : undefined) ||
+  pickDisplayName('name' in event ? event.name : undefined) ||
+  pickDisplayName(completion && 'expert_name' in completion ? completion.expert_name : undefined) ||
+  pickDisplayName(completion && 'agent_name' in completion ? completion.agent_name : undefined) ||
+  pickDisplayName(completion && 'name' in completion ? completion.name : undefined) ||
+  inferDelegatedAgentName('task_summary' in event ? event.task_summary : undefined) ||
+  inferDelegatedAgentName(completion && 'task_summary' in completion ? completion.task_summary : undefined) ||
   event.subagent_id ||
+  (completion && 'subagent_id' in completion ? completion.subagent_id : undefined) ||
   'Sub-agent'
 
 const parseToolOutput = (output?: string): unknown => {
@@ -151,13 +185,14 @@ export function eventToMessage(
 
     case 'expert_called': {
       const completed = stepCompletions?.get(event.step_id)
+      const agentName = resolveDelegatedAgentName(event, completed)
       return {
         id: `expert-${event.step_id}`,
         type: 'expert_call',
         timestamp: event.timestamp,
         content: {
-          agentId: resolveDelegatedAgentName(event),
-          task: event.task_summary ?? resolveDelegatedAgentName(event),
+          agentId: agentName,
+          task: event.task_summary ?? agentName,
           status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
           durationMs: completed?.duration_ms,
           outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
@@ -167,13 +202,14 @@ export function eventToMessage(
 
     case 'subagent_spawned': {
       const completed = stepCompletions?.get(event.step_id)
+      const agentName = resolveDelegatedAgentName(event, completed)
       return {
         id: `subagent-${event.step_id}`,
         type: 'expert_call',
         timestamp: event.timestamp,
         content: {
-          agentId: resolveDelegatedAgentName(event),
-          task: event.task_summary ?? resolveDelegatedAgentName(event),
+          agentId: agentName,
+          task: event.task_summary ?? agentName,
           status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
           durationMs: completed?.duration_ms,
           outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
@@ -282,12 +318,14 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
     .map(e => {
       const completed = stepCompletions.get(e.step_id)
       if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
+        const completed = stepCompletions.get(e.step_id)
+        const agentName = resolveDelegatedAgentName(e, completed)
         return {
           id: e.event_id,
           timestamp: e.timestamp,
           type: 'subagent_spawn' as const,
-          agent: resolveDelegatedAgentName(e),
-          summary: e.task_summary ?? resolveDelegatedAgentName(e),
+          agent: agentName,
+          summary: e.task_summary ?? agentName,
           durationMs: completed?.duration_ms
         }
       }

@@ -28,6 +28,9 @@ export function resolveRendererType(mimeType?: string | null, filename?: string 
   const safeMimeType = typeof mimeType === 'string' ? mimeType : ''
   const safeFilename = typeof filename === 'string' ? filename : ''
 
+  // Slide deck JSON format (compound extension)
+  if (safeFilename.endsWith('.slides.json') || safeMimeType === 'application/vnd.newwork.slides+json') return 'slide'
+
   if (safeMimeType === 'text/html' || safeFilename.endsWith('.html') || safeFilename.endsWith('.htm')) return 'html'
   if (safeMimeType === 'text/markdown' || safeFilename.endsWith('.md')) return 'markdown'
   if (safeFilename.endsWith('.pptx') || safeFilename.endsWith('.ppt')) return 'slide'
@@ -56,6 +59,8 @@ export interface FabricSubAgent {
   id: string
   /** Display name — subagent_id ?? name from SSE event */
   name: string
+  /** Task or summary shown under the expert name */
+  summary?: string
   status: 'running' | 'done' | 'failed'
 }
 
