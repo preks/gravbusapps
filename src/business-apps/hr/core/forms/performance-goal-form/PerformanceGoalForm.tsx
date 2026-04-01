@@ -51,11 +51,11 @@ interface PerformanceGoalFormProps {
 
 interface PerformanceGoalFormData {
   title: string
-  startDate: Date
-  dueDate: Date
+  startDate: string
+  dueDate: string
   status: string
   progressPercent: number
-  completionDate?: Date
+  completionDate?: string
   objectiveType: string
   startValue?: number
   targetValue?: number
@@ -81,6 +81,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   const { t } = useTranslation()
   const isEditMode = !!additionalData?.goalId
   const goalId = additionalData?.goalId as string | undefined
+  const cycleId = additionalData?.cycleId as string | undefined
   const cycleStartDate = additionalData?.cycleStartDate as string | undefined
   const cycleEndDate = additionalData?.cycleEndDate as string | undefined
 
@@ -148,25 +149,25 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
   }, [goalId])
 
   // Helper function to safely convert date strings to Date objects
-  const safeDateConversion = (dateString: string | undefined): Date => {
-    if (!dateString) return new Date()
+  const safeDateValue = (dateString: string | undefined): string => {
+    if (!dateString) return dayjs().format('YYYY-MM-DD')
     try {
-      const date = new Date(dateString)
-      return Number.isNaN(date.getTime()) ? new Date() : date
+      const date = dayjs(dateString)
+      return date.isValid() ? date.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
     } catch (error) {
       console.warn('Failed to parse date:', dateString, error)
-      return new Date()
+      return dayjs().format('YYYY-MM-DD')
     }
   }
 
-  const clampDateToCycle = (date: Date): Date => {
+  const clampDateToCycle = (date: string): string => {
     const start = cycleStartDate ? dayjs(cycleStartDate).startOf('day') : null
     const end = cycleEndDate ? dayjs(cycleEndDate).startOf('day') : null
     const current = dayjs(date).startOf('day')
 
-    if (start && current.isBefore(start)) return start.toDate()
-    if (end && current.isAfter(end)) return end.toDate()
-    return current.toDate()
+    if (start && current.isBefore(start)) return start.format('YYYY-MM-DD')
+    if (end && current.isAfter(end)) return end.format('YYYY-MM-DD')
+    return current.format('YYYY-MM-DD')
   }
 
   // Prepare initial form data (milestones populated once GraphQL data arrives via useEffect below)
@@ -192,12 +193,12 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       const dueDate = dayjs(additionalData.dueDate as string).add(5, 'day')
       return {
         title: (additionalData.title as string) || '',
-        startDate: clampDateToCycle(safeDateConversion(additionalData.startDate as string)),
-        dueDate: clampDateToCycle(safeDateConversion((additionalData.dueDate as string) || dueDate.toISOString())),
+        startDate: clampDateToCycle(safeDateValue(additionalData.startDate as string)),
+        dueDate: clampDateToCycle(safeDateValue((additionalData.dueDate as string) || dueDate.toISOString())),
         status: (additionalData.status as string) || 'ON_TRACK',
         progressPercent: (additionalData.progressPercent as number) || 0,
         completionDate: additionalData.completionDate
-          ? safeDateConversion(additionalData.completionDate as string)
+          ? safeDateValue(additionalData.completionDate as string)
           : undefined,
         objectiveType: resolveObjectiveType(),
         startValue: (additionalData.startValue as number) ?? (additionalProps?.numeric as any)?.current ?? undefined,
@@ -206,12 +207,12 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
         milestones: [] // populated by GraphQL fetch below
       }
     } else {
-      const today = dayjs().startOf('day')
-      const dueDate = today.add(5, 'day')
+      const today = dayjs().startOf('day').format('YYYY-MM-DD')
+      const dueDate = dayjs(today).add(5, 'day').format('YYYY-MM-DD')
       return {
         title: '',
-        startDate: clampDateToCycle(today.toDate()),
-        dueDate: clampDateToCycle(dueDate.toDate()),
+        startDate: clampDateToCycle(today),
+        dueDate: clampDateToCycle(dueDate),
         status: '',
         progressPercent: 0,
         objectiveType: 'PERCENTAGE_PERFORMANCE_GOAL',
@@ -223,16 +224,32 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 
   const form = useForm<PerformanceGoalFormData>({
     defaultValues: getInitialFormData(),
-    // onBlur avoids validating the full form on every keystroke (major input lag).
-    mode: 'onBlur',
-    // Default reValidateMode is onChange — without this, fields would lag again after first blur.
-    reValidateMode: 'onBlur',
-    // Only subscribe to fields needed for the submit button — avoids re-rendering on unrelated formState.
-    formState: {
-      isDirty: true,
-      isValid: true
-    }
+    // Use onChange so the submit button updates immediately for DateInput fields.
+    mode: 'onChange',
+    reValidateMode: 'onChange'
   })
+
+  useEffect(() => {
+    if (!cycleStartDate && !cycleEndDate) return
+
+    const currentStartDate = form.getValues('startDate')
+    const currentDueDate = form.getValues('dueDate')
+    if (!currentStartDate || !currentDueDate) return
+
+    const clampedStartDate = clampDateToCycle(currentStartDate)
+    const clampedDueDate = clampDateToCycle(currentDueDate)
+    const normalizedDueDate = dayjs(clampedDueDate).isBefore(dayjs(clampedStartDate), 'day')
+      ? clampedStartDate
+      : clampedDueDate
+
+    if (!dayjs(currentStartDate).isSame(dayjs(clampedStartDate), 'day')) {
+      form.setValue('startDate', clampedStartDate, { shouldDirty: false, shouldValidate: true })
+    }
+
+    if (!dayjs(currentDueDate).isSame(dayjs(normalizedDueDate), 'day')) {
+      form.setValue('dueDate', normalizedDueDate, { shouldDirty: false, shouldValidate: true })
+    }
+  }, [cycleStartDate, cycleEndDate, form])
 
   // Once milestones arrive from GraphQL, push them into the form
   useEffect(() => {
@@ -258,12 +275,9 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
     [employee]
   )
 
-  const dateToISOString = (date: Date | string): string => {
-    if (date instanceof Date) {
-      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0)
-      return dateOnly.toISOString()
-    }
-    return date
+  const dateToISOString = (date: string): string => {
+    const normalized = dayjs(date).hour(12).minute(0).second(0).millisecond(0)
+    return normalized.toISOString()
   }
 
   const handleFormSubmit = async (formData: PerformanceGoalFormData) => {
@@ -275,7 +289,10 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       const isNumeric = formData.objectiveType === 'NUMERIC_PERFORMANCE_GOAL'
       const isMilestone = formData.objectiveType === 'MILESTONE_PERFORMANCE_GOAL'
 
+      const existingAdditionalProperties = ((additionalData?.additionalProperties as Record<string, unknown>) ||
+        {}) as Record<string, unknown>
       const additionalProperties: Record<string, unknown> = {
+        ...existingAdditionalProperties,
         ...(isNumeric ? { numeric: { current: formData.startValue ?? 0, unit: '' } } : {})
       }
 
@@ -286,14 +303,14 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       )
 
       // Current milestone list from the form (structure after user adds/removes)
-      const currentMilestones = form.getValues('milestones') || formData.milestones || []
+      const currentMilestones: MilestoneItem[] = form.getValues('milestones') || formData.milestones || []
 
       // For milestone goals: send full current list. Backend reconciles adds (no id), keeps (with id),
       // and removes (omitted from array). Use fetchedDoneMap for correct done state on existing items.
       const milestonesPayload =
         isMilestone && currentMilestones.length
           ? {
-              milestones: currentMilestones.map((m, i) => {
+              milestones: currentMilestones.map((m: MilestoneItem, i: number) => {
                 const isExisting = m.id && !m.id.startsWith('ms-')
                 const doneState = isExisting ? fetchedDoneMap.get(m.id) : undefined
                 return {
@@ -320,9 +337,11 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       // Prefer GraphQL-fetched milestones for accurate diffing.
       const existingMilestones: MilestoneItem[] =
         fetchedMilestones ?? JSON.parse((additionalData?.existingMilestonesJson as string) || '[]')
-      const currentIds = new Set(currentMilestones.map(m => m.id))
-      const addedCount = isEditMode && isMilestone ? currentMilestones.filter(m => m.id.startsWith('ms-')).length : 0
-      const removedCount = isEditMode && isMilestone ? existingMilestones.filter(m => !currentIds.has(m.id)).length : 0
+      const currentIds = new Set(currentMilestones.map((m: MilestoneItem) => m.id))
+      const addedCount =
+        isEditMode && isMilestone ? currentMilestones.filter((m: MilestoneItem) => m.id.startsWith('ms-')).length : 0
+      const removedCount =
+        isEditMode && isMilestone ? existingMilestones.filter((m: MilestoneItem) => !currentIds.has(m.id)).length : 0
       const milestoneChangeParts: string[] = []
       if (addedCount > 0) milestoneChangeParts.push(`${addedCount} milestone${addedCount > 1 ? 's' : ''} added`)
       if (removedCount > 0) milestoneChangeParts.push(`${removedCount} milestone${removedCount > 1 ? 's' : ''} removed`)
@@ -332,7 +351,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       let effectiveProgress = formData.progressPercent || 0
       if (isMilestone && isEditMode && currentMilestones.length) {
         const totalMilestones = currentMilestones.length
-        const doneMilestones = currentMilestones.filter(m => {
+        const doneMilestones = currentMilestones.filter((m: MilestoneItem) => {
           if (m.id.startsWith('ms-')) return false // new milestones are never done
           return fetchedDoneMap.get(m.id)?.done ?? false
         }).length
@@ -387,6 +406,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
           objectiveType: formData.objectiveType,
           ...(isNumeric ? { startValue: formData.startValue ?? 0, targetValue: formData.targetValue ?? 0 } : {}),
           employee: additionalData?.employeeId,
+          ...(!isEditMode && cycleId ? { performanceCycle: cycleId } : {}),
           ...(Object.keys(additionalProperties).length > 0 ? { additionalProperties } : {}),
           ...(formData.progressPercent === 100 && formData.completionDate
             ? { completionDate: dateToISOString(formData.completionDate) }
