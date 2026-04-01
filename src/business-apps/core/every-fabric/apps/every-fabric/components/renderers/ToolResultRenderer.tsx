@@ -5,12 +5,13 @@ import { detectRendererType } from '../../utils/renderUtils'
 
 export interface ToolResultRendererProps {
   callId: string
+  toolName?: string
   result: unknown
   durationMs: number
   cached: boolean
 }
 
-export const ToolResultRenderer = ({ callId, result, durationMs, cached }: ToolResultRendererProps) => {
+export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cached }: ToolResultRendererProps) => {
   const [expanded, setExpanded] = useState(false)
   const rendererType = detectRendererType(result)
 
@@ -38,7 +39,7 @@ export const ToolResultRenderer = ({ callId, result, durationMs, cached }: ToolR
 
       {expanded && (
         <div className="gba:border-t gba:border-border gba:p-3">
-          <ResultContent result={result} rendererType={rendererType} />
+          <ResultContent toolName={toolName} result={result} rendererType={rendererType} />
         </div>
       )}
     </div>
@@ -46,12 +47,60 @@ export const ToolResultRenderer = ({ callId, result, durationMs, cached }: ToolR
 }
 
 function ResultContent({
+  toolName,
   result,
   rendererType
 }: {
+  toolName?: string
   result: unknown
   rendererType: ReturnType<typeof detectRendererType>
 }) {
+  if (
+    toolName === 'web_search' &&
+    result &&
+    typeof result === 'object' &&
+    'results' in result &&
+    Array.isArray((result as { results?: unknown[] }).results)
+  ) {
+    const parsed = result as {
+      source?: string
+      results: Array<{ title?: string; url?: string; snippet?: string }>
+    }
+
+    return (
+      <div className="gba:space-y-3">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+            Sources
+          </p>
+          {parsed.source && <span className="gba:text-[11px] gba:text-muted-foreground/70">{parsed.source}</span>}
+        </div>
+
+        <div className="gba:grid gba:gap-2">
+          {parsed.results.slice(0, 6).map((item, index) => (
+            <a
+              key={`${item.url ?? item.title ?? 'result'}-${index}`}
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="gba:block gba:rounded-xl gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2.5 gba:hover:bg-muted/25 gba:transition-colors"
+            >
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                {item.title || item.url || `Result ${index + 1}`}
+              </p>
+              {item.snippet && (
+                <p className="gba:mt-1 gba:text-xs gba:leading-5 gba:text-muted-foreground">{item.snippet}</p>
+              )}
+              {item.url && (
+                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground/70 gba:truncate">{item.url}</p>
+              )}
+            </a>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   if (rendererType === 'markdown' && typeof result === 'string') {
     return <MarkdownWithChipsRenderer content={result} />
   }
