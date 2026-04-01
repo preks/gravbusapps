@@ -219,5 +219,9 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
     </>
   )
 
-  return typeof document !== 'undefined' ? createPortal(panel, document.body) : null
+  if (typeof document === 'undefined') {
+    return null
+  }
+
+  return createPortal(panel, document.body)
 }

@@ -210,12 +210,12 @@ function toOptionalString(value: number | null | undefined): string | null {
   return String(value)
 }
 
-function resolvePayrollRelevant(contractObjectValue: Record<string, unknown> | null | undefined): boolean | null {
-  if (!contractObjectValue) {
+function resolvePayrollRelevant(contractObjectValue: unknown): boolean | null {
+  if (!contractObjectValue || typeof contractObjectValue !== 'object') {
     return null
   }
 
-  const raw = contractObjectValue.payroll_relevant
+  const raw = (contractObjectValue as Record<string, unknown>).payroll_relevant
   if (raw === undefined) {
     return null
   }
@@ -270,21 +270,25 @@ function buildWorkingHoursForCapacity(
   }
 }
 
-function computeCapacityMetrics(
-  attendance: RawAttendance[],
-  absences: RawAbsence[],
-  workingHours: RawEmployeePosition['employee']['workingHours'][number] | undefined,
-  payrollMonth: number,
-  payrollYear: number
-): CapacityMetrics {
-  const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
-  const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
-  const monthEnd = new Date(payrollYear, payrollMonth, 0)
-  const workingHoursForCapacity = buildWorkingHoursForCapacity(workingHours)
-
+function computeContractTargetMinutes(
+  monthStart: Date,
+  monthEnd: Date,
+  workingHoursForCapacity:
+    | {
+        mondayHours: number
+        tuesdayHours: number
+        wednesdayHours: number
+        thursdayHours: number
+        fridayHours: number
+        saturdayHours: number
+        sundayHours: number
+      }
+    | undefined
+): { contractTargetMinutes: number; scheduledWorkingDays: string[] } {
   let contractTargetMinutes = 0
   const cursor = new Date(monthStart)
   const scheduledWorkingDays: string[] = []
+
   while (cursor <= monthEnd) {
     const dateKey = toLocalDateKey(cursor)
     const planned = getPlannedMinutesForDate(dateKey, workingHoursForCapacity)
@@ -295,8 +299,16 @@ function computeCapacityMetrics(
     cursor.setDate(cursor.getDate() + 1)
   }
 
+  return { contractTargetMinutes, scheduledWorkingDays }
+}
+
+function computeWorkedMinutesAndAttendanceDates(attendance: RawAttendance[]): {
+  workedMinutes: number
+  attendanceDateSet: Set<string>
+} {
   const attendanceDateSet = new Set<string>()
   let workedMinutes = 0
+
   for (const entry of attendance) {
     workedMinutes += parseDurationToMinutes(entry.effectiveTime)
     if (entry.attendanceDate) {
@@ -304,7 +316,12 @@ function computeCapacityMetrics(
     }
   }
 
+  return { workedMinutes, attendanceDateSet }
+}
+
+function computeAbsenceDateSet(approvedAbsences: RawAbsence[], monthStart: Date, monthEnd: Date): Set<string> {
   const absenceDateSet = new Set<string>()
+
   for (const absence of approvedAbsences) {
     const start = new Date(absence.startDate)
     const end = new Date(absence.endDate)
@@ -317,12 +334,44 @@ function computeCapacityMetrics(
     }
   }
 
+  return absenceDateSet
+}
+
+function countMissingPresenceDays(
+  scheduledWorkingDays: string[],
+  attendanceDateSet: Set<string>,
+  absenceDateSet: Set<string>
+): number {
   let missingPresenceDays = 0
+
   for (const day of scheduledWorkingDays) {
     if (!attendanceDateSet.has(day) && !absenceDateSet.has(day)) {
       missingPresenceDays++
     }
   }
+
+  return missingPresenceDays
+}
+
+function computeCapacityMetrics(
+  attendance: RawAttendance[],
+  absences: RawAbsence[],
+  workingHours: RawEmployeePosition['employee']['workingHours'][number] | undefined,
+  payrollMonth: number,
+  payrollYear: number
+): CapacityMetrics {
+  const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
+  const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
+  const monthEnd = new Date(payrollYear, payrollMonth, 0)
+  const workingHoursForCapacity = buildWorkingHoursForCapacity(workingHours)
+  const { contractTargetMinutes, scheduledWorkingDays } = computeContractTargetMinutes(
+    monthStart,
+    monthEnd,
+    workingHoursForCapacity
+  )
+  const { workedMinutes, attendanceDateSet } = computeWorkedMinutesAndAttendanceDates(attendance)
+  const absenceDateSet = computeAbsenceDateSet(approvedAbsences, monthStart, monthEnd)
+  const missingPresenceDays = countMissingPresenceDays(scheduledWorkingDays, attendanceDateSet, absenceDateSet)
 
   const overtimeMinutes = Math.max(0, workedMinutes - contractTargetMinutes)
   const balanceMinutes = workedMinutes - contractTargetMinutes
@@ -528,8 +577,7 @@ function buildPayrollEmployee(
 
   const contractTypeLabel = wc?.contractType?.translations?.[0]?.value || wc?.contractType?.value || ''
   const employmentTypeLabel = wc?.employmentType?.translations?.[0]?.value || wc?.employmentType?.value || ''
-  const contractObjVal = wc?.contractType?.objectValue as Record<string, unknown> | null | undefined
-  const payrollRelevant = resolvePayrollRelevant(contractObjVal)
+  const payrollRelevant = resolvePayrollRelevant(wc?.contractType?.objectValue)
 
   const rawExitDate = wc?.exitDate || pos.exitDate
   const employmentStatus = resolveEmploymentStatus(rawExitDate, payrollMonth, payrollYear)

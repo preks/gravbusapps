@@ -285,7 +285,7 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
   }
 
   const renderContent = () => {
-    const waitingForOverviewLoad = Boolean(activeRun && pendingOverviewRunId === activeRun.id)
+    const waitingForOverviewLoad = activeRun?.id === pendingOverviewRunId
     const requiresSelectedRun = activeTab !== 'overview'
 
     if (!selectedCompanyId) {

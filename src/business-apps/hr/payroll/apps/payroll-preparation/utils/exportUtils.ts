@@ -71,14 +71,6 @@ function toOptionalStringValue(value: string | number | boolean | null | undefin
   return String(value)
 }
 
-function toNumberStringValue(value: number | null | undefined): string {
-  if (value === null || value === undefined) {
-    return ''
-  }
-
-  return String(value)
-}
-
 function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): string[] {
   const row = [
     employee.employeeId,
@@ -94,9 +86,9 @@ function employeeToRow(employee: PayrollEmployee, includeIssues: boolean): strin
     employee.costCenter,
     employee.workLocation,
     employee.contractType,
-    toNumberStringValue(employee.fte),
-    toNumberStringValue(employee.weeklyHours),
-    toNumberStringValue(employee.baseSalary),
+    toOptionalStringValue(employee.fte),
+    toOptionalStringValue(employee.weeklyHours),
+    toOptionalStringValue(employee.baseSalary),
     employee.currency,
     String(employee.bankDetailsPresent),
     employee.bankAccountIban || '',
