@@ -89,3 +89,7 @@ export const getPrevalidateErrorPresentation = (
     }
   )
 }
+
+export const getPrevalidateErrorLabel = (errorCode: string, errorDetail?: string | null): string => {
+  return getPrevalidateErrorPresentation(errorCode, errorDetail).messageFallback
+}
