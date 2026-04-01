@@ -378,7 +378,9 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
 
       {selectedEmployee && (
         <>
-          <div
+          <button
+            type="button"
+            aria-label={t('close')}
             className="gba:fixed gba:inset-0 gba:bg-foreground/20 gba:z-40"
             onClick={() => setSelectedEmployee(null)}
           />

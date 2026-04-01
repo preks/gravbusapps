@@ -80,6 +80,48 @@ function createAuditEvent(eventType: string, description: string, userInfo?: Use
   }
 }
 
+function buildPersistedAuditEvents(activeRun: PayrollRun): AuditEvent[] {
+  const persisted: AuditEvent[] = []
+
+  if (activeRun.createdBy && activeRun.createdAt) {
+    persisted.push({
+      id: `audit-created-${activeRun.id}`,
+      eventType: 'payroll_run_created',
+      description: `Payroll run created`,
+      userId: '',
+      userName: activeRun.createdBy,
+      timestamp: activeRun.createdAt
+    })
+  }
+
+  if (activeRun.preparedBy && activeRun.preparedAt) {
+    persisted.push({
+      id: `audit-prepared-${activeRun.id}`,
+      eventType: 'marked_ready',
+      description: `Marked ready for review`,
+      userId: '',
+      userName: activeRun.preparedBy,
+      timestamp: activeRun.preparedAt
+    })
+  }
+
+  if (activeRun.reviewedBy && activeRun.reviewedAt) {
+    const decision = activeRun.approvalDecision || ''
+    const comment = activeRun.reviewComment ? `: ${activeRun.reviewComment}` : ''
+    persisted.push({
+      id: `audit-reviewed-${activeRun.id}`,
+      eventType: decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
+      description: `${decision}${comment}`,
+      userId: '',
+      userName: activeRun.reviewedBy,
+      timestamp: activeRun.reviewedAt
+    })
+  }
+
+  persisted.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+  return persisted
+}
+
 export function usePayrollRun(
   accessToken: string,
   companyId: string | null,
@@ -99,41 +141,7 @@ export function usePayrollRun(
   useEffect(() => {
     setPayrollRun(activeRun)
     if (activeRun) {
-      const persisted: AuditEvent[] = []
-      if (activeRun.createdBy && activeRun.createdAt) {
-        persisted.push({
-          id: `audit-created-${activeRun.id}`,
-          eventType: 'payroll_run_created',
-          description: `Payroll run created`,
-          userId: '',
-          userName: activeRun.createdBy,
-          timestamp: activeRun.createdAt
-        })
-      }
-      if (activeRun.preparedBy && activeRun.preparedAt) {
-        persisted.push({
-          id: `audit-prepared-${activeRun.id}`,
-          eventType: 'marked_ready',
-          description: `Marked ready for review`,
-          userId: '',
-          userName: activeRun.preparedBy,
-          timestamp: activeRun.preparedAt
-        })
-      }
-      if (activeRun.reviewedBy && activeRun.reviewedAt) {
-        const decision = activeRun.approvalDecision || ''
-        const comment = activeRun.reviewComment ? `: ${activeRun.reviewComment}` : ''
-        persisted.push({
-          id: `audit-reviewed-${activeRun.id}`,
-          eventType: decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
-          description: `${decision}${comment}`,
-          userId: '',
-          userName: activeRun.reviewedBy,
-          timestamp: activeRun.reviewedAt
-        })
-      }
-      persisted.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-      setAuditEvents(persisted)
+      setAuditEvents(buildPersistedAuditEvents(activeRun))
     } else {
       setAuditEvents([])
     }

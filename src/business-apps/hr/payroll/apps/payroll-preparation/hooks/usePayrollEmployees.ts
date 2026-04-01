@@ -304,8 +304,14 @@ function buildPayrollEmployee(
   const bonusCurrency = bonuses[0]?.currency?.code || null
   const allBonusesApproved = bonuses.length > 0 && bonuses.every(b => b.status === 'APPROVED_COMPENSATION')
   const hasPendingBonuses = bonuses.some(b => b.status !== 'APPROVED_COMPENSATION')
-  const variablePayStatus: PayrollEmployee['variablePayStatus'] =
-    bonuses.length === 0 ? 'none' : allBonusesApproved ? 'all_approved' : hasPendingBonuses ? 'pending' : null
+  let variablePayStatus: PayrollEmployee['variablePayStatus'] = null
+  if (bonuses.length === 0) {
+    variablePayStatus = 'none'
+  } else if (allBonusesApproved) {
+    variablePayStatus = 'all_approved'
+  } else if (hasPendingBonuses) {
+    variablePayStatus = 'pending'
+  }
 
   const periodStart = new Date(payrollYear, payrollMonth - 1, 1)
   const periodEnd = new Date(payrollYear, payrollMonth, 0)

@@ -92,7 +92,10 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
     return counts
   }, [allChanges])
 
-  const availableChangeTypes = useMemo(() => Object.keys(changeTypeCounts).sort() as ChangeType[], [changeTypeCounts])
+  const availableChangeTypes = useMemo(
+    () => Object.keys(changeTypeCounts).sort((a, b) => a.localeCompare(b)) as ChangeType[],
+    [changeTypeCounts]
+  )
 
   if (changedEmployees.length === 0 && allChanges.length === 0) {
     return (

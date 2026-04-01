@@ -90,13 +90,31 @@ function RunsListView({
   onSelectRun,
   onCreateRun,
   t
-}: {
+}: Readonly<{
   runs: PayrollRun[]
   runsLoading: boolean
   onSelectRun: (run: PayrollRun) => void
   onCreateRun: () => void
   t: (key: string) => string
-}) {
+}>) {
+  if (runsLoading) {
+    return <Card className="gba:p-12 gba:text-center gba:text-muted-foreground">{t('loading')}</Card>
+  }
+
+  if (runs.length === 0) {
+    return (
+      <Card className="gba:p-12 gba:text-center">
+        <FolderOpenIcon size={48} className="gba:mx-auto gba:text-muted-foreground/40 gba:mb-4" />
+        <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-empty')}</h3>
+        <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('runs-empty-hint')}</p>
+        <Button onClick={onCreateRun}>
+          <PlusIcon size={16} className="gba:mr-2" />
+          {t('runs-new-button')}
+        </Button>
+      </Card>
+    )
+  }
+
   return (
     <div className="gba:space-y-6">
       <div className="gba:flex gba:items-center gba:justify-between">
@@ -110,52 +128,34 @@ function RunsListView({
         </Button>
       </div>
 
-      {runsLoading ? (
-        <Card className="gba:p-12 gba:text-center gba:text-muted-foreground">{t('loading')}</Card>
-      ) : runs.length === 0 ? (
-        <Card className="gba:p-12 gba:text-center">
-          <FolderOpenIcon size={48} className="gba:mx-auto gba:text-muted-foreground/40 gba:mb-4" />
-          <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-empty')}</h3>
-          <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('runs-empty-hint')}</p>
-          <Button onClick={onCreateRun}>
-            <PlusIcon size={16} className="gba:mr-2" />
-            {t('runs-new-button')}
-          </Button>
-        </Card>
-      ) : (
-        <Card className="gba:overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="gba:whitespace-nowrap">{t('runs-col-period')}</TableHead>
-                <TableHead className="gba:whitespace-nowrap">{t('runs-col-status')}</TableHead>
-                <TableHead className="gba:whitespace-nowrap">{t('runs-col-cutoff')}</TableHead>
-                <TableHead className="gba:whitespace-nowrap">{t('runs-col-payment')}</TableHead>
-                <TableHead className="gba:whitespace-nowrap">{t('runs-col-created')}</TableHead>
+      <Card className="gba:overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-period')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-status')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-cutoff')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-payment')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-created')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {runs.map(run => (
+              <TableRow key={run.id} className="gba:cursor-pointer gba:hover:bg-muted" onClick={() => onSelectRun(run)}>
+                <TableCell className="gba:font-medium gba:text-foreground">
+                  {t(`month-${run.month}`)} {run.year}
+                </TableCell>
+                <TableCell>
+                  <PayrollRunStatusBadge status={run.status} translatedLabel={getRunStatusLabel(run.status, t)} />
+                </TableCell>
+                <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
+                <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
+                <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.createdAt)}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.map(run => (
-                <TableRow
-                  key={run.id}
-                  className="gba:cursor-pointer gba:hover:bg-muted"
-                  onClick={() => onSelectRun(run)}
-                >
-                  <TableCell className="gba:font-medium gba:text-foreground">
-                    {t(`month-${run.month}`)} {run.year}
-                  </TableCell>
-                  <TableCell>
-                    <PayrollRunStatusBadge status={run.status} translatedLabel={getRunStatusLabel(run.status, t)} />
-                  </TableCell>
-                  <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
-                  <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
-                  <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.createdAt)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      )}
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   )
 }
@@ -165,12 +165,12 @@ function RunDashboardView({
   employees,
   payrollRun,
   t
-}: {
+}: Readonly<{
   summary: PayrollSummary
   employees: PayrollEmployee[]
   payrollRun: PayrollRun
   t: (key: string, args?: Record<string, any>) => string
-}) {
+}>) {
   const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
 
   return (

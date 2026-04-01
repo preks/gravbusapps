@@ -29,7 +29,7 @@ const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, val
 )
 
 export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ employee, country, onClose, t }) => {
-  if (!employee) return null
+  if (employee === null) return null
 
   const openEmployeeRecord = () => {
     navigateTo(buildPlatformUrl(Navigation.HR_EMPLOYEE_RECORD, { id: employee.employeeId }))

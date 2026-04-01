@@ -38,7 +38,24 @@ const STATUS_ORDER: PayrollRunStatus[] = [
 
 function getStepIndex(status: PayrollRunStatus): number {
   const idx = STATUS_ORDER.indexOf(status)
-  return idx >= 0 ? idx : 0
+  return Math.max(0, idx)
+}
+
+function getStepState(stepIndex: number, currentStep: number): StepDef['state'] {
+  if (currentStep > stepIndex) return 'completed'
+  if (currentStep === stepIndex) return 'active'
+  return 'pending'
+}
+
+function getStepCircleClasses(state: StepDef['state']): string {
+  if (state === 'completed') return 'gba:bg-success gba:text-success-foreground'
+  if (state === 'active') return 'gba:bg-primary gba:text-primary-foreground'
+  return 'gba:bg-muted gba:text-muted-foreground'
+}
+
+function getStepLabelClasses(state: StepDef['state']): string {
+  if (state === 'active') return 'gba:font-semibold gba:text-foreground'
+  return 'gba:text-muted-foreground'
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -139,17 +156,17 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
       {
         number: 1,
         label: t('step-1-label'),
-        state: currentStep > 0 ? 'completed' : currentStep === 0 ? 'active' : 'pending'
+        state: getStepState(0, currentStep)
       },
       {
         number: 2,
         label: t('step-2-label'),
-        state: currentStep > 1 ? 'completed' : currentStep === 1 ? 'active' : 'pending'
+        state: getStepState(1, currentStep)
       },
       {
         number: 3,
         label: t('step-3-label'),
-        state: currentStep > 2 ? 'completed' : currentStep === 2 ? 'active' : 'pending'
+        state: getStepState(2, currentStep)
       },
       { number: 4, label: t('step-4-label'), state: currentStep >= 3 ? 'completed' : 'pending' }
     ],
@@ -205,7 +222,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
       return
     }
     setCommentError(false)
-    if (!window.confirm(t('step-2-reject-confirm'))) return
+    if (!globalThis.confirm(t('step-2-reject-confirm'))) return
     await submitReview('NOT APPROVED', reviewComment.trim())
     setReviewComment('')
   }
@@ -253,23 +270,11 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
         <React.Fragment key={step.number}>
           <div className="gba:flex gba:items-center gba:gap-2">
             <div
-              className={`gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-sm gba:font-semibold gba:flex-shrink-0 ${
-                step.state === 'completed'
-                  ? 'gba:bg-success gba:text-success-foreground'
-                  : step.state === 'active'
-                    ? 'gba:bg-primary gba:text-primary-foreground'
-                    : 'gba:bg-muted gba:text-muted-foreground'
-              }`}
+              className={`gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-sm gba:font-semibold gba:flex-shrink-0 ${getStepCircleClasses(step.state)}`}
             >
               {step.state === 'completed' ? <CheckCircleIcon size={16} weight="bold" /> : step.number}
             </div>
-            <span
-              className={`gba:text-sm gba:whitespace-nowrap ${
-                step.state === 'active' ? 'gba:font-semibold gba:text-foreground' : 'gba:text-muted-foreground'
-              }`}
-            >
-              {step.label}
-            </span>
+            <span className={`gba:text-sm gba:whitespace-nowrap ${getStepLabelClasses(step.state)}`}>{step.label}</span>
           </div>
           {idx < steps.length - 1 && (
             <div
@@ -558,7 +563,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep >= 3
 
     return (
-      <Card className={`gba:p-6 ${!isCompleted ? 'gba:opacity-50' : ''}`}>
+      <Card className={`gba:p-6 ${isCompleted ? '' : 'gba:opacity-50'}`}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-4-label')}</h3>
           {isCompleted && (
