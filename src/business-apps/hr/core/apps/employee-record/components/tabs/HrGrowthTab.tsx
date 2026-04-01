@@ -254,6 +254,9 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               employeeId={employeeId}
               userInfo={userInfo}
               employeePerformanceGoals={employeePerformanceGoals}
+              canDeleteGoals={
+                hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+              }
             />
           </TabsContent>
         )}
