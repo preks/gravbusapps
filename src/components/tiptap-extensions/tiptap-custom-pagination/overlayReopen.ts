@@ -16,7 +16,11 @@ function resolveOverlayTargetWithinMountedShell(
       const firstPageHeader = editorDom.querySelector(
         '.rm-first-page-header[data-rm-page-number="1"][data-rm-editor-type="header"]'
       )
-      return firstPageHeader instanceof HTMLElement ? firstPageHeader : null
+      if (firstPageHeader instanceof HTMLElement) {
+        return firstPageHeader
+      }
+      const fallback = editorDom.querySelector('[data-rm-editor-type="header"][data-rm-page-number="1"]')
+      return fallback instanceof HTMLElement ? fallback : null
     }
 
     const previousPageBreak = findPaginationPageBreakElement(editorDom, activeEditor.pageNumber - 1)

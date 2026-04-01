@@ -55,7 +55,6 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
     loading,
     error,
     employeeLoading,
-    absenceGroups,
     statusFilter,
     setStatusFilter,
     typeFilter,
@@ -69,8 +68,6 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
     filteredAbsences,
     paginatedAbsences,
     totalPages,
-    getAbsenceGroupDisplayValue,
-    handleCreateAbsence,
     refetchEntitlements
   } = data
   const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
@@ -163,9 +160,7 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
     <>
       <PersonalAbsencesDashboardView
         onShowCalendar={() => setShowCalendar(true)}
-        absenceGroups={absenceGroups}
-        getAbsenceGroupDisplayValue={getAbsenceGroupDisplayValue}
-        onCreateAbsence={handleCreateAbsence}
+        employeeId={employee?.id}
         isLoading={isLoading}
         displayEntitlements={displayEntitlements}
         otherEntitlements={data.otherEntitlements}
