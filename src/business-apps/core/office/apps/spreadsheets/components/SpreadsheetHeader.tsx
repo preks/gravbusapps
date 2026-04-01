@@ -4,7 +4,7 @@
  * Top navigation bar with breadcrumbs, status indicators, and actions.
  */
 
-import React, { memo, useCallback, useState } from 'react'
+import React, { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Button,
   Badge,
@@ -40,6 +40,9 @@ import type { CursorParticipant } from '../hooks/useSpreadsheetCellSelection'
 
 const VALID_PUBLISH_STATUSES = ['draft', 'in_review', 'published', 'archived'] as const
 
+/** Use element width (not viewport): header often sits in a narrow hub panel or iframe. */
+const SPREADSHEET_HEADER_SINGLE_ROW_MIN_PX = 640
+
 function getNormalizedPublishStatus(status: string): PublishStatus {
   return (
     VALID_PUBLISH_STATUSES.includes(status as (typeof VALID_PUBLISH_STATUSES)[number]) ? status : 'draft'
@@ -54,8 +57,68 @@ function AppIcon({ app }: { app: SpreadsheetApp }) {
   return <FileSpreadsheet className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
 }
 
-function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: SpreadsheetApp }) {
+function BreadcrumbSection({
+  onBack,
+  app,
+  canRename,
+  onRenameAppName
+}: {
+  onBack?: () => void
+  app: SpreadsheetApp
+  canRename: boolean
+  onRenameAppName?: (name: string) => Promise<boolean> | boolean
+}) {
   const { t } = useTranslation(translations)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [draftName, setDraftName] = useState(app.name)
+  const [isRenamePending, setIsRenamePending] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isRenaming) {
+      setDraftName(app.name)
+    }
+  }, [app.name, isRenaming])
+
+  useEffect(() => {
+    if (!isRenaming) return
+    renameInputRef.current?.focus()
+    renameInputRef.current?.select()
+  }, [isRenaming])
+
+  const beginRenaming = useCallback(() => {
+    if (!canRename || isRenamePending) return
+    setDraftName(app.name)
+    setIsRenaming(true)
+  }, [app.name, canRename, isRenamePending])
+
+  const cancelRenaming = useCallback(() => {
+    setDraftName(app.name)
+    setIsRenaming(false)
+  }, [app.name])
+
+  const commitRenaming = useCallback(async () => {
+    if (!isRenaming || isRenamePending) return
+    const nextName = draftName.trim()
+    if (!nextName || nextName === app.name) {
+      setDraftName(app.name)
+      setIsRenaming(false)
+      return
+    }
+    if (!onRenameAppName) {
+      setIsRenaming(false)
+      return
+    }
+    setIsRenamePending(true)
+    try {
+      const didRename = await onRenameAppName(nextName)
+      if (didRename !== false) {
+        setIsRenaming(false)
+      }
+    } finally {
+      setIsRenamePending(false)
+    }
+  }, [app.name, draftName, isRenaming, isRenamePending, onRenameAppName])
 
   return (
     <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
@@ -78,7 +141,44 @@ function BreadcrumbSection({ onBack, app }: { onBack?: () => void; app: Spreadsh
           </div>
         </div>
         <div className="gba:min-w-0 gba:flex-1">
-          <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={draftName}
+              onChange={event => setDraftName(event.target.value)}
+              onBlur={() => {
+                void commitRenaming()
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  ;(event.currentTarget as HTMLInputElement).blur()
+                  return
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  cancelRenaming()
+                }
+              }}
+              disabled={isRenamePending}
+              className="gba:w-full gba:max-w-[320px] gba:h-8 gba:px-2 gba:text-base gba:font-semibold gba:text-foreground gba:border gba:border-input gba:rounded-md gba:bg-background focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+              placeholder={t('header-rename-file-placeholder')}
+              data-testid="spreadsheet-header-name-input"
+            />
+          ) : canRename ? (
+            <button
+              type="button"
+              className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate gba:text-left hover:gba:text-primary focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring gba:rounded-sm"
+              onClick={beginRenaming}
+              title={t('header-rename-file-title')}
+              data-testid="spreadsheet-header-name-button"
+            >
+              {app.name}
+            </button>
+          ) : (
+            <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+          )}
           {app.description && (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">{app.description}</p>
           )}
@@ -96,7 +196,8 @@ function EditingToolbar({
   setShowComments,
   unresolvedCommentCount,
   onOpenAICapability,
-  fileLock
+  fileLock,
+  singleHeaderRow
 }: {
   versioning: { isSaving: boolean; lastSaveTime: Date | null; hasUnsavedChanges: boolean }
   persistenceError?: string | null
@@ -109,11 +210,18 @@ function EditingToolbar({
     lock: { isLocked: boolean; lockedByName?: string } | null
     isLockedByMe: boolean
   }
+  singleHeaderRow: boolean
 }) {
   const { t } = useTranslation(translations)
   const isLocked = fileLock.lock?.isLocked ?? false
   return (
-    <div className="gba:flex gba:items-center gba:gap-1.5">
+    <div
+      className={
+        singleHeaderRow
+          ? 'gba:flex gba:items-center gba:gap-1.5 gba:flex-nowrap'
+          : 'gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap'
+      }
+    >
       <SpreadsheetSaveStatus
         isSaving={versioning.isSaving}
         lastSaveTime={versioning.lastSaveTime}
@@ -279,6 +387,7 @@ export interface SpreadsheetHeaderProps {
   }
 
   // Actions
+  onRenameAppName?: (name: string) => Promise<boolean> | boolean
   onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   onShare?: () => void
   onOpenAnalytics: () => void
@@ -311,6 +420,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   setShowComments,
   unresolvedCommentCount,
   fileLock,
+  onRenameAppName,
   onShare,
   onOpenAICapability,
   onOpenAnalytics,
@@ -323,6 +433,33 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   testId
 }) {
   const { t } = useTranslation(translations)
+  const headerShellRef = useRef<HTMLDivElement>(null)
+  const [singleHeaderRow, setSingleHeaderRow] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = headerShellRef.current
+    if (!el) return
+
+    const applyWidth = () => {
+      const w = el.offsetWidth
+      if (w < 1) return
+      setSingleHeaderRow(w >= SPREADSHEET_HEADER_SINGLE_ROW_MIN_PX)
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        applyWidth()
+      })
+      ro.observe(el)
+      applyWidth()
+      return () => ro.disconnect()
+    }
+
+    applyWidth()
+    globalThis.addEventListener('resize', applyWidth)
+    return () => globalThis.removeEventListener('resize', applyWidth)
+  }, [])
+
   const [isSubmittingCollection, setIsSubmittingCollection] = useState(false)
   const handleSubmitCollection = useCallback(async () => {
     if (!onSubmitCollection || isSubmittingCollection) return
@@ -343,13 +480,35 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   const normalizedPublishStatus = getNormalizedPublishStatus(publishingStatus)
 
   return (
-    <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
-      <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
-        <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
-          <BreadcrumbSection onBack={onBack} app={app} />
+    <div
+      ref={headerShellRef}
+      className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50 gba:min-w-0"
+      data-testid={`${testId}-header-shell`}
+    >
+      <div
+        className={
+          singleHeaderRow
+            ? 'gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-3 gba:min-w-0 gba:w-full'
+            : 'gba:flex gba:flex-col gba:gap-2 gba:min-w-0 gba:w-full'
+        }
+      >
+        <div
+          className={
+            singleHeaderRow
+              ? 'gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:gap-1'
+              : 'gba:flex gba:w-full gba:min-w-0 gba:items-center gba:gap-1'
+          }
+        >
+          <BreadcrumbSection onBack={onBack} app={app} canRename={canEdit} onRenameAppName={onRenameAppName} />
         </div>
 
-        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+        <div
+          className={
+            singleHeaderRow
+              ? 'gba:flex gba:w-auto gba:min-w-0 gba:flex-shrink-0 gba:flex-row gba:flex-nowrap gba:items-center gba:gap-3 gba:justify-end'
+              : 'gba:flex gba:w-full gba:min-w-0 gba:flex-row gba:flex-wrap gba:items-center gba:gap-2 gba:justify-start'
+          }
+        >
           <StatusIndicators
             headerParticipants={headerParticipants}
             isCollaborationConnected={isCollaborationConnected}
@@ -359,7 +518,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             data-testid={`${testId}-status-indicators`}
           />
 
-          <div className="gba:h-6 gba:w-px gba:bg-border/50" />
+          <div className={singleHeaderRow ? 'gba:block gba:h-6 gba:w-px gba:bg-border/50' : 'gba:hidden'} />
 
           {!isCollectionCopy && normalizedPublishStatus !== 'draft' && <StatusBadge status={normalizedPublishStatus} />}
 
@@ -374,6 +533,15 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             </Badge>
           )}
 
+          <CollectionStatusSection
+            isCollectionCopy={isCollectionCopy}
+            collectionSubmittedAt={collectionSubmittedAt}
+            formattedSubmittedAt={formattedSubmittedAt}
+            onSubmitCollection={onSubmitCollection}
+            isSubmittingCollection={isSubmittingCollection}
+            handleSubmitCollection={handleSubmitCollection}
+          />
+
           {isEditing && (
             <EditingToolbar
               versioning={versioning}
@@ -384,19 +552,11 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               unresolvedCommentCount={unresolvedCommentCount}
               onOpenAICapability={onOpenAICapability}
               fileLock={fileLock}
+              singleHeaderRow={singleHeaderRow}
             />
           )}
 
-          <CollectionStatusSection
-            isCollectionCopy={isCollectionCopy}
-            collectionSubmittedAt={collectionSubmittedAt}
-            formattedSubmittedAt={formattedSubmittedAt}
-            onSubmitCollection={onSubmitCollection}
-            isSubmittingCollection={isSubmittingCollection}
-            handleSubmitCollection={handleSubmitCollection}
-          />
-
-          <div className="gba:h-6 gba:w-px gba:bg-border/50" />
+          <div className={singleHeaderRow ? 'gba:block gba:h-6 gba:w-px gba:bg-border/50' : 'gba:hidden'} />
 
           <SpreadsheetActionsMenu
             onShowVersionHistory={onShowVersionHistory}
