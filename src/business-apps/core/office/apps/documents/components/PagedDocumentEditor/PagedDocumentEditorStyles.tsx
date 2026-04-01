@@ -60,6 +60,18 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         text-decoration: underline;
         cursor: pointer;
       }
+
+      /* Highlight (TipTap <mark>) — UA styles can alter typography; match parent / textStyle spans. */
+      .paged-document-editor .ProseMirror mark {
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        font-style: inherit;
+        font-variant: inherit;
+        line-height: inherit;
+        letter-spacing: inherit;
+      }
+
       .paged-document-editor .ProseMirror .navigation-search-highlight {
         background: color-mix(in srgb, var(--nw-primary) 22%, transparent);
         border-radius: 2px;
