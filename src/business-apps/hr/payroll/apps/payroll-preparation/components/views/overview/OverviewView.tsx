@@ -46,6 +46,14 @@ interface KpiCardProps {
   variant: BadgeVariant
 }
 
+interface ReadinessSegmentConfig {
+  key: 'ready' | 'warning' | 'blocked' | 'excluded'
+  count: number
+  badgeVariant: BadgeVariant
+  barClassName: string
+  label: string
+}
+
 const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
   <Card className="gba:p-4 gba:flex gba:flex-row gba:items-center gba:gap-3">
     <Badge
@@ -172,6 +180,87 @@ function RunDashboardView({
   t: (key: string, args?: Record<string, any>) => string
 }>) {
   const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
+  const kpiCards = useMemo(
+    () => [
+      {
+        label: t('summary-total'),
+        value: summary.totalEmployees,
+        icon: <UsersIcon size={24} />,
+        variant: 'outline' as const
+      },
+      {
+        label: t('summary-ready'),
+        value: summary.readyCount,
+        icon: <CheckCircleIcon size={24} weight="fill" />,
+        variant: 'success' as const
+      },
+      {
+        label: t('summary-warning'),
+        value: summary.warningCount,
+        icon: <WarningIcon size={24} weight="fill" />,
+        variant: 'warning' as const
+      },
+      {
+        label: t('summary-blocked'),
+        value: summary.blockedCount,
+        icon: <XCircleIcon size={24} weight="fill" />,
+        variant: 'destructive' as const
+      },
+      {
+        label: t('summary-excluded'),
+        value: summary.excludedCount,
+        icon: <MinusCircleIcon size={24} weight="fill" />,
+        variant: 'secondary' as const
+      },
+      {
+        label: t('summary-blockers'),
+        value: summary.openBlockers,
+        icon: <ShieldWarningIcon size={24} weight="fill" />,
+        variant: 'destructive' as const
+      },
+      {
+        label: t('summary-changed'),
+        value: summary.changedSinceLastPayroll,
+        icon: <ArrowsClockwiseIcon size={24} />,
+        variant: 'outline' as const
+      }
+    ],
+    [summary, t]
+  )
+
+  const readinessSegments = useMemo<ReadinessSegmentConfig[]>(
+    () => [
+      {
+        key: 'ready',
+        count: summary.readyCount,
+        badgeVariant: 'success',
+        barClassName: 'gba:bg-success',
+        label: t('summary-ready')
+      },
+      {
+        key: 'warning',
+        count: summary.warningCount,
+        badgeVariant: 'warning',
+        barClassName: 'gba:bg-warning',
+        label: t('summary-warning')
+      },
+      {
+        key: 'blocked',
+        count: summary.blockedCount,
+        badgeVariant: 'destructive',
+        barClassName: 'gba:bg-destructive',
+        label: t('summary-blocked')
+      },
+      {
+        key: 'excluded',
+        count: summary.excludedCount,
+        badgeVariant: 'secondary',
+        barClassName: 'gba:bg-muted-foreground/30',
+        label: t('summary-excluded')
+      }
+    ],
+    [summary, t]
+  )
 
   return (
     <div className="gba:space-y-6">
@@ -221,96 +310,32 @@ function RunDashboardView({
       </Card>
 
       <div className="gba:grid gba:grid-cols-4 gba:gap-4">
-        <KpiCard
-          label={t('summary-total')}
-          value={summary.totalEmployees}
-          icon={<UsersIcon size={24} />}
-          variant="outline"
-        />
-        <KpiCard
-          label={t('summary-ready')}
-          value={summary.readyCount}
-          icon={<CheckCircleIcon size={24} weight="fill" />}
-          variant="success"
-        />
-        <KpiCard
-          label={t('summary-warning')}
-          value={summary.warningCount}
-          icon={<WarningIcon size={24} weight="fill" />}
-          variant="warning"
-        />
-        <KpiCard
-          label={t('summary-blocked')}
-          value={summary.blockedCount}
-          icon={<XCircleIcon size={24} weight="fill" />}
-          variant="destructive"
-        />
-        <KpiCard
-          label={t('summary-excluded')}
-          value={summary.excludedCount}
-          icon={<MinusCircleIcon size={24} weight="fill" />}
-          variant="secondary"
-        />
-        <KpiCard
-          label={t('summary-blockers')}
-          value={summary.openBlockers}
-          icon={<ShieldWarningIcon size={24} weight="fill" />}
-          variant="destructive"
-        />
-        <KpiCard
-          label={t('summary-changed')}
-          value={summary.changedSinceLastPayroll}
-          icon={<ArrowsClockwiseIcon size={24} />}
-          variant="outline"
-        />
+        {kpiCards.map(card => (
+          <KpiCard key={card.label} label={card.label} value={card.value} icon={card.icon} variant={card.variant} />
+        ))}
       </div>
 
       {summary.totalEmployees > 0 && (
         <Card className="gba:p-6">
           <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-4">{t('overview-readiness')}</h4>
           <div className="gba:flex gba:h-4 gba:rounded-full gba:overflow-hidden gba:bg-muted">
-            {summary.readyCount > 0 && (
-              <div
-                className="gba:bg-success gba:transition-all"
-                style={{ width: `${(summary.readyCount / summary.totalEmployees) * 100}%` }}
-                title={`${t('summary-ready')}: ${summary.readyCount}`}
-              />
-            )}
-            {summary.warningCount > 0 && (
-              <div
-                className="gba:bg-warning gba:transition-all"
-                style={{ width: `${(summary.warningCount / summary.totalEmployees) * 100}%` }}
-                title={`${t('summary-warning')}: ${summary.warningCount}`}
-              />
-            )}
-            {summary.blockedCount > 0 && (
-              <div
-                className="gba:bg-destructive gba:transition-all"
-                style={{ width: `${(summary.blockedCount / summary.totalEmployees) * 100}%` }}
-                title={`${t('summary-blocked')}: ${summary.blockedCount}`}
-              />
-            )}
-            {summary.excludedCount > 0 && (
-              <div
-                className="gba:bg-muted-foreground/30 gba:transition-all"
-                style={{ width: `${(summary.excludedCount / summary.totalEmployees) * 100}%` }}
-                title={`${t('summary-excluded')}: ${summary.excludedCount}`}
-              />
-            )}
+            {readinessSegments
+              .filter(segment => segment.count > 0)
+              .map(segment => (
+                <div
+                  key={segment.key}
+                  className={`${segment.barClassName} gba:transition-all`}
+                  style={{ width: `${(segment.count / summary.totalEmployees) * 100}%` }}
+                  title={`${segment.label}: ${segment.count}`}
+                />
+              ))}
           </div>
           <div className="gba:flex gba:gap-4 gba:mt-3 gba:flex-wrap">
-            <Badge variant="success">
-              {t('summary-ready')} ({summary.readyCount})
-            </Badge>
-            <Badge variant="warning">
-              {t('summary-warning')} ({summary.warningCount})
-            </Badge>
-            <Badge variant="destructive">
-              {t('summary-blocked')} ({summary.blockedCount})
-            </Badge>
-            <Badge variant="secondary">
-              {t('summary-excluded')} ({summary.excludedCount})
-            </Badge>
+            {readinessSegments.map(segment => (
+              <Badge key={segment.key} variant={segment.badgeVariant}>
+                {segment.label} ({segment.count})
+              </Badge>
+            ))}
           </div>
         </Card>
       )}

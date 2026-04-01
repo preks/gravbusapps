@@ -65,6 +65,35 @@ function hasNumberValue(value: number | null | undefined): value is number {
   return value !== null && value !== undefined
 }
 
+function getReadinessRank(status: PayrollEmployee['readinessStatus']): number {
+  const rank: Record<PayrollEmployee['readinessStatus'], number> = {
+    blocked: 0,
+    warning: 1,
+    ready: 2,
+    excluded: 3
+  }
+  return rank[status]
+}
+
+function getOpenIssuesCount(employee: PayrollEmployee): number {
+  return employee.issues.filter(issue => issue.status === 'open').length
+}
+
+function compareEmployees(a: PayrollEmployee, b: PayrollEmployee, field: SortField): number {
+  switch (field) {
+    case 'displayName':
+      return a.displayName.localeCompare(b.displayName)
+    case 'department':
+      return (a.department || '').localeCompare(b.department || '')
+    case 'baseSalary':
+      return (a.baseSalary || 0) - (b.baseSalary || 0)
+    case 'readinessStatus':
+      return getReadinessRank(a.readinessStatus) - getReadinessRank(b.readinessStatus)
+    case 'issues':
+      return getOpenIssuesCount(a) - getOpenIssuesCount(b)
+  }
+}
+
 const SortIcon: React.FC<{ field: SortField; activeField: SortField; order: SortOrder }> = ({
   field,
   activeField,
@@ -103,7 +132,7 @@ interface PayrollGridRowProps {
 }
 
 const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmployee }) => {
-  const openIssues = employee.issues.filter(i => i.status === 'open')
+  const openIssues = employee.issues.filter(issue => issue.status === 'open')
   const hasBlockers = openIssues.some(i => i.severity === 'blocker')
 
   return (
@@ -191,7 +220,7 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
         )}
       </TableCell>
       <TableCell>
-        <IssueCountBadge count={openIssues.length} hasBlockers={hasBlockers} />
+        <IssueCountBadge count={getOpenIssuesCount(employee)} hasBlockers={hasBlockers} />
       </TableCell>
       <TableCell>
         <ReadinessStatusBadge status={employee.readinessStatus} />
@@ -223,27 +252,8 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   const sorted = useMemo(() => {
     const arr = [...filtered]
     arr.sort((a, b) => {
-      let cmp = 0
-      switch (sortField) {
-        case 'displayName':
-          cmp = a.displayName.localeCompare(b.displayName)
-          break
-        case 'department':
-          cmp = (a.department || '').localeCompare(b.department || '')
-          break
-        case 'baseSalary':
-          cmp = (a.baseSalary || 0) - (b.baseSalary || 0)
-          break
-        case 'readinessStatus': {
-          const order: Record<string, number> = { blocked: 0, warning: 1, ready: 2, excluded: 3 }
-          cmp = (order[a.readinessStatus] || 0) - (order[b.readinessStatus] || 0)
-          break
-        }
-        case 'issues':
-          cmp = a.issues.filter(i => i.status === 'open').length - b.issues.filter(i => i.status === 'open').length
-          break
-      }
-      return sortOrder === 'asc' ? cmp : -cmp
+      const result = compareEmployees(a, b, sortField)
+      return sortOrder === 'asc' ? result : -result
     })
     return arr
   }, [filtered, sortField, sortOrder])
@@ -351,11 +361,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 </TableRow>
               ) : (
                 paginated.map(employee => (
-                  <PayrollGridRow
-                    key={employee.id}
-                    employee={employee}
-                    onSelectEmployee={selected => setSelectedEmployee(selected)}
-                  />
+                  <PayrollGridRow key={employee.id} employee={employee} onSelectEmployee={setSelectedEmployee} />
                 ))
               )}
             </TableBody>
@@ -415,12 +421,6 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
 
       {selectedEmployee && (
         <>
-          <button
-            type="button"
-            aria-label={t('close')}
-            className="gba:fixed gba:inset-0 gba:bg-foreground/20 gba:z-40"
-            onClick={() => setSelectedEmployee(null)}
-          />
           <EmployeeDetailDrawer
             employee={selectedEmployee}
             country={country}

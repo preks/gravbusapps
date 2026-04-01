@@ -445,6 +445,64 @@ function applyReadinessAndEligibility(payrollEmployee: PayrollEmployee, country:
   payrollEmployee.readinessStatus = 'ready'
 }
 
+function groupByEmployeeId<T extends { employeeId: string }>(entries: T[]): Map<string, T[]> {
+  const grouped = new Map<string, T[]>()
+
+  for (const entry of entries) {
+    const current = grouped.get(entry.employeeId) || []
+    current.push(entry)
+    grouped.set(entry.employeeId, current)
+  }
+
+  return grouped
+}
+
+function buildPayrollPeriod(month: number, year: number): { periodStart: string; periodEnd: string } {
+  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
+
+  return { periodStart, periodEnd }
+}
+
+async function fetchEmployeeDatasets(
+  client: ReturnType<typeof useGraphqlClient>,
+  locale: string,
+  employeeIds: string[],
+  month: number,
+  year: number
+): Promise<{
+  salaryResult: { EmployeeSalary: RawSalary[] }
+  absenceResult: { EmployeeAbsence: RawAbsence[] }
+  attendanceResult: { EmployeeAttendance: RawAttendance[] }
+  bonusResult: { EmployeeBonus: RawBonus[] }
+}> {
+  const { periodStart, periodEnd } = buildPayrollPeriod(month, year)
+
+  const [salaryResult, absenceResult, attendanceResult, bonusResult] = await Promise.all([
+    client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
+    client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
+      employeeIds,
+      periodStart,
+      periodEnd,
+      activeUserLocale: locale
+    }),
+    client.request<{ EmployeeAttendance: RawAttendance[] }>(GET_PAYROLL_ATTENDANCE, {
+      employeeIds,
+      dateFrom: periodStart,
+      dateTo: periodEnd
+    }),
+    client
+      .request<{ EmployeeBonus: RawBonus[] }>(GET_PAYROLL_BONUSES, {
+        employeeIds,
+        fiscalYear: year
+      })
+      .catch(() => ({ EmployeeBonus: [] as RawBonus[] }))
+  ])
+
+  return { salaryResult, absenceResult, attendanceResult, bonusResult }
+}
+
 function buildPayrollEmployee(
   pos: RawEmployeePosition,
   salaryMap: Map<string, RawSalary[]>,
@@ -587,59 +645,18 @@ export function usePayrollEmployees(
       const effectiveCountry = country || 'DE'
 
       const employeeIds = [...new Set(positions.map(p => p.employee?.id).filter(Boolean))]
+      const { salaryResult, absenceResult, attendanceResult, bonusResult } = await fetchEmployeeDatasets(
+        client,
+        locale,
+        employeeIds,
+        month,
+        year
+      )
 
-      const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
-      const lastDay = new Date(year, month, 0).getDate()
-      const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
-
-      const [salaryResult, absenceResult, attendanceResult, bonusResult] = await Promise.all([
-        client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
-        client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
-          employeeIds,
-          periodStart,
-          periodEnd,
-          activeUserLocale: locale
-        }),
-        client.request<{ EmployeeAttendance: RawAttendance[] }>(GET_PAYROLL_ATTENDANCE, {
-          employeeIds,
-          dateFrom: periodStart,
-          dateTo: periodEnd
-        }),
-        client
-          .request<{ EmployeeBonus: RawBonus[] }>(GET_PAYROLL_BONUSES, {
-            employeeIds,
-            fiscalYear: year
-          })
-          .catch(() => ({ EmployeeBonus: [] as RawBonus[] }))
-      ])
-
-      const salaryMap = new Map<string, RawSalary[]>()
-      for (const sal of salaryResult.EmployeeSalary || []) {
-        const existing = salaryMap.get(sal.employeeId) || []
-        existing.push(sal)
-        salaryMap.set(sal.employeeId, existing)
-      }
-
-      const absenceMap = new Map<string, RawAbsence[]>()
-      for (const abs of absenceResult.EmployeeAbsence || []) {
-        const existing = absenceMap.get(abs.employeeId) || []
-        existing.push(abs)
-        absenceMap.set(abs.employeeId, existing)
-      }
-
-      const attendanceMap = new Map<string, RawAttendance[]>()
-      for (const att of attendanceResult.EmployeeAttendance || []) {
-        const existing = attendanceMap.get(att.employeeId) || []
-        existing.push(att)
-        attendanceMap.set(att.employeeId, existing)
-      }
-
-      const bonusMap = new Map<string, RawBonus[]>()
-      for (const bonus of bonusResult.EmployeeBonus || []) {
-        const existing = bonusMap.get(bonus.employeeId) || []
-        existing.push(bonus)
-        bonusMap.set(bonus.employeeId, existing)
-      }
+      const salaryMap = groupByEmployeeId(salaryResult.EmployeeSalary || [])
+      const absenceMap = groupByEmployeeId(absenceResult.EmployeeAbsence || [])
+      const attendanceMap = groupByEmployeeId(attendanceResult.EmployeeAttendance || [])
+      const bonusMap = groupByEmployeeId(bonusResult.EmployeeBonus || [])
 
       const allEmployees = positions
         .filter(p => p.employee?.id)

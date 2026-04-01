@@ -58,6 +58,10 @@ function getStepLabelClasses(state: StepDef['state']): string {
   return 'gba:text-muted-foreground'
 }
 
+function getStepCardClasses(isActive: boolean, isCompleted: boolean): string {
+  return `gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`
+}
+
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '-'
   const formatted = formatPlatformDate(iso, 'dateTime.short')
@@ -123,6 +127,12 @@ interface StepDef {
   label: string
   state: 'completed' | 'active' | 'pending'
 }
+
+const CompletedStepBadge: React.FC<{ label: string }> = ({ label }) => (
+  <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
+    <CheckCircleIcon size={14} weight="fill" /> {label}
+  </span>
+)
 
 export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   employees,
@@ -293,14 +303,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep > 0
 
     return (
-      <Card className={`gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`}>
+      <Card className={getStepCardClasses(isActive, isCompleted)}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-1-label')}</h3>
-          {isCompleted && (
-            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
-              <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
-            </span>
-          )}
+          {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
             <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
           )}
@@ -341,7 +347,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep > 1
 
     return (
-      <Card className={`gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`}>
+      <Card className={getStepCardClasses(isActive, isCompleted)}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-2-label')}</h3>
           {isCompleted && payrollRun?.approvalDecision === 'APPROVED' && (
@@ -430,17 +436,13 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep > 2
 
     return (
-      <Card className={`gba:p-6 ${!isActive && !isCompleted ? 'gba:opacity-50' : ''}`}>
+      <Card className={getStepCardClasses(isActive, isCompleted)}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
             <ExportIcon size={20} className="gba:inline gba:mr-2" />
             {t('step-3-label')}
           </h3>
-          {isCompleted && (
-            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
-              <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
-            </span>
-          )}
+          {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
             <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
           )}
@@ -566,11 +568,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
       <Card className={`gba:p-6 ${isCompleted ? '' : 'gba:opacity-50'}`}>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-4-label')}</h3>
-          {isCompleted && (
-            <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
-              <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
-            </span>
-          )}
+          {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
         </div>
 
         {isCompleted ? (

@@ -71,6 +71,7 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
   } = usePayrollRun(accessToken, selectedCompanyId, selectedCompanyName, detectedCountry, activeRun, userInfo)
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [pendingOverviewRunId, setPendingOverviewRunId] = useState<string | null>(null)
 
   const handleCreateRun = useCallback(
     async (params: CreatePayrollRunParams) => {
@@ -85,12 +86,14 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
 
   const handleSelectRun = useCallback(
     (run: PayrollRun) => {
+      setPendingOverviewRunId(run.id)
       setActiveRun(run)
     },
     [setActiveRun]
   )
 
   const handleBackToRuns = useCallback(() => {
+    setPendingOverviewRunId(null)
     setActiveRun(null)
     setActiveTab('overview')
   }, [setActiveRun])
@@ -220,59 +223,89 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const activeTabInfo = viewOptions.find(o => o.key === activeTab) || viewOptions[0]
-
-  const renderContent = () => {
-    if (!selectedCompanyId) {
-      return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-24 gba:text-muted-foreground">
-          <TableIcon size={64} className="gba:mb-4 gba:text-muted-foreground/30" />
-          <p className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('payroll-prep-title')}</p>
-          <p className="gba:text-sm">{t('no-company-selected')}</p>
-        </div>
-      )
+  useEffect(() => {
+    if (!activeRun) {
+      setPendingOverviewRunId(null)
+      return
     }
 
-    if (activeTab === 'overview') {
-      return (
-        <OverviewView
-          activeRun={activeRun}
-          runs={runs}
-          runsLoading={runsLoading}
-          summary={summary}
-          employees={employees}
-          onSelectRun={handleSelectRun}
-          onCreateRun={() => setCreateDialogOpen(true)}
-          t={t}
-        />
-      )
+    if (loading && pendingOverviewRunId === activeRun.id) {
+      setPendingOverviewRunId(null)
+    }
+  }, [activeRun, loading, pendingOverviewRunId])
+
+  const activeTabInfo = viewOptions.find(o => o.key === activeTab) || viewOptions[0]
+
+  const renderLoadingState = () => (
+    <div className="gba:flex gba:items-center gba:justify-center gba:py-24">
+      <Spinner />
+      <span className="gba:ml-3 gba:text-muted-foreground">{t('loading')}</span>
+    </div>
+  )
+
+  const renderNoCompanyState = () => (
+    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-24 gba:text-muted-foreground">
+      <TableIcon size={64} className="gba:mb-4 gba:text-muted-foreground/30" />
+      <p className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('payroll-prep-title')}</p>
+      <p className="gba:text-sm">{t('no-company-selected')}</p>
+    </div>
+  )
+
+  const renderNoRunSelectedState = () => (
+    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-24 gba:text-muted-foreground">
+      <TableIcon size={64} className="gba:mb-4 gba:text-muted-foreground/30" />
+      <p className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-title')}</p>
+      <p className="gba:text-sm">{t('runs-select-hint')}</p>
+    </div>
+  )
+
+  const renderErrorState = () => (
+    <div className="gba:flex gba:items-center gba:justify-center gba:py-24 gba:text-destructive">
+      <p>{t('error-loading')}</p>
+    </div>
+  )
+
+  const renderOverviewContent = (waitingForOverviewLoad: boolean) => {
+    if (activeRun && (loading || waitingForOverviewLoad)) {
+      return renderLoadingState()
+    }
+
+    return (
+      <OverviewView
+        activeRun={activeRun}
+        runs={runs}
+        runsLoading={runsLoading}
+        summary={summary}
+        employees={employees}
+        onSelectRun={handleSelectRun}
+        onCreateRun={() => setCreateDialogOpen(true)}
+        t={t}
+      />
+    )
+  }
+
+  const renderContent = () => {
+    const waitingForOverviewLoad = Boolean(activeRun && pendingOverviewRunId === activeRun.id)
+    const requiresSelectedRun = activeTab !== 'overview'
+
+    if (!selectedCompanyId) {
+      return renderNoCompanyState()
+    }
+
+    if (!requiresSelectedRun) {
+      return renderOverviewContent(waitingForOverviewLoad)
     }
 
     if (!activeRun) {
-      return (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-24 gba:text-muted-foreground">
-          <TableIcon size={64} className="gba:mb-4 gba:text-muted-foreground/30" />
-          <p className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-title')}</p>
-          <p className="gba:text-sm">{t('runs-select-hint')}</p>
-        </div>
-      )
+      return renderNoRunSelectedState()
     }
 
     if (loading) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-24">
-          <Spinner />
-          <span className="gba:ml-3 gba:text-muted-foreground">{t('loading')}</span>
-        </div>
-      )
+      return renderLoadingState()
     }
 
     if (error) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-24 gba:text-destructive">
-          <p>{t('error-loading')}</p>
-        </div>
-      )
+      return renderErrorState()
     }
 
     switch (activeTab) {
