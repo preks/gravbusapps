@@ -1,0 +1,148 @@
+import { useCallback, useState } from 'react'
+import { ArrowsOut, Check, Copy, DownloadSimple, X } from '@phosphor-icons/react'
+import type { ArtifactFile, ArtifactRendererType } from '../../types/fabric'
+
+// ─── Type metadata ────────────────────────────────────────────────────────────
+
+const TYPE_ICON: Record<ArtifactRendererType, string> = {
+  html: '🌐',
+  document: '📄',
+  markdown: '📝',
+  slide: '📊',
+  diagram: '📐',
+  code: '💻',
+  unknown: '📁'
+}
+
+const TYPE_LABEL: Record<ArtifactRendererType, string> = {
+  html: 'HTML',
+  document: 'Document',
+  markdown: 'Markdown',
+  slide: 'Slides',
+  diagram: 'Diagram',
+  code: 'Code',
+  unknown: 'File'
+}
+
+// ─── View mode toggle ─────────────────────────────────────────────────────────
+
+const ViewToggle: React.FC<{
+  viewMode: 'preview' | 'code'
+  onChange: (m: 'preview' | 'code') => void
+  disabled?: boolean
+}> = ({ viewMode, onChange, disabled }) => (
+  <div className="gba:inline-flex gba:items-center gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-0.5">
+    {(['preview', 'code'] as const).map(m => (
+      <button
+        key={m}
+        onClick={() => onChange(m)}
+        disabled={disabled}
+        className={`gba:px-2.5 gba:py-1 gba:rounded-md gba:text-xs gba:font-medium gba:transition-colors gba:capitalize ${
+          viewMode === m
+            ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
+            : 'gba:text-muted-foreground gba:hover:text-foreground'
+        } gba:disabled:opacity-40`}
+        data-testid={`fabric-toolbar-view-${m}`}
+      >
+        {m}
+      </button>
+    ))}
+  </div>
+)
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export interface ArtifactToolbarProps {
+  file: ArtifactFile
+  viewMode: 'preview' | 'code'
+  onViewModeChange: (mode: 'preview' | 'code') => void
+  content: string | null
+  onClose: () => void
+}
+
+export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
+  file,
+  viewMode,
+  onViewModeChange,
+  content,
+  onClose
+}) => {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(() => {
+    if (!content) return
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [content])
+
+  // Code types don't have a meaningful "preview" toggle
+  const canToggle = file.rendererType !== 'unknown'
+
+  return (
+    <div
+      className="gba:flex gba:items-center gba:gap-3 gba:px-4 sm:gba:px-5 gba:py-3 gba:border-b gba:border-border/80 gba:bg-background/92 gba:backdrop-blur-md gba:shrink-0"
+      data-testid="fabric-artifact-toolbar"
+    >
+      {/* Type icon + name + badge */}
+      <span className="gba:text-base gba:leading-none gba:shrink-0">{TYPE_ICON[file.rendererType]}</span>
+      <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">{file.name}</span>
+        <span className="gba:shrink-0 gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded-full gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:bg-muted gba:text-muted-foreground">
+          {TYPE_LABEL[file.rendererType]}
+        </span>
+      </div>
+
+      {/* View mode toggle */}
+      {canToggle && <ViewToggle viewMode={viewMode} onChange={onViewModeChange} />}
+
+      {/* Action buttons */}
+      <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+        <button
+          onClick={handleCopy}
+          disabled={!content}
+          title="Copy content"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:disabled:opacity-30"
+          data-testid="fabric-toolbar-copy"
+        >
+          {copied ? (
+            <Check className="gba:h-3.5 gba:w-3.5 gba:text-green-500" weight="bold" />
+          ) : (
+            <Copy className="gba:h-3.5 gba:w-3.5" />
+          )}
+        </button>
+
+        <a
+          href={file.downloadUrl}
+          download={file.name}
+          title="Download"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="fabric-toolbar-download"
+        >
+          <DownloadSimple className="gba:h-3.5 gba:w-3.5" />
+        </a>
+
+        <a
+          href={file.downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open in new tab"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="fabric-toolbar-open"
+        >
+          <ArrowsOut className="gba:h-3.5 gba:w-3.5" />
+        </a>
+
+        <button
+          onClick={onClose}
+          title="Close viewer"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="fabric-toolbar-close"
+        >
+          <X className="gba:h-3.5 gba:w-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
