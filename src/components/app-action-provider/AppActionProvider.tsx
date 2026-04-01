@@ -5,8 +5,6 @@ import { useAppActionData, extractAppActionProps, type AppActionCommonProps } fr
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess, getPlatformContext } from '@/common/utils/start-process'
 
-const PROCESS_COMPLETION_TIMEOUT_MESSAGE = 'Process completion timeout'
-
 export interface AppActionContext {
   /**
    * Available app actions
@@ -104,7 +102,7 @@ export const AppActionProvider: React.FC<AppActionProviderProps> = props => {
         const waitForProcessCompletion = new Promise<void>((resolve, reject) => {
           const timeoutId = setTimeout(() => {
             cleanup()
-            reject(new Error(PROCESS_COMPLETION_TIMEOUT_MESSAGE))
+            reject(new Error('Process completion timeout'))
           }, 30000)
 
           const handleProcessCompletion = () => {
@@ -136,21 +134,8 @@ export const AppActionProvider: React.FC<AppActionProviderProps> = props => {
           targetMobile: first.targetMobile
         } as any)
 
-        const allowTimeoutFallback = first.contextName === 'contentEntryReact'
-
-        // Wait for the process to complete when the platform emits the completion signal.
-        // Some lightweight actions (such as content reactions) finish server-side without
-        // dispatching a completion event, so their timeout should not be treated as failure.
-        try {
-          await waitForProcessCompletion
-        } catch (error) {
-          const timeoutError =
-            error instanceof Error && error.message === PROCESS_COMPLETION_TIMEOUT_MESSAGE
-
-          if (!timeoutError || !allowTimeoutFallback) {
-            throw error
-          }
-        }
+        // Wait for the process to complete
+        await waitForProcessCompletion
 
         if (onSuccess) {
           onSuccess(finalData)

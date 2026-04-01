@@ -435,21 +435,12 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
     : { dueDate: null, status: 'ok' as const, hoursLeft: 0 }
 
   // Safety checks for displayTicket before accessing properties
-  const normalizedDisplayStatus = displayTicket?.status?.toUpperCase()
-  const isClosedTicket =
-    normalizedDisplayStatus === 'COMPLETED' ||
-    normalizedDisplayStatus === 'DONE' ||
-    normalizedDisplayStatus === 'SKIPPED' ||
-    normalizedDisplayStatus === 'REJECTED' ||
-    normalizedDisplayStatus === 'CANCELLED' ||
-    normalizedDisplayStatus === 'CANCELED'
   const canClaim = displayTicket?.status === 'ready' && !displayTicket?.claimedByUserId
   const canUnclaim = displayTicket?.claimedByUserId === currentUserId
   const canAssign = displayTicket?.status === 'ready' || displayTicket?.status === 'in_progress'
   const canAdvance = displayTicket?.status === 'in_progress'
   const isAssignedToUser =
     displayTicket?.assignedToUserId === currentUserId || displayTicket?.claimedByUserId === currentUserId
-  const canComment = isAssignedToUser && !isClosedTicket
 
   // Wrap render in try-catch to prevent React crashes
   try {
@@ -817,7 +808,7 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
               }
             >
               {/* Add Comment */}
-              {canComment && (
+              {isAssignedToUser && (
                 <div className="gba:mb-6">
                   <div className="gba:mb-3">
                     <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -863,19 +854,6 @@ export const TicketDetail: React.FC<TicketDetailProps> = ({
                     </Button>
                   </div>
                 </div>
-              )}
-
-              {isAssignedToUser && isClosedTicket && (
-                <Alert
-                  type="info"
-                  showIcon
-                  message={getTranslationFromI18nKeyAndLabel(
-                    'services.ticket.comments.closed',
-                    'Comments are no longer available for completed tickets.'
-                  )}
-                  className="gba:mb-6"
-                  data-testid="ticket-detail-comments-closed-alert"
-                />
               )}
 
               <Divider />

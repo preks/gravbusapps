@@ -130,8 +130,6 @@ export interface TaskRecordProps extends BusinessAppContextProps {
   onTaskChange?: (taskId: string) => void
 }
 
-const CLOSED_TICKET_STATUSES = new Set(['COMPLETED', 'DONE', 'SKIPPED', 'REJECTED', 'CANCELLED', 'CANCELED'])
-
 /**
  * System task data interface for AI AGENT and FUNCTION tasks
  * Provides type safety for system task-specific fields
@@ -193,7 +191,13 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     accessToken,
     userInfo,
     onSuccess: () => {
+      // NOTE: Task IDs may change after actions due to workflow recreation
+      // Refresh task detail and reload full request
+      refetch()
       loadFullRequest()
+      message.success('Task action completed successfully')
+
+      // Suggest user to refresh the queue to see updated tasks
     }
   })
 
@@ -240,72 +244,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     accessToken,
     enabled: allUserIds.length > 0
   })
-
-  const currentStepReference = useMemo(() => {
-    if (ticket?.defId?.startsWith('step_')) {
-      return ticket.defId
-    }
-
-    const matchingRequestStep = fullRequest?.steps?.find(step => step.id === ticket?.id)
-    if (matchingRequestStep?.defId?.startsWith('step_')) {
-      return matchingRequestStep.defId
-    }
-
-    return undefined
-  }, [fullRequest?.steps, ticket?.defId, ticket?.id])
-
-  const isTicketClosed = useMemo(() => {
-    return ticket ? CLOSED_TICKET_STATUSES.has(ticket.status) : false
-  }, [ticket])
-
-  const canCommentOnTicket = !isTicketClosed && availableActions?.canComment !== false
-
-  const navigateToTaskId = useCallback(
-    (nextTaskId: string) => {
-      if (onTaskChange) {
-        onTaskChange(nextTaskId)
-        return
-      }
-
-      const url = new URL(window.location.href)
-      url.searchParams.set('taskId', nextTaskId)
-      window.history.pushState({}, '', url.toString())
-      window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
-    },
-    [onTaskChange]
-  )
-
-  const recoverTaskAfterWorkflowRecreation = useCallback(
-    async (actionLabel: string): Promise<boolean> => {
-      const flowId = ticket?.flowId || ticket?.requestId || fullRequest?.id
-
-      if (!flowId || !currentStepReference || !accessToken || !userInfo) {
-        return false
-      }
-
-      try {
-        const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo })
-        const stepDataResponse = await workflowEngine.getFlowStepData?.(flowId, currentStepReference)
-        const recoveredTaskId = stepDataResponse?.data?.[0]?.taskId?.trim()
-
-        if (!recoveredTaskId) {
-          return false
-        }
-
-        if (recoveredTaskId !== ticket?.id) {
-          message.info(`Ticket updated after ${actionLabel}. Reopening the current step.`)
-          navigateToTaskId(recoveredTaskId)
-          return true
-        }
-
-        return false
-      } catch (recoveryError) {
-        console.warn(`[TaskRecord] Failed to recover task after ${actionLabel}:`, recoveryError)
-        return false
-      }
-    },
-    [accessToken, currentStepReference, fullRequest?.id, navigateToTaskId, ticket?.flowId, ticket?.id, ticket?.requestId, userInfo]
-  )
 
   // Calculate KPI cards data
   const kpiCards: KpiCardData[] = React.useMemo(() => {
@@ -519,13 +457,10 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     if (!ticket) return
 
     try {
-      let recoveredTask = false
-
       switch (action) {
         case 'claim':
           // Warn about potential ticket ID change
           await claimTicket(ticket.id)
-          recoveredTask = await recoverTaskAfterWorkflowRecreation('claiming this ticket')
           break
         case 'unclaim':
           await unclaimTicket(ticket.id)
@@ -538,13 +473,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
           break
       }
 
-      if (recoveredTask) {
-        return
-      }
-
       // ✅ Refresh available actions after any action (comments will be refreshed via refetch)
-      await refetch()
-      await loadFullRequest()
       await loadAvailableActions()
     } catch (error) {
       console.error(`Failed to ${action} task:`, error)
@@ -571,7 +500,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
 
   // Handle comment submission
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !ticket || !canCommentOnTicket) return
+    if (!newComment.trim() || !ticket) return
 
     setIsSubmittingComment(true)
     try {
@@ -581,14 +510,21 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
       setNewComment('')
       setCommentVisibility('INTERNAL_TASK') // Reset to default
 
-      const recoveredTask = await recoverTaskAfterWorkflowRecreation('adding a comment')
-      if (recoveredTask) {
-        return
-      }
+      // NOTE: Ticket may have been recreated with new ID, so refetch may fail
+      // The ticket detail will need to be refreshed from the queue to get the new ID
+      try {
+        await refetch()
+        // Comments will be updated automatically via refetch (included in ticket data)
+      } catch {
+        message.warning(
+          'Comment added successfully, but ticket was recreated. Please refresh the queue to see the updated ticket.'
+        )
 
-      await refetch()
-      await loadFullRequest()
-      await loadAvailableActions()
+        // Close the ticket detail since the ID is now invalid
+        if (onClose) {
+          onClose()
+        }
+      }
     } catch (error) {
       console.error('Failed to add comment:', error)
       message.error(`Failed to add comment: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -672,8 +608,22 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
         }
 
         // Navigate to the task detail (works for both user tasks and system tasks)
-        console.log(`[TaskRecord] 🔄 Navigating to taskId=${taskId}`)
-        navigateToTaskId(taskId)
+        if (onTaskChange) {
+          console.log(`[TaskRecord] 🔄 Using onTaskChange callback`)
+          onTaskChange(taskId)
+        } else {
+          console.log(`[TaskRecord] 🔄 Using URL parameter navigation to taskId=${taskId}`)
+
+          const url = new URL(window.location.href)
+          url.searchParams.set('taskId', taskId)
+
+          console.log(`[TaskRecord] 🔄 Navigating to URL: ${url.toString()}`)
+
+          window.history.pushState({}, '', url.toString())
+          window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
+
+          console.log(`[TaskRecord] 🔄 Navigation completed to task: ${taskId}`)
+        }
 
         message.success(`Opening ticket for ${stepData.stepTitle}`)
       } else {
@@ -1323,88 +1273,79 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
 
                 {/* Add Comment Form */}
                 <Separator className="gba:my-6 gba:bg-gradient-to-r gba:from-transparent gba:via-slate-200 gba:to-transparent" />
-                {canCommentOnTicket ? (
-                  <div className="gba:space-y-4">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <PaperPlaneRightIcon className="gba:w-4 gba:h-4 gba:text-slate-600" />
-                      <h4 className="gba:text-sm gba:font-semibold gba:text-slate-700">Add Comment</h4>
-                    </div>
+                <div className="gba:space-y-4">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <PaperPlaneRightIcon className="gba:w-4 gba:h-4 gba:text-slate-600" />
+                    <h4 className="gba:text-sm gba:font-semibold gba:text-slate-700">Add Comment</h4>
+                  </div>
 
-                    <div className="gba:relative">
-                      <Textarea
-                        placeholder="Enter your comment..."
-                        value={newComment}
-                        onChange={e => setNewComment(e.target.value)}
-                        rows={3}
-                        className="gba:resize-none gba:border-slate-200 gba:bg-slate-50/50 focus:gba:bg-white gba:transition-colors gba:duration-200 gba:rounded-lg gba:shadow-sm focus:gba:shadow-md"
-                        data-testid="comment-textarea"
-                      />
-                    </div>
+                  <div className="gba:relative">
+                    <Textarea
+                      placeholder="Enter your comment..."
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      rows={3}
+                      className="gba:resize-none gba:border-slate-200 gba:bg-slate-50/50 focus:gba:bg-white gba:transition-colors gba:duration-200 gba:rounded-lg gba:shadow-sm focus:gba:shadow-md"
+                      data-testid="comment-textarea"
+                    />
+                  </div>
 
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:justify-between">
-                      {/* Comment Visibility Selector - Left Side */}
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
-                        <label className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:whitespace-nowrap">
-                          Visibility:
-                        </label>
-                        <Select
-                          value={commentVisibility}
-                          onValueChange={(value: CommentVisibility) => setCommentVisibility(value)}
-                          data-testid="comment-visibility-selector"
-                        >
-                          <SelectTrigger className="gba:w-40">
-                            <SelectValue>
-                              {(() => {
-                                const config = COMMENT_VISIBILITY_CONFIG[commentVisibility]
-                                const VisibilityIcon = config.icon
-                                return (
-                                  <div className="gba:flex gba:items-center gba:gap-2">
-                                    <VisibilityIcon className="gba:w-4 gba:h-4" />
-                                    <span>{config.label}</span>
-                                  </div>
-                                )
-                              })()}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(COMMENT_VISIBILITY_CONFIG).map(([key, config]) => {
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:justify-between">
+                    {/* Comment Visibility Selector - Left Side */}
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+                      <label className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:whitespace-nowrap">
+                        Visibility:
+                      </label>
+                      <Select
+                        value={commentVisibility}
+                        onValueChange={(value: CommentVisibility) => setCommentVisibility(value)}
+                        data-testid="comment-visibility-selector"
+                      >
+                        <SelectTrigger className="gba:w-40">
+                          <SelectValue>
+                            {(() => {
+                              const config = COMMENT_VISIBILITY_CONFIG[commentVisibility]
                               const VisibilityIcon = config.icon
                               return (
-                                <SelectItem key={key} value={key} data-testid={`visibility-option-${key.toLowerCase()}`}>
-                                  <div className="gba:flex gba:items-center gba:gap-2">
-                                    <VisibilityIcon className="gba:w-4 gba:h-4" />
-                                    <div className="gba:flex gba:flex-col">
-                                      <span className="gba:font-medium">{config.label}</span>
-                                      <span className="gba:text-xs gba:text-muted-foreground">{config.description}</span>
-                                    </div>
-                                  </div>
-                                </SelectItem>
+                                <div className="gba:flex gba:items-center gba:gap-2">
+                                  <VisibilityIcon className="gba:w-4 gba:h-4" />
+                                  <span>{config.label}</span>
+                                </div>
                               )
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Submit Button - Right Side */}
-                      <Button
-                        onClick={handleSubmitComment}
-                        disabled={!newComment.trim() || isSubmittingComment || isActionLoading}
-                        className="gba:gap-2 gba:flex-shrink-0"
-                        data-testid="submit-comment-button"
-                      >
-                        <PaperPlaneRightIcon className="gba:w-4 gba:h-4" />
-                        {isSubmittingComment ? 'Adding...' : 'Add Comment'}
-                      </Button>
+                            })()}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(COMMENT_VISIBILITY_CONFIG).map(([key, config]) => {
+                            const VisibilityIcon = config.icon
+                            return (
+                              <SelectItem key={key} value={key} data-testid={`visibility-option-${key.toLowerCase()}`}>
+                                <div className="gba:flex gba:items-center gba:gap-2">
+                                  <VisibilityIcon className="gba:w-4 gba:h-4" />
+                                  <div className="gba:flex gba:flex-col">
+                                    <span className="gba:font-medium">{config.label}</span>
+                                    <span className="gba:text-xs gba:text-muted-foreground">{config.description}</span>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
                     </div>
+
+                    {/* Submit Button - Right Side */}
+                    <Button
+                      onClick={handleSubmitComment}
+                      disabled={!newComment.trim() || isSubmittingComment || isActionLoading}
+                      className="gba:gap-2 gba:flex-shrink-0"
+                      data-testid="submit-comment-button"
+                    >
+                      <PaperPlaneRightIcon className="gba:w-4 gba:h-4" />
+                      {isSubmittingComment ? 'Adding...' : 'Add Comment'}
+                    </Button>
                   </div>
-                ) : (
-                  <div
-                    className="gba:rounded-lg gba:border gba:border-slate-200 gba:bg-slate-50 gba:px-4 gba:py-3 gba:text-sm gba:text-slate-600"
-                    data-testid="task-comments-readonly-state"
-                  >
-                    Comments are unavailable for completed or locked tickets.
-                  </div>
-                )}
+                </div>
               </CardContent>
             </Card>
           </div>
