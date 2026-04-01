@@ -529,6 +529,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                     {/* Team Calendar */}
                     <SpaceCalendar
                       spaceId={spaceId}
+                      spaceCalendar={space.settings?.calendar}
                       members={space.members || []}
                       accessToken={accessToken}
                       maxMeetings={3}
@@ -633,6 +634,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         onOpenChange={setSettingsDialogOpen}
         space={space}
         onSave={handleSaveSettings}
+        accessToken={accessToken}
+        members={space?.members || []}
         isOwner={isOwner}
         onDeleteSpace={isOwner ? handleDeleteSpace : undefined}
         data-testid={`${testId}-settings-dialog`}

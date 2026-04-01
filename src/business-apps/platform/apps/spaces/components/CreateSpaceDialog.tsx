@@ -64,6 +64,8 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
+  const [createCalendar, setCreateCalendar] = useState(true)
+  const [calendarName, setCalendarName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   // Dimension-based selection state
@@ -96,6 +98,8 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
     setName('')
     setDescription('')
     setIsPublic(false)
+    setCreateCalendar(true)
+    setCalendarName('')
     setCreationMode('manual')
     setShowDimensionPicker(false)
     setDimensionMembers([])
@@ -121,7 +125,9 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
       const input: CreateSpaceInput = {
         name: name.trim(),
         description: description.trim() || undefined,
-        isPublic
+        isPublic,
+        createCalendar,
+        calendarName: createCalendar ? calendarName.trim() || `${name.trim()} Calendar` : undefined
       }
 
       // Add dimension info if creating from dimension
@@ -140,6 +146,8 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
     name,
     description,
     isPublic,
+    createCalendar,
+    calendarName,
     creationMode,
     selectedDimension,
     dimensionMembers,
@@ -258,6 +266,40 @@ export const CreateSpaceDialog: React.FC<CreateSpaceDialogProps> = ({
           disabled={isLoading}
           data-testid={`${testId}-public-switch`}
         />
+      </div>
+
+      <div className="gba:space-y-3 gba:p-4 gba:rounded-lg gba:bg-card">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">Create space calendar</p>
+            <p className="gba:text-xs gba:text-muted-foreground">
+              Add a linked internal calendar that can later be shown in the shared calendar view
+            </p>
+          </div>
+          <Switch
+            checked={createCalendar}
+            onCheckedChange={setCreateCalendar}
+            disabled={isLoading}
+            data-testid={`${testId}-calendar-switch`}
+          />
+        </div>
+
+        {createCalendar && (
+          <div className="gba:space-y-2">
+            <Label htmlFor="space-calendar-name" className="gba:text-sm gba:font-medium">
+              Calendar name
+            </Label>
+            <Input
+              id="space-calendar-name"
+              placeholder={name.trim() ? `${name.trim()} Calendar` : 'Team Calendar'}
+              value={calendarName}
+              onChange={e => setCalendarName(e.target.value)}
+              className="gba:h-10"
+              disabled={isLoading}
+              data-testid={`${testId}-calendar-name-input`}
+            />
+          </div>
+        )}
       </div>
     </>
   )

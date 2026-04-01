@@ -83,6 +83,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
     event.organizer.displayName ||
     `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() ||
     event.organizer.email
+  const displayTitle = event.isBusyBlock ? t('calendar-sidebar-busy') : event.title
 
   // Check if there's an active call for this meeting
   // Use conversation ID if linked, otherwise use meeting ID
@@ -146,12 +147,12 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
           </TooltipTrigger>
           <TooltipContent side="right" className="gba:max-w-xs gba:z-50">
             <div className="gba:space-y-1">
-              <p className="gba:font-semibold">{event.title}</p>
+              <p className="gba:font-semibold">{displayTitle}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
               </p>
-              {event.description && <p className="gba:text-xs">{event.description}</p>}
-              {event.location && (
+              {!event.isBusyBlock && event.description && <p className="gba:text-xs">{event.description}</p>}
+              {!event.isBusyBlock && event.location && (
                 <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                   <MapPin className="gba:h-3 gba:w-3" />
                   {event.location}
@@ -180,7 +181,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
               data-testid={`calendar-event-${event.id}`}
             >
               <div className="gba:text-white gba:drop-shadow-sm gba:truncate gba:leading-tight">
-                {showTitle && event.title}
+                {showTitle && displayTitle}
               </div>
               {showTime && (
                 <div className="gba:text-white/80 gba:text-[9px] gba:truncate gba:leading-tight">
@@ -191,21 +192,26 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
           </TooltipTrigger>
           <TooltipContent side="right" className="gba:max-w-xs gba:z-50">
             <div className="gba:space-y-1">
-              <p className="gba:font-semibold">{event.title}</p>
+              <p className="gba:font-semibold">{displayTitle}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
               </p>
-              {event.description && <p className="gba:text-xs">{event.description}</p>}
-              {event.location && (
+              {!event.isBusyBlock && event.description && <p className="gba:text-xs">{event.description}</p>}
+              {!event.isBusyBlock && event.location && (
                 <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                   <MapPin className="gba:h-3 gba:w-3" />
                   {event.location}
                 </p>
               )}
-              <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
-                <Users className="gba:h-3 gba:w-3" />
-                {t('calendar-participantsAttending', { accepted: event.acceptedCount, total: event.participantCount })}
-              </p>
+              {!event.isBusyBlock && (
+                <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
+                  <Users className="gba:h-3 gba:w-3" />
+                  {t('calendar-participantsAttending', {
+                    accepted: event.acceptedCount,
+                    total: event.participantCount
+                  })}
+                </p>
+              )}
             </div>
           </TooltipContent>
         </Tooltip>
@@ -240,7 +246,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
                       <Globe className="gba:h-3 gba:w-3 gba:text-info gba:flex-shrink-0" />
                     )}
                     <h4 className="gba:font-semibold gba:text-xs gba:text-foreground gba:truncate gba:flex-1">
-                      {event.title}
+                      {displayTitle}
                     </h4>
                     {isLive && (
                       <Badge
@@ -272,7 +278,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
                 )}
 
                 {/* Location or meeting link */}
-                {showLocation && (event.location || event.meetingLink) && (
+                {showLocation && !event.isBusyBlock && (event.location || event.meetingLink) && (
                   <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
                     {event.meetingLink ? (
                       <>
@@ -289,7 +295,7 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
                 )}
 
                 {/* Organizer and participants - only if there's space */}
-                {showParticipants && (
+                {showParticipants && !event.isBusyBlock && (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mt-auto gba:text-[10px] gba:text-muted-foreground">
                     {!event.isOrganizer && <span className="gba:truncate">by {organizerName}</span>}
                     <span className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0">
@@ -322,14 +328,14 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
         </TooltipTrigger>
         <TooltipContent side="right" className="gba:max-w-xs gba:z-50">
           <div className="gba:space-y-1">
-            <p className="gba:font-semibold">{event.title}</p>
+            <p className="gba:font-semibold">{displayTitle}</p>
             <p className="gba:text-xs gba:text-muted-foreground">
               {event.allDay
                 ? t('calendar-allDay')
                 : `${formatTime(event.start, locale)} - ${formatTime(event.end, locale)}`}
             </p>
-            {event.description && <p className="gba:text-xs">{event.description}</p>}
-            {event.location && (
+            {!event.isBusyBlock && event.description && <p className="gba:text-xs">{event.description}</p>}
+            {!event.isBusyBlock && event.location && (
               <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                 <MapPin className="gba:h-3 gba:w-3" />
                 {event.location}

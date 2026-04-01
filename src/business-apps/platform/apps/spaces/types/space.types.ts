@@ -44,7 +44,16 @@ export interface SpaceSettings {
   dimension?: SpaceDimension
   /** ID of the linked group chat conversation (if created from same dimension) */
   linkedConversationId?: string
+  /** Linked internal calendar metadata for this space */
+  calendar?: SpaceCalendarLink
   [key: string]: unknown
+}
+
+export interface SpaceCalendarLink {
+  id: string
+  name: string
+  color?: string
+  type?: 'space' | 'shared'
 }
 
 export interface Space {
@@ -129,6 +138,10 @@ export interface CreateSpaceInput {
   dimension?: SpaceDimension
   /** User IDs to automatically add as members (for dimension-based creation) */
   memberIds?: string[]
+  /** Whether a linked internal calendar should be created for this space */
+  createCalendar?: boolean
+  /** Optional custom name for the linked space calendar */
+  calendarName?: string
 }
 
 export interface UpdateSpaceInput {

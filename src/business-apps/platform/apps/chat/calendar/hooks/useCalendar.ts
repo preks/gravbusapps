@@ -26,6 +26,8 @@ interface UseCalendarOptions {
   accessToken: string
   /** External calendar events to merge with internal events */
   externalEvents?: CalendarEvent[]
+  selectedCalendarIds?: string[]
+  includePersonal?: boolean
 }
 
 interface UseCalendarReturn {
@@ -60,13 +62,19 @@ interface UseCalendarReturn {
   // Refresh
   refresh: () => Promise<void>
   refreshInvitations: () => Promise<void>
+  applyCalendarColorLocally: (args: { calendarId?: string; color: string; isPersonal?: boolean }) => void
 
   // Computed
   dateRange: DateRange
   viewTitle: string
 }
 
-export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOptions): UseCalendarReturn => {
+export const useCalendar = ({
+  accessToken,
+  externalEvents = [],
+  selectedCalendarIds = [],
+  includePersonal = true
+}: UseCalendarOptions): UseCalendarReturn => {
   const { locale } = useLocale()
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [view, setView] = useState<CalendarView>('day')
@@ -133,9 +141,13 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     setError(null)
 
     try {
-      const response = await apiClient.getCalendarEvents<{ events: CalendarEvent[] }>(
+      const response = await apiClient.getCalendarEventsFiltered<{ events: CalendarEvent[] }>(
         dateRange.start.toISOString(),
-        dateRange.end.toISOString()
+        dateRange.end.toISOString(),
+        {
+          calendarIds: selectedCalendarIds,
+          includePersonal
+        }
       )
       const loadedEvents = (response.events || []).map(evt => ({
         ...evt,
@@ -155,7 +167,7 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     } finally {
       setIsLoading(false)
     }
-  }, [apiClient, dateRange])
+  }, [apiClient, dateRange, selectedCalendarIds, includePersonal])
 
   // Load events only when date range actually changes (stable deps to avoid request storm)
   const rangeStartMs = dateRange.start.getTime()
@@ -168,7 +180,10 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     const start = new Date(rangeStartMs)
     const end = new Date(rangeEndMs)
     apiClient
-      .getCalendarEvents<{ events: CalendarEvent[] }>(start.toISOString(), end.toISOString())
+      .getCalendarEventsFiltered<{ events: CalendarEvent[] }>(start.toISOString(), end.toISOString(), {
+        calendarIds: selectedCalendarIds,
+        includePersonal
+      })
       .then(response => {
         if (cancelled) return
         const loadedEvents = (response.events || []).map(evt => ({
@@ -196,7 +211,7 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     return () => {
       cancelled = true
     }
-  }, [apiClient, rangeStartMs, rangeEndMs])
+  }, [apiClient, rangeStartMs, rangeEndMs, selectedCalendarIds, includePersonal])
 
   // Merge internal + external events (does not re-fetch when external events change)
   const events = useMemo(() => {
@@ -208,8 +223,20 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
       return evtStart < rangeEnd && evtEnd > rangeStart
     })
 
+    const seenEventKeys = new Set<string>()
+    const dedupedEvents = [...internalEvents, ...filteredExternal].filter(event => {
+      const eventKey = `${event.source ?? 'internal'}:${event.id}:${event.calendarId ?? event.sourceId ?? ''}`
+
+      if (seenEventKeys.has(eventKey)) {
+        return false
+      }
+
+      seenEventKeys.add(eventKey)
+      return true
+    })
+
     // Filter out cancelled/deleted meetings and sort by start time
-    return [...internalEvents, ...filteredExternal]
+    return dedupedEvents
       .filter(event => event.status !== 'cancelled')
       .sort((a, b) => a.start.getTime() - b.start.getTime())
   }, [internalEvents, externalEvents, dateRange])
@@ -328,6 +355,29 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     await loadInvitations()
   }, [loadInvitations])
 
+  const applyCalendarColorLocally = useCallback(
+    ({ calendarId, color, isPersonal = false }: { calendarId?: string; color: string; isPersonal?: boolean }) => {
+      const matchesCalendar = (targetCalendarId?: string) => {
+        if (isPersonal) {
+          return !targetCalendarId
+        }
+
+        return Boolean(calendarId) && targetCalendarId === calendarId
+      }
+
+      setInternalEvents(currentEvents =>
+        currentEvents.map(event => (matchesCalendar(event.calendarId) ? { ...event, color } : event))
+      )
+      setPendingInvitations(currentMeetings =>
+        currentMeetings.map(meeting => (matchesCalendar(meeting.calendarId) ? { ...meeting, color } : meeting))
+      )
+      setSelectedEvent(currentEvent =>
+        currentEvent && matchesCalendar(currentEvent.calendarId) ? { ...currentEvent, color } : currentEvent
+      )
+    },
+    []
+  )
+
   return {
     // State
     currentDate,
@@ -360,6 +410,7 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     // Refresh
     refresh,
     refreshInvitations,
+    applyCalendarColorLocally,
 
     // Computed
     dateRange,

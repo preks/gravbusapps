@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Spinner, Scrol
 import { Calendar, Clock, Video, ArrowRight, CalendarBlank, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useChatClient } from '@/common/network/chat/useChatClient'
-import type { SpaceMember } from '../types/space.types'
+import type { SpaceCalendarLink, SpaceMember } from '../types/space.types'
 
 export interface SpaceMeeting {
   id: string
@@ -33,6 +33,8 @@ export interface SpaceMeeting {
 export interface SpaceCalendarProps {
   /** Space ID for filtering meetings */
   spaceId: string
+  /** Linked calendar metadata for this space */
+  spaceCalendar?: SpaceCalendarLink
   /** Space members to filter meetings by */
   members: SpaceMember[]
   /** Access token for API calls */
@@ -46,6 +48,7 @@ export interface SpaceCalendarProps {
 
 export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   spaceId,
+  spaceCalendar,
   members,
   accessToken,
   maxMeetings = 5,
@@ -58,7 +61,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   const fetchMeetings = useCallback(async () => {
-    if (!accessToken || members.length === 0) {
+    if (!accessToken || !spaceCalendar?.id) {
       setMeetings([])
       return
     }
@@ -71,21 +74,17 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
       const endDate = new Date()
       endDate.setDate(endDate.getDate() + 30)
 
-      const data = await chatClient.getCalendarEvents<{ events: SpaceMeeting[] }>(
+      const data = await chatClient.getCalendarEventsFiltered<{ events: SpaceMeeting[] }>(
         startDate.toISOString(),
-        endDate.toISOString()
+        endDate.toISOString(),
+        {
+          calendarIds: [spaceCalendar.id],
+          includePersonal: false
+        }
       )
       const allMeetings: SpaceMeeting[] = data?.events || []
 
-      const memberIds = new Set(members.map(m => m.userId))
-      const spaceMeetings = allMeetings.filter(meeting => {
-        if (meeting.organizer?.id && memberIds.has(meeting.organizer.id)) {
-          return true
-        }
-        return true
-      })
-
-      const sortedMeetings = spaceMeetings
+      const sortedMeetings = allMeetings
         .filter(m => new Date(m.start) > new Date())
         .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
         .slice(0, maxMeetings)
@@ -98,7 +97,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, members, maxMeetings, chatClient])
+  }, [accessToken, maxMeetings, chatClient, spaceCalendar?.id, members])
 
   useEffect(() => {
     fetchMeetings()
@@ -108,8 +107,13 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   const handleViewCalendar = useCallback(() => {
     const isProduction = process.env.NODE_ENV === 'production'
     const chatPath = isProduction ? '/platform/chat' : '/platform/apps/chat'
-    navigateTo(buildPlatformUrl(`${chatPath}?tab=calendar&spaceId=${spaceId}`))
-  }, [spaceId])
+    const query = new URLSearchParams({
+      view: 'calendar',
+      calendarIds: spaceCalendar?.id || '',
+      includePersonal: 'false'
+    })
+    navigateTo(buildPlatformUrl(`${chatPath}?${query.toString()}`))
+  }, [spaceCalendar?.id])
 
   // Format meeting time
   const formatMeetingTime = (startStr: string, endStr: string) => {
@@ -136,14 +140,20 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   }
 
   return (
-    <Card className="gba:border-border/50" data-testid={testId}>
+    <Card className="gba:border-border/50" data-testid={`${testId}-${spaceId}`}>
       <CardHeader className="gba:pb-3">
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:font-medium gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:w-4 gba:h-4" />
-            Team Calendar
+            {spaceCalendar?.name || 'Space Calendar'}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={handleViewCalendar} data-testid={`${testId}-view-all`}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleViewCalendar}
+            disabled={!spaceCalendar?.id}
+            data-testid={`${testId}-view-all`}
+          >
             View All
             <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
           </Button>
@@ -156,6 +166,13 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
           </div>
         ) : error ? (
           <div className="gba:text-center gba:py-6 gba:text-sm gba:text-muted-foreground">{error}</div>
+        ) : !spaceCalendar ? (
+          <div className="gba:text-center gba:py-8">
+            <div className="gba:w-12 gba:h-12 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-3">
+              <CalendarBlank className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
+            </div>
+            <p className="gba:text-sm gba:text-muted-foreground">No linked space calendar yet</p>
+          </div>
         ) : meetings.length === 0 ? (
           <div className="gba:text-center gba:py-8">
             <div className="gba:w-12 gba:h-12 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-3">

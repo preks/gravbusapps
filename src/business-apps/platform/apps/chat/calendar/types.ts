@@ -25,6 +25,18 @@ export enum InvitationStatus {
   TENTATIVE = 'tentative'
 }
 
+export enum InternalCalendarType {
+  SHARED = 'shared',
+  SPACE = 'space'
+}
+
+export enum InternalCalendarPermission {
+  OWNER = 'owner',
+  EDITOR = 'editor',
+  VIEWER = 'viewer',
+  FREE_BUSY = 'free_busy'
+}
+
 export type CalendarView = 'day' | 'week' | 'month'
 
 export interface MeetingParticipant {
@@ -67,7 +79,15 @@ export interface Meeting {
   transcriptionEnabled?: boolean
   reminderMinutes: number[]
   isAllDay: boolean
+  /** Resolved display color from calendar or personal preference, with legacy meeting fallback. */
   color: string
+  calendarId?: string
+  calendar?: {
+    id: string
+    name?: string
+    type?: InternalCalendarType
+    color?: string
+  } | null
   metadata?: Record<string, any>
   createdAt: string
   updatedAt: string
@@ -97,6 +117,72 @@ export interface EventParticipant {
 
 /** Source of the calendar event */
 export type CalendarEventSource = 'internal' | 'microsoft' | 'google'
+
+export interface InternalCalendarSummary {
+  id: string
+  name: string
+  description?: string
+  color: string
+  defaultColor: string
+  type: InternalCalendarType
+  ownerId: string
+  spaceId?: string
+  permission: InternalCalendarPermission
+  memberCount: number
+  canEdit: boolean
+  isOwner: boolean
+  hasColorOverride: boolean
+}
+
+export interface CreateSharedCalendarData {
+  name: string
+  description?: string
+  color?: string
+}
+
+export interface UpdateSharedCalendarData {
+  name: string
+  description?: string
+  color?: string
+}
+
+export interface InternalCalendarMember {
+  userId: string
+  permission: InternalCalendarPermission
+  isOwner: boolean
+  displayName?: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  avatarUrl?: string
+}
+
+export interface ExternalCalendarSource {
+  id: string
+  label: string
+  provider: 'microsoft' | 'google'
+}
+
+export interface AvailabilityBusySlot {
+  start: string
+  end: string
+  meetingId: string
+}
+
+export interface UserAvailability {
+  userId: string
+  busySlots: AvailabilityBusySlot[]
+}
+
+export interface AvailabilitySuggestion {
+  start: string
+  end: string
+}
+
+export interface AvailabilityResponse {
+  availability: UserAvailability[]
+  suggestions: AvailabilitySuggestion[]
+}
 
 export interface CalendarEvent {
   id: string
@@ -138,6 +224,15 @@ export interface CalendarEvent {
   externalLink?: string
   /** Whether this event is read-only (external events cannot be edited) */
   isReadOnly?: boolean
+  /** Internal shared calendar metadata */
+  calendarId?: string
+  calendarName?: string
+  calendarType?: InternalCalendarType
+  calendarPermission?: InternalCalendarPermission
+  canEdit?: boolean
+  isBusyBlock?: boolean
+  /** External account source for visibility toggles */
+  sourceId?: string
 }
 
 export interface CreateMeetingData {
@@ -152,10 +247,10 @@ export interface CreateMeetingData {
   recurrenceEndDate?: string
   reminderMinutes?: number[]
   isAllDay?: boolean
-  color?: string
   participantIds: string[]
   optionalParticipantIds?: string[]
   conversationId?: string
+  calendarId?: string
   metadata?: Record<string, any>
 }
 
@@ -172,10 +267,10 @@ export interface UpdateMeetingData {
   recurrenceEndDate?: string
   reminderMinutes?: number[]
   isAllDay?: boolean
-  color?: string
   addParticipantIds?: string[]
   removeParticipantIds?: string[]
   conversationId?: string
+  calendarId?: string
   metadata?: Record<string, any>
   notifyParticipants?: boolean
 }

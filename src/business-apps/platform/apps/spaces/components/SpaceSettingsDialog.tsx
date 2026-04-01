@@ -21,16 +21,20 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
+  Badge
 } from '@newwork/nw-design-system'
 import { Globe, Lock, Loader2, Trash2 } from 'lucide-react'
-import type { Space, UpdateSpaceInput } from '../types/space.types'
+import { useChatClient } from '@/common/network/chat/useChatClient'
+import type { Space, SpaceMember, SpaceCalendarLink, UpdateSpaceInput } from '../types/space.types'
 
 export interface SpaceSettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   space: Space | null
   onSave: (input: UpdateSpaceInput) => Promise<void>
+  accessToken?: string
+  members?: SpaceMember[]
   /** When true, shows delete space (owner only in parent) */
   isOwner?: boolean
   onDeleteSpace?: () => Promise<boolean>
@@ -42,6 +46,8 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
   onOpenChange,
   space,
   onSave,
+  accessToken,
+  members = [],
   isOwner = false,
   onDeleteSpace,
   'data-testid': testId = 'space-settings-dialog'
@@ -50,14 +56,19 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
   const [description, setDescription] = useState('')
   const [isPublic, setIsPublic] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [createCalendarRequested, setCreateCalendarRequested] = useState(false)
+  const [calendarLink, setCalendarLink] = useState<SpaceCalendarLink | undefined>()
   const [deleteAlertOpen, setDeleteAlertOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const chatClient = useChatClient(accessToken)
 
   useEffect(() => {
     if (open && space) {
       setName(space.name ?? '')
       setDescription(space.description ?? '')
       setIsPublic(space.isPublic ?? false)
+      setCalendarLink(space.settings?.calendar as SpaceCalendarLink | undefined)
+      setCreateCalendarRequested(false)
     }
     if (!open) setDeleteAlertOpen(false)
   }, [open, space])
@@ -76,16 +87,64 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
 
     setIsLoading(true)
     try {
+      let nextCalendarLink = calendarLink
+
+      if (!nextCalendarLink && createCalendarRequested && space && accessToken) {
+        const response = await chatClient.createCalendar<{ calendar: { id: string; name: string; color: string } }>({
+          name: `${name.trim()} Calendar`,
+          type: 'space',
+          spaceId: space.id,
+          shares: members
+            .filter(member => member.userId !== space.ownerId)
+            .map(member => ({
+              userId: member.userId,
+              permission: member.role === 'viewer' ? 'viewer' : 'editor'
+            }))
+        })
+
+        nextCalendarLink = {
+          id: response.calendar.id,
+          name: response.calendar.name,
+          color: response.calendar.color,
+          type: 'space'
+        }
+        setCalendarLink(nextCalendarLink)
+      }
+
       await onSave({
         name: name.trim(),
         description: description.trim() || undefined,
-        isPublic
+        isPublic,
+        settings: {
+          ...(space?.settings || {}),
+          ...(nextCalendarLink ? { calendar: nextCalendarLink } : {})
+        }
       })
       onOpenChange(false)
     } finally {
       setIsLoading(false)
     }
-  }, [name, description, isPublic, onSave, onOpenChange])
+  }, [
+    name,
+    description,
+    isPublic,
+    onSave,
+    onOpenChange,
+    space,
+    calendarLink,
+    createCalendarRequested,
+    accessToken,
+    chatClient,
+    members
+  ])
+
+  const handleCreateCalendar = useCallback(() => {
+    if (calendarLink) {
+      return
+    }
+
+    setCreateCalendarRequested(true)
+  }, [calendarLink])
 
   const handleConfirmDelete = useCallback(async () => {
     if (!onDeleteSpace) return
@@ -158,6 +217,50 @@ export const SpaceSettingsDialog: React.FC<SpaceSettingsDialogProps> = ({
                 </div>
               </div>
               <Switch checked={isPublic} onCheckedChange={setIsPublic} data-testid={`${testId}-public-switch`} />
+            </div>
+
+            <div className="gba:space-y-3 gba:p-4 gba:rounded-lg gba:bg-card">
+              <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                <div>
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground">Space calendar</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    Link this space to an internal shared calendar for planning and scheduling
+                  </p>
+                </div>
+                {calendarLink ? (
+                  <Badge variant="secondary" data-testid={`${testId}-calendar-badge`}>
+                    Connected
+                  </Badge>
+                ) : createCalendarRequested ? (
+                  <Badge variant="outline" data-testid={`${testId}-calendar-badge`}>
+                    Will create on save
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" data-testid={`${testId}-calendar-badge`}>
+                    Not set
+                  </Badge>
+                )}
+              </div>
+
+              {calendarLink ? (
+                <div
+                  className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-foreground"
+                  data-testid={`${testId}-calendar-summary`}
+                >
+                  <Badge variant="secondary">Linked</Badge>
+                  <span>{calendarLink.name}</span>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCreateCalendar}
+                  disabled={createCalendarRequested || !space || !accessToken}
+                  data-testid={`${testId}-create-calendar-button`}
+                >
+                  Create linked calendar
+                </Button>
+              )}
             </div>
 
             <div className="gba:flex gba:gap-3 gba:pt-2">
