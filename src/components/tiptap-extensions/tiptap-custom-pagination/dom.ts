@@ -1126,15 +1126,58 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
 }
 
 export function refreshPageMinHeight(targetNode: HTMLElement) {
-  const paginationElement = resolvePaginationRootElement(targetNode)
-  const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
-  if (!lastPaginationChild) return
+  const apply = () => {
+    const paginationElement = resolvePaginationRootElement(targetNode)
+    const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
+    if (!lastPaginationChild) return
 
-  const measuredTarget = lastPaginationChild.classList.contains('rm-page-break')
-    ? ((lastPaginationChild.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
-    : lastPaginationChild
-  const minHeight = measuredTarget.offsetTop + measuredTarget.offsetHeight
-  targetNode.style.minHeight = `${minHeight + 2}px`
+    const pageBreak = lastPaginationChild.classList.contains('rm-page-break') ? lastPaginationChild : null
+    const measuredTarget = pageBreak
+      ? ((pageBreak.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
+      : lastPaginationChild
+
+    // Walk the offsetParent chain to accumulate the total vertical offset from targetNode.
+    // measuredTarget.offsetTop is relative to its offsetParent (e.g. .rm-page-break), not targetNode.
+    let totalOffset = measuredTarget.offsetTop + measuredTarget.offsetHeight
+    let currentParent: HTMLElement | null = measuredTarget.offsetParent as HTMLElement | null
+    while (currentParent && currentParent !== targetNode) {
+      totalOffset += currentParent.offsetTop
+      currentParent = currentParent.offsetParent as HTMLElement | null
+    }
+
+    const candidates: number[] = [totalOffset]
+    const rootRect = targetNode.getBoundingClientRect()
+    const scrollTop = targetNode.scrollTop
+
+    const pushRectBottomIfLaidOut = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect()
+      if (rect.bottom <= rect.top) return
+      candidates.push(rect.bottom - rootRect.top + scrollTop)
+    }
+
+    pushRectBottomIfLaidOut(measuredTarget)
+    if (pageBreak instanceof HTMLElement) {
+      const pageNumber = pageBreak.dataset.rmPageNumber
+      if (pageNumber) {
+        const footer = pageBreak.querySelector(
+          `.rm-page-footer-region[data-rm-page-number="${pageNumber}"]`
+        ) as HTMLElement | null
+        if (footer) {
+          pushRectBottomIfLaidOut(footer)
+        }
+      }
+    }
+
+    const minHeight = Math.max(...candidates)
+    // Ceil subpixels; extra padding covers focus/caret reflow and border rounding so the paper
+    // background still covers the last footer after layout settles.
+    targetNode.style.minHeight = `${Math.ceil(minHeight) + 8}px`
+  }
+
+  apply()
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(apply)
+  }
 }
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
