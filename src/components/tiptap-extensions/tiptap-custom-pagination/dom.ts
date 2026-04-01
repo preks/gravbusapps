@@ -626,19 +626,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
+    /* Page 1 header lives outside page breaks (sibling of .rm-pages-wrapper). Match stacking with
+       .breaker (z-index: 2) and body layers (z-index: 1) so overlapping chrome does not sit above
+       the header. Use the same pointer-events model as .rm-page-header-region — no shell-wide none. */
     .rm-pages-root .rm-first-page-header {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 1;
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header > .rm-page-header {
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header .rm-page-header-content,
-    .rm-pages-root .rm-first-page-header .rm-page-number-slot {
-      pointer-events: auto;
+      z-index: 3;
     }
     .rm-pages-root .rm-page-header,
     .rm-pages-root .rm-page-footer {
