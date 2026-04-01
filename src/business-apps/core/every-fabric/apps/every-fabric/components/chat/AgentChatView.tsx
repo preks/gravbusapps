@@ -17,6 +17,13 @@ interface AgentChatViewProps {
   onOpenMemory: () => void
 }
 
+const isTranscriptMessage = (message: ChatMessage) =>
+  message.type === 'user_input' ||
+  message.type === 'expert_call' ||
+  message.type === 'final_answer' ||
+  message.type === 'human_interrupt' ||
+  message.type === 'error'
+
 export const AgentChatView = ({
   accessToken,
   session,
@@ -32,8 +39,7 @@ export const AgentChatView = ({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const userScrolledUpRef = useRef(false)
 
-  const isSessionDone = !!session && session.status !== 'running' && session.status !== 'pending'
-  const visibleMessages = isSessionDone ? messages.filter(m => m.type !== 'agent_thinking') : messages
+  const visibleMessages = messages.filter(isTranscriptMessage)
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current
@@ -91,7 +97,7 @@ export const AgentChatView = ({
           <MessageBubble key={msg.id} message={msg} sessionId={session.session_id} onReply={onReply} />
         ))}
 
-        {isStreaming && !visibleMessages.some(m => m.type === 'agent_thinking') && <AgentTypingIndicator />}
+        {isStreaming && <AgentTypingIndicator />}
 
         <div ref={messagesEndRef} />
       </div>

@@ -20,22 +20,24 @@ export const ExpertCallRenderer = ({
 }: ExpertCallRendererProps) => {
   return (
     <div
-      className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/40 gba:overflow-hidden gba:max-w-3xl"
+      className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/35 gba:overflow-hidden"
       data-testid={`enterprise-agent-expert-${agentId}`}
     >
       <div className="gba:flex gba:items-center gba:gap-2.5 gba:px-4 gba:py-2.5">
         <ShareNetwork className="gba:h-4 gba:w-4 gba:text-purple-500 gba:shrink-0" />
         <div className="gba:flex-1 gba:min-w-0">
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <span className="gba:text-xs gba:font-semibold gba:text-foreground">Sub-Agent</span>
-            <span className="gba:text-xs gba:font-mono gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300 gba:px-1.5 gba:py-0.5 gba:rounded">
+            <span className="gba:text-xs gba:font-semibold gba:text-muted-foreground">Expert</span>
+            <span className="gba:text-xs gba:font-semibold gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300 gba:px-2 gba:py-0.5 gba:rounded-full">
               {agentId}
             </span>
             {durationMs !== undefined && (
               <span className="gba:text-xs gba:text-muted-foreground/60">{(durationMs / 1000).toFixed(2)}s</span>
             )}
           </div>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">{task}</p>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">
+            {task || 'Working on a delegated task'}
+          </p>
         </div>
         <div className="gba:shrink-0">
           {status === 'running' ? (
