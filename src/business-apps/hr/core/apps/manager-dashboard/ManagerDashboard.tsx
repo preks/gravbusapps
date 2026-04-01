@@ -232,6 +232,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
               onTrack={vm.performanceGrowth.onTrack}
               atRisk={vm.performanceGrowth.atRisk}
               behind={vm.performanceGrowth.behind}
+              completed={vm.performanceGrowth.completed}
               totalGoals={vm.performanceGrowth.totalGoals}
               averageProgress={vm.performanceGrowth.averageProgress}
               loading={vm.performanceGrowth.loading}

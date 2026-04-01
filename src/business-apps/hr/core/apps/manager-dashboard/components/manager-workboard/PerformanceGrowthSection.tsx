@@ -1,13 +1,14 @@
 // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
 
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Progress, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, XCircle, Target, BarChart3, Users } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, Button, Progress } from '@newwork/nw-design-system'
+import { BarChart3, Users } from 'lucide-react'
 
 interface PerformanceGrowthSectionProps {
   onTrack: number
   atRisk: number
   behind: number
+  completed: number
   totalGoals: number
   averageProgress: number
   loading: boolean
@@ -20,18 +21,20 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   onTrack,
   atRisk,
   behind,
+  completed,
   totalGoals,
   averageProgress,
   loading,
   onNavigateToTeamPerformance,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onNavigateToAtRiskGoals,
   onNavigateToTeamPerformanceOverview
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+      <Card style={{ borderRadius: '12px' }} className="gba:p-4 gba:h-full">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">Current Cycle Performance</CardTitle>
+          <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:animate-pulse gba:space-y-2">
@@ -45,83 +48,97 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 
   const hasGoals = totalGoals > 0
 
+  const metrics = [
+    { label: 'On track', value: onTrack, colorClass: 'gba:text-success' },
+    { label: 'At risk', value: atRisk, colorClass: 'gba:text-warning' },
+    { label: 'Behind', value: behind, colorClass: 'gba:text-destructive' },
+    { label: 'Completed', value: completed, colorClass: 'gba:text-foreground' }
+  ]
+
   return (
-    <Card data-testid="performance-growth-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+    <Card data-testid="performance-growth-section" style={{ borderRadius: '12px' }} className="gba:p-4 gba:h-full">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Current Cycle Performance</CardTitle>
+        <CardTitle className="gba:text-base gba:font-semibold">Performance & Growth</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">Active cycle goal progress</p>
       </CardHeader>
-      <CardContent className="gba:space-y-2">
+      <CardContent className="gba:space-y-3">
         {hasGoals ? (
           <>
-            {/* Distribution (Primary) */}
-            <div className="gba:space-y-1.5">
-              {onTrack > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-surface">
-                  <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <CheckCircle2 className="gba:text-info-on-card" size={16} />
-                    <span className="gba:text-xs gba:font-medium gba:text-info-on-card">On track</span>
-                  </div>
-                  <Badge variant="success" className="gba:text-xs gba:px-2 gba:py-0">
-                    {onTrack}
-                  </Badge>
+            {/* 4 metrics side by side */}
+            <style>{`
+              [data-layout="perf-metrics"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem;
+              }
+              [data-layout="perf-metrics"] > div {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+              }
+              [data-layout="perf-buttons"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.5rem;
+              }
+              [data-layout="perf-buttons"] > button {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+              }
+            `}</style>
+            <div data-layout="perf-metrics">
+              {metrics.map(m => (
+                <div
+                  key={m.label}
+                  style={{
+                    textAlign: 'center',
+                    padding: '0.5rem 0.25rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--gba-surface, #f8f9fa)'
+                  }}
+                >
+                  <p className={m.colorClass} style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.2 }}>
+                    {m.value ?? 0}
+                  </p>
+                  <p
+                    className="gba:text-muted-foreground"
+                    style={{ fontSize: '0.65rem', marginTop: '2px', lineHeight: 1.2 }}
+                  >
+                    {m.label}
+                  </p>
                 </div>
-              )}
-
-              {behind > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-surface">
-                  <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <XCircle className="gba:text-destructive-on-card" size={16} />
-                    <span className="gba:text-xs gba:font-medium gba:text-destructive-on-card">Behind</span>
-                  </div>
-                  <Badge variant="destructive" className="gba:text-xs gba:px-2 gba:py-0">
-                    {behind}
-                  </Badge>
-                </div>
-              )}
+              ))}
             </div>
 
-            {/* Progress indicator (Secondary) */}
-            <div className="gba:border-t gba:pt-2">
+            {/* Progress bar */}
+            <div>
               <Progress value={averageProgress} className="gba:h-1.5 gba:mb-1" />
               <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
                 {averageProgress}% avg. progress · {totalGoals} total goals
               </p>
             </div>
 
-            <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:w-full gba:h-8">
-              <Users size={14} className="gba:mr-1.5" />
-              View goals by team member
-            </Button>
-
-            {/* Action Button */}
-            {(atRisk > 0 || behind > 0) && (
-              <Button onClick={onNavigateToAtRiskGoals} variant="outline" size="sm" className="gba:w-full gba:h-8">
-                <Target size={14} className="gba:mr-1.5" />
-                Review at-risk goals
+            {/* 2 buttons side by side */}
+            <div data-layout="perf-buttons">
+              <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:h-8">
+                <Users size={14} className="gba:mr-1" />
+                Team goals
               </Button>
-            )}
+              {onNavigateToTeamPerformanceOverview && (
+                <Button onClick={onNavigateToTeamPerformanceOverview} variant="outline" size="sm" className="gba:h-8">
+                  <BarChart3 size={14} className="gba:mr-1" />
+                  Trends
+                </Button>
+              )}
+            </div>
           </>
         ) : (
           <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
-            <Target size={40} className="gba:mx-auto gba:mb-2 gba:opacity-50" />
             <p className="gba:text-sm gba:font-medium">No performance goals set</p>
             <p className="gba:text-xs gba:mb-3">Set goals to track team progress</p>
             <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm">
               Set goals
-            </Button>
-          </div>
-        )}
-        {onNavigateToTeamPerformanceOverview && (
-          <div className="gba:border-t gba:pt-2 gba:mt-2">
-            <Button
-              onClick={onNavigateToTeamPerformanceOverview}
-              variant="outline"
-              size="sm"
-              className="gba:w-full gba:h-8"
-            >
-              <BarChart3 size={14} className="gba:mr-1.5" />
-              Performance Trends
             </Button>
           </div>
         )}

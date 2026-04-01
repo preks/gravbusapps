@@ -1037,6 +1037,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       onTrack: goalsOnTrack,
       atRisk: goalsAtRisk,
       behind: goalsBehindTarget,
+      completed: goalsAchieved,
       totalGoals: totalPerformanceGoals,
       averageProgress: averageTeamProgress,
       details: teamPerformance,
