@@ -40,6 +40,8 @@ export const useGetContractTypesData = (catalogClient: CatalogManagerClient, use
               additionalValue1,
               additionalValue2: entry.additionalValue2,
               additionalValue3: entry.additionalValue3,
+              objectValue: entry.objectValue,
+              isDeleted: entry.isDeleted,
               translations: entry.translations || []
             }
           })

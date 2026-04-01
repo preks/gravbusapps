@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { parseEmploymentMetadata } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
+import { isEmploymentTypeMarkedDeleted } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
 import { SelectOption } from '../types'
 
 export interface EmploymentTypeData {
@@ -65,7 +65,7 @@ export const useEmploymentTypes = (accessToken: string) => {
         )
 
         const transformedData = response.data
-          .filter((entry: any) => !parseEmploymentMetadata(entry.additionalValue2).is_deleted)
+          .filter((entry: any) => !isEmploymentTypeMarkedDeleted(entry))
           .map(transformEmploymentType)
         const selectOptions: SelectOption[] = transformedData.map(type => ({
           id: type.id,
