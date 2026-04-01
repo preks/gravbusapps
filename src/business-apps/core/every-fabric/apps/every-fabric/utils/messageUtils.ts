@@ -1,6 +1,8 @@
 import type {
   ActivityEvent,
   AgentChunkEvent,
+  AgentExpertCalledEvent,
+  AgentExpertCompletedEvent,
   AgentStepCompletedEvent,
   AgentStepStartedEvent,
   AgentStreamEvent,
@@ -11,6 +13,7 @@ import type {
   ChatMessageType,
   DeepAgentSession
 } from '../types/enterpriseAgent'
+import { resolveRendererType } from '../types/fabric'
 
 const terminalQuestion = (output: unknown, humanQuestion?: string | null): string => {
   if (typeof humanQuestion === 'string' && humanQuestion.trim()) return humanQuestion
@@ -22,7 +25,56 @@ const terminalQuestion = (output: unknown, humanQuestion?: string | null): strin
   return 'The agent needs your input to continue.'
 }
 
-type StepCompletion = AgentStepCompletedEvent | AgentSubagentCompletedEvent
+type StepCompletion = AgentStepCompletedEvent | AgentSubagentCompletedEvent | AgentExpertCompletedEvent
+
+const resolveDelegatedAgentName = (
+  event: AgentSubagentSpawnedEvent | AgentSubagentCompletedEvent | AgentExpertCalledEvent | AgentExpertCompletedEvent
+): string =>
+  ('expert_name' in event && event.expert_name) ||
+  ('agent_name' in event && event.agent_name) ||
+  ('name' in event && event.name) ||
+  event.subagent_id ||
+  'Sub-agent'
+
+const parseToolOutput = (output?: string): unknown => {
+  if (typeof output !== 'string') return output
+  const trimmed = output.trim()
+  if (!trimmed) return output
+
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return output
+    }
+  }
+
+  return output
+}
+
+const toArtifactRefsFromMeta = (
+  artifacts?: Array<{
+    name: string
+    path: string
+    mime_type: string
+    size: number
+  }>
+): Array<{
+  name: string
+  path: string
+  mime_type: string
+  size: number
+  rendererType: ReturnType<typeof resolveRendererType>
+}> =>
+  (artifacts ?? []).map(artifact => ({
+    name: artifact.name,
+    path: artifact.path || artifact.name,
+    mime_type: artifact.mime_type ?? '',
+    size: artifact.size ?? 0,
+    rendererType: resolveRendererType(artifact.mime_type, artifact.name)
+  }))
+
+const toArtifactRefs = (session: DeepAgentSession) => toArtifactRefsFromMeta(session.artifacts)
 
 const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
   if (chunk.role === 'human') {
@@ -80,9 +132,38 @@ export function eventToMessage(
     }
 
     case 'step_completed':
+      return {
+        id: `tool-result-${event.step_id}`,
+        type: 'tool_result',
+        timestamp: event.timestamp,
+        content: {
+          callId: event.step_id,
+          toolName: event.name ?? 'unknown',
+          result: parseToolOutput(event.output),
+          durationMs: event.duration_ms ?? 0,
+          cached: false
+        }
+      }
+
+    case 'expert_completed':
     case 'subagent_completed':
-      // Handled by pairing with step_started / subagent_spawned
       return null
+
+    case 'expert_called': {
+      const completed = stepCompletions?.get(event.step_id)
+      return {
+        id: `expert-${event.step_id}`,
+        type: 'expert_call',
+        timestamp: event.timestamp,
+        content: {
+          agentId: resolveDelegatedAgentName(event),
+          task: event.task_summary ?? resolveDelegatedAgentName(event),
+          status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
+          durationMs: completed?.duration_ms,
+          outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
+        }
+      }
+    }
 
     case 'subagent_spawned': {
       const completed = stepCompletions?.get(event.step_id)
@@ -91,9 +172,9 @@ export function eventToMessage(
         type: 'expert_call',
         timestamp: event.timestamp,
         content: {
-          agentId: event.subagent_id ?? event.name ?? 'subagent',
-          task: event.task_summary ?? event.name ?? '',
-          status: completed ? 'done' : 'running',
+          agentId: resolveDelegatedAgentName(event),
+          task: event.task_summary ?? resolveDelegatedAgentName(event),
+          status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
           durationMs: completed?.duration_ms,
           outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
         }
@@ -119,7 +200,8 @@ export function eventToMessage(
             qualityScore,
             actionsPerformed,
             durationMs: event.duration_ms,
-            costSummary: event.cost_summary ?? undefined
+            costSummary: event.cost_summary ?? undefined,
+            artifacts: toArtifactRefsFromMeta(event.artifacts)
           }
         }
       }
@@ -166,7 +248,7 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   // Build a map of step completions so step_started messages can be fully resolved
   const stepCompletions = new Map<string, StepCompletion>()
   for (const event of sortedEvents) {
-    if (event.type === 'step_completed' || event.type === 'subagent_completed') {
+    if (event.type === 'step_completed' || event.type === 'subagent_completed' || event.type === 'expert_completed') {
       stepCompletions.set(event.step_id, event)
     }
   }
@@ -187,25 +269,25 @@ const MEMORY_TOOLS = new Set(['save_memory', 'search_memory'])
 export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
   const stepCompletions = new Map<string, StepCompletion>()
   for (const e of events) {
-    if (e.type === 'step_completed' || e.type === 'subagent_completed') {
+    if (e.type === 'step_completed' || e.type === 'subagent_completed' || e.type === 'expert_completed') {
       stepCompletions.set(e.step_id, e)
     }
   }
 
   const activityEvents: ActivityEvent[] = events
     .filter(
-      (e): e is AgentStepStartedEvent | AgentSubagentSpawnedEvent =>
-        e.type === 'step_started' || e.type === 'subagent_spawned'
+      (e): e is AgentStepStartedEvent | AgentSubagentSpawnedEvent | AgentExpertCalledEvent =>
+        e.type === 'step_started' || e.type === 'subagent_spawned' || e.type === 'expert_called'
     )
     .map(e => {
       const completed = stepCompletions.get(e.step_id)
-      if (e.type === 'subagent_spawned') {
+      if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
         return {
           id: e.event_id,
           timestamp: e.timestamp,
           type: 'subagent_spawn' as const,
-          agent: e.subagent_id ?? e.name,
-          summary: e.task_summary ?? e.name ?? 'Sub-agent task',
+          agent: resolveDelegatedAgentName(e),
+          summary: e.task_summary ?? resolveDelegatedAgentName(e),
           durationMs: completed?.duration_ms
         }
       }
@@ -243,20 +325,18 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
 }
 
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
-  const traceMessages = [...(session.trace ?? [])]
-    .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk')
-    .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
-    .map(chunkToMessage)
-    .filter((msg): msg is ChatMessage => msg !== null)
+  const traceMessages = deriveMessagesFromEvents(session.trace ?? [])
+    .filter(message => !['final_answer', 'human_interrupt', 'error'].includes(message.type))
+    .filter(message => !(message.type === 'user_input' && message.content === session.input))
 
-  if (traceMessages.length === 0 && session.input) {
-    traceMessages.push({
-      id: `user-${session.session_id}`,
-      type: 'user_input',
-      timestamp: session.created_at,
-      content: session.input
-    })
-  }
+  const initialUserMessage = session.input
+    ? ({
+        id: `user-${session.session_id}`,
+        type: 'user_input',
+        timestamp: session.created_at,
+        content: session.input
+      } satisfies ChatMessage)
+    : null
 
   const terminalMessages: ChatMessage[] = []
 
@@ -287,7 +367,8 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
         qualityScore,
         durationMs,
         actionsPerformed: actionsPerformed.length > 0 ? actionsPerformed : undefined,
-        costSummary: session.cost_summary
+        costSummary: session.cost_summary,
+        artifacts: toArtifactRefs(session)
       }
     })
   }
@@ -319,7 +400,7 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
     })
   }
 
-  return [...traceMessages, ...terminalMessages]
+  return [...(initialUserMessage ? [initialUserMessage] : []), ...traceMessages, ...terminalMessages]
 }
 
 export function messageTypeLabel(type: ChatMessageType): string {
