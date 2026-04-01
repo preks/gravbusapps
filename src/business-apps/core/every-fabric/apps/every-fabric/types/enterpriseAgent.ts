@@ -6,6 +6,7 @@ export interface DeepAgentSession {
   output?: string
   todos?: TodoItem[]
   trace?: AgentStreamEvent[]
+  artifacts?: SessionArtifactMeta[]
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
@@ -53,6 +54,7 @@ export interface AgentTerminalEvent {
   human_question?: string | null
   duration_ms?: number
   cost_summary?: CostSummary | null
+  artifacts?: SessionArtifactMeta[]
 }
 
 export interface AgentErrorEvent {
@@ -89,6 +91,7 @@ export interface AgentSubagentSpawnedEvent {
   event_id: string
   step_id: string
   name?: string
+  agent_name?: string
   subagent_id?: string
   parent_step_id?: string
   task_summary?: string
@@ -105,7 +108,45 @@ export interface AgentSubagentCompletedEvent {
   duration_ms?: number
   subagent_id?: string
   name?: string
+  agent_name?: string
+  task_summary?: string
+  parent_step_id?: string
   timestamp: string
+}
+
+export interface AgentExpertCalledEvent {
+  type: 'expert_called'
+  seq: number
+  event_id: string
+  step_id: string
+  expert_name?: string
+  subagent_id?: string
+  task_summary?: string
+  timestamp: string
+}
+
+export interface AgentExpertCompletedEvent {
+  type: 'expert_completed'
+  seq: number
+  event_id: string
+  step_id: string
+  expert_name?: string
+  subagent_id?: string
+  output?: string
+  duration_ms?: number
+  status?: 'done' | 'failed'
+  timestamp: string
+}
+
+export interface AgentArtifactCreatedEvent {
+  type: 'artifact_created'
+  seq: number
+  event_id: string
+  timestamp: string
+  name: string
+  path: string
+  mime_type: string
+  size: number
 }
 
 export type AgentStreamEvent =
@@ -114,8 +155,11 @@ export type AgentStreamEvent =
   | AgentErrorEvent
   | AgentStepStartedEvent
   | AgentStepCompletedEvent
+  | AgentExpertCalledEvent
+  | AgentExpertCompletedEvent
   | AgentSubagentSpawnedEvent
   | AgentSubagentCompletedEvent
+  | AgentArtifactCreatedEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -138,6 +182,15 @@ export interface SpecialistAgent {
   domain: string
   tags: string[]
   is_active?: boolean
+}
+
+export interface SessionArtifactMeta {
+  name: string
+  path: string
+  mime_type: string
+  size: number
+  created_at?: string
+  modified_at?: string
 }
 
 export interface SessionConfig {
