@@ -49,6 +49,7 @@ interface PerformanceTabProps {
   employeeId?: string
   userInfo?: UserInfoProps
   employeePerformanceGoals?: EmployeePerformanceGoal[]
+  canDeleteGoals?: boolean
 }
 
 type GoalType = 'PERCENTAGE' | 'NUMERIC' | 'MILESTONE'
@@ -112,7 +113,7 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
 
 const normalizeProgress = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100
 
-const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, userInfo }) => {
+const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, userInfo, canDeleteGoals = false }) => {
   const { t } = useTranslation(translations)
   const graphQLClient = useGraphqlClient(accessToken)
   const { cycles, loading: cyclesLoading } = usePerformanceCycles(accessToken)
@@ -138,7 +139,28 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
   const isSelfView = currentUserEmployeeId === employee.id
   const isManagerView = currentUserEmployeeId === supervisorId
-  const canManageGoals = isSelfView || isManagerView
+  const canEditGoals = isSelfView || isManagerView
+  const sortedCycles = useMemo(
+    () =>
+      [...cycles].sort(
+        (a, b) =>
+          dayjs(b.evaluationPeriodStartDate || b.startDate).valueOf() -
+          dayjs(a.evaluationPeriodStartDate || a.startDate).valueOf()
+      ),
+    [cycles]
+  )
+  const currentCycle = useMemo(() => {
+    const today = dayjs().startOf('day')
+    return (
+      sortedCycles.find(cycle => {
+        const cycleStart = dayjs(cycle.evaluationPeriodStartDate || cycle.startDate).startOf('day')
+        const cycleEnd = dayjs(cycle.evaluationPeriodEndDate || cycle.endDate).startOf('day')
+        return cycleStart.isValid() && cycleEnd.isValid() && !today.isBefore(cycleStart) && !today.isAfter(cycleEnd)
+      }) ||
+      sortedCycles.find(cycle => cycle.status === 'Active') ||
+      sortedCycles[0]
+    )
+  }, [sortedCycles])
 
   const fetchPerformanceData = useCallback(async () => {
     if (!employee?.id) return
@@ -175,14 +197,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   }, [fetchPerformanceData])
 
   useEffect(() => {
-    if (cycles.length === 0) return
+    if (sortedCycles.length === 0) return
 
-    const cycleExists = cycles.some(cycle => cycle.id === selectedCycleId)
+    const cycleExists = sortedCycles.some(cycle => cycle.id === selectedCycleId)
     if (cycleExists) return
 
-    const active = cycles.find(cycle => cycle.status === 'Active')
-    setSelectedCycleId((active || cycles[0]).id)
-  }, [cycles, selectedCycleId])
+    setSelectedCycleId(currentCycle?.id || sortedCycles[0].id)
+  }, [sortedCycles, selectedCycleId, currentCycle])
 
   const getGoalType = (goal: ExtendedEmployeePerformanceGoal): GoalType => {
     // Prefer the proper objectiveType DB column
@@ -200,14 +221,17 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   const isGoalValid = (goal: ExtendedEmployeePerformanceGoal) => Boolean(goal.title && goal.startDate && goal.dueDate)
 
   const selectedCycle = useMemo(() => {
-    const cycleFromSelection = cycles.find(cycle => cycle.id === selectedCycleId)
+    const cycleFromSelection = sortedCycles.find(cycle => cycle.id === selectedCycleId)
     if (cycleFromSelection) return cycleFromSelection
 
-    const activeCycle = cycles.find(cycle => cycle.status === 'Active')
-    return activeCycle || cycles[0]
-  }, [cycles, selectedCycleId])
+    return currentCycle
+  }, [sortedCycles, selectedCycleId, currentCycle])
   const selectedCycleStartDate = selectedCycle?.evaluationPeriodStartDate || selectedCycle?.startDate
   const selectedCycleEndDate = selectedCycle?.evaluationPeriodEndDate || selectedCycle?.endDate
+  const isSelectedCyclePast = useMemo(() => {
+    if (!selectedCycleEndDate) return false
+    return dayjs(selectedCycleEndDate).endOf('day').isBefore(dayjs().startOf('day'))
+  }, [selectedCycleEndDate])
 
   const isGoalContainedInCycle = useCallback(
     (goal: ExtendedEmployeePerformanceGoal, cycleStart: string, cycleEnd: string) => {
@@ -400,8 +424,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     const achieved = activeContainedGoals.filter(
       goal => goal.status === 'ACHIEVED' || goal.progressPercent >= 100
     ).length
-    const onTrack = activeContainedGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
-    const behind = activeContainedGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
+    const inProgressGoals = activeContainedGoals.filter(
+      goal => goal.status !== 'ACHIEVED' && (goal.progressPercent || 0) < 100
+    )
+    const onTrack = inProgressGoals.filter(goal => getTrackState(goal) === 'ON_TRACK').length
+    const behind = inProgressGoals.filter(goal => getTrackState(goal) === 'BEHIND_TARGET').length
     return { total, achieved, onTrack, behind }
   }, [containedGoals, getTrackState])
 
@@ -662,7 +689,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
   }
 
   const confirmDeleteGoal = () => {
-    if (!goalToDelete) return
+    if (!goalToDelete || !canDeleteGoals) return
     const { id, version } = goalToDelete
 
     // Optimistically remove from local state
@@ -734,7 +761,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {cycles.map(cycle => (
+              {sortedCycles.map(cycle => (
                 <SelectItem value={cycle.id} key={cycle.id}>
                   {cycle.name} ({dayjs(cycle.evaluationPeriodStartDate || cycle.startDate).format('MMM D, YYYY')} -{' '}
                   {dayjs(cycle.evaluationPeriodEndDate || cycle.endDate).format('MMM D, YYYY')})
@@ -746,7 +773,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
           <AppAction
             variant="update-primary"
             data-testid="employee-goal-add-button"
-            disabled={!selectedCycle}
+            disabled={!selectedCycle || isSelectedCyclePast}
             contexts={[
               {
                 context: FlowContextName.employeePerformanceGoal,
@@ -864,7 +891,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                           <span className="gba:text-xs gba:text-muted-foreground gba:capitalize gba:lowercase">
                             {getGoalType(goal).charAt(0) + getGoalType(goal).slice(1).toLowerCase()}
                           </span>
-                          {canManageGoals && (
+                          {canDeleteGoals && (
                             <button
                               type="button"
                               onClick={e => {
@@ -954,7 +981,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         Mark Completed
                       </button>
                     )}
-                    {canManageGoals &&
+                    {canEditGoals &&
                       selectedGoal.status !== 'ACHIEVED' &&
                       (selectedGoal.progressPercent || 0) < 100 && (
                         <AppAction
