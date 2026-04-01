@@ -15,7 +15,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
  query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $activeUserLocale: String!) {
  Catalog(where: {identifier: {_eq: "AcademicTitle"}}) {
     id
-    catalogEntries {
+    catalogEntries(where: {isDeleted: {_eq: false}}) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {

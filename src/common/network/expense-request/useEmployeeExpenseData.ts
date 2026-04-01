@@ -5,7 +5,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const employeeExpenseDataQuery = `
   query fetchEmployee($employeeId: uuid, $activeUserLocale: String) {
-    expenseRequestType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}}, limit: 20) {
+    expenseRequestType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}, isDeleted: {_eq: false}}, limit: 20) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -18,7 +18,7 @@ export const employeeExpenseDataQuery = `
       code
       additionalValue1
     }
-    expenseTransportationMeans: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseTransportMean"}}}, limit: 20) {
+    expenseTransportationMeans: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseTransportMean"}}, isDeleted: {_eq: false}}, limit: 20) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {

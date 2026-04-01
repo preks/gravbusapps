@@ -317,21 +317,20 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   }
 
   return (
-    <div data-testid="campaign-record">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={MegaphoneIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
-        onBack={handleBackNavigation}
-        headerTitle={campaign.name}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="campaign-record"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={MegaphoneIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
+      onBack={handleBackNavigation}
+      headerTitle={campaign.name}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

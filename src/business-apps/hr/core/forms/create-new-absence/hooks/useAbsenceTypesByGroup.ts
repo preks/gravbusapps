@@ -13,7 +13,8 @@ const GET_ABSENCE_TYPES = `
   query GetAbsenceTypes($activeUserLocale: String!, $limit: Int!, $offset: Int!) {
     CatalogEntry(
       where: { 
-        catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceType" } }
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceType" } },
+        isDeleted: { _eq: false }
       }
       limit: $limit
       offset: $offset

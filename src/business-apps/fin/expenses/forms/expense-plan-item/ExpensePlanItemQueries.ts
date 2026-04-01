@@ -86,7 +86,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     structureId
     costCenterId
   }
-  expenseGroup: CatalogEntry(where: {catalog: {version: { _eq: "v1" }identifier: { _eq: "ExpenseGroup" }}objectValue: { _contains: $objectFilter }}, orderBy: {additionalValue2: ASC}) {
+  expenseGroup: CatalogEntry(where: {catalog: {version: { _eq: "v1" }identifier: { _eq: "ExpenseGroup" }}, isDeleted: { _eq: false }, objectValue: { _contains: $objectFilter }}, orderBy: {additionalValue2: ASC}) {
     id
      value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -98,7 +98,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     }
     code
   }
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}) {
+  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}) {
     id
      value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -110,7 +110,7 @@ export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($empl
     }
     code
   }
-  expenceClass: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseClass"}}}) {
+  expenceClass: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseClass"}}, isDeleted: { _eq: false }}) {
     id
       value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {

@@ -29,6 +29,7 @@ export const useInvestmentOpportunityPipelines = (accessToken: string): UseInves
       pipelines: CatalogEntry(
         where: {
           catalog: { identifier: { _eq: "InvestmentOpportunityPipeline" } }
+          isDeleted: { _eq: false }
         }
         orderBy: { value: ASC }
       ) {

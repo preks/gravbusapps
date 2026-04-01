@@ -56,7 +56,7 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
       }
     }
     allEmploymentRegions: CatalogEntry(
-      where: {catalog: {version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" }}},
+      where: {catalog: {version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" }}, isDeleted: { _eq: false }},
       orderBy: {value: ASC}
     ) {
       id
@@ -65,20 +65,20 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
       translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
       catalog { defaultLocale }
     }
-    contractTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ContractType"}}}) {
+    contractTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ContractType"}}, isDeleted: { _eq: false }}) {
       id
       value
       additionalValue2
       translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
       catalog { defaultLocale }
     }
-    employmentTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmploymentType"}}}) {
+    employmentTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmploymentType"}}, isDeleted: { _eq: false }}) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
       catalog { defaultLocale }
     }
-    remote: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "RemoteWork"}}}) {
+    remote: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "RemoteWork"}}, isDeleted: { _eq: false }}) {
       value
       id
       code
@@ -92,6 +92,7 @@ export const GET_REGIONS_BY_COUNTRY = `
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" } },
         additionalValue3: { _eq: $countryId }
+        isDeleted: { _eq: false }
       },
       orderBy: { value: ASC }
     ) {
@@ -107,7 +108,7 @@ export const GET_REGIONS_BY_COUNTRY = `
 export const GET_ALL_EMPLOYMENT_REGIONS = `
   query GetAllEmploymentRegions($activeUserLocale: String!) {
     CatalogEntry(
-      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" } } },
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" } }, isDeleted: { _eq: false } },
       orderBy: { value: ASC },
       limit: 500
     ) {

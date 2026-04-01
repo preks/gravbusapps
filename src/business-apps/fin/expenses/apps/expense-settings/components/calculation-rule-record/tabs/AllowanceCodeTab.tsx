@@ -45,7 +45,17 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
-import { PlusIcon, PencilIcon, CalendarIcon, CheckIcon, XIcon, CodeIcon, DotsThreeVerticalIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
+import {
+  PlusIcon,
+  PencilIcon,
+  CalendarIcon,
+  CheckIcon,
+  XIcon,
+  CodeIcon,
+  DotsThreeVerticalIcon,
+  TrashIcon,
+  WarningIcon
+} from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -249,6 +259,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 identifier: { _eq: "ExpenseAllowanceCalculation" }
                 version: { _eq: "v1" }
               }
+              isDeleted: { _eq: false }
             }
             orderBy: { code: ASC }
           ) {
@@ -998,7 +1009,10 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                       {/* Code Column */}
                       <TableCell data-testid={`allowance-code-code-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <CodeIcon className="gba:text-primary" data-testid={`allowance-code-code-icon-${record.id}`} />
+                          <CodeIcon
+                            className="gba:text-primary"
+                            data-testid={`allowance-code-code-icon-${record.id}`}
+                          />
                           <span
                             className="gba:font-mono gba:font-medium"
                             data-testid={`allowance-code-code-text-${record.id}`}

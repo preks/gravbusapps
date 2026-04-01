@@ -173,7 +173,8 @@ export const useVacationApprovalData = ({
                   identifier: {_eq: "AbsenceType"},
                   version: {_eq: "v1"}
                 },
-                code: {_eq: $code}
+                code: {_eq: $code},
+                isDeleted: {_eq: false}
               },
               limit: 1
             ) {
