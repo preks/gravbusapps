@@ -657,7 +657,7 @@ interface OrgchartStructureResponse {
   edges: Array<{ id: string; source: string; target: string }>
 }
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}`
 
 interface RawCompanyAddress {
   companyId: string

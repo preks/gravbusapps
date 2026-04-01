@@ -22,7 +22,8 @@ import {
   PlusIcon,
   FolderOpenIcon
 } from '@phosphor-icons/react'
-import type { PayrollSummary, PayrollRun, PayrollEmployee } from '../../../types/payrollTypes'
+import type { PayrollSummary, PayrollRun, PayrollEmployee, PayrollRunStatus } from '../../../types/payrollTypes'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
 interface OverviewViewProps {
@@ -33,7 +34,7 @@ interface OverviewViewProps {
   employees: PayrollEmployee[]
   onSelectRun: (run: PayrollRun) => void
   onCreateRun: () => void
-  t: (key: string) => string
+  t: (key: string, args?: Record<string, any>) => string
 }
 
 type BadgeVariant = 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'
@@ -62,7 +63,25 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString()
+  const formatted = formatPlatformDate(dateStr, 'date.short')
+  return formatted ?? '—'
+}
+
+function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
+  switch (status) {
+    case 'PAYROLL_IN_PROGRESS':
+      return t('status-in-progress')
+    case 'PAYROLL_READY_FOR_REVIEW':
+      return t('status-ready-for-review')
+    case 'PAYROLL_APPROVED_FOR_EXPORT':
+      return t('status-approved')
+    case 'PAYROLL_EXPORTED':
+      return t('status-exported')
+    case 'PAYROLL_CLOSED':
+      return t('status-closed')
+    default:
+      return status
+  }
 }
 
 function RunsListView({
@@ -126,7 +145,7 @@ function RunsListView({
                     {t(`month-${run.month}`)} {run.year}
                   </TableCell>
                   <TableCell>
-                    <PayrollRunStatusBadge status={run.status} />
+                    <PayrollRunStatusBadge status={run.status} translatedLabel={getRunStatusLabel(run.status, t)} />
                   </TableCell>
                   <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
                   <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
@@ -150,7 +169,7 @@ function RunDashboardView({
   summary: PayrollSummary
   employees: PayrollEmployee[]
   payrollRun: PayrollRun
-  t: (key: string) => string
+  t: (key: string, args?: Record<string, any>) => string
 }) {
   const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
 
@@ -162,7 +181,10 @@ function RunDashboardView({
             <WarningCircleIcon size={20} weight="fill" className="gba:text-warning gba:mt-0.5 gba:shrink-0" />
             <div>
               <p className="gba:text-sm gba:font-semibold gba:text-foreground">
-                {t('overview-no-company-title', { count: employeesWithoutCompany.length })}
+                {t('overview-no-company-title', {
+                  count: employeesWithoutCompany.length,
+                  defaultValue: `${employeesWithoutCompany.length} employee(s) without a company assignment`
+                })}
               </p>
               <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('overview-no-company-description')}</p>
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
@@ -194,7 +216,7 @@ function RunDashboardView({
               {formatDate(payrollRun.paymentDate)}
             </p>
           </div>
-          <PayrollRunStatusBadge status={payrollRun.status} />
+          <PayrollRunStatusBadge status={payrollRun.status} translatedLabel={getRunStatusLabel(payrollRun.status, t)} />
         </div>
       </Card>
 

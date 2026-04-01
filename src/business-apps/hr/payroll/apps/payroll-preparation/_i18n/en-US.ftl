@@ -110,6 +110,8 @@ grid-missing-presence = Missing Days
 grid-issues = Issues
 grid-readiness = Readiness
 grid-changed = Changed
+grid-salary = Salary
+grid-weekly-hours = Weekly Hours
 
 filter-all = All
 filter-search = Search employees...
@@ -251,6 +253,13 @@ signoff-blocked-warning = Cannot approve: { $count } blocked employee(s). Resolv
 
 audit-trail = Audit Trail
 audit-empty = No audit events yet.
+
+audit-payroll-created = Payroll run created
+audit-marked-ready = Marked ready for review
+audit-status-changed = { $description }
+audit-review-approved = { $description }
+audit-review-rejected = { $description }
+audit-export-generated = { $description }
 
 refresh-data = Refresh
 exceptions-hide-addressed = Hide addressed

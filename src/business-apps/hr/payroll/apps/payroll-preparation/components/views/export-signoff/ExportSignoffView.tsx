@@ -25,6 +25,7 @@ import {
   downloadBlob,
   getExportableEmployees
 } from '../../../utils/exportUtils'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
 const STATUS_ORDER: PayrollRunStatus[] = [
@@ -42,7 +43,47 @@ function getStepIndex(status: PayrollRunStatus): number {
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '-'
-  return new Date(iso).toLocaleString()
+  const formatted = formatPlatformDate(iso, 'dateTime.short')
+  return formatted ?? '-'
+}
+
+function getAuditDescriptionLabel(
+  event: AuditEvent,
+  t: (key: string, args?: Record<string, string | number>) => string
+) {
+  switch (event.eventType) {
+    case 'payroll_run_created':
+      return t('audit-payroll-created')
+    case 'marked_ready':
+      return t('audit-marked-ready')
+    case 'status_changed':
+      return t('audit-status-changed', { description: event.description })
+    case 'review_approved':
+      return t('audit-review-approved', { description: event.description })
+    case 'review_rejected':
+      return t('audit-review-rejected', { description: event.description })
+    case 'export_generated':
+      return t('audit-export-generated', { description: event.description })
+    default:
+      return event.description
+  }
+}
+
+function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
+  switch (status) {
+    case 'PAYROLL_IN_PROGRESS':
+      return t('status-in-progress')
+    case 'PAYROLL_READY_FOR_REVIEW':
+      return t('status-ready-for-review')
+    case 'PAYROLL_APPROVED_FOR_EXPORT':
+      return t('status-approved')
+    case 'PAYROLL_EXPORTED':
+      return t('status-exported')
+    case 'PAYROLL_CLOSED':
+      return t('status-closed')
+    default:
+      return status
+  }
 }
 
 interface ExportSignoffViewProps {
@@ -255,7 +296,9 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
             </span>
           )}
-          {isActive && <PayrollRunStatusBadge status={currentStatus} />}
+          {isActive && (
+            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+          )}
         </div>
 
         {isActive && (
@@ -306,7 +349,9 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               <XCircleIcon size={14} weight="fill" /> {t('signoff-decision-not-approved')}
             </span>
           )}
-          {isActive && <PayrollRunStatusBadge status={currentStatus} />}
+          {isActive && (
+            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+          )}
         </div>
 
         {(isActive || isCompleted) && payrollRun?.preparedBy && (
@@ -391,7 +436,9 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               <CheckCircleIcon size={14} weight="fill" /> {t('step-completed')}
             </span>
           )}
-          {isActive && <PayrollRunStatusBadge status={currentStatus} />}
+          {isActive && (
+            <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
+          )}
         </div>
 
         {(isActive || isCompleted) && payrollRun?.reviewedBy && (
@@ -528,7 +575,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               <div className="gba:bg-muted gba:rounded-md gba:p-4 gba:text-sm gba:space-y-2">
                 <div className="gba:flex gba:justify-between">
                   <span className="gba:text-muted-foreground">{t('signoff-status')}</span>
-                  <PayrollRunStatusBadge status={payrollRun.status} />
+                  <PayrollRunStatusBadge
+                    status={payrollRun.status}
+                    translatedLabel={getRunStatusLabel(payrollRun.status, t)}
+                  />
                 </div>
                 {payrollRun.preparedBy && (
                   <div className="gba:flex gba:justify-between">
@@ -582,7 +632,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
             <div key={event.id} className="gba:flex gba:items-start gba:gap-3 gba:py-2 gba:border-b gba:border-border">
               <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:mt-1.5 gba:flex-shrink-0" />
               <div className="gba:flex-1">
-                <p className="gba:text-sm gba:text-foreground">{event.description}</p>
+                <p className="gba:text-sm gba:text-foreground">{getAuditDescriptionLabel(event, t)}</p>
                 <div className="gba:flex gba:gap-3 gba:text-xs gba:text-muted-foreground gba:mt-0.5">
                   <span>{formatDate(event.timestamp)}</span>
                   <span>{event.userName}</span>
