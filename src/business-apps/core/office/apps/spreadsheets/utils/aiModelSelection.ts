@@ -1,14 +1,14 @@
 import type { PromptManagerClient, AIModelODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 const PREFERRED_SERVICE = 'azure-openai'
-const PREFERRED_MODEL = 'gpt-4o'
+const PREFERRED_MODEL = 'gpt-oss-120b'
 
 /**
  * Select the best AI model from the Prompt Manager.
  *
  * Priority:
- *   1. Model matching PREFERRED_MODEL on the PREFERRED_SERVICE (azure-openai / gpt-4o)
- *   2. Any model whose name includes "gpt-4"
+ *   1. Model matching PREFERRED_MODEL on the PREFERRED_SERVICE (azure-openai / gpt-oss-120b)
+ *   2. Any model whose name includes "gpt-oss"
  *   3. First available model
  */
 export async function selectPreferredModel(promptClient: PromptManagerClient): Promise<AIModelODM> {
@@ -40,8 +40,8 @@ export async function selectPreferredModel(promptClient: PromptManagerClient): P
     if (match) return match
   }
 
-  const gpt4Model = models.find(m => m.name.toLowerCase().includes('gpt-4'))
-  if (gpt4Model) return gpt4Model
+  const ossModel = models.find(m => m.name.toLowerCase().includes('gpt-oss'))
+  if (ossModel) return ossModel
 
   return models[0]
 }
