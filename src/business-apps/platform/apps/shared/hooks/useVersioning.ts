@@ -9,6 +9,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Version } from '../types/versioning'
 
+const LOAD_VERSIONS_TIMEOUT_MS = 15000
+
 function shouldSkipAutoSave(isPaused: boolean, hasUnsavedChanges: boolean): boolean {
   return isPaused || !hasUnsavedChanges
 }
@@ -158,6 +160,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
   const autoSavePausedRef = useRef(false)
   const saveAutoVersionRef = useRef<() => Promise<Version | null>>()
+  const loadVersionsRef = useRef<() => Promise<void>>()
 
   /**
    * Load version history
@@ -166,7 +169,10 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
     setState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const versions = await apiService.listVersions(entityId, 1, 50)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Loading versions timed out')), LOAD_VERSIONS_TIMEOUT_MS)
+      })
+      const versions = await Promise.race([apiService.listVersions(entityId, 1, 50), timeoutPromise])
       const currentVersion = versions.length > 0 ? versions[0] : undefined
 
       setState(prev => ({
@@ -341,11 +347,23 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         setState(prev => ({ ...prev, isRestoring: false }))
         return success
       } catch (error) {
+        const status =
+          typeof error === 'object' &&
+          error !== null &&
+          'status' in error &&
+          typeof (error as { status?: unknown }).status === 'number'
+            ? ((error as { status: number }).status as number)
+            : undefined
+        const isRestoreOwnerPermissionError = status === 403
         const errorMessage = t
-          ? t('shared-error-restore-version')
+          ? t(
+              isRestoreOwnerPermissionError ? 'shared-error-restore-version-owner-only' : 'shared-error-restore-version'
+            )
           : error instanceof Error
             ? error.message
             : String(error)
+        const restoreError = new Error(errorMessage)
+        restoreError.name = 'VersionRestoreError'
         setState(prev => ({
           ...prev,
           error: errorMessage,
@@ -353,7 +371,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         }))
 
         if (onError) {
-          onError(error instanceof Error ? error : new Error(errorMessage))
+          onError(restoreError)
         }
 
         return false
@@ -466,12 +484,17 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
     saveAutoVersionRef.current = saveAutoVersion
   }, [saveAutoVersion])
 
+  // Keep ref updated with latest loadVersions callback.
+  useEffect(() => {
+    loadVersionsRef.current = loadVersions
+  }, [loadVersions])
+
   // Load versions on mount - only if entityId is not empty
   useEffect(() => {
     if (entityId && entityId.trim() !== '') {
-      loadVersions()
+      void loadVersionsRef.current?.()
     }
-  }, [entityId, loadVersions])
+  }, [entityId])
 
   // Auto-save timer
   useEffect(() => {

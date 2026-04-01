@@ -40,8 +40,9 @@ function resolvePageNumberForElement(element: Element): number | null {
   return null
 }
 
-function resolveMountedPageBodyBounds(pageNumber: number, viewportModel: DocumentLayoutViewportModel) {
-  return viewportModel.mountedPageBodyBounds.find(bounds => bounds.pageNumber === pageNumber) ?? null
+function resolvePageBodyBounds(pageNumber: number, viewportModel: DocumentLayoutViewportModel) {
+  const pageBounds = viewportModel.pageBounds ?? viewportModel.mountedPageBodyBounds ?? []
+  return pageBounds.find(bounds => bounds.pageNumber === pageNumber) ?? null
 }
 
 function createMarkerTargetList(pageBreakEl: HTMLElement): HTMLElement[] {
@@ -121,7 +122,7 @@ export function applyViewportMarkerAttributes(
 ) {
   const isActive = viewportModel.activePageNumbers.includes(pageNumber)
   const position = resolveWindowPosition(pageNumber, viewportModel.activeRange)
-  const bodyBounds = resolveMountedPageBodyBounds(pageNumber, viewportModel)
+  const bodyBounds = resolvePageBodyBounds(pageNumber, viewportModel)
 
   targets.forEach(target => {
     target.dataset.layoutWindowActive = isActive ? 'true' : 'false'
@@ -225,6 +226,7 @@ export function useApplyDocumentLayoutViewportMarkers({
     editorContainerRef,
     layoutNavigationState.pageBreakEls,
     viewportModel.activePageNumbers,
+    viewportModel.pageBounds,
     viewportModel.mountedPageBodyBounds,
     viewportModel.activeRange,
     viewportModel.hasSparseFlow,

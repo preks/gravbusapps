@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useCurrencyInit } from '../../../../../manager-expenses/hooks/useTabState'
+import { useCurrencyInit } from '../../../../common/hooks/useSharedTabState'
 import { useExpenseRequests } from '../../../../hooks/useExpenseRequests'
 import useFilterData from '../../../../hooks/useFilterData'
 import { getActiveStructureDepartmentOptions } from '../../../../utils/departmentOptions'
@@ -176,6 +176,7 @@ export function useExpenseRequestTabState({
     setVisibleColumns,
     sortingState,
     handleSortingChange,
+    allDataColumns,
     sortableColumns,
     columnsFilteredByVisibility,
     listEmptyMessage
@@ -233,6 +234,7 @@ export function useExpenseRequestTabState({
     searchText,
     handleSearchChange,
     sortingState,
+    allDataColumns,
     sortableColumns,
     handleSortingChange,
     columnsFilteredByVisibility,

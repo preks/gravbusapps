@@ -1,4 +1,4 @@
-import type { DocumentLayoutRuntimeState, DocumentLayoutSnapshot } from '../../../types'
+import type { DocumentLayoutSnapshot } from '../../../types'
 import { useApplyDocumentLayoutTableFragmentsBridge } from './useApplyDocumentLayoutTableFragmentsBridge'
 import { useApplyDocumentLayoutViewportMarkers } from './useApplyDocumentLayoutViewportMarkers'
 import { useApplyDocumentLayoutWindowedBreakers } from './useApplyDocumentLayoutWindowedBreakers'
@@ -15,13 +15,13 @@ export interface UsePagedDocumentLayoutStateResult {
   handleScroll: UsePaginationLayoutSnapshotResult['handleScroll']
   layoutSnapshot: DocumentLayoutSnapshot
   layoutViewportModel: DocumentLayoutViewportModel
-  runtimeState: DocumentLayoutRuntimeState
+  isInitialLayoutSettled: boolean
 }
 
 export function usePagedDocumentLayoutState(
   params: UsePaginationLayoutSnapshotProps
 ): UsePagedDocumentLayoutStateResult {
-  const { currentPage, handleScroll, layoutNavigationState, layoutSnapshot, runtimeState } =
+  const { currentPage, handleScroll, layoutNavigationState, layoutSnapshot, isInitialLayoutSettled } =
     usePaginationLayoutSnapshot(params)
   const layoutViewportModel = useDocumentLayoutViewportModel(layoutSnapshot, currentPage)
 
@@ -52,6 +52,6 @@ export function usePagedDocumentLayoutState(
     handleScroll,
     layoutSnapshot,
     layoutViewportModel,
-    runtimeState
+    isInitialLayoutSettled
   }
 }

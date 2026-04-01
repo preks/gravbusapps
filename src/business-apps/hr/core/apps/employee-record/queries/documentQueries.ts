@@ -27,7 +27,7 @@ query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
     createdAt
     validTo
   }
-  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
+  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}, isDeleted: {_eq: false}}) {
     id
     value
     code
@@ -40,7 +40,7 @@ query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
     }
     parentEntryId
   }
-  documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}}) {
+  documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}, isDeleted: {_eq: false}}) {
     id
     value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -56,7 +56,7 @@ query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
 
 export const documentTypeCatalogQuery = `
 query catalogData($documentTypeRefs: [String!]!, $activeUserLocale: String = "en-US") {
-  CatalogEntry(where: {id: {_in: $documentTypeRefs}}) {
+  CatalogEntry(where: {id: {_in: $documentTypeRefs}, isDeleted: {_eq: false}}) {
     id
     value
     code

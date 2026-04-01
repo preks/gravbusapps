@@ -295,7 +295,8 @@ export const useGetLiquidFundAnalyticsData = (context: BusinessAppContextProps) 
   const fetchInvestmentTypes = useCallback(async () => {
     const whereClause = {
       catalogIdentifier: { _eq: 'InvestmentType' },
-      isActive: { _eq: true }
+      isActive: { _eq: true },
+      isDeleted: { _eq: false }
     }
 
     try {

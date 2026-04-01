@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
+import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 
@@ -12,6 +12,7 @@ export interface UseInvestmentSectionStateReturn {
   // Data
   investments: Investment[]
   totalCount: number
+  listAggregates: InvestmentListAggregates
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -86,6 +87,7 @@ export const useInvestmentSectionState = ({
   const {
     investments,
     total: totalCount,
+    listAggregates,
     loading,
     error,
     refetch
@@ -136,6 +138,7 @@ export const useInvestmentSectionState = ({
   return {
     investments,
     totalCount,
+    listAggregates,
     loading,
     error,
     refetch,

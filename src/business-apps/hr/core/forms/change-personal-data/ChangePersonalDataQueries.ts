@@ -84,7 +84,7 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!, $act
 `
 
 export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: String!) {
-    schoolQualification: CatalogEntry(where: {catalog: {identifier: {_eq: "SchoolQualification"}}}) {
+    schoolQualification: CatalogEntry(where: {catalog: {identifier: {_eq: "SchoolQualification"}}, isDeleted: {_eq: false}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -95,7 +95,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
         defaultLocale
       }
     }
-    academicTitle: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "AcademicTitle"}}}) {
+    academicTitle: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "AcademicTitle"}}, isDeleted: {_eq: false}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -106,7 +106,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
         defaultLocale
       }
     }
-    salutation: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Salutation"}}}) {
+    salutation: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Salutation"}}, isDeleted: {_eq: false}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -118,7 +118,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    gender: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Gender"}}}) {
+    gender: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Gender"}}, isDeleted: {_eq: false}}) {
      value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -130,7 +130,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    nationality: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Nationality"}}}) {
+    nationality: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Nationality"}}, isDeleted: {_eq: false}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -142,7 +142,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    maritalStatus: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "MaritalStatus"}}}) {
+    maritalStatus: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "MaritalStatus"}}, isDeleted: {_eq: false}}) {
      value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -154,7 +154,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    language: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Languages"}}}) {
+    language: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Languages"}}, isDeleted: {_eq: false}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -166,7 +166,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}}) {
+    documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}, isDeleted: {_eq: false}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -178,7 +178,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
+    documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}, isDeleted: {_eq: false}}) {
       value
       id
       parentEntryId

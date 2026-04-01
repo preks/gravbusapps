@@ -1,7 +1,8 @@
 title = Performance Cycle Configuration
 subtitle = Create and manage performance evaluation cycles
 
-tab-cycles = Cycles
+tab-cycles = Performance Period
+tab-performance = Review Cycle
 tab-rating-scales = Rating Scales
 tab-values = Values
 
@@ -13,17 +14,22 @@ button-activate = Activate
 button-deactivate = Deactivate
 button-complete = Complete
 button-delete = Delete
+button-manual-run = Manual Run
 
 table-name = Name
-table-dates = Dates
+table-dates = Review Dates
 table-type = Type
 table-scale = Scale
 table-participants = Participants
 table-status = Status
 status-completed = Completed
-table-evaluation-period = Evaluation Period
+status-in-progress = In Progress
+cycle-already-started = "{ $name }" has already been started.
+table-evaluation-period = Performance Period
 table-actions = Actions
 empty-no-cycles = No cycles created yet.
+performance-period-description = The time span of work being evaluated. Example: Performance Period: Jan 1–Dec 31, 2025.
+review-cycle-description = The time span when feedback, manager review, and calibration happen. Example: Review Cycle: Jan 15–Feb 20, 2026.
 empty-no-values = No values defined yet.
 
 modal-create-title = Create New Cycle
@@ -31,19 +37,20 @@ modal-edit-title = Edit Cycle
 modal-description = Configure details for the performance cycle.
 
 field-name = Name
-field-start-date = Start Date
-field-end-date = End Date
+field-start-date = Execution Start Date
+field-end-date = Execution End Date
 field-frequency = Frequency/Type
 field-rating-scale = Rating Scale
 label-evaluation-participants = Evaluation Participants
-field-evaluation-period-start = Evaluation Period Start
-field-evaluation-period-end = Evaluation Period End
+field-evaluation-period-start = Evaluated Period Start
+field-evaluation-period-end = Evaluated Period End
 field-values = Values
 field-title = Title
 field-description = Description
 field-active = Active
 
 placeholder-name = e.g., 2026 Annual Performance
+placeholder-select-cycle = Select cycle
 placeholder-select-frequency = Select a frequency
 placeholder-select-scale = Select a rating scale
 placeholder-no-scales = No scales. Add from Rating Scales tab.
@@ -89,6 +96,7 @@ cycle-deactivated-to-database = "{ $name }" deactivated.
 cycle-completed-to-database = "{ $name }" marked as completed.
 cycle-deleted-to-database = "{ $name }" deleted.
 cycle-started = Starting cycle: { $name }
+cycle-start-rating-scale-required = A rating scale is required before starting "{ $name }". Please edit the cycle and select a rating scale.
 value-saved-to-database = Company value "{ $title }" saved.
 value-deleted-to-database = "{ $title }" deleted.
 value-activated-to-database = "{ $title }" activated.
@@ -105,6 +113,8 @@ values-modal-description = Define a company value and its description.
 start-confirm-title = Start Performance Evaluation
 start-confirm-description-with-cycle = Are you sure you want to start the performance evaluation for "{ $name }"? This will initiate the evaluation flow.
 start-confirm-description-generic = Are you sure you want to start this performance evaluation?
+start-confirm-select-cycle = Select Cycle *
+manual-run-cycle-already-started = This cycle has been already started.
 start-confirm-run-for-label = Run evaluation for
 start-confirm-run-for-employee = Employee
 start-confirm-run-for-team = Team

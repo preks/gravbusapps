@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
+import { X } from '@phosphor-icons/react'
 import { Button, Input, Label, ScrollArea, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
 import {
   dispatchDocumentImageUiMode,
@@ -11,6 +12,7 @@ import {
   type ImageWrapMode
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { ImageAdvancedSizeSection } from './ImageAdvancedSizeSection'
+import { ImageSidebarSection } from './ImageSidebarSection'
 import translations from '../../_i18n'
 
 const DEFAULT_IMAGE_DISTANCE = 0
@@ -160,26 +162,47 @@ export function ImageSettingsSidebar({
   const cropBottom = attrs.cropBottom ?? 0
   const cropLeft = attrs.cropLeft ?? 0
 
+  const choiceButtonClass =
+    'gba:h-auto gba:min-h-10 gba:whitespace-normal gba:px-2.5 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:leading-snug'
+
   return (
     <div
       className="gba:fixed gba:right-0 gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col gba:overflow-hidden gba:shadow-lg"
       style={{ top: `${headerHeight}px`, right: rightOffset, width: 360, zIndex: 45 }}
       data-testid={testId}
     >
-      <div className="gba:flex gba:items-center gba:px-4 gba:py-3 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
-        <div className="gba:min-w-0">
-          <h3 className="gba:text-sm gba:font-semibold">{t('image-sidebar-title')}</h3>
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:px-4 gba:py-3.5 gba:border-b gba:border-border/50 gba:bg-muted/15">
+        <div className="gba:min-w-0 gba:pr-1">
+          <h3 className="gba:text-base gba:font-semibold gba:leading-tight gba:tracking-tight">
+            {t('image-sidebar-title')}
+          </h3>
           {contextSubtitle ? (
-            <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-context-subtitle`}>
+            <p
+              className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:leading-relaxed"
+              data-testid={`${testId}-context-subtitle`}
+            >
               {contextSubtitle}
             </p>
           ) : null}
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="gba:h-8 gba:w-8 gba:shrink-0"
+          onMouseDown={preventEditorBlurOnMouseDown}
+          onClick={onClose}
+          aria-label={t('editor-header-footer-close')}
+          title={t('editor-header-footer-close')}
+          data-testid={`${testId}-close`}
+        >
+          <X className="gba:h-4 gba:w-4" aria-hidden />
+        </Button>
       </div>
 
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         <ScrollArea className="gba:flex-1 gba:h-full">
-          <div className="gba:flex gba:flex-col gba:gap-4 gba:px-4 gba:py-4">
+          <div className="gba:flex gba:flex-col gba:gap-3 gba:px-4 gba:py-4">
             <ImageAdvancedSizeSection
               editor={editor}
               imagePos={imagePos}
@@ -188,14 +211,14 @@ export function ImageSettingsSidebar({
               updateImageAttrs={updateImageAttrs}
             />
 
-            <section className="gba:space-y-2">
-              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-wrap-text')}</Label>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+            <ImageSidebarSection title={t('image-context-wrap-text')} data-testid={`${testId}-wrap-section`}>
+              <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
                 {WRAP_OPTIONS.map(option => (
                   <Button
                     key={option.value}
-                    variant={wrapMode === option.value ? 'default' : 'outline'}
+                    variant={wrapMode === option.value ? 'secondary' : 'outline'}
                     size="sm"
+                    className={choiceButtonClass}
                     onMouseDown={preventEditorBlurOnMouseDown}
                     onClick={() => updateImageAttrs(resolveImageWrapPreset(option.value, attrs))}
                     data-testid={`${testId}-wrap-${option.value}`}
@@ -204,64 +227,73 @@ export function ImageSettingsSidebar({
                   </Button>
                 ))}
               </div>
-            </section>
+            </ImageSidebarSection>
 
-            <section className="gba:space-y-2">
-              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-anchor')}</Label>
-              <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                {ANCHOR_OPTIONS.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={anchorMode === option.value ? 'default' : 'outline'}
-                    size="sm"
+            <ImageSidebarSection title={t('image-context-position')} data-testid={`${testId}-position-section`}>
+              <div className="gba:flex gba:flex-col gba:gap-3">
+                <div className="gba:space-y-2">
+                  <span className="gba:block gba:text-xs gba:font-medium gba:text-foreground">
+                    {t('image-context-anchor')}
+                  </span>
+                  <div className="gba:flex gba:flex-col gba:gap-1.5">
+                    {ANCHOR_OPTIONS.map(option => (
+                      <Button
+                        key={option.value}
+                        variant={anchorMode === option.value ? 'secondary' : 'outline'}
+                        size="sm"
+                        className="gba:h-auto gba:min-h-10 gba:justify-start gba:px-3 gba:py-2.5 gba:text-xs gba:font-medium gba:leading-snug"
+                        onMouseDown={preventEditorBlurOnMouseDown}
+                        onClick={() => updateImageAttrs({ anchorMode: option.value })}
+                        data-testid={`${testId}-anchor-${option.value}`}
+                      >
+                        {t(option.key)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:bg-muted/30 gba:px-3 gba:py-2.5">
+                  <Label htmlFor={`${testId}-allow-overlap`} className="gba:text-sm gba:font-medium">
+                    {t('image-sidebar-overlap')}
+                  </Label>
+                  <Switch
+                    id={`${testId}-allow-overlap`}
+                    checked={attrs.allowOverlap ?? false}
                     onMouseDown={preventEditorBlurOnMouseDown}
-                    onClick={() => updateImageAttrs({ anchorMode: option.value })}
-                    data-testid={`${testId}-anchor-${option.value}`}
-                  >
-                    {t(option.key)}
-                  </Button>
-                ))}
+                    onCheckedChange={checked => updateImageAttrs({ allowOverlap: checked })}
+                    data-testid={`${testId}-allow-overlap`}
+                  />
+                </div>
+
+                <div className="gba:space-y-2">
+                  <span className="gba:block gba:text-xs gba:font-medium gba:text-foreground">
+                    {t('image-context-align')}
+                  </span>
+                  <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
+                    {ALIGN_OPTIONS.map(option => (
+                      <Button
+                        key={option.value}
+                        variant={align === option.value ? 'secondary' : 'outline'}
+                        size="sm"
+                        className={choiceButtonClass}
+                        onMouseDown={preventEditorBlurOnMouseDown}
+                        onClick={() => updateImageAttrs({ align: option.value })}
+                        data-testid={`${testId}-align-${option.value}`}
+                      >
+                        {t(option.key)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </section>
+            </ImageSidebarSection>
 
-            <section className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-              <Label htmlFor={`${testId}-allow-overlap`} className="gba:text-sm">
-                {t('image-sidebar-overlap')}
-              </Label>
-              <Switch
-                id={`${testId}-allow-overlap`}
-                checked={attrs.allowOverlap ?? false}
-                onMouseDown={preventEditorBlurOnMouseDown}
-                onCheckedChange={checked => updateImageAttrs({ allowOverlap: checked })}
-                data-testid={`${testId}-allow-overlap`}
-              />
-            </section>
+            <Separator className="gba:my-1" />
 
-            <section className="gba:space-y-2">
-              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-align')}</Label>
-              <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                {ALIGN_OPTIONS.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={align === option.value ? 'default' : 'outline'}
-                    size="sm"
-                    onMouseDown={preventEditorBlurOnMouseDown}
-                    onClick={() => updateImageAttrs({ align: option.value })}
-                    data-testid={`${testId}-align-${option.value}`}
-                  >
-                    {t(option.key)}
-                  </Button>
-                ))}
-              </div>
-            </section>
-
-            <Separator />
-
-            <section className="gba:space-y-2">
-              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-position-menu')}</Label>
-              <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                <div className="gba:space-y-1">
-                  <Label htmlFor={`${testId}-offset-x`} className="gba:text-xs gba:text-muted-foreground">
+            <ImageSidebarSection title={t('image-position-menu')} data-testid={`${testId}-offsets-section`}>
+              <div className="gba:grid gba:grid-cols-3 gba:gap-3">
+                <div className="gba:space-y-1.5">
+                  <Label htmlFor={`${testId}-offset-x`} className="gba:text-xs gba:font-medium">
                     {t('image-sidebar-offset-x')}
                   </Label>
                   <Input
@@ -272,8 +304,8 @@ export function ImageSettingsSidebar({
                     data-testid={`${testId}-offset-x`}
                   />
                 </div>
-                <div className="gba:space-y-1">
-                  <Label htmlFor={`${testId}-offset-y`} className="gba:text-xs gba:text-muted-foreground">
+                <div className="gba:space-y-1.5">
+                  <Label htmlFor={`${testId}-offset-y`} className="gba:text-xs gba:font-medium">
                     {t('image-sidebar-offset-y')}
                   </Label>
                   <Input
@@ -284,8 +316,8 @@ export function ImageSettingsSidebar({
                     data-testid={`${testId}-offset-y`}
                   />
                 </div>
-                <div className="gba:space-y-1">
-                  <Label htmlFor={`${testId}-z-index`} className="gba:text-xs gba:text-muted-foreground">
+                <div className="gba:space-y-1.5">
+                  <Label htmlFor={`${testId}-z-index`} className="gba:text-xs gba:font-medium">
                     {t('image-position-z-index')}
                   </Label>
                   <Input
@@ -297,37 +329,46 @@ export function ImageSettingsSidebar({
                   />
                 </div>
               </div>
-            </section>
+            </ImageSidebarSection>
 
-            <section className="gba:space-y-2">
-              <Label htmlFor={`${testId}-caption`}>{t('image-context-caption')}</Label>
-              <Input
-                id={`${testId}-caption`}
-                value={caption}
-                onChange={event => updateImageAttrs({ caption: event.target.value || null })}
-                data-testid={`${testId}-caption`}
-              />
-            </section>
+            <ImageSidebarSection
+              title={t('image-sidebar-accessibility')}
+              data-testid={`${testId}-accessibility-section`}
+            >
+              <div className="gba:space-y-3">
+                <div className="gba:space-y-1.5">
+                  <Label htmlFor={`${testId}-caption`} className="gba:text-xs gba:font-medium">
+                    {t('image-context-caption')}
+                  </Label>
+                  <Input
+                    id={`${testId}-caption`}
+                    value={caption}
+                    onChange={event => updateImageAttrs({ caption: event.target.value || null })}
+                    data-testid={`${testId}-caption`}
+                  />
+                </div>
+                <div className="gba:space-y-1.5">
+                  <Label htmlFor={`${testId}-alt-text`} className="gba:text-xs gba:font-medium">
+                    {t('image-context-alt-text')}
+                  </Label>
+                  <Input
+                    id={`${testId}-alt-text`}
+                    value={alt}
+                    onChange={event => updateImageAttrs({ alt: event.target.value })}
+                    data-testid={`${testId}-alt-text`}
+                  />
+                </div>
+              </div>
+            </ImageSidebarSection>
 
-            <section className="gba:space-y-2">
-              <Label htmlFor={`${testId}-alt-text`}>{t('image-context-alt-text')}</Label>
-              <Input
-                id={`${testId}-alt-text`}
-                value={alt}
-                onChange={event => updateImageAttrs({ alt: event.target.value })}
-                data-testid={`${testId}-alt-text`}
-              />
-            </section>
-
-            <section className="gba:space-y-2">
-              <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-spacing')}</Label>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+            <ImageSidebarSection title={t('image-context-spacing')} data-testid={`${testId}-spacing-section`}>
+              <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                 {DISTANCE_FIELDS.map(field => {
                   const value = attrs[field.key] ?? DEFAULT_IMAGE_DISTANCE
 
                   return (
-                    <div key={field.key} className="gba:space-y-1">
-                      <Label htmlFor={`${testId}-${field.key}`} className="gba:text-xs gba:text-muted-foreground">
+                    <div key={field.key} className="gba:space-y-1.5">
+                      <Label htmlFor={`${testId}-${field.key}`} className="gba:text-xs gba:font-medium">
                         {t(field.labelKey)}
                       </Label>
                       <Input
@@ -345,17 +386,18 @@ export function ImageSettingsSidebar({
                   )
                 })}
               </div>
-            </section>
+            </ImageSidebarSection>
 
-            <Separator />
+            <Separator className="gba:my-1" />
 
-            <section className="gba:space-y-3">
-              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                <Label className="gba:text-xs gba:text-muted-foreground">{t('image-context-crop')}</Label>
-                <div className="gba:flex gba:gap-2">
+            <ImageSidebarSection
+              title={t('image-context-crop')}
+              action={
+                <div className="gba:flex gba:flex-wrap gba:justify-end gba:gap-1.5">
                   <Button
                     variant="outline"
                     size="sm"
+                    className="gba:text-xs"
                     onMouseDown={preventEditorBlurOnMouseDown}
                     onClick={() => dispatchDocumentImageUiMode({ pos: imagePos, mode: 'crop' })}
                     data-testid={`${testId}-crop-mode`}
@@ -365,6 +407,7 @@ export function ImageSettingsSidebar({
                   <Button
                     variant="outline"
                     size="sm"
+                    className="gba:text-xs"
                     onMouseDown={preventEditorBlurOnMouseDown}
                     onClick={() => dispatchDocumentImageUiMode({ pos: imagePos, mode: 'default' })}
                     data-testid={`${testId}-crop-finish`}
@@ -372,8 +415,10 @@ export function ImageSettingsSidebar({
                     {t('image-context-finish-crop')}
                   </Button>
                 </div>
-              </div>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+              }
+              data-testid={`${testId}-crop-section`}
+            >
+              <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                 <div className="gba:space-y-1">
                   <Label htmlFor={`${testId}-crop-top`} className="gba:text-xs gba:text-muted-foreground">
                     {t('image-crop-top')}
@@ -455,7 +500,7 @@ export function ImageSettingsSidebar({
               >
                 {t('image-context-reset-crop')}
               </Button>
-            </section>
+            </ImageSidebarSection>
           </div>
         </ScrollArea>
       </div>

@@ -209,13 +209,14 @@ function collectCommentRanges(doc: ProseMirrorNode): Map<string, CommentRangeGro
 
 export function createDocumentLayoutPageSpans(
   ranges: DocumentLayoutPositionRange[],
-  source: Extract<DocumentLayoutPageSpan['source'], 'mounted' | 'spacer'>
+  source: Extract<DocumentLayoutPageSpan['source'], 'mounted' | 'placeholder' | 'spacer'>
 ): DocumentLayoutPageSpan[] {
   return ranges.map(range => toPageSpan(range, source)).sort((left, right) => left.pageNumber - right.pageNumber)
 }
 
 export function mergeMeasuredDocumentLayoutPageSpans(options: {
   mountedRanges: DocumentLayoutPositionRange[]
+  placeholderRanges: DocumentLayoutPositionRange[]
   spacerRanges: DocumentLayoutPositionRange[]
   pageCount: number
 }): DocumentLayoutPageSpan[] {
@@ -223,6 +224,12 @@ export function mergeMeasuredDocumentLayoutPageSpans(options: {
   const safePageCount = Math.max(1, options.pageCount)
 
   createDocumentLayoutPageSpans(options.spacerRanges, 'spacer').forEach(pageSpan => {
+    if (pageSpan.pageNumber >= 1 && pageSpan.pageNumber <= safePageCount) {
+      merged.set(pageSpan.pageNumber, pageSpan)
+    }
+  })
+
+  createDocumentLayoutPageSpans(options.placeholderRanges, 'placeholder').forEach(pageSpan => {
     if (pageSpan.pageNumber >= 1 && pageSpan.pageNumber <= safePageCount) {
       merged.set(pageSpan.pageNumber, pageSpan)
     }
@@ -292,95 +299,99 @@ export function collectDocumentLayoutAnchors(
     return createEmptyAnchorCollection()
   }
 
-  const doc = editor.state.doc
-  const comments = Array.from(collectCommentRanges(doc).values())
-    .flatMap(commentRangeGroup => {
-      const mergedRanges = mergeRanges(commentRangeGroup.ranges)
-      return mergedRanges.map((range, index) =>
-        createAnchorSnapshot({
-          id: `${commentRangeGroup.commentId}:${index}`,
-          kind: 'comment',
-          from: range.from,
-          to: range.to,
-          pageSpans,
-          pageBounds,
-          metadata: {
-            commentId: commentRangeGroup.commentId
-          }
-        })
-      )
-    })
-    .sort((left, right) => left.from - right.from)
-
-  const images: DocumentLayoutAnchorSnapshot[] = []
-  const links: DocumentLayoutAnchorSnapshot[] = []
-  const tables: DocumentLayoutAnchorSnapshot[] = []
-
-  doc.descendants((node, pos) => {
-    if (node.type.name === 'image') {
-      images.push(
-        createAnchorSnapshot({
-          id: `image:${pos}`,
-          kind: 'image',
-          from: pos,
-          to: pos + node.nodeSize,
-          pageSpans,
-          pageBounds,
-          metadata: {
-            src: typeof node.attrs.src === 'string' ? node.attrs.src : null,
-            wrapMode: typeof node.attrs.wrapMode === 'string' ? node.attrs.wrapMode : null,
-            anchorMode: typeof node.attrs.anchorMode === 'string' ? node.attrs.anchorMode : null,
-            align: typeof node.attrs.align === 'string' ? node.attrs.align : null
-          }
-        })
-      )
-    }
-
-    if (node.isText) {
-      node.marks?.forEach((mark, index) => {
-        if (mark?.type?.name !== 'link') {
-          return
-        }
-
-        links.push(
+  try {
+    const doc = editor.state.doc
+    const comments = Array.from(collectCommentRanges(doc).values())
+      .flatMap(commentRangeGroup => {
+        const mergedRanges = mergeRanges(commentRangeGroup.ranges)
+        return mergedRanges.map((range, index) =>
           createAnchorSnapshot({
-            id: `link:${pos}:${index}`,
-            kind: 'link',
+            id: `${commentRangeGroup.commentId}:${index}`,
+            kind: 'comment',
+            from: range.from,
+            to: range.to,
+            pageSpans,
+            pageBounds,
+            metadata: {
+              commentId: commentRangeGroup.commentId
+            }
+          })
+        )
+      })
+      .sort((left, right) => left.from - right.from)
+
+    const images: DocumentLayoutAnchorSnapshot[] = []
+    const links: DocumentLayoutAnchorSnapshot[] = []
+    const tables: DocumentLayoutAnchorSnapshot[] = []
+
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'image') {
+        images.push(
+          createAnchorSnapshot({
+            id: `image:${pos}`,
+            kind: 'image',
             from: pos,
             to: pos + node.nodeSize,
             pageSpans,
             pageBounds,
             metadata: {
-              href: typeof mark.attrs?.href === 'string' ? mark.attrs.href : null,
-              target: typeof mark.attrs?.target === 'string' ? mark.attrs.target : null
+              src: typeof node.attrs.src === 'string' ? node.attrs.src : null,
+              wrapMode: typeof node.attrs.wrapMode === 'string' ? node.attrs.wrapMode : null,
+              anchorMode: typeof node.attrs.anchorMode === 'string' ? node.attrs.anchorMode : null,
+              align: typeof node.attrs.align === 'string' ? node.attrs.align : null
             }
           })
         )
-      })
-    }
+      }
 
-    if (node.type.name === 'table') {
-      tables.push(
-        createAnchorSnapshot({
-          id: `table:${pos}`,
-          kind: 'table',
-          from: pos,
-          to: pos + node.nodeSize,
-          pageSpans,
-          pageBounds,
-          metadata: {
-            rowCount: getTableRowCount(node)
+      if (node.isText) {
+        node.marks?.forEach((mark, index) => {
+          if (mark?.type?.name !== 'link') {
+            return
           }
-        })
-      )
-    }
-  })
 
-  return {
-    comments,
-    images,
-    links,
-    tables
+          links.push(
+            createAnchorSnapshot({
+              id: `link:${pos}:${index}`,
+              kind: 'link',
+              from: pos,
+              to: pos + node.nodeSize,
+              pageSpans,
+              pageBounds,
+              metadata: {
+                href: typeof mark.attrs?.href === 'string' ? mark.attrs.href : null,
+                target: typeof mark.attrs?.target === 'string' ? mark.attrs.target : null
+              }
+            })
+          )
+        })
+      }
+
+      if (node.type.name === 'table') {
+        tables.push(
+          createAnchorSnapshot({
+            id: `table:${pos}`,
+            kind: 'table',
+            from: pos,
+            to: pos + node.nodeSize,
+            pageSpans,
+            pageBounds,
+            metadata: {
+              rowCount: getTableRowCount(node)
+            }
+          })
+        )
+      }
+    })
+
+    return {
+      comments,
+      images,
+      links,
+      tables
+    }
+  } catch {
+    return createEmptyAnchorCollection()
   }
 }
 
@@ -392,50 +403,54 @@ export function collectDocumentLayoutTableFragments(
     return []
   }
 
-  const fragments: DocumentLayoutTableFragmentSnapshot[] = []
-  const fragmentIndexesByKey = new Map<string, number>()
-  const fragmentCountsByKey = new Map<string, number>()
+  try {
+    const fragments: DocumentLayoutTableFragmentSnapshot[] = []
+    const fragmentIndexesByKey = new Map<string, number>()
+    const fragmentCountsByKey = new Map<string, number>()
 
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name !== 'table') {
-      return
-    }
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'table') {
+        return
+      }
 
-    const from = pos
-    const to = pos + node.nodeSize
-    const pageNumbers = resolvePageNumbersForRange(pageSpans, from, to)
-    const paginationChainKey = getTableRuntimeChainKey(node, pos)
-    const fragmentCount = (fragmentCountsByKey.get(paginationChainKey) ?? 0) + 1
-    fragmentCountsByKey.set(paginationChainKey, fragmentCount)
+      const from = pos
+      const to = pos + node.nodeSize
+      const pageNumbers = resolvePageNumbersForRange(pageSpans, from, to)
+      const paginationChainKey = getTableRuntimeChainKey(node, pos)
+      const fragmentCount = (fragmentCountsByKey.get(paginationChainKey) ?? 0) + 1
+      fragmentCountsByKey.set(paginationChainKey, fragmentCount)
 
-    const nextFragmentIndex = fragmentIndexesByKey.get(paginationChainKey) ?? 0
-    fragmentIndexesByKey.set(paginationChainKey, nextFragmentIndex + 1)
+      const nextFragmentIndex = fragmentIndexesByKey.get(paginationChainKey) ?? 0
+      fragmentIndexesByKey.set(paginationChainKey, nextFragmentIndex + 1)
 
-    fragments.push({
-      id: `table-fragment:${pos}`,
-      tablePos: pos,
-      from,
-      to,
-      pageNumbers,
-      pageRange: resolveAnchorPageRange(pageNumbers),
-      rowCount: getTableRowCount(node),
-      paginationChainKey,
-      paginationChainId: getTablePaginationChainId(node),
-      paginationSplitId: getTablePaginationSplitId(node),
-      fragmentIndex: nextFragmentIndex,
-      fragmentCount
+      fragments.push({
+        id: `table-fragment:${pos}`,
+        tablePos: pos,
+        from,
+        to,
+        pageNumbers,
+        pageRange: resolveAnchorPageRange(pageNumbers),
+        rowCount: getTableRowCount(node),
+        paginationChainKey,
+        paginationChainId: getTablePaginationChainId(node),
+        paginationSplitId: getTablePaginationSplitId(node),
+        fragmentIndex: nextFragmentIndex,
+        fragmentCount
+      })
     })
-  })
 
-  const groupedFragments = new Map<string, number>()
-  fragments.forEach(fragment => {
-    groupedFragments.set(fragment.paginationChainKey, (groupedFragments.get(fragment.paginationChainKey) ?? 0) + 1)
-  })
+    const groupedFragments = new Map<string, number>()
+    fragments.forEach(fragment => {
+      groupedFragments.set(fragment.paginationChainKey, (groupedFragments.get(fragment.paginationChainKey) ?? 0) + 1)
+    })
 
-  return fragments.map(fragment => ({
-    ...fragment,
-    fragmentCount: groupedFragments.get(fragment.paginationChainKey) ?? fragment.fragmentCount
-  }))
+    return fragments.map(fragment => ({
+      ...fragment,
+      fragmentCount: groupedFragments.get(fragment.paginationChainKey) ?? fragment.fragmentCount
+    }))
+  } catch {
+    return []
+  }
 }
 
 export function createEmptyDocumentLayoutSnapshot(source: DocumentLayoutSource): DocumentLayoutSnapshot {

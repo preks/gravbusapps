@@ -46,6 +46,7 @@ export const Navigation = {
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
+  HR_ABSENCE_SETUP: `${NAVIGATION_BASE_PATH}/hr/absence/apps/absence-setup`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
   HR_RECRUITING_PORTAL: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-portal`,
   HR_RECRUITING_JOB_POSTING_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-posting-record`,
@@ -69,7 +70,9 @@ export const Navigation = {
   CONTENT_MANAGER: `${NAVIGATION_BASE_PATH}/content/manager`,
 
   // Manage
+  MANAGE_BRANDING: `${NAVIGATION_BASE_PATH}/manage/branding`,
   MANAGE_CATALOGS: `${NAVIGATION_BASE_PATH}/catalog-manager`,
+  MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
@@ -150,6 +153,8 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
+  [Navigation.HR_ABSENCE_SETUP]: 'hr/absence/apps/absence-setup',
+  [`${NAVIGATION_BASE_PATH}/hr/absence/apps/AbsenceSetup`]: 'hr/absence/apps/absence-setup',
   [Navigation.HR_RECRUITING_MANAGER_ROLE]: 'hr/recruiting/apps/recruiting-manager',
   [Navigation.HR_RECRUITING_PORTAL]: 'hr/recruiting/apps/recruiting-portal',
   [Navigation.HR_RECRUITING_JOB_POSTING_RECORD]: 'hr/recruiting/records/job-posting-record',
@@ -173,7 +178,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CONTENT_MANAGER]: 'core/content/apps/content-manager',
 
   // Manage
+  [Navigation.MANAGE_BRANDING]: 'core/manage/apps/branding',
   [Navigation.MANAGE_CATALOGS]: 'core/manage/apps/catalog-manager',
+  [Navigation.MANAGE_USERS]: 'core/manage/apps/user-manager',
 
   // Platform
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',

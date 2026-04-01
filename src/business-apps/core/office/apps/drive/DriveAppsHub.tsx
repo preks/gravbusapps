@@ -44,7 +44,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
   const [searchOpen, setSearchOpen] = useState(false)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
-  const [renameTarget, setRenameTarget] = useState<DriveItem | null>(null)
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; isFolder: boolean } | null>(null)
   const [shareTarget, setShareTarget] = useState<{ entityType: string; entityId: string; entityName: string } | null>(
     null
   )
@@ -205,19 +205,15 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
     async (newName: string) => {
       if (!renameTarget) return
       DriveApiService.setAccessToken(accessToken ?? null)
-      if (renameTarget.type === 'drive_file') {
-        await DriveApiService.renameFile(renameTarget.id, newName)
-      } else if (
-        renameTarget.type === 'document' ||
-        renameTarget.type === 'note' ||
-        renameTarget.type === 'slide' ||
-        renameTarget.type === 'spreadsheet_app'
-      ) {
+      if (renameTarget.isFolder) {
+        await DriveApiService.updateFolder(renameTarget.id, { name: newName })
+      } else {
         await DriveApiService.renameFile(renameTarget.id, newName)
       }
       setRenameTarget(null)
+      drive.refresh()
     },
-    [renameTarget, accessToken]
+    [renameTarget, accessToken, drive]
   )
 
   return (
@@ -265,6 +261,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
             onSearchClick={() => setSearchOpen(true)}
             onUploadFiles={upload.uploadFiles}
             onImportExternal={() => setExternalImportOpen(true)}
+            onCreateFolder={() => setCreateFolderOpen(true)}
             section={activeSection}
             onEmptyTrash={activeSection === 'trash' ? drive.emptyTrash : undefined}
             t={t}
@@ -300,7 +297,8 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
               onRemoveShortcut={shortcutId => drive.removeShortcut(shortcutId)}
               onRestoreItem={activeSection === 'trash' ? handleRestoreItem : undefined}
               onDownloadItem={handleDownload}
-              onRenameItem={item => setRenameTarget(item)}
+              onRenameItem={item => setRenameTarget({ id: item.id, name: item.name, isFolder: false })}
+              onRenameFolder={f => setRenameTarget({ id: f.id, name: f.name, isFolder: true })}
               onShareItem={handleShareItem}
               onShareFolder={handleShareFolder}
               t={t}

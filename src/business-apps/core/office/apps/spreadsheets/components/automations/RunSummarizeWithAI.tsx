@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import { AiButton, Spinner } from '@newwork/nw-design-system'
+import { AiButton, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
@@ -19,6 +19,8 @@ import {
 import type { SpreadsheetApp } from '../../types/spreadsheet'
 import type { ExcelCollectionSummaryResult } from '../../hooks/useExcelCollectionSummary'
 import { CollectionSummaryDialog } from './CollectionSummaryDialog'
+import { selectPreferredModel } from '../../utils/aiModelSelection'
+import translations from '../../_i18n'
 
 export interface SummarizeSubmission {
   id: string
@@ -36,7 +38,6 @@ interface RunSummarizeWithAIProps {
 }
 
 const MAX_COPIES = 20
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
 
 function extractAppIdFromUrl(url: string): string | null {
   try {
@@ -120,6 +121,7 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
   submissions,
   'data-testid': testId = 'run-summarize-ai'
 }) => {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(false)
   const [isSummarizing, setIsSummarizing] = useState(false)
   const [summary, setSummary] = useState<ExcelCollectionSummaryResult | null>(null)
@@ -131,7 +133,7 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
 
   const handleSummarize = useCallback(async () => {
     if (!accessToken) {
-      setError('Authentication is missing. Please refresh and try again.')
+      setError(t('summarize-ai-auth-missing'))
       setIsOpen(true)
       return
     }
@@ -147,19 +149,17 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
 
       const prompt = await buildSummaryPrompt(copies)
       if (!prompt) {
-        setError('No submitted sheet content found to summarize.')
+        setError(t('summarize-ai-no-submissions'))
         return
       }
 
-      const modelsResponse = await promptClient.getAiModels({ limit: 10, offset: 0, returnTotalRecords: false })
-      if (!modelsResponse.data || modelsResponse.data.length === 0) {
-        setError('No AI models available. Please contact your administrator.')
+      let selectedModel
+      try {
+        selectedModel = await selectPreferredModel(promptClient)
+      } catch {
+        setError(t('summarize-ai-no-models'))
         return
       }
-
-      const preferredModel = modelsResponse.data.find(m => m._id === PREFERRED_MODEL_ID)
-      const gpt4Model = modelsResponse.data.find(m => m.name.toLowerCase().includes('gpt-4'))
-      const selectedModel = preferredModel ?? gpt4Model ?? modelsResponse.data[0]
 
       const formData = new FormData()
       formData.append('model_id', selectedModel._id)
@@ -169,13 +169,13 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
 
       const response = await promptClient.executePrompt(formData)
       if (!response.content) {
-        setError('AI returned an empty response. Please try again.')
+        setError(t('summarize-ai-empty-response'))
         return
       }
 
       const parsed = parseSummaryResponseContent(response.content)
       if (!parsed) {
-        setError('Failed to parse AI response.')
+        setError(t('summarize-ai-parse-failed'))
         return
       }
 
@@ -190,12 +190,12 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         }))
       })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Summarization failed'
+      const msg = err instanceof Error ? err.message : t('summarize-ai-failed')
       setError(msg)
     } finally {
       setIsSummarizing(false)
     }
-  }, [accessToken, submissions, promptClient])
+  }, [accessToken, submissions, promptClient, t])
 
   if (completedCount === 0) return null
 
@@ -210,7 +210,7 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         disabled={isSummarizing}
         data-testid={testId}
       >
-        Summarize with AI
+        {t('automation-toolbar-summarize')}
       </AiButton>
 
       <CollectionSummaryDialog

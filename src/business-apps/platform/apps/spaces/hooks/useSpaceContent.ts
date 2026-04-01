@@ -5,7 +5,7 @@
  * Fetches content via API and handles content operations
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { Space, SpaceContentItem, MoveContentInput } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
@@ -16,6 +16,7 @@ export interface UseSpaceContentResult {
   notes: SpaceContentItem[]
   spreadsheets: SpaceContentItem[]
   slides: SpaceContentItem[]
+  driveFiles: SpaceContentItem[]
   allContent: SpaceContentItem[]
   isLoading: boolean
   error: string | null
@@ -43,6 +44,7 @@ export function useSpaceContent(
   const [notes, setNotes] = useState<SpaceContentItem[]>([])
   const [spreadsheets, setSpreadsheets] = useState<SpaceContentItem[]>([])
   const [slides, setSlides] = useState<SpaceContentItem[]>([])
+  const [driveFiles, setDriveFiles] = useState<SpaceContentItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,6 +73,7 @@ export function useSpaceContent(
         setNotes([])
         setSpreadsheets([])
         setSlides([])
+        setDriveFiles([])
         return
       }
 
@@ -81,15 +84,17 @@ export function useSpaceContent(
       const notesItems: SpaceContentItem[] = []
       const sheets: SpaceContentItem[] = []
       const slidesItems: SpaceContentItem[] = []
+      const driveFileItems: SpaceContentItem[] = []
 
       const items = Array.isArray(data) ? data : []
 
       for (const item of items) {
         // Map entityType to frontend type
-        let type: 'document' | 'note' | 'spreadsheet' | 'slide' = 'document'
+        let type: 'document' | 'note' | 'spreadsheet' | 'slide' | 'drive_file' = 'document'
         if (item.entityType === 'note') type = 'note'
         else if (item.entityType === 'spreadsheet_app' || item.entityType === 'spreadsheet') type = 'spreadsheet'
         else if (item.entityType === 'slide') type = 'slide'
+        else if (item.entityType === 'drive_file') type = 'drive_file'
         else if (item.entityType === 'document') type = 'document'
 
         const contentItem: SpaceContentItem = {
@@ -118,6 +123,9 @@ export function useSpaceContent(
           case 'slide':
             slidesItems.push(contentItem)
             break
+          case 'drive_file':
+            driveFileItems.push(contentItem)
+            break
         }
       }
 
@@ -125,6 +133,7 @@ export function useSpaceContent(
       setNotes(notesItems)
       setSpreadsheets(sheets)
       setSlides(slidesItems)
+      setDriveFiles(driveFileItems)
     } catch (err) {
       console.error('[useSpaceContent] Fetch error:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch content')
@@ -140,9 +149,12 @@ export function useSpaceContent(
     }
   }, [spaceId, accessToken, space?.updatedAt, fetchContent])
 
-  // Compute all content sorted by update time
-  const allContent = [...documents, ...notes, ...spreadsheets, ...slides].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  const allContent = useMemo(
+    () =>
+      [...documents, ...notes, ...spreadsheets, ...slides, ...driveFiles].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      ),
+    [documents, notes, spreadsheets, slides, driveFiles]
   )
 
   const moveContent = useCallback(
@@ -153,8 +165,11 @@ export function useSpaceContent(
       }
 
       try {
-        // Map content type to backend entity type
-        const entityType = input.contentType === 'spreadsheet' ? 'spreadsheet_app' : input.contentType
+        const CONTENT_TYPE_TO_BACKEND: Record<string, string> = {
+          spreadsheet: 'spreadsheet_app',
+          drive_file: 'document'
+        }
+        const entityType = CONTENT_TYPE_TO_BACKEND[input.contentType] ?? input.contentType
 
         const response = await fetch(`${API_URL}/spaces/${spaceId}/content`, {
           method: 'POST',
@@ -184,6 +199,7 @@ export function useSpaceContent(
         setNotes(prev => updateItemFolder(prev))
         setSpreadsheets(prev => updateItemFolder(prev))
         setSlides(prev => updateItemFolder(prev))
+        setDriveFiles(prev => updateItemFolder(prev))
 
         return true
       } catch (err) {
@@ -242,7 +258,7 @@ export function useSpaceContent(
       items.forEach(item => {
         const contentItem: SpaceContentItem = {
           id: item.id,
-          type: item.type as 'document' | 'note' | 'spreadsheet' | 'slide',
+          type: item.type as 'document' | 'note' | 'spreadsheet' | 'slide' | 'drive_file',
           title: item.title || item.name || 'Untitled',
           description: '',
           updatedAt: now,
@@ -265,6 +281,9 @@ export function useSpaceContent(
           case 'slide':
             setSlides(prev => [...prev, contentItem])
             break
+          case 'drive_file':
+            setDriveFiles(prev => [...prev, contentItem])
+            break
         }
       })
     },
@@ -276,6 +295,7 @@ export function useSpaceContent(
     notes,
     spreadsheets,
     slides,
+    driveFiles,
     allContent,
     isLoading,
     error,

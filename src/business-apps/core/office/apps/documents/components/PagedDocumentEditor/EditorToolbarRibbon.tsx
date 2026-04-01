@@ -14,11 +14,13 @@ import {
 } from '@newwork/nw-design-system'
 import { Check, ChevronDown } from 'lucide-react'
 import translations from '../../_i18n'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
 import { HomeTabContent } from './HomeTabContent'
 import { InsertTabContent } from './InsertTabContent'
 
 export interface EditorToolbarRibbonProps {
   editor: Editor | null
+  paginationConfig?: PageLayoutPaginationConfig | null
   onInsertPageBreak?: () => void
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
@@ -41,6 +43,7 @@ export interface EditorToolbarRibbonProps {
 
 export function EditorToolbarRibbon({
   editor,
+  paginationConfig = null,
   onInsertPageBreak,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
@@ -125,6 +128,7 @@ export function EditorToolbarRibbon({
         ) : (
           <InsertTabContent
             editor={editor}
+            paginationConfig={paginationConfig}
             onOpenLinkDialog={onOpenLinkDialog}
             onOpenInsertImageDialog={onOpenInsertImageDialog}
             onOpenInsertSignatureDialog={onOpenInsertSignatureDialog}

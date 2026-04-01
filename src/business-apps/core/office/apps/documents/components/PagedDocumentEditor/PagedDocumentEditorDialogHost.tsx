@@ -1,5 +1,6 @@
 import type { ComponentProps, Dispatch, SetStateAction } from 'react'
 import type { DocumentFormatting } from '../../types'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
 import { VersionHistory } from '@/business-apps/platform/apps/shared/components/VersionHistory'
 import { CheckpointDialog } from '@/business-apps/platform/apps/shared/components/CheckpointDialog'
 import { PublishDialog } from '@/business-apps/platform/apps/shared/components/PublishDialog'
@@ -37,6 +38,7 @@ export interface PagedDocumentEditorDialogHostProps {
   imageDialogMode: ComponentProps<typeof InsertImageDialog>['mode']
   uploadImage: ComponentProps<typeof InsertImageDialog>['uploadImage']
   imageUploadContext: ComponentProps<typeof InsertImageDialog>['uploadContext']
+  paginationConfig?: PageLayoutPaginationConfig | null
   onSubmitImage?: ComponentProps<typeof InsertImageDialog>['onSubmitImage']
   showInsertTableDialog: boolean
   setShowInsertTableDialog: Dispatch<SetStateAction<boolean>>
@@ -83,6 +85,7 @@ export function PagedDocumentEditorDialogHost({
   imageDialogMode,
   uploadImage,
   imageUploadContext,
+  paginationConfig = null,
   onSubmitImage,
   showInsertTableDialog,
   setShowInsertTableDialog,
@@ -155,6 +158,7 @@ export function PagedDocumentEditorDialogHost({
           mode={imageDialogMode}
           uploadImage={uploadImage}
           uploadContext={imageUploadContext}
+          paginationConfig={paginationConfig}
           onSubmitImage={onSubmitImage}
           data-testid="document-insert-image-dialog"
         />

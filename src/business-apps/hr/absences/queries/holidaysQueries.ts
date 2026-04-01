@@ -17,6 +17,7 @@ export const GET_EMPLOYMENT_REGION_HOLIDAYS = `
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
         additionalValue2: { _in: $regionIds }
+        isDeleted: { _eq: false }
       }
       orderBy: { value: ASC }
     ) {

@@ -19,11 +19,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Plus, Trash2, ArrowRight, ArrowLeft, ArrowLeftRight } from 'lucide-react'
 import type { ColumnWorkflowMapping, MappingDirection, ResultMapping, AggregationMethod } from '../../types/automation'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
+import translations from '../../_i18n'
 
 export interface ColumnMappingEditorProps {
   /** Available spreadsheet columns */
@@ -78,6 +80,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
   showResultMappings = true,
   'data-testid': testId = 'column-mapping-editor'
 }) => {
+  const { t } = useTranslation(translations)
   // Add new column mapping
   const addColumnMapping = useCallback(() => {
     if (columns.length === 0) return
@@ -144,20 +147,20 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
         <CardHeader className="gba:pb-3">
           <div className="gba:flex gba:items-center gba:justify-between">
             <div>
-              <CardTitle className="gba:text-base">Column Mappings</CardTitle>
-              <CardDescription>Map spreadsheet columns to workflow parameters</CardDescription>
+              <CardTitle className="gba:text-base">{t('column-mapping-title')}</CardTitle>
+              <CardDescription>{t('column-mapping-description')}</CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={addColumnMapping}>
               <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-              Add Mapping
+              {t('column-mapping-add')}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {columnMappings.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-              <p className="gba:mb-3">No column mappings defined.</p>
-              <p className="gba:text-sm">Mappings allow data to flow between your spreadsheet and workflows.</p>
+              <p className="gba:mb-3">{t('column-mapping-empty')}</p>
+              <p className="gba:text-sm">{t('column-mapping-empty-help')}</p>
             </div>
           ) : (
             <div className="gba:space-y-4">
@@ -167,7 +170,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
                     {/* Source Column */}
                     <div className="gba:flex-1">
                       <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Spreadsheet Column
+                        {t('column-mapping-spreadsheet-column')}
                       </Label>
                       <Select
                         value={mapping.columnId}
@@ -199,7 +202,9 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Direction */}
                     <div className="gba:w-32">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Direction</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+                        {t('column-mapping-direction')}
+                      </Label>
                       <Select
                         value={mapping.direction}
                         onValueChange={(value: MappingDirection) => updateColumnMapping(index, { direction: value })}
@@ -226,18 +231,20 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
                     {/* Workflow Parameter */}
                     <div className="gba:flex-1">
                       <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Workflow Parameter
+                        {t('column-mapping-workflow-parameter')}
                       </Label>
                       <Input
                         value={mapping.workflowParameter}
                         onChange={e => updateColumnMapping(index, { workflowParameter: e.target.value })}
-                        placeholder="e.g., step_0.formData.amount"
+                        placeholder={t('column-mapping-parameter-placeholder')}
                       />
                     </div>
 
                     {/* Transform */}
                     <div className="gba:w-28">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Transform</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+                        {t('column-mapping-transform')}
+                      </Label>
                       <Select
                         value={mapping.transform || ''}
                         onValueChange={value =>
@@ -247,7 +254,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
                         }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="None" />
+                          <SelectValue placeholder={t('column-mapping-none')} />
                         </SelectTrigger>
                         <SelectContent>
                           {TRANSFORM_OPTIONS.map(option => (
@@ -282,20 +289,20 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
           <CardHeader className="gba:pb-3">
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
-                <CardTitle className="gba:text-base">Result Mappings</CardTitle>
-                <CardDescription>Write workflow results back to spreadsheet columns</CardDescription>
+                <CardTitle className="gba:text-base">{t('result-mapping-title')}</CardTitle>
+                <CardDescription>{t('result-mapping-description')}</CardDescription>
               </div>
               <Button size="sm" variant="outline" onClick={addResultMapping}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-                Add Result Mapping
+                {t('result-mapping-add')}
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             {resultMappings.length === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                <p className="gba:mb-3">No result mappings defined.</p>
-                <p className="gba:text-sm">Result mappings update your spreadsheet when workflows complete.</p>
+                <p className="gba:mb-3">{t('result-mapping-empty')}</p>
+                <p className="gba:text-sm">{t('result-mapping-empty-help')}</p>
               </div>
             ) : (
               <div className="gba:space-y-4">
@@ -304,12 +311,12 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
                     {/* Workflow Output Path */}
                     <div className="gba:flex-1">
                       <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Workflow Output Path
+                        {t('result-mapping-output-path')}
                       </Label>
                       <Input
                         value={mapping.workflowOutputPath}
                         onChange={e => updateResultMapping(index, { workflowOutputPath: e.target.value })}
-                        placeholder="e.g., step_0.formData.decision"
+                        placeholder={t('result-mapping-output-placeholder')}
                       />
                     </div>
 
@@ -320,7 +327,9 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Target Column */}
                     <div className="gba:flex-1">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Target Column</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+                        {t('result-mapping-target-column')}
+                      </Label>
                       <Select
                         value={mapping.targetColumnId}
                         onValueChange={value => updateResultMapping(index, { targetColumnId: value })}
@@ -345,7 +354,9 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Aggregation */}
                     <div className="gba:w-32">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Aggregation</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+                        {t('result-mapping-aggregation')}
+                      </Label>
                       <Select
                         value={mapping.aggregation || 'latest'}
                         onValueChange={(value: AggregationMethod) => updateResultMapping(index, { aggregation: value })}

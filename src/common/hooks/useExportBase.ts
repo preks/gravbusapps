@@ -3,6 +3,7 @@ import { toast } from '@newwork/nw-design-system'
 import {
   buildFilename,
   buildExcelWorkbook,
+  buildExcelWorkbookWithSummary,
   downloadExcelWorkbook,
   downloadCsvData
 } from '@/common/utils/excelExportUtils'
@@ -24,6 +25,11 @@ export interface UseExportBaseOptions<TItem> {
   totalCount: number
   /** Filename prefix (timestamp is appended automatically). */
   filenamePrefix?: string
+  /**
+   * Optional summary rows to prepend before the data table in both CSV and Excel exports.
+   * Each entry is a [label, value] tuple (e.g. ['Total investment:', '€1,234,567']).
+   */
+  summaryRows?: Array<[string, string]>
 }
 
 /**
@@ -40,7 +46,8 @@ export function useExportBase<TItem>({
   sheetName,
   entityLabel,
   totalCount,
-  filenamePrefix = 'export'
+  filenamePrefix = 'export',
+  summaryRows
 }: UseExportBaseOptions<TItem>) {
   const [isExporting, setIsExporting] = useState(false)
 
@@ -70,10 +77,13 @@ export function useExportBase<TItem>({
         const filename = buildFilename(filenamePrefix, format === 'csv' ? 'csv' : 'xlsx')
 
         if (format === 'csv') {
-          downloadCsvData(rows, columns, filename, dateColumnKeys)
+          downloadCsvData(rows, columns, filename, dateColumnKeys, summaryRows)
         } else {
           const excelColumns = columns.map(col => ({ header: col.title, key: col.key }))
-          const workbook = buildExcelWorkbook(sheetName, excelColumns, rows, `NEWWORK ${sheetName} Export`)
+          const workbook =
+            summaryRows && summaryRows.length > 0
+              ? buildExcelWorkbookWithSummary(sheetName, excelColumns, rows, summaryRows, `NEWWORK ${sheetName} Export`)
+              : buildExcelWorkbook(sheetName, excelColumns, rows, `NEWWORK ${sheetName} Export`)
           await downloadExcelWorkbook(workbook, filename)
         }
 
@@ -98,7 +108,8 @@ export function useExportBase<TItem>({
       dateColumnKeys,
       sheetName,
       entityLabel,
-      filenamePrefix
+      filenamePrefix,
+      summaryRows
     ]
   )
 

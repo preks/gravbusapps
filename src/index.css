@@ -145,15 +145,57 @@
     scroll-behavior: smooth;
   }
   html,
-  body,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
   #root {
     height: 100%;
     overflow: hidden;
+  }
+  /* Mobile webview fix: use dynamic viewport height so the layout matches the
+     actual visible area rather than the full webview frame (which may include
+     space behind native status bars / bottom navigation). Browsers that don't
+     support dvh fall back to the JS-set --app-height custom property. */
+  @supports (height: 1dvh) {
+    #root {
+      height: 100dvh;
+    }
+  }
+  @supports not (height: 1dvh) {
+    #root {
+      height: var(--app-height, 100%);
+    }
   }
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
   }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    border-radius: 50px;
+    background: white;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    background-clip: content-box;
+    border: 50px solid transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 50px;
+    background: #e0e0e0;
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #e0e0e0;
+  }
+
   :root {
     --font-primary: 'Roboto Flex', sans-serif;
     --font-secondary: 'Roboto Flex', sans-serif;

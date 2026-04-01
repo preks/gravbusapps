@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -9,6 +9,8 @@ import {
 } from '../queries/advancePayment.queries'
 import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types'
 import {
+  buildAdvancePaymentDepartmentPredicate,
+  buildAdvancePaymentListSearchOrConditions,
   buildNumericRangeCondition,
   buildSearchCondition as buildSearchConditionBase,
   buildStatusFilterCondition
@@ -21,9 +23,9 @@ import { buildEmployeeDisplayName } from './backofficeReportUtils'
 type OrderDirection = 'ASC' | 'DESC'
 type OrderByValue = OrderDirection | { [field: string]: OrderByValue }
 type OrderByEntry = { [field: string]: OrderByValue }
-type OrderByClause = OrderByEntry[]
+export type OrderByClause = OrderByEntry[]
 
-interface FetchPaymentsOptions {
+export interface FetchPaymentsOptions {
   searchTerm?: string
   page?: number
   pageSize?: number
@@ -67,27 +69,20 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
 
   const [advancePaymentStats, setAdvancePaymentStats] = useState<AdvancePaymentStatisticsData | null>(null)
 
-  // Request deduplication - prevent duplicate queries
   const lastRequestKey = useRef<string>('')
   const isLoadingRef = useRef<boolean>(false)
+  const paymentsRef = useRef<AdvancePaymentItem[]>([])
 
-  // CRITICAL: Do NOT pass empty string - it sets empty token on singleton client!
+  useEffect(() => {
+    paymentsRef.current = payments
+  }, [payments])
+
   const client = useGraphqlClient(accessToken)
   const [orderBy, setOrderBy] = useState<OrderByClause>([{ createdAt: 'DESC' }])
 
   // Helper: Build search condition (reduces cognitive complexity)
   const buildSearchCondition = (searchTerm: string): any[] => {
-    return buildSearchConditionBase(searchTerm, searchValue => [
-      { code: { _ilike: searchValue } },
-      { description: { _ilike: searchValue } },
-      { expensePlan: { code: { _ilike: searchValue } } },
-      { expensePlan: { title: { _ilike: searchValue } } },
-      { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
-      { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
-      { expensePlan: { employee: { employeePosition: { organizationalUnit: { name: { _ilike: searchValue } } } } } },
-      { expensePlan: { employee: { employeePosition: { costCenter: { name: { _ilike: searchValue } } } } } },
-      { paymentMethod: { _ilike: searchValue } }
-    ])
+    return buildSearchConditionBase(searchTerm, buildAdvancePaymentListSearchOrConditions)
   }
 
   // Helper: Build amount filter condition (reduces cognitive complexity)
@@ -173,15 +168,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
     }
 
     if (departmentId && departmentId.trim() !== '') {
-      conditions.push({
-        expensePlan: {
-          employee: {
-            employeePosition: {
-              organizationalUnitId: { _eq: departmentId }
-            }
-          }
-        }
-      })
+      conditions.push(buildAdvancePaymentDepartmentPredicate(departmentId))
     }
 
     if (dateFrom || dateTo) {
@@ -293,7 +280,9 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       lastRequestKey.current = requestKey
       isLoadingRef.current = true
 
-      setIsLoading(true)
+      if (paymentsRef.current.length === 0) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
