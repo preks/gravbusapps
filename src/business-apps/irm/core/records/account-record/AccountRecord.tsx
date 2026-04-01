@@ -284,22 +284,21 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   }
 
   return (
-    <div data-testid="investment-account-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={BankIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
-        onBack={onBack}
-        headerTitle={accountData.name}
-        headerMeta={headerMeta}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-account-detail"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={BankIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
+      onBack={onBack}
+      headerTitle={accountData.name}
+      headerMeta={headerMeta}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

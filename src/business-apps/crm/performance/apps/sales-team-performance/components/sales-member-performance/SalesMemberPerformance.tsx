@@ -273,7 +273,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
   }
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} className="gba:record-layout-no-padding">
+    <>
       <style>
         {String.raw`
           .gba\:record-layout-no-padding .layout-content {
@@ -284,6 +284,8 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         `}
       </style>
       <RecordLayout
+        data-testid={`${DATA_TEST_ID_PREFIX}-container`}
+        className="gba:record-layout-no-padding"
         headerOrientation="horizontal"
         headerIcon={UserIcon}
         headerImageSrc={
@@ -297,7 +299,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
-    </div>
+    </>
   )
 }
 
