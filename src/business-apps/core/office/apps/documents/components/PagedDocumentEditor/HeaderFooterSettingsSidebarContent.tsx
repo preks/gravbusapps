@@ -1,8 +1,7 @@
-import { Separator } from '@newwork/nw-design-system'
 import type { PageNumberAlignment } from '../../types/document'
+import type { PlacePageNumberInBodyParams } from './HeaderFooterMenuBarPageNumbersDropdown'
 import type { HeaderFooterPaginationCmd } from './headerFooterSidebarUtils'
-import { HeaderFooterSettingsSidebarNavOptions } from './HeaderFooterSettingsSidebarNavOptions'
-import { HeaderFooterSettingsSidebarPresetsInsert } from './HeaderFooterSettingsSidebarPresetsInsert'
+import { HeaderFooterSettingsSidebarMenuBar } from './HeaderFooterSettingsSidebarMenuBar'
 
 export interface HeaderFooterSettingsSidebarContentProps {
   testId: string
@@ -19,13 +18,12 @@ export interface HeaderFooterSettingsSidebarContentProps {
   onOpenDate: () => void
   reopenAfterLayoutToggle: (apply: () => void) => void
   applyMargins: () => void
-  applyHeaderPreset: (html: string) => void
-  applyFooterPreset: (html: string) => void
   insertInOverlay: (text: string) => void
   canInsertInOverlay: boolean
   onOpenPageNumbers: () => void
   onQuickPageNumberPlacement: (position: 'header' | 'footer', alignment: PageNumberAlignment) => void
   onRemovePageNumber: () => void
+  onPlacePageNumberInBody: (params: PlacePageNumberInBodyParams) => void
 }
 
 export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterSettingsSidebarContentProps>) {
@@ -44,32 +42,17 @@ export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterS
     onOpenDate,
     reopenAfterLayoutToggle,
     applyMargins,
-    applyHeaderPreset,
-    applyFooterPreset,
     insertInOverlay,
     canInsertInOverlay,
     onOpenPageNumbers,
     onQuickPageNumberPlacement,
-    onRemovePageNumber
+    onRemovePageNumber,
+    onPlacePageNumberInBody
   } = props
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4 gba:px-4 gba:py-4">
-      <HeaderFooterSettingsSidebarPresetsInsert
-        testId={testId}
-        applyHeaderPreset={applyHeaderPreset}
-        applyFooterPreset={applyFooterPreset}
-        insertInOverlay={insertInOverlay}
-        canInsertInOverlay={canInsertInOverlay}
-        onOpenDate={onOpenDate}
-        onOpenPageNumbers={onOpenPageNumbers}
-        onQuickPageNumberPlacement={onQuickPageNumberPlacement}
-        onRemovePageNumber={onRemovePageNumber}
-      />
-
-      <Separator />
-
-      <HeaderFooterSettingsSidebarNavOptions
+      <HeaderFooterSettingsSidebarMenuBar
         testId={testId}
         cmds={cmds}
         differentFirstPage={differentFirstPage}
@@ -83,6 +66,13 @@ export function HeaderFooterSettingsSidebarContent(props: Readonly<HeaderFooterS
         setFPos={setFPos}
         reopenAfterLayoutToggle={reopenAfterLayoutToggle}
         applyMargins={applyMargins}
+        insertInOverlay={insertInOverlay}
+        canInsertInOverlay={canInsertInOverlay}
+        onOpenDate={onOpenDate}
+        onOpenPageNumbers={onOpenPageNumbers}
+        onQuickPageNumberPlacement={onQuickPageNumberPlacement}
+        onRemovePageNumber={onRemovePageNumber}
+        onPlacePageNumberInBody={onPlacePageNumberInBody}
       />
     </div>
   )

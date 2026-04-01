@@ -1292,8 +1292,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       persistPagesFromEditor
     } = usePagedDocumentPageNumberActions({
       editor,
-      editorRef,
       layoutFormattingRef,
+      getPersistedPagesFormatting,
       buildPersistedFormatting,
       persistFormatting,
       markUnsavedChanges: () => setHasUnsavedChanges(true)
@@ -1664,6 +1664,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           pageNumbersDialogOpen={pageNumbersDialogOpen}
           setPageNumbersDialogOpen={setPageNumbersDialogOpen}
           onApplyPageNumbers={handlePageNumbersApply}
+          pageNumbersLockedPosition={
+            pagesEditorState.activeEditorType === 'header' || pagesEditorState.activeEditorType === 'footer'
+              ? pagesEditorState.activeEditorType
+              : undefined
+          }
           showLinkDialog={showLinkDialog}
           setShowLinkDialog={setShowLinkDialog}
           linkDialogMode={linkDialogMode}

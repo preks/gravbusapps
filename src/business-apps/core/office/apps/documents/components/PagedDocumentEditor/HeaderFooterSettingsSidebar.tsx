@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { PageNumberAlignment } from '../../types/document'
 import { Button, ScrollArea, useTranslation } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import translations from '../../_i18n'
+import { createPageNumberPlacementHtml } from './headerFooterSidebarPresets'
 import { HeaderFooterDateDialog } from './HeaderFooterDateDialog'
 import { HeaderFooterSettingsSidebarContent } from './HeaderFooterSettingsSidebarContent'
 import { useHeaderFooterSidebarActions } from './useHeaderFooterSidebarActions'
@@ -71,6 +72,22 @@ export function HeaderFooterSettingsSidebar({
     onPersistPagesFromEditor
   })
 
+  const handlePlacePageNumberInBody = useCallback(
+    (params: { region: 'header' | 'footer'; alignment: 'left' | 'center' | 'right'; includeTotal: boolean }) => {
+      onRemovePageNumber()
+      const html = createPageNumberPlacementHtml({
+        alignment: params.alignment,
+        includeTotal: params.includeTotal
+      })
+      if (params.region === 'header') {
+        actions.applyHeaderPreset(html)
+      } else {
+        actions.applyFooterPreset(html)
+      }
+    },
+    [actions.applyFooterPreset, actions.applyHeaderPreset, onRemovePageNumber]
+  )
+
   const areaTitle = type === 'header' ? t('editor-header-footer-label-header') : t('editor-header-footer-label-footer')
 
   return (
@@ -125,13 +142,12 @@ export function HeaderFooterSettingsSidebar({
               onOpenDate={() => setDateOpen(true)}
               reopenAfterLayoutToggle={actions.reopenAfterLayoutToggle}
               applyMargins={actions.applyMargins}
-              applyHeaderPreset={actions.applyHeaderPreset}
-              applyFooterPreset={actions.applyFooterPreset}
               insertInOverlay={actions.insertInOverlay}
               canInsertInOverlay={overlayEditor != null}
               onOpenPageNumbers={onOpenPageNumbers}
               onQuickPageNumberPlacement={onQuickPageNumberPlacement}
               onRemovePageNumber={onRemovePageNumber}
+              onPlacePageNumberInBody={handlePlacePageNumberInBody}
             />
           </ScrollArea>
         </div>

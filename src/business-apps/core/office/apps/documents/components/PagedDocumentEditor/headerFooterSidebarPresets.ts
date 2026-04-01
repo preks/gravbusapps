@@ -1,10 +1,4 @@
-/** TipTap-compatible HTML snippets for header/footer galleries */
-
-export interface HeaderFooterPresetItem {
-  id: string
-  labelKey: string
-  html: string
-}
+/** TipTap-compatible HTML snippets for header/footer page-number placement */
 
 function createHeaderFooterPresetCell(content: string, align: 'left' | 'center' | 'right') {
   const paragraph = content.length > 0 ? `<p>${content}</p>` : '<p></p>'
@@ -26,43 +20,19 @@ function createThreeColumnPreset(cells: { left?: string; center?: string; right?
   ].join('')
 }
 
-export const HEADER_PRESETS: HeaderFooterPresetItem[] = [
-  { id: 'blank', labelKey: 'header-footer-sidebar-preset-blank', html: createThreeColumnPreset({}) },
-  {
-    id: 'title-left',
-    labelKey: 'header-footer-sidebar-preset-header-title-left',
-    html: createThreeColumnPreset({})
-  },
-  {
-    id: 'title-center',
-    labelKey: 'header-footer-sidebar-preset-header-title-center',
-    html: createThreeColumnPreset({})
-  },
-  {
-    id: 'page-right',
-    labelKey: 'header-footer-sidebar-preset-header-page-right',
-    html: createThreeColumnPreset({ right: '{page}' })
-  }
-]
-
-export const FOOTER_PRESETS: HeaderFooterPresetItem[] = [
-  { id: 'blank', labelKey: 'header-footer-sidebar-preset-blank', html: createThreeColumnPreset({}) },
-  {
-    id: 'page-center',
-    labelKey: 'header-footer-sidebar-preset-footer-page-center',
-    html: createThreeColumnPreset({ center: '{page}' })
-  },
-  {
-    id: 'page-of-total',
-    labelKey: 'header-footer-sidebar-preset-footer-page-total',
-    html: createThreeColumnPreset({ center: 'Page {page} of {total}' })
-  },
-  {
-    id: 'page-right',
-    labelKey: 'header-footer-sidebar-preset-footer-page-right',
-    html: createThreeColumnPreset({ right: '{page}' })
-  }
-]
+/** Header/footer body placement for page numbers (not the margin slot). */
+export function createPageNumberPlacementHtml(params: {
+  alignment: 'left' | 'center' | 'right'
+  includeTotal: boolean
+}): string {
+  const { alignment, includeTotal } = params
+  const content = includeTotal ? '{page} of {total}' : '{page}'
+  return createThreeColumnPreset({
+    left: alignment === 'left' ? content : '',
+    center: alignment === 'center' ? content : '',
+    right: alignment === 'right' ? content : ''
+  })
+}
 
 export interface DateFormatOption {
   id: string
