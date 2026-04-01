@@ -164,7 +164,7 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
       try {
-        const token = localStorage.getItem('business-app-ide-access-token')
+        const token = localStorage.getItem('business-app-ide-access-token') || accessToken
         if (token) {
           const payload = safeParseJwtPayload(token)
           if (!payload) return
@@ -198,7 +198,7 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCurrentUserInfo()
-  }, [authToken, graphqlClient])
+  }, [accessToken, authToken, graphqlClient])
 
   // Fetch avatars for header presence
   useEffect(() => {

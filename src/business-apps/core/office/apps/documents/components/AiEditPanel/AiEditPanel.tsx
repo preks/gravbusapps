@@ -7,20 +7,10 @@
  */
 
 import React, { useEffect, useRef, useCallback } from 'react'
-import {
-  Button,
-  ScrollArea,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Textarea,
-  useTranslation
-} from '@newwork/nw-design-system'
-import { Sparkles, X, Brain, Zap, Loader2, Check, Undo2 } from 'lucide-react'
+import { Button, ScrollArea, Textarea, useTranslation } from '@newwork/nw-design-system'
+import { Sparkles, X, Loader2, Check, Undo2 } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 import translations from '../../_i18n'
-import { useAiEditProvider } from './useAiEditProvider'
 import { useAiEdit } from './useAiEdit'
 import { AiEditPreview } from './AiEditPreview'
 
@@ -30,7 +20,6 @@ export interface AiEditPanelProps {
   documentId: string
   documentTitle: string
   onClose: () => void
-  currentUserId?: string
   headerHeight?: number
   'data-testid'?: string
 }
@@ -41,13 +30,11 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
   documentId,
   documentTitle,
   onClose,
-  currentUserId,
   headerHeight = 120,
   'data-testid': testId = 'ai-edit-panel'
 }) => {
   const { t } = useTranslation(translations)
-  const { llmProvider, setLlmProvider } = useAiEditProvider(currentUserId)
-  const ai = useAiEdit({ accessToken, editor, documentId, documentTitle, llmProvider })
+  const ai = useAiEdit({ accessToken, editor, documentId, documentTitle })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Focus textarea on mount
@@ -86,36 +73,6 @@ export const AiEditPanel: React.FC<AiEditPanelProps> = ({
           </div>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
-          {/* Provider picker */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
-                  llmProvider === 'groq'
-                    ? 'gba:bg-warning-secondary gba:text-warning-secondary-foreground'
-                    : 'gba:bg-info-secondary gba:text-info-secondary-foreground'
-                }`}
-                data-testid="ai-edit-llm-toggle"
-                title={llmProvider === 'groq' ? t('ai-edit-fast-mode') : t('ai-edit-smart-mode')}
-              >
-                {llmProvider === 'groq' ? (
-                  <Zap className="gba:h-3.5 gba:w-3.5" />
-                ) : (
-                  <Brain className="gba:h-3.5 gba:w-3.5" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setLlmProvider('openai')} data-testid="ai-edit-llm-smart">
-                <Brain className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-info" />
-                {t('ai-edit-smart')} {llmProvider === 'openai' ? t('ai-edit-active') : ''}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLlmProvider('groq')} data-testid="ai-edit-llm-fast">
-                <Zap className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-warning" />
-                {t('ai-edit-fast')} {llmProvider === 'groq' ? t('ai-edit-active') : ''}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <Button
             variant="ghost"
             size="sm"

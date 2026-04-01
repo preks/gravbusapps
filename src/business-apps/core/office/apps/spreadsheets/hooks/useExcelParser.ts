@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import ExcelJS from 'exceljs'
-import type { ParsedExcelFile, ParsedSheet, ParsedColumn, ExcelMetadata } from '../types'
+import type { ParsedExcelFile, ParsedSheet, ParsedColumn, ExcelMetadata, SpreadsheetMergeRange } from '../types'
 
 export interface UseExcelParserState {
   isLoading: boolean
@@ -32,6 +32,12 @@ const VALID_FILE_TYPES = [
 const FILE_EXTENSION_REGEX = /\.(xlsx|csv)$/i
 
 type NormalizedCellValue = string | number | boolean | null
+type ParsedMergeReference = {
+  startRowNumber: number
+  startColumnNumber: number
+  endRowNumber: number
+  endColumnNumber: number
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -119,6 +125,63 @@ function extractHeaderString(value: unknown): string {
   return String(normalized).trim()
 }
 
+function excelColumnLettersToNumber(letters: string): number {
+  let result = 0
+  for (const char of letters.toUpperCase()) {
+    const code = char.charCodeAt(0)
+    if (code < 65 || code > 90) return 0
+    result = result * 26 + (code - 64)
+  }
+  return result
+}
+
+function parseMergeReference(reference: string): ParsedMergeReference | null {
+  const trimmed = reference.trim()
+  const match = trimmed.match(/^([A-Za-z]+)(\d+)(?::([A-Za-z]+)(\d+))?$/)
+  if (!match) return null
+
+  const startColumnNumber = excelColumnLettersToNumber(match[1])
+  const startRowNumber = Number(match[2])
+  const endColumnNumber = excelColumnLettersToNumber(match[3] ?? match[1])
+  const endRowNumber = Number(match[4] ?? match[2])
+
+  if (
+    startColumnNumber <= 0 ||
+    endColumnNumber <= 0 ||
+    startRowNumber <= 0 ||
+    endRowNumber <= 0 ||
+    Number.isNaN(startColumnNumber) ||
+    Number.isNaN(endColumnNumber) ||
+    Number.isNaN(startRowNumber) ||
+    Number.isNaN(endRowNumber)
+  ) {
+    return null
+  }
+
+  return {
+    startRowNumber: Math.min(startRowNumber, endRowNumber),
+    startColumnNumber: Math.min(startColumnNumber, endColumnNumber),
+    endRowNumber: Math.max(startRowNumber, endRowNumber),
+    endColumnNumber: Math.max(startColumnNumber, endColumnNumber)
+  }
+}
+
+function getWorksheetMergeReferences(worksheet: ExcelJS.Worksheet): string[] {
+  const model = worksheet.model as { merges?: unknown } | undefined
+  if (!model || !Array.isArray(model.merges)) return []
+  return model.merges.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+}
+
+function getParsedWorksheetMerges(worksheet: ExcelJS.Worksheet): ParsedMergeReference[] {
+  const refs = getWorksheetMergeReferences(worksheet)
+  const parsedMerges: ParsedMergeReference[] = []
+  refs.forEach(ref => {
+    const parsed = parseMergeReference(ref)
+    if (parsed) parsedMerges.push(parsed)
+  })
+  return parsedMerges
+}
+
 function parseCSVLine(line: string): string[] {
   const result: string[] = []
   let current = ''
@@ -166,6 +229,7 @@ function buildParsedSheetFromAoa(params: {
   backgroundByCell?: Record<string, string | undefined>
   columnWidthByIndex?: Record<number, number | undefined>
   rowHeightByIndex?: Record<number, number | undefined>
+  mergeData?: SpreadsheetMergeRange[]
 }): ParsedSheet {
   const {
     name,
@@ -175,7 +239,8 @@ function buildParsedSheetFromAoa(params: {
     formulaByColumnIndex,
     backgroundByCell,
     columnWidthByIndex,
-    rowHeightByIndex
+    rowHeightByIndex,
+    mergeData
   } = params
 
   const isEmpty = headers.length === 0 || (dataRows.length === 0 && headers.every(h => !h))
@@ -185,6 +250,7 @@ function buildParsedSheetFromAoa(params: {
       index,
       columns: [],
       rows: [],
+      mergeData: [],
       rowCount: 0,
       isEmpty: true
     }
@@ -248,6 +314,7 @@ function buildParsedSheetFromAoa(params: {
     index,
     columns,
     rows,
+    mergeData: mergeData ?? [],
     rowCount: rows.length,
     isEmpty: false
   }
@@ -296,6 +363,7 @@ function buildEmptyParsedSheet(name: string, index: number): ParsedSheet {
     index,
     columns: [],
     rows: [],
+    mergeData: [],
     rowCount: 0,
     isEmpty: true
   }
@@ -303,7 +371,9 @@ function buildEmptyParsedSheet(name: string, index: number): ParsedSheet {
 
 function getWorksheetMaxColumns(worksheet: ExcelJS.Worksheet): number {
   const headerRow = worksheet.getRow(1)
-  return Math.max(worksheet.actualColumnCount || 0, headerRow.cellCount || 0)
+  const mergedRanges = getParsedWorksheetMerges(worksheet)
+  const maxMergedColumn = mergedRanges.reduce((max, range) => Math.max(max, range.endColumnNumber), 0)
+  return Math.max(worksheet.actualColumnCount || 0, headerRow.cellCount || 0, maxMergedColumn)
 }
 
 function isValidExcelFileType(file: File): boolean {
@@ -402,17 +472,21 @@ function writeRowBackgrounds(
 function parseWorksheetRows(
   worksheet: ExcelJS.Worksheet,
   maxColumns: number,
-  mode: 'structured' | 'preserve-format'
+  mode: 'structured' | 'preserve-format',
+  forcedRowNumbers: Set<number>
 ): {
   dataRows: unknown[][]
   backgroundByCell: Record<string, string | undefined>
   rowHeightByIndex: Record<number, number | undefined>
+  parsedIndexByRowNumber: Record<number, number>
 } {
   const dataRows: unknown[][] = []
   const backgroundByCell: Record<string, string | undefined> = {}
   const rowHeightByIndex: Record<number, number | undefined> = {}
+  const parsedIndexByRowNumber: Record<number, number> = {}
   const startRow = mode === 'preserve-format' ? 1 : 2
-  const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
+  const maxForcedRow = forcedRowNumbers.size > 0 ? Math.max(...forcedRowNumbers) : 0
+  const endRow = Math.max(worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount, maxForcedRow)
 
   for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
     const row = worksheet.getRow(rowNum)
@@ -420,14 +494,57 @@ function parseWorksheetRows(
     if (typeof rowHeight === 'number' && rowHeight > 0) rowHeightByIndex[dataRows.length] = rowHeight
 
     const { rowValues, rowBackgrounds } = buildRowValuesAndBackgrounds(row, maxColumns, mode)
-    if (!hasRenderableRowContent(rowValues, rowBackgrounds)) continue
+    const mustKeepRow = forcedRowNumbers.has(rowNum)
+    if (!mustKeepRow && !hasRenderableRowContent(rowValues, rowBackgrounds)) continue
 
     const parsedRowIndex = dataRows.length
     dataRows.push(rowValues)
+    parsedIndexByRowNumber[rowNum] = parsedRowIndex
     writeRowBackgrounds(backgroundByCell, rowBackgrounds, parsedRowIndex)
   }
 
-  return { dataRows, backgroundByCell, rowHeightByIndex }
+  return { dataRows, backgroundByCell, rowHeightByIndex, parsedIndexByRowNumber }
+}
+
+function buildForcedRowNumbersForMerges(
+  mergeReferences: ParsedMergeReference[],
+  mode: 'structured' | 'preserve-format'
+): Set<number> {
+  const forcedRowNumbers = new Set<number>()
+  const startRow = mode === 'preserve-format' ? 1 : 2
+  mergeReferences.forEach(range => {
+    for (let row = Math.max(range.startRowNumber, startRow); row <= range.endRowNumber; row++) {
+      forcedRowNumbers.add(row)
+    }
+  })
+  return forcedRowNumbers
+}
+
+function buildMergeData(
+  mergeReferences: ParsedMergeReference[],
+  parsedIndexByRowNumber: Record<number, number>,
+  mode: 'structured' | 'preserve-format',
+  maxColumns: number
+): SpreadsheetMergeRange[] {
+  const startRow = mode === 'preserve-format' ? 1 : 2
+  const mergeData: SpreadsheetMergeRange[] = []
+
+  mergeReferences.forEach(range => {
+    if (range.endRowNumber < startRow || range.endColumnNumber < 1 || range.startColumnNumber > maxColumns) return
+
+    const mappedStartRow = parsedIndexByRowNumber[Math.max(range.startRowNumber, startRow)]
+    const mappedEndRow = parsedIndexByRowNumber[range.endRowNumber]
+    if (mappedStartRow === undefined || mappedEndRow === undefined) return
+
+    mergeData.push({
+      startRow: mappedStartRow,
+      endRow: mappedEndRow,
+      startColumn: Math.max(range.startColumnNumber, 1) - 1,
+      endColumn: Math.min(range.endColumnNumber, maxColumns) - 1
+    })
+  })
+
+  return mergeData
 }
 
 function extractFormulaByColumnIndex(
@@ -455,8 +572,16 @@ function parseWorksheet(
 
   const columnWidthByIndex = buildColumnWidthMap(worksheet, maxColumns)
   const headers = buildHeaders(worksheet, maxColumns, mode)
-  const { dataRows, backgroundByCell, rowHeightByIndex } = parseWorksheetRows(worksheet, maxColumns, mode)
+  const mergeReferences = getParsedWorksheetMerges(worksheet)
+  const forcedRowNumbers = buildForcedRowNumbersForMerges(mergeReferences, mode)
+  const { dataRows, backgroundByCell, rowHeightByIndex, parsedIndexByRowNumber } = parseWorksheetRows(
+    worksheet,
+    maxColumns,
+    mode,
+    forcedRowNumbers
+  )
   const formulaByColumnIndex = extractFormulaByColumnIndex(worksheet, maxColumns)
+  const mergeData = buildMergeData(mergeReferences, parsedIndexByRowNumber, mode, maxColumns)
 
   return buildParsedSheetFromAoa({
     name: worksheet.name,
@@ -466,7 +591,8 @@ function parseWorksheet(
     formulaByColumnIndex,
     backgroundByCell,
     columnWidthByIndex,
-    rowHeightByIndex
+    rowHeightByIndex,
+    mergeData
   })
 }
 
