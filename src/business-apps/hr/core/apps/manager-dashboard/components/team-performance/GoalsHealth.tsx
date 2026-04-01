@@ -17,6 +17,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import type { TeamMemberPerformance, PerformanceGoal } from '../../hooks/useTeamPerformance'
+import { goalStackCategory } from '../../utils/managerPerformanceGoalMetrics'
 
 interface GoalsHealthProps {
   members: TeamMemberPerformance[]
@@ -51,10 +52,11 @@ const computeStackCounts = (members: TeamMemberPerformance[]) => {
   let achieved = 0
   for (const m of members) {
     for (const g of m.goals) {
-      if (g.status === 'ON_TRACK') onTrack++
-      else if (g.status === 'AT_RISK') atRisk++
-      else if (g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED') behindTarget++
-      else if (g.status === 'ACHIEVED') achieved++
+      const cat = goalStackCategory(g)
+      if (cat === 'onTrack') onTrack++
+      else if (cat === 'atRisk') atRisk++
+      else if (cat === 'behindTarget') behindTarget++
+      else achieved++
     }
   }
   return { onTrack, atRisk, behindTarget, achieved }
@@ -72,7 +74,10 @@ export const GoalsHealth: React.FC<GoalsHealthProps> = ({
 
   const attentionRowsRaw: AttentionRow[] = members.flatMap(m =>
     m.goals
-      .filter(g => g.status === 'AT_RISK' || g.status === 'BEHIND_TARGET')
+      .filter(g => {
+        const cat = goalStackCategory(g)
+        return cat === 'atRisk' || cat === 'behindTarget'
+      })
       .map(g => ({
         employeeName: `${m.firstName} ${m.lastName}`.trim(),
         goal: g

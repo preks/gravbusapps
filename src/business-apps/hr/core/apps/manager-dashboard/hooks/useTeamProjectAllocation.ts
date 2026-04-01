@@ -29,11 +29,18 @@ interface UseTeamProjectAllocationProps {
   managerId: string
 }
 
+function toNum(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 /**
- * Hook to fetch team project allocation data from EmployeeMatrixUnit
- * Calculates average allocation percentage across all team members
- * Each employee's allocation = sum of all their EmployeeMatrixUnit.percentage values
- * Team average = average of all employee allocations
+ * Hook to fetch team project allocation data from EmployeeMatrixUnit.
+ *
+ * When a structureId is available (from window.lowcoder) the query is scoped
+ * to that structure. Otherwise it fetches ALL EmployeeMatrixUnit records for
+ * the direct reports so allocation / unallocated data is always available.
  */
 export const useTeamProjectAllocation = ({
   accessToken,
@@ -50,10 +57,9 @@ export const useTeamProjectAllocation = ({
   const [error, setError] = useState<Error | null>(null)
 
   const graphQLClient = useGraphqlClient(accessToken)
-  const structureId = getCurrentActiveStructureId()
 
   const fetchTeamProjectAllocation = useCallback(async () => {
-    if (!managerId || !accessToken || !structureId) {
+    if (!managerId || !accessToken) {
       setLoading(false)
       return
     }
@@ -62,7 +68,6 @@ export const useTeamProjectAllocation = ({
     setError(null)
 
     try {
-      // First get all direct reports
       const directReportsQuery = `
         query GetDirectReportIds($managerId: uuid!) {
           Employee(
@@ -93,8 +98,9 @@ export const useTeamProjectAllocation = ({
 
       setTotalEmployees(employeeIds.length)
 
-      // Get matrix unit allocations for all direct reports
-      const allocationQuery = `
+      const structureId = getCurrentActiveStructureId()
+
+      const allocationQueryWithStructure = `
         query GetTeamAllocations($employeeIds: [uuid!]!, $structureId: uuid!) {
           EmployeeMatrixUnit(
             where: {
@@ -114,35 +120,56 @@ export const useTeamProjectAllocation = ({
         }
       `
 
-      const allocationResponse = await graphQLClient.request(allocationQuery, {
-        employeeIds,
-        structureId
-      })
+      const allocationQueryWithoutStructure = `
+        query GetTeamAllocationsAll($employeeIds: [uuid!]!) {
+          EmployeeMatrixUnit(
+            where: {
+              employeeId: { _in: $employeeIds }
+            }
+          ) {
+            id
+            employeeId
+            matrixUnitId
+            percentage
+            matrixUnit {
+              id
+              name
+            }
+          }
+        }
+      `
+
+      let allocationResponse: any
+      if (structureId) {
+        allocationResponse = await graphQLClient.request(allocationQueryWithStructure, {
+          employeeIds,
+          structureId
+        })
+      } else {
+        allocationResponse = await graphQLClient.request(allocationQueryWithoutStructure, {
+          employeeIds
+        })
+      }
 
       const matrixUnits = allocationResponse?.EmployeeMatrixUnit || []
 
-      // Calculate per-employee allocation totals
       const employeeAllocationMap = new Map<string, number>()
 
-      // Initialize all employees with 0 allocation
       for (const empId of employeeIds) {
         employeeAllocationMap.set(empId, 0)
       }
 
-      // Aggregate allocations by matrix unit for breakdown display
       const teamAllocationMap = new Map<string, { teamName: string; totalPercentage: number; employeeCount: number }>()
 
       for (const allocation of matrixUnits) {
         const employeeId = allocation.employeeId
         const teamId = allocation.matrixUnitId
         const teamName = allocation.matrixUnit?.name || 'Unknown Team'
-        const percentage = allocation.percentage || 0
+        const percentage = toNum(allocation.percentage)
 
-        // Sum up each employee's total allocation
-        const currentEmployeeAllocation = employeeAllocationMap.get(employeeId) || 0
+        const currentEmployeeAllocation = employeeAllocationMap.get(employeeId) ?? 0
         employeeAllocationMap.set(employeeId, currentEmployeeAllocation + percentage)
 
-        // Aggregate by team for breakdown
         if (teamAllocationMap.has(teamId)) {
           const existing = teamAllocationMap.get(teamId)!
           existing.totalPercentage += percentage
@@ -156,21 +183,23 @@ export const useTeamProjectAllocation = ({
         }
       }
 
-      // Calculate team average allocation
-      // Sum all employee allocations and divide by number of employees
       let totalEmployeeAllocation = 0
       let notAllocatedCount = 0
       const notAllocatedIds: string[] = []
 
-      for (const [employeeId, allocation] of employeeAllocationMap) {
+      for (const [empId, raw] of employeeAllocationMap) {
+        const allocation = Number.isFinite(raw) ? raw : 0
         totalEmployeeAllocation += allocation
         if (allocation === 0) {
           notAllocatedCount++
-          notAllocatedIds.push(employeeId)
+          notAllocatedIds.push(empId)
         }
       }
 
-      const avgAllocation = employeeIds.length > 0 ? Math.round(totalEmployeeAllocation / employeeIds.length) : 0
+      const avgAllocation =
+        employeeIds.length > 0 && Number.isFinite(totalEmployeeAllocation)
+          ? Math.round(totalEmployeeAllocation / employeeIds.length)
+          : 0
 
       setAverageAllocationPercentage(avgAllocation)
       setUnallocatedCount(notAllocatedCount)
@@ -182,7 +211,6 @@ export const useTeamProjectAllocation = ({
         }))
       )
 
-      // Build team breakdown
       const aggregatedAllocations: TeamAllocationData[] = Array.from(teamAllocationMap.entries()).map(
         ([teamId, data]) => ({
           teamId,
@@ -192,7 +220,6 @@ export const useTeamProjectAllocation = ({
         })
       )
 
-      // Sort by percentage descending
       aggregatedAllocations.sort((a, b) => b.percentage - a.percentage)
 
       setAllocations(aggregatedAllocations)
@@ -200,14 +227,15 @@ export const useTeamProjectAllocation = ({
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team project allocation'))
       console.error('Error fetching team project allocation:', err)
+      setAllocations([])
       setEmployeeAllocations([])
     } finally {
       setLoading(false)
     }
-  }, [managerId, accessToken, structureId, graphQLClient])
+  }, [managerId, accessToken, graphQLClient])
 
   useEffect(() => {
-    fetchTeamProjectAllocation()
+    void fetchTeamProjectAllocation()
   }, [fetchTeamProjectAllocation])
 
   return {
@@ -221,7 +249,7 @@ export const useTeamProjectAllocation = ({
     loading,
     error,
     refetch: () => {
-      fetchTeamProjectAllocation()
+      void fetchTeamProjectAllocation()
     }
   }
 }

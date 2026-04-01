@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { ChevronLeft, LayoutDashboard } from 'lucide-react'
+import { ChevronLeft, LayoutDashboard, Sparkles } from 'lucide-react'
 import { TeamMemberPerformance } from '../hooks/useTeamPerformance'
 import { TeamMemberSkills, SkillGrowthEntry } from '../hooks/useTeamSkills'
 import { TeamMemberFeedback } from '../hooks/useTeamFeedbackOverview'
@@ -28,7 +28,8 @@ import {
   TalentSignals,
   TeamMemberTable,
   DashboardFilters,
-  MemberDeepDiveSheet
+  MemberDeepDiveSheet,
+  TeamInsightsPanel
 } from '../components/team-performance'
 
 export interface TeamPerformanceDashboardProps {
@@ -124,11 +125,13 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     changeOverall,
     changeCompanyValues,
     changeSkills,
+    insights,
     onNavigateBack,
     onNavigateToEmployee
   } = props
 
   const [deepDiveEmployeeId, setDeepDiveEmployeeId] = useState<string | null>(null)
+  const [showInsights, setShowInsights] = useState(false)
 
   const isLoading = loadingGoals || loadingSkills || loadingFeedback || loadingEvaluations
   const goalsOnTrackRate = totalGoals > 0 ? Math.round((goalsOnTrack / totalGoals) * 100) : 0
@@ -148,12 +151,38 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
           <LayoutDashboard className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
           <h2 className="gba:text-xl gba:font-semibold">Team Performance Dashboard</h2>
         </div>
-        <DashboardFilters
-          availableCycles={availableCycles}
-          selectedCycleId={selectedCycleId}
-          onCycleChange={onCycleChange}
-        />
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <Button
+            variant={showInsights ? 'default' : 'outline'}
+            size="sm"
+            className="gba:gap-1.5"
+            onClick={() => {
+              setShowInsights(prev => !prev)
+              if (!showInsights && !insights.data && !insights.isAnalyzing) {
+                void insights.analyze()
+              }
+            }}
+          >
+            <Sparkles className="gba:h-4 gba:w-4" />
+            Team Performance Summary
+          </Button>
+          <DashboardFilters
+            availableCycles={availableCycles}
+            selectedCycleId={selectedCycleId}
+            onCycleChange={onCycleChange}
+          />
+        </div>
       </div>
+
+      {showInsights && (
+        <TeamInsightsPanel
+          data={insights.data}
+          isAnalyzing={insights.isAnalyzing}
+          error={insights.error}
+          onAnalyze={insights.analyze}
+          onClear={insights.clear}
+        />
+      )}
 
       {/* Executive Summary — 5 cards */}
       <ExecutiveSummary

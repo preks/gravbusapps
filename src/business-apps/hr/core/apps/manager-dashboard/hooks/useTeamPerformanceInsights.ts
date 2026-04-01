@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { TeamMemberPerformance } from './useTeamPerformance'
@@ -78,6 +78,7 @@ interface CompileSnapshotParams {
     goalsOnTrack: number
     goalsAtRisk: number
     goalsBehindTarget: number
+    goalsAchieved: number
   }
   skills: {
     members: TeamMemberSkills[]
@@ -104,17 +105,38 @@ interface CompileSnapshotParams {
   }
   managerName: string
   teamSize: number
+  /** Selected performance cycle — expert must analyze only this evaluation window */
+  performanceCycle: {
+    id: string
+    name: string
+    /** ISO timestamps from `performance_cycle.evaluation_period_*` (fallback: cycle start/end when unset) */
+    evaluation_period_start_date: string
+    evaluation_period_end_date: string
+  }
+}
+
+function formatAnalysisPeriodForPrompt(locale: string, cycle: CompileSnapshotParams['performanceCycle']): string {
+  const opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }
+  const start = new Date(cycle.evaluation_period_start_date)
+  const end = new Date(cycle.evaluation_period_end_date)
+  const fmt = new Intl.DateTimeFormat(locale, opts)
+  const range =
+    Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
+      ? `${cycle.evaluation_period_start_date} – ${cycle.evaluation_period_end_date}`
+      : `${fmt.format(start)} – ${fmt.format(end)}`
+  return `Performance cycle "${cycle.name}" · evaluation period ${range} (see team_data_snapshot.analysis_scope for evaluation_period_start_date and evaluation_period_end_date)`
 }
 
 function compileTeamSnapshot(params: CompileSnapshotParams): string {
-  const { goals, skills, feedback, evaluations } = params
-
-  const achieved = goals.teamPerformance.reduce(
-    (sum, m) => sum + m.goals.filter(g => g.status === 'ACHIEVED').length,
-    0
-  )
+  const { goals, skills, feedback, evaluations, performanceCycle } = params
 
   const snapshot = {
+    analysis_scope: {
+      performance_cycle_id: performanceCycle.id,
+      performance_cycle_name: performanceCycle.name,
+      evaluation_period_start_date: performanceCycle.evaluation_period_start_date,
+      evaluation_period_end_date: performanceCycle.evaluation_period_end_date
+    },
     goals: {
       summary: {
         totalGoals: goals.totalGoals,
@@ -122,7 +144,7 @@ function compileTeamSnapshot(params: CompileSnapshotParams): string {
         onTrack: goals.goalsOnTrack,
         atRisk: goals.goalsAtRisk,
         behind: goals.goalsBehindTarget,
-        achieved
+        achieved: goals.goalsAchieved
       },
       members: goals.teamPerformance.map(m => ({
         name: `${m.firstName} ${m.lastName}`,
@@ -130,7 +152,8 @@ function compileTeamSnapshot(params: CompileSnapshotParams): string {
         avgProgress: m.averageProgress,
         onTrack: m.goalsOnTrack,
         atRisk: m.goalsAtRisk,
-        behind: m.goalsBehindTarget
+        behind: m.goalsBehindTarget,
+        achieved: m.goalsAchieved
       }))
     },
     skills: {
@@ -199,13 +222,17 @@ function compileTeamSnapshot(params: CompileSnapshotParams): string {
   return JSON.stringify(snapshot)
 }
 
-function getCachedInsights(managerId: string): TeamPerformanceInsightsData | null {
+function cacheKey(managerId: string, performanceCycleId: string): string {
+  return `${CACHE_KEY_PREFIX}${managerId}_${performanceCycleId}`
+}
+
+function getCachedInsights(managerId: string, performanceCycleId: string): TeamPerformanceInsightsData | null {
   try {
-    const raw = sessionStorage.getItem(`${CACHE_KEY_PREFIX}${managerId}`)
+    const raw = sessionStorage.getItem(cacheKey(managerId, performanceCycleId))
     if (!raw) return null
     const cached = JSON.parse(raw) as { timestamp: number; data: TeamPerformanceInsightsData }
     if (Date.now() - cached.timestamp > CACHE_TTL) {
-      sessionStorage.removeItem(`${CACHE_KEY_PREFIX}${managerId}`)
+      sessionStorage.removeItem(cacheKey(managerId, performanceCycleId))
       return null
     }
     return cached.data
@@ -214,9 +241,9 @@ function getCachedInsights(managerId: string): TeamPerformanceInsightsData | nul
   }
 }
 
-function setCachedInsights(managerId: string, data: TeamPerformanceInsightsData): void {
+function setCachedInsights(managerId: string, performanceCycleId: string, data: TeamPerformanceInsightsData): void {
   try {
-    sessionStorage.setItem(`${CACHE_KEY_PREFIX}${managerId}`, JSON.stringify({ timestamp: Date.now(), data }))
+    sessionStorage.setItem(cacheKey(managerId, performanceCycleId), JSON.stringify({ timestamp: Date.now(), data }))
   } catch {
     // Session storage full or unavailable
   }
@@ -254,23 +281,33 @@ interface UseTeamPerformanceInsightsProps {
   accessToken: string
   managerId: string
   snapshotParams: CompileSnapshotParams | null
+  /** Must match selected performance cycle so cache and prompts stay aligned */
+  performanceCycleId: string | null
 }
 
 export const useTeamPerformanceInsights = ({
   accessToken,
   managerId,
-  snapshotParams
+  snapshotParams,
+  performanceCycleId
 }: UseTeamPerformanceInsightsProps): TeamPerformanceInsightsResult => {
-  const [data, setData] = useState<TeamPerformanceInsightsData | null>(() =>
-    managerId ? getCachedInsights(managerId) : null
-  )
+  const [data, setData] = useState<TeamPerformanceInsightsData | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const client = usePromptManagerClient(accessToken)
   const abortRef = useRef(false)
 
+  useEffect(() => {
+    if (!managerId || !performanceCycleId) {
+      setData(null)
+      return
+    }
+    setData(getCachedInsights(managerId, performanceCycleId))
+    setError(null)
+  }, [managerId, performanceCycleId])
+
   const analyze = useCallback(async () => {
-    if (!snapshotParams || !accessToken || !managerId) {
+    if (!snapshotParams || !accessToken || !managerId || !performanceCycleId) {
       setError('Missing data for analysis')
       return
     }
@@ -284,11 +321,13 @@ export const useTeamPerformanceInsights = ({
       const locale = getCurrentActiveUserLocale()
       const language = new Intl.DisplayNames([locale], { type: 'language' }).of(locale.split('-')[0]) ?? locale
 
+      const periodDescription = formatAnalysisPeriodForPrompt(locale, snapshotParams.performanceCycle)
+
       const response = await client.executePromptWithOptions(TEAM_PERFORMANCE_ANALYZER_EXPERT_ID, {
         userParams: {
           manager_name: snapshotParams.managerName,
           team_size: String(snapshotParams.teamSize),
-          period: 'Last 90 days',
+          period: periodDescription,
           team_data_snapshot: snapshot,
           language
         }
@@ -298,7 +337,7 @@ export const useTeamPerformanceInsights = ({
 
       const parsed = parseInsightsResponse(response.content)
       setData(parsed)
-      setCachedInsights(managerId, parsed)
+      setCachedInsights(managerId, performanceCycleId, parsed)
     } catch (err: unknown) {
       if (!abortRef.current) {
         const message = err instanceof Error ? err.message : 'Failed to analyze team performance'
@@ -310,21 +349,21 @@ export const useTeamPerformanceInsights = ({
         setIsAnalyzing(false)
       }
     }
-  }, [snapshotParams, accessToken, managerId, client])
+  }, [snapshotParams, accessToken, managerId, performanceCycleId, client])
 
   const clear = useCallback(() => {
     abortRef.current = true
     setData(null)
     setError(null)
     setIsAnalyzing(false)
-    if (managerId) {
+    if (managerId && performanceCycleId) {
       try {
-        sessionStorage.removeItem(`${CACHE_KEY_PREFIX}${managerId}`)
+        sessionStorage.removeItem(cacheKey(managerId, performanceCycleId))
       } catch {
         // ignore
       }
     }
-  }, [managerId])
+  }, [managerId, performanceCycleId])
 
   return { data, isAnalyzing, error, analyze, clear }
 }

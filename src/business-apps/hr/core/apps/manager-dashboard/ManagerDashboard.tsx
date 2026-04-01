@@ -408,6 +408,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         goalsOnTrack={vm.goalsOnTrack}
         goalsAtRisk={vm.goalsAtRisk}
         goalsBehindTarget={vm.goalsBehindTarget}
+        goalsAchieved={vm.goalsAchieved}
         loadingTeamPerformance={vm.loadingTeamPerformance}
         filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
         initialStatusFilter={vm.initialPerformanceStatusFilter}

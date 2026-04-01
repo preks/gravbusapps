@@ -30,6 +30,7 @@ import {
   computeTeamDimensionAverages,
   computeAlignmentGaps
 } from '../utils/dashboardComputations'
+import { computeContainedGoalRollup } from '../utils/managerPerformanceGoalMetrics'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 type TeamTab = 'my-team' | 'my-teams'
@@ -248,6 +249,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     goalsOnTrack,
     goalsAtRisk,
     goalsBehindTarget,
+    goalsAchieved,
     loading: loadingTeamPerformance,
     refetch: refetchTeamPerformance
   } = useTeamPerformance({
@@ -342,8 +344,18 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
 
   const selectedCyclePeriod = useMemo(() => {
     const cycle = performanceCycles.find(c => c.id === selectedCycleId)
-    if (!cycle?.evaluationPeriodStartDate || !cycle?.evaluationPeriodEndDate) return null
-    return { start: cycle.evaluationPeriodStartDate, end: cycle.evaluationPeriodEndDate }
+    if (!cycle || !selectedCycleId) return null
+    const start = cycle.evaluationPeriodStartDate || cycle.startDate
+    const end = cycle.evaluationPeriodEndDate || cycle.endDate
+    if (!start || !end) return null
+    return {
+      start,
+      end,
+      name: cycle.name,
+      cycleId: selectedCycleId,
+      evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? start,
+      evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? end
+    }
   }, [performanceCycles, selectedCycleId])
 
   const {
@@ -402,6 +414,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     goalsOnTrack: 0,
     goalsAtRisk: 0,
     goalsBehindTarget: 0,
+    goalsAchieved: 0,
     averageProgress: 0
   })
   const [loadingDashboardGoals, setLoadingDashboardGoals] = useState(false)
@@ -414,6 +427,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         goalsOnTrack: 0,
         goalsAtRisk: 0,
         goalsBehindTarget: 0,
+        goalsAchieved: 0,
         averageProgress: 0
       })
       return
@@ -440,6 +454,17 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
             progressPercent
             status
             employeeId
+            updatedAt
+            employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
+              id
+              progressPercent
+              comment
+              updateTime
+              employee {
+                firstName
+                lastName
+              }
+            }
           }
         }
       `
@@ -447,9 +472,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         employeeIds,
         cycleId: selectedCycleId
       })
-      const allGoals: PerformanceGoal[] = goalsResponse?.EmployeePerformanceGoal || []
+      const allGoals = goalsResponse?.EmployeePerformanceGoal || []
 
-      const goalsByEmployee = new Map<string, PerformanceGoal[]>()
+      const cycleMeta = performanceCycles.find(c => c.id === selectedCycleId)
+      const cycleStart = cycleMeta?.startDate || cycleMeta?.evaluationPeriodStartDate || ''
+      const cycleEnd = cycleMeta?.endDate || cycleMeta?.evaluationPeriodEndDate || ''
+
+      const goalsByEmployee = new Map<string, typeof allGoals>()
       for (const empId of employeeIds) goalsByEmployee.set(empId, [])
       for (const goal of allGoals) {
         const empGoals = goalsByEmployee.get(goal.employeeId)
@@ -460,21 +489,30 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         totalCount = 0,
         onTrack = 0,
         atRisk = 0,
-        behind = 0
+        behind = 0,
+        achieved = 0
 
       const memberData: TeamMemberPerformance[] = directReports.map(emp => {
-        const goals = goalsByEmployee.get(emp.id) || []
-        const empOnTrack = goals.filter(g => g.status === 'ON_TRACK' || g.status === 'ACHIEVED').length
-        const empAtRisk = goals.filter(g => g.status === 'AT_RISK').length
-        const empBehind = goals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED').length
-        const avgProgress =
-          goals.length > 0 ? Math.round(goals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / goals.length) : 0
+        const rawGoals = goalsByEmployee.get(emp.id) || []
+        const rollup =
+          cycleStart && cycleEnd
+            ? computeContainedGoalRollup(rawGoals, cycleStart, cycleEnd)
+            : {
+                goals: [] as PerformanceGoal[],
+                totalGoals: 0,
+                goalsOnTrack: 0,
+                goalsAtRisk: 0,
+                goalsBehindTarget: 0,
+                goalsAchieved: 0,
+                averageProgress: 0
+              }
 
-        totalCount += goals.length
-        totalProgress += goals.reduce((sum, g) => sum + (g.progressPercent || 0), 0)
-        onTrack += empOnTrack
-        atRisk += empAtRisk
-        behind += empBehind
+        totalCount += rollup.totalGoals
+        totalProgress += rollup.totalGoals > 0 ? rollup.averageProgress * rollup.totalGoals : 0
+        onTrack += rollup.goalsOnTrack
+        atRisk += rollup.goalsAtRisk
+        behind += rollup.goalsBehindTarget
+        achieved += rollup.goalsAchieved
 
         return {
           employeeId: emp.id,
@@ -483,12 +521,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
           lastName: emp.lastName,
           pictureThumbnail: emp.pictureThumbnail,
           jobPositionName: emp.jobPositionName || '',
-          goals,
-          averageProgress: avgProgress,
-          totalGoals: goals.length,
-          goalsOnTrack: empOnTrack,
-          goalsAtRisk: empAtRisk,
-          goalsBehindTarget: empBehind
+          goals: rollup.goals,
+          averageProgress: rollup.averageProgress,
+          totalGoals: rollup.totalGoals,
+          goalsOnTrack: rollup.goalsOnTrack,
+          goalsAtRisk: rollup.goalsAtRisk,
+          goalsBehindTarget: rollup.goalsBehindTarget,
+          goalsAchieved: rollup.goalsAchieved
         }
       })
 
@@ -498,6 +537,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         goalsOnTrack: onTrack,
         goalsAtRisk: atRisk,
         goalsBehindTarget: behind,
+        goalsAchieved: achieved,
         averageProgress: totalCount > 0 ? Math.round(totalProgress / totalCount) : 0
       })
     } catch (err) {
@@ -508,12 +548,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         goalsOnTrack: 0,
         goalsAtRisk: 0,
         goalsBehindTarget: 0,
+        goalsAchieved: 0,
         averageProgress: 0
       })
     } finally {
       setLoadingDashboardGoals(false)
     }
-  }, [selectedCycleId, accessToken, directReports, graphQLClient])
+  }, [selectedCycleId, accessToken, directReports, graphQLClient, performanceCycles])
 
   useEffect(() => {
     fetchDashboardGoals()
@@ -530,21 +571,21 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   })
 
   const teamPerformanceSnapshotParams = useMemo(() => {
-    const allLoaded = !loadingTeamPerformance && !loadingTeamSkills && !loadingTeamFeedback && !loadingTeamEvaluations
-    if (!allLoaded || !employeeId) return null
+    const allLoaded = !loadingTeamSkills && !loadingTeamFeedback && !loadingTeamEvaluations && !loadingDashboardGoals
+    if (!allLoaded || !employeeId || !selectedCyclePeriod) return null
 
     return {
       goals: {
-        teamPerformance,
-        averageTeamProgress,
-        totalGoals: totalPerformanceGoals,
-        goalsOnTrack,
-        goalsAtRisk,
-        goalsBehindTarget
+        teamPerformance: dashboardGoals,
+        averageTeamProgress: dashboardGoalStats.averageProgress,
+        totalGoals: dashboardGoalStats.totalGoals,
+        goalsOnTrack: dashboardGoalStats.goalsOnTrack,
+        goalsAtRisk: dashboardGoalStats.goalsAtRisk,
+        goalsBehindTarget: dashboardGoalStats.goalsBehindTarget,
+        goalsAchieved: dashboardGoalStats.goalsAchieved
       },
       skills: {
         members: teamSkillsMembers,
-        skillGrowth: teamSkillGrowth,
         teamSkillCoverage,
         topSkillGaps,
         topTeamStrengths
@@ -566,23 +607,25 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         pendingEvaluations,
         completedEvaluations
       },
+      performanceCycle: {
+        id: selectedCyclePeriod.cycleId,
+        name: selectedCyclePeriod.name,
+        evaluation_period_start_date: selectedCyclePeriod.evaluationPeriodStartDate,
+        evaluation_period_end_date: selectedCyclePeriod.evaluationPeriodEndDate
+      },
       managerName: userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Manager',
       teamSize: directReports.length
     }
   }, [
-    loadingTeamPerformance,
     loadingTeamSkills,
     loadingTeamFeedback,
     loadingTeamEvaluations,
+    loadingDashboardGoals,
     employeeId,
-    teamPerformance,
-    averageTeamProgress,
-    totalPerformanceGoals,
-    goalsOnTrack,
-    goalsAtRisk,
-    goalsBehindTarget,
+    selectedCyclePeriod,
+    dashboardGoals,
+    dashboardGoalStats,
     teamSkillsMembers,
-    teamSkillGrowth,
     teamSkillCoverage,
     topSkillGaps,
     topTeamStrengths,
@@ -606,7 +649,8 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const teamPerformanceInsights = useTeamPerformanceInsights({
     accessToken: accessToken || '',
     managerId: employeeId || '',
-    snapshotParams: teamPerformanceSnapshotParams
+    snapshotParams: teamPerformanceSnapshotParams,
+    performanceCycleId: selectedCycleId
   })
 
   const refreshManagerDashboardData = async () => {
@@ -925,9 +969,10 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   // Structured return object organized by UI sections
   return {
     // Section 1: Today's Priorities (AI-driven insights)
+    // Do not gate the whole card on allocation or AI — show a dedicated row while project data loads.
     priorities: {
       items: aiInsightItems,
-      loading: loadingAI,
+      loading: false,
       counts: {
         onLeave: onLeaveCount,
         sickLeaves: sickLeavesCount,
@@ -1006,6 +1051,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         goalsOnTrack: dashboardGoalStats.goalsOnTrack,
         goalsAtRisk: dashboardGoalStats.goalsAtRisk,
         goalsBehindTarget: dashboardGoalStats.goalsBehindTarget,
+        goalsAchieved: dashboardGoalStats.goalsAchieved,
         averageProgress: dashboardGoalStats.averageProgress,
         loading: loadingDashboardGoals
       },
@@ -1153,6 +1199,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     goalsOnTrack,
     goalsAtRisk,
     goalsBehindTarget,
+    goalsAchieved,
     remoteCount,
     notClockedInCount,
     daysSinceLastFeedback,

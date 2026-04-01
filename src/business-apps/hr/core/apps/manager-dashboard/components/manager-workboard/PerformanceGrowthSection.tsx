@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Progress, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, XCircle, Target, BarChart3 } from 'lucide-react'
+import { CheckCircle2, XCircle, Target, BarChart3, Users } from 'lucide-react'
 
 interface PerformanceGrowthSectionProps {
   onTrack: number
@@ -88,6 +88,11 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
                 {averageProgress}% avg. progress · {totalGoals} total goals
               </p>
             </div>
+
+            <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:w-full gba:h-8">
+              <Users size={14} className="gba:mr-1.5" />
+              View goals by team member
+            </Button>
 
             {/* Action Button */}
             {(atRisk > 0 || behind > 0) && (
