@@ -931,6 +931,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
       // Generate the wrapper module content
       const originalEntryPath = dynamicEntries[entryKey]
       const relativeEntryPath = path.relative(path.dirname(wrappedEntryPath), originalEntryPath).replace(/\\/g, '/')
+      const originalEntrySource = fs.readFileSync(originalEntryPath, 'utf8')
+      const hasDefaultExport =
+        /export\s+default/.test(originalEntrySource) || /export\s*\{[^}]*\bdefault\b[^}]*\}/s.test(originalEntrySource)
 
       // Check if this is a types, queries, hooks, tabs, components, utils, views, pages, or services entry (contains any of these keywords in the path)
       // These directories typically export multiple named exports but no single default export
@@ -952,7 +955,8 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         entryKey.includes('/pages') ||
         entryKey.endsWith('/pages') ||
         entryKey.includes('/services') ||
-        entryKey.endsWith('/services')
+        entryKey.endsWith('/services') ||
+        !hasDefaultExport
 
       const isDebugViewEntry = entryKey === '.debug/apps/debug-view' || entryKey.includes('/.debug/apps/debug-view')
       let wrapperContent: string
