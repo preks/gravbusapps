@@ -71,9 +71,12 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
   }, [])
 
   const currentClarificationQuestion = session?.human_question ?? null
+  // Only show clarification modal if there's NO structured input request
+  // (structured forms render inline in the chat, not as a modal)
   const showClarification =
     isWaitingForInput &&
     !!currentClarificationQuestion &&
+    !session?.structured_input_request &&
     dismissedClarificationQuestion !== currentClarificationQuestion
   const interruptQuestion = showClarification ? (currentClarificationQuestion ?? undefined) : undefined
 
@@ -91,10 +94,12 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
   }
 
   const handleClarificationAnswer = (answer: string) => {
+    // Immediately dismiss to close modal
     if (currentClarificationQuestion) {
       setDismissedClarificationQuestion(currentClarificationQuestion)
     }
-    return reply(answer)
+    // Send reply - modal will unmount since showClarification becomes false
+    void reply(answer)
   }
 
   const handleClarificationDismiss = () => {

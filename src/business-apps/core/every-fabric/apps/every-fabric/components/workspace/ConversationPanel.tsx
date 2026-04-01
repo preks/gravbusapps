@@ -15,7 +15,7 @@ interface ConversationPanelProps {
   isStreaming: boolean
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
-  onReply: (message: string) => void | Promise<unknown>
+  onReply: (message?: string, structuredInput?: Record<string, any>) => void | Promise<unknown>
   onViewArtifact?: (artifactName: string) => void
   composer?: React.ReactNode
 }
@@ -24,6 +24,7 @@ const isTranscriptMessage = (message: ChatMessage) =>
   message.type === 'user_input' ||
   message.type === 'expert_call' ||
   message.type === 'final_answer' ||
+  message.type === 'structured_input_request' ||
   message.type === 'error'
 
 export const ConversationPanel: React.FC<ConversationPanelProps> = ({

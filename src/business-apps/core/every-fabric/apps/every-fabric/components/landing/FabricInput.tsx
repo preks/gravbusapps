@@ -11,7 +11,7 @@ export interface FabricInputProps {
   prefillValue?: string
   onSubmit: (task: string, config: SessionConfig) => void | Promise<unknown>
   onStop?: () => void
-  onReply?: (message: string) => void | Promise<unknown>
+  onReply?: (message?: string, structuredInput?: Record<string, any>) => void | Promise<unknown>
   /** When set, input acts as a reply box instead of a new session */
   activeInterrupt?: string
   isRunning?: boolean

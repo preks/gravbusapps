@@ -49,7 +49,7 @@ interface FabricContextValue {
   selectSession: (id: string) => void
   newSession: () => void
   deleteSession: (id: string) => void
-  reply: (message: string) => Promise<void>
+  reply: (message?: string, structuredInput?: Record<string, any>) => Promise<void>
   stopSession: () => Promise<void>
   setActiveArtifactId: (id: string | null) => void
   refreshArtifacts: () => Promise<void>
@@ -134,8 +134,8 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   )
 
   const reply = useCallback(
-    async (message: string) => {
-      await _reply(message)
+    async (message?: string, structuredInput?: Record<string, any>) => {
+      await _reply(message, structuredInput)
     },
     [_reply]
   )
