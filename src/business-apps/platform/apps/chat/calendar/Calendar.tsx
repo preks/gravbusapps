@@ -1022,7 +1022,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     >
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0">
         {isSidebarOpen ? (
-          <div className="gba:w-64 gba:md:w-72 gba:h-full gba:border-r gba:border-border/50 gba:bg-card/40">
+          <div className="gba:h-full gba:w-64 gba:max-w-64 gba:shrink-0 gba:overflow-x-hidden gba:border-r gba:border-border/50 gba:bg-card/40 gba:md:w-72 gba:md:max-w-72">
             <CalendarVisibilityPanel
               currentDate={currentDate}
               onSelectDate={setCurrentDate}
