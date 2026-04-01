@@ -17,9 +17,12 @@ import {
   WifiHigh,
   WifiX,
   Wrench,
-  XCircle
+  XCircle,
+  FileText,
+  Presentation,
+  Note
 } from '@phosphor-icons/react'
-import type { ActivityEvent } from '../../types/enterpriseAgent'
+import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
 import { formatRelativeTime, toolCategoryColor } from '../../utils/renderUtils'
 
@@ -242,6 +245,35 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
+  if (type === 'slides') return <Presentation className="gba:h-3.5 gba:w-3.5 gba:text-violet-500 gba:shrink-0" />
+  if (type === 'note') return <Note className="gba:h-3.5 gba:w-3.5 gba:text-amber-500 gba:shrink-0" />
+  return <FileText className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:shrink-0" />
+}
+
+const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs }) => (
+  <Card title="Workspace Documents" badge={docs.length} defaultOpen>
+    <div className="gba:py-1">
+      {docs.map(doc => (
+        <a
+          key={doc.id}
+          href={doc.url}
+          target="_self"
+          rel="noopener noreferrer"
+          className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
+          data-testid={`fabric-workspace-doc-${doc.id}`}
+        >
+          {workspaceDocPanelIcon(doc.type)}
+          <div className="gba:flex-1 gba:min-w-0">
+            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
+            <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:capitalize">{doc.type}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  </Card>
+)
 
 const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) => void }> = ({
   artifacts,
@@ -471,6 +503,7 @@ interface WorkspaceRightPanelProps {
   progressPercent: number
   activityEvents: ActivityEvent[]
   artifacts: ArtifactFile[]
+  workspaceDocs?: WorkspaceDocument[]
   isConnected: boolean
   isStreaming: boolean
   onViewArtifact: (name: string) => void
@@ -483,6 +516,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   progressPercent,
   activityEvents,
   artifacts,
+  workspaceDocs,
   isConnected,
   isStreaming,
   onViewArtifact
@@ -503,6 +537,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
     <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} />
 
     {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
+
+    {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
 
     {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
   </div>

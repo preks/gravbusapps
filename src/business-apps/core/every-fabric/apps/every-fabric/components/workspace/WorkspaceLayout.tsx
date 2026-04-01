@@ -43,6 +43,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
     progressPercent,
     activityEvents,
     artifacts,
+    workspaceDocs,
     activeArtifact,
     reply,
     stopSession,
@@ -285,6 +286,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
               progressPercent={progressPercent}
               activityEvents={activityEvents}
               artifacts={artifacts}
+              workspaceDocs={workspaceDocs}
               isConnected={isConnected}
               isStreaming={isStreaming}
               onViewArtifact={setActiveArtifactId}

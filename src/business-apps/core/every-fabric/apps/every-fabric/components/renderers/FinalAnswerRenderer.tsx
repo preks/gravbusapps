@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { CaretDown, CaretRight, DownloadSimple, File, Globe, NotePencil, Code } from '@phosphor-icons/react'
+import {
+  CaretDown,
+  CaretRight,
+  DownloadSimple,
+  File,
+  Globe,
+  NotePencil,
+  Code,
+  FileText,
+  Presentation,
+  Note
+} from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import type { TodoItem, ActionSummary } from '../../types/enterpriseAgent'
+import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
 
 interface FinalAnswerArtifact {
@@ -19,6 +30,7 @@ export interface FinalAnswerRendererProps {
   actionsPerformed?: ActionSummary[]
   durationMs?: number
   artifacts?: FinalAnswerArtifact[]
+  workspaceDocuments?: WorkspaceDocument[]
   onViewArtifact?: (artifactName: string) => void
 }
 
@@ -27,6 +39,7 @@ export const FinalAnswerRenderer = ({
   actionsPerformed,
   durationMs,
   artifacts,
+  workspaceDocuments,
   onViewArtifact
 }: FinalAnswerRendererProps) => {
   const [actionsExpanded, setActionsExpanded] = useState(false)
@@ -82,6 +95,19 @@ export const FinalAnswerRenderer = ({
                   </div>
                 </div>
               </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {workspaceDocuments && workspaceDocuments.length > 0 && (
+        <div className="gba:pt-4">
+          <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
+            Workspace Documents
+          </p>
+          <div className="gba:flex gba:flex-col gba:gap-2">
+            {workspaceDocuments.map(doc => (
+              <WorkspaceDocCard key={doc.id} doc={doc} />
             ))}
           </div>
         </div>
@@ -146,6 +172,29 @@ export const FinalAnswerRenderer = ({
     </div>
   )
 }
+
+const workspaceDocIcon = (type: WorkspaceDocument['type']) => {
+  if (type === 'slides') return <Presentation className="gba:h-4 gba:w-4 gba:text-violet-500 gba:shrink-0" />
+  if (type === 'note') return <Note className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" />
+  return <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
+}
+
+const WorkspaceDocCard = ({ doc }: { doc: WorkspaceDocument }) => (
+  <a
+    href={doc.url}
+    target="_self"
+    rel="noopener noreferrer"
+    className="gba:flex gba:items-center gba:gap-3 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2.5 gba:hover:bg-muted/25 gba:transition-colors gba:no-underline"
+    data-testid={`workspace-doc-${doc.id}`}
+  >
+    {workspaceDocIcon(doc.type)}
+    <div className="gba:min-w-0 gba:flex-1">
+      <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
+      <p className="gba:text-xs gba:text-muted-foreground gba:capitalize">{doc.type}</p>
+    </div>
+    <Globe className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
+  </a>
+)
 
 const ArtifactCardPreview = ({ artifact }: { artifact: FinalAnswerArtifact }) => {
   if (artifact.rendererType === 'html') {
