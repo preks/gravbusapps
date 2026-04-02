@@ -1,30 +1,33 @@
-import { env } from '@/common/env/EnvUtils'
+import { env, hasActiveFlowbotUserOverride } from '@/common/env/EnvUtils'
 
 const LOCAL_FALLBACK_FLOWBOT_BASE_URL = 'http://localhost:8000'
 
 /**
  * Resolve the base URL for FlowBot in a consistent way across the app.
  *
- * Priority:
- * 1) Localhost → always talk to local FlowBot on :8000 (for dev convenience)
- * 2) Explicit endpoint from env (NEXT_PUBLIC_FLOWBOT_ENDPOINT)
- * 3) Tenant base URL (NEXT_PUBLIC_BASE_URL) — works for all environments
+ * On localhost the default is always localhost:8000 so developers talk to
+ * their local FlowBot instance.  Only an explicit user override
+ * (?flowbotEndpoint= query param or localStorage) can redirect localhost
+ * to a remote URL; the baked NEXT_PUBLIC_FLOWBOT_ENDPOINT from .env is
+ * intentionally ignored on localhost because it points to newwork-dev.
+ *
+ * On deployed environments the standard resolution applies:
+ *   NEXT_PUBLIC_FLOWBOT_ENDPOINT → NEXT_PUBLIC_BASE_URL
  */
 export function resolveFlowbotBaseUrl(): string {
-  const explicit = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT')
-
-  // 0) Local development → default to local FlowBot (unless explicitly overridden)
   if (typeof window !== 'undefined') {
     const host = window.location.hostname
     const isLocalHost = host === 'localhost' || host === '127.0.0.1'
     if (isLocalHost) {
-      return explicit || LOCAL_FALLBACK_FLOWBOT_BASE_URL
+      if (hasActiveFlowbotUserOverride()) {
+        return env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || LOCAL_FALLBACK_FLOWBOT_BASE_URL
+      }
+      return LOCAL_FALLBACK_FLOWBOT_BASE_URL
     }
   }
 
-  // 1) Non-localhost environments → use explicit endpoint when provided
+  const explicit = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT')
   if (explicit) return explicit
 
-  // 2) Tenant base URL (consistent with serviceResolver.ts and RestClient)
   return env('NEXT_PUBLIC_BASE_URL') || ''
 }
