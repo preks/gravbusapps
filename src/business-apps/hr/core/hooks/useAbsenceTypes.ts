@@ -3,7 +3,7 @@ import { toast } from '@newwork/nw-design-system'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
-import { buildSoftDeletedObjectValue, isCatalogEntryDeleted } from '../utils/catalogEntryHelpers'
+import { isCatalogEntryDeleted } from '../utils/catalogEntryHelpers'
 
 const ABSENCE_TYPE_CATALOG = 'AbsenceType'
 const ABSENCE_TYPE_VERSION = 'v1'
@@ -144,12 +144,6 @@ const useAbsenceTypes = (accessToken: string) => {
         ABSENCE_TYPE_VERSION,
         resolveCatalogEntryId(absenceTypes, id),
         {
-          code: existingType.code,
-          value: existingType.value,
-          parentEntryId: existingType.parentEntryId,
-          objectValue: buildSoftDeletedObjectValue(existingType.objectValue),
-          localeCode: existingType.localeCode || 'en-US',
-          translations: existingType.translations || [],
           isDeleted: true
         } as any
       )

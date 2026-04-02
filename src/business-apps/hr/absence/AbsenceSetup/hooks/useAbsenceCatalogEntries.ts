@@ -3,7 +3,7 @@ import { toast } from '@newwork/nw-design-system'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
 import type { JSONValue } from '@/common/types/i18nTypes'
-import { buildSoftDeletedObjectValue, isCatalogEntryDeleted } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
+import { isCatalogEntryDeleted } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 
 export interface AbsenceCatalogEntryPayload {
   id?: string
@@ -137,20 +137,12 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         throw new Error('Catalog manager client not available')
       }
 
-      const existingEntry = entries.find(item => item.id === entryId) || (await client.getCatalogEntryById(entryId))
-
       await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, {
-        code: existingEntry.code,
-        value: existingEntry.value,
-        parentEntryId: existingEntry.parentEntryId,
-        objectValue: buildSoftDeletedObjectValue(existingEntry.objectValue),
-        localeCode: existingEntry.localeCode || 'en-US',
-        translations: existingEntry.translations || [],
         isDeleted: true
       } as any)
       setEntries(prev => prev.filter(item => item.id !== entryId))
     },
-    [catalogIdentifier, client, entries]
+    [catalogIdentifier, client]
   )
 
   return {
