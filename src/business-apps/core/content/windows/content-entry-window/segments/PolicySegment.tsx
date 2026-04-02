@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
+  Combobox,
   DateInput,
   FormControl,
   FormField,
@@ -22,9 +23,9 @@ import { TableHandler } from '../quillTableSetup'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
 import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
-import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
-import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
-import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
+import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
+import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
 import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
@@ -89,10 +90,6 @@ interface PolicySegmentProps {
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroup?: string | null
-  onCreateCategory?: (label: string) => Promise<string>
-  onCreateTag?: (label: string) => Promise<string>
-  onCategoriesChange?: (categories: string[]) => void
-  onTagsChange?: (tags: string[]) => void
   onContentTypeIdChange?: (value: string | undefined) => void
   onContentCategoryIdsChange?: (ids: string[]) => void
   onContentTagIdsChange?: (ids: string[]) => void
@@ -109,25 +106,44 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
     setValue,
     context,
     extractedContentGroup,
-    onCreateCategory,
-    onCreateTag,
-    onCategoriesChange,
-    onTagsChange,
     onContentTypeIdChange,
     onContentCategoryIdsChange,
     onContentTagIdsChange
   }) => {
     const { t } = useTranslation(translations)
 
+    const [initialCategoryIds] = useState<string[]>(() => watchCategories || [])
+    const [initialTagIds] = useState<string[]>(() => watchTags || [])
+
     const watchContentGroup = useWatch({ control, name: 'contentGroup' })
     const activeGroup = extractedContentGroup || watchContentGroup
 
-    const { options: contentTypeOptions, isLoading: typesLoading } = useContentTypeOptions(
-      context.accessToken,
-      activeGroup
-    )
-    const { options: categoryOptions, isLoading: categoriesLoading } = useContentCategoryOptions(context.accessToken)
-    const { options: tagOptions, isLoading: tagsLoading } = useContentTagOptions(context.accessToken)
+    const {
+      options: contentTypeOptions,
+      isLoading: typesLoading,
+      setSearch: setTypeSearch,
+      hasMore: typeHasMore,
+      loadMore: loadMoreTypes,
+      component: typeComponent
+    } = useContentTypeSelect(context.accessToken, activeGroup)
+
+    const {
+      options: categoryOptions,
+      isLoading: categoriesLoading,
+      setSearch: setCategorySearch,
+      hasMore: categoryHasMore,
+      loadMore: loadMoreCategories,
+      createCategory
+    } = useContentCategorySelect(context.accessToken, initialCategoryIds)
+
+    const {
+      options: tagOptions,
+      isLoading: tagsLoading,
+      setSearch: setTagSearch,
+      hasMore: tagHasMore,
+      loadMore: loadMoreTags,
+      createTag
+    } = useContentTagSelect(context.accessToken, initialTagIds)
 
     const quillModules = useMemo(
       () => ({
@@ -200,22 +216,41 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                 <FormItem className="gba:flex-1">
                   <FormLabel>{t('content-type')}</FormLabel>
                   <FormControl>
-                    <Select
-                      value={field.value || ''}
-                      onValueChange={field.onChange}
-                      disabled={!activeGroup || typesLoading}
-                    >
-                      <SelectTrigger data-testid="content-entry-window-type-select">
-                        <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {contentTypeOptions.map(opt => (
-                          <SelectItem key={opt.id} value={opt.id}>
-                            {opt.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {typeComponent === 'select' ? (
+                      <Select
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        disabled={!activeGroup || typesLoading}
+                      >
+                        <SelectTrigger data-testid="content-entry-window-type-select">
+                          <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contentTypeOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Combobox
+                        mode="default"
+                        options={contentTypeOptions}
+                        value={field.value || ''}
+                        onValueChange={(next: string) => field.onChange(next)}
+                        placeholder={t('select-type') || 'Select type'}
+                        searchPlaceholder="Search types..."
+                        emptyText={typesLoading ? 'Loading...' : 'No results'}
+                        loading={typesLoading}
+                        onSearch={setTypeSearch}
+                        searchDebounce={300}
+                        onLoadMore={loadMoreTypes}
+                        hasMore={typeHasMore}
+                        disabled={!activeGroup}
+                        data-testid="content-entry-window-type-select"
+                      />
+                    )}
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -311,14 +346,14 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                     <TaxonomyMultiSelect
                       options={categoryOptions}
                       value={field.value || []}
-                      onValueChange={ids => {
-                        field.onChange(ids)
-                        onCategoriesChange?.(ids)
-                      }}
-                      onCreateNew={onCreateCategory}
+                      onValueChange={field.onChange}
+                      onCreateNew={createCategory}
                       isLoading={categoriesLoading}
                       placeholder="Select categories..."
                       data-testid="content-entry-window-categories-select"
+                      onSearch={setCategorySearch}
+                      onLoadMore={loadMoreCategories}
+                      hasMore={categoryHasMore}
                     />
                   </FormControl>
                   <FormMessage />
@@ -336,14 +371,14 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                     <TaxonomyMultiSelect
                       options={tagOptions}
                       value={field.value || []}
-                      onValueChange={ids => {
-                        field.onChange(ids)
-                        onTagsChange?.(ids)
-                      }}
-                      onCreateNew={onCreateTag}
+                      onValueChange={field.onChange}
+                      onCreateNew={createTag}
                       isLoading={tagsLoading}
                       placeholder="Select tags..."
                       data-testid="content-entry-window-tags-select"
+                      onSearch={setTagSearch}
+                      onLoadMore={loadMoreTags}
+                      hasMore={tagHasMore}
                     />
                   </FormControl>
                   <FormMessage />

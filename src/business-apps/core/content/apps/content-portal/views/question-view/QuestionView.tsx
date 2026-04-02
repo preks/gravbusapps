@@ -19,7 +19,7 @@ import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
@@ -58,7 +58,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
 
-  const { options: contentTypes } = useContentTypeOptions(accessToken, ContentGroup.QUESTION)
+  const {
+    options: contentTypes,
+    hasMore: contentTypesHasMore,
+    loadMore: loadMoreContentTypes
+  } = useContentTypeSelect(accessToken, ContentGroup.QUESTION)
 
   // Find catalog IDs for +1 and -1 reactions from the map
   // The map has entries like: '+1' -> 'ContentReaction:v1:+1'
@@ -313,24 +317,33 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                   <ChevronRight className="gba:w-4 gba:h-4" />
                 </button>
 
-                {contentTypes.map(type => (
+                {contentTypes.map(opt => (
                   <button
-                    key={type.id}
-                    onClick={() => handleCategoryClick(type.id)}
+                    key={opt.value}
+                    onClick={() => handleCategoryClick(opt.value)}
                     className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                      selectedContentTypeId === type.id
+                      selectedContentTypeId === opt.value
                         ? 'gba:bg-primary gba:text-primary-foreground'
                         : 'gba:hover:bg-accent gba:text-foreground'
                     }`}
-                    data-testid={`question-category-${type.id}`}
+                    data-testid={`question-category-${opt.value}`}
                   >
                     <span className="gba:flex gba:items-center gba:gap-2">
                       <Folder className="gba:w-4 gba:h-4" />
-                      {type.name}
+                      {opt.label}
                     </span>
                     <ChevronRight className="gba:w-4 gba:h-4" />
                   </button>
                 ))}
+                {contentTypesHasMore && (
+                  <button
+                    onClick={loadMoreContentTypes}
+                    className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground gba:hover:bg-accent gba:rounded-md gba:transition-colors"
+                    data-testid="question-category-load-more"
+                  >
+                    Load more...
+                  </button>
+                )}
               </nav>
             </Card>
           </div>

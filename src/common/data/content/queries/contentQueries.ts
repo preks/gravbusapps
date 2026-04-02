@@ -463,6 +463,39 @@ export const buildContentTagsQuery = (): string => {
   `
 }
 
+export const buildContentTypesPaginatedQuery = (): string => `
+  query getContentTypesPaginated($where: ContentTypeBoolExp!, $limit: Int!, $offset: Int!) {
+    ContentType(where: $where, limit: $limit, offset: $offset, orderBy: { name: ASC }) {
+      ${CONTENT_TYPE_FIELDS}
+    }
+    ContentTypeAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
+export const buildContentCategoriesPaginatedQuery = (): string => `
+  query getContentCategoriesPaginated($where: ContentCategoryBoolExp!, $limit: Int!, $offset: Int!) {
+    ContentCategory(where: $where, limit: $limit, offset: $offset, orderBy: { name: ASC }) {
+      ${CONTENT_CATEGORY_FIELDS}
+    }
+    ContentCategoryAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
+export const buildContentTagsPaginatedQuery = (): string => `
+  query getContentTagsPaginated($where: ContentTagBoolExp!, $limit: Int!, $offset: Int!) {
+    ContentTag(where: $where, limit: $limit, offset: $offset, orderBy: { name: ASC }) {
+      ${CONTENT_TAG_FIELDS}
+    }
+    ContentTagAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
 export const buildInsertContentTypeMutation = (): string => {
   return `
     mutation insertContentType($name: String!, $contentGroup: String) {

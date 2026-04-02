@@ -5,15 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
-import {
-  buildInsertContentCategoryMutation,
-  buildInsertContentTagMutation
-} from '@/common/data/content/queries/contentQueries'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import ArticleSegment from './segments/ArticleSegment'
 import QuestionSegment from './segments/QuestionSegment'
@@ -77,7 +72,6 @@ function arraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
 
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
   const { t } = useTranslation(translations)
-  const graphqlClient = useGraphQLClient(context.accessToken)
   const fileClient = useFileClient(context)
   const { contentId } = context
 
@@ -97,10 +91,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const imageBlobUrlRef = useRef<string | null>(null)
-
-  // Track categories/tags that need to be created (labels, not IDs yet)
-  const [categoriesToCreate, setCategoriesToCreate] = useState<Set<string>>(new Set())
-  const [tagsToCreate, setTagsToCreate] = useState<Set<string>>(new Set())
 
   const generateThumbnail = useCallback(
     async (source: File | string, maxWidth = 300, maxHeight = 300, quality = 0.8): Promise<string> => {
@@ -144,36 +134,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     },
     []
   )
-
-  const onCreateCategory = useCallback((label: string): Promise<string> => {
-    setCategoriesToCreate(prev => new Set([...prev, label]))
-    return Promise.resolve(label)
-  }, [])
-
-  const onCreateTag = useCallback((label: string): Promise<string> => {
-    setTagsToCreate(prev => new Set([...prev, label]))
-    return Promise.resolve(label)
-  }, [])
-
-  const handleCategoriesChange = useCallback((newCategories: string[]) => {
-    setCategoriesToCreate(prev => {
-      const updated = new Set(prev)
-      prev.forEach(label => {
-        if (!newCategories.includes(label)) updated.delete(label)
-      })
-      return updated
-    })
-  }, [])
-
-  const handleTagsChange = useCallback((newTags: string[]) => {
-    setTagsToCreate(prev => {
-      const updated = new Set(prev)
-      prev.forEach(label => {
-        if (!newTags.includes(label)) updated.delete(label)
-      })
-      return updated
-    })
-  }, [])
 
   const extractedContentGroup =
     context.contentGroup ||
@@ -597,62 +557,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
       const updatedData = { ...data }
 
-      // Create new categories via taxonomy mutation
-      if (categoriesToCreate.size > 0) {
-        const labelToIdMap = new Map<string, string>()
-        const mutation = buildInsertContentCategoryMutation()
-
-        await Promise.all(
-          Array.from(categoriesToCreate).map(async label => {
-            try {
-              const result = await graphqlClient.request<{ InsertContentCategoryOne: { id: string; name: string } }>(
-                mutation,
-                { name: label }
-              )
-              if (result.InsertContentCategoryOne?.id) {
-                labelToIdMap.set(label, result.InsertContentCategoryOne.id)
-              }
-            } catch (error) {
-              console.error('[ContentEntryWindow] Failed to create category:', label, error)
-              throw new Error(`Failed to create category: ${label}`)
-            }
-          })
-        )
-
-        if (updatedData.categories) {
-          updatedData.categories = updatedData.categories.map(cat => labelToIdMap.get(cat) || cat)
-        }
-        setCategoriesToCreate(new Set())
-      }
-
-      // Create new tags via taxonomy mutation
-      if (tagsToCreate.size > 0) {
-        const labelToIdMap = new Map<string, string>()
-        const mutation = buildInsertContentTagMutation()
-
-        await Promise.all(
-          Array.from(tagsToCreate).map(async label => {
-            try {
-              const result = await graphqlClient.request<{ InsertContentTagOne: { id: string; name: string } }>(
-                mutation,
-                { name: label }
-              )
-              if (result.InsertContentTagOne?.id) {
-                labelToIdMap.set(label, result.InsertContentTagOne.id)
-              }
-            } catch (error) {
-              console.error('[ContentEntryWindow] Failed to create tag:', label, error)
-              throw new Error(`Failed to create tag: ${label}`)
-            }
-          })
-        )
-
-        if (updatedData.tags) {
-          updatedData.tags = updatedData.tags.map(tag => labelToIdMap.get(tag) || tag)
-        }
-        setTagsToCreate(new Set())
-      }
-
       // Upload image
       if (imageFile && data.contentImage) {
         try {
@@ -676,7 +580,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
       return updatedData
     },
-    [uploadImageFile, uploadBase64Image, imageFile, graphqlClient, categoriesToCreate, tagsToCreate]
+    [uploadImageFile, uploadBase64Image, imageFile]
   )
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
@@ -766,10 +670,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setValue={setValue}
             context={context}
             extractedContentGroup={extractedContentGroup}
-            onCreateCategory={onCreateCategory}
-            onCreateTag={onCreateTag}
-            onCategoriesChange={handleCategoriesChange}
-            onTagsChange={handleTagsChange}
             onContentTypeIdChange={handleContentTypeIdChange}
             onContentCategoryIdsChange={handleContentCategoryIdsChange}
             onContentTagIdsChange={handleContentTagIdsChange}
@@ -781,10 +681,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             control={control}
             accessToken={context.accessToken}
             extractedContentGroup={extractedContentGroup}
-            onCreateCategory={onCreateCategory}
-            onCreateTag={onCreateTag}
-            onCategoriesChange={handleCategoriesChange}
-            onTagsChange={handleTagsChange}
           />
         )}
 
@@ -800,10 +696,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setImageInfo={setImageInfo}
             setImageFile={setImageFile}
             extractedContentGroup={extractedContentGroup}
-            onCreateCategory={onCreateCategory}
-            onCreateTag={onCreateTag}
-            onCategoriesChange={handleCategoriesChange}
-            onTagsChange={handleTagsChange}
           />
         )}
 
@@ -812,10 +704,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             control={control}
             accessToken={context.accessToken}
             extractedContentGroup={extractedContentGroup}
-            onCreateCategory={onCreateCategory}
-            onCreateTag={onCreateTag}
-            onCategoriesChange={handleCategoriesChange}
-            onTagsChange={handleTagsChange}
           />
         )}
 
@@ -830,10 +718,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setValue={setValue}
             context={context}
             extractedContentGroup={extractedContentGroup}
-            onCreateCategory={onCreateCategory}
-            onCreateTag={onCreateTag}
-            onCategoriesChange={handleCategoriesChange}
-            onTagsChange={handleTagsChange}
             onContentTypeIdChange={handleContentTypeIdChange}
             onContentCategoryIdsChange={handleContentCategoryIdsChange}
             onContentTagIdsChange={handleContentTagIdsChange}

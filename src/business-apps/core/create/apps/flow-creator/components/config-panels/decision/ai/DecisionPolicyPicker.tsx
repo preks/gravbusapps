@@ -48,7 +48,8 @@ export const DecisionPolicyPicker: React.FC<DecisionPolicyPickerProps> = ({
         ContentGroup.KNOWLEDGE,
         ContentGroup.DOCUMENT,
         ContentGroup.QUESTION,
-        ContentGroup.GLOSSARY
+        ContentGroup.GLOSSARY,
+        ContentGroup.POLICY
       ],
       limit: 100,
       offset: 0,

@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useRef } from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
+  Combobox,
   FormControl,
   FormField,
   FormFieldGroup,
@@ -23,9 +24,9 @@ import {
 import { ImageIcon, Folder, Link } from '@phosphor-icons/react'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
-import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
-import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
-import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
+import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
+import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
 import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
@@ -40,10 +41,6 @@ interface DocumentSegmentProps {
   setImageInfo: (info: { name: string; size: string } | null) => void
   setImageFile: (file: File | null) => void
   extractedContentGroup?: string | null
-  onCreateCategory?: (label: string) => Promise<string>
-  onCreateTag?: (label: string) => Promise<string>
-  onCategoriesChange?: (categories: string[]) => void
-  onTagsChange?: (tags: string[]) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
@@ -56,11 +53,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   imageInfo,
   setImageInfo,
   setImageFile,
-  extractedContentGroup,
-  onCreateCategory,
-  onCreateTag,
-  onCategoriesChange,
-  onTagsChange
+  extractedContentGroup
 }) => {
   const { t } = useTranslation(translations)
   const [dragActive, setDragActive] = useState(false)
@@ -70,12 +63,40 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const watchedCategories = useWatch({ control, name: 'categories' })
+  const watchedTags = useWatch({ control, name: 'tags' })
+  const [initialCategoryIds] = useState<string[]>(() => watchedCategories || [])
+  const [initialTagIds] = useState<string[]>(() => watchedTags || [])
+
   const watchContentGroup = useWatch({ control, name: 'contentGroup' })
   const activeGroup = extractedContentGroup || watchContentGroup
 
-  const { options: contentTypeOptions, isLoading: typesLoading } = useContentTypeOptions(accessToken, activeGroup)
-  const { options: categoryOptions, isLoading: categoriesLoading } = useContentCategoryOptions(accessToken)
-  const { options: tagOptions, isLoading: tagsLoading } = useContentTagOptions(accessToken)
+  const {
+    options: contentTypeOptions,
+    isLoading: typesLoading,
+    setSearch: setTypeSearch,
+    hasMore: typeHasMore,
+    loadMore: loadMoreTypes,
+    component: typeComponent
+  } = useContentTypeSelect(accessToken, activeGroup)
+
+  const {
+    options: categoryOptions,
+    isLoading: categoriesLoading,
+    setSearch: setCategorySearch,
+    hasMore: categoryHasMore,
+    loadMore: loadMoreCategories,
+    createCategory
+  } = useContentCategorySelect(accessToken, initialCategoryIds)
+
+  const {
+    options: tagOptions,
+    isLoading: tagsLoading,
+    setSearch: setTagSearch,
+    hasMore: tagHasMore,
+    loadMore: loadMoreTags,
+    createTag
+  } = useContentTagSelect(accessToken, initialTagIds)
 
   const processFile = useCallback(
     (file: File, setValue: any) => {
@@ -205,22 +226,41 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
             <FormItem>
               <FormLabel>{t('content-type')}</FormLabel>
               <FormControl>
-                <Select
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  disabled={!activeGroup || typesLoading}
-                >
-                  <SelectTrigger data-testid="document-segment-type-select">
-                    <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contentTypeOptions.map(opt => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {typeComponent === 'select' ? (
+                  <Select
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    disabled={!activeGroup || typesLoading}
+                  >
+                    <SelectTrigger data-testid="document-segment-type-select">
+                      <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contentTypeOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Combobox
+                    mode="default"
+                    options={contentTypeOptions}
+                    value={field.value || ''}
+                    onValueChange={(next: string) => field.onChange(next)}
+                    placeholder={t('select-type') || 'Select type'}
+                    searchPlaceholder="Search types..."
+                    emptyText={typesLoading ? 'Loading...' : 'No results'}
+                    loading={typesLoading}
+                    onSearch={setTypeSearch}
+                    searchDebounce={300}
+                    onLoadMore={loadMoreTypes}
+                    hasMore={typeHasMore}
+                    disabled={!activeGroup}
+                    data-testid="document-segment-type-select"
+                  />
+                )}
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -436,14 +476,14 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                 <TaxonomyMultiSelect
                   options={categoryOptions}
                   value={field.value || []}
-                  onValueChange={ids => {
-                    field.onChange(ids)
-                    onCategoriesChange?.(ids)
-                  }}
-                  onCreateNew={onCreateCategory}
+                  onValueChange={field.onChange}
+                  onCreateNew={createCategory}
                   isLoading={categoriesLoading}
                   placeholder="Select categories..."
                   data-testid="document-segment-categories-select"
+                  onSearch={setCategorySearch}
+                  onLoadMore={loadMoreCategories}
+                  hasMore={categoryHasMore}
                 />
               </FormControl>
               <FormMessage />
@@ -461,14 +501,14 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                 <TaxonomyMultiSelect
                   options={tagOptions}
                   value={field.value || []}
-                  onValueChange={ids => {
-                    field.onChange(ids)
-                    onTagsChange?.(ids)
-                  }}
-                  onCreateNew={onCreateTag}
+                  onValueChange={field.onChange}
+                  onCreateNew={createTag}
                   isLoading={tagsLoading}
                   placeholder="Select tags..."
                   data-testid="document-segment-tags-select"
+                  onSearch={setTagSearch}
+                  onLoadMore={loadMoreTags}
+                  hasMore={tagHasMore}
                 />
               </FormControl>
               <FormMessage />

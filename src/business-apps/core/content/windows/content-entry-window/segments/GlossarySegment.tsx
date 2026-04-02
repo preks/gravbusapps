@@ -1,5 +1,5 @@
-import React from 'react'
-import { Control } from 'react-hook-form'
+import React, { useState } from 'react'
+import { Control, useWatch } from 'react-hook-form'
 import {
   FormControl,
   FormField,
@@ -18,8 +18,8 @@ import {
 } from '@newwork/nw-design-system'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
-import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
-import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
+import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
 import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
@@ -27,25 +27,34 @@ interface GlossarySegmentProps {
   control: Control<ContentEntryFormValues>
   accessToken?: string
   extractedContentGroup?: string | null
-  onCreateCategory?: (label: string) => Promise<string>
-  onCreateTag?: (label: string) => Promise<string>
-  onCategoriesChange?: (categories: string[]) => void
-  onTagsChange?: (tags: string[]) => void
 }
 
-export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
-  control,
-  accessToken,
-  extractedContentGroup,
-  onCreateCategory,
-  onCreateTag,
-  onCategoriesChange,
-  onTagsChange
-}) => {
+export const GlossarySegment: React.FC<GlossarySegmentProps> = ({ control, accessToken, extractedContentGroup }) => {
   const { t } = useTranslation(translations)
 
-  const { options: categoryOptions, isLoading: categoriesLoading } = useContentCategoryOptions(accessToken)
-  const { options: tagOptions, isLoading: tagsLoading } = useContentTagOptions(accessToken)
+  const watchedCategories = useWatch({ control, name: 'categories' })
+  const watchedTags = useWatch({ control, name: 'tags' })
+
+  const [initialCategoryIds] = useState<string[]>(() => watchedCategories || [])
+  const [initialTagIds] = useState<string[]>(() => watchedTags || [])
+
+  const {
+    options: categoryOptions,
+    isLoading: categoriesLoading,
+    setSearch: setCategorySearch,
+    hasMore: categoryHasMore,
+    loadMore: loadMoreCategories,
+    createCategory
+  } = useContentCategorySelect(accessToken, initialCategoryIds)
+
+  const {
+    options: tagOptions,
+    isLoading: tagsLoading,
+    setSearch: setTagSearch,
+    hasMore: tagHasMore,
+    loadMore: loadMoreTags,
+    createTag
+  } = useContentTagSelect(accessToken, initialTagIds)
 
   return (
     <div className="gba:space-y-6">
@@ -160,14 +169,14 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
                 <TaxonomyMultiSelect
                   options={categoryOptions}
                   value={field.value || []}
-                  onValueChange={ids => {
-                    field.onChange(ids)
-                    onCategoriesChange?.(ids)
-                  }}
-                  onCreateNew={onCreateCategory}
+                  onValueChange={field.onChange}
+                  onCreateNew={createCategory}
                   isLoading={categoriesLoading}
                   placeholder="Select categories..."
                   data-testid="glossary-segment-categories-select"
+                  onSearch={setCategorySearch}
+                  onLoadMore={loadMoreCategories}
+                  hasMore={categoryHasMore}
                 />
               </FormControl>
               <FormMessage />
@@ -185,14 +194,14 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
                 <TaxonomyMultiSelect
                   options={tagOptions}
                   value={field.value || []}
-                  onValueChange={ids => {
-                    field.onChange(ids)
-                    onTagsChange?.(ids)
-                  }}
-                  onCreateNew={onCreateTag}
+                  onValueChange={field.onChange}
+                  onCreateNew={createTag}
                   isLoading={tagsLoading}
                   placeholder="Select tags..."
                   data-testid="glossary-segment-tags-select"
+                  onSearch={setTagSearch}
+                  onLoadMore={loadMoreTags}
+                  hasMore={tagHasMore}
                 />
               </FormControl>
               <FormMessage />
