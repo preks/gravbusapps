@@ -11,7 +11,6 @@ import { SteeringConsole } from './components/steering-console/SteeringConsole'
 import { TraceExplorer } from './components/trace-view/TraceExplorer'
 import { CommunicationPatterns } from './components/trace-view/CommunicationPatterns'
 import { AlertRulesManager } from './components/trace-view/AlertRulesManager'
-import { useAgentMeshClient } from './hooks/useAgentMeshClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { WorkspaceODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
@@ -158,7 +157,6 @@ export const AgentMeshApp: React.FC<AgentMeshAppProps> = ({
 
 /** Sub-view: Agent Registry with data fetching and Add-to-Mesh support */
 function RegistryView({ accessToken, onAgentClick }: { accessToken: string; onAgentClick: (id: string) => void }) {
-  const api = useAgentMeshClient(accessToken)
   const pmClient = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
@@ -184,7 +182,7 @@ function RegistryView({ accessToken, onAgentClick }: { accessToken: string; onAg
   useEffect(() => {
     let mounted = true
     const wsParam = selectedWorkspace !== 'all' ? selectedWorkspace : undefined
-    Promise.allSettled([api.getAgentRegistry({ workspaceId: wsParam }), api.getMeshLayout()])
+    Promise.allSettled([pmClient.getAgentRegistry({ workspaceId: wsParam }), pmClient.getMeshLayout()])
       .then(([agentsRes, layoutRes]) => {
         if (!mounted) return
         if (agentsRes.status === 'fulfilled') setAgents(agentsRes.value)
@@ -199,31 +197,31 @@ function RegistryView({ accessToken, onAgentClick }: { accessToken: string; onAg
     return () => {
       mounted = false
     }
-  }, [api, selectedWorkspace])
+  }, [pmClient, selectedWorkspace])
 
   const handleAddToMesh = useCallback(
     async (agentId: string) => {
       try {
-        const layout = await api.getMeshLayout()
+        const layout = await pmClient.getMeshLayout()
         const positions = layout?.positions || []
         if (positions.some((p: { agent_id: string }) => p.agent_id === agentId)) return
         const maxX = positions.reduce((max: number, p: { x: number }) => Math.max(max, p.x), 0)
         const newPositions = [...positions, { agent_id: agentId, x: maxX + 280, y: 100 }]
-        await api.saveMeshLayout(newPositions)
+        await pmClient.saveMeshLayout(newPositions)
         setMeshAgentIds(prev => new Set([...prev, agentId]))
       } catch (err) {
         console.error('Failed to add agent to mesh:', err)
       }
     },
-    [api]
+    [pmClient]
   )
 
   const handleRemoveFromMesh = useCallback(
     async (agentId: string) => {
       try {
-        const layout = await api.getMeshLayout()
+        const layout = await pmClient.getMeshLayout()
         const positions = (layout?.positions || []).filter((p: { agent_id: string }) => p.agent_id !== agentId)
-        await api.saveMeshLayout(positions)
+        await pmClient.saveMeshLayout(positions)
         setMeshAgentIds(prev => {
           const next = new Set(prev)
           next.delete(agentId)
@@ -233,7 +231,7 @@ function RegistryView({ accessToken, onAgentClick }: { accessToken: string; onAg
         console.error('Failed to remove agent from mesh:', err)
       }
     },
-    [api]
+    [pmClient]
   )
 
   if (initialLoading) {
@@ -261,7 +259,7 @@ function RegistryView({ accessToken, onAgentClick }: { accessToken: string; onAg
 /** Sub-view: Traces with sub-tabs */
 function TracesView({ accessToken }: { accessToken: string }) {
   const [subTab, setSubTab] = useState<'traces' | 'patterns' | 'alerts'>('traces')
-  const api = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [analytics, setAnalytics] = useState<ExecutionAnalytics | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
 
@@ -269,8 +267,8 @@ function TracesView({ accessToken }: { accessToken: string }) {
     if (subTab !== 'patterns') return
     let mounted = true
     setAnalyticsLoading(true)
-    api
-      .getExecutionAnalytics({ days: 30 })
+    promptManagerClient
+      .getMeshExecutionAnalytics({ days: 30 })
       .then(data => {
         if (mounted) setAnalytics(data)
       })
@@ -281,7 +279,7 @@ function TracesView({ accessToken }: { accessToken: string }) {
     return () => {
       mounted = false
     }
-  }, [api, subTab])
+  }, [promptManagerClient, subTab])
 
   const SUB_TABS: { key: typeof subTab; label: string }[] = [
     { key: 'traces', label: 'Traces' },

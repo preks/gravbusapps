@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useNodesState, useEdgesState, type Node, type Edge } from '@xyflow/react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getLayoutedPositions } from '@/common/utils/meshLayout'
 import type {
   AgentRegistryEntry,
@@ -8,7 +9,6 @@ import type {
   ExecutionAnalytics,
   ActiveAlert
 } from '../types/agentMesh'
-import { useAgentMeshClient } from './useAgentMeshClient'
 import type { MeshEdgeColors } from './useMeshEdgeColors'
 import { mergeConnectionsToEdges, buildMeshNodesAndEdges } from '../utils/meshGraphUtils'
 export type { MergedEdge } from '../utils/meshGraphUtils'
@@ -19,7 +19,7 @@ export function useMeshDashboardData(
   selectedEdgeId: string | null,
   editMode: boolean
 ) {
-  const api = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
   const [executions, setExecutions] = useState<ExecutionListItem[]>([])
@@ -33,12 +33,12 @@ export function useMeshDashboardData(
   const loadData = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
-        api.getAgentRegistry({ agentType: 'everyai' }),
-        api.getConnections(),
-        api.getExecutions({ limit: 50 }),
-        api.getExecutionAnalytics({ days: 1 }),
-        api.getActiveAlerts(),
-        api.getMeshLayout()
+        promptManagerClient.getAgentRegistry({ agentType: 'everyai' }),
+        promptManagerClient.getMeshConnections(),
+        promptManagerClient.getMeshExecutions({ limit: 50 }),
+        promptManagerClient.getMeshExecutionAnalytics({ days: 1 }),
+        promptManagerClient.getActiveAlerts(),
+        promptManagerClient.getMeshLayout()
       ])
 
       const getValue = <T>(r: PromiseSettledResult<T>, fallback: T, label: string): T => {
@@ -64,7 +64,7 @@ export function useMeshDashboardData(
     } catch (err) {
       console.error('Failed to load mesh data:', err)
     }
-  }, [api])
+  }, [promptManagerClient])
 
   useEffect(() => {
     loadData()
@@ -112,14 +112,14 @@ export function useMeshDashboardData(
   const handleRemoveFromMesh = useCallback(
     async (agentId: string) => {
       const agentConns = connections.filter(c => c.caller_id === agentId || c.callee_id === agentId)
-      await Promise.allSettled(agentConns.map(c => api.deleteConnection(c.connection_id)))
+      await Promise.allSettled(agentConns.map(c => promptManagerClient.deleteMeshConnection(c.connection_id)))
       const remaining = Object.entries(savedPositionsRef.current)
         .filter(([id]) => id !== agentId)
         .map(([id, pos]) => ({ agent_id: id, x: pos.x, y: pos.y }))
-      await api.saveMeshLayout(remaining).catch(() => {})
+      await promptManagerClient.saveMeshLayout(remaining).catch(() => {})
       await loadData()
     },
-    [connections, api, loadData]
+    [connections, promptManagerClient, loadData]
   )
 
   // Build React Flow nodes + edges from data
@@ -170,10 +170,10 @@ export function useMeshDashboardData(
           y: n.position.y
         }))
         savedPositionsRef.current = Object.fromEntries(positions.map(p => [p.agent_id, { x: p.x, y: p.y }]))
-        api.saveMeshLayout(positions).catch(() => {})
+        promptManagerClient.saveMeshLayout(positions).catch(() => {})
       }, 1500)
     },
-    [onNodesChange, nodes, api]
+    [onNodesChange, nodes, promptManagerClient]
   )
 
   const handleAutoLayout = useCallback(() => {
@@ -184,8 +184,8 @@ export function useMeshDashboardData(
       ...pos
     }))
     savedPositionsRef.current = dagrePositions
-    api.saveMeshLayout(positions).catch(() => {})
-  }, [meshAgents, connections, setNodes, api])
+    promptManagerClient.saveMeshLayout(positions).catch(() => {})
+  }, [meshAgents, connections, setNodes, promptManagerClient])
 
   return {
     agents,

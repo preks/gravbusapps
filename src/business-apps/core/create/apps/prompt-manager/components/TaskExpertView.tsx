@@ -12,7 +12,6 @@ import {
 import { ArrowLeft, Network, Settings } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import translations from '../_i18n'
 import ExpertDashboardTab from './monitoring/ExpertDashboardTab'
@@ -37,7 +36,6 @@ export const TaskExpertView: React.FC<TaskExpertViewProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const client = usePromptManagerClient(context.accessToken)
-  const meshApi = useAgentMeshClient(context.accessToken)
   const [prompt, setPrompt] = useState<PromptODM | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard')
@@ -66,12 +64,12 @@ export const TaskExpertView: React.FC<TaskExpertViewProps> = ({
 
   const handleAddToMesh = async () => {
     try {
-      const layout = await meshApi.getMeshLayout()
+      const layout = await client.getMeshLayout()
       const existing = layout?.positions || []
       if (existing.some(p => p.agent_id === promptId)) {
         setMeshStatus(t('already-in-mesh'))
       } else {
-        await meshApi.saveMeshLayout([...existing, { agent_id: promptId, x: 0, y: 0 }])
+        await client.saveMeshLayout([...existing, { agent_id: promptId, x: 0, y: 0 }])
         setMeshStatus(t('added-to-mesh'))
       }
       setTimeout(() => setMeshStatus(null), 3000)

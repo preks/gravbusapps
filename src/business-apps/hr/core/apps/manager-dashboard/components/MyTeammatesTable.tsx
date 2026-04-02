@@ -220,7 +220,7 @@ type MyTeammatesTableProps = {
   }
 }
 
-const MyTeammatesTable = ({
+export const MyTeammatesTable = ({
   activeTeamTab,
   setActiveTeamTab,
   directReports,

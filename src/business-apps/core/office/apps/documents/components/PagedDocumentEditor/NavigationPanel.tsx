@@ -295,7 +295,7 @@ export function NavigationPanel({
                           className="gba:w-full gba:text-left gba:px-2 gba:py-1.5 gba:rounded gba:text-sm gba:text-foreground hover:gba:bg-muted"
                           data-testid={`${testId}-heading-item-${idx}`}
                         >
-                          {h.text || t('editor-heading-normal')}
+                          {h.text || t('title-untitled')}
                         </button>
                       </li>
                     )

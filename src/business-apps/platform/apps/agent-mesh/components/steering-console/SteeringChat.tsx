@@ -16,7 +16,6 @@ import {
 import { History, Plus, Send, Loader2, Brain, Zap, Sparkles, Network } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
 import { SubAgentSources } from './SubAgentSources'
 import type { CommEvent } from './AgentCommFeed'
 import type { ExecutionTrace, AgentRegistryEntry, SessionMessage } from '../../types/agentMesh'
@@ -56,7 +55,6 @@ export const SteeringChat = ({
   onNewSession
 }: SteeringChatProps) => {
   const promptClient = usePromptManagerClient(accessToken)
-  const meshClient = useAgentMeshClient(accessToken)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -130,7 +128,7 @@ export const SteeringChat = ({
 
   useEffect(() => {
     let mounted = true
-    Promise.allSettled([meshClient.getAgentRegistry({ agentType: 'everyai' }), meshClient.getMeshLayout()])
+    Promise.allSettled([promptClient.getAgentRegistry({ agentType: 'everyai' }), promptClient.getMeshLayout()])
       .then(([registryRes, layoutRes]) => {
         if (!mounted) return
         const allAgents = registryRes.status === 'fulfilled' ? registryRes.value : []
@@ -150,7 +148,7 @@ export const SteeringChat = ({
     return () => {
       mounted = false
     }
-  }, [meshClient, selectedAgentId])
+  }, [promptClient, selectedAgentId])
 
   const getTextareaElement = useCallback(() => {
     const el = textareaRef.current
@@ -215,9 +213,9 @@ export const SteeringChat = ({
 
       if (onTraceUpdate) {
         try {
-          const executions = await meshClient.getExecutions({ limit: 1 })
+          const executions = await promptClient.getMeshExecutions({ limit: 1 })
           if (executions.length > 0 && executions[0].correlation_id) {
-            const trace = await meshClient.getExecutionTrace(executions[0].correlation_id)
+            const trace = await promptClient.getMeshExecutionTrace(executions[0].correlation_id)
             onTraceUpdate(trace)
           }
         } catch {
@@ -247,7 +245,6 @@ export const SteeringChat = ({
     commEvents,
     llmProvider,
     promptClient,
-    meshClient,
     getTextareaElement,
     onResultUpdate,
     onTraceUpdate,

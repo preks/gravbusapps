@@ -772,10 +772,36 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
     [graphqlClient, activeExperts, searchDocuments]
   )
 
+  // Prune selectedEntities to those whose span still matches the current text (so indices aren't stale)
+  const getValidSelectedEntities = useCallback(
+    (text: string, entities: MessageEntityReference[]): MessageEntityReference[] =>
+      entities.filter(entity => {
+        if (entity.startIndex >= text.length || entity.endIndex > text.length) return false
+        const slice = text.slice(entity.startIndex, entity.endIndex)
+        const expected =
+          insertionMode === 'markdown_link' ? `[${entity.name}](${entity.type}://${entity.id})` : `@${entity.name}`
+        return slice === expected
+      }),
+    [insertionMode]
+  )
+
   // Handle text change and detect mentions
   const handleTextChange = useCallback(
     (text: string, caretPosition: number) => {
-      const mention = detectMention(text, caretPosition, selectedEntities)
+      // If there's no @ in the text, we're not in a mention — reset state so a new @ can trigger mention mode
+      if (!text.includes('@')) {
+        setMentionState(null)
+        setEntities([])
+        setSelectedEntities(prev => getValidSelectedEntities(text, prev))
+        return
+      }
+
+      // Use only entities that still exist in the current text for detection.
+      // Otherwise stale indices (e.g. after erasing a mention) make isWithinCompletedMention block new @.
+      const validEntities = getValidSelectedEntities(text, selectedEntities)
+      setSelectedEntities(validEntities)
+
+      const mention = detectMention(text, caretPosition, validEntities)
       setMentionState(mention)
 
       if (mention) {
@@ -784,7 +810,7 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
         setEntities([])
       }
     },
-    [detectMention, searchEntities, selectedEntities]
+    [detectMention, searchEntities, selectedEntities, getValidSelectedEntities]
   )
 
   // Insert selected entity into text
@@ -814,8 +840,10 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
         endIndex: mentionState.startIndex + displayText.length
       }
 
+      // Only suppress detection when caret is inside the mention text, not after the trailing space
+      const endOfMentionText = mentionState.startIndex + displayText.length
       justInsertedRef.current = {
-        endPosition: newCaretPosition,
+        endPosition: endOfMentionText,
         timestamp: Date.now()
       }
 

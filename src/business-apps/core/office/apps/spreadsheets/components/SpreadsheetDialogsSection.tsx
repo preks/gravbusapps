@@ -45,7 +45,7 @@ export interface SpreadsheetDialogsSectionProps {
     isSaving: boolean
     createCheckpoint: (description: string) => Promise<unknown>
   }
-  handleRestoreVersion: (versionNumber: number) => Promise<void>
+  handleRestoreVersion: (versionNumber: number) => Promise<boolean>
 
   // Checkpoint Dialog
   showCheckpointDialog: boolean
@@ -162,7 +162,13 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
           <VersionHistory
             versions={versioning.versions}
             isLoading={versioning.isLoading}
-            onRestore={handleRestoreVersion}
+            onRestore={async versionNumber => {
+              const restored = await handleRestoreVersion(versionNumber)
+              if (!restored) {
+                const restoreError = (versioning as { error?: string }).error
+                toast.error(restoreError || t('shared-error-restore-version'))
+              }
+            }}
             onClose={() => setShowVersionHistory(false)}
             currentVersion={versioning.currentVersion?.version}
             showAutoSaves={false}
@@ -192,7 +198,12 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             isOpen={showCheckpointDialog}
             onClose={() => setShowCheckpointDialog(false)}
             onSave={async description => {
-              await versioning.createCheckpoint(description)
+              const checkpoint = await versioning.createCheckpoint(description)
+              if (!checkpoint) {
+                toast.error(t('toast-checkpoint-save-failed'))
+                return false
+              }
+              return true
             }}
             isSaving={versioning.isSaving}
             messages={{

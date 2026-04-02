@@ -241,20 +241,19 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
   }
 
   return (
-    <div data-testid="company-record">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={companyAvatar}
-        headerOverline={t('company-category')}
-        onBack={onBack}
-        headerTitle={companyName}
-        headerSubtitle={company?.description}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="company-record"
+      headerOrientation="horizontal"
+      headerAvatar={companyAvatar}
+      headerOverline={t('company-category')}
+      onBack={onBack}
+      headerTitle={companyName}
+      headerSubtitle={company?.description}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

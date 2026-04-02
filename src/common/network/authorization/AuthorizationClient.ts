@@ -197,4 +197,6 @@ export class AuthorizationClient extends RestClient {
   }
 }
 
+export const authorizationClient = AuthorizationClient.getInstance()
+
 export default AuthorizationClient

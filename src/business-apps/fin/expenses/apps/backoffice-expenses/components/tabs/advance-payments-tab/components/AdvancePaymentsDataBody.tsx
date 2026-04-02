@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { ExpenseDataTable } from '../../../../../../common/components/ExpenseDataTable'
-import { TableErrorState } from '../../../../../../common/components/TableErrorState'
+import { ExpenseDataTable } from '../../../../../../common/components/table/ExpenseDataTable'
+import { TableErrorState } from '../../../../../../common/components/table/TableErrorState'
 import type { AdvancePaymentItem } from '../../../../types'
 
 interface AdvancePaymentsDataBodyProps {
