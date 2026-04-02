@@ -18,6 +18,23 @@ export interface AbsenceCatalogEntryPayload {
 
 const CATALOG_VERSION = 'v1'
 
+const buildSoftDeletePutPayload = (entry: CatalogEntry): Record<string, unknown> => ({
+  id: entry.id,
+  code: entry.code,
+  alternativeCode: entry.alternativeCode,
+  type: entry.type,
+  displayOrder: entry.displayOrder,
+  localeCode: entry.localeCode,
+  value: entry.value,
+  additionalValue1: entry.additionalValue1,
+  additionalValue2: entry.additionalValue2,
+  additionalValue3: entry.additionalValue3,
+  objectValue: entry.objectValue,
+  parentEntryId: entry.parentEntryId,
+  translations: entry.translations || [],
+  isDeleted: true
+})
+
 const assignIfDefined = <K extends keyof Partial<Omit<CatalogEntry, 'id' | 'type'>>>(
   target: Partial<Omit<CatalogEntry, 'id' | 'type'>>,
   key: K,
@@ -139,12 +156,12 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
 
       const existingEntry = entries.find(item => item.id === entryId) || (await client.getCatalogEntryById(entryId))
 
-      await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, {
-        code: existingEntry.code,
-        value: existingEntry.value,
-        parentEntryId: existingEntry.parentEntryId,
-        isDeleted: true
-      } as any)
+      await client.updateCatalogEntry(
+        catalogIdentifier,
+        CATALOG_VERSION,
+        entryId,
+        buildSoftDeletePutPayload(existingEntry) as any
+      )
       setEntries(prev => prev.filter(item => item.id !== entryId))
     },
     [catalogIdentifier, client, entries]

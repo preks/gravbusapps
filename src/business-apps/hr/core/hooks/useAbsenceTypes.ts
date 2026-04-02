@@ -8,6 +8,23 @@ import { isCatalogEntryDeleted } from '../utils/catalogEntryHelpers'
 const ABSENCE_TYPE_CATALOG = 'AbsenceType'
 const ABSENCE_TYPE_VERSION = 'v1'
 
+const buildSoftDeletePutPayload = (entry: CatalogEntry): Record<string, unknown> => ({
+  id: entry.id,
+  code: entry.code,
+  alternativeCode: entry.alternativeCode,
+  type: entry.type,
+  displayOrder: entry.displayOrder,
+  localeCode: entry.localeCode,
+  value: entry.value,
+  additionalValue1: entry.additionalValue1,
+  additionalValue2: entry.additionalValue2,
+  additionalValue3: entry.additionalValue3,
+  objectValue: entry.objectValue,
+  parentEntryId: entry.parentEntryId,
+  translations: entry.translations || [],
+  isDeleted: true
+})
+
 const mapCatalogEntryToAbsenceType = (entry: CatalogEntry): AbsenceType => ({
   id: entry.id,
   code: entry.code,
@@ -151,17 +168,14 @@ const useAbsenceTypes = (accessToken: string) => {
       if (!existingType) {
         throw new Error('Absence type not found')
       }
+      const entryId = resolveCatalogEntryId(absenceTypes, id)
+      const freshEntry = await client.getCatalogEntryById(entryId)
 
       await client.updateCatalogEntry(
         ABSENCE_TYPE_CATALOG,
         ABSENCE_TYPE_VERSION,
-        resolveCatalogEntryId(absenceTypes, id),
-        {
-          code: existingType.code,
-          value: existingType.value,
-          parentEntryId: existingType.parentEntryId,
-          isDeleted: true
-        } as any
+        entryId,
+        buildSoftDeletePutPayload(freshEntry as CatalogEntry) as any
       )
       setAbsenceTypes(prev => prev.filter(item => item.id !== id))
     },
