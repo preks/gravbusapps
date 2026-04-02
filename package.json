@@ -35,7 +35,7 @@
     "rules:validate": "cursor-rules validate",
     "rules:diff": "cursor-rules diff",
     "preinstall": "node ./scripts/setup-env.js",
-    "postinstall": "node ./scripts/patch-excalidraw-fonts-export.cjs && newwork-git-hooks"
+    "postinstall": "newwork-git-hooks"
   },
   "dependencies": {
     "@cloudflare/realtimekit": "^1.0.0",
