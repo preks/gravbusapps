@@ -25,6 +25,11 @@ import {
   downloadBlob,
   getExportableEmployees
 } from '../../../utils/exportUtils'
+import {
+  DEFAULT_EXPORT_FILE_BASENAME,
+  DEFAULT_FALLBACK_PAYROLL_RUN_ID,
+  DEFAULT_PAYROLL_COUNTRY
+} from '../../../utils/payrollDefaults'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
@@ -192,10 +197,10 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 
   const fallbackRun: PayrollRun = useMemo(
     () => ({
-      id: 'draft',
+      id: DEFAULT_FALLBACK_PAYROLL_RUN_ID,
       month: 0,
       year: 0,
-      country: 'DE',
+      country: DEFAULT_PAYROLL_COUNTRY,
       legalEntityId: '',
       legalEntityName: '',
       cutOffDate: '',
@@ -247,7 +252,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 
     setExporting(true)
     try {
-      const baseFilename = `payroll_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}_${(effectiveRun.legalEntityName || 'export').replace(/\s+/g, '_')}`
+      const baseFilename = `payroll_${effectiveRun.country}_${effectiveRun.year}-${String(effectiveRun.month).padStart(2, '0')}_${(effectiveRun.legalEntityName || DEFAULT_EXPORT_FILE_BASENAME).replace(/\s+/g, '_')}`
 
       if (exportFormat === 'xlsx') {
         const blob = await generatePayrollXLSX(sourceEmployees, effectiveRun, options)

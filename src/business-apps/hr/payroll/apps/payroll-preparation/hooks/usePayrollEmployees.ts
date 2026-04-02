@@ -13,6 +13,7 @@ import {
 } from '../queries/payrollQueries'
 import { runAllValidations, resetIssueIdCounter } from '../utils/validationRules'
 import { parseDurationToMinutes, getPlannedMinutesForDate, toLocalDateKey } from '../utils/timeUtils'
+import { DEFAULT_PAYROLL_COUNTRY, DEFAULT_PAYROLL_CURRENCY } from '../utils/payrollDefaults'
 import type { PayrollEmployee, PayrollCountry, PayrollSummary, PayrollGridFilters } from '../types/payrollTypes'
 import { ORGCHART_API_URL } from '@/common/utils/serviceResolver'
 
@@ -610,7 +611,7 @@ function buildPayrollEmployee(
     fte: wh?.fullTimeEquivalent ?? null,
     weeklyHours: wh?.weeklyHours ?? null,
     baseSalary: salary?.monthlyGrossSalary ?? null,
-    currency: salary?.currency?.code || salary?.currencyRef || 'EUR',
+    currency: salary?.currency?.code || salary?.currencyRef || DEFAULT_PAYROLL_CURRENCY,
     bankDetailsPresent: !!(bank?.iban || bank?.bankName),
     bankAccountIban: bank?.iban || undefined,
 
@@ -690,7 +691,7 @@ export function usePayrollEmployees(
         return
       }
 
-      const effectiveCountry = country || 'DE'
+      const effectiveCountry = country || DEFAULT_PAYROLL_COUNTRY
 
       const employeeIds = [...new Set(positions.map(p => p.employee?.id).filter(Boolean))]
       const { salaryResult, absenceResult, attendanceResult, bonusResult } = await fetchEmployeeDatasets(

@@ -33,6 +33,7 @@ import { ChangesView } from './components/views/changes/ChangesView'
 import { CountryChecksView } from './components/views/country-checks/CountryChecksView'
 import { ExportSignoffView } from './components/views/export-signoff/ExportSignoffView'
 import translations from './_i18n'
+import { DEFAULT_PAYROLL_COUNTRY } from './utils/payrollDefaults'
 
 const moduleColor = MODULE_COLORS.HR
 
@@ -313,7 +314,7 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
         return (
           <PayrollGridView
             employees={employees}
-            country={detectedCountry || 'DE'}
+            country={detectedCountry || DEFAULT_PAYROLL_COUNTRY}
             filters={gridFilters}
             onFiltersChange={setGridFilters}
             onRefresh={handleRefresh}
@@ -326,7 +327,7 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
       case 'changes':
         return <ChangesView employees={employees} t={t} />
       case 'country-checks':
-        return <CountryChecksView employees={employees} country={detectedCountry || 'DE'} t={t} />
+        return <CountryChecksView employees={employees} country={detectedCountry || DEFAULT_PAYROLL_COUNTRY} t={t} />
       case 'export':
         return (
           <ExportSignoffView

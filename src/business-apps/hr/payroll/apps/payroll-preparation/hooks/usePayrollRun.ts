@@ -6,6 +6,11 @@ import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { GET_PAYROLL_RUN } from '../queries/payrollQueries'
 import type { PayrollRun, PayrollRunStatus, PayrollCountry, ApprovalDecision, AuditEvent } from '../types/payrollTypes'
 import type { CreatePayrollRunParams } from '../components/shared/CreatePayrollRunDialog'
+import {
+  DEFAULT_AUDIT_USER_SYSTEM_NAME,
+  DEFAULT_AUDIT_USER_UNKNOWN_NAME,
+  DEFAULT_PAYROLL_COUNTRY
+} from '../utils/payrollDefaults'
 
 const SAVE_PROCESS_PATH = '/employee/savePayrollRun'
 
@@ -47,12 +52,12 @@ function toKogitoPayload(run: Record<string, unknown>): Record<string, unknown> 
 }
 
 function getUserDisplayName(userInfo?: UserInfoProps): string {
-  if (!userInfo) return 'System'
+  if (!userInfo) return DEFAULT_AUDIT_USER_SYSTEM_NAME
   const empDetails = userInfo.employeeDetails
   if (empDetails?.displayName) return empDetails.displayName
   if (empDetails?.firstName && empDetails?.lastName) return `${empDetails.firstName} ${empDetails.lastName}`
   if (userInfo.givenName && userInfo.familyName) return `${userInfo.givenName} ${userInfo.familyName}`
-  return userInfo.userName || 'Unknown'
+  return userInfo.userName || DEFAULT_AUDIT_USER_UNKNOWN_NAME
 }
 
 function generateAuditEventId(): string {
@@ -203,7 +208,7 @@ export function usePayrollRun(
           version: 0,
           month: params.month,
           year: params.year,
-          country: country || 'DE',
+          country: country || DEFAULT_PAYROLL_COUNTRY,
           legalEntityId: companyId,
           legalEntityName: companyName || '',
           cutOffDate: new Date(params.cutOffDate + 'T00:00:00.000Z').toISOString(),
