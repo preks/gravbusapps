@@ -4,7 +4,7 @@
  */
 
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
-import { ContentRole } from '../../types/contentEnums'
+import { ContentRole } from '../../constants/contentConstants'
 import { CONTENT_DOCUMENT_FRAGMENT } from '../../types/contentDocumentTypes'
 
 // Re-export document fragment for backwards compatibility
@@ -107,6 +107,7 @@ export const CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT = `
   contentType {
     id
     name
+    nameI18n
     contentGroup
   }
   language {
@@ -128,6 +129,7 @@ export const CONTENT_ENTRY_CATEGORY_FRAGMENT = `
   contentCategory {
     id
     name
+    nameI18n
   }
 `
 
@@ -145,6 +147,7 @@ export const CONTENT_ENTRY_TAG_FRAGMENT = `
   contentTag {
     id
     name
+    nameI18n
   }
 `
 

@@ -2,7 +2,7 @@
  * Content Query Functions
  * Builds GraphQL queries for content entries and related entities
  */
-import { ContentRole } from '../types/contentEnums'
+import { ContentRole } from '../constants/contentConstants'
 import {
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
   CONTENT_DOCUMENT_FRAGMENT,
@@ -180,6 +180,7 @@ export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, 
           contentCategory {
             id
             name
+            nameI18n
           }
         }
         contentEntryTags {
@@ -188,6 +189,7 @@ export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, 
           contentTag {
             id
             name
+            nameI18n
           }
         }
         contentEntryReactionCounts {
@@ -251,6 +253,7 @@ export const buildContentEntryQuery = (id: string, useChildCount = false): strin
           contentCategory {
             id
             name
+            nameI18n
           }
         }
         contentEntryTags {
@@ -259,6 +262,7 @@ export const buildContentEntryQuery = (id: string, useChildCount = false): strin
           contentTag {
             id
             name
+            nameI18n
           }
         }
         contentDocuments {
@@ -409,17 +413,20 @@ export const buildContentReactionsQuery = (params: ContentReactionQueryParams): 
 export const CONTENT_TYPE_FIELDS = `
   id
   name
+  nameI18n
   contentGroup
 `
 
 export const CONTENT_CATEGORY_FIELDS = `
   id
   name
+  nameI18n
 `
 
 export const CONTENT_TAG_FIELDS = `
   id
   name
+  nameI18n
 `
 
 export const buildContentTypesQuery = (contentGroup?: string | null): string => {

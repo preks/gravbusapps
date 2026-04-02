@@ -10,7 +10,7 @@ export interface NavigationDTO {
   updatedAt?: string
   roles?: { name: string }[]
   features?: { name: string }[]
-  name_i18n?: Record<string, string>
+  nameI18n?: Record<string, string>
   description?: string
   description_i18n?: Record<string, string>
   isSearchable?: boolean

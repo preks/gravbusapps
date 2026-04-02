@@ -87,10 +87,10 @@ const NavigationTableRowComponent: React.FC<NavigationTableRowProps> = ({
           value={getFieldValue('name') as string}
           onChange={value => onFieldEdit(navId, 'name', value)}
           testId={`${dataTestId}-name-${navId}`}
-          isEdited={isFieldEdited('name') || isFieldEdited('name_i18n')}
+          isEdited={isFieldEdited('name') || isFieldEdited('nameI18n')}
           isTranslatable={true}
-          translations={(getFieldValue('name_i18n') as Record<string, string>) || {}}
-          onTranslationsChange={translations => onFieldEdit(navId, 'name_i18n', translations)}
+          translations={(getFieldValue('nameI18n') as Record<string, string>) || {}}
+          onTranslationsChange={translations => onFieldEdit(navId, 'nameI18n', translations)}
           disabled={isSaving}
           placeholder="Enter name"
         />

@@ -1,5 +1,5 @@
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 
 export const isPolicyContentEntry = (entry?: ContentEntry | null): boolean => {
   if (!entry) return false

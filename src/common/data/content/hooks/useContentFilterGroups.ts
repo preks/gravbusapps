@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { CONTENT_ENTRY_DESCRIPTORS } from '../types/contentEntryTypes'
-import { ContentGroup } from '../types/contentEnums'
-import { ContentRole } from '../types/contentEnums'
+import { ContentGroup } from '../constants/contentConstants'
+import { ContentRole } from '../constants/contentConstants'
 
 /**
  * Hook to fetch filter options for Content Entries scoped by ContentGroup

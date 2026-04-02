@@ -25,7 +25,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 

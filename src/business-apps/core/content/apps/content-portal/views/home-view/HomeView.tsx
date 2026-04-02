@@ -25,7 +25,7 @@ import {
   MessageCircle
 } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
 import ContentCard from '../../components/cards/ContentCard'
 import { ContentImage } from '../../components/shared/ContentImage'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
@@ -251,10 +251,9 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   // Get content group label
   const getGroupLabel = (groupRef: string | null | undefined) => {
-    if (groupRef === ContentGroup.NEWS) return t('news')
-    if (groupRef === ContentGroup.KNOWLEDGE) return t('knowledge')
-    if (groupRef === ContentGroup.QUESTION) return t('questions')
-    return ''
+    if (!groupRef) return ''
+    const key = CONTENT_GROUP_KEY[groupRef as ContentGroup]
+    return key ? t(key) : groupRef
   }
 
   // Get content group badge variant

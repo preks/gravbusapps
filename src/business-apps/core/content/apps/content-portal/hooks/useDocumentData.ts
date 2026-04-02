@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect } from 'react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useContentDocuments } from '@/common/data/content/hooks/useContentDocuments'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 /**

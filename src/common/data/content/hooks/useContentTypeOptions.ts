@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { ContentType } from '../types/contentTaxonomyTypes'
+import type { ContentType } from '../types/contentTypes'
 import { buildContentTypesQuery } from '../queries/contentQueries'
 
 interface UseContentTypeOptionsResult {

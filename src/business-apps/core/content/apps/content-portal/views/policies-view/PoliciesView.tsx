@@ -19,7 +19,7 @@ import { useContentEntries } from '@/common/data/content/hooks/useContentEntries
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import Banner, { BannerVariant } from '../../components/shared/Banner'

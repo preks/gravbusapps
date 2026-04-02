@@ -17,7 +17,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
-import { CONTENT_GROUP_OPTIONS } from '@/common/data/content/constants/contentGroupConstants'
+import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
 import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
 import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
 import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
@@ -63,9 +63,9 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
                     <SelectValue placeholder={t('select-group') || 'Select group'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONTENT_GROUP_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                    {CONTENT_GROUP_VALUES.map(value => (
+                      <SelectItem key={value} value={value}>
+                        {t(CONTENT_GROUP_KEY[value])}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -2,7 +2,7 @@
  * Content Entry Payload Builder
  * Centralized payload construction for ContentEntry operations
  */
-import { ContentRole } from '../types/contentEnums'
+import { ContentRole } from '../constants/contentConstants'
 
 export type ChangeMode = 'UPSERT' | 'REPLACE'
 

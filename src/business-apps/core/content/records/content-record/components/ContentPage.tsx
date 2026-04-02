@@ -1,7 +1,7 @@
 import React from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import ArticleView from './ArticleView'
 import QuestionView from './QuestionView'
 import KnowledgeArticleView from './KnowledgeArticleView'

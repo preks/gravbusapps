@@ -7,21 +7,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
-const CONTENT_GROUP_OPTIONS: { value: ContentGroup; label: string }[] = [
-  { value: ContentGroup.NEWS, label: 'News' },
-  { value: ContentGroup.KNOWLEDGE, label: 'Knowledge' },
-  { value: ContentGroup.POLICY, label: 'Policies' },
-  { value: ContentGroup.DOCUMENT, label: 'Document' },
-  { value: ContentGroup.QUESTION, label: 'Question' },
-  { value: ContentGroup.GLOSSARY, label: 'Glossary' }
-]
+import translations from '../../_i18n'
 
 export interface ContentGroupChangePopupProps extends BusinessAppContextProps {
   onClose: () => void
@@ -44,6 +37,8 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
   onSuccess,
   'data-testid': dataTestId = 'content-group-change-popup'
 }) => {
+  const { t } = useTranslation(translations)
+
   const contentEntryId =
     additionalData?.contentEntryId || additionalData?.psi_taskPayload?.psi_initialParameters?.contentEntryId
 
@@ -62,7 +57,7 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
   const [selectedGroup, setSelectedGroup] = useState<string>('')
 
   const currentGroup = entry?.contentGroup ?? ''
-  const availableGroups = useMemo(() => CONTENT_GROUP_OPTIONS.filter(opt => opt.value !== currentGroup), [currentGroup])
+  const availableGroups = useMemo(() => CONTENT_GROUP_VALUES.filter(value => value !== currentGroup), [currentGroup])
 
   const handleSubmit = async () => {
     if (!entry?.id) {
@@ -156,9 +151,9 @@ export const ContentGroupChangePopup: React.FC<ContentGroupChangePopupProps> = (
               />
             </SelectTrigger>
             <SelectContent>
-              {availableGroups.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
+              {availableGroups.map(value => (
+                <SelectItem key={value} value={value}>
+                  {t(CONTENT_GROUP_KEY[value])}
                 </SelectItem>
               ))}
             </SelectContent>

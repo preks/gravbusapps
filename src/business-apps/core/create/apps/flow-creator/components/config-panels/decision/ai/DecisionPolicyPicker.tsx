@@ -17,7 +17,7 @@ import { Check, ChevronsUpDown, FileText, Loader2 } from 'lucide-react'
 import translations from '../../../../_i18n'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { isPolicyContentEntry } from '@/business-apps/core/content/utils/policyUtils'
-import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { POLICY_PICKER_FIELDS } from '../decisionConfigUtils'
 
@@ -43,12 +43,11 @@ export const DecisionPolicyPicker: React.FC<DecisionPolicyPickerProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRefs: [
+      contentGroups: [
         ContentGroup.NEWS,
         ContentGroup.KNOWLEDGE,
         ContentGroup.DOCUMENT,
         ContentGroup.QUESTION,
-        ContentGroup.INTRANET,
         ContentGroup.GLOSSARY
       ],
       limit: 100,

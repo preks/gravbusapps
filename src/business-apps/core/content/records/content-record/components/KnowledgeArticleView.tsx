@@ -6,7 +6,7 @@ import ContentInfoSection from './ContentInfoSection'
 import { ContentHtmlRenderer } from './ContentHtmlRenderer'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import { ContentArticleAnalyzer } from '@/business-apps/core/content/components/ContentArticleAnalyzer'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import type { TranslatedTexts } from '@/common/components/content'
 
 interface KnowledgeArticleViewProps {

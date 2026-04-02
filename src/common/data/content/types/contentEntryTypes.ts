@@ -5,8 +5,8 @@
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type { ContentRole, ContentGroup } from './contentEnums'
-import type { ContentType, ContentCategory, ContentTag } from './contentTaxonomyTypes'
+import type { ContentRole, ContentGroup } from '../constants/contentConstants'
+import type { ContentType, ContentCategory, ContentTag } from './contentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 

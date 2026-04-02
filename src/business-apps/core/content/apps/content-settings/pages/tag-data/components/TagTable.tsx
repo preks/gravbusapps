@@ -25,7 +25,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
-import type { ContentTag } from '@/common/data/content/types/contentTaxonomyTypes'
+import type { ContentTag } from '@/common/data/content/types/contentTypes'
 
 interface TagFormData {
   name: string

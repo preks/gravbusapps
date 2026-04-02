@@ -1,4 +1,4 @@
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 /**

@@ -1,5 +1,5 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 
 // Base filter groups (without content group filter)
 const baseFilterGroups = [

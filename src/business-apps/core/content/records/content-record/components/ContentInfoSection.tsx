@@ -6,7 +6,7 @@ import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 import { EmployeeHoverCard } from '@/common/components/employee'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import dayjs from 'dayjs'
 
 interface ContentInfoSectionProps {

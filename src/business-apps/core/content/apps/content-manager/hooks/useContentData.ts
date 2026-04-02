@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import type { ContentEntryQueryParams } from '@/common/data/content/queries/contentQueries'
-import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 
 // Define types locally since nw-design-system doesn't export them
 export type SortingState = Array<{

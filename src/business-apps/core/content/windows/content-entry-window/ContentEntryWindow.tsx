@@ -7,7 +7,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import {

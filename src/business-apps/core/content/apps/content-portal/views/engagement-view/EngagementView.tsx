@@ -13,7 +13,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUserEngagement } from '../../hooks/useUserEngagement'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import {
   Eye,
   Heart,

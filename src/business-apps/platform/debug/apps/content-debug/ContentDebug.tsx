@@ -44,8 +44,8 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
   const [searchTerm, setSearchTerm] = useState('')
   const [contentEntryId, setContentEntryId] = useState('')
   const [role, setRole] = useState<string | undefined>(undefined)
-  const [contentGroupRef, setContentGroupRef] = useState('')
-  const [contentTypeRef, setContentTypeRef] = useState('')
+  const [contentGroup, setContentGroup] = useState('')
+  const [contentTypeId, setContentTypeId] = useState('')
 
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -170,8 +170,8 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
           limit: 10,
           search: searchTerm || undefined,
           role: role || undefined,
-          contentGroupRef: contentGroupRef || undefined,
-          contentTypeRef: contentTypeRef || undefined
+          contentGroup: contentGroup || undefined,
+          contentTypeId: contentTypeId || undefined
         }
         const query = buildContentEntriesQuery(variables)
         return executeTest('content-entries', () => graphqlClient.request(query), 'GET_CONTENT_ENTRIES', variables)
@@ -308,9 +308,9 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
               <Text strong>Content Group Ref:</Text>
               <Input
                 data-testid="content-debug-group-ref-input"
-                placeholder="Content Group Ref"
-                value={contentGroupRef}
-                onChange={e => setContentGroupRef(e.target.value)}
+                placeholder="Content Group"
+                value={contentGroup}
+                onChange={e => setContentGroup(e.target.value)}
               />
             </Space>
           </Col>
@@ -319,9 +319,9 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
               <Text strong>Content Type Ref:</Text>
               <Input
                 data-testid="content-debug-type-ref-input"
-                placeholder="Content Type Ref"
-                value={contentTypeRef}
-                onChange={e => setContentTypeRef(e.target.value)}
+                placeholder="Content Type ID"
+                value={contentTypeId}
+                onChange={e => setContentTypeId(e.target.value)}
               />
               <div style={{ marginTop: '24px' }}>
                 <Space>

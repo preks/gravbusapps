@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { ContentGroup, resolveContentTypeName } from '@/common/data/content/constants/contentConstants'
 
 // GraphQL query for searching all entities
 const SEARCH_ENTITIES_QUERY = `
@@ -285,12 +286,10 @@ const SEARCH_ENTITIES_QUERY = `
       title
       preview
       pictureThumbnail
-      contentGroupRef
-      contentGroup {
-        value
-      }
+      contentGroup
       contentType {
-        value
+        name
+        nameI18n
       }
       createdAt
     }
@@ -349,9 +348,8 @@ interface SearchResponse {
     title?: string
     preview?: string
     pictureThumbnail?: string
-    contentGroupRef?: string
-    contentGroup?: { value?: string }
-    contentType?: { value?: string }
+    contentGroup?: string
+    contentType?: { name?: string; nameI18n?: Record<string, string> }
     createdAt?: string
   }>
 }
@@ -664,29 +662,29 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
 
     // Intranet Content
     result.ContentEntry?.forEach(entry => {
-      const groupRef = entry.contentGroupRef || ''
+      const group = entry.contentGroup || ''
       let entityType: 'news_article' | 'knowledge_article' | 'intranet_article' | 'document_article' =
         'intranet_article'
       let categoryLabel = 'Content'
 
-      if (groupRef.includes('NEWS')) {
+      if (group === ContentGroup.NEWS) {
         entityType = 'news_article'
         categoryLabel = 'News'
-      } else if (groupRef.includes('KNOWLEDGE')) {
+      } else if (group === ContentGroup.KNOWLEDGE || group === ContentGroup.GLOSSARY) {
         entityType = 'knowledge_article'
         categoryLabel = 'Knowledge'
-      } else if (groupRef.includes('DOCUMENT')) {
+      } else if (group === ContentGroup.DOCUMENT) {
         entityType = 'document_article'
         categoryLabel = 'Document'
-      } else if (groupRef.includes('QUESTION')) {
+      } else if (group === ContentGroup.QUESTION) {
         entityType = 'knowledge_article'
         categoryLabel = 'Q&A'
       } else {
         entityType = 'intranet_article'
-        categoryLabel = entry.contentGroup?.value || 'Content'
+        categoryLabel = 'Content'
       }
 
-      const contentCategory = entry.contentType?.value || entry.contentGroup?.value
+      const contentCategory = resolveContentTypeName(entry.contentType)
       const subtitle = contentCategory ? `${categoryLabel} • ${contentCategory}` : categoryLabel
 
       allEntities.push({
@@ -699,9 +697,8 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
         contentData: {
           title: entry.title,
           preview: entry.preview,
-          contentGroupRef: entry.contentGroupRef,
-          contentGroup: entry.contentGroup?.value,
-          contentType: entry.contentType?.value,
+          contentGroup: entry.contentGroup,
+          contentType: resolveContentTypeName(entry.contentType),
           createdAt: entry.createdAt
         }
       })

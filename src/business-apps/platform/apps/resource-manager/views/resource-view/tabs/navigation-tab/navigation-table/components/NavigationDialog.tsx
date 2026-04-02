@@ -37,7 +37,7 @@ export const NavigationDialog: React.FC<NavigationDialogProps> = ({
     url: '',
     roles: [],
     features: [],
-    name_i18n: {},
+    nameI18n: {},
     description_i18n: {},
     isSearchable: false
   })
@@ -51,7 +51,7 @@ export const NavigationDialog: React.FC<NavigationDialogProps> = ({
         url: '',
         roles: [],
         features: [],
-        name_i18n: {},
+        nameI18n: {},
         description_i18n: {},
         isSearchable: false
       })
@@ -67,7 +67,7 @@ export const NavigationDialog: React.FC<NavigationDialogProps> = ({
         url: initialData.url || '',
         roles: initialData.roles || [],
         features: initialData.features || [],
-        name_i18n: initialData.name_i18n || {},
+        nameI18n: initialData.nameI18n || {},
         description_i18n: initialData.description_i18n || {},
         isSearchable: initialData.isSearchable ?? false
       })
@@ -120,9 +120,9 @@ export const NavigationDialog: React.FC<NavigationDialogProps> = ({
           <TranslatableField
             label="Name *"
             value={formData.name || ''}
-            translations={formData.name_i18n || {}}
+            translations={formData.nameI18n || {}}
             onChange={value => handleChange('name', value)}
-            onTranslationsChange={translations => handleChange('name_i18n', translations)}
+            onTranslationsChange={translations => handleChange('nameI18n', translations)}
             placeholder="Enter name"
             required
             data-testid={`${dataTestId}-name-input`}

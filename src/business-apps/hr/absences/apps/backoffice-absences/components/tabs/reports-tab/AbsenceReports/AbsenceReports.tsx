@@ -10,7 +10,7 @@ interface ResourceUrl {
   id: string
   url: string
   name: string
-  name_i18n: Record<string, string>
+  nameI18n: Record<string, string>
   description?: string | null
   description_i18n?: Record<string, string>
   [key: string]: any
@@ -72,7 +72,7 @@ const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: strin
               currentLocale
             ),
             icon: <ChartBarIcon size={20} className="h-5 w-5" />,
-            category: getTranslatedValue(item.resourceUrl.name_i18n, item.resourceUrl.name || 'Report', currentLocale),
+            category: getTranslatedValue(item.resourceUrl.nameI18n, item.resourceUrl.name || 'Report', currentLocale),
             favorite: false,
             url: `${env('NEXT_PUBLIC_BASE_URL') || ''}${item.resourceUrl.url}`
           })

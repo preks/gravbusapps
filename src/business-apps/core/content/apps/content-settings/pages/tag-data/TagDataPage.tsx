@@ -9,7 +9,7 @@ import {
   buildUpdateContentTagMutation,
   buildDeleteContentTagMutation
 } from '@/common/data/content/queries/contentQueries'
-import type { ContentTag } from '@/common/data/content/types/contentTaxonomyTypes'
+import type { ContentTag } from '@/common/data/content/types/contentTypes'
 
 export interface TagDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string

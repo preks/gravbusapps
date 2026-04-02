@@ -9,7 +9,7 @@ import {
   buildUpdateContentTypeMutation,
   buildDeleteContentTypeMutation
 } from '@/common/data/content/queries/contentQueries'
-import type { ContentType } from '@/common/data/content/types/contentTaxonomyTypes'
+import type { ContentType } from '@/common/data/content/types/contentTypes'
 
 export interface TypeDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string

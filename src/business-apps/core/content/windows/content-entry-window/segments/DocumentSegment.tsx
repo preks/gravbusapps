@@ -22,7 +22,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ImageIcon, Folder, Link } from '@phosphor-icons/react'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
-import { CONTENT_GROUP_OPTIONS } from '@/common/data/content/constants/contentGroupConstants'
+import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
 import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
 import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
 import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
@@ -184,9 +184,9 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                       <SelectValue placeholder={t('select-group') || 'Select group'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {CONTENT_GROUP_OPTIONS.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                      {CONTENT_GROUP_VALUES.map(value => (
+                        <SelectItem key={value} value={value}>
+                          {t(CONTENT_GROUP_KEY[value])}
                         </SelectItem>
                       ))}
                     </SelectContent>

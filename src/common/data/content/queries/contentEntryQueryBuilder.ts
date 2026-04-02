@@ -7,7 +7,7 @@ import { type ContentEntry } from '../types/contentEntryTypes'
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { CONTENT_DOCUMENT_FRAGMENT } from '../types/contentDocumentTypes'
-import { ContentRole } from '../types/contentEnums'
+import { ContentRole } from '../constants/contentConstants'
 
 export interface ContentEntryQueryOptions {
   config?: 'minimal' | 'list' | 'full' | 'detail'

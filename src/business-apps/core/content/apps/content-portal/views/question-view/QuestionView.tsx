@@ -12,7 +12,7 @@ import {
 import { MessageCircle, Folder, ChevronRight, CheckCircle, Share2 } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup, resolveContentTypeName } from '@/common/data/content/constants/contentConstants'
 import { VoteButtons, type VoteState } from '@/common/components/content'
 import { EmployeeHoverCard } from '@/common/components/employee'
 import SearchInput from '../../components/shared/SearchInput'
@@ -54,7 +54,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const { t } = useTranslation(translations)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedContentTypeRef, setSelectedContentTypeRef] = useState<string | null>(null)
+  const [selectedContentTypeId, setSelectedContentTypeId] = useState<string | null>(null)
 
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
 
@@ -70,14 +70,14 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     () => ({
       role: ContentRole.ROOT,
       contentGroup: ContentGroup.QUESTION,
-      contentTypeId: selectedContentTypeRef || undefined,
+      contentTypeId: selectedContentTypeId || undefined,
       search: searchQuery,
       limit: loadedCount,
       offset: 0,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, loadedCount, selectedContentTypeRef]
+    [searchQuery, loadedCount, selectedContentTypeId]
   )
 
   // Memoize query options to prevent infinite re-renders
@@ -197,7 +197,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   }
 
   const handleCategoryClick = (categoryId: string | null) => {
-    setSelectedContentTypeRef(categoryId)
+    setSelectedContentTypeId(categoryId)
     setLoadedCount(PAGE_SIZE)
   }
 
@@ -300,7 +300,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 <button
                   onClick={() => handleCategoryClick(null)}
                   className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                    selectedContentTypeRef === null
+                    selectedContentTypeId === null
                       ? 'gba:bg-primary gba:text-primary-foreground'
                       : 'gba:hover:bg-accent gba:text-foreground'
                   }`}
@@ -318,7 +318,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     key={type.id}
                     onClick={() => handleCategoryClick(type.id)}
                     className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                      selectedContentTypeRef === type.id
+                      selectedContentTypeId === type.id
                         ? 'gba:bg-primary gba:text-primary-foreground'
                         : 'gba:hover:bg-accent gba:text-foreground'
                     }`}
@@ -415,8 +415,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                               Answered
                             </Badge>
                           )}
-                          <Badge variant={getStatusVariant(question.contentType?.name || '')} className="gba:text-xs">
-                            {question.contentType?.name || 'OPEN'}
+                          <Badge
+                            variant={getStatusVariant(resolveContentTypeName(question.contentType))}
+                            className="gba:text-xs"
+                          >
+                            {resolveContentTypeName(question.contentType) || 'OPEN'}
                           </Badge>
                           {tagNames.slice(0, 3).map(tag => (
                             <Badge key={tag} variant="outline" className="gba:text-xs">
