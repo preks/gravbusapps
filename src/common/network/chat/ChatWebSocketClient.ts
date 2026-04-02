@@ -2,7 +2,7 @@ import { CHAT_WEB_SOCKET_URL } from '@/common/utils/serviceResolver'
 import { io, type Socket } from 'socket.io-client'
 
 const CHAT_CLIENT_VERSION = '2'
-const DEFAULT_SOCKET_PATH = '/chat-service/socket.io'
+const DEFAULT_SOCKET_PATH = '/socket.io'
 
 export type ChatWebSocketOptions = {
   connectionTimeout?: number
