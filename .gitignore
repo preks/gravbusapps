@@ -50,6 +50,4 @@ coverage/
 .claude/
 scripts/start-document-service.sh
 
-# GitHub config
-.github/
 
