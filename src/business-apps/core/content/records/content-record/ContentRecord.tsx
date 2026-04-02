@@ -154,15 +154,13 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
   useEffect(() => {
     if (!item || isDetecting) return
 
-    // Avoid re-syncing the same persisted language on every render.
-    const persistedLanguageId = item.languageRef || item.language?.id || null
-    const persistedLanguageValue = item.language?.value
-
-    if (persistedLanguageId) {
-      if (detectedLanguage?.languageId === persistedLanguageId) {
-        return
-      }
-      setLanguageFromRef(persistedLanguageId, persistedLanguageValue)
+    // Check if content entry already has a language stored
+    if (item.languageRef) {
+      setLanguageFromRef(item.languageRef, item.language?.value)
+      return
+    }
+    if (item.language?.id) {
+      setLanguageFromRef(item.language.id, item.language.value)
       return
     }
     if (item.content) {
