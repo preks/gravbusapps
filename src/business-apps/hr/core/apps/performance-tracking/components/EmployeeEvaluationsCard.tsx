@@ -18,7 +18,11 @@ import type { EmployeeEvalItem } from '../types'
 import { formatDate, formatStatusRef, getStatusBadgeVariant } from '../utils/formatLabels'
 import { ReviewerRow } from './ReviewerRow'
 
-function EvalRow({ evaluation }: { evaluation: EmployeeEvalItem }) {
+type EvalRowProps = {
+  readonly evaluation: EmployeeEvalItem
+}
+
+function EvalRow({ evaluation }: EvalRowProps) {
   const [expanded, setExpanded] = useState(false)
   const completedReviewers = evaluation.reviewers.filter(r => r.completedDate).length
   const totalReviewers = evaluation.reviewers.length
@@ -53,10 +57,10 @@ function EvalRow({ evaluation }: { evaluation: EmployeeEvalItem }) {
 }
 
 interface EmployeeEvaluationsCardProps {
-  employeeName: string
-  evaluations: EmployeeEvalItem[]
-  loading: boolean
-  error: string | null
+  readonly employeeName: string
+  readonly evaluations: readonly EmployeeEvalItem[]
+  readonly loading: boolean
+  readonly error: string | null
 }
 
 export const EmployeeEvaluationsCard: React.FC<EmployeeEvaluationsCardProps> = ({

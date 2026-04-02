@@ -52,6 +52,13 @@ function humanizeFallback(raw: string): string {
     .join(' ')
 }
 
+export function formatDate(raw: string | null, fallback = '—'): string {
+  if (!raw) return fallback
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return fallback
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 export function getStatusBadgeVariant(status: string | null): 'success' | 'info' | 'secondary' | 'warning' {
   const normalized = (status ?? '').toUpperCase()
   if (normalized.includes('COMPLETED') || normalized.includes('DONE')) return 'success'
