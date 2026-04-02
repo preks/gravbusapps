@@ -1,4 +1,4 @@
-import { FONT_FAMILY, Fonts } from '@excalidraw/excalidraw'
+import * as ExcalidrawLib from '@excalidraw/excalidraw'
 
 const FUNNEL_DISPLAY = 'Funnel Display'
 const INTER = 'Inter'
@@ -15,6 +15,36 @@ export const NW_INTER_FONT_FAMILY = 10 as const
 export const NW_MANROPE_FONT_FAMILY = 11 as const
 export const NW_DM_SANS_FONT_FAMILY = 12 as const
 
+const FONT_FAMILY = ExcalidrawLib.FONT_FAMILY as Record<string, number>
+const maybeFonts = (ExcalidrawLib as unknown as { Fonts?: any }).Fonts
+const canRegisterFonts = Boolean(maybeFonts && typeof maybeFonts.register === 'function')
+
+function ensureFontFace(family: string, latinWoff2: string, latinExtWoff2: string): void {
+  if (typeof document === 'undefined') return
+  const styleId = `nw-fontface-${family.toLowerCase().replace(/\s+/g, '-')}`
+  if (document.getElementById(styleId)) return
+  const style = document.createElement('style')
+  style.id = styleId
+  style.textContent = `
+@font-face {
+  font-family: '${family}';
+  src: url('${latinWoff2}') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: ${LATIN_UNICODE_RANGE};
+}
+@font-face {
+  font-family: '${family}';
+  src: url('${latinExtWoff2}') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: ${LATIN_EXT_UNICODE_RANGE};
+}`
+  document.head.appendChild(style)
+}
+
 function registerModernFont(
   family: string,
   id: number,
@@ -22,11 +52,12 @@ function registerModernFont(
   latinWoff2: string,
   latinExtWoff2: string
 ): void {
-  const fam = FONT_FAMILY as Record<string, number>
-  if (fam[family] == null) {
+  if (FONT_FAMILY[family] == null) {
     Object.assign(FONT_FAMILY, { [family]: id })
   }
-  Fonts.register(
+  ensureFontFace(family, latinWoff2, latinExtWoff2)
+  if (!canRegisterFonts) return
+  maybeFonts.register(
     family,
     { metrics },
     {
@@ -78,9 +109,13 @@ export function registerFunnelDisplayFont(): void {
   )
 
   // Hide hand-drawn Excalifont from picker unless deprecated fonts are explicitly shown.
-  const excalifont = Fonts.registered.get(FONT_FAMILY.Excalifont) as { metadata?: Record<string, unknown> } | undefined
-  if (excalifont?.metadata) {
-    excalifont.metadata = { ...excalifont.metadata, deprecated: true }
+  if (canRegisterFonts) {
+    const excalifont = maybeFonts.registered.get(FONT_FAMILY.Excalifont) as
+      | { metadata?: Record<string, unknown> }
+      | undefined
+    if (excalifont?.metadata) {
+      excalifont.metadata = { ...excalifont.metadata, deprecated: true }
+    }
   }
 }
 

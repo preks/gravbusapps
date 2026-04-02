@@ -998,9 +998,6 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
 
   return {
     optimizeDeps: {
-      // Excalidraw is patched locally to export `Fonts` for Funnel Display registration.
-      // Pre-bundling caches a stale facade without that export; excluding uses the package entry directly.
-      exclude: ['@excalidraw/excalidraw'],
       include: [
         // Excalidraw transitive deps: CJS or mixed interop — pre-bundle when @excalidraw/excalidraw is excluded above
         'es6-promise-pool',
