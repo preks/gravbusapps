@@ -21,6 +21,16 @@ import { useStructureEmployees } from '@/business-apps/hr/core/forms/performance
 import { useOrganizationalUnits, type OrganizationalUnit } from '../hooks/useOrganizationalUnits'
 import translations from '../_i18n'
 
+/** Separator for Combobox option value: cmdk filters by `value` (UUID only hid team search). Name is appended for search matching. */
+const TEAM_OPTION_SEP = '\u001f'
+
+const toTeamComboboxValue = (unit: OrganizationalUnit): string => `${unit.id}${TEAM_OPTION_SEP}${unit.name}`
+
+const teamIdFromComboboxValue = (value: string): string => {
+  const i = value.indexOf(TEAM_OPTION_SEP)
+  return i >= 0 ? value.slice(0, i) : value
+}
+
 export type RunForOption = 'self' | 'team'
 
 export interface StartCycleConfirmOptions {
@@ -140,7 +150,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
       if (!hasValidTeam) return
       onConfirm({
         runFor: 'team',
-        teamIds: selectedTeamIds,
+        teamIds: selectedTeamIds.map(teamIdFromComboboxValue),
         ...(isManualRun ? { cycleId: selectedCycleId } : {})
       })
     }
@@ -240,7 +250,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
                   }}
                   options={organizationalUnits.map((unit: OrganizationalUnit) => ({
                     label: unit.name,
-                    value: unit.id
+                    value: toTeamComboboxValue(unit)
                   }))}
                   placeholder={
                     teamsLoading
