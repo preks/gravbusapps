@@ -1,6 +1,6 @@
-import { env } from '@/common/env/EnvUtils'
 import { DOCUMENT_GROUP_SALARY } from './constants'
 import type { TaxInfoFormValues } from './types'
+import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
 
 export type UploadFileFn = (
   file: File,
@@ -27,7 +27,7 @@ export async function executeHealthInsuranceDocumentUpload(
     },
     'fileContent'
   )
-  const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || ''
+  const processesBase = PROCESSES_BASE_URL
   const createDocUrl = `${processesBase}/employee/employeeDocuments`
   const body = {
     employeeDocument: {

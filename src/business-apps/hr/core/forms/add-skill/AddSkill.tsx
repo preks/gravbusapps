@@ -5,7 +5,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { env } from '@/common/env/EnvUtils'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
 import FormHeader from '../components/FormHeader'
@@ -14,6 +13,7 @@ import { buildEmployeeSkillsPayload } from './utils/addSkillUtils'
 import { AddSkillFormSections } from './components/AddSkillFormSections'
 import { useAddSkillFormController } from './hooks/useAddSkillFormController'
 import { ACCEPTED_VERIFICATION_FILE_TYPES, AddSkillFormValues, DOCUMENT_GROUP_DEVELOPMENT } from './addSkill.types'
+import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
 
 const clampLevel = (level: string | number | null | undefined) => {
   if (level === null || level === undefined) return 1
@@ -170,7 +170,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
                       'fileContent'
                     )
 
-                    const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || ''
+                    const processesBase = PROCESSES_BASE_URL
                     const createDocUrl = `${processesBase}/employee/employeeDocuments`
                     const body = {
                       employeeDocument: {

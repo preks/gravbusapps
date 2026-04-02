@@ -23,9 +23,9 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
-import { env } from '@/common/env/EnvUtils'
 import { CongratulationsModal } from './CongratulationsModal'
 import { PhoneInput } from './components/PhoneInput'
+import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
@@ -262,7 +262,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
         // Create EmployeeDocument via processes API (same pattern as ChangePersonalData)
         try {
-          const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || ''
+          const processesBase = PROCESSES_BASE_URL
           const createDocUrl = `${processesBase}/employee/employeeDocuments`
           const body = {
             employeeDocument: {
