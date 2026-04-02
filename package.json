@@ -54,7 +54,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/icons": "^0.0.5",
-    "@newwork/nw-design-system": "^0.97.0-605",
+    "@newwork/nw-design-system": "^0.99.0-609",
     "@newwork/remote-component-loader": "^0.1.4",
     "@tiptap/extension-bubble-menu": "^3.15.3",
     "@tiptap/extension-character-count": "^3.15.3",

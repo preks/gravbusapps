@@ -7,13 +7,9 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import { Send, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { usePageAnalytics } from '../hooks/usePageAnalytics'
-const flowbotBaseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
-if (typeof window !== 'undefined') {
-  console.info('[AI Insights] FlowBot endpoint:', flowbotBaseUrl || '')
-}
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 interface InvestmentRecordAnalyticsChatProps {
   investmentId: string
@@ -45,6 +41,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
     currency,
     sessionId
   })
+  const flowbotBaseUrl = resolveFlowbotBaseUrl()
   const restClient = useRestClient(flowbotBaseUrl)
 
   // Auto-scroll to bottom

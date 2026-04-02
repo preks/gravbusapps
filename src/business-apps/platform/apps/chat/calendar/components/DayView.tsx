@@ -6,6 +6,7 @@ import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent } from '../types'
+import { CalendarAllDayStack } from './CalendarAllDayStack'
 import { CalendarEventItem } from './CalendarEventItem'
 import translations from '../../_i18n'
 
@@ -68,6 +69,13 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 24)
 
   return { top, height }
+}
+
+const getLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export const DayView: React.FC<DayViewProps> = ({
@@ -174,20 +182,15 @@ export const DayView: React.FC<DayViewProps> = ({
       {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/20">
-          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">All Day</div>
-          <div className="gba:space-y-1">
-            {allDayEvents.map(event => (
-              <CalendarEventItem
-                key={event.id}
-                event={event}
-                compact
-                onClick={() => onEventClick(event)}
-                t={t}
-                activeConversationCalls={activeConversationCalls}
-                onJoinCall={onJoinCall}
-              />
-            ))}
-          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">{t('calendar-allDay')}</div>
+          <CalendarAllDayStack
+            columnId={getLocalDateKey(currentDate)}
+            events={allDayEvents}
+            onEventClick={onEventClick}
+            t={t}
+            activeConversationCalls={activeConversationCalls}
+            onJoinCall={onJoinCall}
+          />
         </div>
       )}
 

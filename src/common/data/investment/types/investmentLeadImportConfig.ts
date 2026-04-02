@@ -1,29 +1,24 @@
 /**
- * Investment Lead Import Configuration
- * Extends base lead fields with investment-specific fields
- * Used by IRM (Investment Relations Management) domain
+ * Investment Lead Import Configuration (IRM)
+ * Full explicit field list for InvestmentLead schema.
+ * IRM-specific fields: locality (not city), CountryRegion catalog, InvestmentLead* catalogs,
+ * investment/property/financial fields. industryRef and numberOfEmployeesRef are absent in InvestmentLead.
  */
 
-import { baseLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
+import { sharedLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
-const investmentBaseLeadImportFields = baseLeadImportFields.map(field => {
-  if (field.type !== 'catalog') return field
+const irmLeadSpecificFields: TargetFieldDefinition[] = [
+  // IRM-specific address fields (locality replaces city; CountryRegion replaces Region)
+  { value: 'locality', label: 'City / Locality', type: 'direct' },
+  { value: 'regionRef', label: 'Region (Catalog)', type: 'catalog', catalog: 'CountryRegion' },
 
-  switch (field.value) {
-    case 'leadStatusRef':
-      return { ...field, catalog: 'InvestmentLeadStatus' }
-    case 'leadSourceRef':
-      return { ...field, catalog: 'InvestmentLeadSource' }
-    case 'leadRatingRef':
-      return { ...field, catalog: 'InvestmentLeadRating' }
-    default:
-      return field
-  }
-})
+  // IRM-specific lead catalog fields
+  { value: 'leadStatusRef', label: 'Lead Status (Catalog)', type: 'catalog', catalog: 'InvestmentLeadStatus' },
+  { value: 'leadSourceRef', label: 'Lead Source (Catalog)', type: 'catalog', catalog: 'InvestmentLeadSource' },
+  { value: 'leadRatingRef', label: 'Lead Rating (Catalog)', type: 'catalog', catalog: 'InvestmentLeadRating' },
 
-// IRM-specific fields (investment + property + leadSourceType)
-const investmentLeadFields: TargetFieldDefinition[] = [
+  // IRM-specific lead fields
   { value: 'leadSourceType', label: 'Lead Source Type', type: 'direct' },
 
   // Investment Details
@@ -60,5 +55,5 @@ const investmentLeadFields: TargetFieldDefinition[] = [
 export const investmentLeadImportConfig: ImportConfig = {
   entityType: 'lead',
   domain: 'investment',
-  targetFields: [...investmentBaseLeadImportFields, ...investmentLeadFields]
+  targetFields: [...sharedLeadImportFields, ...irmLeadSpecificFields]
 }

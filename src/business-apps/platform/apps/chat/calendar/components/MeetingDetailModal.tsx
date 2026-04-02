@@ -40,7 +40,7 @@ import {
   Globe
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import { CalendarEvent, InternalCalendarType, InvitationStatus, MeetingStatus } from '../types'
 import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 
 dayjs.extend(localizedFormat)
@@ -151,9 +151,33 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
     event.organizer.email
 
   const isExternal = event.source && event.source !== 'internal'
-  const canEdit = event.isOrganizer && event.status === 'scheduled' && !isExternal
-  const canDelete = event.isOrganizer && !isExternal
-  const canRespond = !event.isOrganizer && event.status === 'scheduled' && !isExternal
+
+  let calendarName = event.calendarName
+  if (!calendarName) {
+    if (event.source === 'microsoft') {
+      calendarName = 'Microsoft'
+    } else if (event.source === 'google') {
+      calendarName = 'Google Calendar'
+    } else {
+      calendarName = t('calendar-sidebar-myCalendar')
+    }
+  }
+
+  let calendarTypeLabel: string
+  if (isExternal) {
+    calendarTypeLabel = t('calendar-sidebar-external')
+  } else if (event.calendarType === InternalCalendarType.SPACE) {
+    calendarTypeLabel = t('calendar-sidebar-spaceCalendar')
+  } else if (event.calendarType === InternalCalendarType.SHARED) {
+    calendarTypeLabel = t('calendar-sidebar-sharedCalendar')
+  } else {
+    calendarTypeLabel = t('calendar-sidebar-myCalendar')
+  }
+  const CalendarSourceIcon = isExternal ? Globe : Calendar
+  const isInvitedParticipant = event.participantStatus !== undefined
+  const canEdit = Boolean(onEdit) && event.status === 'scheduled' && !isExternal
+  const canDelete = Boolean(onDelete) && !isExternal
+  const canRespond = isInvitedParticipant && !event.isOrganizer && event.status === 'scheduled' && !isExternal
   const canStartCall = event.meetingLink && (event.status === 'scheduled' || event.status === 'in_progress')
 
   const handleResponse = async (status: InvitationStatus) => {
@@ -258,6 +282,17 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="gba:flex gba:items-start gba:gap-3" data-testid="meeting-detail-calendar-source">
+            <CalendarSourceIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+            <div>
+              <div className="gba:font-medium">{t('calendar-sourceCalendar')}</div>
+              <div className="gba:text-sm gba:text-muted-foreground">{calendarName}</div>
+              {calendarTypeLabel !== calendarName && (
+                <div className="gba:text-xs gba:text-muted-foreground">{calendarTypeLabel}</div>
               )}
             </div>
           </div>

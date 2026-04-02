@@ -118,8 +118,8 @@ export interface Company extends BaseEntity {
   // Additional Data
   additionalProperties?: Record<string, any>
 
-  // Relationships
-  companyEmployee?: CompanyEmployee[]
+  // Relationships (Hasura: array relation on Company → EmployeeCompany rows)
+  companyEmployees?: CompanyEmployee[]
   organizationalUnits?: OrganizationalUnit[]
   addresses?: CompanyAddress[]
   parentRelationships?: CompanyRelationship[]
@@ -185,7 +185,7 @@ export const CompanyFields = {
   additionalProperties: 'additionalProperties',
 
   // Relationships
-  companyEmployee: 'companyEmployee',
+  companyEmployees: 'companyEmployees',
   organizationalUnits: 'organizationalUnits',
   addresses: 'addresses',
   parentRelationships: 'parentRelationships',
