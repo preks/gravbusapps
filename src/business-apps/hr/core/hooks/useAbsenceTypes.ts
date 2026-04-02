@@ -144,6 +144,9 @@ const useAbsenceTypes = (accessToken: string) => {
         ABSENCE_TYPE_VERSION,
         resolveCatalogEntryId(absenceTypes, id),
         {
+          code: existingType.code,
+          value: existingType.value,
+          parentEntryId: existingType.parentEntryId,
           isDeleted: true
         } as any
       )

@@ -137,12 +137,17 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         throw new Error('Catalog manager client not available')
       }
 
+      const existingEntry = entries.find(item => item.id === entryId) || (await client.getCatalogEntryById(entryId))
+
       await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, {
+        code: existingEntry.code,
+        value: existingEntry.value,
+        parentEntryId: existingEntry.parentEntryId,
         isDeleted: true
       } as any)
       setEntries(prev => prev.filter(item => item.id !== entryId))
     },
-    [catalogIdentifier, client]
+    [catalogIdentifier, client, entries]
   )
 
   return {
