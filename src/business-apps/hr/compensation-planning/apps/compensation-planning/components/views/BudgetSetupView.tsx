@@ -1,34 +1,105 @@
-import React from 'react'
-import { Card, CardContent, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import React, { useMemo, useState } from 'react'
+import { Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
+import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
+import { useBudgetSetupForCompany } from '../../hooks/useBudgetSetupForCompany'
+import { BudgetSetupCreatePlanDialog } from './BudgetSetupCreatePlanDialog'
+import { BudgetSetupPlansTable } from './BudgetSetupPlansTable'
+import translations from '../../_i18n'
 
-interface BudgetSetupViewProps {
+export interface BudgetSetupViewProps {
   accessToken: string
   companyId: string
+  companyName?: string
 }
 
-export const BudgetSetupView: React.FC<BudgetSetupViewProps> = () => {
-  return (
-    <div className="gba:space-y-4">
-      <Alert>
-        <AlertTitle>Not Available Yet</AlertTitle>
-        <AlertDescription>
-          Budget setup requires the compensation planning cycle backend tables to be configured. Once available, you
-          will be able to define salary, bonus, and benefits budgets per company as either absolute amounts or a
-          percentage of current salary cost.
-        </AlertDescription>
-      </Alert>
+export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, companyId, companyName }) => {
+  const { t } = useTranslation(translations)
+  const [createPlanDialogOpen, setCreatePlanDialogOpen] = useState(false)
 
-      <Card>
-        <CardContent className="gba:p-6">
-          <h3 className="gba:text-sm gba:font-semibold gba:mb-4">Planned Features</h3>
-          <ul className="gba:list-disc gba:space-y-2 gba:pl-5 gba:text-sm gba:text-muted-foreground">
-            <li>Set salary increase budget per company (absolute or % of salary cost)</li>
-            <li>Set bonus budget per company (absolute or % of salary cost)</li>
-            <li>Set benefits budget per company (absolute or % of benefits cost)</li>
-            <li>View total budget across all companies</li>
-          </ul>
-        </CardContent>
-      </Card>
+  const {
+    plans,
+    selectedBudgetPlanId,
+    companyRowsByPlanId,
+    loadingPlans,
+    loadingCompanyRowsList,
+    creatingPlan,
+    error,
+    createPlan
+  } = useBudgetSetupForCompany(accessToken, companyId)
+
+  const {
+    teamMembers,
+    loading: loadingTeam,
+    error: teamError
+  } = useTeamCompensationData({
+    accessToken,
+    companyId
+  })
+
+  const currentSalaryCost = useMemo(
+    () => teamMembers.reduce((sum, m) => sum + (m.currentAnnualSalary ?? 0), 0),
+    [teamMembers]
+  )
+
+  const currencyCode = teamMembers[0]?.currency ?? 'EUR'
+
+  const tableLoading = loadingPlans || loadingCompanyRowsList || loadingTeam
+
+  const toolbarEnd = (
+    <Button
+      type="button"
+      variant="default"
+      className="gba:shrink-0"
+      disabled={creatingPlan}
+      onClick={() => setCreatePlanDialogOpen(true)}
+      data-testid="budget-setup-create-new-budget-plan"
+    >
+      {t('budget-setup-create-new-budget-plan')}
+    </Button>
+  )
+
+  return (
+    <div className="gba:space-y-6" data-testid="budget-setup-view">
+      <BudgetSetupCreatePlanDialog
+        accessToken={accessToken}
+        open={createPlanDialogOpen}
+        onOpenChange={setCreatePlanDialogOpen}
+        creating={creatingPlan}
+        onCreate={createPlan}
+        companyId={companyId}
+        annualSalaryCost={currentSalaryCost}
+        currencyCode={currencyCode}
+        loadingSalaryCost={loadingTeam}
+        defaultHeadcount={teamMembers.length}
+        companyName={companyName}
+        plans={plans}
+        loadingPlans={loadingPlans}
+        defaultCompensationBudgetPlanId={selectedBudgetPlanId}
+      />
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>{t('budget-setup-error-title')}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {teamError ? (
+        <Alert variant="destructive">
+          <AlertTitle>{t('budget-setup-team-error-title')}</AlertTitle>
+          <AlertDescription>{teamError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <BudgetSetupPlansTable
+        companyId={companyId}
+        companyRowsByPlanId={companyRowsByPlanId}
+        teamSalaryBaseline={currentSalaryCost}
+        currencyCode={currencyCode}
+        loading={tableLoading}
+        error={null}
+        toolbarEnd={toolbarEnd}
+      />
     </div>
   )
 }

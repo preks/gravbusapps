@@ -70,7 +70,6 @@ function methodFluentKeys(method: DistributionMethod): { title: string; descript
 export interface BudgetDistributionMethodSelectorProps {
   selectedMethod: DistributionMethod
   onMethodChange: (method: DistributionMethod) => void
-  /** When true, choice is not interactive (same as before). */
   disabled?: boolean
   sectionTitle: string
   sectionDescription: string
@@ -100,19 +99,24 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
     [t]
   )
 
+  const selectedDetail = useMemo(
+    () => options.find(o => o.value === selectedMethod) ?? options[0],
+    [options, selectedMethod]
+  )
+
   return (
-    <Card className="gba:mb-4" data-testid="budget-distribution-method-selector">
-      <CardContent className="gba:space-y-4 gba:p-4">
-        <div className="gba:space-y-1">
-          <h3 className="gba:text-sm gba:font-semibold gba:leading-none">{sectionTitle}</h3>
-          <p className="gba:text-sm gba:text-muted-foreground">{sectionDescription}</p>
+    <Card className="gba:overflow-hidden" data-testid="budget-distribution-method-selector">
+      <CardContent className="gba:space-y-2 gba:p-3">
+        <div className="gba:space-y-0.5">
+          <h3 className="gba:text-sm gba:font-semibold gba:leading-tight gba:text-foreground">{sectionTitle}</h3>
+          <p className="gba:text-xs gba:leading-snug gba:text-muted-foreground">{sectionDescription}</p>
         </div>
 
         <RadioGroup
           value={selectedMethod}
           onValueChange={v => onMethodChange(v as DistributionMethod)}
           disabled={disabled}
-          className="gba:grid gba:grid-cols-1 gba:gap-3 md:gba:grid-cols-2"
+          className="gba:flex gba:w-full gba:min-w-0 gba:flex-nowrap gba:gap-1"
           data-testid="budget-distribution-method-radio-group"
         >
           {options.map(opt => {
@@ -123,37 +127,57 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
               <div
                 key={opt.value}
                 className={cn(
-                  'gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:p-4 gba:transition-colors',
-                  isSelected
-                    ? 'gba:border-primary gba:bg-muted/40'
-                    : 'gba:border-border gba:bg-card gba:hover:bg-muted/25',
+                  'gba:relative gba:min-w-0 gba:flex-1 gba:basis-0',
                   disabled ? 'gba:pointer-events-none gba:opacity-60' : 'gba:cursor-pointer'
                 )}
                 data-testid={`budget-distribution-method-option-${opt.value}`}
+                title={opt.description}
               >
-                <RadioGroupItem
-                  value={opt.value}
-                  id={inputId}
-                  className="gba:mt-0.5"
-                  data-testid={`budget-distribution-method-input-${opt.value}`}
-                />
-                <Label htmlFor={inputId} className="gba:flex gba:min-w-0 gba:flex-1 gba:cursor-pointer gba:gap-3">
-                  <span className="gba:mt-0.5 gba:inline-flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:bg-background">
-                    <OptionIcon className="gba:h-5 gba:w-5" aria-hidden />
-                  </span>
-                  <span className="gba:min-w-0 gba:flex-1 gba:space-y-1">
-                    <span className="gba:block gba:text-sm gba:font-medium gba:leading-snug gba:text-foreground">
+                <div
+                  className={cn(
+                    'gba:flex gba:h-full gba:flex-col gba:items-center gba:gap-0.5 gba:rounded-md gba:border gba:px-1 gba:py-1.5 gba:transition-colors',
+                    isSelected
+                      ? 'gba:border-primary gba:bg-muted/50'
+                      : 'gba:border-border gba:bg-card gba:hover:bg-muted/30'
+                  )}
+                >
+                  <RadioGroupItem
+                    value={opt.value}
+                    id={inputId}
+                    className="gba:absolute gba:right-1 gba:top-1 gba:h-3 gba:w-3"
+                    data-testid={`budget-distribution-method-input-${opt.value}`}
+                  />
+                  <Label
+                    htmlFor={inputId}
+                    className="gba:flex gba:w-full gba:cursor-pointer gba:flex-col gba:items-center gba:justify-center gba:gap-0.5 gba:px-0.5 gba:pt-2 gba:text-center"
+                  >
+                    <span
+                      className={cn(
+                        'gba:inline-flex gba:h-6 gba:w-6 gba:shrink-0 gba:items-center gba:justify-center gba:rounded gba:border gba:border-border gba:bg-background',
+                        isSelected && 'gba:border-primary/60'
+                      )}
+                    >
+                      <OptionIcon className="gba:h-3 gba:w-3" aria-hidden />
+                    </span>
+                    <span
+                      className="gba:block gba:w-full gba:truncate gba:text-center gba:text-xs gba:font-medium gba:leading-tight gba:text-foreground"
+                      title={opt.title}
+                    >
                       {opt.title}
                     </span>
-                    <span className="gba:block gba:text-xs gba:leading-relaxed gba:text-muted-foreground">
-                      {opt.description}
-                    </span>
-                  </span>
-                </Label>
+                  </Label>
+                </div>
               </div>
             )
           })}
         </RadioGroup>
+
+        <p
+          className="gba:border-t gba:border-border gba:pt-2 gba:text-xs gba:leading-snug gba:text-muted-foreground"
+          data-testid="budget-distribution-method-selected-description"
+        >
+          {selectedDetail.description}
+        </p>
       </CardContent>
     </Card>
   )

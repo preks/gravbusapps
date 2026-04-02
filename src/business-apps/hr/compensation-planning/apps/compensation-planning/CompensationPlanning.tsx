@@ -28,8 +28,8 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
   const viewOptions = [
     { value: 'overview', label: t('tab-overview'), icon: <ChartBarIcon /> },
     { value: 'budget', label: t('tab-budget-setup'), icon: <GearIcon /> },
-    { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> },
-    { value: 'budget-distribution', label: t('tab-budget-distribution'), icon: <TreeStructureIcon /> }
+    { value: 'budget-distribution', label: t('tab-budget-distribution'), icon: <TreeStructureIcon /> },
+    { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> }
   ]
 
   const { selectedCompanyId, activeTab, selectCompany, setActiveTab } = useCompensationPlanningStore()
@@ -108,7 +108,13 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       case 'overview':
         return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
       case 'budget':
-        return <BudgetSetupView accessToken={accessToken} companyId={selectedCompanyId} />
+        return (
+          <BudgetSetupView
+            accessToken={accessToken}
+            companyId={selectedCompanyId}
+            companyName={companies.find(c => c.id === selectedCompanyId)?.name}
+          />
+        )
       case 'budget-distribution':
         return <BudgetDistributionView accessToken={accessToken} companyId={selectedCompanyId} />
       case 'submissions':
