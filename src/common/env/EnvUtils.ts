@@ -194,6 +194,15 @@ export function env(key: string): string | undefined {
 }
 
 /**
+ * True when the Flowbot endpoint was explicitly overridden by the user
+ * (via ?flowbotEndpoint= query param or localStorage), as opposed to
+ * just reading the baked build-time env value.
+ */
+export function hasActiveFlowbotUserOverride(): boolean {
+  return Boolean(getFlowbotOverrideFromQuery() || getFlowbotOverrideFromStorage())
+}
+
+/**
  * Returns the full runtime env object used by env() (window['nw-envs'] or process.env filtered by NEXT_PUBLIC_).
  * Used to pass the same object to the preview iframe so it can set window['nw-envs'] and use env() unchanged.
  */

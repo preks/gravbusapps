@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom'
 import { Input, Badge } from '@newwork/nw-design-system'
 import { Star, X } from 'lucide-react'
+import { BoardApiService } from '../../services/BoardApiService'
 
 export const RatingEditor: React.FC<{
   value: unknown
@@ -84,10 +85,8 @@ export const TagsEditor: React.FC<{
   useEffect(() => {
     if (!boardId || !sheetId || !columnName) return
     let cancelled = false
-    import('../../services/BoardApiService').then(mod => {
-      mod.BoardApiService.getColumnTags(boardId, sheetId, columnName).then(res => {
-        if (!cancelled) setAllKnown(res)
-      })
+    void BoardApiService.getColumnTags(boardId, sheetId, columnName).then(res => {
+      if (!cancelled) setAllKnown(res)
     })
     return () => {
       cancelled = true

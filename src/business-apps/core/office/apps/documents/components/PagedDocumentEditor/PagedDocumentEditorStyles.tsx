@@ -60,6 +60,18 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         text-decoration: underline;
         cursor: pointer;
       }
+
+      /* Highlight (TipTap <mark>) — UA styles can alter typography; match parent / textStyle spans. */
+      .paged-document-editor .ProseMirror mark {
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        font-style: inherit;
+        font-variant: inherit;
+        line-height: inherit;
+        letter-spacing: inherit;
+      }
+
       .paged-document-editor .ProseMirror .navigation-search-highlight {
         background: color-mix(in srgb, var(--nw-primary) 22%, transparent);
         border-radius: 2px;
@@ -130,8 +142,8 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         margin: 0 0 6pt 0;
       }
 
+      /* Do not set display:inline on list paragraphs — it breaks ProseMirror caret/backspace at list boundaries. */
       .paged-document-editor .ProseMirror li > p {
-        display: inline;
         margin: 0;
       }
 
@@ -154,7 +166,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       }
 
       .document-ai-selection-preview-content li > p {
-        display: inline;
         margin: 0;
       }
 
@@ -424,7 +435,9 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         height: 0;
       }
 
-      .paged-document-editor .ProseMirror ::selection {
+      /* Only style selection while the editor is focused. A global ::selection rule also paints
+         inactive (blurred) ranges the same color, so the highlight looked “stuck” until a second click. */
+      .paged-document-editor .ProseMirror:focus ::selection {
         background: #b4d5fe;
       }
 
@@ -433,12 +446,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         border-bottom: 2px solid rgba(99, 140, 230, 0.6);
         border-radius: 2px;
         transition: background 0.2s ease;
-      }
-
-      .paged-document-editor .ProseMirror .current-selection-highlight {
-        background: rgba(147, 197, 253, 0.22);
-        border-bottom: 1px solid rgba(59, 130, 246, 0.35);
-        border-radius: 2px;
       }
 
       .paged-document-editor .ProseMirror .document-autocomplete-ghost-text {

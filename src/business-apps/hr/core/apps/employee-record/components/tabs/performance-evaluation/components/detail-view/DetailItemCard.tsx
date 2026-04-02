@@ -204,25 +204,30 @@ const DetailItemCard: React.FC<DetailItemCardProps> = ({
     }
   ]
 
-  const peerReviewers: ReviewerIdentity[] = peerEntries.map((entry, index) => {
-    const identity = getReviewerIdentityFromEntry(entry)
+  const peerRows = peerEntries.map((entry, index) => {
     const peerIndex = index + 1
+    const identity = getReviewerIdentityFromEntry(entry)
     const peerFallbackName = `${peerLabel} ${peerIndex}`
-    return {
+    const reviewer: ReviewerIdentity = {
       key: `peer-${peerIndex}`,
       tooltipLabel: identity.name ?? peerFallbackName,
       displayText: identity.name ? getInitials(identity.name, `P${peerIndex}`) : `P${peerIndex}`,
       pictureThumbnail: identity.pictureThumbnail
     }
+    return {
+      key: `peer-${peerIndex}`,
+      label: peerLabel,
+      data: buildPerspectiveRowData([entry]),
+      reviewers: [reviewer]
+    }
   })
 
   const selfRowData = buildPerspectiveRowData(selfEntries)
-  const peerRowData = buildPerspectiveRowData(peerEntries)
   const managerRowData = buildPerspectiveRowData(managerEntries)
   const perspectiveRows = [
-    { label: selfLabel, data: selfRowData, reviewers: selfReviewers },
-    ...(peerEntries.length > 0 ? [{ label: peerLabel, data: peerRowData, reviewers: peerReviewers }] : []),
-    { label: managerLabel, data: managerRowData, reviewers: managerReviewers }
+    { key: 'self', label: selfLabel, data: selfRowData, reviewers: selfReviewers },
+    ...peerRows,
+    { key: 'manager', label: managerLabel, data: managerRowData, reviewers: managerReviewers }
   ]
   const reviewColumns = getReviewColumns(perspectiveRows.map(row => row.data))
 
@@ -253,12 +258,12 @@ const DetailItemCard: React.FC<DetailItemCardProps> = ({
               </thead>
               <tbody>
                 {perspectiveRows.map(row => (
-                  <tr key={`${testId}-row-${row.label}`} className="gba:border-b gba:border-border last:gba:border-b-0">
+                  <tr key={`${testId}-row-${row.key}`} className="gba:border-b gba:border-border last:gba:border-b-0">
                     <td className="gba:py-2 gba:pr-3">
                       <ReviewerAvatarsCell label={row.label} reviewers={row.reviewers} testId={`${testId}-reviewer`} />
                     </td>
                     {reviewColumns.map(column => (
-                      <td key={`${testId}-cell-${row.label}-${column}`} className="gba:py-2 gba:px-3">
+                      <td key={`${testId}-cell-${row.key}-${column}`} className="gba:py-2 gba:px-3">
                         {column === 'Rating'
                           ? formatRatingForDisplay(row.data[column] || '-')
                           : row.data[column] || '-'}

@@ -1,6 +1,27 @@
 import { resolveWordLikeImageLayout } from './wrapLayoutEngine'
 
 describe('wrapLayoutEngine', () => {
+  it('computes floating square geometry for square-left', () => {
+    const layout = resolveWordLikeImageLayout({
+      width: 120,
+      height: 80,
+      wrapMode: 'square-left',
+      align: 'left',
+      distanceTop: 4,
+      distanceRight: 6,
+      distanceBottom: 8,
+      distanceLeft: 10,
+      offsetX: -12,
+      offsetY: 5
+    })
+
+    expect(layout.floatingSide).toBe('left')
+    expect(layout.wrapTextSide).toBe('right')
+    expect(layout.exclusionMode).toBe('square')
+    expect(layout.runtimeAttributes['data-image-exclusion-mode']).toBe('square')
+    expect(layout.runtimeAttributes['data-image-wrap-text-side']).toBe('right')
+  })
+
   it('computes floating square geometry from image attrs', () => {
     const layout = resolveWordLikeImageLayout({
       width: 120,
