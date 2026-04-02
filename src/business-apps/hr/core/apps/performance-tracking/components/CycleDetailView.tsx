@@ -18,7 +18,7 @@ import type { EvaluationDetail } from '../types'
 import { formatDate, formatStatusRef, getStatusBadgeVariant } from '../utils/formatLabels'
 import { ReviewerRow } from './ReviewerRow'
 
-function EvaluationRow({ evaluation }: { evaluation: EvaluationDetail }) {
+function EvaluationRow({ evaluation }: Readonly<{ evaluation: EvaluationDetail }>) {
   const [expanded, setExpanded] = useState(false)
   const completedReviewers = evaluation.reviewers.filter(r => r.completedDate).length
   const totalReviewers = evaluation.reviewers.length

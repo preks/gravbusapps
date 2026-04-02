@@ -245,7 +245,7 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
   )
 }
 
-function ReviewRow({ evaluation }: { evaluation: ReviewerEvaluationItem }) {
+function ReviewRow({ evaluation }: Readonly<{ evaluation: ReviewerEvaluationItem }>) {
   return (
     <TableRow data-testid={`reviewer-eval-row-${evaluation.id}`}>
       <TableCell className="gba:font-medium">{evaluation.employeeName}</TableCell>
