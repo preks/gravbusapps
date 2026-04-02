@@ -23,7 +23,7 @@ import * as z from 'zod'
 import translations from './_i18n'
 import {
   mergeCatalogEntryForPut,
-  parseEmploymentMetadata,
+  isEmploymentTypeMarkedDeleted,
   upsertCatalogTranslationForLocale
 } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
@@ -136,7 +136,6 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
 
     if (employmentType) {
       const fresh = await catalogClient.getCatalogEntryById(employmentType.id)
-      const existingMeta = parseEmploymentMetadata(fresh.additionalValue2)
       const translations = upsertCatalogTranslationForLocale(fresh.translations, userLocale, {
         value: trimmedData.value,
         additionalValue1: trimmedData.description
@@ -144,9 +143,7 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
       const payload = mergeCatalogEntryForPut(fresh, {
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
-        additionalValue2: JSON.stringify({
-          is_deleted: existingMeta.is_deleted === true
-        }),
+        isDeleted: isEmploymentTypeMarkedDeleted(fresh),
         translations
       })
       await catalogClient.updateCatalogEntry(
@@ -160,6 +157,7 @@ const EmploymentTypeForm: React.FC<EmploymentTypeFormProps> = ({
         code: codeForSave,
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
+        isDeleted: false,
         translations: []
       } as Omit<CatalogEntry, 'id' | 'type'>)
     }

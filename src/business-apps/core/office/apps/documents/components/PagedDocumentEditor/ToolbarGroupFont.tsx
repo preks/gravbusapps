@@ -48,6 +48,8 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- setter used for selection sync; value intentionally unused (Sonar S3735)
   const [_selectionTick, setSelectionTick] = useState(0)
   const [fontSizeInputValue, setFontSizeInputValue] = useState<string | null>(null)
+  const [textColorMenuOpen, setTextColorMenuOpen] = useState(false)
+  const [highlightMenuOpen, setHighlightMenuOpen] = useState(false)
 
   useEffect(() => {
     const onSelectionUpdate = () => setSelectionTick(s => s + 1)
@@ -222,7 +224,7 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
       >
         <Superscript className="gba:h-4 gba:w-4" />
       </ToolbarButton>
-      <DropdownMenu>
+      <DropdownMenu open={textColorMenuOpen} onOpenChange={setTextColorMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
@@ -238,7 +240,11 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
             {COLORS.map(color => (
               <button
                 key={color}
-                onClick={() => editor.chain().focus().setColor(color).run()}
+                type="button"
+                onClick={() => {
+                  editor.chain().focus().setColor(color).run()
+                  setTextColorMenuOpen(false)
+                }}
                 className="gba:w-5 gba:h-5 gba:rounded gba:border gba:border-border hover:gba:scale-110 gba:transition-transform"
                 style={{ backgroundColor: color }}
                 title={color}
@@ -246,17 +252,15 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
             ))}
           </div>
           <DropdownMenuSeparator className="gba:my-2" />
-          <Button
-            variant="ghost"
-            size="sm"
+          <DropdownMenuItem
             onClick={() => editor.chain().focus().unsetColor().run()}
-            className="gba:w-full gba:text-xs"
+            className="gba:w-full gba:justify-center gba:text-xs"
           >
             {t('editor-toolbar-remove-color')}
-          </Button>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <DropdownMenu>
+      <DropdownMenu open={highlightMenuOpen} onOpenChange={setHighlightMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
@@ -272,7 +276,11 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
             {HIGHLIGHT_COLORS.map(color => (
               <button
                 key={color}
-                onClick={() => editor.chain().focus().toggleHighlight({ color }).run()}
+                type="button"
+                onClick={() => {
+                  editor.chain().focus().toggleHighlight({ color }).run()
+                  setHighlightMenuOpen(false)
+                }}
                 className="gba:w-6 gba:h-6 gba:rounded gba:border gba:border-border hover:gba:scale-110 gba:transition-transform"
                 style={{ backgroundColor: color }}
                 title={color}
@@ -280,14 +288,15 @@ export function ToolbarGroupFont({ editor, testId = 'editor-toolbar' }: Readonly
             ))}
           </div>
           <DropdownMenuSeparator className="gba:my-2" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().unsetHighlight().run()}
-            className="gba:w-full gba:text-xs"
+          <DropdownMenuItem
+            onClick={() => {
+              const { to } = editor.state.selection
+              editor.chain().focus().unsetHighlight().setTextSelection(to).run()
+            }}
+            className="gba:w-full gba:justify-center gba:text-xs"
           >
             {t('editor-toolbar-remove-highlight')}
-          </Button>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </RibbonGroup>

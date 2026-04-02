@@ -515,15 +515,25 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   const isEmptyState = conversation.length === 0 && !isLoading
 
+  // Mobile webview fix: the webview viewport can be wider than the device
+  // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
+  // Constrain this component to the screen width when a mismatch is detected.
+  const [webviewMaxWidth, setWebviewMaxWidth] = useState<number | undefined>(undefined)
+  useEffect(() => {
+    if (typeof screen !== 'undefined' && window.innerWidth > screen.width * 1.1) {
+      setWebviewMaxWidth(screen.width)
+    }
+  }, [])
+
   return (
     <div
       className={`gba:h-full gba:flex gba:flex-col gba:relative gba:overflow-hidden ${className || ''}`}
       style={
         {
           backgroundColor: isEmptyState ? 'var(--nw-ai-hero-background)' : 'var(--nw-background)',
-          // Override AI colors to match decorative theme (blue)
           '--nw-ai': 'var(--nw-decorative)',
-          '--nw-ai-secondary': 'var(--nw-decorative-secondary)'
+          '--nw-ai-secondary': 'var(--nw-decorative-secondary)',
+          ...(webviewMaxWidth ? { maxWidth: webviewMaxWidth, width: webviewMaxWidth } : {})
         } as React.CSSProperties
       }
       data-testid="every-ai-app"
@@ -622,7 +632,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             data-testid="conversation-area"
           >
             {conversation.length === 0 && !isLoading ? (
-              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-full">
+              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
                 <HeroSection data-testid="every-ai-hero" />
               </div>
             ) : (

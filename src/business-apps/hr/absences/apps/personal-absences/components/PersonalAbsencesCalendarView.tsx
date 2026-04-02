@@ -1,7 +1,5 @@
 import { PageLayout, Button, useTranslation } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, CaretLeftIcon, PlusIcon } from '@phosphor-icons/react'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import AbsenceCalendar from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar'
 import { useAbsenceData } from '@/business-apps/hr/core/apps/employee-record/hooks/useAbsenceData'
@@ -9,6 +7,7 @@ import type { AbsenceListCardAbsence } from '@/business-apps/hr/core/apps/employ
 import type dayjs from 'dayjs'
 import type { AbsenceRow } from '../types/personalAbsences'
 import translations from '../_i18n'
+import { AbsenceRequestMenuButton } from './AbsenceRequestMenuButton'
 
 type TFunction = (key: string) => string
 
@@ -112,29 +111,14 @@ export function PersonalAbsencesCalendarView({
               {tLocal('change-entitlement')}
             </Button>
           )}
-          <AppAction
-            variant="update-primary"
-            key={`cal-action-${startDateFmt}-${endDateFmt}`}
-            data-testid="calendar-absence-request-button"
-            lazyLoad
-            emptyState="enable"
-            contexts={[
-              {
-                context: FlowContextName.employeeAbsenceRecord,
-                contextData: {
-                  employeeId: employee.id,
-                  absenceType: absenceEntitlements.find((e: any) => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                  flowType: 'vacation',
-                  startDate: startDateFmt,
-                  endDate: endDateFmt
-                }
-              }
-            ]}
-            prefixDataTestId="calendar-absence-request"
-            accessToken={accessToken}
-          >
-            {requestAbsenceLabel}
-          </AppAction>
+          <AbsenceRequestMenuButton
+            employeeId={employee?.id}
+            label={requestAbsenceLabel}
+            buttonTestId="calendar-absence-request-button"
+            menuTestIdPrefix="calendar-absence-request"
+            startDate={startDateFmt || undefined}
+            endDate={endDateFmt || undefined}
+          />
         </div>
       </div>
       <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">

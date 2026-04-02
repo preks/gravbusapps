@@ -1,6 +1,6 @@
 import { useCallback, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
-import type { DocumentFormatting, PageNumberAlignment } from '../../../types'
+import type { DocumentFormatting, DocumentPagesFormatting, PageNumberAlignment } from '../../../types'
 import { normalizeStoredPagesFormatting } from '../../../utils/pageLayoutUtils'
 import {
   mergePagesFormattingAfterPageNumbersApply,
@@ -8,14 +8,14 @@ import {
   removePageNumberPlacement,
   type ApplyPageNumberPlacementParams
 } from '../applyPageNumberPlacement'
-import { readPagesFormattingFromStorage } from './usePagedDocumentFormatting'
 
 const isDevelopmentEnvironment = process.env.NODE_ENV !== 'production'
 
 export interface UsePagedDocumentPageNumberActionsParams {
   editor: TiptapEditor | null
-  editorRef: MutableRefObject<{ storage?: { pages?: unknown } } | null>
   layoutFormattingRef: MutableRefObject<DocumentFormatting>
+  /** Merges layout snapshot with editor storage without clobbering HTML when storage is briefly empty after refresh. */
+  getPersistedPagesFormatting: (fallback?: DocumentPagesFormatting) => DocumentPagesFormatting | undefined
   buildPersistedFormatting: (
     formattingSource?: DocumentFormatting,
     pagesOverride?: DocumentFormatting['pages']
@@ -34,8 +34,8 @@ export interface UsePagedDocumentPageNumberActionsResult {
 
 export function usePagedDocumentPageNumberActions({
   editor,
-  editorRef,
   layoutFormattingRef,
+  getPersistedPagesFormatting,
   buildPersistedFormatting,
   persistFormatting,
   markUnsavedChanges
@@ -93,15 +93,12 @@ export function usePagedDocumentPageNumberActions({
   }, [buildPersistedFormatting, editor, handlePageSetupApply, layoutFormattingRef, markUnsavedChanges])
 
   const persistPagesFromEditor = useCallback(() => {
-    const pagesStorage = editorRef.current?.storage?.pages
-    const pagesFromEditor = readPagesFormattingFromStorage(pagesStorage as never)
-    if (!pagesFromEditor) return
+    const mergedPages = getPersistedPagesFormatting(layoutFormattingRef.current.pages)
+    if (!mergedPages) return
 
-    const currentPages = layoutFormattingRef.current.pages
-    const mergedPages = currentPages ? { ...currentPages, ...pagesFromEditor } : { ...pagesFromEditor }
     const mergedFormatting: DocumentFormatting = { ...layoutFormattingRef.current, pages: mergedPages }
     handlePageSetupApply(buildPersistedFormatting(mergedFormatting, mergedPages))
-  }, [buildPersistedFormatting, editorRef, handlePageSetupApply, layoutFormattingRef])
+  }, [buildPersistedFormatting, getPersistedPagesFormatting, handlePageSetupApply, layoutFormattingRef])
 
   return {
     handlePageSetupApply,

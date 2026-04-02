@@ -139,10 +139,19 @@ function getWrapXml(layout: ReturnType<typeof resolveWordLikeImageLayout>): stri
 function getHorizontalAlignmentXml(
   layout: ReturnType<typeof getImageFigureAttributesFromElement>,
   horizontalRef: string,
-  offsetX: number
+  offsetX: number,
+  wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>
 ): string {
   if (offsetX !== 0) {
     return `<wp:positionH relativeFrom="${horizontalRef}"><wp:posOffset>${offsetX}</wp:posOffset></wp:positionH>`
+  }
+
+  if (
+    wordLayout &&
+    (wordLayout.wrapMode === 'square-left' || wordLayout.wrapMode === 'square-right') &&
+    wordLayout.floatingSide
+  ) {
+    return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${wordLayout.floatingSide}</wp:align></wp:positionH>`
   }
 
   let align = 'left'
@@ -240,7 +249,7 @@ function imageAnchorDrawingXml(
   const horizontalRef = layout.anchorMode === 'fixed' ? 'page' : 'margin'
   const verticalRef = layout.anchorMode === 'fixed' ? 'page' : 'paragraph'
   const wrapXml = getWrapXml(wordLayout)
-  const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX)
+  const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX, wordLayout)
   const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
 
   return (

@@ -253,6 +253,8 @@ export function resolveSidebarPresentationState(options: {
   selectedSignatureSidebar: SelectedSignatureSidebarState
   activeHeaderFooterEditor: TiptapEditor | null
   isHeaderFooterEditing: boolean
+  /** True while the user has the header/footer settings panel open (until explicit close). Keeps the panel mounted when the inline overlay briefly unmounts during layout toggles or margin persist. */
+  headerFooterSettingsSessionOpen: boolean
 }): {
   documentRightPanelOffset: number
   showTableSidebar: boolean
@@ -283,8 +285,8 @@ export function resolveSidebarPresentationState(options: {
     options.selectedSignatureSidebar.open &&
     options.selectedSignatureSidebar.editor === options.activeHeaderFooterEditor
   const showHeaderFooterSidebar =
-    options.isHeaderFooterEditing &&
-    options.activeHeaderFooterEditor != null &&
+    (options.headerFooterSettingsSessionOpen ||
+      (options.isHeaderFooterEditing && options.activeHeaderFooterEditor != null)) &&
     !showTableSidebar &&
     !imageBlocksHeaderFooter &&
     !signatureBlocksHeaderFooter
@@ -316,6 +318,7 @@ export interface UsePagedDocumentSelectionSidebarsParams {
   activeHeaderFooterEditor: TiptapEditor | null
   activeHeaderFooterType: ActivePagesEditorState['activeEditorType']
   isHeaderFooterEditing: boolean
+  headerFooterSettingsSessionOpen: boolean
   rightSidebar: RightSidebar
 }
 
@@ -349,6 +352,7 @@ export function usePagedDocumentSelectionSidebars({
   activeHeaderFooterEditor,
   activeHeaderFooterType,
   isHeaderFooterEditing,
+  headerFooterSettingsSessionOpen,
   rightSidebar
 }: UsePagedDocumentSelectionSidebarsParams): UsePagedDocumentSelectionSidebarsResult {
   const replaceImagePosRef = useRef<number | null>(null)
@@ -1036,7 +1040,8 @@ export function usePagedDocumentSelectionSidebars({
     selectedTableSidebar,
     selectedSignatureSidebar,
     activeHeaderFooterEditor,
-    isHeaderFooterEditing
+    isHeaderFooterEditing,
+    headerFooterSettingsSessionOpen
   })
   const imageSidebarContextSubtitleKey = resolveSidebarContextSubtitleKey({
     sidebar: 'image',

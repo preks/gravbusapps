@@ -280,6 +280,10 @@ export class ChatClient extends RestClient {
     return this.get<T>('/auth/me', options)
   }
 
+  updateCurrentUserPreferences<T = any>(body: unknown, options: RequestOptions = {}) {
+    return this.patch<T>('/users/me/preferences', body, options)
+  }
+
   searchUsers<T = any>(query: string, limit: number = 20, options: RequestOptions = {}) {
     return this.get<T>('/users/search', mergeRequestOptions(createQueryParams({ q: query, limit }), options))
   }
@@ -533,12 +537,71 @@ export class ChatClient extends RestClient {
     )
   }
 
+  getCalendarEventsFiltered<T = any>(
+    startDate: string,
+    endDate: string,
+    params?: {
+      calendarIds?: string[]
+      includePersonal?: boolean
+    },
+    options: RequestOptions = {}
+  ) {
+    return this.get<T>(
+      '/meetings/calendar/events',
+      mergeRequestOptions(
+        createQueryParams({
+          startDate,
+          endDate,
+          calendarIds: params?.calendarIds === undefined ? undefined : params.calendarIds.join(','),
+          includePersonal: params?.includePersonal
+        }),
+        options
+      )
+    )
+  }
+
   getCalendarEventsByPath<T = any>(params?: Record<string, string>, options: RequestOptions = {}) {
     return this.get<T>('/calendar/events', mergeRequestOptions(params, options))
   }
 
   getPendingInvitations<T = any>(options: RequestOptions = {}) {
     return this.get<T>('/meetings/invitations/pending', options)
+  }
+
+  getCalendars<T = any>(options: RequestOptions = {}) {
+    return this.get<T>('/calendars', options)
+  }
+
+  createCalendar<T = any>(body: unknown, options: RequestOptions = {}) {
+    return this.post<T>('/calendars', body, options)
+  }
+
+  getCalendar<T = any>(calendarId: string, options: RequestOptions = {}) {
+    return this.get<T>(`/calendars/${calendarId}`, options)
+  }
+
+  getCalendarMembers<T = any>(calendarId: string, options: RequestOptions = {}) {
+    return this.get<T>(`/calendars/${calendarId}/members`, options)
+  }
+
+  updateCalendar<T = any>(calendarId: string, body: unknown, options: RequestOptions = {}) {
+    return this.patch<T>(`/calendars/${calendarId}`, body, options)
+  }
+
+  updateCalendarPreferences<T = any>(calendarId: string, body: unknown, options: RequestOptions = {}) {
+    return this.patch<T>(`/calendars/${calendarId}/preferences`, body, options)
+  }
+
+  archiveCalendar<T = any>(calendarId: string, options: RequestOptions = {}) {
+    return this.patch<T>(`/calendars/${calendarId}/archive`, undefined, options)
+  }
+
+  updateCalendarMembers<T = any>(calendarId: string, body: unknown, options: RequestOptions = {}) {
+    return this.post<T>(`/calendars/${calendarId}/members`, body, options)
+  }
+
+  getCalendarAvailability<T = any>(body: unknown, options: RequestOptions = {}) {
+    return this.post<T>('/calendars/availability', body, options)
   }
 
   getOrganizedMeetings<T = any>(includeCompleted?: boolean, options: RequestOptions = {}) {
