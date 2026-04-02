@@ -1,6 +1,7 @@
 import type { RequestOptions } from '../rest/RestClient'
 import { env } from '../../env/EnvUtils'
 import type { ResourceClient } from './ResourceClient'
+import { capLimit } from './paginationConstants'
 import type { Component, ComponentApiResponse } from '@/common/data/resources/types/component.types'
 
 export class ComponentClient {
@@ -45,13 +46,8 @@ export class ComponentClient {
     const sort = params?.sort || { field: 'name', order: 'ASC' }
     queryParams.sort = JSON.stringify(sort)
 
-    if (params?.limit !== undefined) {
-      queryParams.limit = params.limit
-    }
-
-    if (params?.offset !== undefined) {
-      queryParams.offset = params.offset
-    }
+    queryParams.limit = capLimit(params?.limit)
+    queryParams.offset = params?.offset ?? 0
 
     if (params?.returnTotalRecords !== undefined) {
       queryParams.returnTotalRecords = params.returnTotalRecords
