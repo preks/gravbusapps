@@ -37,12 +37,12 @@ import {
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import {
   formatProbationFromJson,
-  mergeCatalogEntryForPut,
-  parseContractTypeJson,
-  serializeContractTypeAdditionalJson
+  getContractTypePayrollRelevant,
+  mergeCatalogEntryForPut
 } from '../../utils/catalogEntryMetadata'
 import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'
 import { CatalogMultilineCellText } from '../CatalogMultilineCellText'
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
 
 export interface ContractType {
   id: string
@@ -52,6 +52,8 @@ export interface ContractType {
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
+  objectValue?: CatalogEntry['objectValue']
+  isDeleted?: boolean
   translations: Array<{
     localeCode: string
     value: string
@@ -63,8 +65,10 @@ export interface ContractTypeTable {
   code: string
   value: string
   description: string | undefined
-  /** Raw `additionalValue2`: JSON with probation, payroll_relevant, is_deleted */
+  /** Raw `additionalValue2`: JSON with probation data. */
   probationPeriod?: string
+  objectValue?: CatalogEntry['objectValue']
+  isDeleted?: boolean
   payrollRelevant?: boolean
 }
 
@@ -129,12 +133,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
 
   const handleSoftDelete = async (record: ContractTypeTable) => {
     const fresh = await catalogClient.getCatalogEntryById(record.id)
-    const parsed = parseContractTypeJson(fresh.additionalValue2)
-    const additionalValue2 = serializeContractTypeAdditionalJson({
-      ...parsed,
-      is_deleted: true
-    })
-    const payload = mergeCatalogEntryForPut(fresh, { additionalValue2 })
+    const payload = mergeCatalogEntryForPut(fresh, { isDeleted: true })
     await catalogClient.updateCatalogEntry(
       CONTRACT_TYPE_CATALOG,
       CONTRACT_TYPE_VERSION,
@@ -177,7 +176,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           },
           {
             label: 'Payroll relevant',
-            value: parseContractTypeJson(selectedType.additionalValue2).payroll_relevant ? 'Yes' : 'No'
+            value: getContractTypePayrollRelevant(selectedType) ? 'Yes' : 'No'
           }
         ],
         verticalTable: true
@@ -286,17 +285,16 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       }
     ]
 
-    const dataTable: ContractTypeTable[] = filteredContractTypes.map(contractType => {
-      const parsed = parseContractTypeJson(contractType.additionalValue2)
-      return {
-        id: contractType.id,
-        code: contractType.code,
-        value: contractType.value,
-        description: contractType.additionalValue1,
-        probationPeriod: contractType.additionalValue2,
-        payrollRelevant: parsed.payroll_relevant === true
-      }
-    })
+    const dataTable: ContractTypeTable[] = filteredContractTypes.map(contractType => ({
+      id: contractType.id,
+      code: contractType.code,
+      value: contractType.value,
+      description: contractType.additionalValue1,
+      probationPeriod: contractType.additionalValue2,
+      objectValue: contractType.objectValue,
+      isDeleted: contractType.isDeleted,
+      payrollRelevant: getContractTypePayrollRelevant(contractType)
+    }))
 
     return (
       <CatalogLookupDataTableShell>
@@ -407,7 +405,9 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
                   code: selectedType.code,
                   value: selectedType.value,
                   description: selectedType.additionalValue1,
-                  probationPeriod: selectedType.additionalValue2
+                  probationPeriod: selectedType.additionalValue2,
+                  objectValue: selectedType.objectValue,
+                  isDeleted: selectedType.isDeleted
                 }}
                 isDrawerActive={true}
                 key={selectedType.id}

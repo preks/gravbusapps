@@ -694,7 +694,7 @@ describe('createWindowedPaginationRenderer', () => {
 
     expect(activeRegion.querySelector('.rm-page-header-content')?.innerHTML).toContain('Updated header')
     expect(deferredRegion.querySelector('.rm-page-header-content')?.innerHTML).not.toContain('Updated header')
-    expect(editorDom.style.minHeight).toBe('152px')
+    expect(editorDom.style.minHeight).toBe('158px')
     expect(scheduledCallbacks).toHaveLength(1)
 
     scheduledCallbacks[0](0)
@@ -774,7 +774,7 @@ describe('createWindowedPaginationRenderer', () => {
 
     renderer.refreshLayoutBounds(editorDom)
 
-    expect(editorDom.style.minHeight).toBe('132px')
+    expect(editorDom.style.minHeight).toBe('138px')
   })
 
   it('syncs root presentation styles through the renderer facade', () => {

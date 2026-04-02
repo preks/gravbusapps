@@ -9,10 +9,19 @@ function getFlowOrder(host: HTMLElement) {
   return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER
 }
 
+/**
+ * Element whose `getBoundingClientRect()` drives page-overlay positioning.
+ * Float wrap (square / tight / through) must use the inline node-view wrapper so x/y match the
+ * insertion point; other overlay modes keep paragraph-relative anchoring when applicable.
+ */
 export function resolveImageAnchorGeometryElement(
   anchorElement: HTMLElement,
-  layout: Pick<WordLikeImageLayout, 'anchorReference'>
+  layout: Pick<WordLikeImageLayout, 'anchorReference' | 'flowMode'>
 ): HTMLElement {
+  if (layout.flowMode === 'float') {
+    return anchorElement
+  }
+
   if (layout.anchorReference !== 'paragraph') {
     return anchorElement
   }
@@ -93,7 +102,6 @@ export function resolveImageFlowShimStyle(
     width: layout.layoutWidth,
     height: layout.layoutHeight,
     shapeOutside: polygon,
-    WebkitShapeOutside: polygon,
     pointerEvents: 'none',
     userSelect: 'none',
     visibility: 'hidden'

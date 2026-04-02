@@ -735,9 +735,9 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const refreshOverlayMount = useCallback(() => {
     const wrapper = wrapperRef.current
     const editorElement = getEditorDomSafely(editor)
-    const anchorElement =
-      flowShimElementRef.current ??
-      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
+    // Never use the flow shim rect for overlay placement: the shim is inserted at the paragraph
+    // start for float stacking, while the node-view wrapper stays at the inline anchor position.
+    const anchorElement = wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null
 
     if (!usesPageOverlayVisual || !(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
       setOverlayMount(null)
@@ -788,10 +788,8 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
     const wrapper = wrapperRef.current
     const editorElement = getEditorDomSafely(editor)
-    const anchorElement =
-      flowShimElementRef.current ??
-      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
-    if (!(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+    const geometryAnchor = wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null
+    if (!(geometryAnchor instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
       return
     }
 
@@ -802,7 +800,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     }
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleRefresh)
-    resizeObserver?.observe(anchorElement)
+    resizeObserver?.observe(geometryAnchor)
     resizeObserver?.observe(editorElement)
 
     const mutationObserver = new MutationObserver(scheduleRefresh)
