@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
-import { buildCatalogTranslations } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
+import { buildCatalogTranslations, isSystemCatalogEntry } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import type { AbsenceCatalogEntryPayload } from './useAbsenceCatalogEntries'
 import { useAbsenceSetupCatalogData } from './useAbsenceSetupCatalogData'
 import type { AbsenceEntitlementModalValues } from '../modals/AbsenceEntitlementModal'
@@ -393,6 +393,20 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     },
     onDeleteAbsenceType: entry => {
       const absenceTypeName = getAbsenceTypeTitle(entry, t('untitled-absence-type'))
+      const isSystemType = isSystemCatalogEntry({
+        type: entry.type,
+        objectValue: entry.objectValue
+      })
+
+      if (isSystemType) {
+        openDeleteDialog(
+          t('absence-type-entity-label'),
+          absenceTypeName,
+          async () => Promise.resolve(),
+          t('delete-system-entry-blocked', { entity: t('absence-type-entity-label') })
+        )
+        return
+      }
 
       openDeleteDialog(t('absence-type-entity-label'), absenceTypeName, () => deleteAbsenceType(entry.id))
     },
@@ -423,6 +437,11 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
       )
     },
     onAddGenericCatalog: catalogKey => {
+      if (catalogKey === 'AbsenceGroup') {
+        const config = genericCatalogConfigs[catalogKey]
+        toast.error(t('catalog-readonly-message', { entity: config.entityLabel }))
+        return
+      }
       if (catalogKey === 'AbsencePolicy') {
         setSelectedPolicy(null)
         setIsAbsencePolicyModalOpen(true)
@@ -442,6 +461,15 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     },
     onDeleteGenericCatalog: (catalogKey, entry) => {
       const config = genericCatalogConfigs[catalogKey]
+      if (catalogKey === 'AbsenceGroup') {
+        openDeleteDialog(
+          config.entityLabel,
+          entry.value || entry.code,
+          async () => Promise.resolve(),
+          t('delete-system-entry-blocked', { entity: config.entityLabel })
+        )
+        return
+      }
       openDeleteDialog(config.entityLabel, entry.value || entry.code, () => config.hook.deleteEntry(entry.id))
     }
   })

@@ -38,6 +38,7 @@ interface AbsenceSetupSectionCardProps {
   onDelete: (id: string) => void
   addButtonTestId: string
   cardTestId: string
+  showAddAction?: boolean
   showDeleteAction?: boolean
 }
 
@@ -59,6 +60,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
   onDelete,
   addButtonTestId,
   cardTestId,
+  showAddAction = true,
   showDeleteAction = true
 }) => {
   const { t } = useTranslation(translations)
@@ -132,19 +134,21 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
             </div>
           </div>
 
-          <div className="gba:flex gba:w-full gba:justify-start gba:lg:w-auto gba:justify-self-end">
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={onAdd}
-              data-testid={addButtonTestId}
-              className="gba:w-full gba:gap-2 gba:lg:w-auto"
-            >
-              <Plus className="gba:h-4 gba:w-4" />
-              {addLabel}
-            </Button>
-          </div>
+          {showAddAction ? (
+            <div className="gba:flex gba:w-full gba:justify-start gba:lg:w-auto gba:justify-self-end">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={onAdd}
+                data-testid={addButtonTestId}
+                className="gba:w-full gba:gap-2 gba:lg:w-auto"
+              >
+                <Plus className="gba:h-4 gba:w-4" />
+                {addLabel}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </CardHeader>
 
@@ -302,6 +306,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                               event.stopPropagation()
                               onDelete(item.id)
                             }}
+                            disabled={item.canDelete === false}
                             data-testid={`${cardTestId}-delete-${item.id}`}
                             className="gba:text-destructive gba:hover:text-destructive"
                           >

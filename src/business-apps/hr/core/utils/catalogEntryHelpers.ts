@@ -14,6 +14,11 @@ type CatalogEntryWithDeleteState = CatalogEntry & {
 const isObjectRecord = (value: JSONValue | undefined): value is Record<string, JSONValue> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
+const toBoolean = (value: JSONValue | undefined): boolean => value === true
+
+const toNormalizedString = (value: JSONValue | undefined): string =>
+  typeof value === 'string' ? value.trim().toLowerCase() : ''
+
 const getTranslationForLocale = (
   translations: CatalogEntry['translations'] | undefined,
   localeCode: string,
@@ -68,4 +73,32 @@ export const buildSoftDeletedObjectValue = (objectValue?: JSONValue) => {
     ...objectValue,
     isDeleted: true
   }
+}
+
+export const isSystemCatalogEntry = (entry: Pick<CatalogEntry, 'type' | 'objectValue'> | null | undefined): boolean => {
+  if (!entry) {
+    return false
+  }
+
+  if (typeof entry.type === 'string' && entry.type.toLowerCase().includes('system')) {
+    return true
+  }
+
+  if (!isObjectRecord(entry.objectValue)) {
+    return false
+  }
+
+  const objectValue = entry.objectValue
+  const source = toNormalizedString(objectValue.source)
+  const sourceType = toNormalizedString(objectValue.sourceType)
+  const origin = toNormalizedString(objectValue.origin)
+
+  return (
+    toBoolean(objectValue.isSystem) ||
+    toBoolean(objectValue.system) ||
+    toBoolean(objectValue.systemGenerated) ||
+    source === 'system' ||
+    sourceType === 'system' ||
+    origin === 'system'
+  )
 }

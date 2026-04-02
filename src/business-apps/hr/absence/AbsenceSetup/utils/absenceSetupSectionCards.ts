@@ -21,6 +21,8 @@ export interface AbsenceSetupSectionCardConfig {
   onDelete: (id: string) => void
   addButtonTestId: string
   cardTestId: string
+  showAddAction?: boolean
+  showDeleteAction?: boolean
 }
 
 interface BuildAbsenceSetupSectionCardsArgs {
@@ -98,7 +100,9 @@ export const buildAbsenceSetupSectionCards = ({
       if (entry) onDeleteGenericCatalog('AbsenceGroup', entry)
     },
     addButtonTestId: genericCatalogConfigs.AbsenceGroup.addButtonTestId,
-    cardTestId: genericCatalogConfigs.AbsenceGroup.cardTestId
+    cardTestId: genericCatalogConfigs.AbsenceGroup.cardTestId,
+    showAddAction: false,
+    showDeleteAction: false
   },
   {
     icon: Calendar,

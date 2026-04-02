@@ -76,6 +76,8 @@ export function AbsenceTypeManagementSection({
               onDelete={typeSection.onDelete}
               addButtonTestId={typeSection.addButtonTestId}
               cardTestId={typeSection.cardTestId}
+              showAddAction={typeSection.showAddAction}
+              showDeleteAction={typeSection.showDeleteAction}
             />
           </TabsContent>
           <TabsContent value="versions" className="gba:mt-4">
@@ -97,6 +99,8 @@ export function AbsenceTypeManagementSection({
               onDelete={versionSection.onDelete}
               addButtonTestId={versionSection.addButtonTestId}
               cardTestId={versionSection.cardTestId}
+              showAddAction={versionSection.showAddAction}
+              showDeleteAction={versionSection.showDeleteAction}
             />
           </TabsContent>
         </Tabs>

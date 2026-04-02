@@ -76,6 +76,29 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
 
         <div className="gba:grid gba:gap-4 gba:md:grid-cols-2">
           <div className="gba:space-y-2">
+            <Label htmlFor="absence-type-icon-input">{t('field-icon-label')}</Label>
+            <Input
+              id="absence-type-icon-input"
+              list="absence-type-icon-suggestions"
+              value={settings.icon}
+              onChange={event => onFieldChange('icon', event.target.value)}
+              placeholder={t('icon-placeholder')}
+              data-testid="absence-type-icon-input"
+              title={t('icon-field-tooltip')}
+            />
+            <datalist id="absence-type-icon-suggestions">
+              <option value="vacation" />
+              <option value="sick" />
+              <option value="home-office" />
+              <option value="business-trip" />
+              <option value="training" />
+              <option value="family-care" />
+              <option value="jury-duty" />
+            </datalist>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('icon-field-helper')}</p>
+          </div>
+
+          <div className="gba:space-y-2">
             <Label htmlFor="absence-type-color-input">{t('field-color-label')}</Label>
             <div className="gba:flex gba:items-center gba:gap-3">
               <Input

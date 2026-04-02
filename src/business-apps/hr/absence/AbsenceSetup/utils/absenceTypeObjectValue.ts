@@ -5,6 +5,7 @@ export const ABSENCE_TYPE_MEASUREMENT_OPTIONS = ['WorkingDays', 'CalendarDays', 
 export type AbsenceTypeMeasurementOption = (typeof ABSENCE_TYPE_MEASUREMENT_OPTIONS)[number]
 
 export interface AbsenceTypeObjectSettings {
+  icon: string
   color: string
   display: boolean
   priority: string
@@ -25,6 +26,7 @@ interface AbsenceTypeObjectEditorState {
 }
 
 export const defaultAbsenceTypeObjectSettings: AbsenceTypeObjectSettings = {
+  icon: '',
   color: '',
   display: true,
   priority: '',
@@ -68,6 +70,7 @@ export const getAbsenceTypeObjectEditorState = (
 
   const {
     color,
+    icon,
     display,
     priority,
     measurement,
@@ -92,6 +95,7 @@ export const getAbsenceTypeObjectEditorState = (
   return {
     settings: {
       color: typeof color === 'string' ? color : defaultAbsenceTypeObjectSettings.color,
+      icon: typeof icon === 'string' ? icon : defaultAbsenceTypeObjectSettings.icon,
       display: typeof display === 'boolean' ? display : defaultAbsenceTypeObjectSettings.display,
       priority: resolvedPriority,
       measurement: normalizeMeasurementOption(measurement) || defaultAbsenceTypeObjectSettings.measurement,
@@ -127,6 +131,7 @@ export const buildAbsenceTypeObjectValue = (
   extraObjectValue: AbsenceTypeObjectValue
 ): AbsenceTypeObjectValue => ({
   ...extraObjectValue,
+  icon: settings.icon.trim(),
   color: settings.color.trim(),
   display: settings.display,
   priority: Number.isNaN(Number(settings.priority)) ? 0 : Number(settings.priority),

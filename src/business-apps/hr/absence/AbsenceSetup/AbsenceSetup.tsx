@@ -173,6 +173,8 @@ const AbsenceSetup: React.FC<AbsenceSetupProps> = ({ accessToken }) => {
                 onDelete={activeSection.onDelete}
                 addButtonTestId={activeSection.addButtonTestId}
                 cardTestId={activeSection.cardTestId}
+                showAddAction={activeSection.showAddAction}
+                showDeleteAction={activeSection.showDeleteAction}
               />
             )}
           </div>

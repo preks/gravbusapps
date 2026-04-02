@@ -15,6 +15,7 @@ export interface SetupSectionItem {
   statusLabel?: string
   statusValue?: 'active' | 'inactive'
   canEdit?: boolean
+  canDelete?: boolean
   searchText?: string
   sortText?: string
   fields?: Array<{

@@ -2,6 +2,7 @@ import { FolderTree, Shield } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import useAbsenceTypes from '../../../core/hooks/useAbsenceTypes'
+import { isSystemCatalogEntry } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import { useAbsenceCatalogEntries } from './useAbsenceCatalogEntries'
 import type { AbsenceEntitlementModalValues } from '../modals/AbsenceEntitlementModal'
 import {
@@ -61,6 +62,10 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
     () =>
       absenceTypeState.absenceTypes.map(type => {
         const editorState = getAbsenceTypeObjectEditorState(type.objectValue)
+        const isSystemType = isSystemCatalogEntry({
+          type: type.type,
+          objectValue: type.objectValue
+        })
 
         return {
           id: type.id,
@@ -68,6 +73,7 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
           description: `${type.code} | ${getAbsenceGroupLabel(type.parentEntryId, t('no-group'))}`,
           statusLabel: editorState.settings.display ? t('status-active') : t('status-inactive'),
           statusValue: editorState.settings.display ? 'active' : 'inactive',
+          canDelete: !isSystemType,
           sortText: `${type.value || type.code} ${type.code}`,
           searchText: [type.code, type.value, getAbsenceGroupLabel(type.parentEntryId, t('no-group'))]
             .filter(Boolean)
@@ -225,7 +231,7 @@ export const useAbsenceSetupCatalogData = (accessToken: string, t: TranslateFn) 
     AbsenceGroup: {
       entityLabel: t('absence-group-entity-label'),
       title: t('absence-groups-title'),
-      description: t('absence-groups-description'),
+      description: t('absence-groups-readonly-description'),
       items: absenceGroupsCatalog.entries.map(entry => ({
         id: entry.id,
         title: entry.value || entry.code,
