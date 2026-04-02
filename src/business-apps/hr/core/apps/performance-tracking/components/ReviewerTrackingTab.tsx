@@ -30,14 +30,7 @@ import { useReviewerEvaluations } from '../hooks/useReviewerEvaluations'
 import { useEmployeeEvaluations } from '../hooks/useEmployeeEvaluations'
 import { EmployeeEvaluationsCard } from './EmployeeEvaluationsCard'
 import type { ReviewerEvaluationItem } from '../types'
-import { formatReviewerType, formatReviewerStatus, getStatusBadgeVariant } from '../utils/formatLabels'
-
-function formatDate(date: string | null): string {
-  if (!date) return '-'
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
+import { formatDate, formatReviewerType, formatReviewerStatus, getStatusBadgeVariant } from '../utils/formatLabels'
 
 function buildReviewerKpis(evaluations: ReviewerEvaluationItem[]): WidgetItem[] {
   const byType = (type: string) => evaluations.filter(e => e.reviewerType === type)

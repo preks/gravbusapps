@@ -13,39 +13,10 @@ import {
   TableRow,
   Spinner
 } from '@newwork/nw-design-system'
-import { CaretDown, CaretRight, UserCircle } from '@phosphor-icons/react'
-import type { EmployeeEvalItem, ReviewerDetail } from '../types'
-import { formatReviewerType, formatReviewerStatus, formatStatusRef, getStatusBadgeVariant } from '../utils/formatLabels'
-
-function formatDate(date: string | null): string {
-  if (!date) return '-'
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-function ReviewerRow({ reviewer }: { reviewer: ReviewerDetail }) {
-  return (
-    <TableRow className="gba:bg-muted/30">
-      <TableCell className="gba:pl-12">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <UserCircle size={16} className="gba:text-muted-foreground" />
-          <span className="gba:text-sm">{reviewer.reviewerName}</span>
-        </div>
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="gba:text-xs">
-          {formatReviewerType(reviewer.reviewerType)}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <Badge variant={getStatusBadgeVariant(reviewer.status)}>{formatReviewerStatus(reviewer.status)}</Badge>
-      </TableCell>
-      <TableCell>{formatDate(reviewer.assignedDate)}</TableCell>
-      <TableCell>{formatDate(reviewer.completedDate)}</TableCell>
-    </TableRow>
-  )
-}
+import { CaretDown, CaretRight } from '@phosphor-icons/react'
+import type { EmployeeEvalItem } from '../types'
+import { formatDate, formatStatusRef, getStatusBadgeVariant } from '../utils/formatLabels'
+import { ReviewerRow } from './ReviewerRow'
 
 function EvalRow({ evaluation }: { evaluation: EmployeeEvalItem }) {
   const [expanded, setExpanded] = useState(false)

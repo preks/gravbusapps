@@ -6,17 +6,11 @@ import { usePerformanceTracking } from '../hooks/usePerformanceTracking'
 import { useCycleDetail } from '../hooks/useCycleDetail'
 import { CycleDetailView } from './CycleDetailView'
 import type { CycleTrackingSummary } from '../types'
-
-function formatDate(date: string | null): string {
-  if (!date) return ''
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
+import { formatDate } from '../utils/formatLabels'
 
 function formatCycleLabel(cycle: CycleTrackingSummary): string {
-  const start = formatDate(cycle.evaluationPeriodStartDate ?? cycle.startDate)
-  const end = formatDate(cycle.evaluationPeriodEndDate ?? cycle.endDate)
+  const start = formatDate(cycle.evaluationPeriodStartDate ?? cycle.startDate, '')
+  const end = formatDate(cycle.evaluationPeriodEndDate ?? cycle.endDate, '')
   const range = start && end ? ` (${start} – ${end})` : ''
   return `${cycle.name}${range}`
 }
