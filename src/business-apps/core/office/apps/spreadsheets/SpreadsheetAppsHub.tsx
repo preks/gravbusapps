@@ -1124,8 +1124,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
-    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+    // Full page navigation matches prod host routing and avoids dev-only history + popstate gaps.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
   }, [])
 
   /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
