@@ -29,12 +29,12 @@ const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, val
   </div>
 )
 
-function formatHoursValue(value: number | null | undefined): string | null {
+function formatHoursValue(value: number | null | undefined, unitHoursShort: string): string | null {
   if (value === null || value === undefined) {
     return null
   }
 
-  return `${value}h`
+  return `${value}${unitHoursShort}`
 }
 
 function formatOptionalValue(value: number | null | undefined): string | null {
@@ -92,7 +92,7 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
             </div>
           </div>
           <div className="gba:mt-2">
-            <ReadinessStatusBadge status={employee.readinessStatus} />
+            <ReadinessStatusBadge status={employee.readinessStatus} t={t} />
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               value={employee.terminationDate ? new Date(employee.terminationDate).toLocaleDateString() : null}
             />
             <Field label={t('grid-fte')} value={formatOptionalValue(employee.fte)} />
-            <Field label={t('grid-capacity')} value={formatHoursValue(employee.weeklyHours)} />
+            <Field label={t('grid-capacity')} value={formatHoursValue(employee.weeklyHours, t('unit-hours-short'))} />
             <Field
               label={t('grid-base-salary')}
               value={
@@ -127,23 +127,35 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
             />
             <Field
               label={t('grid-bank-details')}
-              value={employee.bankDetailsPresent ? employee.bankAccountIban || 'Present' : 'Missing'}
+              value={employee.bankDetailsPresent ? employee.bankAccountIban || t('label-present') : t('label-missing')}
             />
           </Section>
 
           <Section title={t('employee-detail-time')}>
-            <Field label={t('grid-paid-leave')} value={`${employee.paidLeaveHours}h (${employee.paidLeaveDays}d)`} />
-            <Field label={t('grid-sick-leave')} value={`${employee.sickLeaveHours}h (${employee.sickLeaveDays}d)`} />
-            <Field label={t('grid-unpaid-leave')} value={`${employee.unpaidLeaveDays} days`} />
-            <Field label={t('grid-other-leave')} value={`${employee.otherLeaveDays} days`} />
+            <Field
+              label={t('grid-paid-leave')}
+              value={`${employee.paidLeaveHours}${t('unit-hours-short')} (${employee.paidLeaveDays}${t('unit-days-short')})`}
+            />
+            <Field
+              label={t('grid-sick-leave')}
+              value={`${employee.sickLeaveHours}${t('unit-hours-short')} (${employee.sickLeaveDays}${t('unit-days-short')})`}
+            />
+            <Field label={t('grid-unpaid-leave')} value={`${employee.unpaidLeaveDays} ${t('label-days')}`} />
+            <Field label={t('grid-other-leave')} value={`${employee.otherLeaveDays} ${t('label-days')}`} />
             {employee.missingPresenceDays > 0 && (
-              <Field label={t('grid-missing-presence')} value={`${employee.missingPresenceDays} day(s)`} />
+              <Field label={t('grid-missing-presence')} value={`${employee.missingPresenceDays} ${t('label-days')}`} />
             )}
             {employee.loggedHours !== null && employee.loggedHours !== undefined && (
-              <Field label={t('grid-logged-hours')} value={formatHoursValue(employee.loggedHours)} />
+              <Field
+                label={t('grid-logged-hours')}
+                value={formatHoursValue(employee.loggedHours, t('unit-hours-short'))}
+              />
             )}
             {employee.contractCapacityHours !== null && employee.contractCapacityHours !== undefined && (
-              <Field label={t('grid-capacity')} value={formatHoursValue(employee.contractCapacityHours)} />
+              <Field
+                label={t('grid-capacity')}
+                value={formatHoursValue(employee.contractCapacityHours, t('unit-hours-short'))}
+              />
             )}
             {employee.balanceHours !== null && employee.balanceHours !== undefined && (
               <Field
@@ -151,28 +163,32 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
                 value={
                   <Badge variant={employee.balanceHours >= 0 ? 'success' : 'destructive'}>
                     {employee.balanceHours >= 0 ? '+' : ''}
-                    {employee.balanceHours}h
+                    {employee.balanceHours}
+                    {t('unit-hours-short')}
                   </Badge>
                 }
               />
             )}
             {employee.overtimeHours !== null && employee.overtimeHours !== undefined && employee.overtimeHours > 0 && (
-              <Field label={t('grid-overtime')} value={formatHoursValue(employee.overtimeHours)} />
+              <Field
+                label={t('grid-overtime')}
+                value={formatHoursValue(employee.overtimeHours, t('unit-hours-short'))}
+              />
             )}
           </Section>
 
           {country === 'DE' && (
             <Section title={t('country-de')}>
-              <Field label={t('de-tax-id')} value={employee.taxId || 'Missing'} />
-              <Field label={t('de-social-insurance')} value={employee.socialInsuranceNumber || 'Missing'} />
-              <Field label={t('de-health-insurance')} value={employee.healthInsuranceName || 'Missing'} />
-              <Field label={t('de-employment-type')} value={employee.employmentTypeFlag || 'Not set'} />
+              <Field label={t('de-tax-id')} value={employee.taxId || t('label-missing')} />
+              <Field label={t('de-social-insurance')} value={employee.socialInsuranceNumber || t('label-missing')} />
+              <Field label={t('de-health-insurance')} value={employee.healthInsuranceName || t('label-missing')} />
+              <Field label={t('de-employment-type')} value={employee.employmentTypeFlag || t('label-not-set')} />
             </Section>
           )}
 
           {country === 'RO' && (
             <Section title={t('country-ro')}>
-              <Field label={t('ro-cnp')} value={employee.socialInsuranceNumber || 'Missing'} />
+              <Field label={t('ro-cnp')} value={employee.socialInsuranceNumber || t('label-missing')} />
             </Section>
           )}
 
@@ -183,7 +199,7 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
                   <Card key={issue.id} className="gba:p-3">
                     <div className="gba:flex gba:items-start gba:justify-between gba:mb-1">
                       <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
-                      <SeverityBadge severity={issue.severity} />
+                      <SeverityBadge severity={issue.severity} t={t} />
                     </div>
                     <p className="gba:text-sm gba:text-foreground gba:mb-1">{issue.message}</p>
                     <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>

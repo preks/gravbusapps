@@ -45,12 +45,26 @@ function getVariablePayDisplay(employee: PayrollEmployee): string {
   return `${employee.totalVariablePay.toLocaleString()} ${employee.variablePayCurrency || ''}`
 }
 
-function formatHoursOrDash(value: number | null | undefined): string {
+function formatHoursOrDash(value: number | null | undefined, unitHoursShort: string = 'h'): string {
   if (value === null || value === undefined) {
     return '—'
   }
 
-  return `${value}h`
+  return `${value}${unitHoursShort}`
+}
+
+function formatHoursDaysOrDash(
+  hours: number | null | undefined,
+  days: number | null | undefined,
+  unitHoursShort: string = 'h',
+  unitDaysShort: string = 'd'
+): string {
+  if (hours === null || hours === undefined) {
+    return '—'
+  }
+
+  const safeDays = days ?? 0
+  return `${hours}${unitHoursShort} (${safeDays}${unitDaysShort})`
 }
 
 function formatSalaryOrDash(value: number | null | undefined, currency: string): string {
@@ -129,9 +143,10 @@ const SortableHead: React.FC<{
 interface PayrollGridRowProps {
   employee: PayrollEmployee
   onSelectEmployee: (employee: PayrollEmployee) => void
+  t: (key: string) => string
 }
 
-const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmployee }) => {
+const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmployee, t }) => {
   const openIssues = employee.issues.filter(issue => issue.status === 'open')
   const hasBlockers = openIssues.some(i => i.severity === 'blocker')
 
@@ -184,36 +199,50 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
         {formatSalaryOrDash(employee.baseSalary, employee.currency)}
       </TableCell>
       <TableCell>
-        <FieldStatusBadge present={employee.bankDetailsPresent} />
+        <FieldStatusBadge present={employee.bankDetailsPresent} missingLabel={t('label-missing')} />
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
         {getVariablePayDisplay(employee)}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {employee.paidLeaveHours ? `${employee.paidLeaveHours}h (${employee.paidLeaveDays}d)` : '—'}
+        {formatHoursDaysOrDash(
+          employee.paidLeaveHours,
+          employee.paidLeaveDays,
+          t('unit-hours-short'),
+          t('unit-days-short')
+        )}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {employee.sickLeaveHours ? `${employee.sickLeaveHours}h (${employee.sickLeaveDays}d)` : '—'}
+        {formatHoursDaysOrDash(
+          employee.sickLeaveHours,
+          employee.sickLeaveDays,
+          t('unit-hours-short'),
+          t('unit-days-short')
+        )}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground">{employee.unpaidLeaveDays || '—'}</TableCell>
       <TableCell>
         {employee.missingPresenceDays > 0 ? (
-          <Badge variant="destructive">{employee.missingPresenceDays}d</Badge>
+          <Badge variant="destructive">
+            {employee.missingPresenceDays}
+            {t('unit-days-short')}
+          </Badge>
         ) : (
           <span className="gba:text-sm gba:text-muted-foreground">—</span>
         )}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {formatHoursOrDash(employee.loggedHours)}
+        {formatHoursOrDash(employee.loggedHours, t('unit-hours-short'))}
       </TableCell>
       <TableCell className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-        {formatHoursOrDash(employee.contractCapacityHours)}
+        {formatHoursOrDash(employee.contractCapacityHours, t('unit-hours-short'))}
       </TableCell>
       <TableCell className="gba:whitespace-nowrap">
         {hasNumberValue(employee.balanceHours) ? (
           <Badge variant={employee.balanceHours >= 0 ? 'success' : 'destructive'}>
             {employee.balanceHours >= 0 ? '+' : ''}
-            {employee.balanceHours}h
+            {employee.balanceHours}
+            {t('unit-hours-short')}
           </Badge>
         ) : (
           '—'
@@ -223,10 +252,10 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
         <IssueCountBadge count={getOpenIssuesCount(employee)} hasBlockers={hasBlockers} />
       </TableCell>
       <TableCell>
-        <ReadinessStatusBadge status={employee.readinessStatus} />
+        <ReadinessStatusBadge status={employee.readinessStatus} t={t} />
       </TableCell>
       <TableCell>
-        <ChangedBadge changed={employee.changedSinceLastPayroll} />
+        <ChangedBadge changed={employee.changedSinceLastPayroll} label={t('label-changed')} />
       </TableCell>
     </TableRow>
   )
@@ -361,7 +390,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 </TableRow>
               ) : (
                 paginated.map(employee => (
-                  <PayrollGridRow key={employee.id} employee={employee} onSelectEmployee={setSelectedEmployee} />
+                  <PayrollGridRow key={employee.id} employee={employee} onSelectEmployee={setSelectedEmployee} t={t} />
                 ))
               )}
             </TableBody>

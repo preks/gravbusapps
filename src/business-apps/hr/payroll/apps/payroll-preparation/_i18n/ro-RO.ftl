@@ -274,3 +274,12 @@ export-format-xlsx = Excel (.xlsx)
 refresh-data = Reîncarcă datele
 exceptions-hide-addressed = Ascunde rezolvate
 exceptions-mark-addressed = Marchează drept rezolvat
+
+label-missing = Lipsă
+label-present = Prezent
+label-not-set = Nesetat
+label-not-applicable = N/A
+label-changed = Modificat
+label-days = zile
+unit-hours-short = h
+unit-days-short = z

@@ -268,3 +268,12 @@ exceptions-mark-addressed = Mark as addressed
 no-data = No data available
 loading = Loading...
 error-loading = An error occurred while loading data.
+
+label-missing = Missing
+label-present = Present
+label-not-set = Not set
+label-not-applicable = N/A
+label-changed = Changed
+label-days = days
+unit-hours-short = h
+unit-days-short = d

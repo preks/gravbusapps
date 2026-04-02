@@ -67,7 +67,11 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
                       </div>
                     </TableCell>
                     <TableCell>
-                      <FieldStatusBadge present={!!emp.socialInsuranceNumber} label={emp.socialInsuranceNumber} />
+                      <FieldStatusBadge
+                        present={!!emp.socialInsuranceNumber}
+                        label={emp.socialInsuranceNumber}
+                        missingLabel={t('label-missing')}
+                      />
                     </TableCell>
                     <TableCell>
                       {emp.baseSalary != null ? (
@@ -75,14 +79,17 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
                           {emp.baseSalary} {emp.currency}
                         </Badge>
                       ) : (
-                        <Badge variant="destructive">Missing</Badge>
+                        <Badge variant="destructive">{t('label-missing')}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
                       {emp.weeklyHours != null ? (
-                        <Badge variant="secondary">{emp.weeklyHours}h</Badge>
+                        <Badge variant="secondary">
+                          {emp.weeklyHours}
+                          {t('unit-hours-short')}
+                        </Badge>
                       ) : (
-                        <Badge variant="destructive">Missing</Badge>
+                        <Badge variant="destructive">{t('label-missing')}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">{emp.sickLeaveDays || 0}</TableCell>
@@ -90,17 +97,17 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
                       {emp.sickLeaveDays > 0 ? (
                         <Badge variant="warning">{t('ro-medical-cert')}</Badge>
                       ) : (
-                        <Badge variant="secondary">N/A</Badge>
+                        <Badge variant="secondary">{t('label-not-applicable')}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      <FieldStatusBadge present={emp.bankDetailsPresent} />
+                      <FieldStatusBadge present={emp.bankDetailsPresent} missingLabel={t('label-missing')} />
                     </TableCell>
                     <TableCell>
                       <IssueCountBadge count={openIssues.length} hasBlockers={hasBlockers} />
                     </TableCell>
                     <TableCell>
-                      <ReadinessStatusBadge status={emp.readinessStatus} />
+                      <ReadinessStatusBadge status={emp.readinessStatus} t={t} />
                     </TableCell>
                   </TableRow>
                 )

@@ -264,7 +264,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
-                        <SeverityBadge severity={issue.severity} />
+                        <SeverityBadge severity={issue.severity} t={t} />
                       </div>
                     </div>
                     <p

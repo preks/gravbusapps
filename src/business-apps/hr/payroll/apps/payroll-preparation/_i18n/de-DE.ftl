@@ -274,3 +274,12 @@ export-format-xlsx = Excel (.xlsx)
 refresh-data = Daten aktualisieren
 exceptions-hide-addressed = Erledigte ausblenden
 exceptions-mark-addressed = Als erledigt markieren
+
+label-missing = Fehlt
+label-present = Vorhanden
+label-not-set = Nicht gesetzt
+label-not-applicable = N/A
+label-changed = Geändert
+label-days = Tage
+unit-hours-short = h
+unit-days-short = T
