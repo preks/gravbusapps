@@ -998,7 +998,21 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
 
   return {
     optimizeDeps: {
+      // Excalidraw is patched locally to export `Fonts` for Funnel Display registration.
+      // Pre-bundling caches a stale facade without that export; excluding uses the package entry directly.
+      exclude: ['@excalidraw/excalidraw'],
       include: [
+        // Excalidraw transitive deps: CJS or mixed interop — pre-bundle when @excalidraw/excalidraw is excluded above
+        'es6-promise-pool',
+        'png-chunks-extract',
+        'png-chunk-text',
+        'png-chunks-encode',
+        'lodash.throttle',
+        'lodash.debounce',
+        'fuzzy',
+        '@braintree/sanitize-url',
+        'pako',
+        'roughjs',
         'antd',
         'recharts',
         '@newwork/nw-design-system',
@@ -1014,11 +1028,24 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         'react',
         'react-dom'
       ],
-      // Optimize caching strategy
       esbuildOptions: {
-        target: 'es2020'
+        target: 'es2020',
+        plugins: [
+          {
+            name: 'patch-roughjs-nan-guard',
+            setup(build) {
+              build.onLoad({ filter: /roughjs[/\\]bin[/\\]generator\.js$/ }, async args => {
+                const src = await readFile(args.path, 'utf-8')
+                const patched = src.replace(
+                  `d = (d || '').replace(/\\n/g, ' ').replace(/(-\\s)/g, '-').replace('/(\\s\\s)/g', ' ');`,
+                  `d = (d || '').replace(/\\n/g, ' ').replace(/(-\\s)/g, '-').replace('/(\\s\\s)/g', ' ');\n        if (/NaN|undefined|Infinity/.test(d)) { return this._d('path', paths, o); }`
+                )
+                return { contents: patched, loader: 'js' }
+              })
+            }
+          }
+        ]
       }
-      // Let Vite automatically handle all other dependencies including React, antd, etc.
     },
     plugins: [
       ...(command === 'serve' ? [spaHistoryFallbackPlugin] : []),
