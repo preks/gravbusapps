@@ -9,7 +9,7 @@ const ABSENCE_TYPE_CATALOG = 'AbsenceType'
 const ABSENCE_TYPE_VERSION = 'v1'
 
 const mapCatalogEntryToAbsenceType = (entry: CatalogEntry): AbsenceType => ({
-  id: `${ABSENCE_TYPE_CATALOG}:${ABSENCE_TYPE_VERSION}:${entry.code}`,
+  id: entry.id,
   code: entry.code,
   value: entry.value,
   type: entry.type,
@@ -24,8 +24,21 @@ const mapCatalogEntryToAbsenceType = (entry: CatalogEntry): AbsenceType => ({
   }))
 })
 
-const resolveCatalogEntryId = (absenceTypes: AbsenceType[], id: string): string =>
-  absenceTypes.find(item => item.id === id)?.catalogEntryLocalId || id
+const resolveCatalogEntryId = (absenceTypes: AbsenceType[], id: string): string => {
+  const matchedEntry = absenceTypes.find(item => item.id === id)
+  if (matchedEntry?.catalogEntryLocalId) {
+    return matchedEntry.catalogEntryLocalId
+  }
+
+  const matchedByLegacyKey = absenceTypes.find(
+    item => `${ABSENCE_TYPE_CATALOG}:${ABSENCE_TYPE_VERSION}:${item.code}` === id
+  )
+  if (matchedByLegacyKey?.catalogEntryLocalId) {
+    return matchedByLegacyKey.catalogEntryLocalId
+  }
+
+  throw new Error('Catalog entry identifier could not be resolved for absence type')
+}
 
 const useAbsenceTypes = (accessToken: string) => {
   const client = useCatalogManagerClient(accessToken)
