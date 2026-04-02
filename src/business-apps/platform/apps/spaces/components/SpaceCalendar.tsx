@@ -6,10 +6,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Spinner, ScrollArea } from '@newwork/nw-design-system'
-import { Calendar, Clock, Video, ArrowRight, CalendarBlankIcon, Users } from '@phosphor-icons/react'
+import { Calendar, Clock, Video, ArrowRight, CalendarBlank, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useChatClient } from '@/common/network/chat/useChatClient'
-import type { SpaceCalendarLink, SpaceMember } from '../types/space.types'
+import type { SpaceMember } from '../types/space.types'
 
 export interface SpaceMeeting {
   id: string
@@ -33,8 +33,6 @@ export interface SpaceMeeting {
 export interface SpaceCalendarProps {
   /** Space ID for filtering meetings */
   spaceId: string
-  /** Linked calendar metadata for this space */
-  spaceCalendar?: SpaceCalendarLink
   /** Space members to filter meetings by */
   members: SpaceMember[]
   /** Access token for API calls */
@@ -48,7 +46,6 @@ export interface SpaceCalendarProps {
 
 export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   spaceId,
-  spaceCalendar,
   members,
   accessToken,
   maxMeetings = 5,
@@ -61,7 +58,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   const fetchMeetings = useCallback(async () => {
-    if (!accessToken || !spaceCalendar?.id) {
+    if (!accessToken || members.length === 0) {
       setMeetings([])
       return
     }
@@ -74,17 +71,21 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
       const endDate = new Date()
       endDate.setDate(endDate.getDate() + 30)
 
-      const data = await chatClient.getCalendarEventsFiltered<{ events: SpaceMeeting[] }>(
+      const data = await chatClient.getCalendarEvents<{ events: SpaceMeeting[] }>(
         startDate.toISOString(),
-        endDate.toISOString(),
-        {
-          calendarIds: [spaceCalendar.id],
-          includePersonal: false
-        }
+        endDate.toISOString()
       )
       const allMeetings: SpaceMeeting[] = data?.events || []
 
-      const sortedMeetings = allMeetings
+      const memberIds = new Set(members.map(m => m.userId))
+      const spaceMeetings = allMeetings.filter(meeting => {
+        if (meeting.organizer?.id && memberIds.has(meeting.organizer.id)) {
+          return true
+        }
+        return true
+      })
+
+      const sortedMeetings = spaceMeetings
         .filter(m => new Date(m.start) > new Date())
         .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
         .slice(0, maxMeetings)
@@ -97,7 +98,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, maxMeetings, chatClient, spaceCalendar?.id, members])
+  }, [accessToken, members, maxMeetings, chatClient])
 
   useEffect(() => {
     fetchMeetings()
@@ -107,13 +108,8 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   const handleViewCalendar = useCallback(() => {
     const isProduction = process.env.NODE_ENV === 'production'
     const chatPath = isProduction ? '/platform/chat' : '/platform/apps/chat'
-    const query = new URLSearchParams({
-      view: 'calendar',
-      calendarIds: spaceCalendar?.id || '',
-      includePersonal: 'false'
-    })
-    navigateTo(buildPlatformUrl(`${chatPath}?${query.toString()}`))
-  }, [spaceCalendar?.id])
+    navigateTo(buildPlatformUrl(`${chatPath}?tab=calendar&spaceId=${spaceId}`))
+  }, [spaceId])
 
   // Format meeting time
   const formatMeetingTime = (startStr: string, endStr: string) => {
@@ -139,25 +135,31 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
     return now >= start && now <= end
   }
 
-  const renderCardBody = () => {
-    if (isLoading) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-          <Spinner size="sm" />
+  return (
+    <Card className="gba:border-border/50" data-testid={testId}>
+      <CardHeader className="gba:pb-3">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle className="gba:text-base gba:font-medium gba:flex gba:items-center gba:gap-2">
+            <Calendar className="gba:w-4 gba:h-4" />
+            Team Calendar
+          </CardTitle>
+          <Button variant="ghost" size="sm" onClick={handleViewCalendar} data-testid={`${testId}-view-all`}>
+            View All
+            <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
+          </Button>
         </div>
-      )
-    }
-
-    if (error) {
-      return <div className="gba:text-center gba:py-6 gba:text-sm gba:text-muted-foreground">{error}</div>
-    }
-
-    if (spaceCalendar) {
-      if (meetings.length === 0) {
-        return (
+      </CardHeader>
+      <CardContent className="gba:pt-0">
+        {isLoading ? (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+            <Spinner size="sm" />
+          </div>
+        ) : error ? (
+          <div className="gba:text-center gba:py-6 gba:text-sm gba:text-muted-foreground">{error}</div>
+        ) : meetings.length === 0 ? (
           <div className="gba:text-center gba:py-8">
             <div className="gba:w-12 gba:h-12 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-3">
-              <CalendarBlankIcon className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
+              <CalendarBlank className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
             </div>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">No upcoming meetings</p>
             {onScheduleMeeting && (
@@ -166,86 +168,53 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
               </Button>
             )}
           </div>
-        )
-      }
-
-      return (
-        <ScrollArea className="gba:max-h-64">
-          <div className="gba:space-y-2">
-            {meetings.map(meeting => (
-              <div
-                key={meeting.id}
-                className="gba:p-3 gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border/50 gba:transition-colors gba:hover:bg-muted"
-                data-testid={`${testId}-meeting-${meeting.id}`}
-              >
-                <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-                  <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{meeting.title}</h4>
-                      {isMeetingLive(meeting) && (
-                        <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
-                          Live
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <Clock className="gba:w-3 gba:h-3" />
-                        {formatMeetingTime(meeting.start, meeting.end)}
-                      </span>
-                      {meeting.isVideoCall && (
+        ) : (
+          <ScrollArea className="gba:max-h-64">
+            <div className="gba:space-y-2">
+              {meetings.map(meeting => (
+                <div
+                  key={meeting.id}
+                  className="gba:p-3 gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border/50 gba:transition-colors gba:hover:bg-muted"
+                  data-testid={`${testId}-meeting-${meeting.id}`}
+                >
+                  <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
+                          {meeting.title}
+                        </h4>
+                        {isMeetingLive(meeting) && (
+                          <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
+                            Live
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-xs gba:text-muted-foreground">
                         <span className="gba:flex gba:items-center gba:gap-1">
-                          <Video className="gba:w-3 gba:h-3" />
-                          Video
+                          <Clock className="gba:w-3 gba:h-3" />
+                          {formatMeetingTime(meeting.start, meeting.end)}
                         </span>
-                      )}
-                      {meeting.participantCount && (
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Users className="gba:w-3 gba:h-3" />
-                          {meeting.participantCount}
-                        </span>
-                      )}
+                        {meeting.isVideoCall && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <Video className="gba:w-3 gba:h-3" />
+                            Video
+                          </span>
+                        )}
+                        {meeting.participantCount && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <Users className="gba:w-3 gba:h-3" />
+                            {meeting.participantCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      )
-    }
-
-    return (
-      <div className="gba:text-center gba:py-8">
-        <div className="gba:w-12 gba:h-12 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-3">
-          <CalendarBlankIcon className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
-        </div>
-        <p className="gba:text-sm gba:text-muted-foreground">No linked space calendar yet</p>
-      </div>
-    )
-  }
-
-  return (
-    <Card className="gba:border-border/50" data-testid={`${testId}-${spaceId}`}>
-      <CardHeader className="gba:pb-3">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:text-base gba:font-medium gba:flex gba:items-center gba:gap-2">
-            <Calendar className="gba:w-4 gba:h-4" />
-            {spaceCalendar?.name || 'Space Calendar'}
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleViewCalendar}
-            disabled={!spaceCalendar?.id}
-            data-testid={`${testId}-view-all`}
-          >
-            View All
-            <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="gba:pt-0">{renderCardBody()}</CardContent>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
     </Card>
   )
 }

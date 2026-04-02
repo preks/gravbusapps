@@ -7,7 +7,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { Space, CreateSpaceInput, UpdateSpaceInput, SpaceMemberRole } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
-import { useChatClient } from '@/common/network/chat/useChatClient'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -31,7 +30,6 @@ export interface UseSpacesResult {
 
 export function useSpaces(accessToken: string | undefined, options: UseSpacesOptions = {}): UseSpacesResult {
   const { includeMembers = true, includeContent = true, autoLoad = true } = options
-  const chatClient = useChatClient(accessToken)
   const [spaces, setSpaces] = useState<Space[]>([])
   const [isLoading, setIsLoading] = useState(autoLoad)
   const [error, setError] = useState<string | null>(null)
@@ -119,55 +117,6 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
 
         let space = await response.json()
 
-        if (input.createCalendar && accessToken) {
-          try {
-            const calendarName = input.calendarName?.trim() || `${space.name} Calendar`
-            const calendarResponse = await chatClient.createCalendar<{
-              calendar: { id: string; name: string; color: string }
-            }>({
-              name: calendarName,
-              type: 'space',
-              spaceId: space.id,
-              shares: (input.memberIds || []).map(userId => ({
-                userId,
-                permission: 'editor'
-              }))
-            })
-
-            const settingsWithCalendar = {
-              ...(space.settings ?? undefined),
-              calendar: {
-                id: calendarResponse.calendar.id,
-                name: calendarResponse.calendar.name,
-                color: calendarResponse.calendar.color,
-                type: 'space'
-              }
-            }
-
-            const patchResponse = await fetch(`${API_URL}/spaces/${space.id}`, {
-              method: 'PATCH',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                settings: settingsWithCalendar
-              })
-            })
-
-            if (patchResponse.ok) {
-              space = await patchResponse.json()
-            } else {
-              space = {
-                ...space,
-                settings: settingsWithCalendar
-              }
-            }
-          } catch (calendarErr) {
-            console.error('[useSpaces] Error creating linked calendar:', calendarErr)
-          }
-        }
-
         // If memberIds provided, add them via bulk endpoint
         if (input.memberIds && input.memberIds.length > 0) {
           try {
@@ -212,7 +161,7 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
         return null
       }
     },
-    [accessToken, chatClient]
+    [accessToken]
   )
 
   const updateSpace = useCallback(
