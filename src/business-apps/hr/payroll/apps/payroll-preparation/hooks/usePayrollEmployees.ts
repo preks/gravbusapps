@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useState, useMemo } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   GET_PAYROLL_EMPLOYEES,
@@ -15,6 +14,7 @@ import {
 import { runAllValidations, resetIssueIdCounter } from '../utils/validationRules'
 import { parseDurationToMinutes, getPlannedMinutesForDate, toLocalDateKey } from '../utils/timeUtils'
 import type { PayrollEmployee, PayrollCountry, PayrollSummary, PayrollGridFilters } from '../types/payrollTypes'
+import { ORGCHART_API_URL } from '@/common/utils/serviceResolver'
 
 interface AbsenceTypeObjectValue {
   category?: string
@@ -834,8 +834,6 @@ interface OrgchartStructureResponse {
   edges: Array<{ id: string; source: string; target: string }>
 }
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}`
-
 interface RawCompanyAddress {
   companyId: string
   addressType: string | null
@@ -845,7 +843,7 @@ interface RawCompanyAddress {
 
 export function useCompanyList(accessToken: string) {
   const graphqlClient = useGraphqlClient(accessToken)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const restClient = useRestClient(ORGCHART_API_URL)
   const [companies, setCompanies] = useState<PayrollCompany[]>([])
   const [loading, setLoading] = useState(false)
 
