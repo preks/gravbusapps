@@ -1,7 +1,7 @@
 import { RestClient, type RequestOptions, ResponseType } from '../rest/RestClient'
 import { env } from '../../env/EnvUtils'
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
-import { FilePathParams, FileQueryParams, FileUploadResponse } from '../../types/FileTypes'
+import { FileListResponse, FilePathParams, FileQueryParams, FileUploadResponse } from '../../types/FileTypes'
 
 export class FileClient extends RestClient {
   constructor() {
@@ -44,11 +44,11 @@ export class FileClient extends RestClient {
       }
     })
 
-    // Create FormData for file upload
+    const fileMeta = { mimeType: file.type, originalFileName: file.name }
     const formData = new FormData()
+    formData.append('fileMetadataBody', new Blob([JSON.stringify(fileMeta)], { type: 'application/json' }))
     formData.append(fieldName, file)
 
-    // Upload the file
     try {
       return await this.post(`${encodeURI(queryPath)}?${queryParams.toString()}`, formData, options)
     } catch (error) {
@@ -96,6 +96,42 @@ export class FileClient extends RestClient {
       })
     } catch (error) {
       console.error('FileClient: Error fetching file:', error)
+      throw error
+    }
+  }
+
+  /**
+   * List files for an app/folder combination
+   *
+   * Mirrors the platform branding flow which first checks whether the expected
+   * file exists before attempting to fetch it directly.
+   */
+  public async getAllFiles(
+    path: FilePathParams,
+    params: FileQueryParams = {},
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<FileListResponse> {
+    const queryPath = `/${path.accessScope}/files`
+
+    const queryParams: URLSearchParams = new URLSearchParams()
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, String(value))
+      }
+    })
+
+    try {
+      const response = await this.get<Partial<FileListResponse>>(
+        `${encodeURI(queryPath)}?${queryParams.toString()}`,
+        options
+      )
+
+      return {
+        files: Array.isArray(response.files) ? response.files : []
+      }
+    } catch (error) {
+      console.error('FileClient: Error listing files:', error)
       throw error
     }
   }
@@ -248,11 +284,11 @@ export class FileClient extends RestClient {
       }
     })
 
-    // Create FormData for file upload
+    const fileMeta = { mimeType: file.type, originalFileName: file.name }
     const formData = new FormData()
+    formData.append('fileMetadataBody', new Blob([JSON.stringify(fileMeta)], { type: 'application/json' }))
     formData.append(fieldName, file)
 
-    // Use PUT to update the file in place
     try {
       return await this.put(`${encodeURI(queryPath)}?${queryParams.toString()}`, formData, options)
     } catch (error) {

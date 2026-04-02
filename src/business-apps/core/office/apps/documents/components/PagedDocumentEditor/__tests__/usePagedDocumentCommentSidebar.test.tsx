@@ -338,10 +338,10 @@ describe('usePagedDocumentCommentSidebar', () => {
       expect.objectContaining({
         view: editor.view,
         commands: editor.commands,
-        layoutHints: {
+        layoutHints: expect.objectContaining({
           mountedPageBodyBounds: [],
           pagePositionRanges: []
-        }
+        })
       }),
       3,
       8,

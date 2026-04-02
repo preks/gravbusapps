@@ -23,7 +23,7 @@ export const REAL_ESTATE_SPECIFIC_FIELDS: TargetFieldDefinition[] = [
   { value: 'realEstateInvestment.postalCode', label: 'Postal Code', type: 'direct' },
   { value: 'realEstateInvestment.addressLine', label: 'Address Line', type: 'direct' },
   { value: 'realEstateInvestment.countryRef', label: 'Country', type: 'catalog', catalog: 'Country' },
-  { value: 'realEstateInvestment.regionRef', label: 'Region', type: 'catalog', catalog: 'Region' },
+  { value: 'realEstateInvestment.regionRef', label: 'Region', type: 'catalog', catalog: 'CountryRegion' },
 
   // Financial Information
   { value: 'realEstateInvestment.annualNetColdRent', label: 'Annual Net Cold Rent', type: 'direct' },

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { DEFAULT_DOCUMENT_AI_LLM_PROVIDER } from '../../AiEditPanel/documentAiLlm'
 
 const AUTOCOMPLETE_DEBOUNCE_MS = 350
 
@@ -116,7 +117,7 @@ export function usePagedDocumentAutocompleteController({
             prefix_text: context.prefixText,
             suffix_text: context.suffixText,
             max_tokens: 80,
-            llm_provider: 'openai'
+            llm_provider: DEFAULT_DOCUMENT_AI_LLM_PROVIDER
           },
           { signal: controller.signal }
         )
@@ -143,6 +144,7 @@ export function usePagedDocumentAutocompleteController({
         isAutocompleteLoadingRef.current = false
       }
     },
+    // Fixed LLM tier; do not add llmUserId (removed per single-tier Azure path).
     [clearAutocompleteSuggestion, documentId, editorRef, isAutocompleteActive, title]
   )
 

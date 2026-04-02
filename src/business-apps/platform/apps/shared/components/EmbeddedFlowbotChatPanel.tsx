@@ -95,7 +95,7 @@ export const EmbeddedFlowbotChatPanel: React.FC<EmbeddedFlowbotChatPanelProps> =
             variant="ghost"
             size="sm"
             onClick={clearConversation}
-            title="Clear chat"
+            title="New chat"
             className="gba:h-8 gba:w-8 gba:p-0 gba:rounded-full"
             data-testid="embedded-flowbot-chat-clear"
           >

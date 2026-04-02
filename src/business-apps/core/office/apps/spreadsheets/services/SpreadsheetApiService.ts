@@ -21,6 +21,7 @@ import type {
   PublishInput
 } from '../../../../../platform/apps/shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -245,9 +246,6 @@ async function bulkAddRowsWithLegacyFallback(
   }
 }
 
-// Cache whether the backend supports ops-v2 batch endpoint.
-// null => unknown, true => available, false => unavailable (fallback to legacy row APIs)
-let supportsOperationBatchEndpoint: boolean | null = null
 // Cache whether the backend supports Univer snapshot persistence endpoints.
 // null => unknown, true => available, false => unavailable (skip snapshot API calls).
 let supportsUniverSnapshotEndpoint: boolean | null = null
@@ -281,7 +279,7 @@ function mapApiResponseToSheet(sheet: Record<string, unknown>): SpreadsheetSheet
         | SpreadsheetSheet['viewType']
         | undefined) ||
       'table',
-    columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
+    columns: normalizeSpreadsheetColumnsForDisplay((sheet.columns as SpreadsheetSheet['columns']) || []),
     views: (sheet.views as SpreadsheetSheet['views']) || [],
     settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
     entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
@@ -881,10 +879,6 @@ export const SpreadsheetApiService = {
       }
     }
 
-    if (supportsOperationBatchEndpoint === false) {
-      return applyLegacyFallback()
-    }
-
     try {
       const response = await apiRequest<SpreadsheetBatchOperationResponse>(
         `/spreadsheets/${appId}/sheets/${sheetId}/operations/batch`,
@@ -893,11 +887,9 @@ export const SpreadsheetApiService = {
           body: JSON.stringify(payload)
         }
       )
-      supportsOperationBatchEndpoint = true
       return response
     } catch (error) {
       if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
-        supportsOperationBatchEndpoint = false
         console.warn('[SpreadsheetApiService] operations/batch endpoint unavailable; falling back to legacy row APIs')
         return applyLegacyFallback()
       }
@@ -1358,7 +1350,10 @@ export const SpreadsheetApiService = {
       return result.success
     } catch (error) {
       console.error('[SpreadsheetApiService] Failed to restore version:', error)
-      return false
+      if (error instanceof SpreadsheetApiRequestError) {
+        throw error
+      }
+      throw new Error('Failed to restore version')
     }
   },
 

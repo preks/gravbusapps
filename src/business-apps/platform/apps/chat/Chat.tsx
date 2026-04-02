@@ -114,6 +114,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const urlContextProcessed = useRef(false)
     const conversationIdFromUrlProcessed = useRef(false)
     const urlCallActionProcessed = useRef(false)
+    const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
     const activeConversationIdRef = useRef<string | null>(null)
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
@@ -820,6 +821,7 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       const urlParams = new URLSearchParams(window.location.search)
       const conversationIdParam = urlParams.get('conversationId')
+      const messageIdParam = urlParams.get('messageId')
 
       if (!conversationIdParam) {
         return
@@ -831,6 +833,7 @@ const ChatInner: React.FC<ChatProps> = memo(
         conversationIdFromUrlProcessed.current = true
         setActiveConversation(conversation)
         setShowConversationList(false)
+        if (messageIdParam) setPendingMessageId(messageIdParam)
         return
       }
 
@@ -846,6 +849,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             if (fetchedConversation) {
               setActiveConversation(fetchedConversation)
               setShowConversationList(false)
+              if (messageIdParam) setPendingMessageId(messageIdParam)
             }
           })
           .catch(() => {
@@ -1045,10 +1049,21 @@ const ChatInner: React.FC<ChatProps> = memo(
       return t('chat-connectionError')
     }
 
+    // Mobile webview fix: the webview viewport can be wider than the device
+    // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
+    // Constrain this component to the screen width when a mismatch is detected.
+    const [webviewMaxWidth, setWebviewMaxWidth] = useState<number | undefined>(undefined)
+    useEffect(() => {
+      if (typeof screen !== 'undefined' && window.innerWidth > screen.width * 1.1) {
+        setWebviewMaxWidth(screen.width)
+      }
+    }, [])
+
     return (
       <div
         ref={containerRef}
         className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+        style={webviewMaxWidth ? { maxWidth: webviewMaxWidth, width: webviewMaxWidth } : undefined}
         data-testid={`${prefixDataTestId}-container`}
       >
         {connectionError && (
@@ -1201,6 +1216,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     onMarkAsUnread={handleMarkAsUnread}
                     isSingleViewMode={isSingleViewMode}
                     viewMode={viewMode}
+                    initialMessageId={pendingMessageId}
                     onBack={handleBack}
                     onCloseConversation={handleCloseConversation}
                     onRemoveConversation={handleRemoveConversation}

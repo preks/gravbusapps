@@ -12,7 +12,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   entityId,
   entityType,
   context,
-  onDocumentUpdate,
   className = '',
   dataController
 }) => {
@@ -48,6 +47,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           break
         case 'view':
           if (document.file) {
+            console.log('Emir 123', {
+              documentId: document.id,
+              name: document.name
+            })
             window.open(document.file, '_blank')
           }
           break

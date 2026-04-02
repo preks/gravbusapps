@@ -7,6 +7,10 @@ import {
   type DocumentLayoutNavigationState
 } from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
+
+function isFirstPageHeaderChromeRegion(region: HTMLElement): boolean {
+  return region.classList.contains('rm-first-page-header')
+}
 import { resolveViewportMarkerRefreshRange } from './useApplyDocumentLayoutViewportMarkers'
 
 interface UseApplyDocumentLayoutWindowedChromeParams {
@@ -77,6 +81,7 @@ function resolvePageBreakChromeStructureKey(pageBreakEls: HTMLElement[]) {
 }
 
 export function parkChromeRegion(region: HTMLElement, parkedRegions: WeakMap<HTMLElement, ParkedChromeState>) {
+  if (isFirstPageHeaderChromeRegion(region)) return
   if (region.dataset.rmOverlayActive === 'true') return
   if (parkedRegions.has(region)) return
 
@@ -136,6 +141,20 @@ export function restoreChromeRegion(region: HTMLElement, parkedRegions: WeakMap<
 
 function shouldVirtualizeWindowedChrome(pageBreakEls: HTMLElement[], totalPages: number) {
   return pageBreakEls.length < Math.max(1, totalPages)
+}
+
+/**
+ * Keep page 1 chrome restorable when page 1 remains mounted but the virtual window omits page 1 in
+ * `activePageNumbers`, so `.rm-first-page-header` is not parked (`data-layout-chrome-mounted` / pointer-events).
+ */
+export function resolveEffectiveChromeActivePageNumbers(
+  viewportModel: Pick<DocumentLayoutViewportModel, 'activePageNumbers' | 'mountedPageNumbers'>
+): Set<number> {
+  const activePages = new Set(viewportModel.activePageNumbers)
+  if (viewportModel.mountedPageNumbers.includes(1)) {
+    activePages.add(1)
+  }
+  return activePages
 }
 
 function resolvePagesToRefresh(
@@ -236,7 +255,7 @@ export function useApplyDocumentLayoutWindowedChrome({
         refreshAll,
         pageChromeRegionsRef.current
       )
-      const activePages = new Set(viewportModel.activePageNumbers)
+      const activePages = resolveEffectiveChromeActivePageNumbers(viewportModel)
       let parkedAnyRegions = false
 
       pageNumbersToRefresh.forEach(pageNumber => {
@@ -244,7 +263,7 @@ export function useApplyDocumentLayoutWindowedChrome({
         if (!regions) return
 
         regions.forEach(region => {
-          if (activePages.has(pageNumber)) {
+          if (activePages.has(pageNumber) || isFirstPageHeaderChromeRegion(region)) {
             restoreChromeRegion(region, parkedRegionsRef.current)
           } else {
             parkChromeRegion(region, parkedRegionsRef.current)
@@ -271,6 +290,7 @@ export function useApplyDocumentLayoutWindowedChrome({
     editorContainerRef,
     layoutNavigationState.pageBreakEls,
     viewportModel.activePageNumbers,
+    viewportModel.mountedPageNumbers,
     viewportModel.activeRange,
     viewportModel.hasSparseFlow,
     viewportModel.isWindowed,

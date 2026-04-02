@@ -424,15 +424,19 @@ export interface FlowBotSession {
   shortInfo?: string
 }
 
-const CHAT_LIST_LIMIT = 50
+const CHAT_LIST_LIMIT = 15
 
 /**
- * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...
+ * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...&offset=...
  */
-async function fetchChatListFromApi(accessToken: string, limit: number = CHAT_LIST_LIMIT): Promise<FlowBotSession[]> {
+export async function fetchChatListFromApi(
+  accessToken: string,
+  limit: number = CHAT_LIST_LIMIT,
+  offset: number = 0
+): Promise<FlowBotSession[]> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}`
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}&offset=${offset}`
 
     const res = await fetch(url, {
       method: 'GET',
@@ -476,7 +480,7 @@ async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSessio
 /**
  * Delete a chat session on the server: DELETE /flowbot/chat/sessions/:sessionId
  */
-async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
+export async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
@@ -498,7 +502,8 @@ async function deleteChatSession(sessionId: string, accessToken: string): Promis
 }
 
 /**
- * Save user message to the server for persistence using the existing /chat/messages endpoint
+ * Save user message to the server for persistence using the existing /chat/messages endpoint.
+ * Content is stored as structured JSON so history restores with full fidelity.
  */
 async function saveUserMessage(
   sessionId: string,
@@ -513,20 +518,28 @@ async function saveUserMessage(
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    // Prepare content with mentions and files info if present
-    let content = userInputText
-    if (mentions && mentions.length > 0) {
-      content += `\n\n[Mentions: ${mentions.map(m => m.display).join(', ')}]`
+    const fileMetas = files.map(f => ({
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+      name: f.name,
+      size: f.size,
+      type: f.type
+    }))
+
+    const content: Record<string, any> = {
+      type: 'user_input',
+      text: userInputText,
+      files: fileMetas
     }
-    if (files && files.length > 0) {
-      content += `\n\n[Files: ${files.map(f => f.name).join(', ')}]`
+
+    if (mentions && mentions.length > 0) {
+      content.mentions = mentions
     }
 
     const requestBody = {
       session_id: sessionId,
       role: 'user',
-      content: content,
-      short_info: '' // Let the backend auto-generate from content
+      content,
+      short_info: ''
     }
 
     const res = await fetch(url, {
@@ -549,44 +562,21 @@ async function saveUserMessage(
 }
 
 /**
- * Save agent response to the server for persistence using the existing /chat/messages endpoint
+ * Save agent response to the server for persistence using the existing /chat/messages endpoint.
+ * Stores the full OutputItem[] as JSONB so rich content (scatter plots, tables, entities)
+ * is preserved and can be faithfully restored from chat history.
  */
 async function saveAgentMessage(sessionId: string, outputs: OutputItem[], accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    // Convert outputs to readable content
-    let content = ''
-    for (const output of outputs) {
-      if (output.type === 'answer' && output.displayData) {
-        for (const data of output.displayData) {
-          if (data.type === 'textBlock') {
-            content += data.text + '\n\n'
-          } else if (data.type === 'table') {
-            content += `[Table: ${data.title || 'Data Table'}]\n`
-          } else if (data.type === 'entity') {
-            content += `[Entity: ${data.entity} - ${data.id}]\n`
-          } else {
-            content += `[${data.type}]\n`
-          }
-        }
-      } else if (output.type === 'flow_proposal') {
-        content += `[Flow Proposal: ${output.flow_name || 'Unknown'}]\n`
-      } else if (output.type !== 'tool' && output.type !== 'loading') {
-        content += `[${output.type}]\n`
-      }
-    }
-
-    // If no readable content, create a summary
-    if (!content.trim()) {
-      content = `[Agent Response: ${outputs.length} output(s)]`
-    }
+    const persistableOutputs = outputs.filter(o => o.type !== 'tool' && o.type !== 'loading')
 
     const requestBody = {
       session_id: sessionId,
       role: 'assistant',
-      content: content.trim(),
+      content: persistableOutputs,
       short_info: ''
     }
 

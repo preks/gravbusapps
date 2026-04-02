@@ -29,6 +29,7 @@ import { useRewrapAntDStylesLive } from './common/hooks/useRewrapAntDStylesLive'
 import { BlinkProvider } from './common/providers/BlinkProvider'
 import { useBusinessAuth } from './common/auth/useBusinessAuth'
 import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfileFromKeycloak'
+import { useBrandingLogo } from './common/hooks/useBrandingLogo'
 import {
   STORAGE_KEY_USER_INFO,
   STORAGE_KEY_ACCESS_TOKEN,
@@ -975,6 +976,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     isMsOAuthCallback
   } = useBusinessAuth()
   const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
+  const { wordmarkUrl: brandingWordmarkUrl, logomarkUrl: brandingLogomarkUrl } = useBrandingLogo(authToken)
 
   // When auth/profile become available, synchronize into IDE state and localStorage
   useEffect(() => {
@@ -1071,6 +1073,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                     selectedApp={selectedApp}
                     onAppSelect={handleAppSelect}
                     onHomeClick={handleHomeClick}
+                    wordmarkUrl={brandingWordmarkUrl}
+                    logomarkUrl={brandingLogomarkUrl}
                   />
                 }
                 header={
@@ -1121,23 +1125,21 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   <IDEContextPanel accessToken={accessToken || ''} userInfo={parsedUserInfo()} enabled={enableChat} />
                 }
               >
-                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
-                  {!selectedApp ? (
-                    <IDEStartScreen
-                      filteredBusinessApps={filteredCatalogBusinessApps}
-                      allBusinessApps={businessApps}
-                      onAppSelect={handleAppSelect}
-                    />
-                  ) : (
-                    <IDERenderer
-                      selectedApp={selectedApp}
-                      userInfo={parsedUserInfo()}
-                      accessToken={accessToken || ''}
-                      additionalData={parsedAdditionalData()}
-                      onAppSelect={setSelectedApp}
-                    />
-                  )}
-                </div>
+                {!selectedApp ? (
+                  <IDEStartScreen
+                    filteredBusinessApps={filteredCatalogBusinessApps}
+                    allBusinessApps={businessApps}
+                    onAppSelect={handleAppSelect}
+                  />
+                ) : (
+                  <IDERenderer
+                    selectedApp={selectedApp}
+                    userInfo={parsedUserInfo()}
+                    accessToken={accessToken || ''}
+                    additionalData={parsedAdditionalData()}
+                    onAppSelect={setSelectedApp}
+                  />
+                )}
               </ShellLayout>
 
               <PerformanceWindow open={performanceWindowOpen} onClose={() => setPerformanceWindowOpen(false)} />

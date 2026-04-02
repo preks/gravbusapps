@@ -43,7 +43,8 @@ export const EMPLOYEE_COMPANY_AUDIT_FIELDS = `
 /**
  * Pre-defined Query Configurations
  * Alphabetically sorted, objects listed with their IDs/Refs together
- * NOTE: Only includes fields that exist in GraphQL schema
+ * NOTE: Only includes fields that exist in GraphQL schema.
+ * Company → employees: use `companyEmployees` (array). Older metadata used `companyEmployee` (singular).
  */
 export const COMPANY_QUERY_CONFIGS: Record<string, string[]> = {
   // Minimal: Only essential fields for quick lookups
@@ -59,7 +60,7 @@ export const COMPANY_QUERY_CONFIGS: Record<string, string[]> = {
     'childRelationships',
     'code',
     'commercialRegistrationNumber',
-    'companyEmployee',
+    'companyEmployees',
     'createdAt',
     'currency',
     'currencyRef',
@@ -197,9 +198,9 @@ const buildNestedRelationFields = (fieldSet: Set<string>): string => {
     `)
   }
 
-  if (fieldSet.has('companyEmployee')) {
+  if (fieldSet.has('companyEmployees')) {
     parts.push(`
-      ${CompanyFields.companyEmployee} {
+      ${CompanyFields.companyEmployees} {
         id
         version
         employeeId

@@ -1,7 +1,8 @@
 title = Configurare ciclu de evaluare a performanței
 subtitle = Creează și gestionează cicluri de evaluare a performanței
 
-tab-cycles = Cicluri
+tab-cycles = Perioadă de performanță
+tab-performance = Ciclu de evaluare
 tab-rating-scales = Scale de evaluare
 tab-values = Valori
 
@@ -13,17 +14,22 @@ button-activate = Activează
 button-deactivate = Dezactivează
 button-complete = Finalizează
 button-delete = Șterge
+button-manual-run = Rulare manuală
 
 table-name = Nume
-table-dates = Perioadă
+table-dates = Date de evaluare
 table-type = Tip
 table-scale = Scală
 table-participants = Participanți
 table-status = Stare
 status-completed = Finalizat
-table-evaluation-period = Perioada de evaluare
+status-in-progress = În desfășurare
+cycle-already-started = "{ $name }" a fost deja pornit.
+table-evaluation-period = Perioadă de performanță
 table-actions = Acțiuni
 empty-no-cycles = Nu există încă cicluri create.
+performance-period-description = Perioada de muncă evaluată. Exemplu: Perioadă de performanță: 1 ian – 31 dec, 2025.
+review-cycle-description = Perioada în care au loc feedback-ul, evaluarea managerului și calibrarea. Exemplu: Ciclu de evaluare: 15 ian – 20 feb, 2026.
 empty-no-values = Nu există încă valori definite.
 
 modal-create-title = Creează ciclu nou
@@ -31,19 +37,20 @@ modal-edit-title = Editează ciclul
 modal-description = Configurează detaliile ciclului de evaluare a performanței.
 
 field-name = Nume
-field-start-date = Data începerii
-field-end-date = Data încheierii
+field-start-date = Dată început execuție
+field-end-date = Dată sfârșit execuție
 field-frequency = Frecvență/Tip
 field-rating-scale = Scală de evaluare
 label-evaluation-participants = Participanți la evaluare
-field-evaluation-period-start = Început perioadă evaluare
-field-evaluation-period-end = Sfârșit perioadă evaluare
+field-evaluation-period-start = Început perioadă evaluată
+field-evaluation-period-end = Sfârșit perioadă evaluată
 field-values = Valori
 field-title = Titlu
 field-description = Descriere
 field-active = Activ
 
 placeholder-name = ex.: 2026 Evaluare anuală a performanței
+placeholder-select-cycle = Selectează ciclu
 placeholder-select-frequency = Selectează o frecvență
 placeholder-select-scale = Selectează o scală de evaluare
 placeholder-no-scales = Nicio scală. Adaugă din tab-ul Scale de evaluare.
@@ -90,6 +97,7 @@ cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
 cycle-completed-to-database = "{ $name }" a fost marcat ca finalizat.
 cycle-deleted-to-database = "{ $name }" a fost șters.
 cycle-started = Se pornește ciclul: { $name }
+cycle-start-rating-scale-required = O scară de evaluare este necesară înainte de a porni "{ $name }". Vă rugăm editați ciclul și selectați o scară de evaluare.
 value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
 value-deleted-to-database = "{ $title }" a fost ștearsă.
 value-activated-to-database = "{ $title }" a fost activată.
@@ -106,6 +114,8 @@ values-modal-description = Definește o valoare a companiei și descrierea ei.
 start-confirm-title = Pornește evaluarea performanței
 start-confirm-description-with-cycle = Sigur doriți să porniți evaluarea performanței pentru „{ $name }"? Aceasta va iniția fluxul de evaluare.
 start-confirm-description-generic = Sigur doriți să porniți această evaluare a performanței?
+start-confirm-select-cycle = Selectează ciclu *
+manual-run-cycle-already-started = Acest ciclu a fost deja pornit.
 start-confirm-run-for-label = Rulează evaluarea pentru
 start-confirm-run-for-employee = Angajat
 start-confirm-run-for-team = Echipă

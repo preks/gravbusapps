@@ -190,6 +190,68 @@ describe('CustomImageView', () => {
       expect(behindLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
     })
 
+    const behindFigure = behindLayer.querySelector('[data-testid="document-editor-image-figure"]') as HTMLElement
+    expect(behindFigure.style.pointerEvents).toBe('none')
+    expect(behindFigure.style.zIndex).toBe('0')
+
+    expect(anchor).toHaveAttribute('data-image-render-mode', 'overlay')
+    expect(container.querySelector('[data-testid="document-editor-image-figure"]')).toBeNull()
+  })
+
+  it('renders in-front-of-text images into the matching page overlay layer', async () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const frontLayer = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    frontLayer.className = 'rm-page-image-overlay-layer'
+    frontLayer.dataset.rmPageNumber = '1'
+    frontLayer.dataset.rmImageLayer = 'front'
+
+    editorDom.append(bodyLayer, frontLayer)
+    document.body.appendChild(editorDom)
+
+    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
+    setRect(editorDom, { top: 0, bottom: 400 })
+    setRect(bodyLayer, { top: 0, bottom: 320 })
+    setRect(frontLayer, { top: 0, bottom: 320 })
+
+    const { container } = render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 120,
+            height: 80,
+            wrapMode: 'front',
+            anchorMode: 'move-with-text'
+          }
+        }}
+        editor={
+          {
+            view: {
+              dom: editorDom
+            }
+          } as never
+        }
+        getPos={() => 1}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    const anchor = screen.getByTestId('document-editor-image-anchor')
+    setRect(anchor, { top: 48, bottom: 48 })
+    editorDom.style.setProperty('--overlay-refresh', '3')
+
+    await waitFor(() => {
+      expect(frontLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
+    })
+
+    const frontFigure = frontLayer.querySelector('[data-testid="document-editor-image-figure"]') as HTMLElement
+    expect(frontFigure.style.pointerEvents).toBe('auto')
+
     expect(anchor).toHaveAttribute('data-image-render-mode', 'overlay')
     expect(container.querySelector('[data-testid="document-editor-image-figure"]')).toBeNull()
   })
@@ -503,5 +565,103 @@ describe('CustomImageView', () => {
 
     expect(screen.queryByTestId('document-editor-image-broken')).not.toBeInTheDocument()
     expect(screen.getByTestId('document-editor-image')).toHaveAttribute('src', BASE64_IMAGE)
+  })
+
+  it('does not dispatch dimension updates on load when original dimensions already exist', async () => {
+    const dispatch = jest.fn()
+    const setNodeMarkup = jest.fn(() => ({ doc: {} }))
+    const tr = { setNodeMarkup }
+
+    const editor = {
+      state: {
+        doc: {
+          nodeAt: () => ({
+            type: { name: 'image' },
+            attrs: {
+              src: BASE64_IMAGE,
+              width: 50,
+              height: 50,
+              originalWidth: 10,
+              originalHeight: 10
+            }
+          })
+        },
+        tr
+      },
+      view: { dispatch }
+    }
+
+    render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 50,
+            height: 50,
+            originalWidth: 10,
+            originalHeight: 10,
+            wrapMode: 'inline'
+          }
+        }}
+        editor={editor as never}
+        getPos={() => 2}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    const img = await screen.findByTestId('document-editor-image')
+    Object.defineProperty(img, 'naturalWidth', { configurable: true, value: 999 })
+    Object.defineProperty(img, 'naturalHeight', { configurable: true, value: 999 })
+    fireEvent.load(img)
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('backfills missing original dimensions on load', async () => {
+    const dispatch = jest.fn()
+    const setNodeMarkup = jest.fn(() => ({ doc: {} }))
+    const tr = { setNodeMarkup }
+
+    const editor = {
+      state: {
+        doc: {
+          nodeAt: () => ({
+            type: { name: 'image' },
+            attrs: {
+              src: BASE64_IMAGE,
+              width: 50,
+              height: 50,
+              originalWidth: null,
+              originalHeight: null
+            }
+          })
+        },
+        tr
+      },
+      view: { dispatch }
+    }
+
+    render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: BASE64_IMAGE,
+            width: 50,
+            height: 50,
+            wrapMode: 'inline'
+          }
+        }}
+        editor={editor as never}
+        getPos={() => 2}
+        selected={false}
+        options={createOptions()}
+      />
+    )
+
+    const img = await screen.findByTestId('document-editor-image')
+    Object.defineProperty(img, 'naturalWidth', { configurable: true, value: 1 })
+    Object.defineProperty(img, 'naturalHeight', { configurable: true, value: 1 })
+    fireEvent.load(img)
+    expect(dispatch).toHaveBeenCalled()
   })
 })

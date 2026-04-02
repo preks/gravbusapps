@@ -13,7 +13,7 @@ import {
   Button,
   Spinner
 } from '@newwork/nw-design-system'
-import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 
 const NODE_OFFSET_X = 280
@@ -37,7 +37,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
   onAdded,
   'data-testid': testId = 'add-agent-to-mesh-modal'
 }) => {
-  const api = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +47,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
     setLoading(true)
     setError(null)
     try {
-      const registry = await api.getAgentRegistry({})
+      const registry = await promptManagerClient.getAgentRegistry({})
       const exclude = new Set(excludeAgentIds)
       const available = registry.filter((a: AgentRegistryEntry) => !exclude.has(a.id))
       setAgents(available)
@@ -56,7 +56,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [api, excludeAgentIds.join(',')])
+  }, [promptManagerClient, excludeAgentIds.join(',')])
 
   useEffect(() => {
     if (open) loadRegistry()
@@ -66,7 +66,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
     async (agentId: string) => {
       setAddingId(agentId)
       try {
-        const layout = await api.getMeshLayout()
+        const layout = await promptManagerClient.getMeshLayout()
         const positions = layout?.positions ?? []
         if (positions.some((p: { agent_id: string }) => p.agent_id === agentId)) {
           onAdded(agentId)
@@ -75,7 +75,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
         }
         const maxX = positions.reduce((max: number, p: { x: number }) => Math.max(max, p.x), 0)
         const newPositions = [...positions, { agent_id: agentId, x: maxX + NODE_OFFSET_X, y: 100 }]
-        await api.saveMeshLayout(newPositions)
+        await promptManagerClient.saveMeshLayout(newPositions)
         onAdded(agentId)
         onOpenChange(false)
       } catch (err) {
@@ -84,7 +84,7 @@ export const AddAgentToMeshModal: React.FC<AddAgentToMeshModalProps> = ({
         setAddingId(null)
       }
     },
-    [api, onAdded, onOpenChange]
+    [promptManagerClient, onAdded, onOpenChange]
   )
 
   function renderModalContent() {

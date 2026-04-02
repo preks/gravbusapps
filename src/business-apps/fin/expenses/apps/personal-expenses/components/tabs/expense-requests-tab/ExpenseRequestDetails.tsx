@@ -9,7 +9,7 @@ import { formatCurrencyDisplay } from '../../../utils'
 import { AppAction } from '@/components/app-action'
 import { generateExpenseRequestActions } from '../../../utils/expenseRequestActions'
 import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
-import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
+import TravelOrderAttachmentPreview from '../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {

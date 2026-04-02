@@ -75,7 +75,7 @@ export const GET_RELATIONSHIP_TYPES = `
       name
     }
   }
-  relationships: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmployeeRelationships"}}}) {
+  relationships: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmployeeRelationships"}}, isDeleted: {_eq: false}}) {
     id
     value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -87,7 +87,7 @@ export const GET_RELATIONSHIP_TYPES = `
     }
     code
   }
-  documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}}) {
+  documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, isDeleted: {_eq: false}}) {
     id
     value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -99,7 +99,7 @@ export const GET_RELATIONSHIP_TYPES = `
     }
     code
   }
-  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
+  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}, isDeleted: {_eq: false}}) {
     id
     value
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {

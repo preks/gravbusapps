@@ -6,14 +6,22 @@
 import { useCallback, type RefObject } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { CustomImageUploadHandler, ImageUploadContext } from '@/components/tiptap-extensions/tiptap-custom-image'
+import type { PageLayoutPaginationConfig } from '../../../utils/pageLayoutUtils'
+import { buildInitialInsertedImageAttrs } from '../../../utils/initialInsertedImageLayout'
 
 export interface UseEditorImageHandlersProps {
   editorRef: RefObject<Editor | null>
   uploadImage: CustomImageUploadHandler
   uploadContext?: ImageUploadContext
+  paginationConfig: PageLayoutPaginationConfig | null
 }
 
-export function useEditorImageHandlers({ editorRef, uploadImage, uploadContext }: UseEditorImageHandlersProps): {
+export function useEditorImageHandlers({
+  editorRef,
+  uploadImage,
+  uploadContext,
+  paginationConfig
+}: UseEditorImageHandlersProps): {
   handlePaste: (view: unknown, event: ClipboardEvent) => boolean
   handleDrop: (view: unknown, event: DragEvent, slice: unknown, moved: boolean) => boolean
 } {
@@ -26,19 +34,40 @@ export function useEditorImageHandlers({ editorRef, uploadImage, uploadContext }
           const file = item.getAsFile()
           if (file) {
             event.preventDefault()
+            const insertPos = editorRef.current?.state.selection.from ?? null
             uploadImage(file, uploadContext)
-              .then(({ url }) => {
-                editorRef.current?.chain().focus().setImage({ src: url }).run()
+              .then(async ({ url }) => {
+                const ed = editorRef.current
+                if (!ed) return
+                const attrs = await buildInitialInsertedImageAttrs({
+                  src: url,
+                  file,
+                  paginationConfig,
+                  editor: ed,
+                  insertPos: insertPos ?? ed.state.selection.from
+                })
+                ed.chain().focus().setImage(attrs).run()
               })
               .catch(() => {
-                // Fallback: insert as data URL so user still gets the image
                 const reader = new FileReader()
                 reader.onload = () => {
-                  editorRef.current
-                    ?.chain()
-                    .focus()
-                    .setImage({ src: reader.result as string })
-                    .run()
+                  void (async () => {
+                    const ed = editorRef.current
+                    if (!ed) return
+                    const src = reader.result as string
+                    try {
+                      const attrs = await buildInitialInsertedImageAttrs({
+                        src,
+                        file,
+                        paginationConfig,
+                        editor: ed,
+                        insertPos: insertPos ?? ed.state.selection.from
+                      })
+                      ed.chain().focus().setImage(attrs).run()
+                    } catch {
+                      ed.chain().focus().setImage({ src }).run()
+                    }
+                  })()
                 }
                 reader.readAsDataURL(file)
               })
@@ -48,7 +77,7 @@ export function useEditorImageHandlers({ editorRef, uploadImage, uploadContext }
       }
       return false
     },
-    [editorRef, uploadContext, uploadImage]
+    [editorRef, paginationConfig, uploadContext, uploadImage]
   )
 
   const handleDrop = useCallback(
@@ -64,41 +93,81 @@ export function useEditorImageHandlers({ editorRef, uploadImage, uploadContext }
       if (imageFiles.length === 0) return false
       event.preventDefault()
       const coords = view.posAtCoords?.({ left: event.clientX, top: event.clientY })
-      const dropPos = coords?.pos
+      const dropPos = coords?.pos ?? null
 
       Promise.all(imageFiles.map(file => uploadImage(file, uploadContext)))
-        .then(results => {
+        .then(async results => {
           const urls = results.map(r => r.url)
           const ed = editorRef.current
           if (!ed || urls.length === 0) return
+
           if (dropPos == null) {
-            urls.forEach(url => ed.chain().focus().setImage({ src: url }).run())
+            for (let i = 0; i < urls.length; i += 1) {
+              const url = urls[i]!
+              const file = imageFiles[i]!
+              const attrs = await buildInitialInsertedImageAttrs({
+                src: url,
+                file,
+                paginationConfig,
+                editor: ed,
+                insertPos: ed.state.selection.from
+              })
+              ed.chain().focus().setImage(attrs).run()
+            }
           } else {
-            ed.chain()
-              .focus()
-              .insertContentAt(dropPos, { type: 'image', attrs: { src: urls[0] } })
-              .run()
-            for (let i = 1; i < urls.length; i++) {
-              ed.chain().focus().setImage({ src: urls[i] }).run()
+            for (let i = 0; i < urls.length; i += 1) {
+              const url = urls[i]!
+              const file = imageFiles[i]!
+              const attrs = await buildInitialInsertedImageAttrs({
+                src: url,
+                file,
+                paginationConfig,
+                editor: ed,
+                insertPos: i === 0 ? dropPos : ed.state.selection.from
+              })
+              if (i === 0) {
+                ed.chain().focus().insertContentAt(dropPos, { type: 'image', attrs }).run()
+              } else {
+                ed.chain().focus().setImage(attrs).run()
+              }
             }
           }
         })
         .catch(() => {
-          // On upload failure, still try data URLs for first file so user gets something
           const file = imageFiles[0]
           const reader = new FileReader()
           reader.onload = () => {
-            editorRef.current
-              ?.chain()
-              .focus()
-              .setImage({ src: reader.result as string })
-              .run()
+            void (async () => {
+              const ed = editorRef.current
+              if (!ed || !file) return
+              const src = reader.result as string
+              try {
+                const attrs = await buildInitialInsertedImageAttrs({
+                  src,
+                  file,
+                  paginationConfig,
+                  editor: ed,
+                  insertPos: dropPos ?? ed.state.selection.from
+                })
+                if (dropPos != null) {
+                  ed.chain().focus().insertContentAt(dropPos, { type: 'image', attrs }).run()
+                } else {
+                  ed.chain().focus().setImage(attrs).run()
+                }
+              } catch {
+                if (dropPos != null) {
+                  ed.chain().focus().insertContentAt(dropPos, { type: 'image', attrs: { src } }).run()
+                } else {
+                  ed.chain().focus().setImage({ src }).run()
+                }
+              }
+            })()
           }
           reader.readAsDataURL(file)
         })
       return true
     },
-    [editorRef, uploadContext, uploadImage]
+    [editorRef, paginationConfig, uploadContext, uploadImage]
   )
 
   return { handlePaste, handleDrop }

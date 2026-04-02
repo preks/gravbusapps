@@ -6,7 +6,8 @@ import {
   TabSwitchContent,
   TabSwitchBadge,
   Button,
-  useTranslation
+  useTranslation,
+  toast
 } from '@newwork/nw-design-system'
 import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell, LayoutDashboard } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
@@ -17,13 +18,15 @@ import { EveryAI } from '../every-ai/EveryAI'
 import { RemindersPanel } from './components/RemindersPanel'
 import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { useDevReportScreenKey } from '@/common/dev-report/DevReportScreenKeyContext'
 import translations from './_i18n'
 import { GlobalCallContainer } from './components/GlobalCallContainer'
 import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
 import { useChatClient } from '@/common/network/chat/useChatClient'
+import { useChatWebSocketClient } from '@/common/network/chat/useChatWebSocketClient'
 import { useEmailAccounts } from '../email-apps/hooks/useEmailAccounts'
 import { useExternalCalendarEvents } from '../email-apps/hooks/useExternalCalendarEvents'
-import type { CalendarEvent, CalendarEventSource } from './calendar/types'
+import type { CalendarEvent, CalendarEventSource, ExternalCalendarSource } from './calendar/types'
 import { InvitationStatus, MeetingStatus } from './calendar/types'
 import type { ExternalCalendarEvent } from '../email-apps/types'
 
@@ -53,6 +56,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const [activeCalls, setActiveCalls] = useState<Record<string, any>>({})
 
   const calendarApiClient = useChatClient(accessToken)
+  const chatSocket = useChatWebSocketClient(accessToken)
 
   // External calendar events from email accounts
   const { accounts: emailAccounts } = useEmailAccounts(accessToken)
@@ -72,6 +76,23 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     endDate: externalDateRange.end,
     enabled: emailAccounts.length > 0
   })
+
+  const externalCalendarSources: ExternalCalendarSource[] = useMemo(() => {
+    return emailAccounts
+      .filter(
+        account => (account.provider === 'microsoft' || account.provider === 'google') && account.status === 'active'
+      )
+      .map(account => ({
+        id: account.id,
+        label: account.displayName || account.emailAddress,
+        provider: account.provider
+      }))
+  }, [emailAccounts])
+
+  const externalCalendarSourceLabels = useMemo(
+    () => new Map(externalCalendarSources.map(source => [source.id, source.label])),
+    [externalCalendarSources]
+  )
 
   // Map external events to CalendarEvent format for the Calendar component
   const externalCalendarEvents: CalendarEvent[] = useMemo(() => {
@@ -125,10 +146,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           source: evt.provider as CalendarEventSource,
           externalId: evt.externalId,
           externalLink: evt.externalLink,
-          isReadOnly: true
+          isReadOnly: true,
+          sourceId: evt.accountId,
+          calendarName: externalCalendarSourceLabels.get(evt.accountId)
         })
       )
-  }, [rawExternalEvents])
+  }, [externalCalendarSourceLabels, rawExternalEvents])
 
   const isInSidepanel = useMemo(() => {
     if (globalThis.window === undefined) return false
@@ -186,6 +209,11 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const [activeTab, setActiveTab] = useState<TabValue>(chatInitState.tab)
   const pendingOpenWithUser = chatInitState.pending
 
+  const { setSuffix } = useDevReportScreenKey()
+  useEffect(() => {
+    setSuffix(activeTab)
+  }, [activeTab, setSuffix])
+
   useEffect(() => {
     if (pendingOpenWithUser) {
       const url = new URL(globalThis.window.location.href)
@@ -193,6 +221,30 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       globalThis.window.history.replaceState({}, '', url.toString())
     }
   }, [pendingOpenWithUser])
+
+  useEffect(() => {
+    const offReminder = chatSocket.on('meeting:reminder', (payload: { title?: string; minutesBefore?: number }) => {
+      const minutesBefore = payload?.minutesBefore ?? 0
+      const titleText = payload?.title || 'Meeting'
+      let reminderMessage: string
+      if (minutesBefore > 0) {
+        const minuteSuffix = minutesBefore === 1 ? '' : 's'
+        reminderMessage = `${titleText} starts in ${minutesBefore} minute${minuteSuffix}`
+      } else {
+        reminderMessage = `${titleText} is starting now`
+      }
+      toast.info(reminderMessage, { duration: 5000 })
+    })
+
+    const offStarting = chatSocket.on('meeting:starting', (payload: { title?: string }) => {
+      toast.success(`${payload?.title || 'Meeting'} is starting`, { duration: 5000 })
+    })
+
+    return () => {
+      offReminder()
+      offStarting()
+    }
+  }, [chatSocket])
 
   const openFullscreen = useCallback(() => {
     // Preserve the current tab when going fullscreen
@@ -530,6 +582,8 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             prefixDataTestId={`${prefixDataTestId}-calendar`}
             activeCalls={activeCalls}
             externalCalendarEvents={externalCalendarEvents}
+            externalCalendarSources={externalCalendarSources}
+            defaultSidebarOpen={!isInSidepanel && !isNarrowViewport}
             onOpenChat={conversationId => {
               setActiveTab('chat')
               setTimeout(() => {

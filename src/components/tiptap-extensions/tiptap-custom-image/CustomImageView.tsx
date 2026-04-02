@@ -8,7 +8,7 @@ import { normalizeImageCrop } from './cropUtils'
 import { resolveImageOverlayFigureStyle, resolveImageOverlayMount } from './imageOverlayUtils'
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
 import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
-import { getFigureDataAttributes } from './styleUtils'
+import { getFigureDataAttributes, normalizeNullableNumber } from './styleUtils'
 import type { CustomImageAttributes, CustomImageOptions } from './types'
 import { analyzeImageWrapContour, type ImageWrapContour } from './wrapContourUtils'
 import {
@@ -713,9 +713,9 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       const currentNode = editor.state.doc.nodeAt(pos)
       if (currentNode?.type.name !== 'image') return
 
-      const prevOw = Number(currentNode.attrs.originalWidth)
-      const prevOh = Number(currentNode.attrs.originalHeight)
-      if (prevOw === naturalWidth && prevOh === naturalHeight) {
+      const prevOw = normalizeNullableNumber(currentNode.attrs.originalWidth)
+      const prevOh = normalizeNullableNumber(currentNode.attrs.originalHeight)
+      if (prevOw != null && prevOh != null) {
         return
       }
 
@@ -735,9 +735,9 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const refreshOverlayMount = useCallback(() => {
     const wrapper = wrapperRef.current
     const editorElement = getEditorDomSafely(editor)
-    const anchorElement =
-      flowShimElementRef.current ??
-      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
+    // Never use the flow shim rect for overlay placement: the shim is inserted at the paragraph
+    // start for float stacking, while the node-view wrapper stays at the inline anchor position.
+    const anchorElement = wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null
 
     if (!usesPageOverlayVisual || !(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
       setOverlayMount(null)
@@ -788,10 +788,8 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
     const wrapper = wrapperRef.current
     const editorElement = getEditorDomSafely(editor)
-    const anchorElement =
-      flowShimElementRef.current ??
-      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
-    if (!(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+    const geometryAnchor = wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null
+    if (!(geometryAnchor instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
       return
     }
 
@@ -802,7 +800,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     }
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleRefresh)
-    resizeObserver?.observe(anchorElement)
+    resizeObserver?.observe(geometryAnchor)
     resizeObserver?.observe(editorElement)
 
     const mutationObserver = new MutationObserver(scheduleRefresh)

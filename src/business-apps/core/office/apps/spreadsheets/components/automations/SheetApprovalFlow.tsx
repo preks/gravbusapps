@@ -34,7 +34,8 @@ import {
   CardContent,
   Spinner,
   Alert,
-  AlertDescription
+  AlertDescription,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   CheckCircle,
@@ -51,6 +52,7 @@ import {
 } from 'lucide-react'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import type { SheetApprovalConfig } from '../../types/automation'
+import translations from '../../_i18n'
 
 export interface SheetApprovalFlowProps {
   /** Whether the dialog is open */
@@ -104,6 +106,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
   onRowEdit,
   'data-testid': testId = 'sheet-approval-flow'
 }) => {
+  const { t } = useTranslation(translations)
   const isLineItemMode = approvalConfig.mode === 'line_item'
   const currentStep = approvalConfig.approvalSteps[currentStepIndex]
 
@@ -122,7 +125,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
     if (currentStep?.requiredColumns && currentStep.requiredColumns.length > 0) {
       return columns.filter(c => currentStep.requiredColumns?.includes(c.id))
     }
-    return columns.filter(c => c.isVisible)
+    return columns.filter(c => c.isVisible !== false)
   }, [columns, currentStep])
 
   // Categorize rows by decision
@@ -361,13 +364,13 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <FileSpreadsheet className="gba:w-5 gba:h-5" />
-            {isLineItemMode ? 'Line Item Review' : 'Sheet Approval'}
+            {isLineItemMode ? t('sheet-approval-line-item-title') : t('sheet-approval-sheet-title')}
           </DialogTitle>
           <DialogDescription>
             {currentStep?.message ||
               (isLineItemMode
-                ? `Review and approve/reject individual rows in "${sheetName}"`
-                : `Review and approve the entire sheet "${sheetName}"`)}
+                ? t('sheet-approval-line-item-description', { sheetName })
+                : t('sheet-approval-sheet-description', { sheetName }))}
           </DialogDescription>
         </DialogHeader>
 
@@ -402,27 +405,27 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
         {/* Statistics */}
         <div className="gba:flex gba:items-center gba:gap-4 gba:py-2">
           <div className="gba:text-sm">
-            <span className="gba:text-muted-foreground">Total:</span>{' '}
-            <span className="gba:font-medium">{stats.total} rows</span>
+            <span className="gba:text-muted-foreground">{t('sheet-approval-total')}:</span>{' '}
+            <span className="gba:font-medium">{t('sheet-approval-rows-count', { count: stats.total })}</span>
           </div>
           {isLineItemMode && (
             <>
               <div className="gba:text-sm">
                 <Badge variant="outline" className="gba:gap-1">
                   <Clock className="gba:w-3 gba:h-3" />
-                  {stats.pending} pending
+                  {t('sheet-approval-pending-count', { count: stats.pending })}
                 </Badge>
               </div>
               <div className="gba:text-sm">
                 <Badge variant="success" className="gba:gap-1">
                   <CheckCircle className="gba:w-3 gba:h-3" />
-                  {stats.approved} approved
+                  {t('sheet-approval-approved-count', { count: stats.approved })}
                 </Badge>
               </div>
               <div className="gba:text-sm">
                 <Badge variant="destructive" className="gba:gap-1">
                   <XCircle className="gba:w-3 gba:h-3" />
-                  {stats.rejected} rejected
+                  {t('sheet-approval-rejected-count', { count: stats.rejected })}
                 </Badge>
               </div>
             </>
@@ -439,9 +442,15 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
           {isLineItemMode ? (
             <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
               <TabsList>
-                <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
-                <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
+                <TabsTrigger value="pending">
+                  {t('tasks-pending')} ({stats.pending})
+                </TabsTrigger>
+                <TabsTrigger value="approved">
+                  {t('sheet-approval-approved')} ({stats.approved})
+                </TabsTrigger>
+                <TabsTrigger value="rejected">
+                  {t('sheet-approval-rejected')} ({stats.rejected})
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="pending" className="gba:flex-1 gba:overflow-hidden">
@@ -452,7 +461,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                         {visibleColumns.map(column => (
                           <TableHead key={column.id}>{column.label}</TableHead>
                         ))}
-                        <TableHead className="gba:w-32">Actions</TableHead>
+                        <TableHead className="gba:w-32">{t('bulk-collection-actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -469,9 +478,9 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                               <TableCell colSpan={visibleColumns.length + 1}>
                                 <Card className="gba:border-dashed">
                                   <CardContent className="gba:p-4">
-                                    <Label className="gba:mb-2 gba:block">Comments for this row</Label>
+                                    <Label className="gba:mb-2 gba:block">{t('sheet-approval-comments-row')}</Label>
                                     <Textarea
-                                      placeholder="Add comments for this row..."
+                                      placeholder={t('sheet-approval-comments-row-placeholder')}
                                       value={rowDecisions.get(row._id)?.comments || ''}
                                       onChange={e => {
                                         const current = rowDecisions.get(row._id)
@@ -499,7 +508,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                             colSpan={visibleColumns.length + 1}
                             className="gba:text-center gba:py-8 gba:text-muted-foreground"
                           >
-                            All rows have been reviewed
+                            {t('sheet-approval-all-reviewed')}
                           </TableCell>
                         </TableRow>
                       )}
@@ -516,7 +525,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                         {visibleColumns.map(column => (
                           <TableHead key={column.id}>{column.label}</TableHead>
                         ))}
-                        <TableHead className="gba:w-32">Actions</TableHead>
+                        <TableHead className="gba:w-32">{t('bulk-collection-actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -548,7 +557,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                             colSpan={visibleColumns.length + 1}
                             className="gba:text-center gba:py-8 gba:text-muted-foreground"
                           >
-                            No approved rows yet
+                            {t('sheet-approval-no-approved')}
                           </TableCell>
                         </TableRow>
                       )}
@@ -565,7 +574,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                         {visibleColumns.map(column => (
                           <TableHead key={column.id}>{column.label}</TableHead>
                         ))}
-                        <TableHead className="gba:w-32">Actions</TableHead>
+                        <TableHead className="gba:w-32">{t('bulk-collection-actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -597,7 +606,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                             colSpan={visibleColumns.length + 1}
                             className="gba:text-center gba:py-8 gba:text-muted-foreground"
                           >
-                            No rejected rows yet
+                            {t('sheet-approval-no-rejected')}
                           </TableCell>
                         </TableRow>
                       )}
@@ -644,10 +653,10 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
         <div className="gba:border-t gba:pt-4">
           <Label className="gba:mb-2 gba:block gba:flex gba:items-center gba:gap-2">
             <MessageSquare className="gba:w-4 gba:h-4" />
-            Comments
+            {t('header-comments')}
           </Label>
           <Textarea
-            placeholder="Add comments for this approval..."
+            placeholder={t('sheet-approval-comments-placeholder')}
             value={globalComments}
             onChange={e => setGlobalComments(e.target.value)}
             rows={2}
@@ -667,7 +676,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
 
         <DialogFooter className="gba:flex gba:justify-between gba:gap-2">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            {t('checkpoint-cancel')}
           </Button>
 
           <div className="gba:flex gba:gap-2">
@@ -681,7 +690,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                 ) : (
                   <Send className="gba:w-4 gba:h-4 gba:mr-2" />
                 )}
-                Submit Decisions ({stats.approved + stats.rejected})
+                {t('sheet-approval-submit-decisions', { count: stats.approved + stats.rejected })}
               </Button>
             ) : (
               <>
@@ -691,7 +700,9 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                   ) : (
                     <XCircle className="gba:w-4 gba:h-4 gba:mr-2" />
                   )}
-                  Reject {stats.selected > 0 ? `(${stats.selected})` : 'All'}
+                  {stats.selected > 0
+                    ? t('sheet-approval-reject-selected', { count: stats.selected })
+                    : t('sheet-approval-reject-all')}
                 </Button>
                 <Button
                   onClick={handleApproveAll}
@@ -703,7 +714,9 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                   ) : (
                     <CheckCircle className="gba:w-4 gba:h-4 gba:mr-2" />
                   )}
-                  Approve {stats.selected > 0 ? `(${stats.selected})` : 'All'}
+                  {stats.selected > 0
+                    ? t('sheet-approval-approve-selected', { count: stats.selected })
+                    : t('sheet-approval-approve-all')}
                 </Button>
               </>
             )}

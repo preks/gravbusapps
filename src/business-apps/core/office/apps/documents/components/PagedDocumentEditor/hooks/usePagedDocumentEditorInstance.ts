@@ -25,6 +25,8 @@ import type { DocumentPagesFormatting } from '../../../types'
 import type { PageLayoutPaginationConfig } from '../../../utils/pageLayoutUtils'
 import { isAllowedHref } from '../../../utils/linkUtils'
 import { isDocumentImageProtectedSrc, resolveProtectedDocumentImageSrc } from '../../../utils/documentImageBindings'
+import { DocumentUniqueID } from '@/components/tiptap-extensions/documentUniqueId'
+import { legacyTableIdMigrationExtension } from '@/components/tiptap-extensions/legacyTableIdMigration'
 import { createYjsCursorExtension } from '../extensions/YjsCursor'
 import { LineAndParagraphSpacing } from '../extensions/LineAndParagraphSpacing'
 import { ParagraphIndent } from '../extensions/ParagraphIndent'
@@ -74,6 +76,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
     Signature,
     Table.configure({
       resizable: true,
+      handleWidth: 8,
       renderWrapper: false,
       HTMLAttributes: {
         class: 'editor-table'
@@ -207,6 +210,7 @@ export function usePagedDocumentEditorInstance({
         SearchHighlight,
         ...(paginationConfig && !paginationDebugDisabled
           ? [
+              // Without this block there is no pagination widget: no `.rm-first-page-header` / `.rm-pages-wrapper`.
               Pages.configure({
                 pageFormat: paginationConfig.pageFormat,
                 pageGap: PAGE_GAP_PX,
@@ -251,6 +255,8 @@ export function usePagedDocumentEditorInstance({
           onCommentClick: handleInlineCommentClick
         }),
         ...(collaborationExtension ? [collaborationExtension] : []),
+        DocumentUniqueID,
+        legacyTableIdMigrationExtension,
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ] as any[],
     [

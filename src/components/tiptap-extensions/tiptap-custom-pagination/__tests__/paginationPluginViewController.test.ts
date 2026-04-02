@@ -274,6 +274,38 @@ describe('runPaginationPluginViewUpdate', () => {
     )
   })
 
+  it('accepts immediate page-count shrink on doc changes and refreshes pagination', () => {
+    const previousDoc = createDoc('prev')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: previousDoc,
+        lastKnownSelectionHead: 3
+      },
+      currentDoc: createDoc('next'),
+      measurementState: { currentPageCount: 14, measuredPageCount: 13 }
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 6,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(13)
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-shrink')
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
   it('defers overflow correction while a doc change settles without caret navigation', () => {
     const previousDoc = createDoc('prev')
     const harness = createHarness({

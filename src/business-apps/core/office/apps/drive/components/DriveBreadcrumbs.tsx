@@ -8,6 +8,7 @@ export interface DriveBreadcrumbsProps {
   isCurrentFolderShared?: boolean
   onNavigateRoot: () => void
   onNavigateFolder: (folderId: string) => void
+  rootLabel?: string
   t: (key: string) => string
   'data-testid'?: string
 }
@@ -26,6 +27,7 @@ export const DriveBreadcrumbs: React.FC<DriveBreadcrumbsProps> = ({
   isCurrentFolderShared,
   onNavigateRoot,
   onNavigateFolder,
+  rootLabel,
   t,
   'data-testid': testId = 'drive-breadcrumbs'
 }) => {
@@ -37,7 +39,7 @@ export const DriveBreadcrumbs: React.FC<DriveBreadcrumbsProps> = ({
           className="gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:px-1.5 gba:py-0.5 gba:rounded gba:text-sm gba:font-medium"
           data-testid={`${testId}-root`}
         >
-          {t(SECTION_ROOT_KEYS[section])}
+          {rootLabel ?? t(SECTION_ROOT_KEYS[section])}
         </button>
 
         {breadcrumbs.map((crumb, idx) => (

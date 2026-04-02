@@ -26,11 +26,13 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider
+  TooltipProvider,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
 import { FileText, Sparkles, Copy, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import type { ExcelCollectionSummaryResult } from '../../hooks/useExcelCollectionSummary'
+import translations from '../../_i18n'
 
 function getInitials(name: string): string {
   return (
@@ -62,6 +64,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
   error,
   'data-testid': testId = 'collection-summary-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   useEffect(() => {
@@ -78,11 +81,11 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
     if (!fullSummaryText) return
     try {
       await navigator.clipboard.writeText(fullSummaryText)
-      toast.success('Summary copied to clipboard')
+      toast.success(t('summary-dialog-copy-success'))
     } catch {
-      toast.error('Failed to copy summary')
+      toast.error(t('summary-dialog-copy-failed'))
     }
-  }, [fullSummaryText])
+  }, [fullSummaryText, t])
 
   const handleDiscard = useCallback(() => {
     onOpenChange(false)
@@ -99,7 +102,9 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
             <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary gba:text-primary-foreground">
               <Sparkles className="gba:w-5 gba:h-5" />
             </div>
-            <DialogTitle className="gba:text-lg gba:font-semibold gba:font-heading">AI Summary</DialogTitle>
+            <DialogTitle className="gba:text-lg gba:font-semibold gba:font-heading">
+              {t('summary-dialog-title')}
+            </DialogTitle>
           </div>
           {!isSummarizing && summary && (
             <div className="gba:flex gba:items-center gba:gap-1">
@@ -117,7 +122,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Copy summary to clipboard</p>
+                    <p>{t('summary-dialog-copy-tooltip')}</p>
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
@@ -133,7 +138,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Discard and close</p>
+                    <p>{t('summary-dialog-discard-tooltip')}</p>
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
@@ -153,7 +158,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{isCollapsed ? 'Expand' : 'Collapse'}</p>
+                    <p>{isCollapsed ? t('summary-dialog-expand') : t('summary-dialog-collapse')}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -184,7 +189,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                   <CardHeader>
                     <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
                       <FileText className="gba:w-4 gba:h-4" />
-                      Executive Summary
+                      {t('summary-dialog-executive-summary')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="gba:pl-5 gba:border-l-4 gba:border-primary">
@@ -199,7 +204,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                           data-testid={`${testId}-executive-summary-content`}
                         />
                       ) : (
-                        <span className="gba:text-muted-foreground gba:italic">No summary available</span>
+                        <span className="gba:text-muted-foreground gba:italic">{t('summary-dialog-no-summary')}</span>
                       )}
                     </div>
                   </CardContent>
@@ -207,7 +212,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
 
                 <Card variant="outlined">
                   <CardHeader>
-                    <CardTitle className="gba:text-base">Per-Recipient Breakdown</CardTitle>
+                    <CardTitle className="gba:text-base">{t('summary-dialog-per-recipient')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="gba:space-y-4">
@@ -237,7 +242,9 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                                   data-testid={`${testId}-recipient-summary-content-${index}`}
                                 />
                               ) : (
-                                <span className="gba:text-muted-foreground gba:italic">No summary available</span>
+                                <span className="gba:text-muted-foreground gba:italic">
+                                  {t('summary-dialog-no-summary')}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -254,7 +261,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
         {!isSummarizing && summary && (
           <div className="gba:flex gba:justify-end gba:pt-1">
             <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-close-button`}>
-              Close
+              {t('share-dialog-close')}
             </Button>
           </div>
         )}
