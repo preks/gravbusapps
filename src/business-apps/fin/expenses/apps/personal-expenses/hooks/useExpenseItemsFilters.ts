@@ -142,7 +142,6 @@ export const useExpenseItemsFilters = (
         customComponent: React.createElement(ExpenseAmountRangeFilter, {
           amountRange: amountRange,
           onAmountRangeChange: setAmountRange,
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
           dataTestIdPrefix: 'expense-amount-range'
         }),
         hideSearch: true

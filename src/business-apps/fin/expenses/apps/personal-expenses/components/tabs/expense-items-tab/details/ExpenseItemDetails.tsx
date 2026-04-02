@@ -13,17 +13,16 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  Badge
 } from '@newwork/nw-design-system'
 import { ImageIcon, FilePdfIcon, FileDocIcon, FileXlsIcon, FileIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../../hooks/useGetExpenseItems'
-import { getExpenseItemStatusDisplay } from '../../../../utils'
+import { getExpenseItemStatusDisplay, formatCurrencyDisplay } from '../../../../utils'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../../utils'
 import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
-import { Badge } from '@newwork/nw-design-system'
 import type { UploadFile } from 'antd/es/upload/interface'
 import {
   DetailsPanelContent,
@@ -67,7 +66,7 @@ const formatFileSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
@@ -253,6 +252,88 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     }
   }, [detailedItem, fetchFileAttachments])
 
+  const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
+
+  const getFileExtension = (fileName: string): string => fileName.split('.').pop()?.toLowerCase() || ''
+
+  const isImageFile = (fileType: string, ext: string): boolean =>
+    fileType.includes('image') || IMAGE_EXTENSIONS.includes(ext)
+
+  const isPdfFile = (fileType: string, ext: string): boolean => fileType.includes('pdf') || ext === 'pdf'
+
+  const renderFileIcon = (fileType: string, ext: string) => {
+    if (isPdfFile(fileType, ext)) return <FilePdfIcon size={32} className="gba:text-red-500" />
+    if (isImageFile(fileType, ext)) return <ImageIcon size={32} className="gba:text-blue-500" />
+    if (fileType.includes('word') || ['doc', 'docx'].includes(ext))
+      return <FileDocIcon size={32} className="gba:text-blue-700" />
+    if (fileType.includes('excel') || ['xls', 'xlsx', 'csv'].includes(ext))
+      return <FileXlsIcon size={32} className="gba:text-green-700" />
+    return <FileIcon size={32} className="gba:text-gray-500" />
+  }
+
+  const handleImagePreview = useCallback(
+    (fileUrl: string) => {
+      setPreviewImage(fileUrl)
+      setPreviewOpen(true)
+    },
+    [setPreviewImage, setPreviewOpen]
+  )
+
+  const handlePdfPreview = useCallback(
+    (fileUrl: string) => {
+      setPdfPreviewUrl(fileUrl)
+      setPdfPreviewOpen(true)
+    },
+    [setPdfPreviewUrl, setPdfPreviewOpen]
+  )
+
+  const renderFilePreview = useCallback(
+    (fileUrl: string, fileName: string, fileType: string, ext: string, idx: number) => {
+      if (isImageFile(fileType, ext)) {
+        return (
+          <button
+            type="button"
+            className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:cursor-pointer hover:gba:opacity-80 gba:p-0 gba:border-0 gba:bg-transparent"
+            data-testid={`expense-file-image-${idx}`}
+            onClick={() => handleImagePreview(fileUrl)}
+          >
+            <img src={fileUrl} alt={fileName} className="gba:rounded-md gba:w-[90px] gba:h-[90px] gba:object-cover" />
+          </button>
+        )
+      }
+      if (isPdfFile(fileType, ext)) {
+        return (
+          <button
+            type="button"
+            className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200 gba:border-0"
+            onClick={() => handlePdfPreview(fileUrl)}
+            data-testid={`expense-file-pdf-thumb-${idx}`}
+          >
+            <FilePdfIcon size={48} className="gba:text-red-500" />
+          </button>
+        )
+      }
+      return (
+        <div className="gba:flex gba:flex-col gba:items-center" data-testid={`expense-file-generic-${idx}`}>
+          {renderFileIcon(fileType, ext)}
+          <a
+            href={fileUrl}
+            download={fileName}
+            className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline gba:cursor-pointer"
+            data-testid={`expense-file-download-${idx}`}
+            onClick={e => {
+              e.preventDefault()
+              window.open(fileUrl, '_blank')
+            }}
+          >
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.open', 'Open')}
+          </a>
+        </div>
+      )
+    },
+    [handleImagePreview, handlePdfPreview]
+  )
+
   // Render attachment preview
   const renderAttachmentPreview = useCallback(() => {
     if (fileLoading) {
@@ -281,70 +362,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
             const fileName = file.name || `File_${idx + 1}`
             const fileUrl = file.url || ''
             const fileType = file.type || ''
-            const ext = fileName.split('.').pop()?.toLowerCase() || ''
-
-            // Helper: Render icon by file type
-            const renderFileIcon = () => {
-              if (fileType.includes('pdf') || ext === 'pdf')
-                return <FilePdfIcon size={32} className="gba:text-red-500" />
-              if (fileType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext))
-                return <ImageIcon size={32} className="gba:text-blue-500" />
-              if (fileType.includes('word') || ['doc', 'docx'].includes(ext))
-                return <FileDocIcon size={32} className="gba:text-blue-700" />
-              if (fileType.includes('excel') || ['xls', 'xlsx', 'csv'].includes(ext))
-                return <FileXlsIcon size={32} className="gba:text-green-700" />
-              return <FileIcon size={32} className="gba:text-gray-500" />
-            }
-
-            // Helper: Render preview by file type
-            const renderPreview = () => {
-              if (fileType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
-                return (
-                  <img
-                    src={fileUrl}
-                    alt={fileName}
-                    className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:object-cover gba:cursor-pointer hover:gba:opacity-80"
-                    data-testid={`expense-file-image-${idx}`}
-                    onClick={() => {
-                      setPreviewImage(fileUrl)
-                      setPreviewOpen(true)
-                    }}
-                  />
-                )
-              }
-              if (fileType.includes('pdf') || ext === 'pdf') {
-                return (
-                  <div
-                    className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200"
-                    onClick={() => {
-                      setPdfPreviewUrl(fileUrl)
-                      setPdfPreviewOpen(true)
-                    }}
-                    data-testid={`expense-file-pdf-thumb-${idx}`}
-                  >
-                    <FilePdfIcon size={48} className="gba:text-red-500" />
-                  </div>
-                )
-              }
-              // For other types: icon + download
-              return (
-                <div className="gba:flex gba:flex-col gba:items-center" data-testid={`expense-file-generic-${idx}`}>
-                  {renderFileIcon()}
-                  <a
-                    href={fileUrl}
-                    download={fileName}
-                    className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline gba:cursor-pointer"
-                    data-testid={`expense-file-download-${idx}`}
-                    onClick={e => {
-                      e.preventDefault()
-                      window.open(fileUrl, '_blank')
-                    }}
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.open', 'Open')}
-                  </a>
-                </div>
-              )
-            }
+            const ext = getFileExtension(fileName)
 
             return (
               <div
@@ -352,21 +370,13 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                 className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
                 data-testid={`expense-file-card-${idx}`}
               >
-                {renderPreview()}
+                {renderFilePreview(fileUrl, fileName, fileType, ext, idx)}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div
-                        className="gba:mt-2 gba:text-xs gba:text-center gba:w-full gba:px-1 gba:break-words gba:cursor-help"
+                        className="gba:mt-2 gba:text-xs gba:text-center gba:w-full gba:px-1 gba:break-words gba:cursor-help gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:max-w-full gba:leading-tight"
                         data-testid={`expense-file-name-${idx}`}
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '100%',
-                          lineHeight: '1.2',
-                          wordBreak: 'break-all'
-                        }}
                       >
                         {truncateFileName(fileName, 18)}
                       </div>
@@ -401,7 +411,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         </div>
       </Card>
     )
-  }, [fileLoading, fileList, previewOpen, previewImage, setPreviewOpen, setPreviewImage])
+  }, [fileLoading, fileList, renderFilePreview])
 
   // Show loading state while fetching detailed item data
   if (isItemLoading) {

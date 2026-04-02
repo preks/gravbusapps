@@ -37,7 +37,3 @@ export function buildFilteredEmptyMessage(): string {
 export function buildDefaultEmptyMessage(noDataKey: string, noDataDefault: string): string {
   return getTranslationFromI18nKeyAndLabel(noDataKey, noDataDefault)
 }
-
-export function buildEmptyMessage(hasActiveFilters: boolean, noDataKey: string, noDataDefault: string): string {
-  return hasActiveFilters ? buildFilteredEmptyMessage() : buildDefaultEmptyMessage(noDataKey, noDataDefault)
-}

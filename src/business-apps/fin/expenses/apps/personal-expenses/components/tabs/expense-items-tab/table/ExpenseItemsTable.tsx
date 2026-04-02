@@ -1,11 +1,9 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, DataTable, DataDisplay, Button, Alert } from '@newwork/nw-design-system'
 import personalTranslations from '../../../../_i18n'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { DataTable, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button, Alert } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action'
 import { useGetExpenseItems, ExpenseFilter, type ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import { useExpenseCurrencies, type CurrencyStat } from '../../../../hooks/useExpenseCurrencies'
@@ -15,7 +13,12 @@ import ExpenseItemDetails from '../details/ExpenseItemDetails'
 import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
 import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
-import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../../utils/tableUtils'
+import {
+  resolveSelectedCurrencyCode,
+  applyCurrencyChange,
+  buildFilteredEmptyMessage,
+  buildDefaultEmptyMessage
+} from '../../../../utils/tableUtils'
 import {
   CurrencyDropdown,
   DetailsSheet,
@@ -289,7 +292,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null)
-    // setSelectedRowKeys([]);
     setIsSheetOpen(false)
   }, [])
   // Handlers for the top buttons
@@ -429,11 +431,12 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     setCurrentPage(newPagination.pageIndex + 1)
     setPageSize(newPagination.pageSize)
   }, [])
-  const emptyMessage = buildEmptyMessage(
-    !!hasActiveFilters,
-    'lowcoder:personal_expenses.no_expense_items_found',
-    'No expense items found. Create your first expense item to get started.'
-  )
+  const emptyMessage = hasActiveFilters
+    ? buildFilteredEmptyMessage()
+    : buildDefaultEmptyMessage(
+        'lowcoder:personal_expenses.no_expense_items_found',
+        'No expense items found. Create your first expense item to get started.'
+      )
 
   const columns = useMemo<ColumnDef<ExpenseItem>[]>(
     () =>
