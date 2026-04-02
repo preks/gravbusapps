@@ -79,6 +79,136 @@ function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> 
   ) as Partial<T>
 }
 
+function parseJsonObjectString(value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('{')) return value
+  try {
+    const parsed = JSON.parse(trimmed)
+    return typeof parsed === 'object' && parsed !== null ? parsed : value
+  } catch {
+    return value
+  }
+}
+
+function normalizeEntityForImport<T extends Record<string, any>>(entity: T): T {
+  const normalized = { ...entity } as T
+
+  // Flowbot extraction may return addressLine as a JSON string.
+  // Java import endpoints expect an object (e.g. { lines: [...] }).
+  if ('addressLine' in normalized) {
+    ;(normalized as any).addressLine = parseJsonObjectString((normalized as any).addressLine)
+  }
+
+  if (Array.isArray((normalized as any).addresses)) {
+    ;(normalized as any).addresses = (normalized as any).addresses.map((addr: Record<string, unknown>) => ({
+      ...addr,
+      addressLine: parseJsonObjectString(addr.addressLine)
+    }))
+  }
+
+  return normalized
+}
+
+type TargetFieldAdapters = {
+  uiAllowedFields: Set<string>
+  backendAllowedFields: Set<string>
+  uiToBackend: Map<string, string>
+  backendToUi: Map<string, string>
+  ambiguousBackendFields: Set<string>
+}
+
+function isInvestmentEntityType(entityType: string): boolean {
+  return entityType in INVESTMENT_TYPE_MAP
+}
+
+function toInvestmentBackendField(uiField: string): string {
+  const prefixes = ['investment.', 'equityInvestment.', 'realEstateInvestment.', 'liquidFundInvestment.']
+  for (const prefix of prefixes) {
+    if (uiField.startsWith(prefix)) {
+      return uiField.slice(prefix.length)
+    }
+  }
+  return uiField
+}
+
+function buildTargetFieldAdapters(entityType: string, targetFields: string[]): TargetFieldAdapters {
+  const uiAllowedFields = new Set(targetFields)
+  const backendAllowedFields = new Set<string>()
+  const uiToBackend = new Map<string, string>()
+  const backendToUiCandidates = new Map<string, Set<string>>()
+  const ambiguousBackendFields = new Set<string>()
+
+  for (const uiField of targetFields) {
+    const backendField = isInvestmentEntityType(entityType) ? toInvestmentBackendField(uiField) : uiField
+    uiToBackend.set(uiField, backendField)
+    backendAllowedFields.add(backendField)
+
+    const candidates = backendToUiCandidates.get(backendField) ?? new Set<string>()
+    candidates.add(uiField)
+    backendToUiCandidates.set(backendField, candidates)
+  }
+
+  const backendToUi = new Map<string, string>()
+  for (const [backendField, candidates] of backendToUiCandidates.entries()) {
+    if (candidates.size === 1) {
+      backendToUi.set(backendField, [...candidates][0])
+      continue
+    }
+    ambiguousBackendFields.add(backendField)
+  }
+
+  return {
+    uiAllowedFields,
+    backendAllowedFields,
+    uiToBackend,
+    backendToUi,
+    ambiguousBackendFields
+  }
+}
+
+function toBackendMappings(mappings: FieldMapping[], adapters: TargetFieldAdapters): FieldMapping[] {
+  return mappings.map(mapping => ({
+    ...mapping,
+    targetField: adapters.uiToBackend.get(mapping.targetField) ?? mapping.targetField
+  }))
+}
+
+function resolveInitialTargetField(targetField: string, adapters: TargetFieldAdapters): string {
+  if (adapters.uiAllowedFields.has(targetField)) return targetField
+
+  const mapped = adapters.backendToUi.get(targetField)
+  if (mapped) return mapped
+
+  if (adapters.ambiguousBackendFields.has(targetField)) {
+    console.warn(`[Import] Ambiguous backend target field ignored during initial mapping: ${targetField}`)
+  }
+  return targetField
+}
+
+function restoreUiTargetFieldNames(
+  records: Record<string, unknown>[],
+  adapters: TargetFieldAdapters
+): Record<string, unknown>[] {
+  if (records.length === 0) return records
+
+  return records.map(record => {
+    const updated = { ...record }
+    for (const [backendTarget, uiTarget] of adapters.backendToUi.entries()) {
+      if (backendTarget in updated && !(uiTarget in updated)) {
+        updated[uiTarget] = updated[backendTarget]
+      }
+    }
+    return updated
+  })
+}
+
+function shouldRetryWithUiMappings(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const msg = error.message.toLowerCase()
+  return msg.includes('targetfield') && msg.includes('not in graphql schema')
+}
+
 // Helper function to build investment payload
 function buildInvestmentPayload(
   entities: any[],
@@ -141,6 +271,12 @@ function processStandardEntityResponse(response: any, entityTypePlural: string):
   }
 }
 
+function getStandardEntityCollectionKey(entitySuffix: string, domain: ImportConfig['domain']): string {
+  return domain === 'investment'
+    ? `investment${entitySuffix}`
+    : entitySuffix.charAt(0).toLowerCase() + entitySuffix.slice(1)
+}
+
 export function useEntityImport<T = ConvertedEntity>(
   props: BusinessAppContextProps,
   config: ImportConfig
@@ -169,10 +305,10 @@ export function useEntityImport<T = ConvertedEntity>(
   // Initialize AI service and flowbot client
   useEffect(() => {
     if (accessToken) {
-      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType)
+      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType, config.domain)
       flowbotClient.setAccessToken(accessToken)
     }
-  }, [accessToken, config.entityType])
+  }, [accessToken, config.entityType, config.domain])
 
   // Hooks
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
@@ -206,10 +342,16 @@ export function useEntityImport<T = ConvertedEntity>(
 
     try {
       const agentResult = await aiServiceRef.current.analyzeImport(file)
+      const targetFieldValues = config.targetFields.map(f => f.value)
+      const adapters = buildTargetFieldAdapters(config.entityType, targetFieldValues)
+      const resolvedMappings = agentResult.fieldMappings.map(mapping => ({
+        ...mapping,
+        targetField: resolveInitialTargetField(mapping.targetField, adapters)
+      }))
 
       // Validate mappings - filter out invalid target fields
-      const validTargetFields = new Set(config.targetFields.map(f => f.value))
-      const validMappings = agentResult.fieldMappings.filter(mapping => {
+      const validTargetFields = new Set(targetFieldValues)
+      const validMappings = resolvedMappings.filter(mapping => {
         const isValid = validTargetFields.has(mapping.targetField)
         if (!isValid) {
           console.warn(
@@ -241,7 +383,7 @@ export function useEntityImport<T = ConvertedEntity>(
       })
 
       // Update unmapped fields to include the invalid mappings
-      const invalidSourceFields = agentResult.fieldMappings
+      const invalidSourceFields = resolvedMappings
         .filter(m => !validTargetFields.has(m.targetField))
         .map(m => m.sourceField)
 
@@ -295,15 +437,48 @@ export function useEntityImport<T = ConvertedEntity>(
           : new Set<string>()
         const filteredMappings =
           enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
+        const adapters = buildTargetFieldAdapters(
+          config.entityType,
+          config.targetFields.map(targetField => targetField.value)
+        )
+        const backendMappings = toBackendMappings(filteredMappings, adapters)
+        const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
+        const uiMappingJson = JSON.stringify({ fieldMappings: filteredMappings })
 
-        // Build mapping JSON for backend
-        const mappingJson = JSON.stringify({ fieldMappings: filteredMappings })
+        let response
+        let usedUiMappings = false
 
-        // Call backend extract endpoint with enforced fields
-        const response = await flowbotClient.extractFromFile(config.entityType, file, mappingJson, enforcedFieldsJson)
+        try {
+          response = await flowbotClient.extractFromFile(
+            config.entityType,
+            file,
+            backendMappingJson,
+            enforcedFieldsJson,
+            config.domain
+          )
+        } catch (error) {
+          if (isInvestmentEntityType(config.entityType) && shouldRetryWithUiMappings(error)) {
+            console.warn('[Import] extract-from-file targetField mismatch, retrying once with UI-prefixed mappings')
+            response = await flowbotClient.extractFromFile(
+              config.entityType,
+              file,
+              uiMappingJson,
+              enforcedFieldsJson,
+              config.domain
+            )
+            usedUiMappings = true
+          } else {
+            throw error
+          }
+        }
+
+        const responseRecords = usedUiMappings
+          ? response.records
+          : restoreUiTargetFieldNames(response.records, adapters)
+        const recordsWithUiFields = responseRecords as ConvertedEntity[]
 
         // Apply transformation function if provided (for nested structures like investments)
-        const transformedEntities = transformFn ? response.records.map(transformFn) : (response.records as T[])
+        const transformedEntities = transformFn ? recordsWithUiFields.map(transformFn) : (recordsWithUiFields as T[])
 
         // Post-process: Transform flat communication fields into communicationChannels array for contacts and accounts
         const finalEntities =
@@ -319,7 +494,7 @@ export function useEntityImport<T = ConvertedEntity>(
         setIsLoading(false)
       }
     },
-    [file, config.entityType]
+    [file, config.entityType, config.domain]
   )
 
   // Import to backend
@@ -337,8 +512,9 @@ export function useEntityImport<T = ConvertedEntity>(
 
       // Inject ownerEmployee and optional campaignId into all entities before import
       const entitiesWithOwner = convertedEntities.map((entity: any) => {
+        const normalizedEntity = normalizeEntityForImport(entity)
         const base = {
-          ...entity,
+          ...normalizedEntity,
           ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
           ...(campaignId ? { salesCampaign: campaignId } : {})
         }
@@ -371,16 +547,15 @@ export function useEntityImport<T = ConvertedEntity>(
         const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
         const entitySuffix = STANDARD_ENTITY_ENDPOINTS[config.entityType as keyof typeof STANDARD_ENTITY_ENDPOINTS]
         const endpoint = `/${domainPrefix}/create${entityPrefix}${entitySuffix}`
-        // Use mapping-based pluralization (e.g. opportunity → opportunities)
-        const entityTypePlural = entitySuffix.toLowerCase()
+        const entityCollectionKey = getStandardEntityCollectionKey(entitySuffix, config.domain)
 
         const response = await restClient.post(
           endpoint,
-          { [entityTypePlural]: entitiesWithOwner },
+          { [entityCollectionKey]: entitiesWithOwner },
           { headers: { Authorization: `Bearer ${accessToken}` } }
         )
 
-        result = processStandardEntityResponse(response, entityTypePlural)
+        result = processStandardEntityResponse(response, entityCollectionKey)
       } else {
         throw new Error(`Unsupported entity type: ${config.entityType}`)
       }

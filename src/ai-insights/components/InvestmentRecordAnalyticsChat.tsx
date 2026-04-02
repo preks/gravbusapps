@@ -5,15 +5,11 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
-import { Send, X } from 'lucide-react'
+import { PaperPlaneRightIcon, XIcon } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
-import { env } from '@/common/env/EnvUtils'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { usePageAnalytics } from '../hooks/usePageAnalytics'
-const flowbotBaseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
-if (typeof window !== 'undefined') {
-  console.info('[AI Insights] FlowBot endpoint:', flowbotBaseUrl || '')
-}
 
 interface InvestmentRecordAnalyticsChatProps {
   investmentId: string
@@ -29,6 +25,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
   currency = 'EUR'
 }) => {
   const { t } = useTranslation('ai-insights')
+  const flowbotBaseUrl = resolveFlowbotBaseUrl()
   const [message, setMessage] = useState('')
   const [conversation, setConversation] = useState<Array<{ side: 'user' | 'agent'; text: string; timestamp: Date }>>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -164,7 +161,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
           <h3 className="gba:text-sm gba:font-medium">{t('analyticsAssistant.title', 'Analytics Assistant')}</h3>
           {conversation.length > 0 && (
             <Button variant="ghost" size="sm" onClick={clearConversation} data-testid="analytics-chat-clear-button">
-              <X size={14} />
+              <XIcon size={14} />
             </Button>
           )}
         </div>
@@ -220,7 +217,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
             disabled={isLoading || !message.trim()}
             data-testid="analytics-chat-submit-button"
           >
-            {isLoading ? loadingLabel : <Send size={14} />}
+            {isLoading ? loadingLabel : <PaperPlaneRightIcon size={14} />}
           </Button>
         </form>
 
