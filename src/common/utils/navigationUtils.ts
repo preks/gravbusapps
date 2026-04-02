@@ -93,6 +93,7 @@ export const Navigation = {
   OFFICE_SLIDES: `${NAVIGATION_BASE_PATH}/every-office/slides`,
   OFFICE_SPACES: `${NAVIGATION_BASE_PATH}/every-office/spaces`,
   OFFICE_SPREADSHEETS: `${NAVIGATION_BASE_PATH}/every-office/spreadsheets`,
+  OFFICE_WHITEBOARDS: `${NAVIGATION_BASE_PATH}/every-office/whiteboards`,
 
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
@@ -201,6 +202,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.OFFICE_SLIDES]: 'core/office/apps/slides',
   [Navigation.OFFICE_SPACES]: 'core/office/apps/spaces',
   [Navigation.OFFICE_SPREADSHEETS]: 'core/office/apps/spreadsheets',
+  [Navigation.OFFICE_WHITEBOARDS]: 'core/office/apps/whiteboards',
 
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',

@@ -199,7 +199,7 @@ export class CollaborationClient {
    * Join a document, spreadsheet, or note for collaboration
    */
   joinDocument(
-    entityType: 'document' | 'spreadsheet' | 'note',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
     entityId: string,
     onParticipantsReceived?: (participants: any[]) => void
   ) {
@@ -249,7 +249,7 @@ export class CollaborationClient {
   /**
    * Leave a document, spreadsheet, or note
    */
-  leaveDocument(entityType: 'document' | 'spreadsheet' | 'note', entityId: string) {
+  leaveDocument(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
     console.log('[CollaborationClient] Leaving document:', { entityType, entityId })
     this.socket?.emit('leave_document', { entityType, entityId })
   }
@@ -258,7 +258,7 @@ export class CollaborationClient {
    * Send a document operation (edit, insert, delete, etc.)
    */
   sendDocumentOperation(
-    entityType: 'document' | 'spreadsheet' | 'note',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
     entityId: string,
     operation: DocumentOperation
   ) {
@@ -286,7 +286,7 @@ export class CollaborationClient {
    * Send cursor position update
    */
   sendCursorMove(
-    entityType: 'document' | 'spreadsheet' | 'note',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
     entityId: string,
     position: {
       line?: number
@@ -315,7 +315,7 @@ export class CollaborationClient {
    * Send selection change
    */
   sendSelectionChange(
-    entityType: 'document' | 'spreadsheet' | 'note',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
     entityId: string,
     selection: {
       start: { line?: number; column?: number; offset?: number }
@@ -332,14 +332,14 @@ export class CollaborationClient {
   /**
    * Send typing start indicator
    */
-  sendTypingStart(entityType: 'document' | 'spreadsheet' | 'note', entityId: string) {
+  sendTypingStart(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
     this.socket?.emit('typing_start', { entityType, entityId })
   }
 
   /**
    * Send typing stop indicator
    */
-  sendTypingStop(entityType: 'document' | 'spreadsheet' | 'note', entityId: string) {
+  sendTypingStop(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
     this.socket?.emit('typing_stop', { entityType, entityId })
   }
 
