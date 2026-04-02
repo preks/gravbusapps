@@ -147,7 +147,7 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
         initialSelectedIds={formValues.peerEmployeeIds ?? []}
         onConfirm={handleConfirmPeers}
         maxSelection={MAX_PEERS}
-        selectionCountLabel={t('peers-selection-count', { count: peerCount, max: MAX_PEERS })}
+        selectionCountLabel={(count, max) => t('peers-selection-count', { count, max: max ?? MAX_PEERS })}
       />
     </div>
   )

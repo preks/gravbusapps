@@ -321,24 +321,24 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   )
 
   return (
-    <div className="gba:investment-details-container" data-testid={`${investmentType}-investment-detail`}>
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={getInvestmentIcon(investment)} variant="decorative" size="xl" />}
-        headerOverline={getInvestmentCategory(investment)}
-        onBack={handleBack}
-        headerTitle={
-          investment?.name || getTranslationFromI18nKeyAndLabel('crm.investments.record.title', 'Investment Record')
-        }
-        headerMeta={headerMeta}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid={`${investmentType}-investment-detail`}
+      className="gba:investment-details-container"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={getInvestmentIcon(investment)} variant="decorative" size="xl" />}
+      headerOverline={getInvestmentCategory(investment)}
+      onBack={handleBack}
+      headerTitle={
+        investment?.name || getTranslationFromI18nKeyAndLabel('crm.investments.record.title', 'Investment Record')
+      }
+      headerMeta={headerMeta}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

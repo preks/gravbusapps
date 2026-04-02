@@ -278,6 +278,7 @@ export const GET_ABSENCE_TYPE = `
           version: { _eq: "v1" }
         }
         code: { _eq: $code }
+        isDeleted: { _eq: false }
       }
       limit: 1
     ) {

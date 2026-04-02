@@ -57,7 +57,7 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployeeData($idEmployee: uuid!) 
 `
 
 export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: String!) {
-     countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Country"}}}, orderBy: {value: ASC}) {
+     countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Country"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     objectValue
@@ -69,7 +69,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       defaultLocale
     }
   }
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}){
+  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}){
    id
     code
     value
@@ -82,7 +82,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       defaultLocale
     }
   }
-  routingNumber: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "BankRoutingNumberType"}}}, orderBy: {value: ASC}){
+  routingNumber: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "BankRoutingNumberType"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}){
     id
     value
     objectValue

@@ -484,22 +484,21 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
   )
 
   return (
-    <div data-testid="lead-opportunity-investment-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
-        onBack={onBack}
-        headerTitle={headerTitle}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="lead-opportunity-investment-detail"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.lead', 'LEAD')}
+      onBack={onBack}
+      headerTitle={headerTitle}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

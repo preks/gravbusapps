@@ -154,6 +154,31 @@
   [role='button']:not(:disabled) {
     cursor: pointer;
   }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    border-radius: 50px;
+    background: white;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    background-clip: content-box;
+    border: 50px solid transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 50px;
+    background: #e0e0e0;
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #e0e0e0;
+  }
+
   :root {
     --font-primary: 'Roboto Flex', sans-serif;
     --font-secondary: 'Roboto Flex', sans-serif;

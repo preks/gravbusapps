@@ -29,6 +29,8 @@ interface ActiveOverlay {
   type: HeaderFooterEditorType
   variant: PageVariantKey
   cleanup: (runOnClose?: boolean) => void
+  /** Same as open params onClose; used when recoverStaleOverlayState runs cleanup(false) to still refresh host layout. */
+  onCloseHandler: () => void
   previousEditable: boolean
   target: HTMLElement
   contentHost: HTMLElement
@@ -255,6 +257,7 @@ export class HeaderFooterOverlayManager {
       type,
       variant,
       cleanup,
+      onCloseHandler: params.onClose,
       previousEditable,
       target,
       contentHost,
@@ -340,6 +343,7 @@ export class HeaderFooterOverlayManager {
     this.suppressNextCloseNotification = false
     this.activeOverlay = null
     activeOverlay.cleanup(false)
+    activeOverlay.onCloseHandler()
     this.getOptions().onActiveEditorChange?.({
       activeEditor: null,
       activeEditorType: null,

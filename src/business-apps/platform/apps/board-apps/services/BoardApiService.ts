@@ -30,6 +30,7 @@ import {
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { resilientGraphQLRequest } from '../queries/resilientQuery'
 import { smartSyncRows } from './smartSync'
+import { listFlows, listTasks } from './flowEngine/flowEngineClient'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -924,7 +925,6 @@ export const BoardApiService = {
         .replace(/\b\w/g, c => c.toUpperCase())
 
     try {
-      const { listFlows, listTasks } = await import('./flowEngine/flowEngineClient')
       const requestedLimit = dto.limit && dto.limit > 0 ? dto.limit : 500
       let records: Record<string, unknown>[] = []
 

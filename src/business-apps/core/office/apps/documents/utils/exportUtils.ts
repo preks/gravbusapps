@@ -159,6 +159,16 @@ function applyCustomImageLayoutForExport(html: string): string {
 
     switch (attrs.wrapMode) {
       case 'square-left':
+      case 'square-right':
+        figure.style.cssFloat = layout.floatingSide ?? (attrs.wrapMode === 'square-right' ? 'right' : 'left')
+        figure.style.display = 'block'
+        figure.style.position = 'relative'
+        figure.style.width = `${layout.layoutWidth}px`
+        figure.style.minHeight = `${layout.layoutHeight}px`
+        if (typeof layout.wrapperStyle.shapeOutside === 'string' && layout.wrapperStyle.shapeOutside) {
+          figure.style.shapeOutside = layout.wrapperStyle.shapeOutside
+        }
+        break
       case 'tight':
       case 'through':
         figure.style.cssFloat = layout.floatingSide ?? 'left'
@@ -169,13 +179,6 @@ function applyCustomImageLayoutForExport(html: string): string {
         if (typeof layout.wrapperStyle.shapeOutside === 'string' && layout.wrapperStyle.shapeOutside) {
           figure.style.shapeOutside = layout.wrapperStyle.shapeOutside
         }
-        break
-      case 'square-right':
-        figure.style.cssFloat = layout.floatingSide ?? 'right'
-        figure.style.display = 'block'
-        figure.style.position = 'relative'
-        figure.style.width = `${layout.layoutWidth}px`
-        figure.style.minHeight = `${layout.layoutHeight}px`
         break
       case 'top-bottom':
         figure.style.display = 'block'

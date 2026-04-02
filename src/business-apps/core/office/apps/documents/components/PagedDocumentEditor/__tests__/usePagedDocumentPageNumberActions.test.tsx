@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
-import type { DocumentFormatting } from '../../../types'
+import type { DocumentFormatting, DocumentPagesFormatting } from '../../../types'
+import { readPagesFormattingFromStorage } from '../hooks/usePagedDocumentFormatting'
 import { usePagedDocumentPageNumberActions } from '../hooks/usePagedDocumentPageNumberActions'
 
 beforeEach(() => {
@@ -24,15 +25,13 @@ describe('usePagedDocumentPageNumberActions', () => {
         }
       } satisfies DocumentFormatting
     }
-    const editorRef = {
-      current: null
-    }
+    const getPersistedPagesFormatting = jest.fn((fb?: DocumentPagesFormatting) => fb)
 
     const { result } = renderHook(() =>
       usePagedDocumentPageNumberActions({
         editor: null,
-        editorRef,
         layoutFormattingRef,
+        getPersistedPagesFormatting,
         buildPersistedFormatting,
         persistFormatting,
         markUnsavedChanges
@@ -106,11 +105,34 @@ describe('usePagedDocumentPageNumberActions', () => {
       }
     }
 
+    const getPersistedPagesFormatting = jest.fn((fallback?: DocumentPagesFormatting) => {
+      const pagesFromEditor = readPagesFormattingFromStorage(editorRef.current.storage.pages as never)
+      if (!pagesFromEditor) return fallback
+      if (!fallback) return pagesFromEditor
+      return {
+        ...fallback,
+        ...pagesFromEditor,
+        header: pagesFromEditor.header ?? fallback.header,
+        footer: pagesFromEditor.footer ?? fallback.footer,
+        headerFirstPage: pagesFromEditor.headerFirstPage ?? fallback.headerFirstPage,
+        footerFirstPage: pagesFromEditor.footerFirstPage ?? fallback.footerFirstPage,
+        headerOdd: pagesFromEditor.headerOdd ?? fallback.headerOdd,
+        headerEven: pagesFromEditor.headerEven ?? fallback.headerEven,
+        footerOdd: pagesFromEditor.footerOdd ?? fallback.footerOdd,
+        footerEven: pagesFromEditor.footerEven ?? fallback.footerEven,
+        pageNumberNumeralStyle: fallback.pageNumberNumeralStyle,
+        pageNumberStartAt: fallback.pageNumberStartAt,
+        pageNumberAlignment: fallback.pageNumberAlignment,
+        pageNumberRegion: fallback.pageNumberRegion,
+        pageNumberShowOnFirstPage: fallback.pageNumberShowOnFirstPage
+      }
+    })
+
     const { result } = renderHook(() =>
       usePagedDocumentPageNumberActions({
         editor,
-        editorRef,
         layoutFormattingRef,
+        getPersistedPagesFormatting,
         buildPersistedFormatting,
         persistFormatting,
         markUnsavedChanges
@@ -125,7 +147,7 @@ describe('usePagedDocumentPageNumberActions', () => {
       1,
       expect.objectContaining({
         pages: expect.objectContaining({
-          header: null,
+          header: '<p>existing header</p>',
           footer: '<p>editor footer</p>'
         })
       })

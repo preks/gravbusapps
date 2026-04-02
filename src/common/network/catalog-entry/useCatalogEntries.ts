@@ -5,7 +5,7 @@ import { useGraphqlClient } from '../graphql/useGraphQLClient'
 export const expenseTypeAndTransportationQuery = `
   query fetchCatalogEntries($activeUserLocale: String) {
     expenseRequestType: CatalogEntry(
-      where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}},
+      where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}, isDeleted: {_eq: false}},
       limit: 20
     ) {
       id
@@ -21,7 +21,7 @@ export const expenseTypeAndTransportationQuery = `
       additionalValue1
     }
     expenseTransportationMeans: CatalogEntry(
-      where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseTransportMean"}}},
+      where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseTransportMean"}}, isDeleted: {_eq: false}},
       limit: 20
     ) {
       id
