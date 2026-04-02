@@ -1,0 +1,120 @@
+/**
+ * Scoped overrides for embedded Excalidraw: repositioned layout (toolbar bottom,
+ * properties right), frosted-glass styling, Funnel Display UI font, and
+ * hidden vendor branding. Loaded with the whiteboard editor only.
+ */
+
+/* ── Override Excalidraw CSS variables ── */
+
+.nw-whiteboard-excalidraw .excalidraw {
+  /* Stock Excalidraw uses overflow: hidden on the root, which clips the main menu and toolbar */
+  overflow: visible !important;
+  --island-bg-color: rgba(255, 255, 255, 0.65);
+  --shadow-island: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --border-radius-lg: 14px;
+  --ui-font: 'Funnel Display', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── Layout: main menu + properties → left (Excalidraw default); shapes → bottom-center ── */
+
+/* Left stack: do not put hamburger + panel in one scroll box (clips the menu button) */
+.nw-whiteboard-excalidraw .excalidraw .App-menu_top__left {
+  align-items: flex-start !important;
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .App-menu_top__left > .selected-shape-actions {
+  max-height: min(65vh, calc(100vh - 200px)) !important;
+  overflow-y: auto !important;
+}
+
+/* Zen mode would slide this off-screen; keep it visible */
+.nw-whiteboard-excalidraw .excalidraw .selected-shape-actions.zen-mode-transition.transition-left {
+  transform: none !important;
+}
+
+/* Shapes toolbar → bottom-center of canvas */
+.nw-whiteboard-excalidraw .excalidraw .shapes-section {
+  position: absolute !important;
+  top: auto !important;
+  bottom: 16px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 100 !important;
+  width: auto !important;
+  pointer-events: auto !important;
+}
+
+/* ── Hide vendor UI ── */
+
+.nw-whiteboard-excalidraw .excalidraw .help-icon,
+.nw-whiteboard-excalidraw .excalidraw .footer-center {
+  display: none !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw a[href*='excalidraw'],
+.nw-whiteboard-excalidraw .excalidraw a[href*='plus.excalidraw'] {
+  display: none !important;
+}
+
+.nw-whiteboard-excalidraw .nw-wb-hide-vendor {
+  display: none !important;
+}
+
+/* ── Hide library button + sidebar triggers ── */
+
+.nw-whiteboard-excalidraw .excalidraw .sidebar-triggers,
+.nw-whiteboard-excalidraw .excalidraw ul.sidebar-triggers,
+.nw-whiteboard-excalidraw .excalidraw .default-sidebar-trigger,
+.nw-whiteboard-excalidraw .excalidraw label.sidebar-trigger__label-element,
+.nw-whiteboard-excalidraw .excalidraw .layer-ui__wrapper__top-right {
+  display: none !important;
+}
+
+/* ── Frosted-glass Islands ── */
+
+.nw-whiteboard-excalidraw .excalidraw .Island {
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(20px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.4) !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.06) !important;
+  border-radius: 14px !important;
+}
+
+/* ── Toolbar button polish ── */
+
+.nw-whiteboard-excalidraw .excalidraw .ToolIcon__icon {
+  border-radius: 10px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .ToolIcon__icon:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .ToolIcon__icon.ToolIcon__icon--active {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Toolbar divider */
+.nw-whiteboard-excalidraw .excalidraw .App-toolbar__divider {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  border-radius: 1px !important;
+}
+
+/* ── Properties panel typography ── */
+
+.nw-whiteboard-excalidraw .excalidraw .panelColumn h3,
+.nw-whiteboard-excalidraw .excalidraw .panelColumn legend,
+.nw-whiteboard-excalidraw .excalidraw .panelColumn .control-label {
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* ── DOM-patched vendor rows ── */
+.nw-whiteboard-excalidraw .nw-wb-hide-vendor {
+  display: none !important;
+}

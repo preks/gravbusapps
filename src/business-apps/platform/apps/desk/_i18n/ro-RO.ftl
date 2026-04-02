@@ -32,6 +32,8 @@ app-notes-title = Note
 app-notes-description = Capturați idei rapid cu formatare și etichete
 app-slides-title = Prezentări
 app-slides-description = Creați prezentări cu colaborare live
+app-whiteboards-title = Tablă albă
+app-whiteboards-description = Colaborați pe o pânză infinită cu forme, diagrame și notite adezive
 
 # Quick Actions
 search-placeholder = Căutați documente, foi de calcul și note...
