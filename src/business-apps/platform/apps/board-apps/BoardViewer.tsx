@@ -495,7 +495,6 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     autoSyncDoneRef.current = true
     void (async () => {
       try {
-        const { BoardApiService } = await import('./services/BoardApiService')
         const dsLimit = ds.limit != null ? (ds.limit as number) : 200
         if (ds.mergeStrategy === 'populateOptions' && ds.populateTargetCol && ds.populateSourceField) {
           await BoardApiService.populateColumnOptions(

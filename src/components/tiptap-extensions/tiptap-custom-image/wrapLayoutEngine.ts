@@ -301,7 +301,7 @@ export function resolveWordLikeImageLayout(
       ...baseFigureStyle,
       position: 'absolute',
       top: offsetY,
-      zIndex: wrapMode === 'behind' ? -1 : overlayZIndex,
+      zIndex: wrapMode === 'behind' ? 0 : overlayZIndex,
       ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
     }
     fallbackStrategy = anchorMode === 'fixed' ? 'page-anchor-approximation' : 'overlay-anchor'

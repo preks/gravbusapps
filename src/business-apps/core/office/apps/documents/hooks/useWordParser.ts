@@ -10,6 +10,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import mammoth from 'mammoth'
 import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
 import translations from '../_i18n'
+import { enhanceImportedHtmlWithImageLayouts, parseDocxImageLayouts } from '../utils/docxImportUtils'
 
 interface UseWordParserState {
   isLoading: boolean
@@ -124,33 +125,36 @@ export function useWordParser(): UseWordParserResult {
         // Collect embedded images
         const collectedImages: WordImage[] = []
 
-        // Convert to HTML with mammoth
-        const result = await mammoth.convertToHtml(
-          { arrayBuffer },
-          {
-            styleMap: STYLE_MAP,
-            convertImage: mammoth.images.imgElement(async image => {
-              try {
-                const imageBuffer = await image.read('base64')
-                const contentType = image.contentType || 'image/png'
+        // Convert to HTML with mammoth; in parallel read OOXML image wrap metadata from the same file
+        const [result, imageLayouts] = await Promise.all([
+          mammoth.convertToHtml(
+            { arrayBuffer },
+            {
+              styleMap: STYLE_MAP,
+              convertImage: mammoth.images.imgElement(async image => {
+                try {
+                  const imageBuffer = await image.read('base64')
+                  const contentType = image.contentType || 'image/png'
 
-                collectedImages.push({
-                  contentType,
-                  base64: imageBuffer,
-                  altText: ''
-                })
+                  collectedImages.push({
+                    contentType,
+                    base64: imageBuffer,
+                    altText: ''
+                  })
 
-                // Return inline base64 image
-                return {
-                  src: `data:${contentType};base64,${imageBuffer}`
+                  // Return inline base64 image
+                  return {
+                    src: `data:${contentType};base64,${imageBuffer}`
+                  }
+                } catch (err) {
+                  console.warn('[WordParser] Error converting image:', err)
+                  return { src: '' }
                 }
-              } catch (err) {
-                console.warn('[WordParser] Error converting image:', err)
-                return { src: '' }
-              }
-            })
-          }
-        )
+              })
+            }
+          ),
+          parseDocxImageLayouts(arrayBuffer)
+        ])
 
         setState(prev => ({ ...prev, progress: 70 }))
 
@@ -159,8 +163,8 @@ export function useWordParser(): UseWordParserResult {
 
         setState(prev => ({ ...prev, progress: 90 }))
 
-        // Clean up HTML
-        let html = result.value
+        // Clean up HTML; apply OOXML image wrap modes (Mammoth drops floating layout)
+        let html = enhanceImportedHtmlWithImageLayouts(result.value, imageLayouts)
         // Add basic styling classes for better rendering
         html = html
           .replace(/<table>/g, '<table class="document-table">')
