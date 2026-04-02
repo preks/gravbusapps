@@ -1135,7 +1135,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     } catch (e) {
       console.warn('Failed to clear space_return_url:', e)
     }
-    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+    // Same as handleBack default: fullPage avoids host nwNavigate only updating the URL while the
+    // viewer stays mounted (first click short URL, second click reload → hub).
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
   }, [])
 
   const handleStartUpload = useCallback(() => {
