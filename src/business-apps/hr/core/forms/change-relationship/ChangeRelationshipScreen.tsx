@@ -262,7 +262,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
         // Create EmployeeDocument via processes API (same pattern as ChangePersonalData)
         try {
-          const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+          const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || ''
           const createDocUrl = `${processesBase}/employee/employeeDocuments`
           const body = {
             employeeDocument: {
