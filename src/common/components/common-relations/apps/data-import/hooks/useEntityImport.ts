@@ -19,6 +19,8 @@ import {
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { flowbotClient } from '@/common/network/flowbot'
+import { buildInvestmentContactPayload } from '@/common/data/investment/types/investmentContactTypes'
+import { buildInvestmentOpportunityPayload } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export interface UseEntityImportReturn<T> {
   // File state
@@ -68,6 +70,8 @@ const STANDARD_ENTITY_ENDPOINTS = {
   opportunity: 'Opportunities'
 } as const
 
+type SupportedStandardEntityType = keyof typeof STANDARD_ENTITY_ENDPOINTS
+
 function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(entity).filter(([, value]) => {
@@ -105,6 +109,16 @@ function normalizeEntityForImport<T extends Record<string, any>>(entity: T): T {
       ...addr,
       addressLine: parseJsonObjectString(addr.addressLine)
     }))
+  }
+
+  const investmentSegments = ['investment', 'realEstateInvestment', 'equityInvestment', 'liquidFundInvestment'] as const
+  for (const segment of investmentSegments) {
+    const segmentValue = (normalized as any)[segment]
+    if (!segmentValue || typeof segmentValue !== 'object' || Array.isArray(segmentValue)) continue
+    ;(normalized as any)[segment] = {
+      ...segmentValue,
+      addressLine: parseJsonObjectString((segmentValue as Record<string, unknown>).addressLine)
+    }
   }
 
   return normalized
@@ -209,32 +223,172 @@ function shouldRetryWithUiMappings(error: unknown): boolean {
   return msg.includes('targetfield') && msg.includes('not in graphql schema')
 }
 
-// Helper function to build investment payload
-function buildInvestmentPayload(
-  entities: any[],
-  investmentType: 'realEstateInvestment' | 'equityInvestment' | 'liquidFundInvestment',
-  ownerEmployeeId?: string
-) {
-  return {
-    investments: entities.map((entity: any) => {
-      const { investment, [investmentType]: specificInvestment } = entity
-      return {
-        investmentRequest: {
-          investment: {
-            ...investment,
-            ownerEmployee: ownerEmployeeId
-          },
-          [investmentType]: specificInvestment
+function toRecordObject(value: unknown): Record<string, any> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value as Record<string, any>
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error && typeof error.message === 'string' && error.message.trim().length > 0) {
+    return error.message
+  }
+  if (typeof error === 'string' && error.trim().length > 0) {
+    return error
+  }
+  if (error && typeof error === 'object') {
+    const candidate = error as Record<string, unknown>
+    const directMessage = candidate.message
+    if (typeof directMessage === 'string' && directMessage.trim().length > 0) {
+      return directMessage
+    }
+    const detail = candidate.detail
+    if (typeof detail === 'string' && detail.trim().length > 0) {
+      return detail
+    }
+    const response = candidate.response
+    if (response && typeof response === 'object') {
+      const responseData = (response as Record<string, unknown>).data
+      if (responseData && typeof responseData === 'object') {
+        const responseMessage = (responseData as Record<string, unknown>).message
+        if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
+          return responseMessage
+        }
+        const responseDetail = (responseData as Record<string, unknown>).detail
+        if (typeof responseDetail === 'string' && responseDetail.trim().length > 0) {
+          return responseDetail
         }
       }
-    })
+    }
   }
+  return 'Import failed'
+}
+
+function sanitizeAdditionalProperties(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const result = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined && v !== null && v !== '')
+  )
+  return Object.keys(result).length > 0 ? result : undefined
+}
+
+function sanitizeCommunicationChannels(
+  channels: unknown
+): Array<{ communicationChannelRef: string; value: string; valueExtension?: string }> | undefined {
+  if (!Array.isArray(channels)) return undefined
+  const valid = channels
+    .filter(channel => channel && typeof channel === 'object')
+    .map(channel => {
+      const raw = channel as Record<string, unknown>
+      const communicationChannelRef = typeof raw.communicationChannelRef === 'string' ? raw.communicationChannelRef : ''
+      const value = typeof raw.value === 'string' ? raw.value.trim() : ''
+      const valueExtension = typeof raw.valueExtension === 'string' ? raw.valueExtension : undefined
+      return { communicationChannelRef, value, valueExtension }
+    })
+    .filter(channel => channel.value.length > 0 && channel.communicationChannelRef.startsWith('CommunicationChannel:'))
+  return valid.length > 0 ? valid : undefined
+}
+
+function resolveOwnerEmployeeId(entity: Record<string, any>, ownerEmployeeId?: string): string | undefined {
+  if (ownerEmployeeId) return ownerEmployeeId
+  if (typeof entity.ownerEmployeeId === 'string' && entity.ownerEmployeeId.length > 0) return entity.ownerEmployeeId
+  if (typeof entity.ownerEmployee === 'string' && entity.ownerEmployee.length > 0) return entity.ownerEmployee
+  return undefined
+}
+
+function toInvestmentBatchPayload(
+  entities: Record<string, any>[],
+  investmentType: 'realEstateInvestment' | 'equityInvestment' | 'liquidFundInvestment',
+  ownerEmployeeId: string | undefined
+): { investmentRequests: Record<string, any>[] } {
+  const investmentRequests = entities.map(entity => {
+    const normalized = normalizeEntityForImport(entity)
+    const investmentData = toRecordObject(normalized.investment)
+    const specificInvestmentData = toRecordObject(normalized[investmentType])
+    const resolvedOwnerEmployeeId =
+      resolveOwnerEmployeeId(investmentData, ownerEmployeeId) ?? resolveOwnerEmployeeId(normalized, ownerEmployeeId)
+
+    const investmentGroupDefaults: Record<typeof investmentType, string> = {
+      realEstateInvestment: 'InvestmentGroup:v1:REAL_ESTATE',
+      equityInvestment: 'InvestmentGroup:v1:EQUITY',
+      liquidFundInvestment: 'InvestmentGroup:v1:LIQUID_FUND'
+    }
+
+    return {
+      investment: {
+        ...investmentData,
+        investmentGroupRef: investmentData.investmentGroupRef || investmentGroupDefaults[investmentType],
+        investmentStatusRef: investmentData.investmentStatusRef || 'InvestmentStatus:v1:ACTIVE',
+        ownerEmployee: resolvedOwnerEmployeeId || investmentData.ownerEmployee
+      },
+      [investmentType]: specificInvestmentData
+    }
+  })
+
+  return { investmentRequests }
+}
+
+function toInvestmentContactPayload(entity: Record<string, any>, ownerEmployeeId?: string): Record<string, any> {
+  const normalized = normalizeEntityForImport(entity)
+  const resolvedOwnerEmployeeId = resolveOwnerEmployeeId(normalized, ownerEmployeeId)
+  const sanitizedChannels = sanitizeCommunicationChannels(normalized.communicationChannels)
+
+  const payloadInput = stripEmptyValues({
+    ...normalized,
+    ownerEmployeeId: resolvedOwnerEmployeeId,
+    communicationChannels: sanitizedChannels
+  } as any)
+
+  delete (payloadInput as Record<string, unknown>).ownerEmployee
+  delete (payloadInput as Record<string, unknown>).additionalProperties
+
+  return buildInvestmentContactPayload(payloadInput as any).investmentContact
+}
+
+function toInvestmentOpportunityPayload(entity: Record<string, any>, ownerEmployeeId?: string): Record<string, any> {
+  const normalized = normalizeEntityForImport(entity)
+  const resolvedOwnerEmployeeId = resolveOwnerEmployeeId(normalized, ownerEmployeeId)
+  const additionalProperties = sanitizeAdditionalProperties(normalized.additionalProperties)
+
+  const payloadInput = stripEmptyValues({
+    ...normalized,
+    ownerEmployeeId: resolvedOwnerEmployeeId
+  })
+
+  delete (payloadInput as Record<string, unknown>).ownerEmployee
+
+  const built = buildInvestmentOpportunityPayload(payloadInput).investmentOpportunity as Record<string, any>
+  if (additionalProperties) {
+    built.additionalProperties = additionalProperties
+  }
+  return built
+}
+
+function shouldFallbackToSingularInvestmentOpportunityEndpoint(error: unknown): boolean {
+  const msg = extractErrorMessage(error).toLowerCase()
+  return (
+    /no static resource createinvestmentopportunities/i.test(msg) ||
+    (msg.includes('404') && (msg.includes('createinvestmentopportunities') || msg.includes('not found')))
+  )
+}
+
+function normalizeImportError(error: unknown, entityType: string): string {
+  const base = extractErrorMessage(error)
+  if (/createinvestmentsmodelinput\.investmentrequests/i.test(base)) {
+    return 'Import failed: Java endpoint expects `investmentRequests` payload root.'
+  }
+  if (/error while marshalling process instance/i.test(base) && entityType === 'contact') {
+    return 'Import failed: Java marshalling error for Investment Contact payload shape.'
+  }
+  if (/no static resource createinvestmentopportunities/i.test(base)) {
+    return 'Import failed: Java process endpoint `createInvestmentOpportunities` is missing.'
+  }
+  return base
 }
 
 // Helper function to process investment API response
 function processInvestmentResponse(response: any): ImportResult {
   const hasErrors = response.validationResponse?.errors?.length > 0
-  const createdInvestments = response.investments || []
+  const createdInvestments = response.investments || response.investmentRequests || []
 
   return {
     success: !hasErrors && createdInvestments.length > 0,
@@ -275,6 +429,138 @@ function getStandardEntityCollectionKey(entitySuffix: string, domain: ImportConf
   return domain === 'investment'
     ? `investment${entitySuffix}`
     : entitySuffix.charAt(0).toLowerCase() + entitySuffix.slice(1)
+}
+
+async function submitInvestmentOpportunitiesWithFallback(
+  restClient: ReturnType<typeof useRestClient>,
+  accessToken: string | undefined,
+  opportunities: Record<string, any>[]
+): Promise<ImportResult> {
+  if (opportunities.length > MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS) {
+    return {
+      success: false,
+      successCount: 0,
+      errorCount: 1,
+      errors: [
+        {
+          rowIndex: 0,
+          entityData: {},
+          error: `Import aborted: plural opportunity endpoint is unavailable, and singular fallback is limited to ${MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS} records to protect backend from request storms.`
+        }
+      ],
+      createdIds: []
+    }
+  }
+
+  let successCount = 0
+  const errors: ImportResult['errors'] = []
+  const createdIds: string[] = []
+
+  for (let idx = 0; idx < opportunities.length; idx += 1) {
+    const investmentOpportunity = opportunities[idx]
+    try {
+      const response = await restClient.post(
+        '/investment-relations/createInvestmentOpportunity',
+        { investmentOpportunity, changeMode: 'INSERT' },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+
+      const validationErrors = response?.validationResponse?.errors
+      if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+        errors.push({
+          rowIndex: idx,
+          entityData: investmentOpportunity,
+          error: `${validationErrors[0]?.code || 'ERROR'}: ${validationErrors[0]?.detail || 'Validation failure'}`
+        })
+        continue
+      }
+
+      successCount += 1
+      if (typeof response?.investmentOpportunity?.id === 'string') {
+        createdIds.push(response.investmentOpportunity.id)
+      }
+    } catch (error) {
+      const message = extractErrorMessage(error)
+      errors.push({
+        rowIndex: idx,
+        entityData: investmentOpportunity,
+        error: message
+      })
+      // Abort early on systemic endpoint issues to avoid spamming process API.
+      if (
+        /no static resource createinvestmentopportunity/i.test(message.toLowerCase()) ||
+        (message.toLowerCase().includes('404') && message.toLowerCase().includes('not found'))
+      ) {
+        break
+      }
+    }
+  }
+
+  return {
+    success: errors.length === 0 && successCount > 0,
+    successCount,
+    errorCount: errors.length,
+    errors,
+    createdIds
+  }
+}
+
+async function submitInvestmentContactsWithFallback(
+  restClient: ReturnType<typeof useRestClient>,
+  accessToken: string | undefined,
+  contacts: Record<string, any>[]
+): Promise<ImportResult> {
+  let successCount = 0
+  const errors: ImportResult['errors'] = []
+  const createdIds: string[] = []
+
+  for (let idx = 0; idx < contacts.length; idx += 1) {
+    const investmentContact = contacts[idx]
+    try {
+      const response = await restClient.post(
+        '/investment-relations/createInvestmentContact',
+        { investmentContact, changeMode: 'INSERT' },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+
+      const validationErrors = response?.validationResponse?.errors
+      if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+        errors.push({
+          rowIndex: idx,
+          entityData: investmentContact,
+          error: `${validationErrors[0]?.code || 'ERROR'}: ${validationErrors[0]?.detail || 'Validation failure'}`
+        })
+        continue
+      }
+
+      successCount += 1
+      if (typeof response?.investmentContact?.id === 'string') {
+        createdIds.push(response.investmentContact.id)
+      }
+    } catch (error) {
+      const message = extractErrorMessage(error)
+      errors.push({
+        rowIndex: idx,
+        entityData: investmentContact,
+        error: message
+      })
+      // Abort early on systemic marshalling/endpoint issues to avoid dozens of repeated failing calls.
+      if (
+        /error while marshalling process instance/i.test(message.toLowerCase()) ||
+        /no static resource createinvestmentcontact/i.test(message.toLowerCase())
+      ) {
+        break
+      }
+    }
+  }
+
+  return {
+    success: errors.length === 0 && successCount > 0,
+    successCount,
+    errorCount: errors.length,
+    errors,
+    createdIds
+  }
 }
 
 export function useEntityImport<T = ConvertedEntity>(
@@ -429,6 +715,7 @@ export function useEntityImport<T = ConvertedEntity>(
 
       setIsLoading(true)
       setError(null)
+      setImportResult(null)
 
       try {
         // Remove enforced fields from the mappings so they are not double-counted
@@ -506,6 +793,7 @@ export function useEntityImport<T = ConvertedEntity>(
 
     setIsLoading(true)
     setError(null)
+    setImportResult(null)
 
     try {
       const ownerEmployeeId = props.userInfo?.employeeDetails?.employeeId
@@ -533,7 +821,11 @@ export function useEntityImport<T = ConvertedEntity>(
       // Handle investment imports (real-estate, equity, liquid-fund)
       if (config.entityType in INVESTMENT_TYPE_MAP) {
         const investmentType = INVESTMENT_TYPE_MAP[config.entityType as keyof typeof INVESTMENT_TYPE_MAP]
-        const payload = buildInvestmentPayload(entitiesWithOwner, investmentType, ownerEmployeeId)
+        const payload = toInvestmentBatchPayload(
+          entitiesWithOwner as Record<string, any>[],
+          investmentType,
+          ownerEmployeeId
+        )
 
         const response = await restClient.post('/investment-relations/createInvestments', payload, {
           headers: { Authorization: `Bearer ${accessToken}` }
@@ -545,15 +837,64 @@ export function useEntityImport<T = ConvertedEntity>(
       else if (config.entityType in STANDARD_ENTITY_ENDPOINTS) {
         const domainPrefix = config.domain === 'investment' ? 'investment-relations' : 'customer-relations'
         const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
-        const entitySuffix = STANDARD_ENTITY_ENDPOINTS[config.entityType as keyof typeof STANDARD_ENTITY_ENDPOINTS]
+        const entitySuffix = STANDARD_ENTITY_ENDPOINTS[config.entityType as SupportedStandardEntityType]
         const endpoint = `/${domainPrefix}/create${entityPrefix}${entitySuffix}`
         const entityCollectionKey = getStandardEntityCollectionKey(entitySuffix, config.domain)
 
-        const response = await restClient.post(
-          endpoint,
-          { [entityCollectionKey]: entitiesWithOwner },
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        )
+        const requestEntities =
+          config.domain === 'investment' && config.entityType === 'contact'
+            ? (entitiesWithOwner as Record<string, any>[]).map(entity =>
+                toInvestmentContactPayload(entity, ownerEmployeeId)
+              )
+            : config.domain === 'investment' && config.entityType === 'opportunity'
+              ? (entitiesWithOwner as Record<string, any>[]).map(entity =>
+                  toInvestmentOpportunityPayload(entity, ownerEmployeeId)
+                )
+              : entitiesWithOwner
+
+        let response: any
+        try {
+          response = await restClient.post(
+            endpoint,
+            { [entityCollectionKey]: requestEntities },
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          )
+        } catch (error) {
+          if (config.domain === 'investment' && config.entityType === 'contact') {
+            result = await submitInvestmentContactsWithFallback(restClient, accessToken, requestEntities)
+            if (result.success === false) {
+              setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
+              setImportResult(null)
+              throw new Error(result.errors?.[0]?.error || 'Investment contact import failed')
+            } else {
+              setImportResult(result)
+              setError(null)
+            }
+            return
+          }
+          if (
+            config.domain === 'investment' &&
+            config.entityType === 'opportunity' &&
+            shouldFallbackToSingularInvestmentOpportunityEndpoint(error)
+          ) {
+            if (requestEntities.length > MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS) {
+              throw new Error(
+                `Import aborted: createInvestmentOpportunities is unavailable (404), and singular fallback would require ${requestEntities.length} API calls. Limit is ${MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS}.`
+              )
+            }
+            result = await submitInvestmentOpportunitiesWithFallback(restClient, accessToken, requestEntities)
+            if (result.success === false) {
+              setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
+              setImportResult(null)
+              throw new Error(result.errors?.[0]?.error || 'Investment opportunity import failed')
+            } else {
+              setImportResult(result)
+              setError(null)
+            }
+            return
+          }
+          throw error
+        }
 
         result = processStandardEntityResponse(response, entityCollectionKey)
       } else {
@@ -564,14 +905,16 @@ export function useEntityImport<T = ConvertedEntity>(
       if (result.success === false) {
         setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
         setImportResult(null)
+        throw new Error(result.errors?.[0]?.error || 'Import failed')
       } else {
         setImportResult(result)
         setError(null)
       }
     } catch (err) {
       console.error(`Bulk create ${config.entityType}s failed:`, err)
-      setError(err instanceof Error ? err.message : 'Import failed')
+      setError(normalizeImportError(err, config.entityType))
       setImportResult(null)
+      throw err
     } finally {
       setIsLoading(false)
     }
