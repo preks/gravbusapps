@@ -262,21 +262,20 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   const headerTitle = fullName
 
   return (
-    <div data-testid="investment-contact-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
-        onBack={onBack}
-        headerTitle={headerTitle}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-contact-detail"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+      onBack={onBack}
+      headerTitle={headerTitle}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

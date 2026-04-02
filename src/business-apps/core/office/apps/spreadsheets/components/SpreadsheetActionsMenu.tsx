@@ -11,9 +11,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3, Settings } from 'lucide-react'
+import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3 } from 'lucide-react'
+import translations from '../_i18n'
 
 export interface SpreadsheetActionsMenuProps {
   // Version/lock actions
@@ -44,69 +46,64 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onShare,
   onOpenAnalytics,
   onOpenAutomations,
-  onEdit,
   allowExport,
   onExport,
   'data-testid': testId = 'spreadsheet-actions-menu'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-1.5" data-testid={testId}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gba:h-8">
             <FileSpreadsheet className="gba:w-4 gba:h-4 gba:mr-2" />
-            Spreadsheet
+            {t('menu-spreadsheet')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onShowVersionHistory}>
             <History className="gba:w-4 gba:h-4 gba:mr-2" />
-            Version History
+            {t('menu-version-history')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onShowCheckpointDialog}>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            Save Checkpoint
+            {t('menu-save-checkpoint')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {isLockedByMe ? (
             <DropdownMenuItem onClick={onReleaseLock}>
               <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Unlock Spreadsheet
+              {t('menu-unlock-spreadsheet')}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onClick={onAcquireLock}>
               <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Lock Spreadsheet
+              {t('menu-lock-spreadsheet')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           {onShare && (
             <DropdownMenuItem onClick={onShare}>
               <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-              Share
+              {t('menu-share')}
             </DropdownMenuItem>
           )}
           {allowExport && (
             <DropdownMenuItem onClick={onExport}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-              Export to Excel
+              {t('menu-export-to-excel')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onOpenAnalytics}>
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
-            AI Analytics
+            {t('menu-ai-analytics')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onOpenAutomations}>
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
-            Automations
+            {t('menu-automations')}
           </DropdownMenuItem>
-          {onEdit && (
-            <DropdownMenuItem onClick={onEdit}>
-              <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-              Settings
-            </DropdownMenuItem>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

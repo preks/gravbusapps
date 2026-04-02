@@ -17,6 +17,7 @@ import {
 import { buildGraphQLWhere } from '@/business-apps/core/office/apps/spreadsheets/hooks/useEntityDataSource'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { EntityDataSource } from '../types'
+import { BoardApiService } from '../services/BoardApiService'
 
 export interface EntityDataState {
   isLoading: boolean
@@ -238,8 +239,6 @@ export function useBoardEntityData(accessToken: string): UseBoardEntityDataRetur
       mergeKey?: string
     ): Promise<{ synced: number; deleted: number } | null> => {
       if (state.records.length === 0) return null
-
-      const { BoardApiService } = await import('../services/BoardApiService')
 
       const activeFieldDefs = availableFields.filter(f => selectedFields.includes(f.key))
       const filteredRecords = state.rawRecords.map(rec => flattenEntityRecord(rec, activeFieldDefs))

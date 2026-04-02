@@ -10,6 +10,7 @@ interface UseDriveOptions {
   sortOrder: 'ASC' | 'DESC'
   page: number
   limit: number
+  spaceId?: string
 }
 
 interface UseDriveResult {
@@ -36,7 +37,7 @@ interface UseDriveResult {
 }
 
 export function useDrive(options: UseDriveOptions): UseDriveResult {
-  const { accessToken, section, folderId, sortBy, sortOrder, page, limit } = options
+  const { accessToken, section, folderId, sortBy, sortOrder, page, limit, spaceId } = options
   const [items, setItems] = useState<DriveItem[]>([])
   const [folders, setFolders] = useState<DriveFolder[]>([])
   const [breadcrumbs, setBreadcrumbs] = useState<DriveBreadcrumb[]>([])
@@ -59,9 +60,21 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
       setError(null)
       try {
         const [listResult, folderList, crumbsResult] = await Promise.all([
-          DriveApiService.listItems({ section, folderId: folderId ?? undefined, sortBy, sortOrder, page, limit }),
-          section === 'my-drive' ? DriveApiService.listFolders(folderId ?? undefined) : Promise.resolve([]),
-          folderId ? DriveApiService.getBreadcrumbs(folderId) : Promise.resolve({ breadcrumbs: [], isShared: false })
+          DriveApiService.listItems({
+            section,
+            folderId: folderId ?? undefined,
+            spaceId,
+            sortBy,
+            sortOrder,
+            page,
+            limit
+          }),
+          section === 'my-drive' || spaceId
+            ? DriveApiService.listFolders(folderId ?? undefined, spaceId)
+            : Promise.resolve([]),
+          folderId
+            ? DriveApiService.getBreadcrumbs(folderId, spaceId)
+            : Promise.resolve({ breadcrumbs: [], isShared: false })
         ])
         setItems(listResult.items)
         setTotal(listResult.total)
@@ -76,7 +89,7 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, section, folderId, sortBy, sortOrder, page, limit]
+    [accessToken, section, folderId, sortBy, sortOrder, page, limit, spaceId]
   )
 
   useEffect(() => {
@@ -95,7 +108,7 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
   const createFolder = useCallback(
     async (name: string, parentId?: string): Promise<DriveFolder | null> => {
       try {
-        const folder = await DriveApiService.createFolder(name, parentId)
+        const folder = await DriveApiService.createFolder(name, parentId, spaceId)
         setFolders(prev => [...prev, folder])
         silentRefresh()
         return folder
@@ -103,14 +116,14 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
         return null
       }
     },
-    [silentRefresh]
+    [silentRefresh, spaceId]
   )
 
   const deleteFolder = useCallback(
     async (id: string): Promise<boolean> => {
       try {
         setFolders(prev => prev.filter(f => f.id !== id))
-        await DriveApiService.deleteFolder(id)
+        await DriveApiService.deleteFolder(id, spaceId)
         silentRefresh()
         return true
       } catch {
@@ -118,14 +131,14 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
         return false
       }
     },
-    [silentRefresh]
+    [silentRefresh, spaceId]
   )
 
   const renameFolder = useCallback(
     async (id: string, name: string): Promise<boolean> => {
       try {
         setFolders(prev => prev.map(f => (f.id === id ? { ...f, name } : f)))
-        await DriveApiService.updateFolder(id, { name })
+        await DriveApiService.updateFolder(id, { name }, spaceId)
         silentRefresh()
         return true
       } catch {
@@ -133,7 +146,7 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
         return false
       }
     },
-    [silentRefresh]
+    [silentRefresh, spaceId]
   )
 
   const trashItems = useCallback(
@@ -192,10 +205,22 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
       setItems(prev => prev.filter(i => !moveSet.has(`${i.type}:${i.id}`)))
       setTotal(prev => Math.max(0, prev - refs.length))
       try {
-        await Promise.all([
-          ...shortcutMoves.map(si => DriveApiService.moveShortcut(si.shortcutId!, targetFolderId)),
-          ...(nonShortcutRefs.length > 0 ? [DriveApiService.moveItems(nonShortcutRefs, targetFolderId)] : [])
-        ])
+        const moveCalls: Promise<unknown>[] = [
+          ...shortcutMoves.map(si => DriveApiService.moveShortcut(si.shortcutId!, targetFolderId))
+        ]
+        if (spaceId) {
+          const fileRefs = nonShortcutRefs.filter(r => r.entityType === 'drive_file')
+          const otherRefs = nonShortcutRefs.filter(
+            r => r.entityType !== 'drive_file' && r.entityType !== 'drive_folder'
+          )
+          if (fileRefs.length > 0) moveCalls.push(DriveApiService.moveItems(fileRefs, null, spaceId, targetFolderId))
+          for (const item of otherRefs) {
+            moveCalls.push(DriveApiService.moveSpaceContent(spaceId, item.entityType, item.entityId, targetFolderId))
+          }
+        } else if (nonShortcutRefs.length > 0) {
+          moveCalls.push(DriveApiService.moveItems(nonShortcutRefs, targetFolderId))
+        }
+        await Promise.all(moveCalls)
         silentRefresh()
         return true
       } catch {
@@ -203,7 +228,7 @@ export function useDrive(options: UseDriveOptions): UseDriveResult {
         return false
       }
     },
-    [silentRefresh, items]
+    [silentRefresh, items, spaceId]
   )
 
   const moveOrCreateShortcut = useCallback(

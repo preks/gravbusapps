@@ -42,6 +42,27 @@ describe('findPaginationOverlayTarget', () => {
     expect(findPaginationOverlayTarget(editorDom, activeEditor)).toBe(editorDom.firstElementChild)
   })
 
+  it('resolves page 1 header from .rm-first-page-header', () => {
+    const editorDom = document.createElement('div')
+    const firstPageHeader = document.createElement('div')
+    firstPageHeader.className = 'rm-first-page-header'
+    firstPageHeader.dataset.rmEditorType = 'header'
+    firstPageHeader.dataset.rmPageNumber = '1'
+    editorDom.appendChild(firstPageHeader)
+
+    expect(findPaginationOverlayTarget(editorDom, { type: 'header', pageNumber: 1 })).toBe(firstPageHeader)
+  })
+
+  it('resolves page 1 header via generic data attributes when .rm-first-page-header class is absent', () => {
+    const editorDom = document.createElement('div')
+    const headerTarget = document.createElement('div')
+    headerTarget.dataset.rmEditorType = 'header'
+    headerTarget.dataset.rmPageNumber = '1'
+    editorDom.appendChild(headerTarget)
+
+    expect(findPaginationOverlayTarget(editorDom, { type: 'header', pageNumber: 1 })).toBe(headerTarget)
+  })
+
   it('resolves a later-page header from the previous mounted page shell', () => {
     const editorDom = document.createElement('div')
     const paginationRoot = document.createElement('div')

@@ -439,7 +439,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
   )
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} className="gba:record-layout-no-padding">
+    <>
       <style>
         {String.raw`
           .gba\:record-layout-no-padding .layout-content {
@@ -450,6 +450,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
         `}
       </style>
       <RecordLayout
+        data-testid={`${DATA_TEST_ID_PREFIX}-container`}
+        className="gba:record-layout-no-padding"
         headerOrientation="horizontal"
         headerAvatar={headerAvatar}
         headerOverline={config.category}
@@ -461,7 +463,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
         defaultView={subViewsConfig.defaultValue}
         onViewChange={subViewsConfig.onValueChange}
       />
-    </div>
+    </>
   )
 }
 

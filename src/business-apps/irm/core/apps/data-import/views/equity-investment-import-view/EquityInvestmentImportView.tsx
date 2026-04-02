@@ -4,14 +4,15 @@
  */
 
 import React from 'react'
-import { PageLayout, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
 import {
   FileUploadStep,
   MappingReviewStep,
-  ConversionResultStep
+  ConversionResultStep,
+  ImportErrorCard
 } from '@/common/components/common-relations/apps/data-import/components'
 import { equityInvestmentImportConfig } from './config/equityInvestmentImportConfig'
 import { ConvertedEquityInvestment } from './types/equityInvestmentImportTypes'
@@ -48,21 +49,27 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
   } = useEntityImport<ConvertedEquityInvestment>(context, equityInvestmentImportConfig)
 
   // Mappings hook (initialized from agent response)
-  const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
-    equityInvestmentImportConfig.targetFields,
-    agentResponse?.fieldMappings || []
-  )
+  const {
+    mappings,
+    setMappings,
+    updateTargetFromUnmapped,
+    removeMapping,
+    addMapping,
+    unmappedSourceFields,
+    setUnmappedSourceFields
+  } = useEntityMappings(equityInvestmentImportConfig.targetFields, agentResponse?.fieldMappings || [])
 
-  // Sync mappings when agent response changes
+  // Sync mappings and unmapped fields when agent response changes
   React.useEffect(() => {
     if (agentResponse) {
       setMappings(agentResponse.fieldMappings)
+      setUnmappedSourceFields(agentResponse.unmappedSourceFields)
     }
-  }, [agentResponse, setMappings])
+  }, [agentResponse, setMappings, setUnmappedSourceFields])
 
   // Handle conversion with current mappings and transformation function
   const handleConvert = async () => {
-    await baseConvertData(mappings, convertToNestedEquityInvestment)
+    await baseConvertData(mappings, undefined, convertToNestedEquityInvestment)
   }
 
   return (
@@ -73,21 +80,7 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
       onBack={onBack}
       data-testid={testId}
     >
-      {error && (
-        <Card className="gba:mb-6 gba:border-destructive-ring" data-testid={`${testId}-error`}>
-          <CardContent className="gba:py-10">
-            <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive-secondary">
-                <XCircleIcon className="gba:w-8 gba:h-8 gba:text-destructive" weight="fill" />
-              </div>
-              <div className="gba:space-y-2">
-                <p className="gba:font-semibold gba:text-base gba:text-destructive">Analysis Failed</p>
-                <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {error && <ImportErrorCard step={step} error={error} data-testid={`${testId}-error`} />}
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
@@ -105,10 +98,11 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
+          unmappedSourceFields={unmappedSourceFields}
           targetFieldsConfig={equityInvestmentImportConfig.targetFields}
           entityType={t('equity-entity-type')}
           isLoading={isLoading}
-          onUpdateMapping={updateMapping}
+          onUpdateTargetFromUnmapped={updateTargetFromUnmapped}
           onRemoveMapping={removeMapping}
           onAddMapping={addMapping}
           onConvert={handleConvert}

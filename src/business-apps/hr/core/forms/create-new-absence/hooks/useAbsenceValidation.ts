@@ -29,6 +29,8 @@ import {
   employmentRegionHolidaysInRangeQuery,
   employeeWorkingHoursQuery
 } from '../queries/getEmployeeAbsences'
+import { extractAbsencePriority } from '../utils/absencePriority'
+import { resolveEmploymentRegionRef } from '../utils/employmentRegion'
 
 export interface AbsenceValidationError {
   type: 'overlap' | 'balance' | 'general'
@@ -209,25 +211,7 @@ export interface UseAbsenceValidationProps {
  * Lower numbers indicate higher priority (e.g., priority 5 > priority 10).
  * Returns 999 as default (lowest priority) if no priority is found.
  */
-export const extractPriority = (objectValue: unknown): number => {
-  if (!objectValue) return 999
-
-  if (typeof objectValue === 'string') {
-    try {
-      const parsed = JSON.parse(objectValue)
-      return typeof parsed?.priority === 'number' ? parsed.priority : 999
-    } catch {
-      return 999
-    }
-  }
-
-  if (typeof objectValue === 'object' && objectValue !== null) {
-    const obj = objectValue as Record<string, unknown>
-    return typeof obj?.priority === 'number' ? obj.priority : 999
-  }
-
-  return 999
-}
+export const extractPriority = extractAbsencePriority
 
 export const useAbsenceValidation = ({
   accessToken,
@@ -340,15 +324,7 @@ export const useAbsenceValidation = ({
           employeeId,
           activeUserLocale: activeLocale
         })
-        const addresses = (res?.addresses || []) as Array<{ type?: string; region?: { id: string } }>
-        const workingCondition = res?.employee?.[0]?.workingCondition?.[0] as
-          | { regionRef?: string; region?: { id: string } }
-          | undefined
-        const primaryAddress = addresses.find(a => a?.type === 'PRIMARY')
-        const firstAddress = addresses[0]
-        const regionFromAddress = primaryAddress?.region?.id ?? firstAddress?.region?.id
-        const regionCode = regionFromAddress ?? workingCondition?.regionRef ?? workingCondition?.region?.id
-        setEmployeeRegionRef(regionCode ?? null)
+        setEmployeeRegionRef(resolveEmploymentRegionRef(res))
       } catch {
         setEmployeeRegionRef(null)
       }

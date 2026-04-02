@@ -12,6 +12,8 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { DocumentFormatting } from '../../../types'
 import type { DocumentPrintStyleConfig } from '../../../utils/pageLayoutUtils'
 import { sanitizePaginationRuntimeHtml } from '../../../utils/documentContentUtils'
+import type { DocumentTocExportLabels } from '../../../utils/documentTocExportUtils'
+import { enrichDocumentTableOfContentsForExport } from '../../../utils/documentTocExportUtils'
 import {
   embedImagesInHtml,
   exportToPDFWithStyle,
@@ -35,6 +37,8 @@ export interface UsePagedDocumentShellControlsParams {
   layoutFormatting: DocumentFormatting
   printStyleConfig: DocumentPrintStyleConfig
   getImageDataUrl: (src: string) => Promise<string | null>
+  /** Localized strings for table-of-contents export (print/PDF/Word). */
+  documentTocExportLabels: DocumentTocExportLabels
 }
 
 export interface UsePagedDocumentShellControlsResult {
@@ -76,7 +80,8 @@ export function usePagedDocumentShellControls({
   buildPersistedFormatting,
   layoutFormatting,
   printStyleConfig,
-  getImageDataUrl
+  getImageDataUrl,
+  documentTocExportLabels
 }: UsePagedDocumentShellControlsParams): UsePagedDocumentShellControlsResult {
   const [isSaving, setIsSaving] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -163,14 +168,15 @@ export function usePagedDocumentShellControls({
   const getExportHtmlWithEmbeddedImages = useCallback(async (): Promise<string> => {
     if (!editor) return ''
     const htmlWithImages = await embedImagesInHtml(editor.getHTML(), getImageDataUrl)
+    const withToc = enrichDocumentTableOfContentsForExport(editor, htmlWithImages, documentTocExportLabels)
 
     // CWE-79: sanitize remote-backed image replacements before returning HTML to export/print sinks.
-    return DOMPurify.sanitize(htmlWithImages, {
+    return DOMPurify.sanitize(withToc, {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
       FORBID_ATTR: [],
       ALLOW_DATA_ATTR: true
     })
-  }, [editor, getImageDataUrl])
+  }, [documentTocExportLabels, editor, getImageDataUrl])
 
   const handleExportWord = useCallback(async () => {
     if (!editor) return

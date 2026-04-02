@@ -9,7 +9,7 @@ import useFlowClient from '@/common/network/flows/useFlowClient'
  */
 export const fetchExpenseCatalogueDataQuery = `
   query fetchExpenseCatalogueData($employeeId: uuid, $activeUserLocale: String) {
-    expenseRequestType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}}) {
+    expenseRequestType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}}, isDeleted: { _eq: false }}) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -22,7 +22,7 @@ export const fetchExpenseCatalogueDataQuery = `
       code
       additionalValue1
     }
-    expenseTransportationMeans: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseTransportMean"}}}) {
+    expenseTransportationMeans: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseTransportMean"}}, isDeleted: { _eq: false }}) {
       id
       value
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {

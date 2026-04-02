@@ -272,9 +272,11 @@ function stripHtmlToText(value: string): string {
     .trim()
 }
 
+/** Matches header/footer content that is only the page token or “page of total” (sidebar body preset), before managed slot. */
 function isStandalonePageNumberTemplate(value: string | null | undefined): boolean {
   if (!value) return false
-  return stripHtmlToText(value) === '{page}'
+  const t = stripHtmlToText(value)
+  return t === '{page}' || t === '{page} of {total}'
 }
 
 export function sanitizeStandalonePageNumberTemplates(

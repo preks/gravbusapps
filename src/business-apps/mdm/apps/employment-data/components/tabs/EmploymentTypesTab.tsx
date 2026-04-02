@@ -35,7 +35,7 @@ import {
   EMPLOYMENT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
-import { mergeCatalogEntryForPut, parseEmploymentMetadata } from '../../utils/catalogEntryMetadata'
+import { mergeCatalogEntryForPut } from '../../utils/catalogEntryMetadata'
 import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'
 import { CatalogMultilineCellText } from '../CatalogMultilineCellText'
 
@@ -47,6 +47,7 @@ export interface EmploymentType {
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
+  isDeleted?: boolean
   translations: Array<{
     localeCode: string
     value: string
@@ -149,10 +150,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
     additionalValue2?: string
   }) => {
     const fresh = await catalogClient.getCatalogEntryById(record.id)
-    const meta = parseEmploymentMetadata(fresh.additionalValue2)
-    const payload = mergeCatalogEntryForPut(fresh, {
-      additionalValue2: JSON.stringify({ ...meta, is_deleted: true })
-    })
+    const payload = mergeCatalogEntryForPut(fresh, { isDeleted: true })
     await catalogClient.updateCatalogEntry(
       EMPLOYMENT_TYPE_CATALOG,
       EMPLOYMENT_TYPE_VERSION,

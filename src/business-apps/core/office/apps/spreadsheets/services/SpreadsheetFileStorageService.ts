@@ -692,8 +692,8 @@ export class SpreadsheetFileStorageService {
 
     // Use the already-loaded app (we loaded it above for permission check)
     debugLog('[TRACE] Using already-loaded app, sheets:', currentApp.sheets.length)
-    console.warn('[SpreadsheetStorage] updateApp - currentApp rows:', currentApp.sheets[0]?.data?.length)
-    console.warn('[SpreadsheetStorage] updateApp - updates rows:', updates.sheets?.[0]?.data?.length)
+    debugLog('[SpreadsheetStorage] updateApp - currentApp rows:', currentApp.sheets[0]?.data?.length)
+    debugLog('[SpreadsheetStorage] updateApp - updates rows:', updates.sheets?.[0]?.data?.length)
 
     // Merge updates
     const now = new Date().toISOString()
@@ -704,17 +704,13 @@ export class SpreadsheetFileStorageService {
       updatedAt: now,
       filePath: entry.filePath // Keep same filePath
     }
-    console.warn('[SpreadsheetStorage] updateApp - MERGED updatedApp rows:', updatedApp.sheets[0]?.data?.length)
+    debugLog('[SpreadsheetStorage] updateApp - MERGED updatedApp rows:', updatedApp.sheets[0]?.data?.length)
 
     // Update the file IN PLACE using PUT (same fileId, same path!)
     const appFile = this.createJsonFile(updatedApp, `${APP_FILE_PREFIX}-${id}.json`)
     debugLog('[TRACE] *** CALLING PUT to update app file ***:', fileId)
 
-    console.warn(
-      '[SpreadsheetStorage] updateApp - SAVING to file service with',
-      updatedApp.sheets[0]?.data?.length,
-      'rows'
-    )
+    debugLog('[SpreadsheetStorage] updateApp - SAVING to file service with', updatedApp.sheets[0]?.data?.length, 'rows')
     await fileClient.updateFile(
       appFile,
       { accessScope: FILE_SCOPE, fileId: fileId },
@@ -724,7 +720,7 @@ export class SpreadsheetFileStorageService {
         mimeType: 'application/json'
       }
     )
-    console.warn(
+    debugLog(
       '[SpreadsheetStorage] updateApp - FILE SAVED SUCCESSFULLY with',
       updatedApp.sheets[0]?.data?.length,
       'rows'
