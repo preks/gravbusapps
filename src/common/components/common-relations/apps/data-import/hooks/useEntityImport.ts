@@ -70,6 +70,8 @@ const STANDARD_ENTITY_ENDPOINTS = {
   opportunity: 'Opportunities'
 } as const
 
+const MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS = 500
+
 type SupportedStandardEntityType = keyof typeof STANDARD_ENTITY_ENDPOINTS
 
 function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> {
