@@ -11,6 +11,10 @@ export interface CycleTrackingSummary {
   completedEvaluations: number
   totalReviewerTasks: number
   completedReviewerTasks: number
+  totalManagerReviews: number
+  completedManagerReviews: number
+  totalSelfReviews: number
+  completedSelfReviews: number
 }
 
 export interface ReviewerDetail {

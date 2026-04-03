@@ -1,10 +1,13 @@
 import React from 'react'
-import { Badge, TableCell, TableRow } from '@newwork/nw-design-system'
+import { Badge, TableCell, TableRow, useTranslation } from '@newwork/nw-design-system'
 import { UserCircle } from '@phosphor-icons/react'
 import type { ReviewerDetail } from '../types'
 import { formatDate, formatReviewerType, formatReviewerStatus, getStatusBadgeVariant } from '../utils/formatLabels'
+import translations from '../_i18n'
 
 export const ReviewerRow: React.FC<{ reviewer: ReviewerDetail }> = ({ reviewer }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <TableRow className="gba:bg-muted/30">
       <TableCell className="gba:pl-12">
@@ -15,11 +18,11 @@ export const ReviewerRow: React.FC<{ reviewer: ReviewerDetail }> = ({ reviewer }
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="gba:text-xs">
-          {formatReviewerType(reviewer.reviewerType)}
+          {formatReviewerType(reviewer.reviewerType, t)}
         </Badge>
       </TableCell>
       <TableCell>
-        <Badge variant={getStatusBadgeVariant(reviewer.status)}>{formatReviewerStatus(reviewer.status)}</Badge>
+        <Badge variant={getStatusBadgeVariant(reviewer.status)}>{formatReviewerStatus(reviewer.status, t)}</Badge>
       </TableCell>
       <TableCell>{formatDate(reviewer.assignedDate)}</TableCell>
       <TableCell>{formatDate(reviewer.completedDate)}</TableCell>
