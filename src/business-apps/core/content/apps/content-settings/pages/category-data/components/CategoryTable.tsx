@@ -26,6 +26,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import type { ContentCategory } from '@/common/data/content/types/contentTypes'
+import { resolveContentCategoryName } from '@/common/data/content/constants/contentConstants'
 
 interface CategoryFormData {
   name: string
@@ -133,13 +134,15 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead className="gba:w-[120px]">Entries</TableHead>
             <TableHead className="gba:w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {categories.map(category => (
             <TableRow key={category.id} data-testid={`${prefixDataTestId}-row-${category.id}`}>
-              <TableCell>{category.name}</TableCell>
+              <TableCell>{resolveContentCategoryName(category) || category.name}</TableCell>
+              <TableCell>{category.entryCount ?? 0}</TableCell>
               <TableCell>
                 <div className="gba:flex gba:gap-2">
                   <Button

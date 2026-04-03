@@ -28,7 +28,12 @@ export const useContentCategoryOptions = (accessToken?: string): UseContentCateg
         const query = buildContentCategoriesQuery()
         const response = await graphqlClient.request<{ ContentCategory: ContentCategory[] }>(query)
         if (!cancelled) {
-          setOptions(response.ContentCategory || [])
+          setOptions(
+            (response.ContentCategory || []).map(contentCategory => ({
+              ...contentCategory,
+              entryCount: contentCategory.contentEntryCategoriesAggregate?.aggregate?.count ?? 0
+            }))
+          )
         }
       } catch (err) {
         if (!cancelled) {

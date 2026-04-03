@@ -31,7 +31,12 @@ export const useContentTypeOptions = (
         const query = buildContentTypesQuery(contentGroup)
         const response = await graphqlClient.request<{ ContentType: ContentType[] }>(query)
         if (!cancelled) {
-          setOptions(response.ContentType || [])
+          setOptions(
+            (response.ContentType || []).map(contentType => ({
+              ...contentType,
+              entryCount: contentType.contentEntriesAggregate?.aggregate?.count ?? 0
+            }))
+          )
         }
       } catch (err) {
         if (!cancelled) {

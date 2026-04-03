@@ -25,11 +25,12 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
   const error = mutationError || (fetchError ? fetchError.message : null)
 
   const handleCreate = useCallback(
-    async (data: { name: string }) => {
+    async (data: { name: string; contentGroup: string }) => {
       setMutationError(null)
       try {
         await graphqlClient.request<{ InsertContentTypeOne: ContentType }>(buildInsertContentTypeMutation(), {
-          name: data.name
+          name: data.name,
+          contentGroup: data.contentGroup
         })
         await refetch()
       } catch (err) {
@@ -42,12 +43,13 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
   )
 
   const handleUpdate = useCallback(
-    async (id: string, data: { name: string }) => {
+    async (id: string, data: { name: string; contentGroup: string }) => {
       setMutationError(null)
       try {
         await graphqlClient.request<{ UpdateContentTypeByPk: ContentType }>(buildUpdateContentTypeMutation(), {
           id,
-          name: data.name
+          name: data.name,
+          contentGroup: data.contentGroup
         })
         await refetch()
       } catch (err) {

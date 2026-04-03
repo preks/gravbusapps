@@ -26,6 +26,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import type { ContentTag } from '@/common/data/content/types/contentTypes'
+import { resolveContentTagName } from '@/common/data/content/constants/contentConstants'
 
 interface TagFormData {
   name: string
@@ -133,13 +134,15 @@ export const TagTable: React.FC<TagTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
+            <TableHead className="gba:w-[120px]">Entries</TableHead>
             <TableHead className="gba:w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tags.map(tag => (
             <TableRow key={tag.id} data-testid={`${prefixDataTestId}-row-${tag.id}`}>
-              <TableCell>{tag.name}</TableCell>
+              <TableCell>{resolveContentTagName(tag) || tag.name}</TableCell>
+              <TableCell>{tag.entryCount ?? 0}</TableCell>
               <TableCell>
                 <div className="gba:flex gba:gap-2">
                   <Button

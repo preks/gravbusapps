@@ -442,6 +442,9 @@ export const buildContentTypesQuery = (contentGroup?: string | null): string => 
     query getContentTypes {
       ContentType(${where} orderBy: { name: ASC }) {
         ${CONTENT_TYPE_FIELDS}
+        contentEntriesAggregate(where: { isDeleted: { _eq: false }, role: { _eq: "${ContentRole.ROOT}" } }) {
+          aggregate { count }
+        }
       }
     }
   `
@@ -452,6 +455,14 @@ export const buildContentCategoriesQuery = (): string => {
     query getContentCategories {
       ContentCategory(where: { isDeleted: { _eq: false } } orderBy: { name: ASC }) {
         ${CONTENT_CATEGORY_FIELDS}
+        contentEntryCategoriesAggregate(
+          where: {
+            isDeleted: { _eq: false }
+            contentEntry: { isDeleted: { _eq: false }, role: { _eq: "${ContentRole.ROOT}" } }
+          }
+        ) {
+          aggregate { count }
+        }
       }
     }
   `
@@ -462,6 +473,14 @@ export const buildContentTagsQuery = (): string => {
     query getContentTags {
       ContentTag(where: { isDeleted: { _eq: false } } orderBy: { name: ASC }) {
         ${CONTENT_TAG_FIELDS}
+        contentEntryTagsAggregate(
+          where: {
+            isDeleted: { _eq: false }
+            contentEntry: { isDeleted: { _eq: false }, role: { _eq: "${ContentRole.ROOT}" } }
+          }
+        ) {
+          aggregate { count }
+        }
       }
     }
   `

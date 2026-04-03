@@ -20,15 +20,27 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Alert,
   AlertDescription
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import type { ContentType } from '@/common/data/content/types/contentTypes'
+import {
+  ContentGroup,
+  CONTENT_GROUP_LABEL,
+  CONTENT_GROUP_VALUES,
+  resolveContentTypeName
+} from '@/common/data/content/constants/contentConstants'
 
 interface TypeFormData {
   name: string
+  contentGroup: string
 }
 
 interface TypeTableProps {
@@ -57,7 +69,7 @@ export const TypeTable: React.FC<TypeTableProps> = ({
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<TypeFormData>({
-    defaultValues: { name: '' }
+    defaultValues: { name: '', contentGroup: ContentGroup.NEWS }
   })
 
   const handleCreate = async (data: TypeFormData) => {
@@ -101,7 +113,7 @@ export const TypeTable: React.FC<TypeTableProps> = ({
 
   const openEditDialog = (type: ContentType) => {
     setEditingType(type)
-    form.reset({ name: type.name || '' })
+    form.reset({ name: type.name || '', contentGroup: type.contentGroup || ContentGroup.NEWS })
   }
 
   if (error) {
@@ -134,14 +146,18 @@ export const TypeTable: React.FC<TypeTableProps> = ({
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Content Group</TableHead>
+            <TableHead className="gba:w-[120px]">Entries</TableHead>
             <TableHead className="gba:w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {types.map(type => (
             <TableRow key={type.id} data-testid={`${prefixDataTestId}-row-${type.id}`}>
-              <TableCell>{type.name}</TableCell>
-              <TableCell>{type.contentGroup}</TableCell>
+              <TableCell>{resolveContentTypeName(type) || type.name}</TableCell>
+              <TableCell>
+                {CONTENT_GROUP_LABEL[(type.contentGroup as ContentGroup) || ContentGroup.UNKNOWN] || type.contentGroup}
+              </TableCell>
+              <TableCell>{type.entryCount ?? 0}</TableCell>
               <TableCell>
                 <div className="gba:flex gba:gap-2">
                   <Button
@@ -179,11 +195,37 @@ export const TypeTable: React.FC<TypeTableProps> = ({
               <FormField
                 control={form.control}
                 name="name"
+                rules={{ required: 'Name is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="Article" data-testid={`${prefixDataTestId}-create-name-input`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contentGroup"
+                rules={{ required: 'Content group is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Content Group</FormLabel>
+                    <FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger data-testid={`${prefixDataTestId}-create-group-input`}>
+                          <SelectValue placeholder="Select group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTENT_GROUP_VALUES.map(contentGroup => (
+                            <SelectItem key={contentGroup} value={contentGroup}>
+                              {CONTENT_GROUP_LABEL[contentGroup]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -214,11 +256,37 @@ export const TypeTable: React.FC<TypeTableProps> = ({
               <FormField
                 control={form.control}
                 name="name"
+                rules={{ required: 'Name is required' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
                       <Input {...field} data-testid={`${prefixDataTestId}-edit-name-input`} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contentGroup"
+                rules={{ required: 'Content group is required' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Content Group</FormLabel>
+                    <FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger data-testid={`${prefixDataTestId}-edit-group-input`}>
+                          <SelectValue placeholder="Select group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTENT_GROUP_VALUES.map(contentGroup => (
+                            <SelectItem key={contentGroup} value={contentGroup}>
+                              {CONTENT_GROUP_LABEL[contentGroup]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

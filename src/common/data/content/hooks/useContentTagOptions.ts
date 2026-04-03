@@ -28,7 +28,12 @@ export const useContentTagOptions = (accessToken?: string): UseContentTagOptions
         const query = buildContentTagsQuery()
         const response = await graphqlClient.request<{ ContentTag: ContentTag[] }>(query)
         if (!cancelled) {
-          setOptions(response.ContentTag || [])
+          setOptions(
+            (response.ContentTag || []).map(contentTag => ({
+              ...contentTag,
+              entryCount: contentTag.contentEntryTagsAggregate?.aggregate?.count ?? 0
+            }))
+          )
         }
       } catch (err) {
         if (!cancelled) {
