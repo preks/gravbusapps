@@ -1,3 +1,4 @@
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { formatDate } from '@/common/utils/windowUtils'
 
 const EM_DASH = '\u2014'
@@ -26,4 +27,34 @@ export function formatDateRangeOrDash(start: string | null | undefined, end: str
     return a
   }
   return `${a} \u2013 ${b}`
+}
+
+/**
+ * Catalog currency refs are stored as `Currency:v1:RON`; show the code (e.g. `RON`) in tables.
+ */
+export function formatCurrencyRefForDisplay(value: string | null | undefined): string {
+  if (value == null || value.trim() === '') {
+    return ''
+  }
+  const s = value.trim()
+  if (!s.includes(':')) {
+    return s
+  }
+  const last = s.split(':').pop()?.trim()
+  return last && last.length > 0 ? last : s
+}
+
+/**
+ * Lists amounts like expense tables: `RON 235.00` (ISO code, space, 2 decimals; tabular alignment via CSS).
+ */
+export function formatCurrencyCodeAmountFirst(amount: number | null | undefined, currency: string): string {
+  if (amount == null || Number.isNaN(amount)) {
+    return EM_DASH
+  }
+  const code = extractCurrencyCode(currency)
+  const num = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount)
+  return `${code} ${num}`
 }

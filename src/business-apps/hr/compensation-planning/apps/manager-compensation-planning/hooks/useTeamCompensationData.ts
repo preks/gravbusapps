@@ -112,6 +112,7 @@ export function useTeamCompensationData({
 
     try {
       const whereConditions: any[] = [{ employee: { isDeleted: { _eq: false } } }]
+      /** Company selector: only positions tied to the selected company. */
       if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
       if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
       if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
@@ -175,6 +176,7 @@ export function useTeamCompensationData({
           jobPosition: pos.jobPosition?.name ?? null,
           jobFunction: null,
           orgUnitName: pos.organizationalUnit?.name ?? null,
+          organizationalUnitId: pos.organizationalUnitId ?? null,
           hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
           currentAnnualSalary: currentAnnual,
           currentMonthlySalary: salary?.monthlyGrossSalary ?? null,

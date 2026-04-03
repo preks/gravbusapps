@@ -3,15 +3,7 @@ import type { TranslateFn } from './budgetSetupDisplayUtils'
 
 export function buildBudgetSetupPlansFilterConfiguration(
   t: TranslateFn,
-  companyBudgetStatusOptions: { id: string; label: string }[],
-  totalResolvedRangeConfig: {
-    mode: 'range'
-    min: number
-    max: number
-    step: number
-    placeholderMin: string
-    placeholderMax: string
-  }
+  companyBudgetStatusOptions: { id: string; label: string }[]
 ): FilterConfiguration {
   return {
     id: 'budget-setup-plans-filters',
@@ -29,21 +21,6 @@ export function buildBudgetSetupPlansFilterConfiguration(
             label: t('budget-setup-table-filter-company-budget-status-label'),
             type: 'multi-select',
             config: { options: companyBudgetStatusOptions }
-          }
-        ]
-      },
-      {
-        id: 'total-resolved-group',
-        label: t('budget-setup-table-filter-total-resolved-group'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'totalResolvedRange',
-            field: 'totalResolvedRange',
-            label: '',
-            type: 'number',
-            config: totalResolvedRangeConfig
           }
         ]
       }

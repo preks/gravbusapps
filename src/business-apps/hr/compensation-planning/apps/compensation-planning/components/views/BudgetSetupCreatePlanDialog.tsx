@@ -31,7 +31,6 @@ import {
   pickDefaultCompensationBudgetPlanId,
   type CreatePlanFormValues
 } from './budgetSetupCreatePlanSchema'
-import { BudgetSetupCreatePlanBudgetPreview } from './BudgetSetupCreatePlanBudgetPreview'
 import { BudgetSetupCreatePlanCompanyBudgetFields } from './BudgetSetupCreatePlanCompanyBudgetFields'
 import { formatDateOrDash } from '../../utils/displayFormatUtils'
 
@@ -45,9 +44,6 @@ export interface BudgetSetupCreatePlanDialogProps {
   /** Total current annual salary for the selected company (baseline for % pools). */
   annualSalaryCost: number
   currencyCode: string
-  loadingSalaryCost: boolean
-  /** Default headcount (e.g. team size); editable in the form. */
-  defaultHeadcount: number
   companyName?: string
   plans: CompensationBudgetPlanListItem[]
   loadingPlans: boolean
@@ -64,8 +60,6 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
   companyId,
   annualSalaryCost,
   currencyCode,
-  loadingSalaryCost,
-  defaultHeadcount,
   companyName,
   plans,
   loadingPlans,
@@ -85,31 +79,15 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
 
   const form = useForm<CreatePlanFormValues>({
     resolver: zodResolver(createPlanSchema),
-    defaultValues: getDefaultCreatePlanFormValues(defaultHeadcount, defaultPlanId, '')
+    defaultValues: getDefaultCreatePlanFormValues(defaultPlanId, '')
   })
   const { setValue } = form
-
-  const watchedBudget = useWatch({
-    control: form.control,
-    name: ['salaryBudgetAmount', 'salaryBudgetPercent', 'bonusBudgetAmount', 'bonusBudgetPercent']
-  })
-
-  const previewLabels = useMemo(
-    () => ({
-      title: t('budget-setup-create-plan-preview-title'),
-      baseline: t('budget-setup-create-plan-preview-baseline'),
-      resolvedSalary: t('budget-setup-create-plan-preview-salary-resolved'),
-      resolvedBonus: t('budget-setup-create-plan-preview-bonus-resolved'),
-      loadingHint: t('budget-setup-create-plan-loading-salary')
-    }),
-    [t]
-  )
 
   useEffect(() => {
     if (!open) return
     const planId = pickDefaultCompensationBudgetPlanId(plansSafe, defaultCompensationBudgetPlanId)
-    form.reset(getDefaultCreatePlanFormValues(defaultHeadcount, planId, ''))
-  }, [form, open, defaultHeadcount, plansSafe, defaultCompensationBudgetPlanId])
+    form.reset(getDefaultCreatePlanFormValues(planId, ''))
+  }, [form, open, plansSafe, defaultCompensationBudgetPlanId])
 
   useEffect(() => {
     if (!open || currencyOptionsSafe.length === 0) return
@@ -130,9 +108,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
         salaryBudgetPercent: values.salaryBudgetPercent,
         bonusBudgetAmount: values.bonusBudgetAmount,
         bonusBudgetPercent: values.bonusBudgetPercent,
-        distributionMethod: values.distributionMethod,
         currentTotalSalaryCost: annualSalaryCost,
-        headcount: values.headcount,
         currencyRef: values.currencyRef.trim() === '' ? null : values.currencyRef.trim()
       }
     })
@@ -140,8 +116,6 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
       onOpenChange(false)
     }
   })
-
-  const [salaryAmount, salaryPercent, bonusAmount, bonusPercent] = watchedBudget ?? [0, 0, 0, 0]
 
   const watchedPlanId = useWatch({ control: form.control, name: 'compensationBudgetPlanId' })
   const selectedPlanMeta = useMemo(() => plansSafe.find(p => p.id === watchedPlanId), [plansSafe, watchedPlanId])
@@ -168,7 +142,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
               render={({ field }) => (
                 <FormItem>
                   <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                    <FormLabel className="gba:flex-1">{t('budget-setup-choose-budget-plan-label')}</FormLabel>
+                    <FormLabel className="gba:flex-1">{t('budget-setup-choose-budget-plan-label')} : </FormLabel>
                     {loadingPlans ? <Spinner className="gba:h-4 gba:w-4" /> : null}
                   </div>
                   <Select
@@ -197,19 +171,19 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                       <p className="gba:font-medium gba:text-foreground">{t('budget-setup-plan-details-title')}</p>
                       <dl className="gba:mt-2 gba:grid gba:grid-cols-1 gba:gap-1 sm:gba:grid-cols-2">
                         <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-fiscal-year')}</dt>
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-fiscal-year')} : </dt>
                           <dd className="gba:tabular-nums">{String(selectedPlanMeta.fiscalYear)}</dd>
                         </div>
                         <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-start')}</dt>
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-start')} : </dt>
                           <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.startDate)}</dd>
                         </div>
                         <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-end')}</dt>
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-end')} : </dt>
                           <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.endDate)}</dd>
                         </div>
                         <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-effective-date')}</dt>
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-effective-date')} : </dt>
                           <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.effectiveDate)}</dd>
                         </div>
                       </dl>
@@ -233,17 +207,6 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
               currencyOptions={currencyOptionsSafe}
               loadingCurrencies={loadingCurrencies}
               t={t}
-            />
-
-            <BudgetSetupCreatePlanBudgetPreview
-              baselineAnnual={annualSalaryCost}
-              salaryAmount={typeof salaryAmount === 'number' ? salaryAmount : 0}
-              salaryPercent={typeof salaryPercent === 'number' ? salaryPercent : 0}
-              bonusAmount={typeof bonusAmount === 'number' ? bonusAmount : 0}
-              bonusPercent={typeof bonusPercent === 'number' ? bonusPercent : 0}
-              currencyCode={currencyCode}
-              loading={loadingSalaryCost}
-              labels={previewLabels}
             />
 
             <DialogFooter className="gba:gap-2">

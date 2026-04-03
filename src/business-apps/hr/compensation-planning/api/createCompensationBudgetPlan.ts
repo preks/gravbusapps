@@ -60,9 +60,10 @@ export interface CompensationBudgetPlanCompanyRestPayload {
   bonusBudgetPercent: number
   budgetPlanStatus: BudgetPlanStatusApi
   currentTotalSalaryCost: number
-  distributionMethod: BudgetDistributionMethodApi
-  headcount: number
   currencyRef: string | null
+  /** Optional — omitted from payloads until the product sends them again. */
+  distributionMethod?: BudgetDistributionMethodApi
+  headcount?: number
 }
 
 export interface CreateCompensationBudgetPlanCompanyRestBody {

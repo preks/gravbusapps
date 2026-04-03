@@ -16,9 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { CurrencyCatalogOption } from '../../hooks/useCurrencyCatalogOptions'
 import { formatCurrency } from '@/common/utils/numberFormatter'
-import { BUDGET_DISTRIBUTION_METHOD_OPTIONS } from '../../../../types/budgetPlanGraphqlEnums'
 import { amountFromPercent, percentFromAmount } from '../../../../utils/budgetAmountPercentSync'
-import { formatBudgetDistributionMethodLabelForDisplay } from './budgetSetupDisplayUtils'
 import type { CreatePlanFormValues } from './budgetSetupCreatePlanSchema'
 
 interface SyncedAmountPercentPairProps {
@@ -51,7 +49,7 @@ function SyncedAmountPercentPair({
         name={amountName}
         render={({ field }) => (
           <FormItem className="gba:min-w-0">
-            <FormLabel>{amountLabel}</FormLabel>
+            <FormLabel>{amountLabel} : </FormLabel>
             <FormControl>
               <Input
                 {...field}
@@ -153,52 +151,14 @@ export const BudgetSetupCreatePlanCompanyBudgetFields: React.FC<BudgetSetupCreat
         percentTestId="budget-setup-create-plan-bonus-percent"
       />
 
-      <FormField
-        control={control}
-        name="distributionMethod"
-        render={({ field }) => (
-          <FormItem className="gba:min-w-0">
-            <FormLabel>{t('budget-setup-create-plan-distribution')}</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-distribution-method">
-                  <SelectValue placeholder={t('budget-setup-create-plan-distribution-placeholder')} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {BUDGET_DISTRIBUTION_METHOD_OPTIONS.map(method => (
-                  <SelectItem key={method} value={method}>
-                    {formatBudgetDistributionMethodLabelForDisplay(method, t)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">
-        <FormField
-          control={control}
-          name="headcount"
-          render={({ field }) => (
-            <FormItem className="gba:min-w-0">
-              <FormLabel>{t('budget-setup-create-plan-headcount')}</FormLabel>
-              <FormControl>
-                <Input {...field} type="number" min={0} data-testid="budget-setup-create-plan-headcount" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <FormField
           control={control}
           name="currencyRef"
           render={({ field }) => (
             <FormItem className="gba:min-w-0">
               <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                <FormLabel>{t('budget-setup-create-plan-currency-label')}</FormLabel>
+                <FormLabel>{t('budget-setup-create-plan-currency-label')} : </FormLabel>
                 {loadingCurrencies ? <Spinner className="gba:h-4 gba:w-4" /> : null}
               </div>
               <Select

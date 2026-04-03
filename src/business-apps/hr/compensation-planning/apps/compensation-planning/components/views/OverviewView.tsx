@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, useTranslation } from '@newwork/nw-design-system'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
+import { buildOrgUnitDistributionInputsFromTeamMembers } from '../../../../utils/buildOrgUnitDistributionInputs'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { CompensationOverviewStatistics } from '../CompensationOverviewStatistics'
+import { OverviewOrgUnitSalaryCard } from './OverviewOrgUnitSalaryCard'
 import translations from '../../_i18n'
 
 interface OverviewViewProps {
@@ -17,6 +19,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
     accessToken,
     companyId
   })
+
+  const orgUnitSalaryRows = useMemo(() => {
+    return buildOrgUnitDistributionInputsFromTeamMembers(teamMembers, {
+      unassignedLabel: t('overview-org-unit-unassigned')
+    }).map(o => ({
+      orgUnitId: o.orgUnitId,
+      orgUnitName: o.orgUnitName,
+      headcount: o.headcount,
+      salaryCost: o.currentTotalSalaryCost
+    }))
+  }, [teamMembers, t])
+
+  const totalSalaryAcrossOrgUnits = useMemo(
+    () => orgUnitSalaryRows.reduce((sum, r) => sum + r.salaryCost, 0),
+    [orgUnitSalaryRows]
+  )
 
   const totalHeadcount = teamMembers.length
   const totalSalaryCost = teamMembers.reduce((sum, m) => sum + (m.currentAnnualSalary ?? 0), 0)
@@ -105,6 +123,15 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {!loading && !error && (
+        <OverviewOrgUnitSalaryCard
+          rows={orgUnitSalaryRows}
+          totalSalaryAcrossUnits={totalSalaryAcrossOrgUnits}
+          currency={currency}
+          teamMemberCount={teamMembers.length}
+        />
       )}
     </div>
   )

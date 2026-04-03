@@ -1,79 +1,67 @@
-import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
-import { formatCurrency } from '@/common/utils/numberFormatter'
-import { resolveAbsoluteBudget } from '../../../../utils/budgetCalculations'
+import type {
+  CompensationBudgetPlanCompanyRow,
+  CompensationBudgetPlanListItem
+} from '../../hooks/useBudgetSetupForCompany'
+import { formatCurrencyCodeAmountFirst, formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 
 const SORT_FALLBACK = Number.NEGATIVE_INFINITY
 
-/** Table row: fields sourced only from `compensation_budget_plan_company` (+ derived resolved amounts). */
+export function formatBudgetPlanChosenLabel(planId: string, plans: CompensationBudgetPlanListItem[]): string {
+  const plan = plans.find(p => p.id === planId)
+  if (!plan) {
+    return planId
+  }
+  return `${plan.name} (${String(plan.fiscalYear)})`
+}
+
+/** Table row: fields sourced from `compensation_budget_plan_company`. */
 export interface BudgetSetupPlanTableRow {
   id: string
   compensationBudgetPlanId: string
+  /** Resolved from `plans` for display (name + fiscal year). */
+  budgetPlanLabel: string
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   companyBudgetStatus: string | null
-  distributionMethod: string | null
-  headcount: number | null
   salaryBaseline: number | null
   currencyRef: string | null
-  resolvedSalary: number | null
-  resolvedBonus: number | null
-  resolvedTotal: number | null
   displayCurrency: string
 }
 
 export function buildBudgetSetupPlanTableRows(
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
   selectedCompanyId: string,
-  teamSalaryBaseline: number,
-  defaultCurrencyCode: string
+  defaultCurrencyCode: string,
+  plans: CompensationBudgetPlanListItem[]
 ): BudgetSetupPlanTableRow[] {
   return companyBudgetPlanRows
     .filter(companyRow => companyRow.companyId === selectedCompanyId)
     .map(companyRow => {
-      const baseline = companyRow.currentTotalSalaryCost > 0 ? companyRow.currentTotalSalaryCost : teamSalaryBaseline
-      const displayCurrency = companyRow.currencyRef?.trim() || defaultCurrencyCode
-
-      const salPct = companyRow.salaryBudgetPercent
-      const salAmt = companyRow.salaryBudgetAmount
-      const bonPct = companyRow.bonusBudgetPercent
-      const bonAmt = companyRow.bonusBudgetAmount
-      const salaryType = salPct > 0 ? ('percentage' as const) : ('absolute' as const)
-      const salaryValue = salPct > 0 ? salPct : salAmt
-      const bonusType = bonPct > 0 ? ('percentage' as const) : ('absolute' as const)
-      const bonusValue = bonPct > 0 ? bonPct : bonAmt
-      const resolvedSalary = resolveAbsoluteBudget(salaryType, salaryValue, baseline)
-      const resolvedBonus = resolveAbsoluteBudget(bonusType, bonusValue, baseline)
-      const resolvedTotal = resolvedSalary + resolvedBonus
+      const displayCurrency = formatCurrencyRefForDisplay(companyRow.currencyRef?.trim()) || defaultCurrencyCode
+      const budgetPlanLabel = formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)
 
       return {
         id: companyRow.id,
         compensationBudgetPlanId: companyRow.compensationBudgetPlanId,
+        budgetPlanLabel,
         companyId: companyRow.companyId,
         salaryBudgetAmount: companyRow.salaryBudgetAmount,
         salaryBudgetPercent: companyRow.salaryBudgetPercent,
         bonusBudgetAmount: companyRow.bonusBudgetAmount,
         bonusBudgetPercent: companyRow.bonusBudgetPercent,
         companyBudgetStatus: companyRow.budgetPlanStatus || null,
-        distributionMethod: companyRow.distributionMethod || null,
-        headcount: companyRow.headcount,
         salaryBaseline: companyRow.currentTotalSalaryCost,
         currencyRef: companyRow.currencyRef,
-        resolvedSalary,
-        resolvedBonus,
-        resolvedTotal,
         displayCurrency
       }
     })
 }
 
 export function formatCurrencyCell(amount: number | null, currency: string): string {
-  if (amount == null) {
-    return '-'
-  }
-  return formatCurrency(amount, currency)
+  return formatCurrencyCodeAmountFirst(amount, currency)
 }
 
 export function sortNumberOrFallback(value: number | null | undefined): number {

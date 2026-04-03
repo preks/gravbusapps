@@ -13,11 +13,7 @@ import {
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
 import type { BudgetType } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
-import {
-  type BudgetDistributionMethodApi,
-  DEFAULT_BUDGET_DISTRIBUTION_METHOD,
-  DEFAULT_BUDGET_PLAN_STATUS_DRAFT
-} from '../../../types/budgetPlanGraphqlEnums'
+import { DEFAULT_BUDGET_PLAN_STATUS_DRAFT } from '../../../types/budgetPlanGraphqlEnums'
 import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 
 /** Mirrors GraphQL `CompensationBudgetPlan` (DB: fiscal_year, start_date, …). */
@@ -58,9 +54,7 @@ export interface CreateBudgetPlanInput {
     salaryBudgetPercent: number
     bonusBudgetAmount: number
     bonusBudgetPercent: number
-    distributionMethod: BudgetDistributionMethodApi
     currentTotalSalaryCost: number
-    headcount: number
     currencyRef: string | null
   }
 }
@@ -143,7 +137,6 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
     salaryBudgetPercent: input.salaryBudgetType === 'percentage' ? input.salaryBudgetValue : 0,
     bonusBudgetAmount: input.bonusBudgetType === 'absolute' ? input.bonusBudgetValue : 0,
     bonusBudgetPercent: input.bonusBudgetType === 'percentage' ? input.bonusBudgetValue : 0,
-    headcount: input.headcount,
     currentTotalSalaryCost: input.currentTotalSalaryCost,
     ...(input.currencyRef !== undefined ? { currencyRef: input.currencyRef } : {})
   }
@@ -307,8 +300,6 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             bonusBudgetPercent: roundMoney2(c.bonusBudgetPercent),
             budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
             currentTotalSalaryCost: c.currentTotalSalaryCost,
-            distributionMethod: c.distributionMethod,
-            headcount: c.headcount,
             currencyRef: c.currencyRef
           }
         })
@@ -352,7 +343,6 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
               compensationBudgetPlanId: selectedBudgetPlanId,
               companyId,
               budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_DRAFT,
-              distributionMethod: DEFAULT_BUDGET_DISTRIBUTION_METHOD,
               isDeleted: false,
               ...changes
             }

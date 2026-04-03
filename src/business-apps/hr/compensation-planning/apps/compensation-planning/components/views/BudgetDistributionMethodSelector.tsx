@@ -37,6 +37,11 @@ function methodIcon(method: DistributionMethod): React.ComponentType<IconProps> 
   }
 }
 
+/** Title message key for i18n (e.g. toolbar summary next to the distribution preview). */
+export function budgetDistributionMethodTitleKey(method: DistributionMethod): string {
+  return methodFluentKeys(method).title
+}
+
 function methodFluentKeys(method: DistributionMethod): { title: string; description: string } {
   switch (method) {
     case 'proportional_headcount':
@@ -72,7 +77,6 @@ export interface BudgetDistributionMethodSelectorProps {
   onMethodChange: (method: DistributionMethod) => void
   disabled?: boolean
   sectionTitle: string
-  sectionDescription: string
   t: Translate
 }
 
@@ -81,7 +85,6 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
   onMethodChange,
   disabled = false,
   sectionTitle,
-  sectionDescription,
   t
 }) => {
   const options = useMemo(
@@ -107,9 +110,8 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
   return (
     <Card className="gba:overflow-hidden" data-testid="budget-distribution-method-selector">
       <CardContent className="gba:space-y-2 gba:p-3">
-        <div className="gba:space-y-0.5">
+        <div>
           <h3 className="gba:text-sm gba:font-semibold gba:leading-tight gba:text-foreground">{sectionTitle}</h3>
-          <p className="gba:text-xs gba:leading-snug gba:text-muted-foreground">{sectionDescription}</p>
         </div>
 
         <RadioGroup
@@ -144,7 +146,7 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
                   <RadioGroupItem
                     value={opt.value}
                     id={inputId}
-                    className="gba:absolute gba:right-1 gba:top-1 gba:h-3 gba:w-3"
+                    className="gba:absolute gba:right-1 gba:top-1 gba:size-4 gba:!rounded-sm [&_[data-slot=radio-group-indicator]_span]:!rounded-sm"
                     data-testid={`budget-distribution-method-input-${opt.value}`}
                   />
                   <Label

@@ -1,6 +1,9 @@
 import React from 'react'
 import { DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
-import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
+import type {
+  CompensationBudgetPlanCompanyRow,
+  CompensationBudgetPlanListItem
+} from '../../hooks/useBudgetSetupForCompany'
 import type { BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
 import { useBudgetSetupPlansTableModel } from './useBudgetSetupPlansTableModel'
 import translations from '../../_i18n'
@@ -9,8 +12,8 @@ export interface BudgetSetupPlansTableProps {
   /** Legal entity selected in the app toolbar — table shows `compensation_budget_plan_company` for this id only. */
   companyId: string
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[]
-  teamSalaryBaseline: number
   currencyCode: string
+  plans: CompensationBudgetPlanListItem[]
   loading: boolean
   error: string | null
   toolbarCompany?: React.ReactNode
@@ -20,8 +23,8 @@ export interface BudgetSetupPlansTableProps {
 export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   companyId,
   companyBudgetPlanRows,
-  teamSalaryBaseline,
   currencyCode,
+  plans,
   loading,
   error,
   toolbarCompany,
@@ -45,7 +48,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useBudgetSetupPlansTableModel(t, companyBudgetPlanRows, companyId, teamSalaryBaseline, currencyCode)
+  } = useBudgetSetupPlansTableModel(t, companyBudgetPlanRows, companyId, currencyCode, plans)
 
   return (
     <DataDisplay
@@ -96,7 +99,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
           enableSelection={false}
           enableColumnPinning
           enableResizing={false}
-          tableLayout="fixed"
+          tableLayout="auto"
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}

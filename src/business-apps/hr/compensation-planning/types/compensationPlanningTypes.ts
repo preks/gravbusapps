@@ -121,6 +121,9 @@ export interface TeamMemberCompensationData {
   jobPosition: string | null
   jobFunction: string | null
   orgUnitName: string | null
+  /** Primary org unit for this position (used for budget distribution aggregation). */
+  organizationalUnitId: string | null
+
   hireDate: string | null
 
   currentAnnualSalary: number | null
