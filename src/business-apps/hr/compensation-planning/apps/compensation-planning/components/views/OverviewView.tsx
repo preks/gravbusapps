@@ -1,7 +1,8 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, useTranslation } from '@newwork/nw-design-system'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
-import { formatCurrency } from '../../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { CompensationOverviewStatistics } from '../CompensationOverviewStatistics'
 import translations from '../../_i18n'
 
@@ -74,18 +75,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
             <CardContent className="gba:space-y-3">
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
                 <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-employees')}</span>
-                <span className="gba:text-sm gba:font-medium gba:tabular-nums">{totalHeadcount}</span>
+                <span className="gba:text-sm gba:font-medium gba:tabular-nums">
+                  {formatNumberFunction(String(totalHeadcount), '0,0')}
+                </span>
               </div>
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
                 <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-with-salary')}</span>
                 <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                  {teamMembers.filter(m => m.currentAnnualSalary != null).length}
+                  {formatNumberFunction(String(teamMembers.filter(m => m.currentAnnualSalary != null).length), '0,0')}
                 </span>
               </div>
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
                 <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-with-band')}</span>
                 <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                  {teamMembers.filter(m => m.compensationBand != null).length}
+                  {formatNumberFunction(String(teamMembers.filter(m => m.compensationBand != null).length), '0,0')}
                 </span>
               </div>
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
@@ -95,7 +98,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
                     const withRatio = teamMembers.filter(m => m.compaRatio != null)
                     if (withRatio.length === 0) return '—'
                     const avg = withRatio.reduce((s, m) => s + (m.compaRatio ?? 0), 0) / withRatio.length
-                    return avg.toFixed(2)
+                    return formatNumberFunction(String(avg), '0.00[,]00')
                   })()}
                 </span>
               </div>

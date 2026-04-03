@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, Progress } from '@newwork/nw-design-system'
-import { formatCurrency } from '../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 
 interface BudgetTrackerProps {
   label: string

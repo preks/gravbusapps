@@ -104,6 +104,7 @@ export function useBudgetDistributionOrgUnitBudget(
   }, [companyId])
 
   const [rows, setRows] = useState<CompensationBudgetPlanOrganizationalUnitRow[]>([])
+  const [budgetPlans, setBudgetPlans] = useState<CompensationBudgetPlanListItem[]>([])
   const [loadingPlans, setLoadingPlans] = useState(false)
   const [loadingRows, setLoadingRows] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,6 +118,7 @@ export function useBudgetDistributionOrgUnitBudget(
         CompensationBudgetPlan: CompensationBudgetPlanListItem[]
       }>(LIST_COMPENSATION_BUDGET_PLANS)
       const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+      setBudgetPlans(list)
       const { selectedBudgetPlanId: currentId, setSelectedBudgetPlanId: pickPlan } =
         useCompensationPlanningStore.getState()
       if (list.length === 0) {
@@ -126,6 +128,7 @@ export function useBudgetDistributionOrgUnitBudget(
       }
     } catch (err) {
       logBudgetGraphqlFailure('ListCompensationBudgetPlans', err)
+      setBudgetPlans([])
       const message = err instanceof Error ? err.message : 'Failed to load budget plans'
       setError(`Budget plans: ${message}`)
     } finally {
@@ -202,8 +205,14 @@ export function useBudgetDistributionOrgUnitBudget(
     [rows, orgUnitNameById]
   )
 
+  const selectedBudgetPlan = useMemo(
+    () => budgetPlans.find(p => p.id === selectedBudgetPlanId) ?? null,
+    [budgetPlans, selectedBudgetPlanId]
+  )
+
   return {
     selectedBudgetPlanId,
+    selectedBudgetPlan,
     rows: rowsWithOrgUnitNames,
     loading: loadingPlans || loadingRows,
     error,

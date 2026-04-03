@@ -1,6 +1,6 @@
 import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { formatLocaleDecimal } from '../../../../utils/budgetCalculations'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetDistributionOrgUnitTableRow } from './budgetDistributionOrgUnitTableRows'
 import { formatCurrencyCell, sortNumberOrFallback } from './budgetDistributionOrgUnitTableRows'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
@@ -9,7 +9,7 @@ function formatPercentCell(value: number): string {
   if (value == null || Number.isNaN(value) || value === 0) {
     return '—'
   }
-  return `${formatLocaleDecimal(value, 0, 2)}%`
+  return `${formatNumberFunction(String(value), '0.00[,]00')}%`
 }
 
 export function buildBudgetDistributionOrgUnitTableColumns(

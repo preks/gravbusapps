@@ -10,16 +10,22 @@ export interface BudgetSetupViewProps {
   accessToken: string
   companyId: string
   companyName?: string
+  companyToolbarGroup: React.ReactNode
 }
 
-export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, companyId, companyName }) => {
+export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({
+  accessToken,
+  companyId,
+  companyName,
+  companyToolbarGroup
+}) => {
   const { t } = useTranslation(translations)
   const [createPlanDialogOpen, setCreatePlanDialogOpen] = useState(false)
 
   const {
     plans,
     selectedBudgetPlanId,
-    companyRowsByPlanId,
+    companyBudgetPlanRows,
     loadingPlans,
     loadingCompanyRowsList,
     creatingPlan,
@@ -93,11 +99,12 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
 
       <BudgetSetupPlansTable
         companyId={companyId}
-        companyRowsByPlanId={companyRowsByPlanId}
+        companyBudgetPlanRows={companyBudgetPlanRows}
         teamSalaryBaseline={currentSalaryCost}
         currencyCode={currencyCode}
         loading={tableLoading}
         error={null}
+        toolbarCompany={companyToolbarGroup}
         toolbarEnd={toolbarEnd}
       />
     </div>

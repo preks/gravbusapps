@@ -15,8 +15,10 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import type { CurrencyCatalogOption } from '../../hooks/useCurrencyCatalogOptions'
-import { formatCurrency } from '../../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { BUDGET_DISTRIBUTION_METHOD_OPTIONS } from '../../../../types/budgetPlanGraphqlEnums'
 import { amountFromPercent, percentFromAmount } from '../../../../utils/budgetAmountPercentSync'
+import { formatBudgetDistributionMethodLabelForDisplay } from './budgetSetupDisplayUtils'
 import type { CreatePlanFormValues } from './budgetSetupCreatePlanSchema'
 
 interface SyncedAmountPercentPairProps {
@@ -149,6 +151,31 @@ export const BudgetSetupCreatePlanCompanyBudgetFields: React.FC<BudgetSetupCreat
         percentLabel={t('budget-setup-create-plan-bonus-percent')}
         amountTestId="budget-setup-create-plan-bonus-amount"
         percentTestId="budget-setup-create-plan-bonus-percent"
+      />
+
+      <FormField
+        control={control}
+        name="distributionMethod"
+        render={({ field }) => (
+          <FormItem className="gba:min-w-0">
+            <FormLabel>{t('budget-setup-create-plan-distribution')}</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-distribution-method">
+                  <SelectValue placeholder={t('budget-setup-create-plan-distribution-placeholder')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {BUDGET_DISTRIBUTION_METHOD_OPTIONS.map(method => (
+                  <SelectItem key={method} value={method}>
+                    {formatBudgetDistributionMethodLabelForDisplay(method, t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
       />
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">

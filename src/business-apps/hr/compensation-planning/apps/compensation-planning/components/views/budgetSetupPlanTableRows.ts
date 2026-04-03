@@ -1,5 +1,6 @@
 import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
-import { formatCurrency, resolveAbsoluteBudget } from '../../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { resolveAbsoluteBudget } from '../../../../utils/budgetCalculations'
 
 const SORT_FALLBACK = Number.NEGATIVE_INFINITY
 
@@ -24,12 +25,12 @@ export interface BudgetSetupPlanTableRow {
 }
 
 export function buildBudgetSetupPlanTableRows(
-  companyRowsByPlanId: Record<string, CompensationBudgetPlanCompanyRow>,
+  companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
   selectedCompanyId: string,
   teamSalaryBaseline: number,
   defaultCurrencyCode: string
 ): BudgetSetupPlanTableRow[] {
-  return Object.values(companyRowsByPlanId)
+  return companyBudgetPlanRows
     .filter(companyRow => companyRow.companyId === selectedCompanyId)
     .map(companyRow => {
       const baseline = companyRow.currentTotalSalaryCost > 0 ? companyRow.currentTotalSalaryCost : teamSalaryBaseline
@@ -69,6 +70,9 @@ export function buildBudgetSetupPlanTableRows(
 }
 
 export function formatCurrencyCell(amount: number | null, currency: string): string {
+  if (amount == null) {
+    return '-'
+  }
   return formatCurrency(amount, currency)
 }
 

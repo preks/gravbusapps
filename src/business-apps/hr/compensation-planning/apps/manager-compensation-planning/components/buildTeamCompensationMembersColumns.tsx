@@ -2,7 +2,8 @@ import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarFallback, AvatarImage, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import { formatCurrency, formatPercent } from '../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { formatPercent } from '../../../utils/budgetCalculations'
 import { formatDate } from '@/common/utils/windowUtils'
 import { CompaRatioBar } from './CompaRatioBar'
 import { formatPerformanceScoreDisplay } from '../../../utils/formatPerformanceScoreDisplay'
@@ -78,11 +79,7 @@ export function buildTeamCompensationMembersColumns(
       cell: ({ row }) => {
         const member = row.original
         if (member.currentAnnualSalary == null && member.currentMonthlySalary == null) {
-          return (
-            <span className="gba:text-sm gba:text-muted-foreground gba:tabular-nums">
-              {formatCurrency(null, member.currency)}
-            </span>
-          )
+          return <span className="gba:text-sm gba:text-muted-foreground gba:tabular-nums">{'—'}</span>
         }
         return (
           <div className="gba:space-y-0.5">

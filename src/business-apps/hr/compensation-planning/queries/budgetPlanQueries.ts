@@ -96,11 +96,12 @@ export const GET_COMPENSATION_BUDGET_PLAN_BY_PK = `
   }
 `
 
-/** All company budget rows for a legal entity (one row per plan at most). */
+/** All company budget rows for a legal entity (multiple rows may share the same plan id). */
 export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY = `
   query ListCompensationBudgetPlanCompanyByCompany($companyId: uuid!) {
     CompensationBudgetPlanCompany(
       where: { companyId: { _eq: $companyId }, isDeleted: { _eq: false } }
+      orderBy: [{ compensationBudgetPlanId: ASC }, { id: ASC }]
       limit: 500
     ) {
       id
@@ -179,7 +180,11 @@ export const INSERT_COMPENSATION_BUDGET_PLAN = `
     insert_CompensationBudgetPlan_one(object: $object) {
       id
       name
+      description
       fiscalYear
+      startDate
+      endDate
+      effectiveDate
       budgetPlanStatus
     }
   }

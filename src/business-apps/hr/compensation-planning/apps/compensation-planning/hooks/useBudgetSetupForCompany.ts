@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { env } from '@/common/env/EnvUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import { createCompensationBudgetPlanCompany } from '../../../api/createCompensationBudgetPlan'
 import {
   GET_COMPENSATION_BUDGET_PLAN_COMPANY,
@@ -12,8 +12,9 @@ import {
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
 import type { BudgetType } from '../../../types/compensationPlanningTypes'
-import { deriveExclusiveAmountPercent } from '../../../utils/budgetAmountPercentSync'
+import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import {
+  type BudgetDistributionMethodApi,
   DEFAULT_BUDGET_DISTRIBUTION_METHOD,
   DEFAULT_BUDGET_PLAN_STATUS_DRAFT
 } from '../../../types/budgetPlanGraphqlEnums'
@@ -57,6 +58,7 @@ export interface CreateBudgetPlanInput {
     salaryBudgetPercent: number
     bonusBudgetAmount: number
     bonusBudgetPercent: number
+    distributionMethod: BudgetDistributionMethodApi
     currentTotalSalaryCost: number
     headcount: number
     currencyRef: string | null
@@ -149,7 +151,7 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
 
 export function useBudgetSetupForCompany(accessToken: string, companyId: string | null) {
   const graphqlClient = useGraphQLClient(accessToken)
-  const restClient = useRestClient(env('NEXT_PUBLIC_COMPENSATION_BUDGET_API_URL') ?? env('NEXT_PUBLIC_BASE_URL') ?? '')
+  const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
   const { selectedBudgetPlanId, setSelectedBudgetPlanId } = useCompensationPlanningStore()
   /** Avoid applying company budget list responses after the user switched company in the dropdown. */
   const companyIdRef = useRef(companyId)
@@ -160,19 +162,19 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
 
   useEffect(() => {
     if (companyId == null) {
-      setCompanyRowsByPlanId({})
+      setCompanyBudgetPlanRows([])
       previousCompanyIdRef.current = null
       return
     }
     if (previousCompanyIdRef.current !== null && previousCompanyIdRef.current !== companyId) {
-      setCompanyRowsByPlanId({})
+      setCompanyBudgetPlanRows([])
     }
     previousCompanyIdRef.current = companyId
   }, [companyId])
 
   const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
   const [companyRow, setCompanyRow] = useState<CompensationBudgetPlanCompanyRow | null>(null)
-  const [companyRowsByPlanId, setCompanyRowsByPlanId] = useState<Record<string, CompensationBudgetPlanCompanyRow>>({})
+  const [companyBudgetPlanRows, setCompanyBudgetPlanRows] = useState<CompensationBudgetPlanCompanyRow[]>([])
   const [loadingPlans, setLoadingPlans] = useState(false)
   const [loadingCompanyRow, setLoadingCompanyRow] = useState(false)
   const [loadingCompanyRowsList, setLoadingCompanyRowsList] = useState(false)
@@ -244,7 +246,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
 
   const fetchCompanyRowsForCompany = useCallback(async () => {
     if (!accessToken || !companyId) {
-      setCompanyRowsByPlanId({})
+      setCompanyBudgetPlanRows([])
       return
     }
     const companyIdForRequest = companyId
@@ -256,20 +258,20 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       if (companyIdRef.current !== companyIdForRequest) {
         return
       }
-      const next: Record<string, CompensationBudgetPlanCompanyRow> = {}
+      const next: CompensationBudgetPlanCompanyRow[] = []
       for (const raw of result.CompensationBudgetPlanCompany ?? []) {
         const row = mapGraphqlCompanyRow(raw)
         if (row.companyId !== companyIdForRequest) {
           continue
         }
-        next[row.compensationBudgetPlanId] = row
+        next.push(row)
       }
-      setCompanyRowsByPlanId(next)
+      setCompanyBudgetPlanRows(next)
     } catch (err) {
       logBudgetGraphqlFailure('ListCompensationBudgetPlanCompanyByCompany', err)
       const message = err instanceof Error ? err.message : 'Failed to load company budget rows'
       setError(`Company budget list: ${message}`)
-      setCompanyRowsByPlanId({})
+      setCompanyBudgetPlanRows([])
     } finally {
       setLoadingCompanyRowsList(false)
     }
@@ -287,34 +289,27 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     void fetchCompanyRowsForCompany()
   }, [fetchCompanyRowsForCompany])
 
+  /** Budget **setup** tab add dialog: REST `createCompensationBudgetPlanCompany` (plan–company row). */
   const createPlan = useCallback(
     async (input: CreateBudgetPlanInput) => {
       if (!accessToken) return null
       setCreatingPlan(true)
       setError(null)
       try {
-        const salary = deriveExclusiveAmountPercent(
-          input.companyBudget.salaryBudgetAmount,
-          input.companyBudget.salaryBudgetPercent
-        )
-        const bonus = deriveExclusiveAmountPercent(
-          input.companyBudget.bonusBudgetAmount,
-          input.companyBudget.bonusBudgetPercent
-        )
-
+        const c = input.companyBudget
         const { id, raw } = await createCompensationBudgetPlanCompany(restClient, accessToken, {
           compensationBudgetPlanCompany: {
-            compensationBudgetPlan: input.companyBudget.compensationBudgetPlanId,
-            company: input.companyBudget.companyId,
-            salaryBudgetAmount: salary.amount,
-            salaryBudgetPercent: salary.percent,
-            bonusBudgetAmount: bonus.amount,
-            bonusBudgetPercent: bonus.percent,
+            compensationBudgetPlan: c.compensationBudgetPlanId,
+            company: c.companyId,
+            salaryBudgetAmount: roundMoney2(c.salaryBudgetAmount),
+            salaryBudgetPercent: roundMoney2(c.salaryBudgetPercent),
+            bonusBudgetAmount: roundMoney2(c.bonusBudgetAmount),
+            bonusBudgetPercent: roundMoney2(c.bonusBudgetPercent),
             budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
-            currentTotalSalaryCost: input.companyBudget.currentTotalSalaryCost,
-            distributionMethod: DEFAULT_BUDGET_DISTRIBUTION_METHOD,
-            headcount: input.companyBudget.headcount,
-            currencyRef: input.companyBudget.currencyRef
+            currentTotalSalaryCost: c.currentTotalSalaryCost,
+            distributionMethod: c.distributionMethod,
+            headcount: c.headcount,
+            currencyRef: c.currencyRef
           }
         })
         if (!id) {
@@ -391,7 +386,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     selectedBudgetPlanId,
     setSelectedBudgetPlanId,
     companyRow,
-    companyRowsByPlanId,
+    companyBudgetPlanRows,
     loadingPlans,
     loadingCompanyRow,
     loadingCompanyRowsList,

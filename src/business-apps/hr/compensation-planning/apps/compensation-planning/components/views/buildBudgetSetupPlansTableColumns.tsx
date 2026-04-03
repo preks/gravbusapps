@@ -1,6 +1,6 @@
 import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { formatLocaleDecimal } from '../../../../utils/budgetCalculations'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
 import { formatCurrencyCell, sortNumberOrFallback } from './budgetSetupPlanTableRows'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
@@ -9,12 +9,13 @@ function formatPercentCell(value: number): string {
   if (value == null || Number.isNaN(value) || value === 0) {
     return '—'
   }
-  return `${formatLocaleDecimal(value, 0, 2)}%`
+  return `${formatNumberFunction(String(value), '0.00[,]00')}%`
 }
 
 export function buildBudgetSetupPlansTableColumns(
   t: TranslateFn,
-  formatEnum: (value: string | null | undefined) => string
+  formatBudgetPlanStatus: (value: string | null | undefined) => string,
+  formatDistributionMethod: (value: string | null | undefined) => string
 ): ColumnDef<BudgetSetupPlanTableRow>[] {
   return [
     {
@@ -26,7 +27,7 @@ export function buildBudgetSetupPlansTableColumns(
       meta: { type: 'text' },
       cell: ({ row }) => {
         const v = row.original.companyBudgetStatus
-        return <span className="gba:text-sm">{v ? formatEnum(v) : '—'}</span>
+        return <span className="gba:text-sm">{v ? formatBudgetPlanStatus(v) : '—'}</span>
       }
     },
     {
@@ -86,7 +87,7 @@ export function buildBudgetSetupPlansTableColumns(
       meta: { type: 'text' },
       cell: ({ row }) => {
         const v = row.original.distributionMethod
-        return <span className="gba:text-sm">{v ? formatEnum(v) : '—'}</span>
+        return <span className="gba:text-sm">{v ? formatDistributionMethod(v) : '—'}</span>
       }
     },
     {
@@ -95,7 +96,13 @@ export function buildBudgetSetupPlansTableColumns(
       header: t('budget-setup-table-col-headcount'),
       meta: { align: 'right', type: 'number' },
       accessorFn: row => sortNumberOrFallback(row.headcount),
-      cell: ({ row }) => <span className="gba:text-sm gba:tabular-nums">{row.original.headcount ?? '—'}</span>
+      cell: ({ row }) => {
+        const hc = row.original.headcount
+        if (hc == null) {
+          return <span className="gba:text-sm gba:tabular-nums">—</span>
+        }
+        return <span className="gba:text-sm gba:tabular-nums">{formatNumberFunction(String(hc), '0,0')}</span>
+      }
     },
     {
       id: 'salaryBaseline',

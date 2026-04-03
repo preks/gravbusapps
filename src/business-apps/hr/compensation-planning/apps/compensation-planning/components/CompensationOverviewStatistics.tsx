@@ -2,7 +2,8 @@ import React, { useMemo, memo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { ChartLineIcon, CurrencyCircleDollarIcon, GiftIcon, UsersIcon } from '@phosphor-icons/react'
 import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
-import { formatCurrency } from '../../../utils/budgetCalculations'
+import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/numberFormatter'
+import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils'
 import translations from '../_i18n'
 
 const KPI_COLORS = {
@@ -35,12 +36,23 @@ const CompensationOverviewStatisticsComponent: React.FC<CompensationOverviewStat
 }) => {
   const { t } = useTranslation(translations)
 
-  const widgets: WidgetItem[] = useMemo(
-    () => [
+  const bonusesYtdDescription = useMemo(
+    () => t('overview-kpi-bonuses-ytd-desc', { date: formatDate(new Date(), 'date.medium') ?? '—' }),
+    [t]
+  )
+
+  const widgets: WidgetItem[] = useMemo(() => {
+    const kpiMoney = {
+      currency: extractCurrencyCode(currency),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+    return [
       {
         key: 'overview-employees',
         title: t('overview-kpi-employees-title'),
-        value: employeeCount,
+        value: formatNumberFunction(String(employeeCount), '0,0'),
+        valueIsString: true,
         prefix: <UsersIcon size={24} />,
         color: KPI_COLORS.employees,
         span: { xs: 24, sm: 12, lg: 6 },
@@ -49,7 +61,7 @@ const CompensationOverviewStatisticsComponent: React.FC<CompensationOverviewStat
       {
         key: 'overview-salary-cost',
         title: t('overview-kpi-salary-cost-title'),
-        value: formatCurrency(annualSalaryCost, currency),
+        value: formatCurrencyString(annualSalaryCost, kpiMoney),
         valueIsString: true,
         prefix: <CurrencyCircleDollarIcon size={24} />,
         color: KPI_COLORS.salaryCost,
@@ -59,7 +71,7 @@ const CompensationOverviewStatisticsComponent: React.FC<CompensationOverviewStat
       {
         key: 'overview-avg-salary',
         title: t('overview-kpi-avg-salary-title'),
-        value: formatCurrency(averageSalary, currency),
+        value: formatCurrencyString(averageSalary, kpiMoney),
         valueIsString: true,
         prefix: <ChartLineIcon size={24} />,
         color: KPI_COLORS.avgSalary,
@@ -69,16 +81,15 @@ const CompensationOverviewStatisticsComponent: React.FC<CompensationOverviewStat
       {
         key: 'overview-bonuses-ytd',
         title: t('overview-kpi-bonuses-ytd-title'),
-        value: formatCurrency(bonusesYtd, currency),
+        value: formatCurrencyString(bonusesYtd, kpiMoney),
         valueIsString: true,
         prefix: <GiftIcon size={24} />,
         color: KPI_COLORS.bonusesYtd,
         span: { xs: 24, sm: 12, lg: 6 },
-        description: t('overview-kpi-bonuses-ytd-desc')
+        description: bonusesYtdDescription
       }
-    ],
-    [employeeCount, annualSalaryCost, averageSalary, bonusesYtd, currency, t]
-  )
+    ]
+  }, [employeeCount, annualSalaryCost, averageSalary, bonusesYtd, currency, t, bonusesYtdDescription])
 
   return (
     <div data-testid="compensation-overview-statistics">

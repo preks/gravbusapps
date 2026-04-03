@@ -25,11 +25,8 @@ import {
 import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
 import type { UseFormReturn } from 'react-hook-form'
 import type { BudgetType } from '../../../../types/compensationPlanningTypes'
-import {
-  computeCompanyBudgetSummary,
-  formatCurrency,
-  resolveAbsoluteBudget
-} from '../../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { computeCompanyBudgetSummary, resolveAbsoluteBudget } from '../../../../utils/budgetCalculations'
 import translations from '../../_i18n'
 
 const companyBudgetSchema = z.object({

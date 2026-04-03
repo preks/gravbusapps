@@ -33,6 +33,7 @@ import {
 } from './budgetSetupCreatePlanSchema'
 import { BudgetSetupCreatePlanBudgetPreview } from './BudgetSetupCreatePlanBudgetPreview'
 import { BudgetSetupCreatePlanCompanyBudgetFields } from './BudgetSetupCreatePlanCompanyBudgetFields'
+import { formatDateOrDash } from '../../utils/displayFormatUtils'
 
 export interface BudgetSetupCreatePlanDialogProps {
   accessToken: string
@@ -129,6 +130,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
         salaryBudgetPercent: values.salaryBudgetPercent,
         bonusBudgetAmount: values.bonusBudgetAmount,
         bonusBudgetPercent: values.bonusBudgetPercent,
+        distributionMethod: values.distributionMethod,
         currentTotalSalaryCost: annualSalaryCost,
         headcount: values.headcount,
         currencyRef: values.currencyRef.trim() === '' ? null : values.currencyRef.trim()
@@ -140,6 +142,9 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
   })
 
   const [salaryAmount, salaryPercent, bonusAmount, bonusPercent] = watchedBudget ?? [0, 0, 0, 0]
+
+  const watchedPlanId = useWatch({ control: form.control, name: 'compensationBudgetPlanId' })
+  const selectedPlanMeta = useMemo(() => plansSafe.find(p => p.id === watchedPlanId), [plansSafe, watchedPlanId])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -179,11 +184,37 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                     <SelectContent>
                       {plansSafe.map(plan => (
                         <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name} ({plan.fiscalYear})
+                          {plan.name} ({String(plan.fiscalYear)})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedPlanMeta ? (
+                    <div
+                      className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:text-sm"
+                      data-testid="budget-setup-create-plan-selected-plan-details"
+                    >
+                      <p className="gba:font-medium gba:text-foreground">{t('budget-setup-plan-details-title')}</p>
+                      <dl className="gba:mt-2 gba:grid gba:grid-cols-1 gba:gap-1 sm:gba:grid-cols-2">
+                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-fiscal-year')}</dt>
+                          <dd className="gba:tabular-nums">{String(selectedPlanMeta.fiscalYear)}</dd>
+                        </div>
+                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-start')}</dt>
+                          <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.startDate)}</dd>
+                        </div>
+                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-end')}</dt>
+                          <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.endDate)}</dd>
+                        </div>
+                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-effective-date')}</dt>
+                          <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.effectiveDate)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  ) : null}
                   {plansSafe.length === 0 && !loadingPlans ? (
                     <p className="gba:text-sm gba:text-muted-foreground">
                       {t('budget-setup-create-plan-no-plans-hint')}

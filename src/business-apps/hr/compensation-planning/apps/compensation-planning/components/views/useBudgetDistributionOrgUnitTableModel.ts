@@ -10,7 +10,7 @@ import {
   BUDGET_DISTRIBUTION_ORG_UNIT_VISIBLE_COLUMN_IDS,
   buildBudgetDistributionOrgUnitTableColumns
 } from './buildBudgetDistributionOrgUnitTableColumns'
-import { formatEnumLabelForDisplay } from './budgetSetupDisplayUtils'
+import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
 import { applyNumberRangeFromFilters, budgetMatchesRange } from './budgetSetupPlansTableFilterUtils'
 import { buildBudgetDistributionOrgUnitFilterConfiguration } from './buildBudgetDistributionOrgUnitFilterConfiguration'
@@ -48,7 +48,7 @@ export function useBudgetDistributionOrgUnitTableModel(
         ids.add(row.orgUnitBudgetStatus)
       }
     }
-    return [...ids].sort().map(id => ({ id, label: formatEnumLabelForDisplay(id) || id }))
+    return [...ids].sort().map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
   }, [allRows])
 
   const totalResolvedRangeConfig = useMemo(
@@ -75,7 +75,7 @@ export function useBudgetDistributionOrgUnitTableModel(
     if (q) {
       list = list.filter(row => {
         const name = (row.organizationalUnitName ?? '').toLowerCase()
-        const statusLabel = formatEnumLabelForDisplay(row.orgUnitBudgetStatus).toLowerCase()
+        const statusLabel = formatBudgetPlanStatusLabelForDisplay(row.orgUnitBudgetStatus, t).toLowerCase()
         return (
           row.id.toLowerCase().includes(q) ||
           row.compensationBudgetPlanId.toLowerCase().includes(q) ||
@@ -138,7 +138,10 @@ export function useBudgetDistributionOrgUnitTableModel(
     )
   }, [])
 
-  const columns = useMemo(() => buildBudgetDistributionOrgUnitTableColumns(t, formatEnumLabelForDisplay), [t])
+  const columns = useMemo(
+    () => buildBudgetDistributionOrgUnitTableColumns(t, v => formatBudgetPlanStatusLabelForDisplay(v, t)),
+    [t]
+  )
 
   const visibleTableColumns = useMemo(
     () =>

@@ -9,7 +9,14 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ChartBarIcon, GearIcon, ListChecksIcon, StackIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import {
+  CalendarBlankIcon,
+  ChartBarIcon,
+  GearIcon,
+  ListChecksIcon,
+  StackIcon,
+  TreeStructureIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
@@ -18,6 +25,7 @@ import { OverviewView } from './components/views/OverviewView'
 import { BudgetSetupView } from './components/views/BudgetSetupView'
 import { SubmissionsView } from './components/views/SubmissionsView'
 import { BudgetDistributionView } from './components/views/BudgetDistributionView'
+import { BudgetPlanView } from './components/views/BudgetPlanView'
 import translations from './_i18n'
 
 export const CompensationPlanning: React.FC<BusinessAppContextProps> = context => {
@@ -27,6 +35,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
   const viewOptions = [
     { value: 'overview', label: t('tab-overview'), icon: <ChartBarIcon /> },
+    { value: 'budget-plan', label: t('tab-budget-plan'), icon: <CalendarBlankIcon /> },
     { value: 'budget', label: t('tab-budget-setup'), icon: <GearIcon /> },
     { value: 'budget-distribution', label: t('tab-budget-distribution'), icon: <TreeStructureIcon /> },
     { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> }
@@ -56,6 +65,10 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     selectCompany
   )
 
+  const isBudgetPlanTab = activeTab === 'budget-plan'
+  /** Company + primary actions live in the DataDisplay toolbar (like Currency + Add). */
+  const showCompanyInPageToolbar = activeTab !== 'budget-plan' && activeTab !== 'budget'
+
   const companySelectValue =
     selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
 
@@ -78,18 +91,25 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     </Select>
   )
 
+  const companyToolbarGroup = (
+    <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
+      <span className="gba:shrink-0 gba:text-sm gba:text-muted-foreground">{t('toolbar-company-label')}</span>
+      {companySelect}
+    </div>
+  )
+
   const toolbarRow = (
     <div
       className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-4"
       data-testid="compensation-planning-toolbar"
     >
       <div className="gba:min-w-0 gba:flex-1">
-        {selectedCompanyId ? null : (
+        {!isBudgetPlanTab && !selectedCompanyId ? (
           <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-        )}
+        ) : null}
       </div>
       <div className="gba:flex gba:flex-col gba:items-end gba:gap-2 gba:shrink-0">
-        {companySelect}
+        {showCompanyInPageToolbar ? companySelect : null}
         {!companiesLoading && companies.length === 0 && companiesLoadError ? (
           <p
             className="gba:max-w-sm gba:text-right gba:text-sm gba:text-destructive"
@@ -103,7 +123,12 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
   )
 
   const renderTabContent = () => {
-    if (!selectedCompanyId) return null
+    if (isBudgetPlanTab) {
+      return <BudgetPlanView accessToken={accessToken} companyToolbarGroup={companyToolbarGroup} />
+    }
+    if (!selectedCompanyId) {
+      return null
+    }
     switch (activeTab) {
       case 'overview':
         return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
@@ -113,6 +138,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             accessToken={accessToken}
             companyId={selectedCompanyId}
             companyName={companies.find(c => c.id === selectedCompanyId)?.name}
+            companyToolbarGroup={companyToolbarGroup}
           />
         )
       case 'budget-distribution':
@@ -140,7 +166,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       >
         <div className="gba:space-y-4">
           {toolbarRow}
-          {selectedCompanyId ? <div className="gba:space-y-4">{renderTabContent()}</div> : null}
+          {isBudgetPlanTab || selectedCompanyId ? <div className="gba:space-y-4">{renderTabContent()}</div> : null}
         </div>
       </div>
     )

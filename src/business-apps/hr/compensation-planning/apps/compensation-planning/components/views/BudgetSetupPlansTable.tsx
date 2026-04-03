@@ -8,22 +8,23 @@ import translations from '../../_i18n'
 export interface BudgetSetupPlansTableProps {
   /** Legal entity selected in the app toolbar — table shows `compensation_budget_plan_company` for this id only. */
   companyId: string
-  plans: CompensationBudgetPlanListItem[]
-  companyRowsByPlanId: Record<string, CompensationBudgetPlanCompanyRow>
+  companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[]
   teamSalaryBaseline: number
   currencyCode: string
   loading: boolean
   error: string | null
+  toolbarCompany?: React.ReactNode
   toolbarEnd?: React.ReactNode
 }
 
 export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   companyId,
-  companyRowsByPlanId,
+  companyBudgetPlanRows,
   teamSalaryBaseline,
   currencyCode,
   loading,
   error,
+  toolbarCompany,
   toolbarEnd
 }) => {
   const { t } = useTranslation(translations)
@@ -44,7 +45,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useBudgetSetupPlansTableModel(t, companyRowsByPlanId, companyId, teamSalaryBaseline, currencyCode)
+  } = useBudgetSetupPlansTableModel(t, companyBudgetPlanRows, companyId, teamSalaryBaseline, currencyCode)
 
   return (
     <DataDisplay
@@ -73,7 +74,12 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
       availableColumns={availableColumnsForDisplay}
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={setVisibleColumns}
-      secondaryActions={toolbarEnd}
+      secondaryActions={
+        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+          {toolbarCompany}
+          {toolbarEnd}
+        </div>
+      }
     >
       <TooltipProvider>
         <DataTable<BudgetSetupPlanTableRow>

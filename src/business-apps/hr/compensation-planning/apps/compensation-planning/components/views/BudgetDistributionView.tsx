@@ -12,6 +12,7 @@ import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useC
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
 import translations from '../../_i18n'
+import { formatDateOrDash, formatDateRangeOrDash } from '../../utils/displayFormatUtils'
 import { BudgetDistributionOrgUnitTable } from './BudgetDistributionOrgUnitTable'
 import { BudgetDistributionMethodSelector } from './BudgetDistributionMethodSelector'
 import { useBudgetDistributionOrgUnitBudget } from '../../hooks/useBudgetDistributionOrgUnitBudget'
@@ -77,7 +78,8 @@ export const BudgetDistributionView: React.FC<BudgetDistributionViewProps> = ({ 
     rows,
     loading: loadingOrgUnitBudgets,
     error: orgUnitBudgetError,
-    selectedBudgetPlanId
+    selectedBudgetPlanId,
+    selectedBudgetPlan
   } = useBudgetDistributionOrgUnitBudget(accessToken, companyId, companyOrgUnits)
 
   const filteredRows = useMemo(() => {
@@ -90,8 +92,23 @@ export const BudgetDistributionView: React.FC<BudgetDistributionViewProps> = ({ 
   const tableLoading = loadingTeam || loadingOrgUnits || loadingOrgUnitBudgets
   const tableError = orgUnitBudgetError ?? teamError ?? null
 
+  const activePlanSummary =
+    selectedBudgetPlan != null
+      ? t('budget-distribution-active-plan-summary', {
+          name: selectedBudgetPlan.name,
+          fiscalYear: String(selectedBudgetPlan.fiscalYear),
+          planningWindow: formatDateRangeOrDash(selectedBudgetPlan.startDate, selectedBudgetPlan.endDate),
+          effective: formatDateOrDash(selectedBudgetPlan.effectiveDate)
+        })
+      : null
+
   return (
     <div className="gba:space-y-4" data-testid="budget-distribution-view">
+      {activePlanSummary ? (
+        <p className="gba:text-sm gba:text-muted-foreground" data-testid="budget-distribution-active-plan-summary">
+          {activePlanSummary}
+        </p>
+      ) : null}
       <div className="gba:flex gba:flex-col gba:gap-2">
         <label
           className="gba:text-sm gba:font-medium gba:text-foreground"

@@ -11,7 +11,7 @@ export type BudgetPlanStatusApi =
   | 'BUDGET_PLAN_SENT_BACK'
   | 'BUDGET_PLAN_EXECUTED'
 
-/** Values for company budget row form / REST `createCompensationBudgetPlan` (plan company payload). */
+/** Values for plan and company budget rows (GraphQL / REST `createCompensationBudgetPlanCompany` payload). */
 export const BUDGET_PLAN_STATUS_OPTIONS = [
   'UNKOWN_BUDGET_STATUS',
   'BUDGET_PLAN_DRAFT',

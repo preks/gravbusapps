@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { formatLocaleDecimal } from '../../../utils/budgetCalculations'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import translations from '../_i18n'
 
 interface CompaRatioBarProps {
@@ -45,7 +45,7 @@ export const CompaRatioBar: React.FC<CompaRatioBarProps> = ({ compaRatio, band, 
       </div>
       {compaRatio != null && (
         <div className="gba:text-sm gba:text-muted-foreground gba:mt-0.5 gba:text-center">
-          {t('compa-ratio-label', { ratio: formatLocaleDecimal(compaRatio, 2, 2) })}
+          {t('compa-ratio-label', { ratio: formatNumberFunction(String(compaRatio), '0.00[,]00') })}
         </div>
       )}
     </div>

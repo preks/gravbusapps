@@ -7,7 +7,10 @@ import {
   BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS,
   buildBudgetSetupPlansTableColumns
 } from './buildBudgetSetupPlansTableColumns'
-import { formatEnumLabelForDisplay } from './budgetSetupDisplayUtils'
+import {
+  formatBudgetDistributionMethodLabelForDisplay,
+  formatBudgetPlanStatusLabelForDisplay
+} from './budgetSetupDisplayUtils'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
 import { applyNumberRangeFromFilters, budgetMatchesRange } from './budgetSetupPlansTableFilterUtils'
 import { buildBudgetSetupPlansFilterConfiguration } from './buildBudgetSetupPlansFilterConfiguration'
@@ -16,7 +19,7 @@ const EMPTY_RANGE_INPUT_PLACEHOLDER = '\u200b'
 
 export function useBudgetSetupPlansTableModel(
   t: TranslateFn,
-  companyRowsByPlanId: Record<string, CompensationBudgetPlanCompanyRow>,
+  companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
   selectedCompanyId: string,
   teamSalaryBaseline: number,
   currencyCode: string
@@ -32,8 +35,8 @@ export function useBudgetSetupPlansTableModel(
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS])
 
   const allRows = useMemo(
-    () => buildBudgetSetupPlanTableRows(companyRowsByPlanId, selectedCompanyId, teamSalaryBaseline, currencyCode),
-    [companyRowsByPlanId, selectedCompanyId, teamSalaryBaseline, currencyCode]
+    () => buildBudgetSetupPlanTableRows(companyBudgetPlanRows, selectedCompanyId, teamSalaryBaseline, currencyCode),
+    [companyBudgetPlanRows, selectedCompanyId, teamSalaryBaseline, currencyCode]
   )
 
   const companyBudgetStatusOptions = useMemo(() => {
@@ -43,7 +46,7 @@ export function useBudgetSetupPlansTableModel(
         ids.add(row.companyBudgetStatus)
       }
     }
-    return [...ids].sort().map(id => ({ id, label: formatEnumLabelForDisplay(id) || id }))
+    return [...ids].sort().map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
   }, [allRows])
 
   const totalResolvedRangeConfig = useMemo(
@@ -69,8 +72,9 @@ export function useBudgetSetupPlansTableModel(
     const q = debouncedSearch.trim().toLowerCase()
     if (q) {
       list = list.filter(row => {
-        const statusLabel = formatEnumLabelForDisplay(row.companyBudgetStatus).toLowerCase()
-        const distLabel = formatEnumLabelForDisplay(row.distributionMethod).toLowerCase()
+        const statusLabel = formatBudgetPlanStatusLabelForDisplay(row.companyBudgetStatus, t).toLowerCase()
+        const distLabel = formatBudgetDistributionMethodLabelForDisplay(row.distributionMethod, t).toLowerCase()
+        const distRaw = (row.distributionMethod ?? '').toLowerCase()
         const currency = (row.currencyRef ?? '').toLowerCase()
         return (
           row.id.toLowerCase().includes(q) ||
@@ -78,6 +82,7 @@ export function useBudgetSetupPlansTableModel(
           row.companyId.toLowerCase().includes(q) ||
           statusLabel.includes(q) ||
           distLabel.includes(q) ||
+          distRaw.includes(q) ||
           currency.includes(q) ||
           String(row.salaryBudgetAmount).includes(q) ||
           String(row.salaryBudgetPercent).includes(q) ||
@@ -96,7 +101,7 @@ export function useBudgetSetupPlansTableModel(
     list = list.filter(row => budgetMatchesRange(row.resolvedTotal, totalResolvedRange))
 
     return list
-  }, [allRows, debouncedSearch, selectedCompanyBudgetStatuses, totalResolvedRange])
+  }, [allRows, debouncedSearch, selectedCompanyBudgetStatuses, totalResolvedRange, t])
 
   const hasActiveFilters = useMemo(() => {
     const hasRange = (range: { min?: number | null; max?: number | null } | null) =>
@@ -128,7 +133,15 @@ export function useBudgetSetupPlansTableModel(
     )
   }, [])
 
-  const columns = useMemo(() => buildBudgetSetupPlansTableColumns(t, formatEnumLabelForDisplay), [t])
+  const columns = useMemo(
+    () =>
+      buildBudgetSetupPlansTableColumns(
+        t,
+        v => formatBudgetPlanStatusLabelForDisplay(v, t),
+        v => formatBudgetDistributionMethodLabelForDisplay(v, t)
+      ),
+    [t]
+  )
 
   const visibleTableColumns = useMemo(
     () =>

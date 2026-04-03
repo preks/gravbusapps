@@ -1,5 +1,6 @@
 import React from 'react'
-import { formatCurrency, resolveAbsoluteBudget } from '../../../../utils/budgetCalculations'
+import { formatCurrency } from '@/common/utils/numberFormatter'
+import { resolveAbsoluteBudget } from '../../../../utils/budgetCalculations'
 
 export interface BudgetSetupCreatePlanBudgetPreviewProps {
   baselineAnnual: number
