@@ -36071,10 +36071,16 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10465,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10465/",
-    "chunkJsBytes": 423319,
+    "bitbucketBuildNumber": 10473,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10473/",
+    "chunkJsBytes": 961053,
     "top": [
+      {
+        "kind": "bucket",
+        "name": "(other)/platform",
+        "rendered": 587730,
+        "gzip": 31954
+      },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
@@ -36089,6 +36095,12 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/platform",
+        "rendered": 23915,
+        "gzip": 5886
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15836,
         "gzip": 3776
@@ -36098,12 +36110,6 @@
         "name": "(src)/common/network",
         "rendered": 12799,
         "gzip": 3797
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/platform",
-        "rendered": 11662,
-        "gzip": 3122
       },
       {
         "kind": "bucket",
@@ -36152,12 +36158,6 @@
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
         "gzip": 222
-      },
-      {
-        "kind": "bucket",
-        "name": "(other)/platform",
-        "rendered": 212,
-        "gzip": 194
       },
       {
         "kind": "bucket",
@@ -41000,7 +41000,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-03T09:53:22.250Z",
+    "generatedAt": "2026-04-03T10:46:37.110Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
