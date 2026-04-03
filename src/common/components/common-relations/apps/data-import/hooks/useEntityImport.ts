@@ -70,8 +70,6 @@ const STANDARD_ENTITY_ENDPOINTS = {
   opportunity: 'Opportunities'
 } as const
 
-const MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS = 500
-
 type SupportedStandardEntityType = keyof typeof STANDARD_ENTITY_ENDPOINTS
 
 function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> {
@@ -365,14 +363,6 @@ function toInvestmentOpportunityPayload(entity: Record<string, any>, ownerEmploy
   return built
 }
 
-function shouldFallbackToSingularInvestmentOpportunityEndpoint(error: unknown): boolean {
-  const msg = extractErrorMessage(error).toLowerCase()
-  return (
-    /no static resource createinvestmentopportunities/i.test(msg) ||
-    (msg.includes('404') && (msg.includes('createinvestmentopportunities') || msg.includes('not found')))
-  )
-}
-
 function normalizeImportError(error: unknown, entityType: string): string {
   const base = extractErrorMessage(error)
   if (/createinvestmentsmodelinput\.investmentrequests/i.test(base)) {
@@ -431,80 +421,6 @@ function getStandardEntityCollectionKey(entitySuffix: string, domain: ImportConf
   return domain === 'investment'
     ? `investment${entitySuffix}`
     : entitySuffix.charAt(0).toLowerCase() + entitySuffix.slice(1)
-}
-
-async function submitInvestmentOpportunitiesWithFallback(
-  restClient: ReturnType<typeof useRestClient>,
-  accessToken: string | undefined,
-  opportunities: Record<string, any>[]
-): Promise<ImportResult> {
-  if (opportunities.length > MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS) {
-    return {
-      success: false,
-      successCount: 0,
-      errorCount: 1,
-      errors: [
-        {
-          rowIndex: 0,
-          entityData: {},
-          error: `Import aborted: plural opportunity endpoint is unavailable, and singular fallback is limited to ${MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS} records to protect backend from request storms.`
-        }
-      ],
-      createdIds: []
-    }
-  }
-
-  let successCount = 0
-  const errors: ImportResult['errors'] = []
-  const createdIds: string[] = []
-
-  for (let idx = 0; idx < opportunities.length; idx += 1) {
-    const investmentOpportunity = opportunities[idx]
-    try {
-      const response = await restClient.post(
-        '/investment-relations/createInvestmentOpportunity',
-        { investmentOpportunity, changeMode: 'INSERT' },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      )
-
-      const validationErrors = response?.validationResponse?.errors
-      if (Array.isArray(validationErrors) && validationErrors.length > 0) {
-        errors.push({
-          rowIndex: idx,
-          entityData: investmentOpportunity,
-          error: `${validationErrors[0]?.code || 'ERROR'}: ${validationErrors[0]?.detail || 'Validation failure'}`
-        })
-        continue
-      }
-
-      successCount += 1
-      if (typeof response?.investmentOpportunity?.id === 'string') {
-        createdIds.push(response.investmentOpportunity.id)
-      }
-    } catch (error) {
-      const message = extractErrorMessage(error)
-      errors.push({
-        rowIndex: idx,
-        entityData: investmentOpportunity,
-        error: message
-      })
-      // Abort early on systemic endpoint issues to avoid spamming process API.
-      if (
-        /no static resource createinvestmentopportunity/i.test(message.toLowerCase()) ||
-        (message.toLowerCase().includes('404') && message.toLowerCase().includes('not found'))
-      ) {
-        break
-      }
-    }
-  }
-
-  return {
-    success: errors.length === 0 && successCount > 0,
-    successCount,
-    errorCount: errors.length,
-    errors,
-    createdIds
-  }
 }
 
 async function submitInvestmentContactsWithFallback(
@@ -868,27 +784,6 @@ export function useEntityImport<T = ConvertedEntity>(
               setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
               setImportResult(null)
               throw new Error(result.errors?.[0]?.error || 'Investment contact import failed')
-            } else {
-              setImportResult(result)
-              setError(null)
-            }
-            return
-          }
-          if (
-            config.domain === 'investment' &&
-            config.entityType === 'opportunity' &&
-            shouldFallbackToSingularInvestmentOpportunityEndpoint(error)
-          ) {
-            if (requestEntities.length > MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS) {
-              throw new Error(
-                `Import aborted: createInvestmentOpportunities is unavailable (404), and singular fallback would require ${requestEntities.length} API calls. Limit is ${MAX_OPPORTUNITY_SINGULAR_FALLBACK_CALLS}.`
-              )
-            }
-            result = await submitInvestmentOpportunitiesWithFallback(restClient, accessToken, requestEntities)
-            if (result.success === false) {
-              setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
-              setImportResult(null)
-              throw new Error(result.errors?.[0]?.error || 'Investment opportunity import failed')
             } else {
               setImportResult(result)
               setError(null)
