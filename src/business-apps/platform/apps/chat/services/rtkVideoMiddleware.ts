@@ -3,7 +3,7 @@
  */
 
 import { SelfieSegmentation, Results } from '@mediapipe/selfie_segmentation'
-import backgroundPoster from '../assets/background-poster.jpg'
+import { getChatBackgroundPosterUrl } from '../constants/chatPlatformAssetUrls'
 
 export interface RTKVideoMiddlewareOptions {
   backgroundImageUrl?: string
@@ -28,7 +28,7 @@ export class RTKVideoMiddleware {
     if (this.isInitialized) return
 
     // Load background image (use NewWork preset by default)
-    await this.loadBackgroundImage(this.options.backgroundImageUrl || backgroundPoster)
+    await this.loadBackgroundImage(this.options.backgroundImageUrl || getChatBackgroundPosterUrl())
 
     // Initialize MediaPipe
     this.selfieSegmentation = new SelfieSegmentation({
