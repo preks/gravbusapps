@@ -61,7 +61,7 @@ function ExpenseItemExpenseDateCell({ record }: Readonly<{ record: ExpenseItem }
   }
   let formatted: string
   try {
-    formatted = formatDate(record.expenseDate, 'date.long') || 'N/A'
+    formatted = formatDate(record.expenseDate, 'date.short') || 'N/A'
   } catch {
     formatted = 'N/A'
   }
@@ -123,13 +123,15 @@ export interface CreateExpenseItemColumnsParams {
   selectedRowKeys: React.Key[]
   onSelectAll: (checked: boolean) => void
   onRowSelectionChange: (id: string, checked: boolean) => void
+  expenseDateLabel: string
 }
 
 export function createExpenseItemColumns({
   items,
   selectedRowKeys,
   onSelectAll,
-  onRowSelectionChange
+  onRowSelectionChange,
+  expenseDateLabel
 }: CreateExpenseItemColumnsParams): ColumnDef<ExpenseItem>[] {
   return [
     {
@@ -159,7 +161,7 @@ export function createExpenseItemColumns({
     {
       id: 'expenseDate',
       accessorKey: 'expenseDate',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date', 'Expense Date'),
+      header: expenseDateLabel,
       size: 120,
       cell: renderItemExpenseDateCell
     },
