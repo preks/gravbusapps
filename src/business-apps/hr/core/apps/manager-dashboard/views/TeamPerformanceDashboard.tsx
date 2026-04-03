@@ -18,14 +18,12 @@ import type {
 } from '../utils/dashboardComputations'
 import {
   ExecutiveSummary,
-  ActionCenter,
   PerformanceTrends,
   GoalsHealth,
   SkillsAnalysis,
   CompanyValuesAnalysis,
   FeedbackHealth,
   AlignmentComparison,
-  TalentSignals,
   TeamMemberTable,
   DashboardFilters,
   MemberDeepDiveSheet,
@@ -111,7 +109,9 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     onCycleChange,
     alerts,
     talentSignals,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     employeeSignals,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     teamSignals,
     scoreDistribution,
     trendSeries,
@@ -199,21 +199,6 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         ratingScaleLimit={ratingScaleLimit}
         loading={isLoading}
       />
-
-      {/* Action Center + Team Signals — side by side */}
-      <div className="gba:flex gba:gap-6" style={{ minHeight: 0 }}>
-        <div className="gba:flex-1 gba:min-w-0">
-          <ActionCenter alerts={alerts} onEmployeeClick={handleEmployeeClick} loading={isLoading} />
-        </div>
-        <div className="gba:flex-1 gba:min-w-0">
-          <TalentSignals
-            employeeSignals={employeeSignals}
-            teamSignals={teamSignals}
-            onEmployeeClick={handleEmployeeClick}
-            loading={isLoading}
-          />
-        </div>
-      </div>
 
       {/* Performance Trends + Score Distribution — side by side (handled inside component) */}
       <PerformanceTrends
