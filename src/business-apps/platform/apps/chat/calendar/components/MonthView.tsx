@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react'
-import { cn, useLocale } from '@newwork/nw-design-system'
+import { cn, useLocale, useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import { Phone } from 'lucide-react'
 import type { CalendarEvent, DateRange } from '../types'
+import translations from '../../_i18n'
 
 interface MonthViewProps {
   dateRange: DateRange
@@ -118,6 +119,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
   activeConversationCalls
 }) => {
   const { locale } = useLocale()
+  const { t } = useTranslation(translations)
 
   // Compute base locale and week start setting first, before any useMemo hooks
   const baseLocale = useMemo(() => locale?.split('-')[0]?.toLowerCase() || 'en', [locale])
@@ -205,6 +207,7 @@ export const MonthView: React.FC<MonthViewProps> = ({
                     const callId = event.conversationId || event.id
                     const hasActiveCall = !!activeConversationCalls?.get(callId)
                     const isLive = event.status === 'in_progress' || hasActiveCall
+                    const displayTitle = event.isBusyBlock ? t('calendar-sidebar-busy') : event.title
 
                     return (
                       <button
@@ -232,9 +235,9 @@ export const MonthView: React.FC<MonthViewProps> = ({
                           {!event.allDay && (
                             <span className="gba:opacity-75 gba:mr-1">{formatEventTime(event.start, locale)}</span>
                           )}
-                          {event.title}
+                          {displayTitle}
                         </span>
-                        <span className="gba:sm:hidden gba:truncate">{event.title}</span>
+                        <span className="gba:sm:hidden gba:truncate">{displayTitle}</span>
                       </button>
                     )
                   })}

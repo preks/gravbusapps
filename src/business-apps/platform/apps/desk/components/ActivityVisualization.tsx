@@ -10,7 +10,7 @@ import {
   type ChartConfig
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
-import { FileText, FileSpreadsheet, StickyNote, Presentation, TrendingUp } from 'lucide-react'
+import { FileText, FileSpreadsheet, StickyNote, Presentation, PenTool, TrendingUp } from 'lucide-react'
 import { DESK_TYPE_COLORS } from '../constants/deskColors'
 import deskTranslations from '../_i18n'
 
@@ -20,6 +20,7 @@ interface ActivityData {
   spreadsheets: number
   notes: number
   slides: number
+  whiteboards: number
 }
 
 interface Stats {
@@ -28,6 +29,7 @@ interface Stats {
   spreadsheets: { total: number; shared: number }
   notes: { total: number; shared: number }
   slides: { total: number; shared: number }
+  whiteboards: { total: number; shared: number }
 }
 
 interface ActivityVisualizationProps {
@@ -58,16 +60,24 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
         documents: acc.documents + day.documents,
         spreadsheets: acc.spreadsheets + day.spreadsheets,
         notes: acc.notes + day.notes,
-        slides: acc.slides + (day.slides ?? 0)
+        slides: acc.slides + (day.slides ?? 0),
+        whiteboards: acc.whiteboards + (day.whiteboards ?? 0)
       }),
-      { documents: 0, spreadsheets: 0, notes: 0, slides: 0 }
+      { documents: 0, spreadsheets: 0, notes: 0, slides: 0, whiteboards: 0 }
     )
   }, [activityData])
 
-  const total = periodTotals.documents + periodTotals.spreadsheets + periodTotals.notes + periodTotals.slides
+  const total =
+    periodTotals.documents +
+    periodTotals.spreadsheets +
+    periodTotals.notes +
+    periodTotals.slides +
+    periodTotals.whiteboards
 
   const maxBarValue = useMemo(() => {
-    const daySums = activityData.map(d => d.documents + d.spreadsheets + d.notes + (d.slides ?? 0))
+    const daySums = activityData.map(
+      d => d.documents + d.spreadsheets + d.notes + (d.slides ?? 0) + (d.whiteboards ?? 0)
+    )
     const max = Math.max(...daySums, 1)
     return Math.ceil(max * 1.05)
   }, [activityData])
@@ -77,7 +87,8 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
       documents: { label: t('type-documents'), color: CHART_COLORS[0] },
       spreadsheets: { label: t('type-spreadsheets'), color: CHART_COLORS[1] },
       notes: { label: t('type-notes'), color: CHART_COLORS[2] },
-      slides: { label: t('type-slides'), color: CHART_COLORS[3] }
+      slides: { label: t('type-slides'), color: CHART_COLORS[3] },
+      whiteboards: { label: t('type-whiteboards'), color: CHART_COLORS[4] }
     }),
     [t]
   )
@@ -114,6 +125,14 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
       color: CHART_COLORS[3],
       count: stats.slides?.total ?? 0,
       activity: periodTotals.slides
+    },
+    {
+      key: 'whiteboards',
+      label: t('type-whiteboards'),
+      icon: PenTool,
+      color: CHART_COLORS[4],
+      count: stats.whiteboards?.total ?? 0,
+      activity: periodTotals.whiteboards
     }
   ]
 
@@ -196,11 +215,21 @@ export const ActivityVisualization: React.FC<ActivityVisualizationProps> = ({
                       dataKey="slides"
                       stackId="a"
                       fill={CHART_COLORS[3]}
-                      radius={[6, 6, 0, 0]}
                       opacity={!hoveredType || hoveredType === 'slides' ? 1 : 0.25}
                     >
                       {activityData.map((_, index) => (
                         <Cell key={`slide-${index}`} />
+                      ))}
+                    </Bar>
+                    <Bar
+                      dataKey="whiteboards"
+                      stackId="a"
+                      fill={CHART_COLORS[4]}
+                      radius={[6, 6, 0, 0]}
+                      opacity={!hoveredType || hoveredType === 'whiteboards' ? 1 : 0.25}
+                    >
+                      {activityData.map((_, index) => (
+                        <Cell key={`whiteboard-${index}`} />
                       ))}
                     </Bar>
                   </BarChart>
