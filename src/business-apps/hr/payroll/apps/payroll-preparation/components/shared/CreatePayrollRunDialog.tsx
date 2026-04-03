@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Button,
   DateInput,
@@ -60,6 +60,16 @@ function defaultPaymentDate(cutOff: string): string {
   return addDays(cutOff, 10)
 }
 
+function buildInitialFormState() {
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+  const cutOffDate = defaultCutOffDate(month, year)
+  const paymentDate = defaultPaymentDate(cutOffDate)
+
+  return { month, year, cutOffDate, paymentDate }
+}
+
 export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
   open,
   onOpenChange,
@@ -68,12 +78,24 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
   onSubmit,
   t
 }) => {
-  const now = new Date()
-  const initCutOff = defaultCutOffDate(now.getMonth() + 1, now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year, setYear] = useState(now.getFullYear())
-  const [cutOffDate, setCutOffDate] = useState(initCutOff)
-  const [paymentDate, setPaymentDate] = useState(defaultPaymentDate(initCutOff))
+  const [month, setMonth] = useState(() => buildInitialFormState().month)
+  const [year, setYear] = useState(() => buildInitialFormState().year)
+  const [cutOffDate, setCutOffDate] = useState(() => buildInitialFormState().cutOffDate)
+  const [paymentDate, setPaymentDate] = useState(() => buildInitialFormState().paymentDate)
+
+  const resetForm = () => {
+    const initial = buildInitialFormState()
+    setMonth(initial.month)
+    setYear(initial.year)
+    setCutOffDate(initial.cutOffDate)
+    setPaymentDate(initial.paymentDate)
+  }
+
+  useEffect(() => {
+    if (open) {
+      resetForm()
+    }
+  }, [open])
 
   const handleMonthChange = (val: string) => {
     const m = Number(val)
@@ -100,8 +122,8 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
 
   const handleSubmit = async () => {
     if (!isValid) return
-    await onSubmit({ month, year, cutOffDate, paymentDate })
     onOpenChange(false)
+    await onSubmit({ month, year, cutOffDate, paymentDate })
   }
 
   return (

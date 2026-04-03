@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { Button, PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   HouseLineIcon,
@@ -78,6 +79,9 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     async (params: CreatePayrollRunParams) => {
       const created = await createRun(params)
       if (created) {
+        flushSync(() => {
+          setPendingOverviewRunId(created.id)
+        })
         setActiveRun(created)
         await refetchRuns()
       }
@@ -87,7 +91,9 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
 
   const handleSelectRun = useCallback(
     (run: PayrollRun) => {
-      setPendingOverviewRunId(run.id)
+      flushSync(() => {
+        setPendingOverviewRunId(run.id)
+      })
       setActiveRun(run)
     },
     [setActiveRun]
@@ -98,6 +104,49 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     setActiveRun(null)
     setActiveTab('overview')
   }, [setActiveRun])
+
+  useEffect(() => {
+    if (!activeRun || !payrollRun || activeRun.id !== payrollRun.id) {
+      return
+    }
+
+    const runChanged =
+      activeRun.status !== payrollRun.status ||
+      activeRun.updatedAt !== payrollRun.updatedAt ||
+      activeRun.version !== payrollRun.version ||
+      activeRun.preparedAt !== payrollRun.preparedAt ||
+      activeRun.reviewedAt !== payrollRun.reviewedAt ||
+      activeRun.approvalDecision !== payrollRun.approvalDecision
+
+    if (runChanged) {
+      setActiveRun(payrollRun)
+    }
+  }, [activeRun, payrollRun, setActiveRun])
+
+  const syncRunsAfterMutation = useCallback(async () => {
+    await refetchRuns()
+  }, [refetchRuns])
+
+  const handleUpdateStatus = useCallback(
+    async (status: Parameters<typeof updateStatus>[0]) => {
+      await updateStatus(status)
+      await syncRunsAfterMutation()
+    },
+    [updateStatus, syncRunsAfterMutation]
+  )
+
+  const handleMarkReadyForReview = useCallback(async () => {
+    await markReadyForReview()
+    await syncRunsAfterMutation()
+  }, [markReadyForReview, syncRunsAfterMutation])
+
+  const handleSubmitReview = useCallback(
+    async (decision: Parameters<typeof submitReview>[0], comment: Parameters<typeof submitReview>[1]) => {
+      await submitReview(decision, comment)
+      await syncRunsAfterMutation()
+    },
+    [submitReview, syncRunsAfterMutation]
+  )
 
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = useCallback(async () => {
@@ -337,9 +386,9 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
             payrollRun={payrollRun}
             summary={summary}
             auditEvents={auditEvents}
-            updateStatus={updateStatus}
-            markReadyForReview={markReadyForReview}
-            submitReview={submitReview}
+            updateStatus={handleUpdateStatus}
+            markReadyForReview={handleMarkReadyForReview}
+            submitReview={handleSubmitReview}
             recordExport={recordExport}
             saving={runSaving}
             t={t}

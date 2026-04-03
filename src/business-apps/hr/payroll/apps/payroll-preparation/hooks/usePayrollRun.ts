@@ -60,23 +60,6 @@ function getUserDisplayName(userInfo?: UserInfoProps): string {
   return userInfo.userName || DEFAULT_AUDIT_USER_UNKNOWN_NAME
 }
 
-function generateAuditEventId(): string {
-  const cryptoApi = globalThis.crypto
-
-  if (cryptoApi?.randomUUID) {
-    return `audit-${cryptoApi.randomUUID()}`
-  }
-
-  if (cryptoApi?.getRandomValues) {
-    const randomBytes = new Uint8Array(8)
-    cryptoApi.getRandomValues(randomBytes)
-    const suffix = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')
-    return `audit-${Date.now()}-${suffix}`
-  }
-
-  return `audit-${Date.now()}`
-}
-
 export interface UsePayrollRunResult {
   payrollRun: PayrollRun | null
   loading: boolean
@@ -91,28 +74,53 @@ export interface UsePayrollRunResult {
   refetch: () => Promise<void>
 }
 
-function createAuditEvent(eventType: string, description: string, userInfo?: UserInfoProps): AuditEvent {
-  return {
-    id: generateAuditEventId(),
-    eventType,
-    description,
-    userId: userInfo?.id || 'system',
-    userName: getUserDisplayName(userInfo),
-    timestamp: new Date().toISOString()
+function resolveCreatedByDisplayName(createdBy: string, userInfo?: UserInfoProps): string {
+  if (!userInfo) {
+    return createdBy
   }
+
+  const currentUserIdentifiers = [userInfo.id, userInfo.userName, userInfo.employeeDetails?.employeeId].filter(
+    identifier => Boolean(identifier)
+  )
+
+  if (currentUserIdentifiers.includes(createdBy)) {
+    return getUserDisplayName(userInfo)
+  }
+
+  return createdBy
 }
 
-function buildPersistedAuditEvents(activeRun: PayrollRun): AuditEvent[] {
-  const persisted: AuditEvent[] = []
+function resolveBackendUserDisplayName(userIdentifier: string | null | undefined, userInfo?: UserInfoProps): string {
+  if (!userIdentifier) {
+    return DEFAULT_AUDIT_USER_SYSTEM_NAME
+  }
 
-  if (activeRun.createdBy && activeRun.createdAt) {
+  return resolveCreatedByDisplayName(userIdentifier, userInfo)
+}
+
+function buildPersistedAuditEvents(
+  activeRun: PayrollRun,
+  userInfo?: UserInfoProps,
+  locallyCreatedRunMeta?: { runId: string; userName: string; createdAt: string } | null
+): AuditEvent[] {
+  const persisted: AuditEvent[] = []
+  const localCreatedAt = locallyCreatedRunMeta?.runId === activeRun.id ? locallyCreatedRunMeta.createdAt : null
+  const createdTimestamp = activeRun.createdAt || localCreatedAt
+
+  if (createdTimestamp) {
+    const createdUserName = activeRun.createdBy
+      ? resolveCreatedByDisplayName(activeRun.createdBy, userInfo)
+      : locallyCreatedRunMeta?.runId === activeRun.id
+        ? locallyCreatedRunMeta.userName
+        : DEFAULT_AUDIT_USER_SYSTEM_NAME
+
     persisted.push({
       id: `audit-created-${activeRun.id}`,
       eventType: 'payroll_run_created',
       description: `Payroll run created`,
       userId: '',
-      userName: activeRun.createdBy,
-      timestamp: activeRun.createdAt
+      userName: createdUserName,
+      timestamp: createdTimestamp
     })
   }
 
@@ -140,6 +148,18 @@ function buildPersistedAuditEvents(activeRun: PayrollRun): AuditEvent[] {
     })
   }
 
+  const hasExportedStatus = activeRun.status === 'PAYROLL_EXPORTED' || activeRun.status === 'PAYROLL_CLOSED'
+  if (hasExportedStatus && activeRun.updatedAt) {
+    persisted.push({
+      id: `audit-export-${activeRun.id}`,
+      eventType: 'export_generated',
+      description: 'Export generated',
+      userId: '',
+      userName: resolveBackendUserDisplayName(activeRun.updatedBy ?? null, userInfo),
+      timestamp: activeRun.updatedAt
+    })
+  }
+
   persisted.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   return persisted
 }
@@ -159,22 +179,20 @@ export function usePayrollRun(
   const [error, setError] = useState<Error | null>(null)
   const [saving, setSaving] = useState(false)
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([])
+  const [locallyCreatedRunMeta, setLocallyCreatedRunMeta] = useState<{
+    runId: string
+    userName: string
+    createdAt: string
+  } | null>(null)
 
   useEffect(() => {
     setPayrollRun(activeRun)
     if (activeRun) {
-      setAuditEvents(buildPersistedAuditEvents(activeRun))
+      setAuditEvents(buildPersistedAuditEvents(activeRun, userInfo, locallyCreatedRunMeta))
     } else {
       setAuditEvents([])
     }
-  }, [activeRun?.id, activeRun?.status, activeRun?.preparedBy, activeRun?.reviewedBy])
-
-  const addAuditEvent = useCallback(
-    (eventType: string, description: string) => {
-      setAuditEvents(prev => [createAuditEvent(eventType, description, userInfo), ...prev])
-    },
-    [userInfo]
-  )
+  }, [activeRun, userInfo, locallyCreatedRunMeta])
 
   const authHeaders = {
     Authorization: `Bearer ${accessToken}`,
@@ -224,10 +242,11 @@ export function usePayrollRun(
         })
         const created = response.payrollRun
         setPayrollRun(created)
-        addAuditEvent(
-          'payroll_run_created',
-          `Payroll run created for ${companyName} — ${params.year}-${String(params.month).padStart(2, '0')}`
-        )
+        setLocallyCreatedRunMeta({
+          runId: created.id,
+          userName: getUserDisplayName(userInfo),
+          createdAt: created.createdAt || new Date().toISOString()
+        })
         return created
       } catch (err) {
         console.error('[usePayrollRun] Failed to create payroll run:', err)
@@ -237,7 +256,7 @@ export function usePayrollRun(
         setSaving(false)
       }
     },
-    [accessToken, restClient, companyId, companyName, country, addAuditEvent]
+    [accessToken, restClient, companyId, country, userInfo]
   )
 
   const updateStatus = useCallback(
@@ -256,7 +275,6 @@ export function usePayrollRun(
 
       try {
         await restClient.post(SAVE_PROCESS_PATH, payload, { headers: authHeaders })
-        addAuditEvent('status_changed', `Status changed to ${status}`)
         await refetchRun()
       } catch (err) {
         console.error('[usePayrollRun] Failed to update status:', err)
@@ -265,7 +283,7 @@ export function usePayrollRun(
         setSaving(false)
       }
     },
-    [payrollRun, restClient, accessToken, userInfo, addAuditEvent, refetchRun]
+    [payrollRun, restClient, accessToken, userInfo, refetchRun]
   )
 
   const markReadyForReview = useCallback(async () => {
@@ -280,7 +298,6 @@ export function usePayrollRun(
 
     try {
       await restClient.post(SAVE_PROCESS_PATH, { payrollRun: cleanRun, changeMode: 'UPDATE' }, { headers: authHeaders })
-      addAuditEvent('marked_ready', `Marked ready for review by ${cleanRun.preparedBy}`)
       await refetchRun()
     } catch (err) {
       console.error('[usePayrollRun] Failed to mark ready:', err)
@@ -288,7 +305,7 @@ export function usePayrollRun(
     } finally {
       setSaving(false)
     }
-  }, [payrollRun, restClient, userInfo, addAuditEvent, refetchRun])
+  }, [payrollRun, restClient, userInfo, refetchRun])
 
   const submitReview = useCallback(
     async (decision: ApprovalDecision, comment: string) => {
@@ -309,10 +326,6 @@ export function usePayrollRun(
           { payrollRun: cleanRun, changeMode: 'UPDATE' },
           { headers: authHeaders }
         )
-        addAuditEvent(
-          decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
-          `${decision} by ${cleanRun.reviewedBy}: ${comment}`
-        )
         await refetchRun()
       } catch (err) {
         console.error('[usePayrollRun] Failed to submit review:', err)
@@ -321,15 +334,13 @@ export function usePayrollRun(
         setSaving(false)
       }
     },
-    [payrollRun, restClient, userInfo, addAuditEvent, refetchRun]
+    [payrollRun, restClient, userInfo, refetchRun]
   )
 
-  const recordExport = useCallback(
-    (mode: string, count: number) => {
-      addAuditEvent('export_generated', `Export generated: ${mode}, ${count} employees`)
-    },
-    [addAuditEvent]
-  )
+  const recordExport = useCallback((mode: string, count: number) => {
+    void mode
+    void count
+  }, [])
 
   return {
     payrollRun,
