@@ -85,8 +85,16 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   // Stable signature for "effective filters" (selectedFilters + active widget) – used to reset pagination when filters change (opportunity-style; keeps card link)
   const filterSignature = useMemo(
-    () => [...allSelectedFilters].sort((a, b) => a.localeCompare(b)).join('\0') + '\0' + (props.activeWidgetKey ?? ''),
-    [allSelectedFilters, props.activeWidgetKey]
+    () =>
+      [
+        [...allSelectedFilters].sort((a, b) => a.localeCompare(b)).join('\0'),
+        props.activeWidgetKey ?? '',
+        expenseDateRange?.[0]?.toISOString() ?? '',
+        expenseDateRange?.[1]?.toISOString() ?? '',
+        amountRange?.min != null ? String(amountRange.min) : '',
+        amountRange?.max != null ? String(amountRange.max) : ''
+      ].join('\0'),
+    [allSelectedFilters, props.activeWidgetKey, expenseDateRange, amountRange]
   )
 
   // Reset to page 1 when filters or active card change (same as opportunities: handleFilterUpdate resets page)
@@ -177,25 +185,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       apiFilters.currencyRef = selectedCurrencyRef
     }
 
-    // Apply widget-driven filters directly to API request
-    if (props.activeWidgetKey === 'total-expenses') {
-      const start = new Date()
-      start.setDate(1)
-      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
-      apiFilters.expenseDateStart = start.toISOString().split('T')[0]
-      apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
-      apiFilters.status = ['PAID']
-    } else if (props.activeWidgetKey === 'pending-reimbursement') {
-      const start = new Date()
-      start.setDate(1)
-      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
-      apiFilters.expenseDateStart = start.toISOString().split('T')[0]
-      apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
-      apiFilters.status = ['PENDING']
-    }
-
     return apiFilters
-  }, [getFilters, selectedCurrencyRef, props.activeWidgetKey, allSelectedFilters])
+  }, [getFilters, selectedCurrencyRef, allSelectedFilters])
 
   useEffect(() => {
     if (!initialized) return

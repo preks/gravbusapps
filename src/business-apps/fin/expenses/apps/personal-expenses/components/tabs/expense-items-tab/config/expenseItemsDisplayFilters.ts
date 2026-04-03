@@ -16,6 +16,11 @@ export function applyExpenseDateRangeFromFilters(
   rawDateRange: unknown,
   setExpenseDateRange: (range: [Date | null, Date | null] | null) => void
 ): void {
+  if (typeof rawDateRange === 'string' && rawDateRange.trim() === '') {
+    setExpenseDateRange(null)
+    return
+  }
+
   const isDisplayString =
     typeof rawDateRange === 'string' && !/^\d{4}-\d{2}-\d{2}/.test(rawDateRange) && !rawDateRange.includes(',')
   if (isDisplayString) return

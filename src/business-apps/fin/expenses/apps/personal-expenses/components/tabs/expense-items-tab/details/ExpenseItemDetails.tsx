@@ -1,73 +1,17 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  Separator,
-  Card,
-  Spinner,
-  Alert,
-  AlertDescription,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-  Badge
-} from '@newwork/nw-design-system'
-import { ImageIcon, FilePdfIcon, FileDocIcon, FileXlsIcon, FileIcon } from '@phosphor-icons/react'
+import { Separator, Spinner, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../../hooks/useGetExpenseItems'
-import { getExpenseItemStatusDisplay, formatCurrencyDisplay } from '../../../../utils'
-import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
+import { getExpenseItemStatusDisplay } from '../../../../utils'
 import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
-import type { UploadFile } from 'antd/es/upload/interface'
-import {
-  DetailsPanelContent,
-  type DetailsPanelField
-} from '../../../../../../common/components/details-panel/DetailsPanelContent'
-
-// Utility function to truncate file names
-const truncateFileName = (fileName: string, maxLength: number = 15): string => {
-  if (!fileName || fileName.length <= maxLength) {
-    return fileName || ''
-  }
-
-  const lastDotIndex = fileName.lastIndexOf('.')
-  if (lastDotIndex === -1) {
-    // No extension, just truncate
-    return fileName.substring(0, maxLength - 3) + '...'
-  }
-
-  const name = fileName.substring(0, lastDotIndex)
-  const extension = fileName.substring(lastDotIndex)
-
-  // If extension is too long, just show the extension
-  if (extension.length >= maxLength - 3) {
-    return '...' + extension
-  }
-
-  // If name is very short, just truncate the whole thing
-  if (name.length <= 3) {
-    return fileName.substring(0, maxLength - 3) + '...'
-  }
-
-  const maxNameLength = maxLength - extension.length - 3
-  return name.substring(0, maxNameLength) + '...' + extension
-}
-
-// Utility function to format file size
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
-
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
+import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
+import { buildExpenseItemDetailsFields } from './buildExpenseItemDetailsFields'
+import { ExpenseItemAttachmentGrid } from './ExpenseItemAttachmentGrid'
+import { ExpenseItemMediaPreviewDialogs } from './ExpenseItemMediaPreviewDialogs'
+import { useExpenseItemFileAttachments } from './useExpenseItemFileAttachments'
 
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null
@@ -75,28 +19,13 @@ export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
 }
 
 export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selectedItem, onClose, ...contextProps }) => {
-  // Use the hook to get detailed expense item data
   const { item: detailedItem, isLoading: isItemLoading, error: itemError, fetchItem } = useGetExpenseItem(contextProps)
 
-  const [fileLoading, setFileLoading] = useState<boolean>(false)
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [previewOpen, setPreviewOpen] = useState<boolean>(false)
-  const [previewImage, setPreviewImage] = useState<string>('')
-  const [pdfPreviewOpen, setPdfPreviewOpen] = useState<boolean>(false)
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>('')
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewImage, setPreviewImage] = useState('')
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('')
 
-  // Ref to track if component is mounted
-  const isMounted = useRef<boolean>(true)
-
-  // Set isMounted to false when component unmounts
-  useEffect(() => {
-    return () => {
-      isMounted.current = false
-    }
-  }, [])
-
-  // Fetch detailed expense item data when selectedItem changes
-  // We use a ref to track if we've already fetched this item to prevent recursive calls
   const fetchedItemIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -106,314 +35,31 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     }
   }, [selectedItem?.id, fetchItem])
 
-  // Reset the fetched item id ref when the component unmounts or when selectedItem is null
   useEffect(() => {
     if (!selectedItem) {
       fetchedItemIdRef.current = null
     }
   }, [selectedItem])
 
-  // Use FileClient hook for proper authorization
   const fileClient = useFileClient(contextProps)
 
-  /**
-   * Extracts file ID from URL or returns the provided ID
-   */
-  const extractFileId = (fileInfo: any): string => {
-    let fileId = fileInfo.id
-    if (fileInfo.fileUrl) {
-      const urlParts = fileInfo.fileUrl.split('/')
-      const potentialFileId = urlParts[urlParts.length - 1]
-      if (potentialFileId && potentialFileId !== 'files') {
-        fileId = potentialFileId
-      }
-    }
-    return fileId
-  }
+  const { fileList, fileLoading } = useExpenseItemFileAttachments({
+    detailedItem,
+    fileClient,
+    employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+    accessToken: contextProps.accessToken
+  })
 
-  /**
-   * Attempts to fetch file with fallback paths
-   */
-  const fetchFileWithFallback = async (fileId: string, employeeId: string, itemId: string): Promise<Blob | null> => {
-    const pathParams = {
-      accessScope: 'tenant',
-      fileId: fileId
-    }
+  const handleImagePreview = useCallback((fileUrl: string) => {
+    setPreviewImage(fileUrl)
+    setPreviewOpen(true)
+  }, [])
 
-    // Try primary path
-    try {
-      return await fileClient.getFile(pathParams, {
-        appName: 'expenses',
-        folderPath: `/expenseItemsDocuments/${employeeId}`
-      })
-    } catch (firstError) {
-      console.log('First attempt failed, trying alternative path:', firstError)
-    }
+  const handlePdfPreview = useCallback((fileUrl: string) => {
+    setPdfPreviewUrl(fileUrl)
+    setPdfPreviewOpen(true)
+  }, [])
 
-    // Try alternative path
-    try {
-      return await fileClient.getFile(pathParams, {
-        appName: 'expenses',
-        folderPath: `employees/${employeeId}/expense-items/${itemId}`
-      })
-    } catch (secondError) {
-      console.log('Second attempt also failed:', secondError)
-      return null
-    }
-  }
-
-  /**
-   * Processes a single file attachment
-   */
-  const processFileAttachment = async (
-    fileInfo: any,
-    employeeId: string,
-    itemId: string
-  ): Promise<UploadFile | null> => {
-    try {
-      const fileId = extractFileId(fileInfo)
-      const fileBlob = await fetchFileWithFallback(fileId, employeeId, itemId)
-
-      if (!fileBlob || !isMounted.current) {
-        return null
-      }
-
-      // Create object URL for the blob
-      const downloadUrl = URL.createObjectURL(fileBlob)
-
-      // Create UploadFile object
-      return {
-        uid: fileId,
-        name: fileInfo.fileName || fileId,
-        status: 'done',
-        url: downloadUrl,
-        size: fileBlob.size,
-        type: fileBlob.type || 'application/octet-stream'
-      }
-    } catch (fileError) {
-      console.error(`Error processing file ${fileInfo.id}:`, fileError)
-      return null
-    }
-  }
-
-  // Fetch file attachments for an expense item
-  const fetchFileAttachments = useCallback(
-    async (item: ExpenseItem) => {
-      // Early returns for invalid state
-      if (!item?.expenseItemFile || item.expenseItemFile.length === 0) {
-        console.log('No expense item files found')
-        setFileList([])
-        return
-      }
-
-      const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
-      if (!employeeId) {
-        console.error('No employee ID available for file path')
-        return
-      }
-
-      if (!contextProps.accessToken) {
-        console.error('No access token available for file request')
-        return
-      }
-
-      setFileLoading(true)
-
-      try {
-        // Process all files in parallel
-        const filePromises = item.expenseItemFile.map(fileInfo => processFileAttachment(fileInfo, employeeId, item.id))
-
-        const results = await Promise.all(filePromises)
-
-        // Filter out null results (failed files)
-        const processedFiles = results.filter((file): file is UploadFile => file !== null)
-
-        if (isMounted.current) {
-          setFileList(processedFiles)
-        }
-      } catch (error) {
-        console.error('Error fetching file attachments:', error)
-        if (isMounted.current) {
-          setFileList([])
-        }
-      } finally {
-        if (isMounted.current) {
-          setFileLoading(false)
-        }
-      }
-    },
-    [fileClient, contextProps.userInfo?.employeeDetails?.employeeId, contextProps.accessToken]
-  )
-
-  // Fetch file attachments when detailed item changes
-  useEffect(() => {
-    if (detailedItem) {
-      fetchFileAttachments(detailedItem)
-    }
-  }, [detailedItem, fetchFileAttachments])
-
-  const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
-
-  const getFileExtension = (fileName: string): string => fileName.split('.').pop()?.toLowerCase() || ''
-
-  const isImageFile = (fileType: string, ext: string): boolean =>
-    fileType.includes('image') || IMAGE_EXTENSIONS.includes(ext)
-
-  const isPdfFile = (fileType: string, ext: string): boolean => fileType.includes('pdf') || ext === 'pdf'
-
-  const renderFileIcon = (fileType: string, ext: string) => {
-    if (isPdfFile(fileType, ext)) return <FilePdfIcon size={32} className="gba:text-red-500" />
-    if (isImageFile(fileType, ext)) return <ImageIcon size={32} className="gba:text-blue-500" />
-    if (fileType.includes('word') || ['doc', 'docx'].includes(ext))
-      return <FileDocIcon size={32} className="gba:text-blue-700" />
-    if (fileType.includes('excel') || ['xls', 'xlsx', 'csv'].includes(ext))
-      return <FileXlsIcon size={32} className="gba:text-green-700" />
-    return <FileIcon size={32} className="gba:text-gray-500" />
-  }
-
-  const handleImagePreview = useCallback(
-    (fileUrl: string) => {
-      setPreviewImage(fileUrl)
-      setPreviewOpen(true)
-    },
-    [setPreviewImage, setPreviewOpen]
-  )
-
-  const handlePdfPreview = useCallback(
-    (fileUrl: string) => {
-      setPdfPreviewUrl(fileUrl)
-      setPdfPreviewOpen(true)
-    },
-    [setPdfPreviewUrl, setPdfPreviewOpen]
-  )
-
-  const renderFilePreview = useCallback(
-    (fileUrl: string, fileName: string, fileType: string, ext: string, idx: number) => {
-      if (isImageFile(fileType, ext)) {
-        return (
-          <button
-            type="button"
-            className="gba:rounded-md gba:shadow gba:w-[90px] gba:h-[90px] gba:cursor-pointer hover:gba:opacity-80 gba:p-0 gba:border-0 gba:bg-transparent"
-            data-testid={`expense-file-image-${idx}`}
-            onClick={() => handleImagePreview(fileUrl)}
-          >
-            <img src={fileUrl} alt={fileName} className="gba:rounded-md gba:w-[90px] gba:h-[90px] gba:object-cover" />
-          </button>
-        )
-      }
-      if (isPdfFile(fileType, ext)) {
-        return (
-          <button
-            type="button"
-            className="gba:w-[90px] gba:h-[90px] gba:flex gba:justify-center gba:items-center gba:bg-gray-100 gba:rounded-md gba:shadow gba:cursor-pointer hover:gba:bg-gray-200 gba:border-0"
-            onClick={() => handlePdfPreview(fileUrl)}
-            data-testid={`expense-file-pdf-thumb-${idx}`}
-          >
-            <FilePdfIcon size={48} className="gba:text-red-500" />
-          </button>
-        )
-      }
-      return (
-        <div className="gba:flex gba:flex-col gba:items-center" data-testid={`expense-file-generic-${idx}`}>
-          {renderFileIcon(fileType, ext)}
-          <a
-            href={fileUrl}
-            download={fileName}
-            className="gba:mt-2 gba:text-xs gba:text-blue-600 hover:gba:underline gba:cursor-pointer"
-            data-testid={`expense-file-download-${idx}`}
-            onClick={e => {
-              e.preventDefault()
-              window.open(fileUrl, '_blank')
-            }}
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.open', 'Open')}
-          </a>
-        </div>
-      )
-    },
-    [handleImagePreview, handlePdfPreview]
-  )
-
-  // Render attachment preview
-  const renderAttachmentPreview = useCallback(() => {
-    if (fileLoading) {
-      return (
-        <Card
-          className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8"
-          data-testid="expense-file-loading"
-        >
-          <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-            <Spinner />
-            <p className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.loadingReceipt', 'Loading receipt...')}
-            </p>
-          </div>
-        </Card>
-      )
-    }
-
-    if (fileList.length > 0) {
-      return (
-        <div
-          className="gba:grid gba:grid-cols-2 gba:gap-4 gba:sm:gba:grid-cols-3 gba:md:gba:grid-cols-4 gba:lg:gba:grid-cols-5"
-          data-testid="expense-files-grid"
-        >
-          {fileList.map((file, idx) => {
-            const fileName = file.name || `File_${idx + 1}`
-            const fileUrl = file.url || ''
-            const fileType = file.type || ''
-            const ext = getFileExtension(fileName)
-
-            return (
-              <div
-                key={file.uid}
-                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
-                data-testid={`expense-file-card-${idx}`}
-              >
-                {renderFilePreview(fileUrl, fileName, fileType, ext, idx)}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className="gba:mt-2 gba:text-xs gba:text-center gba:w-full gba:px-1 gba:break-words gba:cursor-help gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:max-w-full gba:leading-tight"
-                        data-testid={`expense-file-name-${idx}`}
-                      >
-                        {truncateFileName(fileName, 18)}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="gba:max-w-xs">
-                        <div className="gba:font-medium gba:break-words">{fileName}</div>
-                        <div className="gba:text-xs gba:text-gray-500">
-                          {file.size ? formatFileSize(file.size) : 'Unknown size'}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )
-          })}
-        </div>
-      )
-    }
-
-    return (
-      <Card
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8"
-        data-testid="expense-file-empty"
-      >
-        <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-          <ImageIcon size={48} style={{ color: 'border' }} />
-          <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
-          </p>
-        </div>
-      </Card>
-    )
-  }, [fileLoading, fileList, renderFilePreview])
-
-  // Show loading state while fetching detailed item data
   if (isItemLoading) {
     return (
       <div className="gba:p-4 gba:flex gba:justify-center gba:items-center gba:py-8">
@@ -422,7 +68,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     )
   }
 
-  // Show error state if there was an error fetching the detailed item
   if (itemError) {
     return (
       <div className="gba:p-4">
@@ -433,67 +78,17 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
     )
   }
 
-  // Use the detailed item if available, otherwise fall back to the selectedItem
   const displayItem = detailedItem || selectedItem
   if (!displayItem) return null
 
   const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
   const statusBadge = (
-    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-item-status-badge">
+    <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-item-status-badge">
       {statusConfig.label}
     </Badge>
   )
 
-  const fields: DetailsPanelField[] = [
-    {
-      label: getTranslationFromI18nKeyAndLabel('common.code', 'Code'),
-      value: typeof displayItem.code === 'string' ? displayItem.code : 'N/A'
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-      value: statusBadge
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date'),
-      value: displayItem.expenseDate ? formatDate(displayItem.expenseDate, 'date.long') : 'N/A'
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date'),
-      value: displayItem.invoiceDate ? formatDate(displayItem.invoiceDate, 'date.long') : 'N/A'
-    },
-    ...(typeof displayItem.description === 'string' && displayItem.description
-      ? [
-          {
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_description_label',
-              'Description'
-            ),
-            value: displayItem.description
-          }
-        ]
-      : []),
-    {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
-        'Expense Class'
-      ),
-      value: displayItem.expenseClass?.value ? getCatalogValue(displayItem.expenseClass) : 'N/A'
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-        'Cost Center'
-      ),
-      value: displayItem.costCenter?.name ? String(displayItem.costCenter.name) : 'N/A'
-    },
-    {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:travel_region_rule.travel_region_rule_details_list.amount',
-        'Amount'
-      ),
-      value: formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)
-    }
-  ]
+  const fields = buildExpenseItemDetailsFields(displayItem, statusBadge)
 
   const availableActions = generateExpenseItemActions(
     displayItem,
@@ -518,14 +113,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
             lazyLoad
             data-testid="expense-item-details-action-button"
           >
-            <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-              />
-            </svg>
+            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" aria-hidden />
           </AppAction>
         </div>
       ) : null}
@@ -539,48 +127,26 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         extraContent={
           <>
             <Separator />
-            <div className="gba:mt-2">{renderAttachmentPreview()}</div>
+            <div className="gba:mt-2">
+              <ExpenseItemAttachmentGrid
+                fileLoading={fileLoading}
+                fileList={fileList}
+                onImagePreview={handleImagePreview}
+                onPdfPreview={handlePdfPreview}
+              />
+            </div>
           </>
         }
       />
 
-      {/* Image Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="gba:mt-4 gba:flex gba:justify-center">
-            <img
-              src={previewImage}
-              alt="Preview"
-              className="gba:max-w-full gba:max-h-[calc(90vh-120px)] gba:object-contain"
-              data-testid="image-preview"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* PDF Preview Dialog */}
-      <Dialog open={pdfPreviewOpen} onOpenChange={setPdfPreviewOpen}>
-        <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="gba:mt-4">
-            <iframe
-              src={pdfPreviewUrl}
-              className="gba:w-full gba:h-[calc(90vh-120px)] gba:border-0"
-              title="PDF Preview"
-              data-testid="pdf-preview-iframe"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ExpenseItemMediaPreviewDialogs
+        previewOpen={previewOpen}
+        onPreviewOpenChange={setPreviewOpen}
+        previewImage={previewImage}
+        pdfPreviewOpen={pdfPreviewOpen}
+        onPdfPreviewOpenChange={setPdfPreviewOpen}
+        pdfPreviewUrl={pdfPreviewUrl}
+      />
     </div>
   )
 }

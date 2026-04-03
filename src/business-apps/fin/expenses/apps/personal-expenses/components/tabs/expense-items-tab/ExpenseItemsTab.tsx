@@ -71,6 +71,14 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     }
   }, [selectedFilters, activeCard])
 
+  useEffect(() => {
+    if (!activeCard) return
+    const hasDateRange = Boolean(expenseDateRange?.[0] || expenseDateRange?.[1])
+    if (!hasDateRange) {
+      setActiveCard(null)
+    }
+  }, [activeCard, expenseDateRange])
+
   // Stats come from aggregated overview hook
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
