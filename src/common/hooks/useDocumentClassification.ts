@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
-import { useFlowbotClient } from '@/common/network/flowbot/useFlowbotClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface DocumentClassificationSuggestion {
@@ -34,8 +34,8 @@ export interface UseDocumentClassificationArgs {
    */
   file?: File | null
   /**
-   * Optional override for the FlowBot classification endpoint path (relative to FLOWBOT_API_URL).
-   * Defaults to `/document-autoclassify/classify`.
+   * Optional override for the FlowBot classification endpoint.
+   * Defaults to `/flowbot/document-autoclassify/classify`.
    */
   endpoint?: string
   /**
@@ -63,7 +63,8 @@ export const useDocumentClassification = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useFlowbotClient(accessToken ?? undefined)
+  const baseUrl = resolveFlowbotBaseUrl()
+  const restClient = useRestClient(baseUrl)
 
   useEffect(() => {
     if (!enabled || !file || !accessToken) {
@@ -97,8 +98,9 @@ export const useDocumentClassification = ({
           fd.append('typeCatalogIdentifier', typeCatalogIdentifier)
         }
 
-        const classifyPath = endpoint || '/document-autoclassify/classify'
-        const resp = await flowbotClient.post<Record<string, unknown>>(classifyPath, fd, {
+        const url = endpoint || '/flowbot/document-autoclassify/classify'
+        const resp = await restClient.post<Record<string, unknown>>(url, fd, {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
           signal: controller.signal
         })
 
@@ -131,7 +133,7 @@ export const useDocumentClassification = ({
       isCancelled = true
       controller.abort()
     }
-  }, [accessToken, entity, groupCatalogIdentifier, typeCatalogIdentifier, file, endpoint, enabled])
+  }, [accessToken, entity, groupCatalogIdentifier, typeCatalogIdentifier, file, endpoint, enabled, restClient])
 
   return {
     suggestion,

@@ -30,7 +30,6 @@ summary-placeholder = Brief summary for search and listings...
 header-image = Header Image
 short-description = Short Description
 short-description-placeholder = Brief summary shown in the document portal...
-optional = Optional
 
 # Question-specific fields
 question-title = Question Title

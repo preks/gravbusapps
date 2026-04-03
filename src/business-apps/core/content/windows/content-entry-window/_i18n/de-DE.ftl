@@ -30,7 +30,6 @@ summary-placeholder = Kurze Zusammenfassung für Suche und Listen...
 header-image = Kopfbild
 short-description = Kurzbeschreibung
 short-description-placeholder = Kurze Zusammenfassung, die im Dokumentenportal angezeigt wird...
-optional = optional
 
 # Question-specific fields
 question-title = Fragetitel

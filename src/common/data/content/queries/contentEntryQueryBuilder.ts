@@ -147,7 +147,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
 
   // ContentType relation (new taxonomy table)
   if (fields.includes('contentType')) {
-    parts.push(`contentType { id name contentGroup }`)
+    parts.push(`contentType { id name nameI18n contentGroup }`)
   }
 
   // Language still uses catalog
@@ -180,6 +180,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         contentCategory {
           id
           name
+          nameI18n
         }
       }
     `)
@@ -199,6 +200,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         contentTag {
           id
           name
+          nameI18n
         }
       }
     `)

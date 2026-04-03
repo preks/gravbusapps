@@ -12,7 +12,7 @@ const baseFilterGroups = [
         id: 'contentTypeId',
         field: 'contentTypeId',
         label: 'Type',
-        type: 'select' as const,
+        type: 'multi-select' as const,
         config: {
           options: [],
           searchPlaceholder: 'Search types...',
@@ -69,12 +69,14 @@ const baseFilterGroups = [
         id: 'status',
         field: 'status',
         label: 'Status',
-        type: 'select' as const,
+        type: 'multi-select' as const,
         config: {
           options: [
             { id: 'active', label: 'Active' },
             { id: 'deleted', label: 'Deleted' }
-          ]
+          ],
+          totalCount: 2,
+          hasMore: false
         }
       }
     ]
@@ -88,8 +90,14 @@ const baseFilterGroups = [
         id: 'dateRange',
         field: 'dateRange',
         label: 'Created Date',
-        type: 'dateRange' as const,
-        config: {}
+        type: 'date' as const,
+        config: {
+          dateType: 'date',
+          mode: 'range',
+          placeholder: 'Start Date',
+          placeholderEnd: 'End Date',
+          showClearButton: true
+        }
       }
     ]
   }
@@ -105,7 +113,7 @@ const contentGroupFilter = {
       id: 'contentGroup',
       field: 'contentGroup',
       label: 'Group',
-      type: 'select' as const,
+      type: 'multi-select' as const,
       config: {
         options: [
           { id: ContentGroup.NEWS, label: 'News' },
@@ -113,7 +121,9 @@ const contentGroupFilter = {
           { id: ContentGroup.POLICY, label: 'Policies' },
           { id: ContentGroup.DOCUMENT, label: 'Document' },
           { id: ContentGroup.QUESTION, label: 'Question' }
-        ]
+        ],
+        totalCount: 5,
+        hasMore: false
       }
     }
   ]
@@ -121,10 +131,14 @@ const contentGroupFilter = {
 
 // Filter config for "All Content" section (includes group filter)
 export const contentFilterConfigAll: FilterConfiguration = {
+  id: 'content-filters-all',
+  name: 'Content Filters',
   groups: [contentGroupFilter, ...baseFilterGroups]
 }
 
 // Filter config for specific sections (without group filter)
 export const contentFilterConfigSpecific: FilterConfiguration = {
+  id: 'content-filters-specific',
+  name: 'Content Filters',
   groups: baseFilterGroups
 }

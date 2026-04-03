@@ -7,8 +7,9 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import { Send, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useFlowbotClient } from '@/common/network/flowbot/useFlowbotClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
 import { usePageAnalytics } from '../hooks/usePageAnalytics'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 interface InvestmentRecordAnalyticsChatProps {
   investmentId: string
@@ -40,7 +41,8 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
     currency,
     sessionId
   })
-  const client = useFlowbotClient(accessToken)
+  const flowbotBaseUrl = resolveFlowbotBaseUrl()
+  const restClient = useRestClient(flowbotBaseUrl)
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -80,13 +82,14 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
       form.append('use_web_search_tool', 'false')
       form.append('current_page_context', JSON.stringify(pageContext))
 
-      const requestPath = '/api/agent/v2/chat'
-      const sseResponse = await client.fetchAuthenticated(requestPath, {
-        method: 'POST',
-        headers: { Accept: 'text/event-stream' },
-        body: form
+      const requestPath = '/flowbot/api/agent/v2/chat'
+      console.info('[AI Insights] Fetch FlowBot URL:', `${flowbotBaseUrl || ''}${requestPath}`)
+      const ssePayload = await restClient.post<string>(requestPath, form, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'text/event-stream'
+        }
       })
-      const ssePayload = await sseResponse.text()
       let accumulatedResponse = ''
       let newSessionId = sessionId
 

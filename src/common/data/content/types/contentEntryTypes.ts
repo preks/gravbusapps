@@ -227,7 +227,11 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     searchPaths: ['contentTypeId', 'contentType.name'],
     sortPath: 'contentTypeId',
     type: 'text',
-    optionSelectPaths: [`${ContentEntryFields.contentTypeId}`, `${ContentEntryFields.contentType}.name`],
+    optionSelectPaths: [
+      `${ContentEntryFields.contentTypeId}`,
+      `${ContentEntryFields.contentType}.name`,
+      `${ContentEntryFields.contentType}.nameI18n`
+    ],
     optionSearchPaths: [`${ContentEntryFields.contentType}.name`],
     optionDistinctOn: [ContentEntryFields.contentTypeId],
     kind: 'inIds'
@@ -292,7 +296,8 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     type: 'text',
     optionSelectPaths: [
       `${ContentEntryFields.contentEntryCategories}.contentCategory.id`,
-      `${ContentEntryFields.contentEntryCategories}.contentCategory.name`
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.name`,
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.nameI18n`
     ],
     optionSearchPaths: [`${ContentEntryFields.contentEntryCategories}.contentCategory.name`],
     optionDistinctOn: [],
@@ -313,7 +318,8 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     type: 'text',
     optionSelectPaths: [
       `${ContentEntryFields.contentEntryTags}.contentTag.id`,
-      `${ContentEntryFields.contentEntryTags}.contentTag.name`
+      `${ContentEntryFields.contentEntryTags}.contentTag.name`,
+      `${ContentEntryFields.contentEntryTags}.contentTag.nameI18n`
     ],
     optionSearchPaths: [`${ContentEntryFields.contentEntryTags}.contentTag.name`],
     optionDistinctOn: [],

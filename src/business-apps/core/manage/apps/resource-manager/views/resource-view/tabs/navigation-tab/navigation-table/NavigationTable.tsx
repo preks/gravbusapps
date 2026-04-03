@@ -97,7 +97,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
         code: item.code,
         name: item.name,
         url: item.url,
-        nameI18n: item.nameI18n || {},
+        name_i18n: item.name_i18n || {},
         description: item.description || '',
         description_i18n: item.description_i18n || {},
         roles: item.roles || [],
@@ -117,7 +117,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
       code: '',
       name: '',
       url: '',
-      nameI18n: {},
+      name_i18n: {},
       description_i18n: {},
       roles: [],
       features: [],
@@ -181,7 +181,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
           code: (source.code ?? '') as string,
           name: (source.name ?? '') as string,
           url: (source.url ?? '') as string,
-          nameI18n: (source.nameI18n ?? {}) as Record<string, string>,
+          name_i18n: (source.name_i18n ?? {}) as Record<string, string>,
           description: (source.description ?? '') as string,
           description_i18n: (source.description_i18n ?? {}) as Record<string, string>,
           roles: mapRolesToDto(source.roles),
@@ -193,7 +193,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
       if (source.code !== undefined) updateData.code = source.code as string
       if (source.name !== undefined) updateData.name = source.name as string
       if (source.url !== undefined) updateData.url = source.url as string
-      if (source.nameI18n !== undefined) updateData.nameI18n = source.nameI18n as Record<string, string>
+      if (source.name_i18n !== undefined) updateData.name_i18n = source.name_i18n as Record<string, string>
       if (source.description !== undefined) updateData.description = source.description as string
       if (source.description_i18n !== undefined)
         updateData.description_i18n = source.description_i18n as Record<string, string>
