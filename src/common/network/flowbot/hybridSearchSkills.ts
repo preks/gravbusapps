@@ -1,9 +1,15 @@
-import { flowbotClient, type HybridSearchSkillMatch } from './FlowbotClient'
-
-export type { HybridSearchSkillMatch }
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const ENTITY_TYPE = 'skills'
 const DEFAULT_LIMIT = 20
+
+export interface HybridSearchSkillMatch {
+  id: string
+  name: string
+  score?: number
+  match_type?: string
+  version: number
+}
 
 const parseEventChunk = (chunk: string): { eventType: string; data: string } => {
   let eventType = ''
@@ -78,8 +84,19 @@ export async function hybridSearchSkills(
   const trimmed = (q || '').trim()
   if (!trimmed || trimmed.length < 2) return []
 
-  flowbotClient.setAccessToken(accessToken)
-  const response = await flowbotClient.hybridSearchStream(ENTITY_TYPE, trimmed, limit)
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/hybrid-search/${ENTITY_TYPE}?${new URLSearchParams({
+    q: trimmed,
+    limit: String(limit)
+  })}`
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream'
+    }
+  })
 
   if (!response.ok) {
     throw new Error(`Hybrid search failed: ${response.status} ${response.statusText}`)

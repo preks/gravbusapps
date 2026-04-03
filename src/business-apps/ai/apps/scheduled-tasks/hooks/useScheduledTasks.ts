@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { type ScheduledTask, type TaskExecution } from '@/common/network/flowbot/FlowbotClient'
-import { useFlowbotClient } from '@/common/network/flowbot/useFlowbotClient'
-
-export type { ScheduledTask, TaskExecution }
+import { ScheduledTask, ScheduledTasksClient, TaskExecution } from '@/common/network/flowbot/ScheduledTasksClient'
 
 export interface UseScheduledTasksState {
   tasks: ScheduledTask[]
@@ -20,13 +17,14 @@ export const useScheduledTasks = (context: BusinessAppContextProps) => {
     error: null
   })
 
-  const client = useFlowbotClient(context.accessToken)
+  const client = new ScheduledTasksClient()
+  client.setAccessToken(context.accessToken)
 
   const loadTasks = useCallback(
     async (params?: { includePaused?: boolean; limit?: number; offset?: number }) => {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
       try {
-        const response = await client.listScheduledTasks({
+        const response = await client.listTasks({
           include_paused: params?.includePaused ?? true,
           limit: params?.limit ?? 50,
           offset: params?.offset ?? 0
@@ -42,59 +40,56 @@ export const useScheduledTasks = (context: BusinessAppContextProps) => {
         setState(prev => ({ ...prev, error: message, isLoading: false }))
       }
     },
-    [client]
+    [context.accessToken]
   )
 
   const pauseTask = useCallback(
     async (taskId: string) => {
       try {
-        await client.pauseScheduledTask(taskId)
+        await client.pauseTask(taskId)
         await loadTasks()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to pause task'
         throw new Error(message)
       }
     },
-    [client, loadTasks]
+    [loadTasks]
   )
 
   const resumeTask = useCallback(
     async (taskId: string) => {
       try {
-        await client.resumeScheduledTask(taskId)
+        await client.resumeTask(taskId)
         await loadTasks()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to resume task'
         throw new Error(message)
       }
     },
-    [client, loadTasks]
+    [loadTasks]
   )
 
   const deleteTask = useCallback(
     async (taskId: string) => {
       try {
-        await client.deleteScheduledTask(taskId)
+        await client.deleteTask(taskId)
         await loadTasks()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete task'
         throw new Error(message)
       }
     },
-    [client, loadTasks]
+    [loadTasks]
   )
 
-  const getTaskExecutions = useCallback(
-    async (taskId: string): Promise<TaskExecution[]> => {
-      try {
-        return await client.getTaskExecutions(taskId, { limit: 20 })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load executions'
-        throw new Error(message)
-      }
-    },
-    [client]
-  )
+  const getTaskExecutions = useCallback(async (taskId: string): Promise<TaskExecution[]> => {
+    try {
+      return await client.getTaskExecutions(taskId, { limit: 20 })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load executions'
+      throw new Error(message)
+    }
+  }, [])
 
   useEffect(() => {
     loadTasks()
