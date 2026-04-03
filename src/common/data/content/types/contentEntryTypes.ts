@@ -284,14 +284,14 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'contentCategoryIds',
+    key: 'categoryIds',
     path: 'contentEntryCategories.contentCategoryId',
     filterLabel: 'Category',
     searchPaths: ['contentEntryCategories.contentCategory.name'],
     sortPath: 'contentEntryCategories.contentCategory.name',
     type: 'text',
     optionSelectPaths: [
-      `${ContentEntryFields.contentEntryCategories}.contentCategoryId`,
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.id`,
       `${ContentEntryFields.contentEntryCategories}.contentCategory.name`
     ],
     optionSearchPaths: [`${ContentEntryFields.contentEntryCategories}.contentCategory.name`],
@@ -303,6 +303,21 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     searchPaths: ['contentEntryTags.contentTag.name'],
     sortPath: 'contentEntryTags.contentTag.name',
     type: 'text'
+  },
+  {
+    key: 'tagIds',
+    path: 'contentEntryTags.contentTagId',
+    filterLabel: 'Tag',
+    searchPaths: ['contentEntryTags.contentTag.name'],
+    sortPath: 'contentEntryTags.contentTag.name',
+    type: 'text',
+    optionSelectPaths: [
+      `${ContentEntryFields.contentEntryTags}.contentTag.id`,
+      `${ContentEntryFields.contentEntryTags}.contentTag.name`
+    ],
+    optionSearchPaths: [`${ContentEntryFields.contentEntryTags}.contentTag.name`],
+    optionDistinctOn: [],
+    kind: 'inIds'
   },
 
   // Aggregate counts

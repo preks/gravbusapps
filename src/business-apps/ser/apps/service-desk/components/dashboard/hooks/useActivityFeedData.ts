@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import { env } from '@/common/env/EnvUtils'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { useEmployeeNamesBatch } from '../../../../../hooks/useEmployeeNamesBatch'
@@ -254,8 +254,8 @@ export const useActivityFeedData = ({
       setIsLoadingAudit(true)
       setError(null)
 
-      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
-      const response = await fetch(`${baseUrl}/audit/logs?limit=${limit}`, {
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+      const response = await fetch(`${baseUrl}/api/audit/logs?limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'

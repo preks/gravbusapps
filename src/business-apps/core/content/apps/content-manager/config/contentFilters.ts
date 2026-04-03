@@ -14,7 +14,48 @@ const baseFilterGroups = [
         label: 'Type',
         type: 'select' as const,
         config: {
-          options: []
+          options: [],
+          searchPlaceholder: 'Search types...',
+          totalCount: 0,
+          hasMore: false
+        }
+      }
+    ]
+  },
+  {
+    id: 'category-filter',
+    label: 'Category',
+    collapsible: true,
+    filters: [
+      {
+        id: 'categoryIds',
+        field: 'categoryIds',
+        label: 'Category',
+        type: 'multi-select' as const,
+        config: {
+          options: [],
+          searchPlaceholder: 'Search categories...',
+          totalCount: 0,
+          hasMore: false
+        }
+      }
+    ]
+  },
+  {
+    id: 'tag-filter',
+    label: 'Tag',
+    collapsible: true,
+    filters: [
+      {
+        id: 'tagIds',
+        field: 'tagIds',
+        label: 'Tag',
+        type: 'multi-select' as const,
+        config: {
+          options: [],
+          searchPlaceholder: 'Search tags...',
+          totalCount: 0,
+          hasMore: false
         }
       }
     ]

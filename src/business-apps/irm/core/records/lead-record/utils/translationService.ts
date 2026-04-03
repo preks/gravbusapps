@@ -1,4 +1,4 @@
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 export interface Language {
   code: string
@@ -51,8 +51,27 @@ export interface TranslationApiResponse {
   translated_texts: string[]
 }
 
+// Direct fetch implementation to avoid React hooks
+const makeApiCall = async <T>(url: string, method: string, body: any, accessToken: string): Promise<T> => {
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status} ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
 // Translation service using direct fetch calls
 export const translateText = async (request: TranslationRequest, accessToken: string): Promise<TranslationResponse> => {
+  // Return original text for Original or if target equals source
   if (request.targetLanguage === 'Original' || request.targetLanguage === request.sourceLanguage) {
     return {
       translatedText: request.text,
@@ -62,13 +81,24 @@ export const translateText = async (request: TranslationRequest, accessToken: st
   }
 
   try {
-    flowbotClient.setAccessToken(accessToken)
-    const response = await flowbotClient.translateTexts([request.text], getApiLanguageCode(request.targetLanguage))
+    // Use the official FlowBot endpoint from the documentation
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/translation/translate_texts`
 
+    const apiRequest: TranslationApiRequest = {
+      input_texts: [request.text],
+      target_language: getApiLanguageCode(request.targetLanguage)
+    }
+
+    const response = await makeApiCall<TranslationApiResponse>(url, 'POST', apiRequest, accessToken)
+
+    // Handle both response formats: direct array or object with translated_texts property
     let translatedTexts: string[]
     if (Array.isArray(response)) {
-      translatedTexts = response as unknown as string[]
+      // Direct array response
+      translatedTexts = response
     } else if (response && response.translated_texts && Array.isArray(response.translated_texts)) {
+      // Object with translated_texts property
       translatedTexts = response.translated_texts
     } else {
       console.warn('Invalid translation API response:', response)
@@ -79,13 +109,16 @@ export const translateText = async (request: TranslationRequest, accessToken: st
       }
     }
 
+    const translatedText = translatedTexts[0] || request.text
+
     return {
-      translatedText: translatedTexts[0] || request.text,
+      translatedText,
       sourceLanguage: request.sourceLanguage || 'Original',
       targetLanguage: request.targetLanguage
     }
   } catch (error) {
     console.error('Translation API error:', error)
+    // Fallback to original text if translation fails
     return {
       translatedText: request.text,
       sourceLanguage: request.sourceLanguage || 'Original',
@@ -100,18 +133,28 @@ export const translateMultipleTexts = async (
   accessToken: string,
   sourceLanguage?: string
 ): Promise<string[]> => {
+  // Return original texts for Original language
   if (targetLanguage === 'Original' || targetLanguage === sourceLanguage) {
     return texts
   }
 
+  // Filter out empty texts
   const nonEmptyTexts = texts.filter(text => text && text.trim())
   if (nonEmptyTexts.length === 0) {
     return texts
   }
 
   try {
-    flowbotClient.setAccessToken(accessToken)
-    const response = await flowbotClient.translateTexts(nonEmptyTexts, getApiLanguageCode(targetLanguage))
+    // Use the official FlowBot endpoint from the documentation
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/translation/translate_texts`
+
+    const apiRequest: TranslationApiRequest = {
+      input_texts: nonEmptyTexts,
+      target_language: getApiLanguageCode(targetLanguage)
+    }
+
+    const response = await makeApiCall<TranslationApiResponse>(url, 'POST', apiRequest, accessToken)
 
     // Handle both response formats: direct array or object with translated_texts property
     let translatedTexts: string[]

@@ -16,9 +16,10 @@ export interface PaginationState {
 }
 
 export interface ContentDataFilters {
-  contentGroups?: string[]
+  contentGroup?: string[]
   contentTypeId?: string[]
   categoryIds?: string[]
+  tagIds?: string[]
   status?: string[]
   creatorEmployeeId?: string[]
   dateRange?: { start?: string; end?: string }
@@ -117,9 +118,10 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
       search: search.trim(),
       sortBy,
       sortOrder,
-      contentGroup: contentGroupFilter || filters.contentGroups?.[0],
+      contentGroup: contentGroupFilter || filters.contentGroup?.[0],
       contentTypeId: filters.contentTypeId?.[0],
       categoryIds: filters.categoryIds,
+      tagIds: filters.tagIds,
       // Note: Status filtering requires custom implementation
       creatorEmployeeId: filters.creatorEmployeeId?.[0],
       activeFrom: filters.dateRange?.start,
@@ -131,9 +133,10 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     search,
     sorting,
     contentGroupFilter,
-    filters.contentGroups,
+    filters.contentGroup,
     filters.contentTypeId,
     filters.categoryIds,
+    filters.tagIds,
     filters.creatorEmployeeId,
     filters.dateRange
   ])

@@ -12,12 +12,15 @@ import { ContentRole } from '../constants/contentConstants'
  */
 export const useContentFilterGroups = (
   context: BusinessAppContextProps,
-  contentGroup: ContentGroup,
+  contentGroup?: ContentGroup,
   options?: { limit?: number }
 ) => {
   // Build baseWhereParts to scope filter options to specific content group and role
   const baseWhereParts = useMemo(
-    () => [`role: { _eq: "${ContentRole.ROOT}" }`, `contentGroup: { _eq: "${contentGroup}" }`],
+    () =>
+      contentGroup
+        ? [`role: { _eq: "${ContentRole.ROOT}" }`, `contentGroup: { _eq: "${contentGroup}" }`]
+        : [`role: { _eq: "${ContentRole.ROOT}" }`],
     [contentGroup]
   )
 

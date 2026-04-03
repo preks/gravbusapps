@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 export type AnalysisType = 'WARNING' | 'INFO'
 
@@ -36,6 +36,9 @@ interface UseExpenseRequestAnalysisReturn {
   error: Error | null
   refetch: () => void
 }
+
+/** API endpoint for expense insights */
+const EXPENSE_INSIGHTS_ENDPOINT = '/flowbot/api/expense/expense-insights'
 
 const isAnalysisType = (value: unknown): value is AnalysisType => value === 'WARNING' || value === 'INFO'
 
@@ -139,8 +142,27 @@ const normalizeExpenseInsightsResponse = (input: unknown): ExpenseRequestAnalysi
  * @returns Promise with the analysis response
  */
 const fetchExpenseInsights = async (expenseRequestId: string, accessToken: string): Promise<ExpenseRequestAnalysis> => {
-  flowbotClient.setAccessToken(accessToken)
-  const data = (await flowbotClient.getExpenseInsights(expenseRequestId)) as ApiResponse
+  const url = `${resolveFlowbotBaseUrl()}${EXPENSE_INSIGHTS_ENDPOINT}`
+
+  // Send as form-urlencoded (required by the flowbot API)
+  const formBody = new URLSearchParams()
+  formBody.append('expense_request_id', expenseRequestId)
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    credentials: 'include',
+    body: formBody
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch expense insights: ${response.status} ${response.statusText}`)
+  }
+
+  const data: ApiResponse = await response.json()
 
   // Validate the response structure
   if (!data.type || !data.user_text) {

@@ -5,7 +5,7 @@
  * statistics, quotes, and sources for presentation content.
  */
 
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 // Research result types
 export interface ResearchFact {
@@ -554,11 +554,15 @@ export async function gatherResearch(
   accessToken: string,
   onProgress?: ResearchProgressCallback
 ): Promise<ResearchResult> {
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+
   onProgress?.('progress-initiating-search')
 
   // Build the research prompt
   const prompt = buildResearchPrompt(options)
 
+  // Create form data
   const form = new FormData()
   form.append('session_id', '') // New session
   form.append('user_input_text', prompt)
@@ -568,8 +572,14 @@ export async function gatherResearch(
 
   onProgress?.('progress-search-info')
 
-  flowbotClient.setAccessToken(accessToken)
-  const response = await flowbotClient.streamAgentV2Chat(form)
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream'
+    },
+    body: form
+  })
 
   if (!response.ok) {
     throw new Error(`Research API error: ${response.status} ${response.statusText}`)

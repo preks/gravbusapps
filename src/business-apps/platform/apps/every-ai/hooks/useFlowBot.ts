@@ -4,7 +4,7 @@ import type { ConversationTurn, OutputItem, FileMeta, CurrentPageContext } from 
 import { getCurrentPageContext } from '../utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const LLM_MODEL = 'gpt-4.1'
@@ -286,10 +286,13 @@ async function loadHistory(accessToken: string, sessionId: string | null): Promi
   }
 
   try {
-    flowbotClient.setAccessToken(accessToken)
-    const res = await flowbotClient.fetchAuthenticated(`/api/agent/session/${sessionId}/history`, {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sessionId}/history`, {
       method: 'GET',
-      headers: { Accept: 'application/json' }
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
     })
 
     // If session not found, clear invalid session from storage
@@ -432,10 +435,15 @@ export async function fetchChatListFromApi(
   offset: number = 0
 ): Promise<FlowBotSession[]> {
   try {
-    flowbotClient.setAccessToken(accessToken)
-    const res = await flowbotClient.fetchAuthenticated(`/chat/user/chats?limit=${limit}&offset=${offset}`, {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}&offset=${offset}`
+
+    const res = await fetch(url, {
       method: 'GET',
-      headers: { Accept: 'application/json' }
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
     })
 
     if (!res.ok) {
@@ -474,10 +482,15 @@ async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSessio
  */
 export async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
   try {
-    flowbotClient.setAccessToken(accessToken)
-    const res = await flowbotClient.fetchAuthenticated(`/chat/sessions/${sessionId}`, {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
+
+    const res = await fetch(url, {
       method: 'DELETE',
-      headers: { Accept: '*/*' }
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: '*/*'
+      }
     })
 
     if (!res.ok) {
@@ -496,9 +509,15 @@ async function saveUserMessage(
   sessionId: string,
   userInputText: string,
   files: File[],
-  mentions: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }> | undefined
+  mentions:
+    | Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
+    | undefined,
+  accessToken: string
 ): Promise<void> {
   try {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/messages`
+
     const fileMetas = files.map(f => ({
       id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
       name: f.name,
@@ -523,9 +542,12 @@ async function saveUserMessage(
       short_info: ''
     }
 
-    const res = await flowbotClient.fetchAuthenticated('/chat/messages', {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(requestBody)
     })
 
@@ -544,8 +566,11 @@ async function saveUserMessage(
  * Stores the full OutputItem[] as JSONB so rich content (scatter plots, tables, entities)
  * is preserved and can be faithfully restored from chat history.
  */
-async function saveAgentMessage(sessionId: string, outputs: OutputItem[]): Promise<void> {
+async function saveAgentMessage(sessionId: string, outputs: OutputItem[], accessToken: string): Promise<void> {
   try {
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot/chat/messages`
+
     const persistableOutputs = outputs.filter(o => o.type !== 'tool' && o.type !== 'loading')
 
     const requestBody = {
@@ -555,9 +580,12 @@ async function saveAgentMessage(sessionId: string, outputs: OutputItem[]): Promi
       short_info: ''
     }
 
-    const res = await flowbotClient.fetchAuthenticated('/chat/messages', {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(requestBody)
     })
 
@@ -576,15 +604,26 @@ async function saveAgentMessage(sessionId: string, outputs: OutputItem[]): Promi
  * Returns the (possibly new) sessionId that should be used for subsequent chat calls.
  * This is used both for "upload early" flows and as a fallback inside sendMessage.
  */
-async function uploadFilesToFlowbotSession(files: File[], sessionId: string | null): Promise<string> {
+async function uploadFilesToFlowbotSession(
+  files: File[],
+  sessionId: string | null,
+  accessToken: string
+): Promise<string> {
   if (!files.length) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+  const url = `${baseUrl}/flowbot/api/agent/add_files`
 
   const form = new FormData()
   files.forEach(file => form.append('files', file))
+  // Always send session_id as string (empty if null) to match terminal client behavior
   form.append('session_id', sessionId || '')
 
-  const res = await flowbotClient.fetchAuthenticated('/api/agent/add_files', {
+  const res = await fetch(url, {
     method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
     body: form
   })
 
@@ -614,12 +653,17 @@ export type FlowProposalFileBinding = {
 async function uploadFilesToFlowbotWithBinding(params: {
   files: File[]
   sessionId: string | null
+  accessToken: string
   binding: FlowProposalFileBinding
 }): Promise<string> {
-  const { files, sessionId, binding } = params
+  const { files, sessionId, accessToken, binding } = params
   if (!files.length) return sessionId ?? ''
 
-  const endpoint = binding.hints?.endpoint || '/api/agent/add_files'
+  const baseUrl = resolveFlowbotBaseUrl()
+
+  const endpoint = binding.hints?.endpoint || '/flowbot/api/agent/add_files'
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
+
   const sessionIdParam = binding.hints?.sessionIdParam || 'session_id'
   const fileParam = binding.hints?.fileParam || 'files'
   const flowProposalIdParam = binding.hints?.flowProposalIdParam || 'flow_proposal_id'
@@ -631,8 +675,11 @@ async function uploadFilesToFlowbotWithBinding(params: {
   form.append(flowProposalIdParam, binding.flowProposalId)
   form.append(fieldKeyParam, binding.fieldKey)
 
-  const res = await flowbotClient.fetchAuthenticated(endpoint, {
+  const res = await fetch(url, {
     method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
     body: form
   })
 
@@ -968,7 +1015,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         let effectiveSessionId = sessionIdRef.current ?? state.sessionId ?? ''
         if (!effectiveSessionId && files.length > 0) {
           try {
-            effectiveSessionId = await uploadFilesToFlowbotSession(files, effectiveSessionId)
+            effectiveSessionId = await uploadFilesToFlowbotSession(files, effectiveSessionId, accessToken)
           } catch (error) {
             console.error('⚠️ [FlowBot] add_files failed, falling back to direct file upload:', error)
             // If add_files fails we keep effectiveSessionId empty and will send files directly with the chat request.
@@ -1000,6 +1047,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
         files.forEach(file => form.append('files', file))
 
+        const baseUrl = resolveFlowbotBaseUrl()
         const realtimeDocumentId = resolveRealtimeDocumentId({
           userInputText,
           currentPagePayload,
@@ -1013,14 +1061,19 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           form.append('mode', 'document')
           appendOutputItemToLastAgentTurn(buildRealtimeDocumentProgressOutput(realtimeDocumentId))
         }
-        const path = useRealtimeDocumentEdit ? '/api/agent/v2/document/live-edit' : '/api/agent/v2/chat'
+        const url = useRealtimeDocumentEdit
+          ? `${baseUrl}/flowbot/api/agent/v2/document/live-edit`
+          : `${baseUrl}/flowbot/api/agent/v2/chat`
 
         // Create abort controller for this request
         abortControllerRef.current = new AbortController()
 
-        const res = await flowbotClient.fetchAuthenticated(path, {
+        const res = await fetch(url, {
           method: 'POST',
-          headers: { Accept: 'text/event-stream' },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'text/event-stream'
+          },
           body: form,
           signal: abortControllerRef.current.signal
         })
@@ -1122,12 +1175,12 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         if (currentSessionId) {
           try {
             // Save user message
-            await saveUserMessage(currentSessionId, userInputText, files, undefined)
+            await saveUserMessage(currentSessionId, userInputText, files, undefined, accessToken)
 
             // Save agent message using tracked outputs
             const agentOutputs = currentAgentOutputsRef.current
             if (agentOutputs.length > 0) {
-              await saveAgentMessage(currentSessionId, agentOutputs)
+              await saveAgentMessage(currentSessionId, agentOutputs, accessToken)
             }
           } catch (persistenceError) {
             console.error('Error during message persistence:', persistenceError)
@@ -1178,11 +1231,16 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     // Call the cancel API endpoint if we have a session
     if (state.sessionId && accessToken) {
       try {
+        const baseUrl = resolveFlowbotBaseUrl()
+
         const form = new FormData()
         form.append('session_id', state.sessionId)
 
-        const res = await flowbotClient.fetchAuthenticated('/api/agent/chat/cancel', {
+        const res = await fetch(`${baseUrl}/flowbot/api/agent/chat/cancel`, {
           method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          },
           body: form
         })
 
@@ -1359,8 +1417,12 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       form.append('current_page_context', JSON.stringify(prechatContext))
       form.append('llm_model', PRECHAT_LLM_MODEL)
 
-      const res = await flowbotClient.fetchAuthenticated('/api/agent/prechat-suggestions', {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
         body: form,
         signal: controller.signal
       })
@@ -1463,7 +1525,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     async (files: File[]) => {
       if (!files.length) return
       try {
-        const newSessionId = await uploadFilesToFlowbotSession(files, sessionIdRef.current)
+        const newSessionId = await uploadFilesToFlowbotSession(files, sessionIdRef.current, accessToken)
         if (newSessionId && newSessionId !== state.sessionId) {
           updateSessionId(newSessionId)
         }
@@ -1472,7 +1534,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         console.error('⚠️ [FlowBot] Failed to pre-upload files via add_files:', error)
       }
     },
-    [state.sessionId, updateSessionId, sessionIdRef]
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
   )
 
   /**
@@ -1490,6 +1552,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       const newSessionId = await uploadFilesToFlowbotWithBinding({
         files,
         sessionId: effectiveSessionId,
+        accessToken,
         binding
       })
 
@@ -1497,7 +1560,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         updateSessionId(newSessionId)
       }
     },
-    [state.sessionId, updateSessionId, sessionIdRef]
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
   )
 
   /** Load a chat session by id: persist sessionId and fetch conversation from flowbot */

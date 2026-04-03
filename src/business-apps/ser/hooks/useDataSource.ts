@@ -12,12 +12,12 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import { env } from '@/common/env/EnvUtils'
 import { DataSourceConfig } from '../types/flowTemplate'
 
 // API Base URL for custom-flow-engine
 const getApiBase = (): string => {
-  return CUSTOM_FLOW_ENGINE_API_URL
+  return (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
 }
 
 // Response option format

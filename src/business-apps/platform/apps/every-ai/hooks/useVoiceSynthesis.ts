@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 export type OpenAIVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 
@@ -95,11 +95,22 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       abortControllerRef.current = new AbortController()
 
       try {
-        flowbotClient.setAccessToken(accessToken)
-        const response = await flowbotClient.streamTextToSpeech(
-          { text, voice, speed },
-          abortControllerRef.current.signal
-        )
+        const baseUrl = resolveFlowbotBaseUrl()
+        const url = `${baseUrl}/flowbot/api/agent/tts`
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text,
+            voice,
+            speed
+          }),
+          signal: abortControllerRef.current.signal
+        })
 
         if (!response.ok) {
           throw new Error(`TTS request failed: ${response.statusText}`)

@@ -24,7 +24,7 @@ export interface ScopePermission {
   code: string
   name: string
   description: string | null
-  nameI18n: Record<string, string>
+  name_i18n: Record<string, string>
   description_i18n: Record<string, string>
   resourceUrlId: string
   roles: Array<{ name: string }>
