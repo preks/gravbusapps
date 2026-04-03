@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import { evaluateFormula } from '../utils/formulaEvaluator'
 import { expandFormulaFullColumnRanges } from '../utils/formulaRangeUtils'
@@ -90,9 +91,13 @@ export const useSheetsAIFormula = ({
     setIsGenerating(true)
     try {
       const selectedModel = await selectPreferredModel(promptClient)
+      const modelId = getPromptManagerDocumentId(selectedModel)
+      if (!modelId) {
+        throw new Error('Selected AI model has no document id')
+      }
 
       const formData = new FormData()
-      formData.append('model_id', selectedModel._id)
+      formData.append('model_id', modelId)
       formData.append('system_content', SHEETS_AI_FORMULA_SYSTEM_PROMPT)
       formData.append('user_content', buildSheetsAIFormulaUserPrompt(intent, columns, sheetData.slice(0, 80)))
       formData.append('model_settings', JSON.stringify({}))

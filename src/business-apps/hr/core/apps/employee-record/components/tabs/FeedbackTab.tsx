@@ -248,7 +248,11 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </div>
       )}
 
-      <div className={isSelfView ? 'gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6' : 'gba:space-y-6'}>
+      <div
+        className={
+          isSelfView ? 'gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6 gba:items-stretch' : 'gba:space-y-6'
+        }
+      >
         <FeedbackListSection
           title={t('feedback-hub-section-received-visible-title', { visible: receivedTotal })}
           loading={receivedLoading}

@@ -1,0 +1,7 @@
+export { ComponentsView } from './component-view/ComponentsView'
+export { HomeView } from './home-view/HomeView'
+export { BundlesView } from './bundles-view/BundlesView'
+export { ResourceView } from './resource-view/ResourceView'
+export { NavigationTab } from './resource-view/tabs/navigation-tab/NavigationTab'
+export { ActionTab } from './resource-view/tabs/action-tab/ActionTab'
+export { DebugTab } from './resource-view/tabs/debug-tab/DebugTab'

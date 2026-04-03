@@ -1,12 +1,12 @@
 import { useEffect, useCallback, useState, useMemo } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   GET_PAYROLL_EMPLOYEES,
   GET_PAYROLL_SALARIES,
   GET_PAYROLL_ABSENCES,
+  GET_PAYROLL_BONUSES,
   GET_PAYROLL_ATTENDANCE,
   GET_PREVIOUS_SALARIES,
   GET_EMPLOYEES_BY_USER_IDS,
@@ -15,13 +15,9 @@ import {
 } from '../queries/payrollQueries'
 import { runAllValidations, resetIssueIdCounter } from '../utils/validationRules'
 import { parseDurationToMinutes, getPlannedMinutesForDate, toLocalDateKey } from '../utils/timeUtils'
-import type {
-  PayrollEmployee,
-  PayrollCountry,
-  PayrollSummary,
-  PayrollGridFilters,
-  PayrollChangeEvent
-} from '../types/payrollTypes'
+import { DEFAULT_PAYROLL_COUNTRY, DEFAULT_PAYROLL_CURRENCY } from '../utils/payrollDefaults'
+import type { PayrollEmployee, PayrollCountry, PayrollSummary, PayrollGridFilters } from '../types/payrollTypes'
+import { ORGCHART_API_URL } from '@/common/utils/serviceResolver'
 
 interface AbsenceTypeObjectValue {
   category?: string
@@ -129,6 +125,7 @@ interface RawAbsence {
   type: {
     id: string
     value: string
+    parentEntryId?: string | null
     objectValue: AbsenceTypeObjectValue | null
     translations?: Array<{ value: string }>
   } | null
@@ -146,14 +143,16 @@ interface RawAttendance {
   recordedTime: string | null
 }
 
-interface RawPreviousSalary {
+interface RawBonus {
   id: string
   employeeId: string
-  monthlyGrossSalary: number | null
-  currency: { code: string } | null
-  currencyRef: string | null
-  startDate: string | null
-  createdAt: string
+  employeeBonusType: { id: string; value: string; code: string } | null
+  employeeBonusTypeRef: string | null
+  amount: number | null
+  currency: { id: string; code: string; value: string } | null
+  paymentDate: string | null
+  fiscalYear: number
+  status: string | null
 }
 
 function detectCountryFromCode(countryCode: string | null | undefined): PayrollCountry | null {
@@ -166,14 +165,22 @@ function detectCountryFromCode(countryCode: string | null | undefined): PayrollC
   return null
 }
 
+const HEALTH_GROUP = 'AbsenceGroup:v1:HEALTH'
+
+function isHealthAbsence(absenceType: RawAbsence['type']): boolean {
+  if (absenceType?.parentEntryId === HEALTH_GROUP) return true
+  const value = absenceType?.value?.toLowerCase() || ''
+  return value.includes('sick') || value.includes('krank') || value.includes('medical') || value.includes('boala')
+}
+
 function getAbsenceCategory(absenceType: RawAbsence['type']): string {
+  if (isHealthAbsence(absenceType)) return 'sick'
+
   const objVal = absenceType?.objectValue
   if (objVal && typeof objVal === 'object' && 'category' in objVal) {
     return (objVal as AbsenceTypeObjectValue).category || ''
   }
   const value = absenceType?.value?.toLowerCase() || ''
-  if (value.includes('sick') || value.includes('krank') || value.includes('medical') || value.includes('boala'))
-    return 'sick'
   if (value.includes('unpaid') || value.includes('unbezahlt') || value.includes('neplat')) return 'unpaid'
   if (value.includes('vacation') || value.includes('urlaub') || value.includes('concediu')) return 'paid'
   return 'other'
@@ -190,193 +197,380 @@ function resolveEmploymentStatus(
   return exitDate <= payrollPeriodEnd ? 'terminated' : 'active'
 }
 
-function toDateOnly(dateStr: string | null | undefined): string {
-  if (!dateStr) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return dateStr
-  return d.toISOString().split('T')[0]
+interface LeaveMetrics {
+  paidLeaveDays: number
+  sickLeaveDays: number
+  unpaidLeaveDays: number
+  otherLeaveDays: number
+  paidLeaveHours: number
+  sickLeaveHours: number
 }
 
-function buildNewHireChange(
-  pos: RawEmployeePosition,
-  emp: RawEmployeePosition['employee'],
-  monthStart: Date,
-  monthEnd: Date,
-  nextId: () => number
-): PayrollChangeEvent | null {
-  const wc = emp.workingCondition?.[0]
-  const hireDate = wc?.hireDate || pos.hireDate
-  if (!hireDate) return null
-  const hd = new Date(hireDate)
-  if (hd < monthStart || hd > monthEnd) return null
-  return {
-    id: `chg-${pos.employeeId}-${nextId()}`,
-    employeeId: emp.id,
-    changeType: 'new_hire',
-    fieldName: 'Hire Date',
-    oldValue: null,
-    newValue: hireDate,
-    effectiveDate: toDateOnly(hireDate),
-    changedAt: hireDate
-  }
+interface CapacityMetrics {
+  workedMinutes: number
+  contractTargetMinutes: number
+  overtimeMinutes: number
+  balanceMinutes: number
+  missingPresenceDays: number
 }
 
-function buildTerminationChange(
-  pos: RawEmployeePosition,
-  emp: RawEmployeePosition['employee'],
-  monthStart: Date,
-  monthEnd: Date,
-  nextId: () => number
-): PayrollChangeEvent | null {
-  const wc = emp.workingCondition?.[0]
-  const exitDate = wc?.exitDate || pos.exitDate
-  if (!exitDate) return null
-  const ed = new Date(exitDate)
-  if (ed < monthStart || ed > monthEnd) return null
-  return {
-    id: `chg-${pos.employeeId}-${nextId()}`,
-    employeeId: emp.id,
-    changeType: 'termination',
-    fieldName: 'Exit Date',
-    oldValue: null,
-    newValue: exitDate,
-    effectiveDate: toDateOnly(exitDate),
-    changedAt: exitDate
+function toOptionalString(value: number | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null
   }
+
+  return String(value)
 }
 
-function buildSalaryChangeEvent(
-  pos: RawEmployeePosition,
-  emp: RawEmployeePosition['employee'],
-  currentSalary: RawSalary,
-  previousSalary: RawPreviousSalary | undefined,
-  referenceDate: Date,
-  nextId: () => number
-): PayrollChangeEvent | null {
-  if (!currentSalary.createdAt || new Date(currentSalary.createdAt) < referenceDate) return null
-  const oldVal =
-    previousSalary?.monthlyGrossSalary == null
-      ? null
-      : `${previousSalary.monthlyGrossSalary} ${previousSalary.currency?.code || ''}`.trim()
-  const newVal =
-    currentSalary.monthlyGrossSalary == null
-      ? null
-      : `${currentSalary.monthlyGrossSalary} ${currentSalary.currency?.code || ''}`.trim()
-  return {
-    id: `chg-${pos.employeeId}-${nextId()}`,
-    employeeId: emp.id,
-    changeType: 'salary_change',
-    fieldName: 'Monthly Gross Salary',
-    oldValue: oldVal,
-    newValue: newVal,
-    effectiveDate: toDateOnly(currentSalary.startDate || currentSalary.createdAt),
-    changedAt: currentSalary.createdAt
+function resolvePayrollRelevant(contractObjectValue: unknown): boolean | null {
+  if (!contractObjectValue || typeof contractObjectValue !== 'object') {
+    return null
   }
+
+  const raw = (contractObjectValue as Record<string, unknown>).payroll_relevant
+  if (raw === undefined) {
+    return null
+  }
+
+  return raw === true || raw === 'true'
 }
 
-function buildWorkingHoursChange(
-  pos: RawEmployeePosition,
-  emp: RawEmployeePosition['employee'],
-  wh: NonNullable<RawEmployeePosition['employee']['workingHours']>[0],
-  referenceDate: Date,
-  nextId: () => number
-): PayrollChangeEvent | null {
-  if (!wh.updatedAt || new Date(wh.updatedAt) < referenceDate) return null
-  return {
-    id: `chg-${pos.employeeId}-${nextId()}`,
-    employeeId: emp.id,
-    changeType: 'working_time_change',
-    fieldName: 'Working Hours',
-    oldValue: null,
-    newValue: wh.weeklyHours == null ? null : `${wh.weeklyHours}h/week`,
-    effectiveDate: toDateOnly(wh.updatedAt),
-    changedAt: wh.updatedAt,
-    changedBy: wh.updatedBy || undefined
-  }
-}
-
-function buildContractChange(
-  pos: RawEmployeePosition,
-  emp: RawEmployeePosition['employee'],
-  wc: NonNullable<RawEmployeePosition['employee']['workingCondition']>[0],
-  referenceDate: Date,
-  nextId: () => number
-): PayrollChangeEvent | null {
-  if (!wc.updatedAt || new Date(wc.updatedAt) < referenceDate) return null
-  return {
-    id: `chg-${pos.employeeId}-${nextId()}`,
-    employeeId: emp.id,
-    changeType: 'contract_type_change',
-    fieldName: 'Working Condition',
-    oldValue: null,
-    newValue: wc.contractType?.translations?.[0]?.value || wc.contractType?.value || 'Updated',
-    effectiveDate: toDateOnly(wc.updatedAt),
-    changedAt: wc.updatedAt,
-    changedBy: wc.updatedBy || undefined
-  }
-}
-
-function appendBankAndTaxAndAbsenceChanges(
-  changes: PayrollChangeEvent[],
-  pos: RawEmployeePosition,
-  emp: RawEmployeePosition['employee'],
-  absences: RawAbsence[],
-  referenceDate: Date,
-  nextId: () => number
-): void {
-  for (const bank of emp.bankAccounts || []) {
-    if (!bank.updatedAt || new Date(bank.updatedAt) < referenceDate) continue
-    changes.push({
-      id: `chg-${pos.employeeId}-${nextId()}`,
-      employeeId: emp.id,
-      changeType: 'bank_details_change',
-      fieldName: 'Bank Account',
-      oldValue: null,
-      newValue: bank.iban ? `IBAN: ${bank.iban.slice(0, 4)}****` : 'Updated',
-      effectiveDate: toDateOnly(bank.updatedAt),
-      changedAt: bank.updatedAt,
-      changedBy: bank.updatedBy || undefined
-    })
-    break
-  }
-
-  for (const tax of emp.taxDetails || []) {
-    if (!tax.updatedAt || new Date(tax.updatedAt) < referenceDate) continue
-    changes.push({
-      id: `chg-${pos.employeeId}-${nextId()}`,
-      employeeId: emp.id,
-      changeType: 'country_specific_change',
-      fieldName: 'Tax / Social Data',
-      oldValue: null,
-      newValue: 'Updated',
-      effectiveDate: toDateOnly(tax.updatedAt),
-      changedAt: tax.updatedAt,
-      changedBy: tax.updatedBy || undefined
-    })
-    break
-  }
-
-  const changedAbsences = absences.filter(a => a.createdAt && new Date(a.createdAt) >= referenceDate)
-  if (changedAbsences.length === 0) return
-  changes.push({
-    id: `chg-${pos.employeeId}-${nextId()}`,
-    employeeId: emp.id,
-    changeType: 'absence_change',
-    fieldName: 'Absences',
-    oldValue: null,
-    newValue: `${changedAbsences.length} absence(s) added/modified`,
-    effectiveDate: toDateOnly(changedAbsences[0].startDate),
-    changedAt: changedAbsences[0].createdAt
+function computeLeaveMetrics(absences: RawAbsence[], weeklyHours: number | null | undefined): LeaveMetrics {
+  const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
+  const sickAbsences = approvedAbsences.filter(a => isHealthAbsence(a.type))
+  const nonSickAbsences = approvedAbsences.filter(a => !isHealthAbsence(a.type))
+  const unpaidAbsences = approvedAbsences.filter(a => getAbsenceCategory(a.type) === 'unpaid')
+  const otherAbsences = approvedAbsences.filter(a => {
+    const category = getAbsenceCategory(a.type)
+    return category !== 'sick' && category !== 'paid' && category !== 'unpaid'
   })
+
+  const sickLeaveDays = sickAbsences.reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
+  const paidLeaveDays = nonSickAbsences.reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
+  const unpaidLeaveDays = unpaidAbsences.reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
+  const otherLeaveDays = otherAbsences.reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
+
+  const dailyWorkingHours = weeklyHours ? weeklyHours / 5 : 8
+  const sickLeaveHours = Math.round(sickLeaveDays * dailyWorkingHours * 10) / 10
+  const paidLeaveHours = Math.round(paidLeaveDays * dailyWorkingHours * 10) / 10
+
+  return {
+    paidLeaveDays,
+    sickLeaveDays,
+    unpaidLeaveDays,
+    otherLeaveDays,
+    paidLeaveHours,
+    sickLeaveHours
+  }
 }
 
-function detectChanges(
-  pos: RawEmployeePosition,
-  currentSalary: RawSalary | undefined,
-  previousSalary: RawPreviousSalary | undefined,
+function buildWorkingHoursForCapacity(
+  workingHours: RawEmployeePosition['employee']['workingHours'][number] | undefined
+) {
+  if (!workingHours) {
+    return undefined
+  }
+
+  return {
+    mondayHours: workingHours.mondayHours ?? 0,
+    tuesdayHours: workingHours.tuesdayHours ?? 0,
+    wednesdayHours: workingHours.wednesdayHours ?? 0,
+    thursdayHours: workingHours.thursdayHours ?? 0,
+    fridayHours: workingHours.fridayHours ?? 0,
+    saturdayHours: workingHours.saturdayHours ?? 0,
+    sundayHours: workingHours.sundayHours ?? 0
+  }
+}
+
+function computeContractTargetMinutes(
+  monthStart: Date,
+  monthEnd: Date,
+  workingHoursForCapacity:
+    | {
+        mondayHours: number
+        tuesdayHours: number
+        wednesdayHours: number
+        thursdayHours: number
+        fridayHours: number
+        saturdayHours: number
+        sundayHours: number
+      }
+    | undefined
+): { contractTargetMinutes: number; scheduledWorkingDays: string[] } {
+  let contractTargetMinutes = 0
+  const cursor = new Date(monthStart)
+  const scheduledWorkingDays: string[] = []
+
+  while (cursor <= monthEnd) {
+    const dateKey = toLocalDateKey(cursor)
+    const planned = getPlannedMinutesForDate(dateKey, workingHoursForCapacity)
+    contractTargetMinutes += planned
+    if (planned > 0) {
+      scheduledWorkingDays.push(dateKey)
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return { contractTargetMinutes, scheduledWorkingDays }
+}
+
+function computeWorkedMinutesAndAttendanceDates(attendance: RawAttendance[]): {
+  workedMinutes: number
+  attendanceDateSet: Set<string>
+} {
+  const attendanceDateSet = new Set<string>()
+  let workedMinutes = 0
+
+  for (const entry of attendance) {
+    workedMinutes += parseDurationToMinutes(entry.effectiveTime)
+    if (entry.attendanceDate) {
+      attendanceDateSet.add(entry.attendanceDate.substring(0, 10))
+    }
+  }
+
+  return { workedMinutes, attendanceDateSet }
+}
+
+function computeAbsenceDateSet(approvedAbsences: RawAbsence[], monthStart: Date, monthEnd: Date): Set<string> {
+  const absenceDateSet = new Set<string>()
+
+  for (const absence of approvedAbsences) {
+    const start = new Date(absence.startDate)
+    const end = new Date(absence.endDate)
+    const dayCursor = new Date(start)
+    while (dayCursor <= end && dayCursor <= monthEnd) {
+      if (dayCursor >= monthStart) {
+        absenceDateSet.add(toLocalDateKey(dayCursor))
+      }
+      dayCursor.setDate(dayCursor.getDate() + 1)
+    }
+  }
+
+  return absenceDateSet
+}
+
+function countMissingPresenceDays(
+  scheduledWorkingDays: string[],
+  attendanceDateSet: Set<string>,
+  absenceDateSet: Set<string>
+): number {
+  let missingPresenceDays = 0
+
+  for (const day of scheduledWorkingDays) {
+    if (!attendanceDateSet.has(day) && !absenceDateSet.has(day)) {
+      missingPresenceDays++
+    }
+  }
+
+  return missingPresenceDays
+}
+
+function computeCapacityMetrics(
+  attendance: RawAttendance[],
   absences: RawAbsence[],
-  referenceDate: Date,
+  workingHours: RawEmployeePosition['employee']['workingHours'][number] | undefined,
+  payrollMonth: number,
+  payrollYear: number
+): CapacityMetrics {
+  const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
+  const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
+  const monthEnd = new Date(payrollYear, payrollMonth, 0)
+  const workingHoursForCapacity = buildWorkingHoursForCapacity(workingHours)
+  const { contractTargetMinutes, scheduledWorkingDays } = computeContractTargetMinutes(
+    monthStart,
+    monthEnd,
+    workingHoursForCapacity
+  )
+  const { workedMinutes, attendanceDateSet } = computeWorkedMinutesAndAttendanceDates(attendance)
+  const absenceDateSet = computeAbsenceDateSet(approvedAbsences, monthStart, monthEnd)
+  const missingPresenceDays = countMissingPresenceDays(scheduledWorkingDays, attendanceDateSet, absenceDateSet)
+
+  const overtimeMinutes = Math.max(0, workedMinutes - contractTargetMinutes)
+  const balanceMinutes = workedMinutes - contractTargetMinutes
+
+  return {
+    workedMinutes,
+    contractTargetMinutes,
+    overtimeMinutes,
+    balanceMinutes,
+    missingPresenceDays
+  }
+}
+
+function resolveVariablePayStatus(bonuses: RawBonus[]): PayrollEmployee['variablePayStatus'] {
+  if (bonuses.length === 0) {
+    return 'none'
+  }
+
+  const allBonusesApproved = bonuses.every(b => b.status === 'APPROVED_COMPENSATION')
+  if (allBonusesApproved) {
+    return 'all_approved'
+  }
+
+  const hasPendingBonuses = bonuses.some(b => b.status !== 'APPROVED_COMPENSATION')
+  if (hasPendingBonuses) {
+    return 'pending'
+  }
+
+  return null
+}
+
+function buildPayrollChanges(
+  employeeId: string,
+  salaries: RawSalary[],
+  hireDate: string | null | undefined,
+  rawExitDate: string | null | undefined,
+  payrollMonth: number,
+  payrollYear: number
+): PayrollEmployee['changes'] {
+  const periodStart = new Date(payrollYear, payrollMonth - 1, 1)
+  const periodEnd = new Date(payrollYear, payrollMonth, 0)
+  const changes: PayrollEmployee['changes'] = []
+
+  if (hireDate) {
+    const parsedHireDate = new Date(hireDate)
+    if (parsedHireDate >= periodStart && parsedHireDate <= periodEnd) {
+      changes.push({
+        id: `chg-hire-${employeeId}`,
+        employeeId,
+        changeType: 'new_hire',
+        fieldName: 'Hire Date',
+        oldValue: null,
+        newValue: hireDate,
+        effectiveDate: hireDate,
+        changedAt: hireDate
+      })
+    }
+  }
+
+  if (rawExitDate) {
+    const parsedExitDate = new Date(rawExitDate)
+    if (parsedExitDate >= periodStart && parsedExitDate <= periodEnd) {
+      changes.push({
+        id: `chg-term-${employeeId}`,
+        employeeId,
+        changeType: 'termination',
+        fieldName: 'Exit Date',
+        oldValue: null,
+        newValue: rawExitDate,
+        effectiveDate: rawExitDate,
+        changedAt: rawExitDate
+      })
+    }
+  }
+
+  for (let index = 0; index < salaries.length; index++) {
+    const salary = salaries[index]
+    const effectiveDate = salary.startDate || salary.createdAt
+    const parsedEffectiveDate = new Date(effectiveDate)
+
+    if (parsedEffectiveDate < periodStart || parsedEffectiveDate > periodEnd) {
+      continue
+    }
+
+    const previousSalary = salaries[index + 1] || null
+    changes.push({
+      id: `chg-sal-${employeeId}-${salary.id}`,
+      employeeId,
+      changeType: 'salary_change',
+      fieldName: 'Monthly Gross Salary',
+      oldValue: toOptionalString(previousSalary?.monthlyGrossSalary),
+      newValue: toOptionalString(salary.monthlyGrossSalary),
+      effectiveDate,
+      changedAt: salary.createdAt
+    })
+  }
+
+  return changes
+}
+
+function applyReadinessAndEligibility(payrollEmployee: PayrollEmployee, country: PayrollCountry): void {
+  resetIssueIdCounter()
+  const issues = runAllValidations(payrollEmployee, country)
+  payrollEmployee.issues = issues
+
+  const blockers = issues.filter(i => i.severity === 'blocker' && i.status === 'open')
+  const warnings = issues.filter(i => i.severity === 'warning' && i.status === 'open')
+
+  if (blockers.length > 0) {
+    payrollEmployee.readinessStatus = 'blocked'
+    payrollEmployee.exportEligible = false
+    return
+  }
+
+  if (warnings.length > 0) {
+    payrollEmployee.readinessStatus = 'warning'
+    return
+  }
+
+  payrollEmployee.readinessStatus = 'ready'
+}
+
+function groupByEmployeeId<T extends { employeeId: string }>(entries: T[]): Map<string, T[]> {
+  const grouped = new Map<string, T[]>()
+
+  for (const entry of entries) {
+    const current = grouped.get(entry.employeeId) || []
+    current.push(entry)
+    grouped.set(entry.employeeId, current)
+  }
+
+  return grouped
+}
+
+function buildPayrollPeriod(month: number, year: number): { periodStart: string; periodEnd: string } {
+  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
+
+  return { periodStart, periodEnd }
+}
+
+async function fetchEmployeeDatasets(
+  client: ReturnType<typeof useGraphqlClient>,
+  locale: string,
+  employeeIds: string[],
+  month: number,
+  year: number
+): Promise<{
+  salaryResult: { EmployeeSalary: RawSalary[] }
+  absenceResult: { EmployeeAbsence: RawAbsence[] }
+  attendanceResult: { EmployeeAttendance: RawAttendance[] }
+  bonusResult: { EmployeeBonus: RawBonus[] }
+}> {
+  const { periodStart, periodEnd } = buildPayrollPeriod(month, year)
+
+  const [salaryResult, absenceResult, attendanceResult, bonusResult] = await Promise.all([
+    client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
+    client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
+      employeeIds,
+      periodStart,
+      periodEnd,
+      activeUserLocale: locale
+    }),
+    client.request<{ EmployeeAttendance: RawAttendance[] }>(GET_PAYROLL_ATTENDANCE, {
+      employeeIds,
+      dateFrom: periodStart,
+      dateTo: periodEnd
+    }),
+    client
+      .request<{ EmployeeBonus: RawBonus[] }>(GET_PAYROLL_BONUSES, {
+        employeeIds,
+        fiscalYear: year
+      })
+      .catch(() => ({ EmployeeBonus: [] as RawBonus[] }))
+  ])
+
+  return { salaryResult, absenceResult, attendanceResult, bonusResult }
+}
+
+function buildPayrollEmployee(
+  pos: RawEmployeePosition,
+  salaryMap: Map<string, RawSalary[]>,
+  absenceMap: Map<string, RawAbsence[]>,
+  attendanceMap: Map<string, RawAttendance[]>,
+  bonusMap: Map<string, RawBonus[]>,
+  country: PayrollCountry,
   payrollMonth: number,
   payrollYear: number
 ): PayrollChangeEvent[] {
@@ -386,185 +580,30 @@ function detectChanges(
   const emp = pos.employee
   const wc = emp.workingCondition?.[0]
   const wh = emp.workingHours?.[0]
-  const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
-  const monthEnd = new Date(payrollYear, payrollMonth, 0)
+  const bank = emp.bankAccounts?.[0]
+  const tax = emp.taxDetails?.[0]
+  const salaries = salaryMap.get(emp.id) || []
+  const salary = salaries[0] || null
+  const absences = absenceMap.get(emp.id) || []
+  const attendance = attendanceMap.get(emp.id) || []
+  const bonuses = bonusMap.get(emp.id) || []
+  const leaveMetrics = computeLeaveMetrics(absences, wh?.weeklyHours)
+  const capacityMetrics = computeCapacityMetrics(attendance, absences, wh, payrollMonth, payrollYear)
 
-  const hire = buildNewHireChange(pos, emp, monthStart, monthEnd, nextId)
-  if (hire) changes.push(hire)
+  const contractTypeLabel = wc?.contractType?.translations?.[0]?.value || wc?.contractType?.value || ''
+  const employmentTypeLabel = wc?.employmentType?.translations?.[0]?.value || wc?.employmentType?.value || ''
+  const payrollRelevant = resolvePayrollRelevant(wc?.contractType?.objectValue)
 
-  const term = buildTerminationChange(pos, emp, monthStart, monthEnd, nextId)
-  if (term) changes.push(term)
+  const rawExitDate = wc?.exitDate || pos.exitDate
+  const employmentStatus = resolveEmploymentStatus(rawExitDate, payrollMonth, payrollYear)
 
-  if (currentSalary) {
-    const sal = buildSalaryChangeEvent(pos, emp, currentSalary, previousSalary, referenceDate, nextId)
-    if (sal) changes.push(sal)
-  }
+  const totalVariablePay = bonuses.reduce((sum, b) => sum + (b.amount || 0), 0)
+  const bonusCurrency = bonuses[0]?.currency?.code || null
+  const variablePayStatus = resolveVariablePayStatus(bonuses)
+  const hireDate = wc?.hireDate || pos.hireDate
+  const changes = buildPayrollChanges(emp.id, salaries, hireDate, rawExitDate, payrollMonth, payrollYear)
 
-  if (wh) {
-    const whCh = buildWorkingHoursChange(pos, emp, wh, referenceDate, nextId)
-    if (whCh) changes.push(whCh)
-  }
-
-  if (wc) {
-    const wcCh = buildContractChange(pos, emp, wc, referenceDate, nextId)
-    if (wcCh) changes.push(wcCh)
-  }
-
-  appendBankAndTaxAndAbsenceChanges(changes, pos, emp, absences, referenceDate, nextId)
-
-  return changes
-}
-
-type WorkingHoursCapacity = Parameters<typeof getPlannedMinutesForDate>[1]
-
-function sumLeaveDaysByCategory(approvedAbsences: RawAbsence[]): {
-  paidLeave: number
-  sickLeave: number
-  unpaidLeave: number
-  otherLeave: number
-} {
-  const sumFor = (cat: 'paid' | 'sick' | 'unpaid' | 'other') =>
-    approvedAbsences.filter(a => getAbsenceCategory(a.type) === cat).reduce((sum, a) => sum + (a.effectiveDays || 0), 0)
-
-  return {
-    paidLeave: sumFor('paid'),
-    sickLeave: sumFor('sick'),
-    unpaidLeave: sumFor('unpaid'),
-    otherLeave: sumFor('other')
-  }
-}
-
-function resolvePayrollRelevantFlag(
-  wc: RawEmployeePosition['employee']['workingCondition'][0] | undefined
-): boolean | null {
-  const contractObjVal = wc?.contractType?.objectValue
-  if (!contractObjVal || typeof contractObjVal !== 'object') return null
-  const payrollRelevantRaw = Reflect.get(contractObjVal, 'payroll_relevant')
-  if (payrollRelevantRaw === undefined) return null
-  if (payrollRelevantRaw === 'true' || payrollRelevantRaw === true) return true
-  return false
-}
-
-function computeContractTargetMinutesForMonth(
-  payrollYear: number,
-  payrollMonth: number,
-  workingHoursForCapacity: WorkingHoursCapacity | undefined
-): number {
-  let contractTargetMinutes = 0
-  const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
-  const monthEnd = new Date(payrollYear, payrollMonth, 0)
-  const cursor = new Date(monthStart)
-  while (cursor <= monthEnd) {
-    contractTargetMinutes += getPlannedMinutesForDate(toLocalDateKey(cursor), workingHoursForCapacity)
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return contractTargetMinutes
-}
-
-function sumAttendanceWorkedMinutes(attendance: RawAttendance[]): number {
-  let workedMinutes = 0
-  for (const entry of attendance) {
-    workedMinutes += parseDurationToMinutes(entry.effectiveTime)
-  }
-  return workedMinutes
-}
-
-function roundPositiveMinutesToHours(minutes: number): number | null {
-  if (minutes <= 0) return null
-  return Math.round((minutes / 60) * 10) / 10
-}
-
-function applyReadinessAfterValidation(payrollEmp: PayrollEmployee, issues: PayrollEmployee['issues']): void {
-  const blockers = issues.filter(i => i.severity === 'blocker' && i.status === 'open')
-  const warnings = issues.filter(i => i.severity === 'warning' && i.status === 'open')
-
-  if (blockers.length > 0) {
-    payrollEmp.readinessStatus = 'blocked'
-    payrollEmp.exportEligible = false
-    return
-  }
-
-  if (warnings.length > 0) {
-    payrollEmp.readinessStatus = 'warning'
-    return
-  }
-
-  payrollEmp.readinessStatus = 'ready'
-}
-
-function mapPositionWorkingHoursToCapacity(
-  wh: RawEmployeePosition['employee']['workingHours'][0] | undefined
-): WorkingHoursCapacity | undefined {
-  if (!wh) return undefined
-  return {
-    mondayHours: wh.mondayHours ?? 0,
-    tuesdayHours: wh.tuesdayHours ?? 0,
-    wednesdayHours: wh.wednesdayHours ?? 0,
-    thursdayHours: wh.thursdayHours ?? 0,
-    fridayHours: wh.fridayHours ?? 0,
-    saturdayHours: wh.saturdayHours ?? 0,
-    sundayHours: wh.sundayHours ?? 0
-  }
-}
-
-type PayrollTimeBreakdown = {
-  contractTargetMinutes: number
-  workedMinutes: number
-  overtimeMinutes: number
-  balanceMinutes: number
-}
-
-function computePayrollTimeBreakdown(
-  payrollYear: number,
-  payrollMonth: number,
-  workingHoursForCapacity: WorkingHoursCapacity | undefined,
-  attendance: RawAttendance[]
-): PayrollTimeBreakdown {
-  const contractTargetMinutes = computeContractTargetMinutesForMonth(payrollYear, payrollMonth, workingHoursForCapacity)
-  const workedMinutes = sumAttendanceWorkedMinutes(attendance)
-  const overtimeMinutes = Math.max(0, workedMinutes - contractTargetMinutes)
-  const balanceMinutes = workedMinutes - contractTargetMinutes
-  return { contractTargetMinutes, workedMinutes, overtimeMinutes, balanceMinutes }
-}
-
-function assemblePayrollEmployeeRecord(params: {
-  pos: RawEmployeePosition
-  emp: RawEmployeePosition['employee']
-  wc: RawEmployeePosition['employee']['workingCondition'][0] | undefined
-  wh: RawEmployeePosition['employee']['workingHours'][0] | undefined
-  bank: RawEmployeePosition['employee']['bankAccounts'][0] | undefined
-  tax: RawEmployeePosition['employee']['taxDetails'][0] | undefined
-  salary: RawSalary | undefined
-  country: PayrollCountry
-  leave: { paidLeave: number; sickLeave: number; unpaidLeave: number; otherLeave: number }
-  time: PayrollTimeBreakdown
-  contractTypeLabel: string
-  employmentTypeLabel: string
-  payrollRelevant: boolean | null
-  rawExitDate: string | null | undefined
-  employmentStatus: string
-}): PayrollEmployee {
-  const {
-    pos,
-    emp,
-    wc,
-    wh,
-    bank,
-    tax,
-    salary,
-    country,
-    leave,
-    time,
-    contractTypeLabel,
-    employmentTypeLabel,
-    payrollRelevant,
-    rawExitDate,
-    employmentStatus
-  } = params
-  const { paidLeave, sickLeave, unpaidLeave, otherLeave } = leave
-  const { contractTargetMinutes, workedMinutes, overtimeMinutes, balanceMinutes } = time
-
-  return {
+  const payrollEmp: PayrollEmployee = {
     id: pos.id,
     employeeId: emp.id,
     code: emp.code || '',
@@ -586,7 +625,7 @@ function assemblePayrollEmployeeRecord(params: {
     fte: wh?.fullTimeEquivalent ?? null,
     weeklyHours: wh?.weeklyHours ?? null,
     baseSalary: salary?.monthlyGrossSalary ?? null,
-    currency: salary?.currency?.code || salary?.currencyRef || 'EUR',
+    currency: salary?.currency?.code || salary?.currencyRef || DEFAULT_PAYROLL_CURRENCY,
     bankDetailsPresent: !!(bank?.iban || bank?.bankName),
     bankAccountIban: bank?.iban || undefined,
 
@@ -596,20 +635,32 @@ function assemblePayrollEmployeeRecord(params: {
     healthInsuranceTypeRef: tax?.healthInsuranceTypeRef || undefined,
     employmentTypeFlag: employmentTypeLabel || undefined,
 
-    paidLeaveDays: paidLeave,
-    sickLeaveDays: sickLeave,
-    unpaidLeaveDays: unpaidLeave,
-    otherLeaveDays: otherLeave,
+    totalVariablePay: totalVariablePay > 0 ? totalVariablePay : null,
+    variablePayCurrency: bonusCurrency,
+    variablePayStatus,
 
-    loggedHours: roundPositiveMinutesToHours(workedMinutes),
-    contractCapacityHours: roundPositiveMinutesToHours(contractTargetMinutes),
-    overtimeHours: roundPositiveMinutesToHours(overtimeMinutes),
-    balanceHours: contractTargetMinutes > 0 ? Math.round((balanceMinutes / 60) * 10) / 10 : null,
+    paidLeaveDays: leaveMetrics.paidLeaveDays,
+    sickLeaveDays: leaveMetrics.sickLeaveDays,
+    unpaidLeaveDays: leaveMetrics.unpaidLeaveDays,
+    otherLeaveDays: leaveMetrics.otherLeaveDays,
+    sickLeaveHours: leaveMetrics.sickLeaveHours,
+    paidLeaveHours: leaveMetrics.paidLeaveHours,
+
+    loggedHours: capacityMetrics.workedMinutes > 0 ? Math.round((capacityMetrics.workedMinutes / 60) * 10) / 10 : null,
+    contractCapacityHours:
+      capacityMetrics.contractTargetMinutes > 0
+        ? Math.round((capacityMetrics.contractTargetMinutes / 60) * 10) / 10
+        : null,
+    overtimeHours:
+      capacityMetrics.overtimeMinutes > 0 ? Math.round((capacityMetrics.overtimeMinutes / 60) * 10) / 10 : null,
+    balanceHours:
+      capacityMetrics.contractTargetMinutes > 0 ? Math.round((capacityMetrics.balanceMinutes / 60) * 10) / 10 : null,
+    missingPresenceDays: capacityMetrics.missingPresenceDays,
 
     readinessStatus: 'ready',
     issues: [],
-    changes: [],
-    changedSinceLastPayroll: false,
+    changes,
+    changedSinceLastPayroll: changes.length > 0,
     exportEligible: true
   }
 }
@@ -683,205 +734,9 @@ function buildPayrollEmployee(input: BuildPayrollEmployeeInput): PayrollEmployee
   payrollEmp.changes = detectedChanges
   payrollEmp.changedSinceLastPayroll = detectedChanges.length > 0
 
-  resetIssueIdCounter()
-  const issues = runAllValidations(payrollEmp, country)
-  payrollEmp.issues = issues
-
-  applyReadinessAfterValidation(payrollEmp, issues)
+  applyReadinessAndEligibility(payrollEmp, country)
 
   return payrollEmp
-}
-
-type PayrollGraphqlClient = ReturnType<typeof useGraphqlClient>
-
-function buildPayrollMapsFromFetchResults(
-  salaryResult: { EmployeeSalary?: RawSalary[] },
-  absenceResult: { EmployeeAbsence?: RawAbsence[] },
-  attendanceResult: { EmployeeAttendance?: RawAttendance[] },
-  prevSalaryResult: { EmployeeSalary?: RawPreviousSalary[] }
-): {
-  salaryMap: Map<string, RawSalary>
-  absenceMap: Map<string, RawAbsence[]>
-  attendanceMap: Map<string, RawAttendance[]>
-  previousSalaryMap: Map<string, RawPreviousSalary>
-} {
-  const salaryMap = new Map<string, RawSalary>()
-  for (const sal of salaryResult.EmployeeSalary || []) {
-    if (!salaryMap.has(sal.employeeId)) {
-      salaryMap.set(sal.employeeId, sal)
-    }
-  }
-
-  const absenceMap = new Map<string, RawAbsence[]>()
-  for (const abs of absenceResult.EmployeeAbsence || []) {
-    const existing = absenceMap.get(abs.employeeId) || []
-    existing.push(abs)
-    absenceMap.set(abs.employeeId, existing)
-  }
-
-  const attendanceMap = new Map<string, RawAttendance[]>()
-  for (const att of attendanceResult.EmployeeAttendance || []) {
-    const existing = attendanceMap.get(att.employeeId) || []
-    existing.push(att)
-    attendanceMap.set(att.employeeId, existing)
-  }
-
-  const previousSalaryMap = new Map<string, RawPreviousSalary>()
-  for (const sal of prevSalaryResult.EmployeeSalary || []) {
-    if (!previousSalaryMap.has(sal.employeeId)) {
-      previousSalaryMap.set(sal.employeeId, sal)
-    }
-  }
-
-  return { salaryMap, absenceMap, attendanceMap, previousSalaryMap }
-}
-
-async function hydrateChangeActorDisplayNames(
-  client: PayrollGraphqlClient,
-  employees: PayrollEmployee[]
-): Promise<void> {
-  const changedByUserIds = new Set<string>()
-  for (const emp of employees) {
-    for (const change of emp.changes) {
-      if (change.changedBy) changedByUserIds.add(change.changedBy)
-    }
-  }
-
-  if (changedByUserIds.size === 0) return
-
-  try {
-    const userResult = await client.request<{
-      Employee: Array<{ userId: string; displayName: string | null; fullName: string | null }>
-    }>(GET_EMPLOYEES_BY_USER_IDS, { userIds: [...changedByUserIds] })
-
-    const userNameMap = new Map<string, string>()
-    for (const u of userResult.Employee || []) {
-      if (u.userId) {
-        userNameMap.set(u.userId, u.displayName || u.fullName || u.userId)
-      }
-    }
-
-    for (const emp of employees) {
-      for (const change of emp.changes) {
-        if (change.changedBy && userNameMap.has(change.changedBy)) {
-          change.changedBy = userNameMap.get(change.changedBy)
-        }
-      }
-    }
-  } catch {
-    // Non-critical — keep raw user IDs if resolution fails
-  }
-}
-
-function computePayrollPeriodWindow(
-  year: number,
-  month: number
-): {
-  periodStart: string
-  periodEnd: string
-  referenceDate: Date
-} {
-  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
-  const lastDay = new Date(year, month, 0).getDate()
-  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
-  const referenceDate = new Date(year, month - 1, 1)
-  return { periodStart, periodEnd, referenceDate }
-}
-
-async function fetchPayrollSupplementalQueryResults(
-  client: PayrollGraphqlClient,
-  employeeIds: string[],
-  periodStart: string,
-  periodEnd: string,
-  referenceDate: Date,
-  locale: string
-): Promise<
-  [
-    { EmployeeSalary?: RawSalary[] },
-    { EmployeeAbsence?: RawAbsence[] },
-    { EmployeeAttendance?: RawAttendance[] },
-    { EmployeeSalary?: RawPreviousSalary[] }
-  ]
-> {
-  return Promise.all([
-    client.request<{ EmployeeSalary: RawSalary[] }>(GET_PAYROLL_SALARIES, { employeeIds }),
-    client.request<{ EmployeeAbsence: RawAbsence[] }>(GET_PAYROLL_ABSENCES, {
-      employeeIds,
-      periodStart,
-      periodEnd,
-      activeUserLocale: locale
-    }),
-    client.request<{ EmployeeAttendance: RawAttendance[] }>(GET_PAYROLL_ATTENDANCE, {
-      employeeIds,
-      dateFrom: periodStart,
-      dateTo: periodEnd
-    }),
-    client.request<{ EmployeeSalary: RawPreviousSalary[] }>(GET_PREVIOUS_SALARIES, {
-      employeeIds,
-      beforeDate: referenceDate.toISOString()
-    })
-  ])
-}
-
-async function fetchPayrollEmployeesForPeriod(
-  client: PayrollGraphqlClient,
-  companyId: string,
-  month: number,
-  year: number,
-  country: PayrollCountry | null
-): Promise<PayrollEmployee[]> {
-  const locale = getCurrentActiveUserLocale()
-  const posResult = await client.request<{ EmployeePosition: RawEmployeePosition[] }>(GET_PAYROLL_EMPLOYEES, {
-    companyId,
-    activeUserLocale: locale
-  })
-
-  const positions = posResult.EmployeePosition || []
-  if (positions.length === 0) {
-    return []
-  }
-
-  const effectiveCountry = country || 'DE'
-
-  const employeeIds = [...new Set(positions.map(p => p.employee?.id).filter(Boolean))]
-
-  const { periodStart, periodEnd, referenceDate } = computePayrollPeriodWindow(year, month)
-
-  const [salaryResult, absenceResult, attendanceResult, prevSalaryResult] = await fetchPayrollSupplementalQueryResults(
-    client,
-    employeeIds,
-    periodStart,
-    periodEnd,
-    referenceDate,
-    locale
-  )
-
-  const { salaryMap, absenceMap, attendanceMap, previousSalaryMap } = buildPayrollMapsFromFetchResults(
-    salaryResult,
-    absenceResult,
-    attendanceResult,
-    prevSalaryResult
-  )
-
-  const allEmployees = positions
-    .filter(p => p.employee?.id)
-    .map(pos =>
-      buildPayrollEmployee({
-        pos,
-        salaryMap,
-        absenceMap,
-        attendanceMap,
-        previousSalaryMap,
-        country: effectiveCountry,
-        payrollMonth: month,
-        payrollYear: year,
-        referenceDate
-      })
-    )
-
-  await hydrateChangeActorDisplayNames(client, allEmployees)
-
-  return allEmployees.filter(e => e.payrollRelevant !== false)
 }
 
 export function usePayrollEmployees(
@@ -907,7 +762,43 @@ export function usePayrollEmployees(
     setError(null)
 
     try {
-      const payrollEmployees = await fetchPayrollEmployeesForPeriod(client, companyId, month, year, country)
+      const locale = getCurrentActiveUserLocale()
+      const posResult = await client.request<{ EmployeePosition: RawEmployeePosition[] }>(GET_PAYROLL_EMPLOYEES, {
+        companyId,
+        activeUserLocale: locale
+      })
+
+      const positions = posResult.EmployeePosition || []
+      if (positions.length === 0) {
+        setEmployees([])
+        setLoading(false)
+        return
+      }
+
+      const effectiveCountry = country || DEFAULT_PAYROLL_COUNTRY
+
+      const employeeIds = [...new Set(positions.map(p => p.employee?.id).filter(Boolean))]
+      const { salaryResult, absenceResult, attendanceResult, bonusResult } = await fetchEmployeeDatasets(
+        client,
+        locale,
+        employeeIds,
+        month,
+        year
+      )
+
+      const salaryMap = groupByEmployeeId(salaryResult.EmployeeSalary || [])
+      const absenceMap = groupByEmployeeId(absenceResult.EmployeeAbsence || [])
+      const attendanceMap = groupByEmployeeId(attendanceResult.EmployeeAttendance || [])
+      const bonusMap = groupByEmployeeId(bonusResult.EmployeeBonus || [])
+
+      const allEmployees = positions
+        .filter(p => p.employee?.id)
+        .map(pos =>
+          buildPayrollEmployee(pos, salaryMap, absenceMap, attendanceMap, bonusMap, effectiveCountry, month, year)
+        )
+
+      const payrollEmployees = allEmployees.filter(e => e.payrollRelevant !== false)
+
       setEmployees(payrollEmployees)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch payroll data'))
@@ -1028,8 +919,6 @@ interface OrgchartStructureResponse {
   edges: Array<{ id: string; source: string; target: string }>
 }
 
-const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
-
 interface RawCompanyAddress {
   companyId: string
   addressType: string | null
@@ -1039,7 +928,7 @@ interface RawCompanyAddress {
 
 export function useCompanyList(accessToken: string) {
   const graphqlClient = useGraphqlClient(accessToken)
-  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const restClient = useRestClient(ORGCHART_API_URL)
   const [companies, setCompanies] = useState<PayrollCompany[]>([])
   const [loading, setLoading] = useState(false)
 

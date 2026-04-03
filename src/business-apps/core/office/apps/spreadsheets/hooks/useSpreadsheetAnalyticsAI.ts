@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import { summarizeColumn, isNumericColumn } from '../utils/analyticsEngine'
 import { selectPreferredModel } from '../utils/aiModelSelection'
@@ -281,8 +282,12 @@ export function useSpreadsheetAnalyticsAI({
     async (systemPrompt: string, userPrompt: string): Promise<unknown> => {
       const selectedModel = await selectPreferredModel(promptClient)
 
+      const modelId = getPromptManagerDocumentId(selectedModel)
+      if (!modelId) {
+        throw new Error('Selected AI model has no document id')
+      }
       const formData = new FormData()
-      formData.append('model_id', selectedModel._id)
+      formData.append('model_id', modelId)
       formData.append('system_content', systemPrompt)
       formData.append('user_content', userPrompt)
       formData.append('model_settings', JSON.stringify({}))

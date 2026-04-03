@@ -1,15 +1,14 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import {
   Badge,
+  Button,
   Card,
-  CardContent,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Avatar,
-  AvatarImage,
-  AvatarFallback
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead
 } from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
@@ -18,416 +17,361 @@ import {
   MinusCircleIcon,
   UsersIcon,
   ArrowsClockwiseIcon,
-  ShieldWarningIcon
+  ShieldWarningIcon,
+  WarningCircleIcon,
+  PlusIcon,
+  FolderOpenIcon
 } from '@phosphor-icons/react'
-import type { PayrollSummary, PayrollRun, PayrollEmployee } from '../../../types/payrollTypes'
-import { PayrollRunStatusBadge, ReadinessStatusBadge } from '../../shared/StatusBadge'
-import { getPictureDataUrl } from '../../../utils/imageUtils'
-import {
-  type PanelCategory,
-  countOpenWarningsAcrossEmployees,
-  filterEmployeesForPanel,
-  kpiPanelOnClick,
-  panelTitleForCategory
-} from './overviewPanelHelpers'
+import type { PayrollSummary, PayrollRun, PayrollEmployee, PayrollRunStatus } from '../../../types/payrollTypes'
+import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
+import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
 
 interface OverviewViewProps {
-  readonly summary: PayrollSummary
-  readonly payrollRun: PayrollRun | null
-  readonly employees: PayrollEmployee[]
-  readonly t: (key: string) => string
-  readonly onNavigateToGrid?: () => void
+  activeRun: PayrollRun | null
+  runs: PayrollRun[]
+  runsLoading: boolean
+  summary: PayrollSummary
+  employees: PayrollEmployee[]
+  onSelectRun: (run: PayrollRun) => void
+  onCreateRun: () => void
+  t: (key: string, args?: Record<string, any>) => string
 }
+
+type BadgeVariant = 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'
 
 interface KpiCardProps {
-  readonly testId: string
-  readonly label: string
-  readonly value: number | string
-  readonly icon: React.ReactNode
-  readonly iconBgClass: string
-  readonly iconColorClass: string
-  readonly onClick?: () => void
+  label: string
+  value: number
+  icon: React.ReactNode
+  variant: BadgeVariant
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ testId, label, value, icon, iconBgClass, iconColorClass, onClick }) => {
-  const interactiveProps = onClick
-    ? {
-        role: 'button' as const,
-        tabIndex: 0,
-        onKeyDown: (e: React.KeyboardEvent) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onClick()
-          }
-        }
-      }
-    : {}
-
-  const valueIsPositiveNumber = typeof value === 'number' && value > 0
-
-  return (
-    <Card
-      data-testid={testId}
-      className={onClick ? 'gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow' : ''}
-      onClick={onClick}
-      {...interactiveProps}
-    >
-      <CardContent className="gba:p-4 gba:flex gba:items-center gba:gap-4">
-        <div className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center ${iconBgClass}`}>
-          <span className={iconColorClass}>{icon}</span>
-        </div>
-        <div>
-          <p
-            className={`gba:text-2xl gba:font-bold ${valueIsPositiveNumber ? 'gba:text-foreground' : 'gba:text-muted-foreground'}`}
-          >
-            {value}
-          </p>
-          <p className="gba:text-sm gba:text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
+interface ReadinessSegmentConfig {
+  key: 'ready' | 'warning' | 'blocked' | 'excluded'
+  count: number
+  badgeVariant: BadgeVariant
+  barClassName: string
+  label: string
 }
 
-interface EmployeeListPanelProps {
-  readonly isOpen: boolean
-  readonly onClose: () => void
-  readonly title: string
-  readonly employees: PayrollEmployee[]
-  readonly t: (key: string) => string
-  readonly onViewEmployee?: (employee: PayrollEmployee) => void
-}
-
-interface EmployeeListRowProps {
-  readonly emp: PayrollEmployee
-  readonly onViewEmployee?: (employee: PayrollEmployee) => void
-}
-
-const EmployeeListRow: React.FC<EmployeeListRowProps> = ({ emp, onViewEmployee }) => {
-  const openIssues = emp.issues.filter(i => i.status === 'open')
-  const hasBlockers = openIssues.some(i => i.severity === 'blocker')
-  const blockerCount = openIssues.filter(i => i.severity === 'blocker').length
-  const warningCount = openIssues.filter(i => i.severity === 'warning').length
-  const hasWarnings = warningCount > 0
-
-  return (
-    <button
-      type="button"
-      className="gba:w-full gba:text-left gba:p-4 gba:hover:bg-muted/50 gba:cursor-pointer gba:transition-colors gba:border-0 gba:bg-transparent"
-      onClick={() => onViewEmployee?.(emp)}
-    >
-      <div className="gba:flex gba:items-start gba:gap-3">
-        <Avatar size="sm" className="gba:h-10 gba:w-10 gba:flex-shrink-0">
-          <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.displayName} />
-          <AvatarFallback>
-            {emp.firstName?.charAt(0) || ''}
-            {emp.lastName?.charAt(0) || ''}
-          </AvatarFallback>
-        </Avatar>
-
-        <div className="gba:flex-1 gba:min-w-0">
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{emp.displayName}</p>
-            <ReadinessStatusBadge status={emp.readinessStatus} />
-          </div>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-            {emp.department} · {emp.code}
-          </p>
-
-          {openIssues.length > 0 && (
-            <div className="gba:flex gba:gap-2 gba:mt-2 gba:flex-wrap">
-              {hasBlockers && (
-                <Badge variant="destructive" className="gba:text-xs">
-                  {blockerCount} blocker
-                  {blockerCount !== 1 ? 's' : ''}
-                </Badge>
-              )}
-              {hasWarnings && (
-                <Badge variant="warning" className="gba:text-xs">
-                  {warningCount} warning
-                  {warningCount !== 1 ? 's' : ''}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          {emp.changedSinceLastPayroll ? (
-            <Badge variant="outline" className="gba:text-xs gba:mt-2">
-              <ArrowsClockwiseIcon size={10} className="gba:mr-1" />
-              Changed
-            </Badge>
-          ) : null}
-        </div>
+const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
+  <Card className="gba:p-4">
+    <div className="gba:flex gba:flex-row gba:items-center gba:gap-3">
+      <Badge
+        variant={variant}
+        className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:flex gba:items-center gba:justify-center"
+      >
+        {icon}
+      </Badge>
+      <div className="gba:min-w-0">
+        <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
       </div>
-    </button>
-  )
+    </div>
+  </Card>
+)
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  const formatted = formatPlatformDate(dateStr, 'date.short')
+  return formatted ?? '—'
 }
 
-const EmployeeListPanel: React.FC<EmployeeListPanelProps> = ({
-  isOpen,
-  onClose,
-  title,
-  employees,
-  t,
-  onViewEmployee
-}) => {
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="gba:w-full sm:gba:max-w-md gba:p-0" style={{ borderRadius: '12px 0 0 12px' }}>
-        <SheetHeader className="gba:p-5 gba:border-b gba:border-border">
-          <SheetTitle className="gba:text-lg gba:font-semibold">{title}</SheetTitle>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {employees.length} {employees.length === 1 ? 'employee' : 'employees'}
-          </p>
-        </SheetHeader>
-
-        <div className="gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-          {employees.length === 0 ? (
-            <div className="gba:p-5 gba:text-center gba:text-muted-foreground">{t('no-data')}</div>
-          ) : (
-            <div className="gba:divide-y gba:divide-border">
-              {employees.map(emp => (
-                <EmployeeListRow key={emp.id} emp={emp} onViewEmployee={onViewEmployee} />
-              ))}
-            </div>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
-  )
+function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
+  switch (status) {
+    case 'PAYROLL_IN_PROGRESS':
+      return t('status-in-progress')
+    case 'PAYROLL_READY_FOR_REVIEW':
+      return t('status-ready-for-review')
+    case 'PAYROLL_APPROVED_FOR_EXPORT':
+      return t('status-approved')
+    case 'PAYROLL_EXPORTED':
+      return t('status-exported')
+    case 'PAYROLL_CLOSED':
+      return t('status-closed')
+    default:
+      return status
+  }
 }
 
-interface OverviewPayrollRunCardProps {
-  readonly payrollRun: PayrollRun
-}
+function RunsListView({
+  runs,
+  runsLoading,
+  onSelectRun,
+  onCreateRun,
+  t
+}: Readonly<{
+  runs: PayrollRun[]
+  runsLoading: boolean
+  onSelectRun: (run: PayrollRun) => void
+  onCreateRun: () => void
+  t: (key: string) => string
+}>) {
+  if (runsLoading) {
+    return (
+      <Card
+        className="gba:p-12 gba:text-center gba:text-muted-foreground"
+        data-testid="payroll-prep-overview-runs-loading"
+      >
+        {t('loading')}
+      </Card>
+    )
+  }
 
-function OverviewPayrollRunCard({ payrollRun }: OverviewPayrollRunCardProps) {
-  return (
-    <Card className="gba:p-6">
-      <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
-        <div>
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{payrollRun.legalEntityName}</h3>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {payrollRun.year}-{String(payrollRun.month).padStart(2, '0')} · {payrollRun.country}
-          </p>
-        </div>
-        <PayrollRunStatusBadge status={payrollRun.status} />
-      </div>
-    </Card>
-  )
-}
-
-interface OverviewKpiGridsProps {
-  readonly summary: PayrollSummary
-  readonly t: (key: string) => string
-  readonly openWarnings: number
-  readonly setPanelCategory: (c: PanelCategory) => void
-}
-
-function OverviewKpiGrids({ summary, t, openWarnings, setPanelCategory }: OverviewKpiGridsProps) {
-  const onReady = kpiPanelOnClick(summary.readyCount, setPanelCategory, 'ready')
-  const onBlocked = kpiPanelOnClick(summary.blockedCount, setPanelCategory, 'blocked')
-  const onExcluded = kpiPanelOnClick(summary.excludedCount, setPanelCategory, 'excluded')
-  const onChanged = kpiPanelOnClick(summary.changedSinceLastPayroll, setPanelCategory, 'changed')
-  const onBlockers = kpiPanelOnClick(summary.openBlockers, setPanelCategory, 'blockers')
-  const onWarnings = kpiPanelOnClick(openWarnings, setPanelCategory, 'warning')
-
-  return (
-    <>
-      <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-5 gba:gap-4">
-        <KpiCard
-          testId="payroll-overview-total-card"
-          label={t('summary-total')}
-          value={summary.totalEmployees}
-          icon={<UsersIcon size={20} />}
-          iconBgClass="gba:bg-primary/10"
-          iconColorClass="gba:text-primary"
-          onClick={() => setPanelCategory('total')}
-        />
-        <KpiCard
-          testId="payroll-overview-ready-card"
-          label={t('summary-ready')}
-          value={summary.readyCount}
-          icon={<CheckCircleIcon size={20} weight="fill" />}
-          iconBgClass="gba:bg-success/10"
-          iconColorClass="gba:text-success"
-          onClick={onReady}
-        />
-        <KpiCard
-          testId="payroll-overview-blocked-card"
-          label={t('summary-blocked')}
-          value={summary.blockedCount}
-          icon={<XCircleIcon size={20} weight="fill" />}
-          iconBgClass="gba:bg-destructive/10"
-          iconColorClass="gba:text-destructive"
-          onClick={onBlocked}
-        />
-        <KpiCard
-          testId="payroll-overview-excluded-card"
-          label={t('summary-excluded')}
-          value={summary.excludedCount}
-          icon={<MinusCircleIcon size={20} weight="fill" />}
-          iconBgClass="gba:bg-muted"
-          iconColorClass="gba:text-muted-foreground"
-          onClick={onExcluded}
-        />
-        <KpiCard
-          testId="payroll-overview-changed-card"
-          label={t('summary-changed')}
-          value={summary.changedSinceLastPayroll}
-          icon={<ArrowsClockwiseIcon size={20} />}
-          iconBgClass="gba:bg-primary/10"
-          iconColorClass="gba:text-primary"
-          onClick={onChanged}
-        />
-      </div>
-
-      <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
-        <KpiCard
-          testId="payroll-overview-blockers-card"
-          label={t('summary-blockers')}
-          value={summary.openBlockers}
-          icon={<ShieldWarningIcon size={20} weight="fill" />}
-          iconBgClass="gba:bg-destructive/10"
-          iconColorClass="gba:text-destructive"
-          onClick={onBlockers}
-        />
-        <KpiCard
-          testId="payroll-overview-warnings-card"
-          label={t('summary-open-warnings')}
-          value={openWarnings}
-          icon={<WarningIcon size={20} weight="fill" />}
-          iconBgClass="gba:bg-warning/10"
-          iconColorClass="gba:text-warning"
-          onClick={onWarnings}
-        />
-      </div>
-    </>
-  )
-}
-
-interface OverviewReadinessSectionProps {
-  readonly summary: PayrollSummary
-  readonly t: (key: string) => string
-  readonly setPanelCategory: (c: PanelCategory) => void
-}
-
-function OverviewReadinessSection({ summary, t, setPanelCategory }: OverviewReadinessSectionProps) {
-  if (summary.totalEmployees <= 0) return null
-
-  return (
-    <Card className="gba:p-6">
-      <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-4">{t('overview-readiness')}</h4>
-      <div className="gba:flex gba:h-4 gba:rounded-full gba:overflow-hidden gba:bg-muted">
-        {summary.readyCount > 0 && (
-          <button
-            type="button"
-            className="gba:bg-[hsl(var(--success))] gba:transition-all gba:cursor-pointer hover:gba:opacity-80 gba:h-full gba:min-w-0 gba:border-0 gba:p-0"
-            style={{ width: `${(summary.readyCount / summary.totalEmployees) * 100}%` }}
-            title={`${t('summary-ready')}: ${summary.readyCount}`}
-            onClick={() => setPanelCategory('ready')}
-          />
-        )}
-        {summary.warningCount > 0 && (
-          <button
-            type="button"
-            className="gba:bg-[hsl(var(--warning))] gba:transition-all gba:cursor-pointer hover:gba:opacity-80 gba:h-full gba:min-w-0 gba:border-0 gba:p-0"
-            style={{ width: `${(summary.warningCount / summary.totalEmployees) * 100}%` }}
-            title={`${t('summary-warning')}: ${summary.warningCount}`}
-            onClick={() => setPanelCategory('warning')}
-          />
-        )}
-        {summary.blockedCount > 0 && (
-          <button
-            type="button"
-            className="gba:bg-destructive gba:transition-all gba:cursor-pointer hover:gba:opacity-80 gba:h-full gba:min-w-0 gba:border-0 gba:p-0"
-            style={{ width: `${(summary.blockedCount / summary.totalEmployees) * 100}%` }}
-            title={`${t('summary-blocked')}: ${summary.blockedCount}`}
-            onClick={() => setPanelCategory('blocked')}
-          />
-        )}
-        {summary.excludedCount > 0 && (
-          <button
-            type="button"
-            className="gba:bg-muted-foreground/30 gba:transition-all gba:cursor-pointer hover:gba:opacity-80 gba:h-full gba:min-w-0 gba:border-0 gba:p-0"
-            style={{ width: `${(summary.excludedCount / summary.totalEmployees) * 100}%` }}
-            title={`${t('summary-excluded')}: ${summary.excludedCount}`}
-            onClick={() => setPanelCategory('excluded')}
-          />
-        )}
-      </div>
-      <div className="gba:flex gba:gap-4 gba:mt-3 gba:flex-wrap">
-        <button
-          type="button"
-          className="gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-pointer"
-          onClick={() => setPanelCategory('ready')}
-        >
-          <Badge variant="success">
-            {t('summary-ready')} ({summary.readyCount})
-          </Badge>
-        </button>
-        <button
-          type="button"
-          className="gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-pointer"
-          onClick={() => setPanelCategory('warning')}
-        >
-          <Badge variant="warning">
-            {t('summary-warning')} ({summary.warningCount})
-          </Badge>
-        </button>
-        <button
-          type="button"
-          className="gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-pointer"
-          onClick={() => setPanelCategory('blocked')}
-        >
-          <Badge variant="destructive">
-            {t('summary-blocked')} ({summary.blockedCount})
-          </Badge>
-        </button>
-        <button
-          type="button"
-          className="gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-pointer"
-          onClick={() => setPanelCategory('excluded')}
-        >
-          <Badge variant="secondary">
-            {t('summary-excluded')} ({summary.excludedCount})
-          </Badge>
-        </button>
-      </div>
-    </Card>
-  )
-}
-
-export const OverviewView: React.FC<OverviewViewProps> = ({ summary, payrollRun, employees, t, onNavigateToGrid }) => {
-  const [panelCategory, setPanelCategory] = useState<PanelCategory>(null)
-
-  const filteredEmployees = useMemo(() => filterEmployeesForPanel(employees, panelCategory), [panelCategory, employees])
-
-  const panelTitle = useMemo(() => panelTitleForCategory(panelCategory, t), [panelCategory, t])
-
-  const openWarnings = useMemo(() => countOpenWarningsAcrossEmployees(employees), [employees])
-
-  const handleViewEmployee = () => {
-    setPanelCategory(null)
-    onNavigateToGrid?.()
+  if (runs.length === 0) {
+    return (
+      <Card className="gba:p-12 gba:text-center" data-testid="payroll-prep-overview-runs-empty">
+        <FolderOpenIcon size={48} className="gba:mx-auto gba:text-muted-foreground/40 gba:mb-4" />
+        <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-empty')}</h3>
+        <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('runs-empty-hint')}</p>
+        <Button onClick={onCreateRun} data-testid="payroll-prep-overview-create-run-empty-button">
+          <PlusIcon size={16} className="gba:mr-2" />
+          {t('runs-new-button')}
+        </Button>
+      </Card>
+    )
   }
 
   return (
     <div className="gba:space-y-6">
-      {payrollRun ? <OverviewPayrollRunCard payrollRun={payrollRun} /> : null}
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <div>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('runs-title')}</h3>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('runs-description')}</p>
+        </div>
+        <Button onClick={onCreateRun} data-testid="payroll-prep-overview-create-run-button">
+          <PlusIcon size={16} className="gba:mr-2" />
+          {t('runs-new-button')}
+        </Button>
+      </div>
 
-      <OverviewKpiGrids summary={summary} t={t} openWarnings={openWarnings} setPanelCategory={setPanelCategory} />
-
-      <OverviewReadinessSection summary={summary} t={t} setPanelCategory={setPanelCategory} />
-
-      <EmployeeListPanel
-        isOpen={panelCategory !== null}
-        onClose={() => setPanelCategory(null)}
-        title={panelTitle}
-        employees={filteredEmployees}
-        t={t}
-        onViewEmployee={handleViewEmployee}
-      />
+      <Card className="gba:overflow-hidden" data-testid="payroll-prep-overview-runs-table-container">
+        <Table data-testid="payroll-prep-overview-runs-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-period')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-status')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-cutoff')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-payment')}</TableHead>
+              <TableHead className="gba:whitespace-nowrap">{t('runs-col-created')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {runs.map(run => (
+              <TableRow
+                key={run.id}
+                className="gba:cursor-pointer gba:hover:bg-muted"
+                onClick={() => onSelectRun(run)}
+                data-testid={`payroll-prep-overview-run-row-${run.id}`}
+              >
+                <TableCell className="gba:font-medium gba:text-foreground">
+                  {t(`month-${run.month}`)} {run.year}
+                </TableCell>
+                <TableCell>
+                  <PayrollRunStatusBadge status={run.status} translatedLabel={getRunStatusLabel(run.status, t)} />
+                </TableCell>
+                <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
+                <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
+                <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.createdAt)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
+  )
+}
+
+function RunDashboardView({
+  summary,
+  employees,
+  payrollRun,
+  t
+}: Readonly<{
+  summary: PayrollSummary
+  employees: PayrollEmployee[]
+  payrollRun: PayrollRun
+  t: (key: string, args?: Record<string, any>) => string
+}>) {
+  const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
+  const kpiCards = useMemo(
+    () => [
+      {
+        label: t('summary-total'),
+        value: summary.totalEmployees,
+        icon: <UsersIcon size={24} />,
+        variant: 'outline' as const
+      },
+      {
+        label: t('summary-ready'),
+        value: summary.readyCount,
+        icon: <CheckCircleIcon size={24} weight="fill" />,
+        variant: 'success' as const
+      },
+      {
+        label: t('summary-warning'),
+        value: summary.warningCount,
+        icon: <WarningIcon size={24} weight="fill" />,
+        variant: 'warning' as const
+      },
+      {
+        label: t('summary-blocked'),
+        value: summary.blockedCount,
+        icon: <XCircleIcon size={24} weight="fill" />,
+        variant: 'destructive' as const
+      },
+      {
+        label: t('summary-excluded'),
+        value: summary.excludedCount,
+        icon: <MinusCircleIcon size={24} weight="fill" />,
+        variant: 'secondary' as const
+      },
+      {
+        label: t('summary-blockers'),
+        value: summary.openBlockers,
+        icon: <ShieldWarningIcon size={24} weight="fill" />,
+        variant: 'destructive' as const
+      },
+      {
+        label: t('summary-changed'),
+        value: summary.changedSinceLastPayroll,
+        icon: <ArrowsClockwiseIcon size={24} />,
+        variant: 'outline' as const
+      }
+    ],
+    [summary, t]
+  )
+
+  const readinessSegments = useMemo<ReadinessSegmentConfig[]>(
+    () => [
+      {
+        key: 'ready',
+        count: summary.readyCount,
+        badgeVariant: 'success',
+        barClassName: 'gba:bg-success',
+        label: t('summary-ready')
+      },
+      {
+        key: 'warning',
+        count: summary.warningCount,
+        badgeVariant: 'warning',
+        barClassName: 'gba:bg-warning',
+        label: t('summary-warning')
+      },
+      {
+        key: 'blocked',
+        count: summary.blockedCount,
+        badgeVariant: 'destructive',
+        barClassName: 'gba:bg-destructive',
+        label: t('summary-blocked')
+      },
+      {
+        key: 'excluded',
+        count: summary.excludedCount,
+        badgeVariant: 'secondary',
+        barClassName: 'gba:bg-muted-foreground/30',
+        label: t('summary-excluded')
+      }
+    ],
+    [summary, t]
+  )
+
+  return (
+    <div className="gba:space-y-6" data-testid="payroll-prep-overview-dashboard">
+      {employeesWithoutCompany.length > 0 && (
+        <Card className="gba:p-4 gba:border-warning gba:bg-warning/5">
+          <div className="gba:flex gba:items-start gba:gap-3">
+            <WarningCircleIcon size={20} weight="fill" className="gba:text-warning gba:mt-0.5 gba:shrink-0" />
+            <div>
+              <p className="gba:text-sm gba:font-semibold gba:text-foreground">
+                {t('overview-no-company-title', {
+                  count: employeesWithoutCompany.length,
+                  defaultValue: `${employeesWithoutCompany.length} employee(s) without a company assignment`
+                })}
+              </p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('overview-no-company-description')}</p>
+              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
+                {employeesWithoutCompany.slice(0, 10).map(e => (
+                  <Badge key={e.id} variant="outline" className="gba:text-xs">
+                    {e.displayName} ({e.code})
+                  </Badge>
+                ))}
+                {employeesWithoutCompany.length > 10 && (
+                  <Badge variant="outline" className="gba:text-xs">
+                    +{employeesWithoutCompany.length - 10} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <Card className="gba:p-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
+          <div>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{payrollRun.legalEntityName}</h3>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {t(`month-${payrollRun.month}`)} {payrollRun.year} &middot; {payrollRun.country}
+            </p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+              {t('runs-col-cutoff')}: {formatDate(payrollRun.cutOffDate)} &middot; {t('runs-col-payment')}:{' '}
+              {formatDate(payrollRun.paymentDate)}
+            </p>
+          </div>
+          <PayrollRunStatusBadge status={payrollRun.status} translatedLabel={getRunStatusLabel(payrollRun.status, t)} />
+        </div>
+      </Card>
+
+      <div className="gba:grid gba:grid-cols-4 gba:gap-4" data-testid="payroll-prep-overview-kpi-grid">
+        {kpiCards.map(card => (
+          <KpiCard key={card.label} label={card.label} value={card.value} icon={card.icon} variant={card.variant} />
+        ))}
+      </div>
+
+      {summary.totalEmployees > 0 && (
+        <Card className="gba:p-6" data-testid="payroll-prep-overview-readiness-card">
+          <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-4">{t('overview-readiness')}</h4>
+          <div className="gba:flex gba:h-4 gba:rounded-full gba:overflow-hidden gba:bg-muted">
+            {readinessSegments
+              .filter(segment => segment.count > 0)
+              .map(segment => (
+                <div
+                  key={segment.key}
+                  className={`${segment.barClassName} gba:transition-all`}
+                  style={{ width: `${(segment.count / summary.totalEmployees) * 100}%` }}
+                  title={`${segment.label}: ${segment.count}`}
+                />
+              ))}
+          </div>
+          <div className="gba:flex gba:gap-4 gba:mt-3 gba:flex-wrap">
+            {readinessSegments.map(segment => (
+              <Badge key={segment.key} variant={segment.badgeVariant}>
+                {segment.label} ({segment.count})
+              </Badge>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+export const OverviewView: React.FC<OverviewViewProps> = ({
+  activeRun,
+  runs,
+  runsLoading,
+  summary,
+  employees,
+  onSelectRun,
+  onCreateRun,
+  t
+}) => {
+  if (activeRun) {
+    return <RunDashboardView summary={summary} employees={employees} payrollRun={activeRun} t={t} />
+  }
+
+  return (
+    <RunsListView runs={runs} runsLoading={runsLoading} onSelectRun={onSelectRun} onCreateRun={onCreateRun} t={t} />
   )
 }

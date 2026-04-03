@@ -83,9 +83,12 @@ grid-logged-hours = Ore Înregistrate
 grid-capacity = Capacitate
 grid-balance = Sold
 grid-overtime = Ore Suplimentare
+grid-missing-presence = Zile Lipsă
 grid-issues = Probleme
 grid-readiness = Pregătire
 grid-changed = Modificat
+grid-salary = Salariu
+grid-weekly-hours = Ore săptămânale
 
 filter-all = Toate
 filter-search = Caută angajați...
@@ -160,6 +163,124 @@ signoff-blocked-warning = Nu se poate aproba: { $count } angajat(i) blocat(i). R
 audit-trail = Jurnal de Audit
 audit-empty = Nu există încă evenimente de audit.
 
+audit-payroll-created = Rulare de salarizare creată
+audit-marked-ready = Marcată ca pregătită pentru revizuire
+audit-status-changed = { $description }
+audit-review-approved = { $description }
+audit-review-rejected = { $description }
+audit-export-generated = { $description }
+
 no-data = Nu sunt date disponibile
 loading = Se încarcă...
 error-loading = A apărut o eroare la încărcarea datelor.
+
+# Chei noi din en-US traduse
+
+runs-title = Rulări de salarizare
+runs-description = Vizualizați rulările existente sau creați una nouă
+runs-new-button = Rulare de salarizare nouă
+runs-empty = Nu există încă rulări de salarizare
+runs-empty-hint = Creați prima rulare de salarizare pentru această companie pentru a începe.
+runs-col-period = Perioadă
+runs-col-status = Status
+runs-col-cutoff = Dată limită
+runs-col-payment = Dată plată
+runs-col-created = Creată
+
+create-run-title = Rulare de salarizare nouă
+create-run-description = Stabiliți perioada și datele cheie pentru această rulare
+create-run-month = Lună
+create-run-year = An
+create-run-cutoff = Dată limită
+create-run-payment = Dată plată
+create-run-submit = Creează rulare
+create-run-cancel = Anulează
+create-run-duplicate-error = Există deja o rulare de salarizare pentru această perioadă.
+
+back-to-runs = Înapoi la rulări
+runs-select-hint = Selectați o rulare de salarizare din fila „Prezentare generală” pentru a începe.
+
+step-1-label = Pregătire
+step-2-label = Revizuire & Aprobare
+step-3-label = Export
+step-4-label = Finalizare
+step-completed = Finalizat
+step-pending = În așteptare
+step-1-description = Marcați rularea de salarizare ca pregătită pentru revizuire după ce toate datele au fost validate.
+step-2-description = Revizuiți datele de salarizare și aprobați sau respingeți.
+step-2-prepared-info = Pregătită de { $name } la { $date }
+step-2-comment-required = Este necesar un comentariu de revizuire înainte de a trimite decizia.
+step-2-reject-confirm = Sigur doriți să respingeți această rulare de salarizare? Va fi trecută înapoi la „În desfășurare”.
+step-3-description = Exportați datele de salarizare aprobate și marcați rularea ca exportată.
+step-3-review-info = { $decision } de { $name } la { $date }
+step-3-review-comment = Comentariu de revizuire
+step-4-description = Rularea de salarizare a fost finalizată.
+signoff-decision-approved = Aprobat
+signoff-decision-not-approved = Neaprobat
+signoff-mark-ready = Marchează pregătit pentru revizuire
+signoff-current-user = Autentificat ca
+
+change-one-off-payment = Plată unică
+change-deduction = Modificare deducere
+change-country-specific = Modificare specifică țării
+
+category-missing-personal-data = Lipsă date personale
+category-missing-bank-details = Lipsă date bancare
+category-missing-contract-salary = Lipsă contract/salariu
+category-missing-tax-social = Lipsă date fiscale/sociale
+category-missing-country-specific = Lipsă date specifice țării
+category-missing-approvals = Lipsă aprobări
+category-missing-absence-data = Lipsă date de absență
+category-overlapping-absences = Absențe suprapuse
+category-retroactive-changes = Modificări retroactive
+category-pending-final-payroll = Salarizare finală în așteptare
+category-invalid-effective-dates = Date de intrare în vigoare invalide
+
+month-1 = Ianuarie
+month-2 = Februarie
+month-3 = Martie
+month-4 = Aprilie
+month-5 = Mai
+month-6 = Iunie
+month-7 = Iulie
+month-8 = August
+month-9 = Septembrie
+month-10 = Octombrie
+month-11 = Noiembrie
+month-12 = Decembrie
+
+grid-other-leave = Alte absențe
+
+overview-no-company-title = { $count } angajați fără companie asociată
+overview-no-company-description = Acești angajați nu au o entitate juridică asociată. Este posibil să lipsească din export sau să genereze rezultate incorecte. Asociați-le o companie în fișa de angajat.
+
+changes-search-placeholder = Caută angajați sau câmpuri...
+changes-type-label = Tip modificare:
+changes-col-type = Tip modificare
+changes-col-field = Câmp
+changes-col-old = Valoare veche
+changes-col-new = Valoare nouă
+changes-col-effective = Dată efectivă
+changes-col-changed-at = Modificat la
+changes-col-changed-by = Modificat de
+changes-empty = Nu au fost detectate modificări de la ultima rulare de salarizare. Urmărirea modificărilor va fi disponibilă după ce o rulare anterioară este închisă.
+changes-no-match = Nicio modificare nu corespunde filtrelor selectate.
+
+export-apply-grid-filters = Aplică filtrele din tabel la export
+export-grid-filters-active = Filtre din tabel active: { $count } din { $total } angajați selectați
+export-format-label = Format
+export-format-csv = CSV (.csv)
+export-format-xlsx = Excel (.xlsx)
+
+refresh-data = Reîncarcă datele
+exceptions-hide-addressed = Ascunde rezolvate
+exceptions-mark-addressed = Marchează drept rezolvat
+
+label-missing = Lipsă
+label-present = Prezent
+label-not-set = Nesetat
+label-not-applicable = N/A
+label-changed = Modificat
+label-days = zile
+unit-hours-short = h
+unit-days-short = z

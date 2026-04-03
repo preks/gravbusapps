@@ -32,6 +32,8 @@ app-notes-title = Notes
 app-notes-description = Capture ideas quickly with rich formatting and tags
 app-slides-title = Slides
 app-slides-description = Create slide decks with live collaboration
+app-whiteboards-title = Whiteboards
+app-whiteboards-description = Collaborate on infinite canvas with shapes, diagrams, and sticky notes
 app-drive-title = Drive
 app-drive-description = Organize, search, and share all your files in one place
 
@@ -43,6 +45,7 @@ search-create-document = Create Document
 search-create-spreadsheet = Create Spreadsheet
 search-create-note = Create Note
 search-create-presentation = Create Presentation
+search-create-whiteboard = Create Whiteboard
 search-navigate = navigate
 search-open = open
 search-close = close
@@ -62,6 +65,8 @@ type-spreadsheets = Spreadsheets
 type-notes = Notes
 type-presentations = Presentations
 type-slides = Slides
+type-whiteboard = Whiteboard
+type-whiteboards = Whiteboards
 
 # Relative time
 time-just-now = Just now

@@ -9,6 +9,7 @@ import React, { useState, useCallback } from 'react'
 import { AiButton, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getPromptManagerDocumentId } from '../../utils/promptManagerModelId'
 import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
 import {
   COLLECTION_SUMMARY_SYSTEM_PROMPT,
@@ -161,8 +162,14 @@ export const RunSummarizeWithAI: React.FC<RunSummarizeWithAIProps> = ({
         return
       }
 
+      const modelId = getPromptManagerDocumentId(selectedModel)
+      if (!modelId) {
+        setError(t('summarize-ai-no-models'))
+        return
+      }
+
       const formData = new FormData()
-      formData.append('model_id', selectedModel._id)
+      formData.append('model_id', modelId)
       formData.append('system_content', COLLECTION_SUMMARY_SYSTEM_PROMPT)
       formData.append('user_content', prompt)
       formData.append('model_settings', JSON.stringify({}))

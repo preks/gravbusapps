@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import { SHEETS_AI_CHAT_SYSTEM_PROMPT, buildSheetsAIChatUserPrompt } from '../prompts/sheets-ai-chat'
 import { selectPreferredModel } from '../utils/aiModelSelection'
@@ -55,9 +56,13 @@ export const useSheetsAIChat = ({
       setIsSending(true)
       try {
         const selectedModel = await selectPreferredModel(promptClient)
+        const modelId = getPromptManagerDocumentId(selectedModel)
+        if (!modelId) {
+          throw new Error('Selected AI model has no document id')
+        }
 
         const formData = new FormData()
-        formData.append('model_id', selectedModel._id)
+        formData.append('model_id', modelId)
         formData.append('system_content', SHEETS_AI_CHAT_SYSTEM_PROMPT)
         formData.append('user_content', buildSheetsAIChatUserPrompt(trimmed, sheetName, columns, clippedRows))
         formData.append('model_settings', JSON.stringify({}))

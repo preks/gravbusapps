@@ -315,6 +315,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         case 'slide':
           url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
           break
+        case 'whiteboard':
+          url = `/platform/every-office/whiteboards?whiteboardId=${item.id}`
+          break
       }
 
       // Include spaceId parameter

@@ -53,7 +53,8 @@ export const hrAreas: HrArea[] = [
     badgeTone: 'performance',
     explorePath: undefined,
     links: [
-      { label: 'Review Cycles', path: '/platform/hr/core/apps/performance-evaluation' },
+      { label: 'Performance Configuration', path: '/platform/hr/core/apps/performance-evaluation' },
+      { label: 'Performance Tracking' },
       { label: 'Performance Insights' }
     ]
   },

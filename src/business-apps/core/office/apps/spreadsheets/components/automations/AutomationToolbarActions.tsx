@@ -41,6 +41,7 @@ import {
   AlertTriangle,
   Sparkles
 } from 'lucide-react'
+import { ArrowsClockwise } from '@phosphor-icons/react'
 import type { SpreadsheetAutomation, WorkflowRowLink, AutomationType } from '../../types/automation'
 
 export interface AutomationToolbarActionsProps {
@@ -58,6 +59,8 @@ export interface AutomationToolbarActionsProps {
   onRunAutomation: (automationId: string, rowIds?: string[]) => Promise<void>
   /** Callback to refresh workflow statuses */
   onRefreshStatuses?: () => void
+  /** Fetch completed bulk / Excel collection responses and apply to the sheet (manual refresh) */
+  onCheckCollectionResponses?: () => void | Promise<void>
   /** Whether automation execution is in progress */
   isExecuting?: boolean
   /** Show Summarize with AI button (excel_collection with completed rows) */
@@ -100,6 +103,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
   onCreateAutomation,
   onRunAutomation,
   onRefreshStatuses,
+  onCheckCollectionResponses,
   isExecuting = false,
   showSummarizeButton = false,
   onSummarizeClick,
@@ -108,6 +112,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
 }) => {
   const { t } = useTranslation(translations)
   const [runningAutomationId, setRunningAutomationId] = useState<string | null>(null)
+  const [isCheckingCollectionResponses, setIsCheckingCollectionResponses] = useState(false)
 
   // Filter enabled automations
   const enabledAutomations = useMemo(() => automations.filter(a => a.isEnabled), [automations])
@@ -126,6 +131,19 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
   }, [workflowLinks])
 
   // Handle run automation
+  const handleCheckCollectionResponses = useCallback(async () => {
+    if (!onCheckCollectionResponses || isCheckingCollectionResponses) return
+    setIsCheckingCollectionResponses(true)
+    try {
+      await onCheckCollectionResponses()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t('automation-toolbar-check-responses-error')
+      toast.error(msg)
+    } finally {
+      setIsCheckingCollectionResponses(false)
+    }
+  }, [onCheckCollectionResponses, isCheckingCollectionResponses, t])
+
   const handleRunAutomation = useCallback(
     async (automationId: string) => {
       setRunningAutomationId(automationId)
@@ -327,6 +345,33 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
             </TooltipTrigger>
             <TooltipContent>
               <p>{t('automation-toolbar-refresh-tooltip')}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Manual check for completed collection responses (same fetch as background poll) */}
+      {onCheckCollectionResponses && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleCheckCollectionResponses()}
+                disabled={isCheckingCollectionResponses || isExecuting}
+                data-testid={`${testId}-check-collection-responses`}
+              >
+                {isCheckingCollectionResponses ? (
+                  <Spinner size="sm" className="gba:mr-2" />
+                ) : (
+                  <ArrowsClockwise className="gba:w-4 gba:h-4 gba:mr-2" aria-hidden />
+                )}
+                {t('automation-toolbar-check-responses')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{t('automation-toolbar-check-responses-tooltip')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

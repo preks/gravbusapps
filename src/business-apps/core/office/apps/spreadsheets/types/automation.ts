@@ -5,7 +5,21 @@
  * Enables row-level workflows, bulk data collection, and spreadsheet approvals.
  */
 
-import type { EntityFilterGroup } from './entityDataSource'
+import type { EntityFilterGroup, EntitySortConfig } from './entityDataSource'
+
+/**
+ * Entity-backed dropdown options for bulk collection form fields (runtime-resolved via flow-engine datasource API).
+ */
+export interface BulkCollectionEntitySelectConfig {
+  entityType: string
+  entityDisplayName: string
+  valueField: string
+  labelField: string
+  filters: EntityFilterGroup
+  orderBy: EntitySortConfig[]
+  /** Max records to load for dropdown labels (capped client-side) */
+  limit: number
+}
 
 // ============================================================================
 // Core Automation Types
@@ -321,7 +335,11 @@ export interface BulkCollectionConfig {
     columnId?: string
     inputType?: 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT'
     required?: boolean
+    /** Static SELECT options (labels; stored value equals label unless extended later) */
     options?: string[]
+    /** For SELECT: custom list vs load options from an entity */
+    selectOptionsSource?: 'static' | 'entity'
+    entitySelect?: BulkCollectionEntitySelectConfig
   }>
   /** Template spreadsheet app ID (for excel_collection: the app to duplicate for each recipient) */
   templateSpreadsheetId?: string
