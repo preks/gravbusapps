@@ -6,8 +6,7 @@ interface MemberDimensions {
   goalsProgress: number
   totalGoals: number
   skillsCoverage: number
-  feedbackAvgRating: number | null
-  feedbackCount: number
+  feedbackReceivedCount: number
   evaluationScore: number | null
 }
 
@@ -55,7 +54,7 @@ export const EnhancedMemberCard: React.FC<EnhancedMemberCardProps> = ({
   onNavigateToEmployee
 }) => {
   const feedbackNormalized =
-    dimensions.feedbackAvgRating != null ? Math.round((dimensions.feedbackAvgRating / 5) * 100) : 0
+    dimensions.feedbackReceivedCount > 0 ? Math.min(100, dimensions.feedbackReceivedCount * 20) : 0
   const evalNormalized = dimensions.evaluationScore != null ? Math.round((dimensions.evaluationScore / 5) * 100) : 0
 
   return (
@@ -124,9 +123,14 @@ export const EnhancedMemberCard: React.FC<EnhancedMemberCardProps> = ({
             No goals
           </Badge>
         )}
-        {dimensions.feedbackCount === 0 && (
+        {dimensions.feedbackReceivedCount === 0 && (
           <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
             No feedback
+          </Badge>
+        )}
+        {dimensions.feedbackReceivedCount > 0 && (
+          <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+            {dimensions.feedbackReceivedCount} feedback
           </Badge>
         )}
         {dimensions.evaluationScore != null && (

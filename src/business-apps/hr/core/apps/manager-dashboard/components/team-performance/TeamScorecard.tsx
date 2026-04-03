@@ -7,7 +7,8 @@ interface TeamScorecardProps {
   totalGoals: number
   skillsCoverage: number
   skillGapsCount: number
-  feedbackAvgRating: number | null
+  employeesWithoutProfile: number
+  feedbackCoverage: number
   totalFeedbackCount: number
   evaluationsAvgScore: number | null
   pendingEvaluations: number
@@ -19,15 +20,12 @@ interface TeamScorecardProps {
 const computeHealthScore = (
   goalsProgress: number,
   skillsCoverage: number,
-  feedbackAvgRating: number | null,
+  feedbackCoverage: number,
   evaluationsAvgScore: number | null
 ): number => {
   const goalsScore = goalsProgress
   const skillsScore = skillsCoverage
-
-  // Rating is 0-5, normalize to 0-100
-  const feedbackScore = feedbackAvgRating != null ? Math.round((feedbackAvgRating / 5) * 100) : null
-  // Evaluation score typically 0-5, normalize to 0-100
+  const feedbackScore = feedbackCoverage
   const evalScore = evaluationsAvgScore != null ? Math.round((evaluationsAvgScore / 5) * 100) : null
 
   const scores = [goalsScore, skillsScore, feedbackScore, evalScore].filter((s): s is number => s != null)
@@ -54,8 +52,8 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
   totalGoals,
   skillsCoverage,
   skillGapsCount,
-  feedbackAvgRating,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  employeesWithoutProfile,
+  feedbackCoverage,
   totalFeedbackCount,
   evaluationsAvgScore,
   pendingEvaluations,
@@ -81,9 +79,8 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
   }
 
   const healthScore =
-    teamHealthScore ?? computeHealthScore(goalsProgress, skillsCoverage, feedbackAvgRating, evaluationsAvgScore)
+    teamHealthScore ?? computeHealthScore(goalsProgress, skillsCoverage, feedbackCoverage, evaluationsAvgScore)
 
-  const feedbackNormalized = feedbackAvgRating != null ? Math.round((feedbackAvgRating / 5) * 100) : 0
   const evaluationsNormalized = evaluationsAvgScore != null ? Math.round((evaluationsAvgScore / 5) * 100) : 0
 
   const dimensions = [
@@ -100,16 +97,21 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
       label: 'Skills',
       icon: BookOpen,
       score: skillsCoverage,
-      detail: skillGapsCount > 0 ? `${skillGapsCount} gaps` : 'No gaps',
+      detail:
+        employeesWithoutProfile > 0
+          ? `${employeesWithoutProfile} no profile`
+          : skillGapsCount > 0
+            ? `${skillGapsCount} gaps`
+            : 'No gaps',
       color: getProgressColor(skillsCoverage)
     },
     {
       key: 'feedback' as const,
       label: 'Feedback',
       icon: MessageSquare,
-      score: feedbackNormalized,
-      detail: feedbackAvgRating != null ? `avg ${feedbackAvgRating}` : 'No data',
-      color: getProgressColor(feedbackNormalized)
+      score: feedbackCoverage,
+      detail: totalFeedbackCount > 0 ? `${totalFeedbackCount} received` : 'No data',
+      color: getProgressColor(feedbackCoverage)
     },
     {
       key: 'evaluations' as const,

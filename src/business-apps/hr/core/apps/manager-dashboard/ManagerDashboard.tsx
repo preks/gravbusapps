@@ -395,6 +395,9 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         loadingTeamPerformance={vm.loadingTeamPerformance}
         filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
         initialStatusFilter={vm.initialPerformanceStatusFilter}
+        feedbackSummary={vm.teamFeedbackSummary}
+        skillsSummary={vm.teamSkillsSummary}
+        insights={vm.currentCycleInsights}
         onNavigateBack={vm.handleNavigateBackToDashboard}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
       />

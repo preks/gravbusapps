@@ -275,7 +275,18 @@ export function generateAlerts(
       }
     }
 
-    if (empSkills && empSkills.missingRequired.length > 2) {
+    if (empSkills && !empSkills.hasJobProfile) {
+      alerts.push({
+        employeeId: ev.employeeId,
+        employeeName: name,
+        pictureThumbnail: ev.pictureThumbnail,
+        severity: 'medium',
+        reason: 'No job profile skills defined',
+        context: 'Skill coverage cannot be measured',
+        suggestedAction: 'Assign a job profile with required skills',
+        category: 'skill-gap'
+      })
+    } else if (empSkills && empSkills.missingRequired.length > 2) {
       alerts.push({
         employeeId: ev.employeeId,
         employeeName: name,

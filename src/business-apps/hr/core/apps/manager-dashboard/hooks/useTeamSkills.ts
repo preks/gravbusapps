@@ -36,6 +36,7 @@ export interface TeamMemberSkills {
   jobPositionName?: string
   skillCount: number
   avgLevel: number
+  hasJobProfile: boolean
   missingRequired: Array<{ id: string; name: string }>
   belowLevel: Array<{ skillName: string; employeeLevel: number; profileLevel: number }>
   topSkills: Array<{ name: string; level: number }>
@@ -45,6 +46,7 @@ export interface TeamSkillsResult {
   members: TeamMemberSkills[]
   skillGrowth: SkillGrowthEntry[]
   teamSkillCoverage: number
+  employeesWithoutProfile: number
   topSkillGaps: SkillGap[]
   topTeamStrengths: string[]
   loading: boolean
@@ -70,6 +72,7 @@ export const useTeamSkills = ({
   const [members, setMembers] = useState<TeamMemberSkills[]>([])
   const [skillGrowth, setSkillGrowth] = useState<SkillGrowthEntry[]>([])
   const [teamSkillCoverage, setTeamSkillCoverage] = useState(0)
+  const [employeesWithoutProfile, setEmployeesWithoutProfile] = useState(0)
   const [topSkillGaps, setTopSkillGaps] = useState<SkillGap[]>([])
   const [topTeamStrengths, setTopTeamStrengths] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -144,16 +147,17 @@ export const useTeamSkills = ({
         setMembers([])
         setSkillGrowth([])
         setTeamSkillCoverage(0)
+        setEmployeesWithoutProfile(0)
         setTopSkillGaps([])
         setTopTeamStrengths([])
         setLoading(false)
         return
       }
 
-      let totalRequiredSkills = 0
-      let totalCoveredSkills = 0
       const allGaps: SkillGap[] = []
       const skillFrequency = new Map<string, { name: string; totalLevel: number; count: number }>()
+      let coverageSum = 0
+      let noProfileCount = 0
 
       const memberData: TeamMemberSkills[] = employees.map((emp: any) => {
         const skills = emp.skills || []
@@ -161,6 +165,9 @@ export const useTeamSkills = ({
         const jobProfile = position?.jobPosition?.jobProfile
         const profileSkills = jobProfile?.jobProfileSkills || []
         const jobPositionName = position?.jobPosition?.name || ''
+        const hasJobProfile = profileSkills.length > 0
+
+        if (!hasJobProfile) noProfileCount++
 
         const employeeSkillMap = new Map<string, number>()
         skills.forEach((s: any) => {
@@ -170,13 +177,15 @@ export const useTeamSkills = ({
 
         const missingRequired: Array<{ id: string; name: string }> = []
         const belowLevel: Array<{ skillName: string; employeeLevel: number; profileLevel: number }> = []
+        let empRequired = 0
+        let empCovered = 0
 
         profileSkills.forEach((ps: any) => {
           const skillId = ps.skill?.id
           const skillName = ps.skill?.name ?? ''
           if (!skillId) return
 
-          totalRequiredSkills++
+          empRequired++
           const empLevel = employeeSkillMap.get(skillId)
 
           if (empLevel == null) {
@@ -190,7 +199,7 @@ export const useTeamSkills = ({
               currentLevel: null
             })
           } else {
-            totalCoveredSkills++
+            empCovered++
             const required = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
             if (required != null && empLevel < required) {
               belowLevel.push({
@@ -209,6 +218,8 @@ export const useTeamSkills = ({
             }
           }
         })
+
+        coverageSum += empRequired > 0 ? (empCovered / empRequired) * 100 : 0
 
         skills.forEach((s: any) => {
           const level = s.level != null ? Number(s.level) : 0
@@ -244,13 +255,14 @@ export const useTeamSkills = ({
           jobPositionName,
           skillCount: skills.length,
           avgLevel,
+          hasJobProfile,
           missingRequired,
           belowLevel,
           topSkills
         }
       })
 
-      const coverage = totalRequiredSkills > 0 ? Math.round((totalCoveredSkills / totalRequiredSkills) * 100) : 100
+      const coverage = employees.length > 0 ? Math.round(coverageSum / employees.length) : 0
 
       const sortedGaps = allGaps
         .sort((a, b) => {
@@ -326,6 +338,7 @@ export const useTeamSkills = ({
       setMembers(memberData)
       setSkillGrowth(growthData)
       setTeamSkillCoverage(coverage)
+      setEmployeesWithoutProfile(noProfileCount)
       setTopSkillGaps(sortedGaps)
       setTopTeamStrengths(strengths)
     } catch (err) {
@@ -344,6 +357,7 @@ export const useTeamSkills = ({
     members,
     skillGrowth,
     teamSkillCoverage,
+    employeesWithoutProfile,
     topSkillGaps,
     topTeamStrengths,
     loading,

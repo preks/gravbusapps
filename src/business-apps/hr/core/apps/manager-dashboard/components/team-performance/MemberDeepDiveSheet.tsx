@@ -333,6 +333,11 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
               </div>
               {memberSkills ? (
                 <div className="gba:space-y-2">
+                  {!memberSkills.hasJobProfile && (
+                    <div className="gba:p-2 gba:rounded gba:bg-destructive/10 gba:text-destructive gba:text-[11px]">
+                      No job profile skills defined — coverage cannot be measured
+                    </div>
+                  )}
                   {memberSkills.topSkills.length > 0 && (
                     <div>
                       <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">Top Skills</p>
@@ -405,7 +410,7 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
                 <h4 className="gba:text-sm gba:font-semibold">Feedback</h4>
               </div>
               {memberFeedback ? (
-                <div className="gba:grid gba:grid-cols-4 gba:gap-2">
+                <div className="gba:grid gba:grid-cols-3 gba:gap-2">
                   <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
                     <div className="gba:text-lg gba:font-bold">{memberFeedback.feedbackReceivedCount}</div>
                     <div className="gba:text-[10px] gba:text-muted-foreground">Received</div>
@@ -413,10 +418,6 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
                   <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
                     <div className="gba:text-lg gba:font-bold">{memberFeedback.feedbackGivenCount}</div>
                     <div className="gba:text-[10px] gba:text-muted-foreground">Given</div>
-                  </div>
-                  <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
-                    <div className="gba:text-lg gba:font-bold">{memberFeedback.avgRating?.toFixed(1) ?? '-'}</div>
-                    <div className="gba:text-[10px] gba:text-muted-foreground">Avg Rating</div>
                   </div>
                   <div className="gba:text-center gba:p-2 gba:rounded gba:bg-surface">
                     <div className="gba:text-xs gba:font-medium gba:mt-1">

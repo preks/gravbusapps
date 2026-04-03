@@ -24,12 +24,13 @@ export interface TeamPerformanceOverviewViewProps {
   // Skills data
   skillsMembers: TeamMemberSkills[]
   teamSkillCoverage: number
+  employeesWithoutProfile: number
   topSkillGaps: Array<{ skillName: string; employeeName: string }>
   topTeamStrengths: string[]
   loadingSkills: boolean
   // Feedback data
   feedbackMembers: TeamMemberFeedback[]
-  teamAvgRating: number | null
+  feedbackCoverage: number
   totalFeedbackCount: number
   membersWithNoRecentFeedback: string[]
   loadingFeedback: boolean
@@ -59,12 +60,13 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
   loadingGoals,
   skillsMembers,
   teamSkillCoverage,
+  employeesWithoutProfile,
   topSkillGaps,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   topTeamStrengths,
   loadingSkills,
   feedbackMembers,
-  teamAvgRating,
+  feedbackCoverage,
   totalFeedbackCount,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   membersWithNoRecentFeedback,
@@ -102,8 +104,7 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
         goalsProgress: number
         totalGoals: number
         skillsCoverage: number
-        feedbackAvgRating: number | null
-        feedbackCount: number
+        feedbackReceivedCount: number
         evaluationScore: number | null
       }
     >()
@@ -117,13 +118,12 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
       const firstName = goals?.firstName ?? skills?.firstName ?? evaluation?.firstName ?? ''
       const lastName = goals?.lastName ?? skills?.lastName ?? evaluation?.lastName ?? ''
 
-      // Compute per-member skill coverage
-      let skillCoverage = 100
-      if (skills) {
+      let skillCoverage = 0
+      if (skills && skills.hasJobProfile) {
         const totalRequired =
           skills.missingRequired.length + skills.belowLevel.length + (skills.skillCount - skills.missingRequired.length)
         const covered = totalRequired > 0 ? totalRequired - skills.missingRequired.length : 0
-        skillCoverage = totalRequired > 0 ? Math.round((covered / totalRequired) * 100) : 100
+        skillCoverage = totalRequired > 0 ? Math.round((covered / totalRequired) * 100) : 0
       }
 
       map.set(empId, {
@@ -134,8 +134,7 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
         goalsProgress: goals?.averageProgress ?? 0,
         totalGoals: goals?.totalGoals ?? 0,
         skillsCoverage: skillCoverage,
-        feedbackAvgRating: feedback?.avgRating ?? null,
-        feedbackCount: feedback?.feedbackCount ?? 0,
+        feedbackReceivedCount: feedback?.feedbackReceivedCount ?? 0,
         evaluationScore: evaluation?.latestScore ?? null
       })
     }
@@ -184,7 +183,8 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
             totalGoals={totalGoals}
             skillsCoverage={teamSkillCoverage}
             skillGapsCount={topSkillGaps.length}
-            feedbackAvgRating={teamAvgRating}
+            employeesWithoutProfile={employeesWithoutProfile}
+            feedbackCoverage={feedbackCoverage}
             totalFeedbackCount={totalFeedbackCount}
             evaluationsAvgScore={teamAvgScore}
             pendingEvaluations={pendingEvaluations}
@@ -220,8 +220,7 @@ export const TeamPerformanceOverviewView: React.FC<TeamPerformanceOverviewViewPr
                       goalsProgress: dims.goalsProgress,
                       totalGoals: dims.totalGoals,
                       skillsCoverage: dims.skillsCoverage,
-                      feedbackAvgRating: dims.feedbackAvgRating,
-                      feedbackCount: dims.feedbackCount,
+                      feedbackReceivedCount: dims.feedbackReceivedCount,
                       evaluationScore: dims.evaluationScore
                     }}
                     onViewDetails={setDeepDiveEmployeeId}

@@ -303,8 +303,23 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const { cycles: performanceCycles, loading: loadingPerformanceCycles } = usePerformanceCycles(accessToken)
 
   const dashboardAvailableCycles = useMemo(() => {
-    const completed = performanceCycles
-      .filter(c => c.apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS')
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return performanceCycles
+      .filter(c => {
+        const evalEnd = c.evaluationPeriodEndDate || c.endDate
+        if (!evalEnd) return false
+        return (
+          c.status !== 'Inactive' ||
+          c.apiStatus !== 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS' ||
+          (() => {
+            const end = new Date(evalEnd)
+            end.setHours(23, 59, 59, 999)
+            return today <= end
+          })()
+        )
+      })
       .sort((a, b) => {
         const aEnd = a.evaluationPeriodEndDate ?? a.endDate
         const bEnd = b.evaluationPeriodEndDate ?? b.endDate
@@ -317,25 +332,26 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         evaluationPeriodStartDate: c.evaluationPeriodStartDate,
         evaluationPeriodEndDate: c.evaluationPeriodEndDate
       }))
-
-    const active = performanceCycles
-      .filter(c => c.apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS')
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        apiStatus: c.apiStatus,
-        evaluationPeriodStartDate: c.evaluationPeriodStartDate,
-        evaluationPeriodEndDate: c.evaluationPeriodEndDate
-      }))
-
-    return [...completed, ...active]
   }, [performanceCycles])
 
   useEffect(() => {
     if (!loadingPerformanceCycles && selectedCycleId === null && dashboardAvailableCycles.length > 0) {
-      const latestCompleted = dashboardAvailableCycles.find(c => c.apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS')
-      if (latestCompleted) {
-        setSelectedCycleId(latestCompleted.id)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const currentCycle = dashboardAvailableCycles.find(c => {
+        const start = c.evaluationPeriodStartDate || ''
+        const end = c.evaluationPeriodEndDate || ''
+        if (!start || !end) return false
+        const s = new Date(start)
+        const e = new Date(end)
+        s.setHours(0, 0, 0, 0)
+        e.setHours(23, 59, 59, 999)
+        return today >= s && today <= e
+      })
+
+      if (currentCycle) {
+        setSelectedCycleId(currentCycle.id)
       } else if (dashboardAvailableCycles.length > 0) {
         setSelectedCycleId(dashboardAvailableCycles[0].id)
       }
@@ -362,6 +378,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     members: teamSkillsMembers,
     skillGrowth: teamSkillGrowth,
     teamSkillCoverage,
+    employeesWithoutProfile,
     topSkillGaps,
     topTeamStrengths,
     loading: loadingTeamSkills,
@@ -651,6 +668,88 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     managerId: employeeId || '',
     snapshotParams: teamPerformanceSnapshotParams,
     performanceCycleId: selectedCycleId
+  })
+
+  const currentCycleSnapshotParams = useMemo(() => {
+    if (!loadingTeamPerformance && !loadingTeamSkills && !loadingTeamFeedback && employeeId && selectedCyclePeriod) {
+      return {
+        goals: {
+          teamPerformance,
+          averageTeamProgress,
+          totalGoals: totalPerformanceGoals,
+          goalsOnTrack,
+          goalsAtRisk,
+          goalsBehindTarget,
+          goalsAchieved
+        },
+        skills: {
+          members: teamSkillsMembers,
+          teamSkillCoverage,
+          topSkillGaps,
+          topTeamStrengths
+        },
+        feedback: {
+          members: teamFeedbackMembers,
+          teamAvgRating,
+          totalReceivedCount: totalFeedbackCount,
+          totalGivenCount: totalFeedbackGivenCount,
+          feedbackCoverage: teamFeedbackCoverage,
+          recognitionRatio: teamRecognitionRatio,
+          membersWithNoRecentFeedback
+        },
+        evaluations: {
+          members: [],
+          teamAvgScore: null,
+          teamCompanyValuesAvg: null,
+          teamSkillsAvg: null,
+          pendingEvaluations: 0,
+          completedEvaluations: 0
+        },
+        managerName: userProfile ? `${userProfile.firstName ?? ''} ${userProfile.lastName ?? ''}`.trim() : 'Manager',
+        teamSize: directReports.length,
+        performanceCycle: {
+          id: selectedCyclePeriod.cycleId,
+          name: selectedCyclePeriod.name,
+          evaluation_period_start_date: selectedCyclePeriod.evaluationPeriodStartDate,
+          evaluation_period_end_date: selectedCyclePeriod.evaluationPeriodEndDate
+        }
+      }
+    }
+    return null
+  }, [
+    loadingTeamPerformance,
+    loadingTeamSkills,
+    loadingTeamFeedback,
+    employeeId,
+    selectedCyclePeriod,
+    selectedCycleId,
+    teamPerformance,
+    averageTeamProgress,
+    totalPerformanceGoals,
+    goalsOnTrack,
+    goalsAtRisk,
+    goalsBehindTarget,
+    goalsAchieved,
+    teamSkillsMembers,
+    teamSkillCoverage,
+    topSkillGaps,
+    topTeamStrengths,
+    teamFeedbackMembers,
+    teamAvgRating,
+    totalFeedbackCount,
+    totalFeedbackGivenCount,
+    teamFeedbackCoverage,
+    teamRecognitionRatio,
+    membersWithNoRecentFeedback,
+    userProfile,
+    directReports.length
+  ])
+
+  const currentCycleInsights = useTeamPerformanceInsights({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    snapshotParams: currentCycleSnapshotParams,
+    performanceCycleId: selectedCycleId ? `current_${selectedCycleId}` : null
   })
 
   const refreshManagerDashboardData = async () => {
@@ -1060,6 +1159,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         members: teamSkillsMembers,
         skillGrowth: teamSkillGrowth,
         teamSkillCoverage,
+        employeesWithoutProfile,
         topSkillGaps,
         topTeamStrengths,
         loading: loadingTeamSkills,
@@ -1255,6 +1355,25 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     handleNavigateToEmployee,
     handleOpenMemberPanel,
     handleCloseMemberPanel,
+
+    // Feedback & Skills for team-performance view
+    teamFeedbackSummary: {
+      teamAvgRating,
+      totalFeedbackCount,
+      totalGivenCount: totalFeedbackGivenCount,
+      feedbackCoverage: teamFeedbackCoverage,
+      recognitionRatio: teamRecognitionRatio,
+      membersWithNoRecentFeedback,
+      loading: loadingTeamFeedback
+    },
+    teamSkillsSummary: {
+      teamSkillCoverage,
+      employeesWithoutProfile,
+      topSkillGaps,
+      topTeamStrengths,
+      loading: loadingTeamSkills
+    },
+    currentCycleInsights,
 
     // Internal use
     _legacy: {

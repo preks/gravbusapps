@@ -1,12 +1,44 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { Button, Badge, Spinner, Card, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { ChevronLeft } from 'lucide-react'
+import {
+  Button,
+  Badge,
+  Spinner,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Progress
+} from '@newwork/nw-design-system'
+import { ChevronLeft, MessageSquare, GraduationCap, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { normalizeProgress } from '@/business-apps/hr/core/apps/employee-record/components/tabs/performance-evaluation/utils/performanceGoalsSummary'
 import { TeamMemberPerformance, PerformanceGoal } from '../hooks/useTeamPerformance'
+import { SkillGap } from '../hooks/useTeamSkills'
+import { TeamPerformanceInsightsResult } from '../hooks/useTeamPerformanceInsights'
 
 type GoalStatusFilter = 'ALL' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET' | 'ACHIEVED'
+
+export interface FeedbackSummary {
+  teamAvgRating: number | null
+  totalFeedbackCount: number
+  totalGivenCount: number
+  feedbackCoverage: number
+  recognitionRatio: number | null
+  membersWithNoRecentFeedback: string[]
+  loading: boolean
+}
+
+export interface SkillsSummary {
+  teamSkillCoverage: number
+  employeesWithoutProfile: number
+  topSkillGaps: SkillGap[]
+  topTeamStrengths: string[]
+  loading: boolean
+}
 
 export interface TeamPerformanceViewProps {
   teamPerformance: TeamMemberPerformance[]
@@ -20,6 +52,9 @@ export interface TeamPerformanceViewProps {
   loadingTeamPerformance: boolean
   filterGoalsBehindOnly?: boolean
   initialStatusFilter?: GoalStatusFilter
+  feedbackSummary?: FeedbackSummary
+  skillsSummary?: SkillsSummary
+  insights?: TeamPerformanceInsightsResult
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
 }
@@ -70,6 +105,9 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   loadingTeamPerformance,
   filterGoalsBehindOnly = false,
   initialStatusFilter = 'ALL',
+  feedbackSummary,
+  skillsSummary,
+  insights,
   onNavigateBack,
   onNavigateToEmployee
 }) => {
@@ -263,6 +301,231 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
             </Card>
           </button>
         </div>
+
+        {/* Feedback & Skills summary row */}
+        {(feedbackSummary || skillsSummary) && (
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }} data-layout="perf-summary-row">
+            <style>{`
+              [data-layout="perf-summary-row"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+              }
+              [data-layout="perf-summary-row"] > div {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+              }
+            `}</style>
+            {/* Feedback Trend */}
+            {feedbackSummary && (
+              <div>
+                <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:h-full">
+                  <CardHeader className="gba:pb-2 gba:p-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <MessageSquare size={16} className="gba:text-primary" />
+                      <CardTitle className="gba:text-sm gba:font-semibold">Feedback Trend</CardTitle>
+                    </div>
+                    <p className="gba:text-xs gba:text-muted-foreground">Current cycle</p>
+                  </CardHeader>
+                  <CardContent className="gba:px-4 gba:pb-4 gba:pt-0">
+                    {feedbackSummary.loading ? (
+                      <div className="gba:animate-pulse gba:space-y-2">
+                        <div className="gba:h-5 gba:bg-muted gba:rounded gba:w-2/3" />
+                        <div className="gba:h-4 gba:bg-muted gba:rounded gba:w-1/2" />
+                      </div>
+                    ) : (
+                      <div className="gba:space-y-3">
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                          <div style={{ flex: 1, textAlign: 'center' }}>
+                            <p className="gba:text-xl gba:font-bold gba:tabular-nums">
+                              {feedbackSummary.totalFeedbackCount}
+                            </p>
+                            <p className="gba:text-[11px] gba:text-muted-foreground">Received</p>
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'center' }}>
+                            <p className="gba:text-xl gba:font-bold gba:tabular-nums">
+                              {feedbackSummary.totalGivenCount}
+                            </p>
+                            <p className="gba:text-[11px] gba:text-muted-foreground">Given</p>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                            <span className="gba:text-xs gba:text-muted-foreground">Coverage</span>
+                            <span className="gba:text-xs gba:font-medium">
+                              {Math.round(feedbackSummary.feedbackCoverage)}%
+                            </span>
+                          </div>
+                          <Progress value={feedbackSummary.feedbackCoverage} className="gba:h-1.5" />
+                        </div>
+                        {feedbackSummary.membersWithNoRecentFeedback.length > 0 && (
+                          <p className="gba:text-[11px] gba:text-warning">
+                            {feedbackSummary.membersWithNoRecentFeedback.length} member
+                            {feedbackSummary.membersWithNoRecentFeedback.length > 1 ? 's' : ''} with no recent feedback
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Skills Coverage */}
+            {skillsSummary && (
+              <div>
+                <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:h-full">
+                  <CardHeader className="gba:pb-2 gba:p-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <GraduationCap size={16} className="gba:text-primary" />
+                      <CardTitle className="gba:text-sm gba:font-semibold">Skills Coverage</CardTitle>
+                    </div>
+                    <p className="gba:text-xs gba:text-muted-foreground">Team skill profile</p>
+                  </CardHeader>
+                  <CardContent className="gba:px-4 gba:pb-4 gba:pt-0">
+                    {skillsSummary.loading ? (
+                      <div className="gba:animate-pulse gba:space-y-2">
+                        <div className="gba:h-5 gba:bg-muted gba:rounded gba:w-2/3" />
+                        <div className="gba:h-4 gba:bg-muted gba:rounded gba:w-1/2" />
+                      </div>
+                    ) : (
+                      <div className="gba:space-y-3">
+                        <div>
+                          <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                            <span className="gba:text-xs gba:text-muted-foreground">Team coverage</span>
+                            <span className="gba:text-xs gba:font-medium">
+                              {Math.round(skillsSummary.teamSkillCoverage)}%
+                            </span>
+                          </div>
+                          <Progress value={skillsSummary.teamSkillCoverage} className="gba:h-1.5" />
+                        </div>
+                        {skillsSummary.topTeamStrengths.length > 0 && (
+                          <div>
+                            <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mb-1">
+                              Strengths
+                            </p>
+                            <div className="gba:flex gba:flex-wrap gba:gap-1">
+                              {skillsSummary.topTeamStrengths.slice(0, 4).map(s => (
+                                <Badge key={s} variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                                  {s}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {skillsSummary.topSkillGaps.length > 0 && (
+                          <div>
+                            <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mb-1">Gaps</p>
+                            <div className="gba:flex gba:flex-wrap gba:gap-1">
+                              {skillsSummary.topSkillGaps.slice(0, 4).map(g => (
+                                <Badge
+                                  key={g.skillId}
+                                  variant="outline"
+                                  className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:text-warning"
+                                >
+                                  {g.skillName}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {skillsSummary.employeesWithoutProfile > 0 && (
+                          <div>
+                            <Badge variant="destructive" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                              {skillsSummary.employeesWithoutProfile} employee
+                              {skillsSummary.employeesWithoutProfile > 1 ? 's' : ''} missing job profile skills
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* AI Insights trigger */}
+            {insights && (
+              <div>
+                <Card className="gba:border gba:border-border gba:bg-card gba:shadow-sm gba:h-full">
+                  <CardHeader className="gba:pb-2 gba:p-4">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Sparkles size={16} className="gba:text-primary" />
+                      <CardTitle className="gba:text-sm gba:font-semibold">AI Summary</CardTitle>
+                    </div>
+                    <p className="gba:text-xs gba:text-muted-foreground">Goals, skills & feedback</p>
+                  </CardHeader>
+                  <CardContent className="gba:px-4 gba:pb-4 gba:pt-0">
+                    {insights.isAnalyzing ? (
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:py-2">
+                        <div className="gba:animate-spin">
+                          <Sparkles size={16} className="gba:text-primary" />
+                        </div>
+                        <p className="gba:text-xs gba:text-muted-foreground">Analyzing...</p>
+                      </div>
+                    ) : insights.error ? (
+                      <div className="gba:text-center gba:py-2">
+                        <AlertTriangle size={20} className="gba:mx-auto gba:mb-1 gba:text-destructive" />
+                        <p className="gba:text-[11px] gba:text-destructive gba:mb-2">{insights.error}</p>
+                        <Button onClick={insights.analyze} variant="outline" size="sm" className="gba:h-7 gba:text-xs">
+                          <RefreshCw size={12} className="gba:mr-1" />
+                          Retry
+                        </Button>
+                      </div>
+                    ) : insights.data ? (
+                      <div className="gba:space-y-2">
+                        <p className="gba:text-xs gba:leading-relaxed">{insights.data.executive_summary}</p>
+                        {insights.data.top_priorities.length > 0 && (
+                          <div>
+                            <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mb-1">
+                              Top priorities
+                            </p>
+                            {insights.data.top_priorities.slice(0, 3).map((p, i) => (
+                              <div key={i} className="gba:flex gba:items-start gba:gap-1.5 gba:mb-1">
+                                <Badge
+                                  variant={
+                                    p.urgency === 'high'
+                                      ? 'destructive'
+                                      : p.urgency === 'medium'
+                                        ? ('warning' as any)
+                                        : 'secondary'
+                                  }
+                                  className="gba:text-[9px] gba:px-1 gba:py-0 gba:shrink-0 gba:mt-0.5"
+                                >
+                                  {p.urgency}
+                                </Badge>
+                                <p className="gba:text-[11px]">{p.priority}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <Button
+                          onClick={insights.analyze}
+                          variant="ghost"
+                          size="sm"
+                          className="gba:h-6 gba:text-[11px] gba:px-2"
+                        >
+                          <RefreshCw size={10} className="gba:mr-1" />
+                          Refresh
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="gba:text-center gba:py-3">
+                        <p className="gba:text-xs gba:text-muted-foreground gba:mb-2">
+                          AI analysis of current cycle performance
+                        </p>
+                        <Button onClick={insights.analyze} size="sm" className="gba:h-8 gba:gap-1.5">
+                          <Sparkles size={14} />
+                          Generate Summary
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
 
         {loadingTeamPerformance && (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-20">
