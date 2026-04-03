@@ -10,7 +10,7 @@
 
 import path from 'node:path'
 import { execSync } from 'node:child_process'
-import { configureGit } from './utils/componentHashUtils.js'
+import { CI_GIT_AUTHOR_NAME_BUNDLE, configureGit } from './utils/componentHashUtils.js'
 import { mergeTouchedBundleDeps } from './utils/hashPipelineUtils.js'
 import { TOP_COMBINED_DEFAULT, buildBundleEntryPayload } from './utils/bundleTopDependenciesFromRaw.mjs'
 import { getBitbucketPipelineMetadata } from './utils/bitbucketPipelineUrl.js'
@@ -195,7 +195,7 @@ async function main() {
   }
 
   try {
-    configureGit(projectRootDir, execSync)
+    configureGit(projectRootDir, execSync, { userName: CI_GIT_AUTHOR_NAME_BUNDLE })
 
     console.log(`   Current branch: ${currentBranch}`)
     console.log(`   Target branch: ${targetBranch}`)
