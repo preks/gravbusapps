@@ -26,7 +26,7 @@ export const PlanDetailPage: React.FC<PlanDetailPageProps> = ({
   onBack
 }) => {
   return (
-    <div className="gba:h-full gba:w-full">
+    <div className="gba:flex gba:h-full gba:min-h-0 gba:w-full gba:flex-col">
       <OrchestratorViewConversational
         accessToken={accessToken}
         userInfo={userInfo}

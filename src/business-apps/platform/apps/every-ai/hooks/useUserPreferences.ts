@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { useFlowbotClient } from '@/common/network/flowbot/useFlowbotClient'
 
 export type NoteSource = 'user' | 'agent'
 
@@ -47,13 +47,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const getHeaders = useCallback(() => {
-    return {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/json'
-    }
-  }, [accessToken])
+  const client = useFlowbotClient(accessToken)
 
   const fetchPreferences = useCallback(async () => {
     if (!accessToken) return
@@ -62,17 +56,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
     setError(null)
 
     try {
-      const baseUrl = resolveFlowbotBaseUrl()
-      const res = await fetch(`${baseUrl}/flowbot/api/preferences`, {
-        method: 'GET',
-        headers: getHeaders()
-      })
-
-      if (!res.ok) {
-        throw new Error(`Failed to fetch preferences: ${res.statusText}`)
-      }
-
-      const data = (await res.json()) as UserPreferences
+      const data = await client.getPreferences<UserPreferences>()
       setPreferences(data)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch preferences'
@@ -81,7 +65,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, getHeaders])
+  }, [accessToken, client])
 
   const fetchSummary = useCallback(async () => {
     if (!accessToken) return
@@ -90,17 +74,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
     setError(null)
 
     try {
-      const baseUrl = resolveFlowbotBaseUrl()
-      const res = await fetch(`${baseUrl}/flowbot/api/preferences/summary`, {
-        method: 'GET',
-        headers: getHeaders()
-      })
-
-      if (!res.ok) {
-        throw new Error(`Failed to fetch summary: ${res.statusText}`)
-      }
-
-      const data = (await res.json()) as PreferencesSummary
+      const data = await client.getPreferencesSummary<PreferencesSummary>()
       setSummary(data)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch summary'
@@ -109,7 +83,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, getHeaders])
+  }, [accessToken, client])
 
   const updatePreferences = useCallback(
     async (updates: UserPreferencesUpdate): Promise<boolean> => {
@@ -119,18 +93,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
       setError(null)
 
       try {
-        const baseUrl = resolveFlowbotBaseUrl()
-        const res = await fetch(`${baseUrl}/flowbot/api/preferences`, {
-          method: 'PATCH',
-          headers: getHeaders(),
-          body: JSON.stringify(updates)
-        })
-
-        if (!res.ok) {
-          throw new Error(`Failed to update preferences: ${res.statusText}`)
-        }
-
-        const data = (await res.json()) as UserPreferences
+        const data = await client.updatePreferences<UserPreferences>(updates)
         setPreferences(data)
         return true
       } catch (err) {
@@ -142,7 +105,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
         setIsLoading(false)
       }
     },
-    [accessToken, getHeaders]
+    [accessToken, client]
   )
 
   const clearPreferences = useCallback(async (): Promise<boolean> => {
@@ -152,16 +115,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
     setError(null)
 
     try {
-      const baseUrl = resolveFlowbotBaseUrl()
-      const res = await fetch(`${baseUrl}/flowbot/api/preferences`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      })
-
-      if (!res.ok) {
-        throw new Error(`Failed to clear preferences: ${res.statusText}`)
-      }
-
+      await client.clearPreferences()
       setPreferences(null)
       setSummary(null)
       return true
@@ -173,7 +127,7 @@ export function useUserPreferences(accessToken: string): UseUserPreferencesRetur
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, getHeaders])
+  }, [accessToken, client])
 
   return {
     preferences,

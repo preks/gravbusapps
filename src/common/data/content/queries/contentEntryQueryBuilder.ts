@@ -175,6 +175,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         offset: ${offset}
       ) {
         id
+        version
         contentCategoryId
         contentCategory {
           id
@@ -193,6 +194,7 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         offset: ${offset}
       ) {
         id
+        version
         contentTagId
         contentTag {
           id

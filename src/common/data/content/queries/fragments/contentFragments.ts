@@ -120,6 +120,7 @@ export const CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT = `
  */
 export const CONTENT_ENTRY_CATEGORY_FRAGMENT = `
   id
+  version
   contentEntryId
   contentCategoryId
   recordState
@@ -138,6 +139,7 @@ export const CONTENT_ENTRY_CATEGORY_FRAGMENT = `
  */
 export const CONTENT_ENTRY_TAG_FRAGMENT = `
   id
+  version
   contentEntryId
   contentTagId
   recordState

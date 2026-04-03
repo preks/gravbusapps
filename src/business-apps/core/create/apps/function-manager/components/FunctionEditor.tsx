@@ -18,12 +18,25 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
   heroTitle?: string
   /** Hero subtitle (optional). */
   heroSubtitle?: string
+  className?: string
+  'data-testid'?: string
 }
 
 const DATA_TEST_ID = 'function-editor'
 
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
-  const { mode, function: func, onSaved, accessToken, onBack, userInfo, heroTitle, heroSubtitle } = props
+  const {
+    mode,
+    function: func,
+    onSaved,
+    accessToken,
+    onBack,
+    userInfo,
+    heroTitle,
+    heroSubtitle,
+    className,
+    'data-testid': testId = DATA_TEST_ID
+  } = props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
   const [fixTestRequest, setFixTestRequest] = React.useState<null | {
@@ -231,7 +244,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   if (usesCreateLayoutHero) {
     return (
       <CreateLayout
-        testId={DATA_TEST_ID}
+        testId={testId}
         heroVariant="editor"
         heroIcon={Code}
         heroTitle={heroTitle}
@@ -251,16 +264,21 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             data-testid="function-assistant"
           />
         }
-        canvasPanel={<div className="gba:overflow-y-auto gba:p-6">{mainContent}</div>}
+        canvasPanel={
+          <div className="gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:p-6">{mainContent}</div>
+        }
         chatPanelCollapsed={chatPanelCollapsed}
         onChatPanelCollapseChange={handleCollapseChange}
-        className="gba:flex-1 gba:min-h-0 gba:overflow-hidden"
+        className={className}
       />
     )
   }
 
   return (
-    <div data-testid={DATA_TEST_ID} className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full">
+    <div
+      data-testid={testId}
+      className={['gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full', className].filter(Boolean).join(' ')}
+    >
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
         <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
         {assistantOpen ? (

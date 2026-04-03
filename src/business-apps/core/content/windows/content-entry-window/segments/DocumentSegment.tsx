@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef } from 'react'
+import React, { useCallback, useState, useRef, useMemo } from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
   Combobox,
@@ -27,13 +27,13 @@ import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/c
 import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
 import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
 import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
-import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
 interface DocumentSegmentProps {
   control: Control<ContentEntryFormValues>
+  setValue: (name: keyof ContentEntryFormValues, value: any) => void
   accessToken?: string
-  watchDisplayAuthor: boolean
+  watchDisplayCreator: boolean
   authorName: string | null
   image: string | null
   setImage: (image: string | null) => void
@@ -47,6 +47,7 @@ const MAX_IMAGE_SIZE_MB = 5
 
 export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   control,
+  setValue,
   accessToken,
   image,
   setImage,
@@ -63,10 +64,11 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   const [isLoadingUrl, setIsLoadingUrl] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const watchedCategories = useWatch({ control, name: 'categories' })
-  const watchedTags = useWatch({ control, name: 'tags' })
-  const [initialCategoryIds] = useState<string[]>(() => watchedCategories || [])
-  const [initialTagIds] = useState<string[]>(() => watchedTags || [])
+  const watchContentTypeId = useWatch({ control, name: 'contentTypeId' })
+  const watchedContentCategoryIds = useWatch({ control, name: 'contentCategoryIds' })
+  const watchedContentCategoryNames = useWatch({ control, name: 'contentCategoryNames' })
+  const watchedContentTagIds = useWatch({ control, name: 'contentTagIds' })
+  const watchedContentTagNames = useWatch({ control, name: 'contentTagNames' })
 
   const watchContentGroup = useWatch({ control, name: 'contentGroup' })
   const activeGroup = extractedContentGroup || watchContentGroup
@@ -74,32 +76,52 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   const {
     options: contentTypeOptions,
     isLoading: typesLoading,
+    isReady: typeOptionsReady,
     setSearch: setTypeSearch,
     hasMore: typeHasMore,
     loadMore: loadMoreTypes,
     component: typeComponent
-  } = useContentTypeSelect(accessToken, activeGroup)
+  } = useContentTypeSelect(accessToken, activeGroup, watchContentTypeId ? [watchContentTypeId] : [])
 
   const {
     options: categoryOptions,
     isLoading: categoriesLoading,
+    isReady: categoryOptionsReady,
     setSearch: setCategorySearch,
     hasMore: categoryHasMore,
-    loadMore: loadMoreCategories,
-    createCategory
-  } = useContentCategorySelect(accessToken, initialCategoryIds)
+    loadMore: loadMoreCategories
+  } = useContentCategorySelect(accessToken, watchedContentCategoryIds || [])
 
   const {
     options: tagOptions,
     isLoading: tagsLoading,
+    isReady: tagOptionsReady,
     setSearch: setTagSearch,
     hasMore: tagHasMore,
-    loadMore: loadMoreTags,
-    createTag
-  } = useContentTagSelect(accessToken, initialTagIds)
+    loadMore: loadMoreTags
+  } = useContentTagSelect(accessToken, watchedContentTagIds || [])
+
+  const createdCategoryOptions = useMemo(
+    () => (watchedContentCategoryNames || []).map(name => ({ value: name, label: name })),
+    [watchedContentCategoryNames]
+  )
+  const createdTagOptions = useMemo(
+    () => (watchedContentTagNames || []).map(name => ({ value: name, label: name })),
+    [watchedContentTagNames]
+  )
+  const displayedCategoryValues = useMemo(
+    () => [...(watchedContentCategoryIds || []), ...(watchedContentCategoryNames || [])],
+    [watchedContentCategoryIds, watchedContentCategoryNames]
+  )
+  const displayedTagValues = useMemo(
+    () => [...(watchedContentTagIds || []), ...(watchedContentTagNames || [])],
+    [watchedContentTagIds, watchedContentTagNames]
+  )
+  const categoryOptionValues = useMemo(() => new Set(categoryOptions.map(option => option.value)), [categoryOptions])
+  const tagOptionValues = useMemo(() => new Set(tagOptions.map(option => option.value)), [tagOptions])
 
   const processFile = useCallback(
-    (file: File, setValue: any) => {
+    (file: File) => {
       const fileSizeMB = file.size / (1024 * 1024)
       if (fileSizeMB > MAX_IMAGE_SIZE_MB) {
         alert(`Image size must be less than ${MAX_IMAGE_SIZE_MB}MB`)
@@ -114,30 +136,30 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
       reader.onloadend = () => {
         setImage(reader.result as string)
         setImageInfo({ name: file.name, size: `${fileSizeMB.toFixed(2)}MB` })
-        setValue('contentImage', reader.result as any)
+        setValue('picture', reader.result as any)
       }
       reader.readAsDataURL(file)
     },
-    [setImage, setImageInfo, setImageFile]
+    [setImage, setImageInfo, setImageFile, setValue]
   )
 
   const handleImageUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>, setValue: any) => {
+    (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) return
-      processFile(file, setValue)
+      processFile(file)
       if (fileInputRef.current) fileInputRef.current.value = ''
     },
     [processFile]
   )
 
   const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>, setValue: any) => {
+    (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault()
       event.stopPropagation()
       setDragActive(false)
       const file = event.dataTransfer.files?.[0]
-      if (file) processFile(file, setValue)
+      if (file) processFile(file)
     },
     [processFile]
   )
@@ -154,39 +176,33 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
     setDragActive(false)
   }, [])
 
-  const handleUrlFetch = useCallback(
-    async (setValue: any) => {
-      if (!urlInput.trim()) return
-      setIsLoadingUrl(true)
-      try {
-        const response = await fetch(urlInput.trim(), { mode: 'cors' })
-        if (!response.ok) throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-        const blob = await response.blob()
-        if (!blob.type.startsWith('image/')) throw new Error('URL does not point to an image')
-        const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
-        const mimeType = blob.type || `image/jpeg`
-        processFile(new File([blob], fileName, { type: mimeType }), setValue)
-        setUrlInput('')
-        setUrlPopoverOpen(false)
-        setUploadMenuOpen(false)
-      } catch (error) {
-        alert(error instanceof Error ? error.message : 'Failed to fetch image from URL')
-      } finally {
-        setIsLoadingUrl(false)
-      }
-    },
-    [urlInput, processFile]
-  )
+  const handleUrlFetch = useCallback(async () => {
+    if (!urlInput.trim()) return
+    setIsLoadingUrl(true)
+    try {
+      const response = await fetch(urlInput.trim(), { mode: 'cors' })
+      if (!response.ok) throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+      const blob = await response.blob()
+      if (!blob.type.startsWith('image/')) throw new Error('URL does not point to an image')
+      const fileName = urlInput.split('/').pop()?.split('?')[0] || 'image.jpg'
+      const mimeType = blob.type || `image/jpeg`
+      processFile(new File([blob], fileName, { type: mimeType }))
+      setUrlInput('')
+      setUrlPopoverOpen(false)
+      setUploadMenuOpen(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to fetch image from URL')
+    } finally {
+      setIsLoadingUrl(false)
+    }
+  }, [urlInput, processFile])
 
-  const handleImageRemove = useCallback(
-    (setValue: any) => {
-      setImage(null)
-      setImageInfo(null)
-      setImageFile(null)
-      setValue('contentImage', null)
-    },
-    [setImage, setImageInfo, setImageFile]
-  )
+  const handleImageRemove = useCallback(() => {
+    setImage(null)
+    setImageInfo(null)
+    setImageFile(null)
+    setValue('picture', null)
+  }, [setImage, setImageInfo, setImageFile, setValue])
 
   return (
     <div className="gba:space-y-6">
@@ -228,7 +244,8 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
               <FormControl>
                 {typeComponent === 'select' ? (
                   <Select
-                    value={field.value || ''}
+                    key={typeOptionsReady ? 'resolved' : 'resolving'}
+                    value={typeOptionsReady ? field.value || '' : ''}
                     onValueChange={field.onChange}
                     disabled={!activeGroup || typesLoading}
                   >
@@ -245,9 +262,10 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                   </Select>
                 ) : (
                   <Combobox
+                    key={typeOptionsReady ? 'resolved' : 'resolving'}
                     mode="default"
                     options={contentTypeOptions}
-                    value={field.value || ''}
+                    value={typeOptionsReady ? field.value || '' : ''}
                     onValueChange={(next: string) => field.onChange(next)}
                     placeholder={t('select-type') || 'Select type'}
                     searchPlaceholder="Search types..."
@@ -277,7 +295,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
           className={`gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-4 gba:border-2 gba:border-dashed gba:rounded-lg gba:transition-colors ${
             dragActive ? 'gba:border-primary gba:bg-primary/5' : 'gba:border-border gba:bg-muted/20'
           }`}
-          onDrop={e => handleDrop(e, (control as any)._formValues)}
+          onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
@@ -297,7 +315,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                 type="button"
                 variant="destructive"
                 size="sm"
-                onClick={() => handleImageRemove((control as any)._formValues)}
+                onClick={handleImageRemove}
                 className="gba:mt-2 gba:w-full"
               >
                 {t('remove-image') || 'Remove Image'}
@@ -315,7 +333,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={e => handleImageUpload(e, (control as any)._formValues)}
+                onChange={handleImageUpload}
                 className="gba:hidden"
                 data-testid="document-segment-image-input"
               />
@@ -360,7 +378,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                               onChange={e => setUrlInput(e.target.value)}
                               placeholder="https://example.com/image.jpg"
                               onKeyDown={e => {
-                                if (e.key === 'Enter' && !isLoadingUrl) handleUrlFetch((control as any)._formValues)
+                                if (e.key === 'Enter' && !isLoadingUrl) handleUrlFetch()
                               }}
                               data-testid="document-segment-url-input"
                             />
@@ -380,7 +398,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
                             <Button
                               type="button"
                               size="sm"
-                              onClick={() => handleUrlFetch((control as any)._formValues)}
+                              onClick={handleUrlFetch}
                               disabled={!urlInput.trim() || isLoadingUrl}
                               data-testid="document-segment-fetch-url-button"
                             >
@@ -420,7 +438,7 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
 
       <FormField
         control={control as any}
-        name="previewText"
+        name="preview"
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('short-description') || 'Short Description'}</FormLabel>
@@ -468,22 +486,38 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
       <FormFieldGroup>
         <FormField
           control={control as any}
-          name="categories"
+          name="contentCategoryIds"
           render={({ field }) => (
             <FormItem className="gba:flex-1">
               <FormLabel>Categories</FormLabel>
               <FormControl>
-                <TaxonomyMultiSelect
+                <Combobox
+                  mode="tags"
                   options={categoryOptions}
-                  value={field.value || []}
-                  onValueChange={field.onChange}
-                  onCreateNew={createCategory}
-                  isLoading={categoriesLoading}
+                  value={categoryOptionsReady ? displayedCategoryValues : watchedContentCategoryNames || []}
+                  onValueChange={(next: string[]) => {
+                    field.onChange(next.filter(value => categoryOptionValues.has(value)))
+                    setValue(
+                      'contentCategoryNames',
+                      next.filter(value => !categoryOptionValues.has(value))
+                    )
+                  }}
+                  onCreateTag={rawName => {
+                    const trimmedName = rawName.trim()
+                    if (!trimmedName) return
+                    if ((watchedContentCategoryNames || []).includes(trimmedName)) return
+                    setValue('contentCategoryNames', [...(watchedContentCategoryNames || []), trimmedName])
+                  }}
+                  createdOptions={createdCategoryOptions}
                   placeholder="Select categories..."
-                  data-testid="document-segment-categories-select"
+                  searchPlaceholder="Search or create..."
+                  emptyText={categoriesLoading ? 'Loading...' : 'No results'}
+                  loading={categoriesLoading}
                   onSearch={setCategorySearch}
+                  searchDebounce={300}
                   onLoadMore={loadMoreCategories}
                   hasMore={categoryHasMore}
+                  data-testid="document-segment-categories-select"
                 />
               </FormControl>
               <FormMessage />
@@ -493,22 +527,38 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
 
         <FormField
           control={control as any}
-          name="tags"
+          name="contentTagIds"
           render={({ field }) => (
             <FormItem className="gba:flex-1">
               <FormLabel>Tags</FormLabel>
               <FormControl>
-                <TaxonomyMultiSelect
+                <Combobox
+                  mode="tags"
                   options={tagOptions}
-                  value={field.value || []}
-                  onValueChange={field.onChange}
-                  onCreateNew={createTag}
-                  isLoading={tagsLoading}
+                  value={tagOptionsReady ? displayedTagValues : watchedContentTagNames || []}
+                  onValueChange={(next: string[]) => {
+                    field.onChange(next.filter(value => tagOptionValues.has(value)))
+                    setValue(
+                      'contentTagNames',
+                      next.filter(value => !tagOptionValues.has(value))
+                    )
+                  }}
+                  onCreateTag={rawName => {
+                    const trimmedName = rawName.trim()
+                    if (!trimmedName) return
+                    if ((watchedContentTagNames || []).includes(trimmedName)) return
+                    setValue('contentTagNames', [...(watchedContentTagNames || []), trimmedName])
+                  }}
+                  createdOptions={createdTagOptions}
                   placeholder="Select tags..."
-                  data-testid="document-segment-tags-select"
+                  searchPlaceholder="Search or create..."
+                  emptyText={tagsLoading ? 'Loading...' : 'No results'}
+                  loading={tagsLoading}
                   onSearch={setTagSearch}
+                  searchDebounce={300}
                   onLoadMore={loadMoreTags}
                   hasMore={tagHasMore}
+                  data-testid="document-segment-tags-select"
                 />
               </FormControl>
               <FormMessage />
@@ -516,10 +566,9 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
           )}
         />
       </FormFieldGroup>
-
       <input type="hidden" {...(control as any).register('allowReaction')} value="false" />
       <input type="hidden" {...(control as any).register('allowComment')} value="false" />
-      <input type="hidden" {...(control as any).register('displayAuthor')} value="false" />
+      <input type="hidden" {...(control as any).register('displayCreator')} value="false" />
     </div>
   )
 }

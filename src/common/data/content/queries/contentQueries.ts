@@ -176,6 +176,7 @@ export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, 
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
         contentEntryCategories {
           id
+          version
           contentCategoryId
           contentCategory {
             id
@@ -185,6 +186,7 @@ export const buildContentEntriesQuery = (_params: ContentEntryQueryParams = {}, 
         }
         contentEntryTags {
           id
+          version
           contentTagId
           contentTag {
             id
@@ -249,6 +251,7 @@ export const buildContentEntryQuery = (id: string, useChildCount = false): strin
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
         contentEntryCategories {
           id
+          version
           contentCategoryId
           contentCategory {
             id
@@ -258,6 +261,7 @@ export const buildContentEntryQuery = (id: string, useChildCount = false): strin
         }
         contentEntryTags {
           id
+          version
           contentTagId
           contentTag {
             id

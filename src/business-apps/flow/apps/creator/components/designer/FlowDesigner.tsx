@@ -28,7 +28,7 @@ import { FlowRenderer } from '@/business-apps/flow/common/components'
 import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { InputFieldsContent, InputFieldsTrigger } from '../steps/InputFieldsConfiguration'
 import { LinksContent, LinksTrigger } from '../steps/LinksConfiguration'
 import { TagConfiguration } from '../steps/TagConfiguration'
@@ -305,36 +305,14 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
 
     try {
       const templateData = buildCurrentTemplatePayload()
-      const baseUrl = resolveFlowbotBaseUrl()
-      const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
-        method: 'PUT',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ template: templateData })
-      })
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => '')
-        throw new Error(`Failed to autosave draft: ${res.status} ${res.statusText} ${body}`.trim())
-      }
+      flowbotClient.setAccessToken(accessToken)
+      await flowbotClient.putWorkflowDraft(draftId, { template: templateData })
 
       // Best-effort: refresh remote hash baseline so polling doesn't mis-detect our own saves.
       try {
-        const metaRes = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}/meta`, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          }
-        })
-        if (metaRes.ok) {
-          const meta: any = await metaRes.json()
-          if (meta && typeof meta.hash === 'string') {
-            lastSeenRemoteHashRef.current = meta.hash
-          }
+        const meta = await flowbotClient.getWorkflowDraftMeta(draftId)
+        if (meta && typeof meta.hash === 'string') {
+          lastSeenRemoteHashRef.current = meta.hash
         }
       } catch {
         // ignore meta refresh failures
@@ -383,19 +361,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
 
   const fetchRemoteDraft = React.useCallback(async () => {
     if (!draftId || !accessToken) return null
-    const baseUrl = resolveFlowbotBaseUrl()
-    const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-        Authorization: `Bearer ${accessToken}`
-      }
-    })
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`Failed to fetch draft: ${res.status} ${res.statusText} ${body}`.trim())
-    }
-    return res.json()
+    flowbotClient.setAccessToken(accessToken)
+    return flowbotClient.getWorkflowDraft(draftId)
   }, [accessToken, draftId])
 
   const handleReloadRemoteDraft = React.useCallback(async () => {
@@ -427,19 +394,11 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     if (!draftId || !accessToken) return
 
     let cancelled = false
-    const baseUrl = resolveFlowbotBaseUrl()
 
     const poll = async () => {
       try {
-        const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}/meta`, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          }
-        })
-        if (!res.ok) return
-        const meta: any = await res.json().catch(() => null)
+        flowbotClient.setAccessToken(accessToken)
+        const meta = await flowbotClient.getWorkflowDraftMeta(draftId)
         if (cancelled) return
 
         const remoteHash = typeof meta?.hash === 'string' ? meta.hash : null

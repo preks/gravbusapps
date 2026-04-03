@@ -1,7 +1,5 @@
 import { useCallback, useState } from 'react'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
-
-const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 export interface InvestmentAiAutofillResponse {
   // Backend is expected to return a map of field property paths to values,
@@ -40,8 +38,6 @@ export const useInvestmentAiAutofill = (accessToken: string | undefined) => {
         const formData = new FormData()
         formData.append('file', params.file)
 
-        // Backend now expects all contextual data in a single JSON field `meta_json`.
-        // This keeps the FastAPI signature simple and mirrors the InvestmentAutofillMeta model.
         const metaPayload: Record<string, unknown> = {
           investment_group_ref: params.investmentGroupRef
         }
@@ -72,23 +68,8 @@ export const useInvestmentAiAutofill = (accessToken: string | undefined) => {
 
         formData.append('meta_json', JSON.stringify(metaPayload))
 
-        const baseUrl = FLOWBOT_BASE_URL
-        // Backend route is defined in flowbot/src/api/routes/irm.py
-        const url = `${baseUrl}/flowbot/irm/autofill_investment_form`
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: formData
-        })
-
-        if (!res.ok) {
-          throw new Error(`Failed to run investment AI autofill: ${res.status} ${res.statusText}`)
-        }
-
-        const data = (await res.json()) as InvestmentAiAutofillResponse
+        flowbotClient.setAccessToken(accessToken)
+        const data = await flowbotClient.autofillInvestmentForm<InvestmentAiAutofillResponse>(formData)
         return data
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error'

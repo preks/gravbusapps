@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { resolveContentTypeName } from '../constants/contentConstants'
 import type { ContentType } from '../types/contentTypes'
@@ -16,6 +16,7 @@ export interface UseContentTypeSelectResult {
   options: ContentTypeSelectOption[]
   total: number
   isLoading: boolean
+  isReady: boolean
   search: string
   setSearch: (search: string) => void
   hasMore: boolean
@@ -23,48 +24,64 @@ export interface UseContentTypeSelectResult {
   component: 'select' | 'combobox'
 }
 
+/**
+ * Provides paginated, searchable ContentType options.
+ *
+ * selectedIds - current form-selected type IDs (reactive).
+ * The hook fetches any selected IDs not yet in the paged results so labels
+ * always resolve correctly in edit mode, even before the first page loads.
+ * isReady becomes true once all selected UUIDs have a resolved label.
+ */
 export const useContentTypeSelect = (
   accessToken?: string,
   contentGroup?: string | null,
-  requiredIds?: string[]
+  selectedIds?: string[]
 ): UseContentTypeSelectResult => {
   const [search, setSearchTerm] = useState('')
   const [offset, setOffset] = useState(0)
   const [pagedItems, setPagedItems] = useState<ContentType[]>([])
-  const [requiredItems, setRequiredItems] = useState<ContentType[]>([])
+  const [resolvedItems, setResolvedItems] = useState<ContentType[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
 
   const graphqlClient = useGraphQLClient(accessToken)
-  const requiredIdsFetched = useRef(false)
-  const stableRequiredIds = useRef(requiredIds)
+  const resolvedIdsRef = useRef<Set<string>>(new Set())
 
   const setSearch = useCallback((s: string) => {
     setSearchTerm(s)
     setOffset(0)
-    setPagedItems([])
   }, [])
 
-  // One-time fetch of required IDs for edit-mode label resolution
-  useEffect(() => {
-    const ids = stableRequiredIds.current
-    if (!ids?.length || requiredIdsFetched.current) return
-    requiredIdsFetched.current = true
+  // Stable key derived from selected IDs to drive the resolve effect
+  const selectedIdKey = useMemo(() => (selectedIds || []).filter(Boolean).join(','), [selectedIds])
 
-    const where: Record<string, unknown> = { id: { _in: ids }, isDeleted: { _eq: false } }
-    if (contentGroup) {
-      where.contentGroup = { _eq: contentGroup }
-    }
+  // Fetch any selected IDs not yet resolved
+  useEffect(() => {
+    if (!selectedIdKey) return
+
+    const missingIds = selectedIdKey.split(',').filter(id => id && !resolvedIdsRef.current.has(id))
+
+    if (!missingIds.length) return
+
+    const where: Record<string, unknown> = { id: { _in: missingIds }, isDeleted: { _eq: false } }
+    if (contentGroup) where.contentGroup = { _eq: contentGroup }
 
     graphqlClient
       .request<{ ContentType: ContentType[] }>(buildContentTypesPaginatedQuery(), {
         where,
-        limit: ids.length + 5,
+        limit: missingIds.length + 5,
         offset: 0
       })
-      .then(response => setRequiredItems(response.ContentType || []))
+      .then(response => {
+        const newItems = response.ContentType || []
+        newItems.forEach(item => resolvedIdsRef.current.add(item.id))
+        setResolvedItems(prev => {
+          const existingIds = new Set(prev.map(i => i.id))
+          return [...prev, ...newItems.filter(i => !existingIds.has(i.id))]
+        })
+      })
       .catch(() => {})
-  }, [graphqlClient, contentGroup])
+  }, [selectedIdKey, graphqlClient, contentGroup])
 
   // Paginated fetch
   useEffect(() => {
@@ -84,6 +101,8 @@ export const useContentTypeSelect = (
         if (cancelled) return
         const newItems = response.ContentType || []
         const count = response.ContentTypeAggregate?.aggregate?.count ?? 0
+        // Track newly paged items in the resolved set
+        newItems.forEach(item => resolvedIdsRef.current.add(item.id))
         setPagedItems(prev => (offset === 0 ? newItems : [...prev, ...newItems]))
         setTotal(count)
       })
@@ -99,17 +118,24 @@ export const useContentTypeSelect = (
     }
   }, [search, offset, contentGroup, graphqlClient, accessToken])
 
-  const requiredIdsSet = new Set(stableRequiredIds.current || [])
-  const pagedWithoutRequired = pagedItems.filter(item => !requiredIdsSet.has(item.id))
-  const mergedItems = [...requiredItems, ...pagedWithoutRequired]
+  // Merged options: resolved items first, then paged items not already resolved
+  const resolvedSet = useMemo(() => new Set(resolvedItems.map(i => i.id)), [resolvedItems])
+  const pagedUnique = pagedItems.filter(i => !resolvedSet.has(i.id))
+  const mergedItems = [...resolvedItems, ...pagedUnique]
 
   const options: ContentTypeSelectOption[] = mergedItems.map(item => ({
     value: item.id,
     label: resolveContentTypeName(item) || item.name || item.id
   }))
 
-  const hasMore =
-    pagedItems.length < total && !search ? total > pagedItems.length + requiredItems.length : total > pagedItems.length
+  // isReady: all selected IDs are in the resolved set
+  const isReady = useMemo(() => {
+    const ids = (selectedIds || []).filter(Boolean)
+    if (!ids.length) return true
+    return ids.every(id => resolvedIdsRef.current.has(id))
+  }, [selectedIds, resolvedItems])
+
+  const hasMore = total > pagedItems.length + resolvedItems.filter(i => !pagedItems.some(p => p.id === i.id)).length
 
   const loadMore = useCallback(() => {
     if (!isLoading) setOffset(prev => prev + PAGE_SIZE)
@@ -117,5 +143,5 @@ export const useContentTypeSelect = (
 
   const component: 'select' | 'combobox' = total <= SELECT_THRESHOLD ? 'select' : 'combobox'
 
-  return { options, total, isLoading, search, setSearch, hasMore, loadMore, component }
+  return { options, total, isLoading, isReady, search, setSearch, hasMore, loadMore, component }
 }

@@ -1,5 +1,5 @@
 import { FlowTemplate } from './FlowTemplateClient'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 /**
  * AI API response interface (raw from API)
@@ -50,29 +50,9 @@ export class FlowAIClient {
    */
   async generateFlowTemplate(prompt: string, accessToken: string): Promise<FlowTemplate> {
     try {
-      // Use resolveFlowbotBaseUrl to automatically route to localhost:8000 when running locally
-      const baseUrl = resolveFlowbotBaseUrl()
+      flowbotClient.setAccessToken(accessToken)
+      const rawData = (await flowbotClient.createFlowTemplate(prompt)) as RawAIFlowResponse
 
-      const formData = new URLSearchParams()
-      formData.append('input_data', prompt)
-
-      const response = await fetch(`${baseUrl}/flowbot/cflow/create_flow_template`, {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: formData
-      })
-
-      if (!response.ok) {
-        throw new Error(`AI API request failed: ${response.status} ${response.statusText}`)
-      }
-
-      const rawData: RawAIFlowResponse = await response.json()
-
-      // Sanitize and transform the response to match FlowTemplate structure
       return this.sanitizeAIResponse(rawData)
     } catch (error) {
       console.error('Error calling AI flow generation API:', error)

@@ -6,8 +6,9 @@ import * as z from 'zod'
 import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
+import { mapContentEntryToFormData } from '@/common/data/content/mappers/contentEntryMappers'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import ArticleSegment from './segments/ArticleSegment'
@@ -26,48 +27,24 @@ export interface ContentEntryFormValues {
   id?: string
   version?: number
   title: string
-  previewText: string
+  preview: string
   content: string
-  contentImage: string | null
+  picture: string | null
   pictureThumbnail: string | null
   contentGroup: string
   contentTypeId?: string
   role?: string
-  displayAuthor: boolean
+  displayCreator: boolean
   author: string | null
   allowComment: boolean
   allowReaction: boolean
-  startDate: Date | null | string
-  endDate: Date | null | string
+  activeFrom: Date | null | string
+  activeTo: Date | null | string
   schedulePublication: boolean
-  categories: string[] | undefined
-  tags: string[] | undefined
-}
-
-/** Ensures value is full ISO Instant for backend (java.time.Instant). */
-function toInstantStartOfDay(value: Date | string | null | undefined): string | null {
-  if (value == null || value === '') return null
-  if (typeof value === 'string' && value.includes('T')) return value
-  const dateOnly = typeof value === 'string' ? value.slice(0, 10) : value.toISOString().slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return null
-  return `${dateOnly}T00:00:00.000Z`
-}
-
-function useStableArray<T>(next: T[] | undefined): T[] | undefined {
-  const ref = useRef<T[] | undefined>(undefined)
-  if (!arraysEqual(ref.current, next)) {
-    ref.current = next
-  }
-  return ref.current
-}
-
-function arraysEqual<T>(a: T[] | undefined, b: T[] | undefined): boolean {
-  if (a === b) return true
-  if (!a || !b || a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false
-  }
-  return true
+  contentCategoryIds: string[] | undefined
+  contentCategoryNames: string[] | undefined
+  contentTagIds: string[] | undefined
+  contentTagNames: string[] | undefined
 }
 
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
@@ -159,21 +136,23 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           id: z.string().optional(),
           version: z.number().optional(),
           title: z.string().min(1, t('title-required')),
-          previewText: z.string().optional(),
+          preview: z.string().optional(),
           content: z.string().min(1, t('content-required')),
-          contentImage: z.string().nullable().optional(),
+          picture: z.string().nullable().optional(),
           contentGroup: z.string().min(1, t('group-required')),
           contentTypeId: z.string().optional(),
           role: z.string().optional(),
-          displayAuthor: z.boolean(),
+          displayCreator: z.boolean(),
           author: z.string().nullable(),
           allowComment: z.boolean(),
           allowReaction: z.boolean(),
-          startDate: z.union([z.date(), z.string()]).nullable(),
-          endDate: z.union([z.date(), z.string()]).nullable().optional(),
+          activeFrom: z.union([z.date(), z.string()]).nullable(),
+          activeTo: z.union([z.date(), z.string()]).nullable().optional(),
           schedulePublication: z.boolean(),
-          categories: z.array(z.string()).optional(),
-          tags: z.array(z.string()).optional()
+          contentCategoryIds: z.array(z.string()).optional(),
+          contentCategoryNames: z.array(z.string()).optional(),
+          contentTagIds: z.array(z.string()).optional(),
+          contentTagNames: z.array(z.string()).optional()
         })
         .superRefine((data, ctx) => {
           if (data.id && (data.version === undefined || data.version === null)) {
@@ -184,61 +163,21 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             })
           }
           if (data.schedulePublication) {
-            if (!data.startDate) {
-              ctx.addIssue({ code: 'custom', path: ['startDate'], message: t('start-date-required') })
+            if (!data.activeFrom) {
+              ctx.addIssue({ code: 'custom', path: ['activeFrom'], message: t('start-date-required') })
             }
-            if (!data.endDate) {
-              ctx.addIssue({ code: 'custom', path: ['endDate'], message: t('end-date-required') })
+            if (!data.activeTo) {
+              ctx.addIssue({ code: 'custom', path: ['activeTo'], message: t('end-date-required') })
             }
           }
         }),
     [t]
   )
 
-  const mappedFormValues = useMemo(() => {
-    if (!loadedContentEntry) return null
-
-    const categories =
-      loadedContentEntry.contentEntryCategories?.map(cat => cat.contentCategoryId).filter(Boolean) || []
-    const tags = loadedContentEntry.contentEntryTags?.map(tag => tag.contentTagId).filter(Boolean) || []
-
-    let contentImage: string | null = null
-    if (loadedContentEntry.picture) {
-      try {
-        const parsed =
-          typeof loadedContentEntry.picture === 'string'
-            ? JSON.parse(loadedContentEntry.picture)
-            : loadedContentEntry.picture
-        contentImage = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
-      } catch {
-        contentImage = typeof loadedContentEntry.picture === 'string' ? loadedContentEntry.picture : null
-      }
-    }
-
-    return {
-      id: loadedContentEntry.id || '',
-      version: loadedContentEntry.version,
-      title: loadedContentEntry.title || '',
-      previewText: loadedContentEntry.preview || '',
-      content: loadedContentEntry.content || '',
-      contentGroup: loadedContentEntry.contentGroup || '',
-      contentTypeId: loadedContentEntry.contentType?.id || '',
-      contentImage,
-      pictureThumbnail: loadedContentEntry.pictureThumbnail || null,
-      displayAuthor: loadedContentEntry.displayCreator ?? true,
-      allowComment: loadedContentEntry.allowComment ?? true,
-      allowReaction: loadedContentEntry.allowReaction ?? true,
-      author: authorName,
-      schedulePublication: !!(loadedContentEntry.activeFrom || loadedContentEntry.activeTo),
-      startDate: loadedContentEntry.activeFrom || null,
-      endDate: loadedContentEntry.activeTo || null,
-      categories: categories.length > 0 ? (categories as string[]) : [],
-      tags: tags.length > 0 ? (tags as string[]) : []
-    }
-  }, [loadedContentEntry, authorName])
-
   const defaultValues = useMemo(() => {
-    if (mappedFormValues) return mappedFormValues
+    if (loadedContentEntry) {
+      return { ...mapContentEntryToFormData(loadedContentEntry), author: authorName }
+    }
 
     const additionalData = context.additionalData
     const initialTitle = additionalData?.title ?? additionalData?.contentEntry?.title ?? ''
@@ -256,24 +195,26 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       id: '',
       version: 0,
       title: initialTitle,
-      previewText: initialPreview,
+      preview: initialPreview,
       content: initialContent,
       contentGroup: initialContentGroup,
       contentTypeId: initialContentTypeId,
       role: initialRole,
-      tags: [],
-      categories: [],
-      contentImage: null,
+      contentCategoryIds: [],
+      contentCategoryNames: [],
+      contentTagIds: [],
+      contentTagNames: [],
+      picture: null,
       pictureThumbnail: null,
-      displayAuthor: true,
+      displayCreator: true,
       allowComment: true,
       allowReaction: true,
       author: authorName,
       schedulePublication: false,
-      startDate: isPolicy ? new Date().toISOString().replace('Z', '+00:00') : null,
-      endDate: null
+      activeFrom: isPolicy ? new Date().toISOString().replace('Z', '+00:00') : null,
+      activeTo: null
     }
-  }, [mappedFormValues, extractedContentGroup, authorName, context.additionalData])
+  }, [loadedContentEntry, extractedContentGroup, authorName, context.additionalData])
 
   const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
     resolver: zodResolver(schema) as any,
@@ -286,46 +227,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   useEffect(() => {
     if (loadedContentEntry?.id && contentEntryIdRef.current !== loadedContentEntry.id) {
       contentEntryIdRef.current = loadedContentEntry.id
-
-      const categories =
-        loadedContentEntry.contentEntryCategories?.map(cat => cat.contentCategoryId).filter(Boolean) || []
-      const tags = loadedContentEntry.contentEntryTags?.map(tag => tag.contentTagId).filter(Boolean) || []
-
-      let contentImage: string | null = null
-      if (loadedContentEntry.picture) {
-        try {
-          const parsed =
-            typeof loadedContentEntry.picture === 'string'
-              ? JSON.parse(loadedContentEntry.picture)
-              : loadedContentEntry.picture
-          contentImage = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
-        } catch {
-          contentImage = typeof loadedContentEntry.picture === 'string' ? loadedContentEntry.picture : null
-        }
-      }
-
-      form.reset({
-        id: loadedContentEntry.id || '',
-        version: loadedContentEntry.version,
-        title: loadedContentEntry.title || '',
-        previewText: loadedContentEntry.preview || '',
-        content: loadedContentEntry.content || '',
-        contentGroup: loadedContentEntry.contentGroup || '',
-        contentTypeId: loadedContentEntry.contentType?.id || '',
-        contentImage,
-        pictureThumbnail: loadedContentEntry.pictureThumbnail || null,
-        displayAuthor: loadedContentEntry.displayCreator ?? true,
-        allowComment: loadedContentEntry.allowComment ?? true,
-        allowReaction: loadedContentEntry.allowReaction ?? true,
-        author: authorName,
-        schedulePublication: !!(loadedContentEntry.activeFrom || loadedContentEntry.activeTo),
-        startDate: loadedContentEntry.activeFrom || null,
-        endDate: loadedContentEntry.activeTo || null,
-        categories: categories.length > 0 ? (categories as string[]) : [],
-        tags: tags.length > 0 ? (tags as string[]) : []
-      })
+      form.reset({ ...mapContentEntryToFormData(loadedContentEntry), author: authorName })
     }
-  }, [loadedContentEntry?.id, authorName, form])
+  }, [loadedContentEntry?.id, authorName, form, loadedContentEntry])
 
   useEffect(() => {
     if (loadedContentEntry?.id || !context.additionalData) return
@@ -353,8 +257,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     if (initialTitle !== null && initialTitle !== form.getValues('title')) {
       form.setValue('title', initialTitle, { shouldDirty: false, shouldValidate: false })
     }
-    if (initialPreview !== null && initialPreview !== form.getValues('previewText')) {
-      form.setValue('previewText', initialPreview, { shouldDirty: false, shouldValidate: false })
+    if (initialPreview !== null && initialPreview !== form.getValues('preview')) {
+      form.setValue('preview', initialPreview, { shouldDirty: false, shouldValidate: false })
     }
     if (initialContent !== null && initialContent !== form.getValues('content')) {
       form.setValue('content', initialContent, { shouldDirty: false, shouldValidate: false })
@@ -441,15 +345,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const { control, setValue } = form
   const watchContentGroup = useWatch({ control, name: 'contentGroup' })
   const watchTitle = useWatch({ control, name: 'title' })
-  const watchPreviewText = useWatch({ control, name: 'previewText' })
+  const watchPreview = useWatch({ control, name: 'preview' })
   const watchSchedulePublication = useWatch({ control, name: 'schedulePublication' })
   const watchContentTypeId = useWatch({ control, name: 'contentTypeId' })
-  const watchCategories = useWatch({ control, name: 'categories' })
-  const watchTags = useWatch({ control, name: 'tags' })
-  const watchDisplayAuthor = useWatch({ control, name: 'displayAuthor' })
-
-  const stableWatchCategories = useStableArray(watchCategories)
-  const stableWatchTags = useStableArray(watchTags)
+  const watchContentCategoryIds = useWatch({ control, name: 'contentCategoryIds' })
+  const watchContentCategoryNames = useWatch({ control, name: 'contentCategoryNames' })
+  const watchContentTagIds = useWatch({ control, name: 'contentTagIds' })
+  const watchContentTagNames = useWatch({ control, name: 'contentTagNames' })
+  const watchDisplayCreator = useWatch({ control, name: 'displayCreator' })
 
   const handleContentTypeIdChange = useCallback(
     (value: string | undefined) => {
@@ -460,14 +363,16 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
   const handleContentCategoryIdsChange = useCallback(
     (ids: string[]) => {
-      setValue('categories', ids)
+      setValue('contentCategoryIds', ids)
+      setValue('contentCategoryNames', [])
     },
     [setValue]
   )
 
   const handleContentTagIdsChange = useCallback(
     (ids: string[]) => {
-      setValue('tags', ids)
+      setValue('contentTagIds', ids)
+      setValue('contentTagNames', [])
     },
     [setValue]
   )
@@ -498,9 +403,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     if (
       currentSegment === 'policy' &&
       !contentEntryId &&
-      (form.getValues('startDate') == null || form.getValues('startDate') === '')
+      (form.getValues('activeFrom') == null || form.getValues('activeFrom') === '')
     ) {
-      form.setValue('startDate', new Date().toISOString().replace('Z', '+00:00'))
+      form.setValue('activeFrom', new Date().toISOString().replace('Z', '+00:00'))
     }
   }, [currentSegment, contentEntryId, form])
 
@@ -515,7 +420,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         { appName: 'content', folderPath: `/content/${entryId}/images`, mimeType: file.type }
       )
       if (uploadResponse?.fileInfo) {
-        updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
+        updatedData.picture = JSON.stringify(uploadResponse.fileInfo)
       }
     },
     [fileClient, extractedContentId, generateThumbnail]
@@ -547,7 +452,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         { appName: 'content', folderPath: `/content/${entryId}/images`, mimeType: file.type }
       )
       if (uploadResponse?.fileInfo) {
-        updatedData.contentImage = JSON.stringify(uploadResponse.fileInfo)
+        updatedData.picture = JSON.stringify(uploadResponse.fileInfo)
       }
     },
     [fileClient, extractedContentId, generateThumbnail]
@@ -557,21 +462,16 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
       const updatedData = { ...data }
 
-      // Upload image
-      if (imageFile && data.contentImage) {
+      if (imageFile && data.picture) {
         try {
           await uploadImageFile(imageFile, updatedData)
         } catch (error) {
           console.error('Error uploading image:', error)
           throw new Error('Failed to upload image')
         }
-      } else if (
-        data.contentImage &&
-        typeof data.contentImage === 'string' &&
-        data.contentImage.startsWith('data:image/')
-      ) {
+      } else if (data.picture && typeof data.picture === 'string' && data.picture.startsWith('data:image/')) {
         try {
-          await uploadBase64Image(data.contentImage, updatedData)
+          await uploadBase64Image(data.picture, updatedData)
         } catch (error) {
           console.error('Error uploading base64 image:', error)
           throw new Error('Failed to upload image')
@@ -596,40 +496,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       }
     }
 
-    const payload = buildContentEntryPayload({
-      ...(isUpdate && { id: extractedContentId, version: data.version }),
-      title: data.title,
-      preview: data.previewText,
-      content: data.content,
-      picture: data.contentImage,
-      pictureThumbnail: data.pictureThumbnail,
-      role: ContentRole.ROOT,
-      contentGroup: data.contentGroup,
-      contentTypeId: data.contentTypeId,
-      ...(isUpdate ? { updaterEmployeeId: employeeId } : { creatorEmployeeId: employeeId }),
-      displayCreator: data.displayAuthor,
-      displayUpdater: false,
-      allowComment: data.contentGroup === ContentGroup.POLICY ? false : data.allowComment,
-      allowReaction: data.contentGroup === ContentGroup.POLICY ? false : data.allowReaction,
-      activeFrom: toInstantStartOfDay(data.startDate) ?? null,
-      activeTo: toInstantStartOfDay(data.endDate) ?? null,
-      ...(data.categories &&
-        data.categories.length > 0 && {
-          categories: {
-            changeMode: 'UPSERT' as const,
-            items: data.categories.map(id => ({ contentCategoryId: id }))
-          }
-        }),
-      ...(data.tags &&
-        data.tags.length > 0 && {
-          tags: {
-            changeMode: 'UPSERT' as const,
-            items: data.tags.map(id => ({ contentTagId: id }))
-          }
-        })
+    return buildContentEntryPayload(data, {
+      employeeId,
+      isUpdate,
+      existingEntry: loadedContentEntry ?? undefined
     })
-
-    return payload
   }
 
   if (contentEntryLoading && contentEntryId) {
@@ -662,11 +533,13 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             setImageInfo={setImageInfo}
             setImageFile={setImageFile}
             watchTitle={watchTitle}
-            watchPreviewText={watchPreviewText}
+            watchPreview={watchPreview}
             watchSchedulePublication={watchSchedulePublication}
             watchContentTypeId={watchContentTypeId}
-            watchCategories={stableWatchCategories}
-            watchTags={stableWatchTags}
+            watchContentCategoryIds={watchContentCategoryIds}
+            watchContentCategoryNames={watchContentCategoryNames}
+            watchContentTagIds={watchContentTagIds}
+            watchContentTagNames={watchContentTagNames}
             setValue={setValue}
             context={context}
             extractedContentGroup={extractedContentGroup}
@@ -679,6 +552,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         {currentSegment === 'question' && (
           <QuestionSegment
             control={control}
+            setValue={setValue}
             accessToken={context.accessToken}
             extractedContentGroup={extractedContentGroup}
           />
@@ -687,8 +561,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         {currentSegment === 'document' && (
           <DocumentSegment
             control={control}
+            setValue={setValue}
             accessToken={context.accessToken}
-            watchDisplayAuthor={watchDisplayAuthor}
+            watchDisplayCreator={watchDisplayCreator}
             authorName={authorName}
             image={image}
             setImage={setImage}
@@ -702,6 +577,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
         {currentSegment === 'glossary' && (
           <GlossarySegment
             control={control}
+            setValue={setValue}
             accessToken={context.accessToken}
             extractedContentGroup={extractedContentGroup}
           />
@@ -711,10 +587,12 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           <PolicySegment
             control={control}
             watchTitle={watchTitle}
-            watchPreviewText={watchPreviewText}
+            watchPreview={watchPreview}
             watchContentTypeId={watchContentTypeId}
-            watchCategories={stableWatchCategories}
-            watchTags={stableWatchTags}
+            watchContentCategoryIds={watchContentCategoryIds}
+            watchContentCategoryNames={watchContentCategoryNames}
+            watchContentTagIds={watchContentTagIds}
+            watchContentTagNames={watchContentTagNames}
             setValue={setValue}
             context={context}
             extractedContentGroup={extractedContentGroup}

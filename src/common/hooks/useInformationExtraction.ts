@@ -1,6 +1,6 @@
 import * as z from 'zod'
 import { useCallback, useMemo, useState } from 'react'
-import { useRestClient } from '../network/rest/useRestClient'
+import { useFlowbotClient } from '../network/flowbot/useFlowbotClient'
 
 type AvailableLlmModels = 'gpt-4.1' | 'gpt-4.1-mini' | 'gpt-4o' | 'gpt-4o-mini'
 
@@ -39,10 +39,10 @@ export default function useInformationExtraction<T>(
   llmModel: AvailableLlmModels = 'gpt-4.1'
 ): UseInformationExtractionReturn<T> {
   const [state, setState] = useState<InformationExtractionState<T> | null>(null)
-  const restClient = useRestClient()
+  const client = useFlowbotClient(accessToken)
 
   // Memoise values that do not change between invocations of the returned function
-  const endpointPath = useMemo(() => '/flowbot/information-extraction/extract_information', [])
+  const endpointPath = useMemo(() => '/information-extraction/extract_information', [])
   const outputJsonSchema = useMemo(() => z.toJSONSchema(responseModel), [responseModel])
 
   /**
@@ -55,10 +55,9 @@ export default function useInformationExtraction<T>(
       form.append('task_description', taskDescription)
       form.append('output_json_schema_string', JSON.stringify(outputJsonSchema))
       if (inputData !== undefined) form.append('input_data', inputData)
-      // ⬇ files intentionally left out
       form.append('llm_model', llmModel)
 
-      const response = await restClient.post(endpointPath, form, {
+      const response = await client.post(endpointPath, form, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
@@ -71,7 +70,7 @@ export default function useInformationExtraction<T>(
       const result = ExtractInformationResponse.parse(response)
       return result.extracted_data
     },
-    [endpointPath, llmModel, outputJsonSchema, responseModel, taskDescription, accessToken, restClient]
+    [endpointPath, llmModel, outputJsonSchema, responseModel, taskDescription, accessToken, client]
   )
 
   const generateSummary = useCallback(async () => {

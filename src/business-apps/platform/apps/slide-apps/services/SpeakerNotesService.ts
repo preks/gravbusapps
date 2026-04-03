@@ -5,7 +5,7 @@
  * for presentation slides using the FlowBot chat API.
  */
 
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import type { SlideData, TextElement } from '../components/slideElements'
 
 export interface SpeakerNote {
@@ -228,9 +228,6 @@ function parseSpeakerNotesResponse(rawContent: string, slideCount: number): Spea
  * Generate speaker notes for slides using AI
  */
 export async function generateSpeakerNotes(options: SpeakerNotesOptions, accessToken: string): Promise<SpeakerNote[]> {
-  const baseUrl = resolveFlowbotBaseUrl()
-  const url = `${baseUrl}/flowbot/api/agent/v2/chat`
-
   const prompt = buildSpeakerNotesPrompt(options)
 
   const form = new FormData()
@@ -240,14 +237,8 @@ export async function generateSpeakerNotes(options: SpeakerNotesOptions, accessT
   form.append('use_web_search_tool', 'false')
   form.append('current_page_context', JSON.stringify({ type: 'unknown' }))
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'text/event-stream'
-    },
-    body: form
-  })
+  flowbotClient.setAccessToken(accessToken)
+  const response = await flowbotClient.streamAgentV2Chat(form)
 
   if (!response.ok) {
     throw new Error(`Speaker Notes API error: ${response.status} ${response.statusText}`)

@@ -121,51 +121,41 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
 
   if (isCreateOpen) {
     return (
-      <div
-        className={['gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background', className]
-          .filter(Boolean)
-          .join(' ')}
+      <FunctionEditor
+        {...context}
+        mode="create"
+        function={null}
+        heroTitle={t('create-function')}
+        heroSubtitle={t('page-description')}
+        onBack={closeEditorToList}
+        onSaved={() => {
+          setIsCreateOpen(false)
+          updateUrlWithFunctionId(null)
+          refetch()
+        }}
+        className={className}
         data-testid={DATA_TEST_ID}
-      >
-        <FunctionEditor
-          {...context}
-          mode="create"
-          function={null}
-          heroTitle={t('create-function')}
-          heroSubtitle={t('page-description')}
-          onBack={closeEditorToList}
-          onSaved={() => {
-            setIsCreateOpen(false)
-            updateUrlWithFunctionId(null)
-            refetch()
-          }}
-        />
-      </div>
+      />
     )
   }
 
   if (editingFunction) {
     return (
-      <div
-        className={['gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background', className]
-          .filter(Boolean)
-          .join(' ')}
+      <FunctionEditor
+        {...context}
+        mode="edit"
+        function={editingFunction}
+        heroTitle={editingFunction.name}
+        heroSubtitle={t('page-description')}
+        onBack={closeEditorToList}
+        onSaved={() => {
+          setEditingFunctionId(null)
+          updateUrlWithFunctionId(null)
+          refetch()
+        }}
+        className={className}
         data-testid={DATA_TEST_ID}
-      >
-        <FunctionEditor
-          {...context}
-          mode="edit"
-          function={editingFunction}
-          heroTitle={editingFunction.name}
-          heroSubtitle={t('page-description')}
-          onBack={closeEditorToList}
-          onSaved={() => {
-            setEditingFunctionId(null)
-            updateUrlWithFunctionId(null)
-            refetch()
-          }}
-        />
-      </div>
+      />
     )
   }
 

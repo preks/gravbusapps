@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
   Combobox,
@@ -26,16 +26,15 @@ import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/c
 import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
 import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
 import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
-import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
 interface PolicyAiTextGeneratorWrapperProps {
   control: Control<ContentEntryFormValues>
   watchTitle: string
-  watchPreviewText: string
+  watchPreview: string
   watchContentTypeId?: string
-  watchCategories?: string[]
-  watchTags?: string[]
+  watchContentCategoryIds?: string[]
+  watchContentTagIds?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroup?: string | null
@@ -47,10 +46,10 @@ interface PolicyAiTextGeneratorWrapperProps {
 const PolicyAiTextGeneratorWrapper = React.memo(function PolicyAiTextGeneratorWrapper({
   control,
   watchTitle,
-  watchPreviewText,
+  watchPreview,
   watchContentTypeId,
-  watchCategories,
-  watchTags,
+  watchContentCategoryIds,
+  watchContentTagIds,
   setValue,
   context,
   extractedContentGroup,
@@ -62,17 +61,17 @@ const PolicyAiTextGeneratorWrapper = React.memo(function PolicyAiTextGeneratorWr
   return (
     <ContentAiTextGenerator
       title={watchTitle || ''}
-      previewText={watchPreviewText || ''}
+      previewText={watchPreview || ''}
       content={content || ''}
       onTitleChange={value => setValue('title', value)}
-      onPreviewTextChange={value => setValue('previewText', value)}
+      onPreviewTextChange={value => setValue('preview', value)}
       onContentChange={value => setValue('content', value)}
       accessToken={context.accessToken || ''}
       context={context}
       contentGroup={extractedContentGroup}
       contentTypeId={watchContentTypeId}
-      contentCategoryIds={watchCategories || []}
-      contentTagIds={watchTags || []}
+      contentCategoryIds={watchContentCategoryIds || []}
+      contentTagIds={watchContentTagIds || []}
       onContentTypeIdChange={onContentTypeIdChange}
       onContentCategoryIdsChange={onContentCategoryIdsChange}
       onContentTagIdsChange={onContentTagIdsChange}
@@ -83,10 +82,12 @@ const PolicyAiTextGeneratorWrapper = React.memo(function PolicyAiTextGeneratorWr
 interface PolicySegmentProps {
   control: Control<ContentEntryFormValues>
   watchTitle: string
-  watchPreviewText: string
+  watchPreview: string
   watchContentTypeId?: string
-  watchCategories?: string[]
-  watchTags?: string[]
+  watchContentCategoryIds?: string[]
+  watchContentCategoryNames?: string[]
+  watchContentTagIds?: string[]
+  watchContentTagNames?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroup?: string | null
@@ -99,10 +100,12 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
   ({
     control,
     watchTitle,
-    watchPreviewText,
+    watchPreview,
     watchContentTypeId,
-    watchCategories,
-    watchTags,
+    watchContentCategoryIds,
+    watchContentCategoryNames,
+    watchContentTagIds,
+    watchContentTagNames,
     setValue,
     context,
     extractedContentGroup,
@@ -112,38 +115,55 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
   }) => {
     const { t } = useTranslation(translations)
 
-    const [initialCategoryIds] = useState<string[]>(() => watchCategories || [])
-    const [initialTagIds] = useState<string[]>(() => watchTags || [])
-
     const watchContentGroup = useWatch({ control, name: 'contentGroup' })
     const activeGroup = extractedContentGroup || watchContentGroup
 
     const {
       options: contentTypeOptions,
       isLoading: typesLoading,
+      isReady: typeOptionsReady,
       setSearch: setTypeSearch,
       hasMore: typeHasMore,
       loadMore: loadMoreTypes,
       component: typeComponent
-    } = useContentTypeSelect(context.accessToken, activeGroup)
+    } = useContentTypeSelect(context.accessToken, activeGroup, watchContentTypeId ? [watchContentTypeId] : [])
 
     const {
       options: categoryOptions,
       isLoading: categoriesLoading,
+      isReady: categoryOptionsReady,
       setSearch: setCategorySearch,
       hasMore: categoryHasMore,
-      loadMore: loadMoreCategories,
-      createCategory
-    } = useContentCategorySelect(context.accessToken, initialCategoryIds)
+      loadMore: loadMoreCategories
+    } = useContentCategorySelect(context.accessToken, watchContentCategoryIds || [])
 
     const {
       options: tagOptions,
       isLoading: tagsLoading,
+      isReady: tagOptionsReady,
       setSearch: setTagSearch,
       hasMore: tagHasMore,
-      loadMore: loadMoreTags,
-      createTag
-    } = useContentTagSelect(context.accessToken, initialTagIds)
+      loadMore: loadMoreTags
+    } = useContentTagSelect(context.accessToken, watchContentTagIds || [])
+
+    const createdCategoryOptions = useMemo(
+      () => (watchContentCategoryNames || []).map(name => ({ value: name, label: name })),
+      [watchContentCategoryNames]
+    )
+    const createdTagOptions = useMemo(
+      () => (watchContentTagNames || []).map(name => ({ value: name, label: name })),
+      [watchContentTagNames]
+    )
+    const displayedCategoryValues = useMemo(
+      () => [...(watchContentCategoryIds || []), ...(watchContentCategoryNames || [])],
+      [watchContentCategoryIds, watchContentCategoryNames]
+    )
+    const displayedTagValues = useMemo(
+      () => [...(watchContentTagIds || []), ...(watchContentTagNames || [])],
+      [watchContentTagIds, watchContentTagNames]
+    )
+    const categoryOptionValues = useMemo(() => new Set(categoryOptions.map(option => option.value)), [categoryOptions])
+    const tagOptionValues = useMemo(() => new Set(tagOptions.map(option => option.value)), [tagOptions])
 
     const quillModules = useMemo(
       () => ({
@@ -167,10 +187,10 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             <PolicyAiTextGeneratorWrapper
               control={control}
               watchTitle={watchTitle}
-              watchPreviewText={watchPreviewText}
+              watchPreview={watchPreview}
               watchContentTypeId={watchContentTypeId}
-              watchCategories={watchCategories}
-              watchTags={watchTags}
+              watchContentCategoryIds={watchContentCategoryIds}
+              watchContentTagIds={watchContentTagIds}
               setValue={setValue}
               context={context}
               extractedContentGroup={extractedContentGroup}
@@ -218,7 +238,8 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                   <FormControl>
                     {typeComponent === 'select' ? (
                       <Select
-                        value={field.value || ''}
+                        key={typeOptionsReady ? 'resolved' : 'resolving'}
+                        value={typeOptionsReady ? field.value || '' : ''}
                         onValueChange={field.onChange}
                         disabled={!activeGroup || typesLoading}
                       >
@@ -235,9 +256,10 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
                       </Select>
                     ) : (
                       <Combobox
+                        key={typeOptionsReady ? 'resolved' : 'resolving'}
                         mode="default"
                         options={contentTypeOptions}
-                        value={field.value || ''}
+                        value={typeOptionsReady ? field.value || '' : ''}
                         onValueChange={(next: string) => field.onChange(next)}
                         placeholder={t('select-type') || 'Select type'}
                         searchPlaceholder="Search types..."
@@ -280,7 +302,7 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
 
           <FormField
             control={control as any}
-            name="previewText"
+            name="preview"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>
@@ -338,22 +360,38 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
           <FormFieldGroup>
             <FormField
               control={control as any}
-              name="categories"
+              name="contentCategoryIds"
               render={({ field }) => (
                 <FormItem className="gba:flex-1">
                   <FormLabel>Categories</FormLabel>
                   <FormControl>
-                    <TaxonomyMultiSelect
+                    <Combobox
+                      mode="tags"
                       options={categoryOptions}
-                      value={field.value || []}
-                      onValueChange={field.onChange}
-                      onCreateNew={createCategory}
-                      isLoading={categoriesLoading}
+                      value={categoryOptionsReady ? displayedCategoryValues : watchContentCategoryNames || []}
+                      onValueChange={(next: string[]) => {
+                        field.onChange(next.filter(value => categoryOptionValues.has(value)))
+                        setValue(
+                          'contentCategoryNames',
+                          next.filter(value => !categoryOptionValues.has(value))
+                        )
+                      }}
+                      onCreateTag={rawName => {
+                        const trimmedName = rawName.trim()
+                        if (!trimmedName) return
+                        if ((watchContentCategoryNames || []).includes(trimmedName)) return
+                        setValue('contentCategoryNames', [...(watchContentCategoryNames || []), trimmedName])
+                      }}
+                      createdOptions={createdCategoryOptions}
                       placeholder="Select categories..."
-                      data-testid="content-entry-window-categories-select"
+                      searchPlaceholder="Search or create..."
+                      emptyText={categoriesLoading ? 'Loading...' : 'No results'}
+                      loading={categoriesLoading}
                       onSearch={setCategorySearch}
+                      searchDebounce={300}
                       onLoadMore={loadMoreCategories}
                       hasMore={categoryHasMore}
+                      data-testid="content-entry-window-categories-select"
                     />
                   </FormControl>
                   <FormMessage />
@@ -363,22 +401,38 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
 
             <FormField
               control={control as any}
-              name="tags"
+              name="contentTagIds"
               render={({ field }) => (
                 <FormItem className="gba:flex-1">
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <TaxonomyMultiSelect
+                    <Combobox
+                      mode="tags"
                       options={tagOptions}
-                      value={field.value || []}
-                      onValueChange={field.onChange}
-                      onCreateNew={createTag}
-                      isLoading={tagsLoading}
+                      value={tagOptionsReady ? displayedTagValues : watchContentTagNames || []}
+                      onValueChange={(next: string[]) => {
+                        field.onChange(next.filter(value => tagOptionValues.has(value)))
+                        setValue(
+                          'contentTagNames',
+                          next.filter(value => !tagOptionValues.has(value))
+                        )
+                      }}
+                      onCreateTag={rawName => {
+                        const trimmedName = rawName.trim()
+                        if (!trimmedName) return
+                        if ((watchContentTagNames || []).includes(trimmedName)) return
+                        setValue('contentTagNames', [...(watchContentTagNames || []), trimmedName])
+                      }}
+                      createdOptions={createdTagOptions}
                       placeholder="Select tags..."
-                      data-testid="content-entry-window-tags-select"
+                      searchPlaceholder="Search or create..."
+                      emptyText={tagsLoading ? 'Loading...' : 'No results'}
+                      loading={tagsLoading}
                       onSearch={setTagSearch}
+                      searchDebounce={300}
                       onLoadMore={loadMoreTags}
                       hasMore={tagHasMore}
+                      data-testid="content-entry-window-tags-select"
                     />
                   </FormControl>
                   <FormMessage />
@@ -397,7 +451,7 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
             <FormFieldGroup>
               <FormField
                 control={control as any}
-                name="startDate"
+                name="activeFrom"
                 render={({ field }) => (
                   <FormItem className="gba:flex-1">
                     <FormLabel>{t('policy-valid-from') || 'Valid From'}</FormLabel>
@@ -417,7 +471,7 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
 
               <FormField
                 control={control as any}
-                name="endDate"
+                name="activeTo"
                 render={({ field }) => (
                   <FormItem className="gba:flex-1">
                     <FormLabel>{t('policy-valid-to') || 'Valid To'}</FormLabel>
@@ -439,7 +493,7 @@ export const PolicySegment: React.FC<PolicySegmentProps> = React.memo(
 
           <FormField
             control={control as any}
-            name="displayAuthor"
+            name="displayCreator"
             render={({ field }) => (
               <FormItem className="gba:flex gba:items-center gba:gap-2 gba:space-y-0">
                 <FormLabel className="gba:text-sm">{t('display-author') || 'Display Author'}</FormLabel>

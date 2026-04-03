@@ -48,7 +48,7 @@ import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { getCategoryIcon } from '../../../utils/iconMapping'
 import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData'
 import { parseMarkdownForReact } from '@/common/utils/markdownUtils'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { DataSourceSelect } from './DataSourceSelect'
 import { DataSourceMultiSelect } from './DataSourceMultiSelect'
 import { MessageRenderer } from '../../../components/MessageRenderer'
@@ -514,24 +514,8 @@ export const RequestForm: React.FC<RequestFormProps> = ({
     console.log('🤖 [Ask AI] Prepared payload for AI service:', ticketData)
 
     try {
-      // Call the real AI API using direct fetch (like EveryAI)
-      const baseUrl = resolveFlowbotBaseUrl()
-      const url = `${baseUrl}/flowbot/services/quick-tips-for-ticket/`
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${contextProps.accessToken}`
-        },
-        body: JSON.stringify({ ticket_data: ticketData })
-      })
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-      }
-
-      const response = await res.json()
+      flowbotClient.setAccessToken(contextProps.accessToken)
+      const response = await flowbotClient.getQuickTipsForTicket(ticketData)
 
       console.log('🤖 [Ask AI] API Response:', response)
 
@@ -544,12 +528,12 @@ export const RequestForm: React.FC<RequestFormProps> = ({
         responseText = response.quick_tips as string
       } else if (typeof response === 'string') {
         responseText = response
-      } else if (response.suggestions) {
-        responseText = response.suggestions
-      } else if (response.analysis) {
-        responseText = response.analysis
-      } else if (response.recommendations && Array.isArray(response.recommendations)) {
-        responseText = response.recommendations.join('\n\n')
+      } else if ((response as any).suggestions) {
+        responseText = (response as any).suggestions
+      } else if ((response as any).analysis) {
+        responseText = (response as any).analysis
+      } else if ((response as any).recommendations && Array.isArray((response as any).recommendations)) {
+        responseText = (response as any).recommendations.join('\n\n')
       } else {
         // Fallback: stringify the entire response
         responseText = JSON.stringify(response, null, 2)
@@ -601,8 +585,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
         message: `AI Service Error: ${errorMessage}`,
         payload: {
           apiCall: {
-            endpoint: 'POST /flowbot/services/quick-tips-for-ticket/',
-            baseUrl: resolveFlowbotBaseUrl()
+            endpoint: 'POST /services/quick-tips-for-ticket/'
           },
           error: errorMessage,
           ticketData

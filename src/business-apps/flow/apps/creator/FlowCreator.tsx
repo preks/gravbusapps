@@ -9,7 +9,7 @@ import { useFlowTemplateStore } from './hooks/useFlowTemplateStore'
 import { useWizardStore } from './hooks/useWizardStore'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import {
   Spinner,
   Alert,
@@ -1390,21 +1390,8 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       if (draftId && accessToken) {
         console.log('FlowCreator: Loading draft from URL:', draftId)
         try {
-          const baseUrl = resolveFlowbotBaseUrl()
-          const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
-            method: 'GET',
-            headers: {
-              accept: 'application/json',
-              Authorization: `Bearer ${accessToken}`
-            }
-          })
-
-          if (!res.ok) {
-            const body = await res.text().catch(() => '')
-            throw new Error(`Failed to fetch draft: ${res.status} ${res.statusText} ${body}`.trim())
-          }
-
-          const draftTemplate: any = await res.json()
+          flowbotClient.setAccessToken(accessToken)
+          const draftTemplate: any = await flowbotClient.getWorkflowDraft(draftId)
           // Ensure Save becomes createTemplate (never update existing id)
           if (draftTemplate && typeof draftTemplate === 'object') {
             delete draftTemplate.id
@@ -1469,21 +1456,9 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
           return
         }
 
-        const baseUrl = resolveFlowbotBaseUrl()
-        fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
-          method: 'GET',
-          headers: {
-            accept: 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          }
-        })
-          .then(async res => {
-            if (!res.ok) {
-              const body = await res.text().catch(() => '')
-              throw new Error(`Failed to fetch draft: ${res.status} ${res.statusText} ${body}`.trim())
-            }
-            return res.json()
-          })
+        flowbotClient.setAccessToken(accessToken)
+        flowbotClient
+          .getWorkflowDraft(draftId)
           .then((draftTemplate: any) => {
             if (draftTemplate && typeof draftTemplate === 'object') {
               delete draftTemplate.id
@@ -1556,23 +1531,11 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
     setIsRefiningDraft(true)
     setDraftRefineError(null)
     try {
-      const baseUrl = resolveFlowbotBaseUrl()
-      const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftIdFromUrl}/refine`, {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ instruction: instruction.trim() })
+      flowbotClient.setAccessToken(accessToken)
+      const updatedTemplate: any = await flowbotClient.refineWorkflowDraft(draftIdFromUrl, {
+        instruction: instruction.trim()
       })
 
-      if (!res.ok) {
-        const body = await res.text().catch(() => '')
-        throw new Error(`Failed to refine draft: ${res.status} ${res.statusText} ${body}`.trim())
-      }
-
-      const updatedTemplate: any = await res.json()
       // Ensure Save becomes createTemplate (never update existing id)
       if (updatedTemplate && typeof updatedTemplate === 'object') {
         delete updatedTemplate.id

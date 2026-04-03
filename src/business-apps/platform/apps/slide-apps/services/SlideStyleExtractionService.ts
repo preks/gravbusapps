@@ -5,7 +5,7 @@
  * branding, and layout patterns for AI-guided slide generation.
  */
 
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 export interface ExtractedStyle {
   dominantColors: string[]
@@ -153,8 +153,6 @@ export async function extractStyleFromContent(
   accessToken: string,
   onProgress?: (message: string) => void
 ): Promise<ExtractedStyle> {
-  const flowbotUrl = resolveFlowbotBaseUrl()
-
   onProgress?.('Analyzing visual style...')
 
   const form = new FormData()
@@ -164,13 +162,8 @@ export async function extractStyleFromContent(
   form.append('language', 'en')
 
   try {
-    const response = await fetch(`${flowbotUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: form
-    })
+    flowbotClient.setAccessToken(accessToken)
+    const response = await flowbotClient.streamSlideStyleChat(form)
 
     if (!response.ok) {
       console.warn('[StyleExtraction] API request failed:', response.status)

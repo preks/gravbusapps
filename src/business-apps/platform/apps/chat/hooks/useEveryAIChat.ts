@@ -4,7 +4,7 @@ import type { OutputItem } from '../../every-ai/types/models'
 import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 const LLM_MODEL = 'gpt-4.1'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
@@ -21,18 +21,13 @@ async function uploadFilesToFlowbotSession(
 ): Promise<string> {
   if (!files || files.length === 0) return sessionId ?? ''
 
-  const baseUrl = resolveFlowbotBaseUrl()
-  const url = `${baseUrl}/flowbot/api/agent/add_files`
-
+  flowbotClient.setAccessToken(accessToken)
   const form = new FormData()
   files.forEach(file => form.append('files', file))
   form.append('session_id', sessionId ?? '')
 
-  const res = await fetch(url, {
+  const res = await flowbotClient.fetchAuthenticated('/api/agent/add_files', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`
-    },
     body: form
   })
 
@@ -529,8 +524,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           return { text: "I'm here to help! What would you like to know?", error: false }
         }
 
-        const baseUrl = resolveFlowbotBaseUrl()
-        const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+        flowbotClient.setAccessToken(accessToken)
 
         // Use existing session ID from previous AI messages in this conversation
         // This allows all users to share the same AI context
@@ -619,12 +613,9 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           files.forEach(file => form.append('files', file))
         }
 
-        const res = await fetch(url, {
+        const res = await flowbotClient.fetchAuthenticated('/api/agent/v2/chat', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: 'text/event-stream'
-          },
+          headers: { Accept: 'text/event-stream' },
           body: form
         })
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
   Combobox,
@@ -22,52 +22,65 @@ import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/c
 import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
 import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
 import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
-import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
 interface QuestionSegmentProps {
   control: Control<ContentEntryFormValues>
+  setValue: (name: keyof ContentEntryFormValues, value: any) => void
   accessToken?: string
   extractedContentGroup?: string | null
 }
 
-export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, accessToken, extractedContentGroup }) => {
+export const QuestionSegment: React.FC<QuestionSegmentProps> = ({
+  control,
+  setValue,
+  accessToken,
+  extractedContentGroup
+}) => {
   const { t } = useTranslation(translations)
 
   const watchContentGroup = useWatch({ control, name: 'contentGroup' })
-  const watchedCategories = useWatch({ control, name: 'categories' })
-  const watchedTags = useWatch({ control, name: 'tags' })
+  const watchContentTypeId = useWatch({ control, name: 'contentTypeId' })
+  const watchedContentCategoryIds = useWatch({ control, name: 'contentCategoryIds' })
+  const watchedContentCategoryNames = useWatch({ control, name: 'contentCategoryNames' })
+  const watchedContentTagIds = useWatch({ control, name: 'contentTagIds' })
+  const watchedContentTagNames = useWatch({ control, name: 'contentTagNames' })
   const activeGroup = extractedContentGroup || watchContentGroup
-
-  const [initialCategoryIds] = useState<string[]>(() => watchedCategories || [])
-  const [initialTagIds] = useState<string[]>(() => watchedTags || [])
 
   const {
     options: contentTypeOptions,
     isLoading: typesLoading,
+    isReady: typeOptionsReady,
     setSearch: setTypeSearch,
     hasMore: typeHasMore,
     loadMore: loadMoreTypes,
     component: typeComponent
-  } = useContentTypeSelect(accessToken, activeGroup)
+  } = useContentTypeSelect(accessToken, activeGroup, watchContentTypeId ? [watchContentTypeId] : [])
 
   const {
     options: categoryOptions,
     isLoading: categoriesLoading,
+    isReady: categoryOptionsReady,
     setSearch: setCategorySearch,
     hasMore: categoryHasMore,
-    loadMore: loadMoreCategories,
-    createCategory
-  } = useContentCategorySelect(accessToken, initialCategoryIds)
+    loadMore: loadMoreCategories
+  } = useContentCategorySelect(accessToken, watchedContentCategoryIds || [])
 
   const {
     options: tagOptions,
     isLoading: tagsLoading,
+    isReady: tagOptionsReady,
     setSearch: setTagSearch,
     hasMore: tagHasMore,
-    loadMore: loadMoreTags,
-    createTag
-  } = useContentTagSelect(accessToken, initialTagIds)
+    loadMore: loadMoreTags
+  } = useContentTagSelect(accessToken, watchedContentTagIds || [])
+
+  const createdCategoryOptions = (watchedContentCategoryNames || []).map(name => ({ value: name, label: name }))
+  const createdTagOptions = (watchedContentTagNames || []).map(name => ({ value: name, label: name }))
+  const displayedCategoryValues = [...(watchedContentCategoryIds || []), ...(watchedContentCategoryNames || [])]
+  const displayedTagValues = [...(watchedContentTagIds || []), ...(watchedContentTagNames || [])]
+  const categoryOptionValues = new Set(categoryOptions.map(option => option.value))
+  const tagOptionValues = new Set(tagOptions.map(option => option.value))
 
   return (
     <div className="gba:space-y-6">
@@ -109,7 +122,8 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, acces
               <FormControl>
                 {typeComponent === 'select' ? (
                   <Select
-                    value={field.value || ''}
+                    key={typeOptionsReady ? 'resolved' : 'resolving'}
+                    value={typeOptionsReady ? field.value || '' : ''}
                     onValueChange={field.onChange}
                     disabled={!activeGroup || typesLoading}
                   >
@@ -126,9 +140,10 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, acces
                   </Select>
                 ) : (
                   <Combobox
+                    key={typeOptionsReady ? 'resolved' : 'resolving'}
                     mode="default"
                     options={contentTypeOptions}
-                    value={field.value || ''}
+                    value={typeOptionsReady ? field.value || '' : ''}
                     onValueChange={(next: string) => field.onChange(next)}
                     placeholder={t('select-type') || 'Select type'}
                     searchPlaceholder="Search types..."
@@ -173,7 +188,7 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, acces
 
       <FormField
         control={control as any}
-        name="previewText"
+        name="preview"
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('summary') || 'Summary'}</FormLabel>
@@ -220,22 +235,38 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, acces
       <FormFieldGroup>
         <FormField
           control={control as any}
-          name="categories"
+          name="contentCategoryIds"
           render={({ field }) => (
             <FormItem className="gba:flex-1">
               <FormLabel>Categories</FormLabel>
               <FormControl>
-                <TaxonomyMultiSelect
+                <Combobox
+                  mode="tags"
                   options={categoryOptions}
-                  value={field.value || []}
-                  onValueChange={field.onChange}
-                  onCreateNew={createCategory}
-                  isLoading={categoriesLoading}
+                  value={categoryOptionsReady ? displayedCategoryValues : watchedContentCategoryNames || []}
+                  onValueChange={(next: string[]) => {
+                    field.onChange(next.filter(value => categoryOptionValues.has(value)))
+                    setValue(
+                      'contentCategoryNames',
+                      next.filter(value => !categoryOptionValues.has(value))
+                    )
+                  }}
+                  onCreateTag={rawName => {
+                    const trimmedName = rawName.trim()
+                    if (!trimmedName) return
+                    if ((watchedContentCategoryNames || []).includes(trimmedName)) return
+                    setValue('contentCategoryNames', [...(watchedContentCategoryNames || []), trimmedName])
+                  }}
+                  createdOptions={createdCategoryOptions}
                   placeholder="Select categories..."
-                  data-testid="question-segment-categories-select"
+                  searchPlaceholder="Search or create..."
+                  emptyText={categoriesLoading ? 'Loading...' : 'No results'}
+                  loading={categoriesLoading}
                   onSearch={setCategorySearch}
+                  searchDebounce={300}
                   onLoadMore={loadMoreCategories}
                   hasMore={categoryHasMore}
+                  data-testid="question-segment-categories-select"
                 />
               </FormControl>
               <FormMessage />
@@ -245,22 +276,38 @@ export const QuestionSegment: React.FC<QuestionSegmentProps> = ({ control, acces
 
         <FormField
           control={control as any}
-          name="tags"
+          name="contentTagIds"
           render={({ field }) => (
             <FormItem className="gba:flex-1">
               <FormLabel>Tags</FormLabel>
               <FormControl>
-                <TaxonomyMultiSelect
+                <Combobox
+                  mode="tags"
                   options={tagOptions}
-                  value={field.value || []}
-                  onValueChange={field.onChange}
-                  onCreateNew={createTag}
-                  isLoading={tagsLoading}
+                  value={tagOptionsReady ? displayedTagValues : watchedContentTagNames || []}
+                  onValueChange={(next: string[]) => {
+                    field.onChange(next.filter(value => tagOptionValues.has(value)))
+                    setValue(
+                      'contentTagNames',
+                      next.filter(value => !tagOptionValues.has(value))
+                    )
+                  }}
+                  onCreateTag={rawName => {
+                    const trimmedName = rawName.trim()
+                    if (!trimmedName) return
+                    if ((watchedContentTagNames || []).includes(trimmedName)) return
+                    setValue('contentTagNames', [...(watchedContentTagNames || []), trimmedName])
+                  }}
+                  createdOptions={createdTagOptions}
                   placeholder="Select tags..."
-                  data-testid="question-segment-tags-select"
+                  searchPlaceholder="Search or create..."
+                  emptyText={tagsLoading ? 'Loading...' : 'No results'}
+                  loading={tagsLoading}
                   onSearch={setTagSearch}
+                  searchDebounce={300}
                   onLoadMore={loadMoreTags}
                   hasMore={tagHasMore}
+                  data-testid="question-segment-tags-select"
                 />
               </FormControl>
               <FormMessage />

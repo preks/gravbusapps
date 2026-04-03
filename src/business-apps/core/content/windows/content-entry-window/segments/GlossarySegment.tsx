@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
+  Combobox,
   FormControl,
   FormField,
   FormFieldGroup,
@@ -20,41 +21,52 @@ import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
 import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
 import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
-import { TaxonomyMultiSelect } from '@/components/taxonomy-multi-select/TaxonomyMultiSelect'
 import translations from '../_i18n'
 
 interface GlossarySegmentProps {
   control: Control<ContentEntryFormValues>
+  setValue: (name: keyof ContentEntryFormValues, value: any) => void
   accessToken?: string
   extractedContentGroup?: string | null
 }
 
-export const GlossarySegment: React.FC<GlossarySegmentProps> = ({ control, accessToken, extractedContentGroup }) => {
+export const GlossarySegment: React.FC<GlossarySegmentProps> = ({
+  control,
+  setValue,
+  accessToken,
+  extractedContentGroup
+}) => {
   const { t } = useTranslation(translations)
 
-  const watchedCategories = useWatch({ control, name: 'categories' })
-  const watchedTags = useWatch({ control, name: 'tags' })
-
-  const [initialCategoryIds] = useState<string[]>(() => watchedCategories || [])
-  const [initialTagIds] = useState<string[]>(() => watchedTags || [])
+  const watchedContentCategoryIds = useWatch({ control, name: 'contentCategoryIds' })
+  const watchedContentCategoryNames = useWatch({ control, name: 'contentCategoryNames' })
+  const watchedContentTagIds = useWatch({ control, name: 'contentTagIds' })
+  const watchedContentTagNames = useWatch({ control, name: 'contentTagNames' })
 
   const {
     options: categoryOptions,
     isLoading: categoriesLoading,
+    isReady: categoryOptionsReady,
     setSearch: setCategorySearch,
     hasMore: categoryHasMore,
-    loadMore: loadMoreCategories,
-    createCategory
-  } = useContentCategorySelect(accessToken, initialCategoryIds)
+    loadMore: loadMoreCategories
+  } = useContentCategorySelect(accessToken, watchedContentCategoryIds || [])
 
   const {
     options: tagOptions,
     isLoading: tagsLoading,
+    isReady: tagOptionsReady,
     setSearch: setTagSearch,
     hasMore: tagHasMore,
-    loadMore: loadMoreTags,
-    createTag
-  } = useContentTagSelect(accessToken, initialTagIds)
+    loadMore: loadMoreTags
+  } = useContentTagSelect(accessToken, watchedContentTagIds || [])
+
+  const createdCategoryOptions = (watchedContentCategoryNames || []).map(name => ({ value: name, label: name }))
+  const createdTagOptions = (watchedContentTagNames || []).map(name => ({ value: name, label: name }))
+  const displayedCategoryValues = [...(watchedContentCategoryIds || []), ...(watchedContentCategoryNames || [])]
+  const displayedTagValues = [...(watchedContentTagIds || []), ...(watchedContentTagNames || [])]
+  const categoryOptionValues = new Set(categoryOptions.map(option => option.value))
+  const tagOptionValues = new Set(tagOptions.map(option => option.value))
 
   return (
     <div className="gba:space-y-6">
@@ -138,7 +150,7 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({ control, acces
 
       <FormField
         control={control as any}
-        name="previewText"
+        name="preview"
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('glossary-examples') || 'Examples (optional)'}</FormLabel>
@@ -161,22 +173,38 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({ control, acces
       <FormFieldGroup>
         <FormField
           control={control as any}
-          name="categories"
+          name="contentCategoryIds"
           render={({ field }) => (
             <FormItem className="gba:flex-1">
               <FormLabel>{t('categories') || 'Categories'}</FormLabel>
               <FormControl>
-                <TaxonomyMultiSelect
+                <Combobox
+                  mode="tags"
                   options={categoryOptions}
-                  value={field.value || []}
-                  onValueChange={field.onChange}
-                  onCreateNew={createCategory}
-                  isLoading={categoriesLoading}
+                  value={categoryOptionsReady ? displayedCategoryValues : watchedContentCategoryNames || []}
+                  onValueChange={(next: string[]) => {
+                    field.onChange(next.filter(value => categoryOptionValues.has(value)))
+                    setValue(
+                      'contentCategoryNames',
+                      next.filter(value => !categoryOptionValues.has(value))
+                    )
+                  }}
+                  onCreateTag={rawName => {
+                    const trimmedName = rawName.trim()
+                    if (!trimmedName) return
+                    if ((watchedContentCategoryNames || []).includes(trimmedName)) return
+                    setValue('contentCategoryNames', [...(watchedContentCategoryNames || []), trimmedName])
+                  }}
+                  createdOptions={createdCategoryOptions}
                   placeholder="Select categories..."
-                  data-testid="glossary-segment-categories-select"
+                  searchPlaceholder="Search or create..."
+                  emptyText={categoriesLoading ? 'Loading...' : 'No results'}
+                  loading={categoriesLoading}
                   onSearch={setCategorySearch}
+                  searchDebounce={300}
                   onLoadMore={loadMoreCategories}
                   hasMore={categoryHasMore}
+                  data-testid="glossary-segment-categories-select"
                 />
               </FormControl>
               <FormMessage />
@@ -186,22 +214,38 @@ export const GlossarySegment: React.FC<GlossarySegmentProps> = ({ control, acces
 
         <FormField
           control={control as any}
-          name="tags"
+          name="contentTagIds"
           render={({ field }) => (
             <FormItem className="gba:flex-1">
               <FormLabel>{t('tags') || 'Tags'}</FormLabel>
               <FormControl>
-                <TaxonomyMultiSelect
+                <Combobox
+                  mode="tags"
                   options={tagOptions}
-                  value={field.value || []}
-                  onValueChange={field.onChange}
-                  onCreateNew={createTag}
-                  isLoading={tagsLoading}
+                  value={tagOptionsReady ? displayedTagValues : watchedContentTagNames || []}
+                  onValueChange={(next: string[]) => {
+                    field.onChange(next.filter(value => tagOptionValues.has(value)))
+                    setValue(
+                      'contentTagNames',
+                      next.filter(value => !tagOptionValues.has(value))
+                    )
+                  }}
+                  onCreateTag={rawName => {
+                    const trimmedName = rawName.trim()
+                    if (!trimmedName) return
+                    if ((watchedContentTagNames || []).includes(trimmedName)) return
+                    setValue('contentTagNames', [...(watchedContentTagNames || []), trimmedName])
+                  }}
+                  createdOptions={createdTagOptions}
                   placeholder="Select tags..."
-                  data-testid="glossary-segment-tags-select"
+                  searchPlaceholder="Search or create..."
+                  emptyText={tagsLoading ? 'Loading...' : 'No results'}
+                  loading={tagsLoading}
                   onSearch={setTagSearch}
+                  searchDebounce={300}
                   onLoadMore={loadMoreTags}
                   hasMore={tagHasMore}
+                  data-testid="glossary-segment-tags-select"
                 />
               </FormControl>
               <FormMessage />

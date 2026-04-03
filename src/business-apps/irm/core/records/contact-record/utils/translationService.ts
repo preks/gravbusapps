@@ -1,4 +1,4 @@
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 export interface Language {
   code: string
@@ -15,9 +15,8 @@ export const LANGUAGES: Language[] = [
   { code: 'Chinese', label: 'Chinese', flag: '🇨🇳' }
 ]
 
-// Mapping from full language names to API language names
 const LANGUAGE_API_CODES: Record<string, string> = {
-  Original: 'original', // This won't be used for API calls
+  Original: 'original',
   English: 'english',
   German: 'german',
   Spanish: 'spanish',
@@ -25,7 +24,6 @@ const LANGUAGE_API_CODES: Record<string, string> = {
   Chinese: 'chinese'
 }
 
-// Convert full language name to API language name
 const getApiLanguageCode = (languageName: string): string => {
   return LANGUAGE_API_CODES[languageName] || languageName.toLowerCase()
 }
@@ -51,27 +49,7 @@ export interface TranslationApiResponse {
   translated_texts: string[]
 }
 
-// Direct fetch implementation to avoid React hooks
-const makeApiCall = async <T>(url: string, method: string, body: any, accessToken: string): Promise<T> => {
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  })
-
-  if (!response.ok) {
-    throw new Error(`API call failed: ${response.status} ${response.statusText}`)
-  }
-
-  return response.json()
-}
-
-// Translation service using direct fetch calls
 export const translateText = async (request: TranslationRequest, accessToken: string): Promise<TranslationResponse> => {
-  // Return original text for Original or if target equals source
   if (request.targetLanguage === 'Original' || request.targetLanguage === request.sourceLanguage) {
     return {
       translatedText: request.text,
@@ -81,24 +59,13 @@ export const translateText = async (request: TranslationRequest, accessToken: st
   }
 
   try {
-    // Use the official FlowBot endpoint from the documentation
-    const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/translation/translate_texts`
+    flowbotClient.setAccessToken(accessToken)
+    const response = await flowbotClient.translateTexts([request.text], getApiLanguageCode(request.targetLanguage))
 
-    const apiRequest: TranslationApiRequest = {
-      input_texts: [request.text],
-      target_language: getApiLanguageCode(request.targetLanguage)
-    }
-
-    const response = await makeApiCall<TranslationApiResponse>(url, 'POST', apiRequest, accessToken)
-
-    // Handle both response formats: direct array or object with translated_texts property
     let translatedTexts: string[]
     if (Array.isArray(response)) {
-      // Direct array response
-      translatedTexts = response
+      translatedTexts = response as unknown as string[]
     } else if (response && response.translated_texts && Array.isArray(response.translated_texts)) {
-      // Object with translated_texts property
       translatedTexts = response.translated_texts
     } else {
       console.warn('Invalid translation API response:', response)
@@ -109,16 +76,13 @@ export const translateText = async (request: TranslationRequest, accessToken: st
       }
     }
 
-    const translatedText = translatedTexts[0] || request.text
-
     return {
-      translatedText,
+      translatedText: translatedTexts[0] || request.text,
       sourceLanguage: request.sourceLanguage || 'Original',
       targetLanguage: request.targetLanguage
     }
   } catch (error) {
     console.error('Translation API error:', error)
-    // Fallback to original text if translation fails
     return {
       translatedText: request.text,
       sourceLanguage: request.sourceLanguage || 'Original',
@@ -133,43 +97,29 @@ export const translateMultipleTexts = async (
   accessToken: string,
   sourceLanguage?: string
 ): Promise<string[]> => {
-  // Return original texts for Original language
   if (targetLanguage === 'Original' || targetLanguage === sourceLanguage) {
     return texts
   }
 
-  // Filter out empty texts
   const nonEmptyTexts = texts.filter(text => text && text.trim())
   if (nonEmptyTexts.length === 0) {
     return texts
   }
 
   try {
-    // Use the official FlowBot endpoint from the documentation
-    const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/translation/translate_texts`
+    flowbotClient.setAccessToken(accessToken)
+    const response = await flowbotClient.translateTexts(nonEmptyTexts, getApiLanguageCode(targetLanguage))
 
-    const apiRequest: TranslationApiRequest = {
-      input_texts: nonEmptyTexts,
-      target_language: getApiLanguageCode(targetLanguage)
-    }
-
-    const response = await makeApiCall<TranslationApiResponse>(url, 'POST', apiRequest, accessToken)
-
-    // Handle both response formats: direct array or object with translated_texts property
     let translatedTexts: string[]
     if (Array.isArray(response)) {
-      // Direct array response
-      translatedTexts = response
+      translatedTexts = response as unknown as string[]
     } else if (response && response.translated_texts && Array.isArray(response.translated_texts)) {
-      // Object with translated_texts property
       translatedTexts = response.translated_texts
     } else {
       console.warn('Invalid translation API response:', response)
       return texts
     }
 
-    // Make sure we have the same number of translations as inputs
     if (translatedTexts.length !== nonEmptyTexts.length) {
       console.warn('Translation count mismatch:', {
         input: nonEmptyTexts.length,
@@ -178,31 +128,27 @@ export const translateMultipleTexts = async (
       return texts
     }
 
-    // Map the translations back to the original array (handling empty texts)
     let translationIndex = 0
     return texts.map(text => {
       if (text && text.trim()) {
         return translatedTexts[translationIndex++]
       }
-      return text // Return empty text as is
+      return text
     })
   } catch (error) {
     console.error('Translation API error:', error)
-    return texts // Return original texts if translation fails
+    return texts
   }
 }
 
-// Utility function to get supported languages
 export const getSupportedLanguages = (): Language[] => {
   return LANGUAGES
 }
 
-// Utility function to get language by code
 export const getLanguageByCode = (code: string): Language | undefined => {
   return LANGUAGES.find(lang => lang.code === code)
 }
 
-// Utility function to check if a language is supported
 export const isLanguageSupported = (code: string): boolean => {
   return LANGUAGES.some(lang => lang.code === code)
 }

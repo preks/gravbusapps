@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { FlowTemplate } from '../types/workflowTypes'
 
 export interface TestResult {
@@ -72,10 +72,10 @@ export const useExpressionTesting = (
 
       setIsTesting(true)
       try {
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
         const mockContext = buildMockContext()
 
-        const response = await fetch(`${apiUrl}/api/expressions/test-resolve`, {
+        const response = await fetch(`${apiUrl}/expressions/test-resolve`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

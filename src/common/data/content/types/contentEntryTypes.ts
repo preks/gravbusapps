@@ -315,12 +315,112 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
 ]
 
 // =====================================================
+// PAYLOAD ROW TYPES
+// =====================================================
+
+export interface ContentEntryCategoryRow {
+  id?: string
+  version?: number
+  contentCategory?: string
+  contentCategoryName?: string
+}
+
+export interface ContentEntryTagRow {
+  id?: string
+  version?: number
+  contentTag?: string
+  contentTagName?: string
+}
+
+export interface ContentEntryDocumentRow {
+  documentGroupRef?: string
+  documentTypeRef?: string
+  parentDocument?: string | null
+  folder?: boolean
+  name?: string
+  description?: string | null
+  fileInfo?: any
+}
+
+export interface ContentEntryPayloadOptions {
+  employeeId: string
+  isUpdate: boolean
+  existingEntry?: ContentEntry
+  parentContentEntryId?: string | null
+  rootContentEntryId?: string | null
+}
+
+export type ChangeMode = 'UPSERT' | 'REPLACE'
+
+export interface CategoryItem {
+  id?: string
+  version?: number
+  contentCategory?: string
+  contentCategoryName?: string
+}
+
+export interface DocumentItem {
+  documentGroupRef?: string
+  documentTypeRef?: string
+  parentDocument?: string | null
+  folder?: boolean
+  name?: string
+  description?: string | null
+  fileInfo?: any
+}
+
+export interface TagItem {
+  id?: string
+  version?: number
+  contentTag?: string
+  contentTagName?: string
+}
+
+export interface BuildContentEntryPayloadParams {
+  title?: string
+  preview?: string
+  content?: string
+  picture?: string | null
+  pictureThumbnail?: string | null
+  role: ContentRole
+  contentGroup?: string | null
+  contentTypeId?: string | null
+  parentContentEntryId?: string | null
+  rootContentEntryId?: string | null
+  creatorEmployeeId?: string
+  updaterEmployeeId?: string
+  displayCreator?: boolean
+  displayUpdater?: boolean
+  allowComment?: boolean
+  allowReaction?: boolean
+  timeToRead?: number | null
+  activeFrom?: string | Date | null
+  activeTo?: string | Date | null
+  entryVersion?: string | null
+  id?: string
+  version?: number
+  categories?: {
+    changeMode: ChangeMode
+    items: CategoryItem[]
+  }
+  documents?: {
+    changeMode: ChangeMode
+    items: DocumentItem[]
+  }
+  tags?: {
+    changeMode: ChangeMode
+    items: TagItem[]
+  }
+}
+
+// =====================================================
 // FORM FIELDS
 // =====================================================
 
 /**
  * Content Entry Form Fields
- * Maps form field names to GraphQL mutation field names
+ * Maps GraphQL entity field names used in query descriptors and filters.
+ * For the form-to-payload mapping see contentEntryFormFields (lowercase).
  */
 export const ContentEntryFormFields = {
   // Core fields
@@ -347,4 +447,28 @@ export const ContentEntryFormFields = {
   activeFrom: 'activeFrom',
   activeTo: 'activeTo',
   recordState: 'recordState'
+} as const
+
+/**
+ * Content Entry form-to-payload field mapping.
+ * Maps form field names to backend DTO field names.
+ * Used by the content entry payload builder and mapper.
+ *
+ * Note: contentTypeId maps to the backend field "contentType" (UUID reference).
+ *       Category and tag relations are handled separately through split id/name arrays.
+ */
+export const contentEntryFormFields = {
+  title: 'title',
+  preview: 'preview',
+  content: 'content',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  contentGroup: 'contentGroup',
+  contentTypeId: 'contentType',
+  role: 'role',
+  displayCreator: 'displayCreator',
+  allowComment: 'allowComment',
+  allowReaction: 'allowReaction',
+  activeFrom: 'activeFrom',
+  activeTo: 'activeTo'
 } as const

@@ -20,8 +20,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Play, Pause, Trash2, Clock, RefreshCw, History } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ScheduledTask, TaskExecution } from '@/common/network/flowbot/ScheduledTasksClient'
-import { useScheduledTasks } from '../hooks/useScheduledTasks'
+import { useScheduledTasks, type ScheduledTask, type TaskExecution } from '../hooks/useScheduledTasks'
 
 type ScheduledTasksTableProps = BusinessAppContextProps
 

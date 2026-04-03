@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, CardContent, Button } from '@newwork/nw-design-system'
-import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 
 interface SandboxFileLinkChipProps {
   filePath: string
@@ -25,23 +25,8 @@ const SandboxFileLinkChip: React.FC<SandboxFileLinkChipProps> = ({ filePath, tok
     setError(null)
 
     try {
-      const baseUrl = resolveFlowbotBaseUrl()
-      const response = await fetch(`${baseUrl}/flowbot/api/agent/download-sandbox-file`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ file_path: filePath })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(errorText || `HTTP ${response.status}`)
-      }
-
-      // Download the file
-      const blob = await response.blob()
+      flowbotClient.setAccessToken(token)
+      const blob = await flowbotClient.downloadSandboxFile(filePath)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

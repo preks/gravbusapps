@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { FlowEngineInstance } from '../types/instance'
 import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 const CATALOG_NAME = 'FlowEngineInstances'
 
@@ -88,7 +89,7 @@ const getLocalDevelopmentInstance = (): FlowEngineInstance | null => {
       id: 'instance:flow:local-dev',
       name: 'Local Development',
       code: 'DEV',
-      baseUrl: customUrl,
+      baseUrl: CUSTOM_FLOW_ENGINE_API_URL,
       apiKey: '', // Will use current user's access token
       environment: 'LOCAL',
       color: '#8b5cf6', // Purple for local

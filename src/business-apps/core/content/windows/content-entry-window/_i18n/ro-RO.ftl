@@ -13,7 +13,9 @@ content = Conținut
 content-placeholder = Începeți să scrieți...
 content-image = Imagine de Conținut
 content-group = Grup de Conținut
+select-group = Selectați grupul
 content-type = Tip de Conținut
+select-type = Selectați tipul
 author = Autor
 display-author = Afișează Autorul
 allow-comments = Permite Comentarii
@@ -47,6 +49,28 @@ policy-content-placeholder = Scrieți conținutul politicii aici...
 policy-validity-period = Perioada de Valabilitate a Politicii
 policy-valid-from = Valabil De La
 policy-valid-to = Valabil Până La
+
+# Glossary-specific fields
+glossary-term = Termen
+glossary-term-placeholder = Introduceți termenul (ex. "API", "SLA")
+glossary-term-hint = Cuvântul, expresia sau acronimul de definit
+glossary-term-required = Termenul este obligatoriu
+glossary-definition = Definiție
+glossary-definition-placeholder = Oferiți o definiție clară și concisă...
+glossary-definition-hint = Explicați ce înseamnă acest termen în contextul companiei noastre
+glossary-definition-hint-optional = Lăsați gol dacă nu cunoașteți definiția - altcineva o poate completa mai târziu
+optional = opțional
+glossary-definition-required = Definiția este obligatorie
+glossary-examples = Exemple (opțional)
+glossary-examples-placeholder = Adăugați exemple de utilizare sau context suplimentar...
+glossary-examples-hint = Ajutați pe alții să înțeleagă cum este utilizat acest termen în practică
+categories = Categorii
+tags = Etichete
+
+# Additional fields
+header-image = Imagine Antet
+short-description = Descriere Scurtă
+short-description-placeholder = Rezumat scurt afișat în portalul de documente...
 
 # Validations
 title-required = Titlul este obligatoriu
