@@ -11,9 +11,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { EvaluationDetail } from '../types'
+import translations from '../_i18n'
 
 interface ManagerSummary {
   reviewerEmployeeId: string
@@ -60,14 +62,15 @@ interface ManagerReviewsTableProps {
 }
 
 export const ManagerReviewsTable: React.FC<ManagerReviewsTableProps> = ({ evaluations, loading, cycleName }) => {
+  const { t } = useTranslation(translations)
   const managers = useMemo(() => buildManagerSummaries(evaluations), [evaluations])
 
   return (
     <Card data-testid="manager-reviews-table">
       <CardHeader>
-        <CardTitle className="gba:text-lg">{cycleName} — Manager Reviews</CardTitle>
+        <CardTitle className="gba:text-lg">{t('manager-reviews-title', { name: cycleName })}</CardTitle>
         <p className="gba:text-sm gba:text-muted-foreground">
-          {managers.length} manager{managers.length !== 1 ? 's' : ''} assigned to this cycle.
+          {t('manager-reviews-description', { count: managers.length })}
         </p>
       </CardHeader>
       <CardContent>
@@ -75,10 +78,10 @@ export const ManagerReviewsTable: React.FC<ManagerReviewsTableProps> = ({ evalua
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Manager</TableHead>
-                <TableHead>Total Tasks</TableHead>
-                <TableHead>Completed</TableHead>
-                <TableHead>Pending</TableHead>
+                <TableHead>{t('table-manager')}</TableHead>
+                <TableHead>{t('table-total-tasks')}</TableHead>
+                <TableHead>{t('table-completed')}</TableHead>
+                <TableHead>{t('table-pending')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,7 +94,7 @@ export const ManagerReviewsTable: React.FC<ManagerReviewsTableProps> = ({ evalua
               ) : managers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground gba:py-8">
-                    No manager reviews found for this cycle.
+                    {t('empty-no-manager-reviews')}
                   </TableCell>
                 </TableRow>
               ) : (

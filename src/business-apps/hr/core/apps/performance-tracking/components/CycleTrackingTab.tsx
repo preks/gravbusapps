@@ -1,5 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { Spinner, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import {
+  Spinner,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { ChartBar, UsersThree, ClipboardText, UserCircle, User } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking'
@@ -9,6 +17,7 @@ import { ManagerReviewsTable } from './ManagerReviewsTable'
 import { SelfReviewsTable } from './SelfReviewsTable'
 import type { CycleTrackingSummary } from '../types'
 import { formatDate } from '../utils/formatLabels'
+import translations from '../_i18n'
 
 const CARD_SELECTOR = 'div[class*="card"], div[class*="Card"]'
 
@@ -68,7 +77,10 @@ function formatCycleLabel(cycle: CycleTrackingSummary): string {
   return `${cycle.name}${range}`
 }
 
-function buildKpiWidgets(cycle: CycleTrackingSummary): WidgetItem[] {
+function buildKpiWidgets(
+  cycle: CycleTrackingSummary,
+  t: (key: string, vars?: Record<string, unknown>) => string
+): WidgetItem[] {
   const evalPercent =
     cycle.totalEvaluations > 0 ? Math.round((cycle.completedEvaluations / cycle.totalEvaluations) * 100) : 0
   const reviewerPercent =
@@ -77,45 +89,54 @@ function buildKpiWidgets(cycle: CycleTrackingSummary): WidgetItem[] {
   return [
     {
       key: 'total-evaluations',
-      title: 'Evaluations',
+      title: t('kpi-evaluations'),
       value: cycle.totalEvaluations,
       prefix: <UsersThree size={20} aria-hidden />,
       color: '#1890ff',
-      footer: `${cycle.completedEvaluations} completed`,
+      footer: t('kpi-completed-footer', { completed: cycle.completedEvaluations }),
       trend: {
         value: `${evalPercent}%`,
         positive: evalPercent > 0,
-        description: `${cycle.completedEvaluations} of ${cycle.totalEvaluations} done`
+        description: t('kpi-done-description', { completed: cycle.completedEvaluations, total: cycle.totalEvaluations })
       }
     },
     {
       key: 'reviewer-tasks',
-      title: 'Reviewer Tasks',
+      title: t('kpi-reviewer-tasks'),
       value: cycle.totalReviewerTasks,
       prefix: <ClipboardText size={20} aria-hidden />,
       color: '#722ed1',
-      footer: `${cycle.completedReviewerTasks} completed`,
+      footer: t('kpi-completed-footer', { completed: cycle.completedReviewerTasks }),
       trend: {
         value: `${reviewerPercent}%`,
         positive: reviewerPercent > 0,
-        description: `${cycle.completedReviewerTasks} of ${cycle.totalReviewerTasks} done`
+        description: t('kpi-done-description', {
+          completed: cycle.completedReviewerTasks,
+          total: cycle.totalReviewerTasks
+        })
       }
     },
     {
       key: 'manager-reviews',
-      title: 'Manager Reviews',
+      title: t('kpi-manager-reviews'),
       value: cycle.totalManagerReviews,
       prefix: <UserCircle size={20} aria-hidden />,
       color: '#722ed1',
-      footer: `${cycle.completedManagerReviews} completed · ${cycle.totalManagerReviews - cycle.completedManagerReviews} pending`
+      footer: t('kpi-completed-pending-footer', {
+        completed: cycle.completedManagerReviews,
+        pending: cycle.totalManagerReviews - cycle.completedManagerReviews
+      })
     },
     {
       key: 'self-reviews',
-      title: 'Self Reviews',
+      title: t('kpi-self-reviews'),
       value: cycle.totalSelfReviews,
       prefix: <User size={20} aria-hidden />,
       color: '#1890ff',
-      footer: `${cycle.completedSelfReviews} completed · ${cycle.totalSelfReviews - cycle.completedSelfReviews} pending`
+      footer: t('kpi-completed-pending-footer', {
+        completed: cycle.completedSelfReviews,
+        pending: cycle.totalSelfReviews - cycle.completedSelfReviews
+      })
     }
   ]
 }
@@ -125,6 +146,7 @@ interface CycleTrackingTabProps {
 }
 
 export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const { cycles, loading, error, refetch } = usePerformanceTracking(accessToken)
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
   const [showManagerTable, setShowManagerTable] = useState(false)
@@ -138,7 +160,7 @@ export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken 
 
   const kpiWidgets = useMemo(() => {
     if (!selectedCycle) return []
-    const widgets = buildKpiWidgets(selectedCycle)
+    const widgets = buildKpiWidgets(selectedCycle, t)
     const managerWidget = widgets.find(w => w.key === 'manager-reviews')
     if (managerWidget) {
       managerWidget.onClick = () => setShowManagerTable(prev => !prev)
@@ -187,8 +209,8 @@ export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken 
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-muted-foreground">
         <ChartBar size={48} className="gba:mb-4 gba:opacity-40" />
-        <p className="gba:text-lg gba:font-medium">No performance cycles found</p>
-        <p className="gba:text-sm">Create a cycle in Performance Configuration to get started.</p>
+        <p className="gba:text-lg gba:font-medium">{t('empty-no-cycles-title')}</p>
+        <p className="gba:text-sm">{t('empty-no-cycles-description')}</p>
       </div>
     )
   }
@@ -198,7 +220,7 @@ export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken 
       <div className="gba:flex gba:items-center gba:gap-3">
         <Select value={activeCycleId ?? ''} onValueChange={setSelectedCycleId}>
           <SelectTrigger className="gba:min-w-[320px]" data-testid="cycle-tracking-cycle-select">
-            <SelectValue placeholder="Select a cycle" />
+            <SelectValue placeholder={t('select-cycle-placeholder')} />
           </SelectTrigger>
           <SelectContent>
             {cycles.map(cycle => (

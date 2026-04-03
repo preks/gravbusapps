@@ -11,18 +11,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CaretDown, CaretRight } from '@phosphor-icons/react'
 import type { EmployeeEvalItem } from '../types'
 import { formatDate, formatStatusRef, getStatusBadgeVariant } from '../utils/formatLabels'
 import { ReviewerRow } from './ReviewerRow'
+import translations from '../_i18n'
 
 type EvalRowProps = {
   readonly evaluation: EmployeeEvalItem
 }
 
 function EvalRow({ evaluation }: EvalRowProps) {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(false)
   const completedReviewers = evaluation.reviewers.filter(r => r.completedDate).length
   const totalReviewers = evaluation.reviewers.length
@@ -42,11 +45,13 @@ function EvalRow({ evaluation }: EvalRowProps) {
         </TableCell>
         <TableCell>
           <span className="gba:text-xs gba:text-muted-foreground">
-            {completedReviewers}/{totalReviewers} reviewers
+            {t('reviewers-count', { completed: completedReviewers, total: totalReviewers })}
           </span>
         </TableCell>
         <TableCell>
-          <Badge variant={getStatusBadgeVariant(evaluation.statusRef)}>{formatStatusRef(evaluation.statusRef)}</Badge>
+          <Badge variant={getStatusBadgeVariant(evaluation.statusRef)}>
+            {formatStatusRef(evaluation.statusRef, t)}
+          </Badge>
         </TableCell>
         <TableCell>{formatDate(evaluation.startDate)}</TableCell>
         <TableCell>{formatDate(evaluation.actualCompletionDate)}</TableCell>
@@ -69,13 +74,14 @@ export const EmployeeEvaluationsCard: React.FC<EmployeeEvaluationsCardProps> = (
   loading,
   error
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <Card data-testid="employee-evaluations-card">
       <CardHeader>
-        <CardTitle className="gba:text-lg">{employeeName} — Evaluations Received</CardTitle>
+        <CardTitle className="gba:text-lg">{t('employee-evaluations-title', { name: employeeName })}</CardTitle>
         <p className="gba:text-sm gba:text-muted-foreground">
-          {evaluations.length} evaluation{evaluations.length !== 1 ? 's' : ''} where this employee is the one being
-          evaluated. Click a row to expand reviewer details.
+          {t('employee-evaluations-description', { count: evaluations.length })}
         </p>
       </CardHeader>
       <CardContent>
@@ -88,11 +94,11 @@ export const EmployeeEvaluationsCard: React.FC<EmployeeEvaluationsCardProps> = (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Cycle</TableHead>
-                <TableHead>Reviewers</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Started</TableHead>
-                <TableHead>Completed</TableHead>
+                <TableHead>{t('table-cycle')}</TableHead>
+                <TableHead>{t('table-reviewers')}</TableHead>
+                <TableHead>{t('table-status')}</TableHead>
+                <TableHead>{t('table-started')}</TableHead>
+                <TableHead>{t('table-completed')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -105,7 +111,7 @@ export const EmployeeEvaluationsCard: React.FC<EmployeeEvaluationsCardProps> = (
               ) : evaluations.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground gba:py-8">
-                    No evaluations found for this employee.
+                    {t('empty-no-evaluations-for-employee')}
                   </TableCell>
                 </TableRow>
               ) : (

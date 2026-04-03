@@ -11,9 +11,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { EvaluationDetail } from '../types'
+import translations from '../_i18n'
 
 interface SelfReviewSummary {
   employeeId: string
@@ -60,14 +62,15 @@ interface SelfReviewsTableProps {
 }
 
 export const SelfReviewsTable: React.FC<SelfReviewsTableProps> = ({ evaluations, loading, cycleName }) => {
+  const { t } = useTranslation(translations)
   const employees = useMemo(() => buildSelfReviewSummaries(evaluations), [evaluations])
 
   return (
     <Card data-testid="self-reviews-table">
       <CardHeader>
-        <CardTitle className="gba:text-lg">{cycleName} — Self Reviews</CardTitle>
+        <CardTitle className="gba:text-lg">{t('self-reviews-title', { name: cycleName })}</CardTitle>
         <p className="gba:text-sm gba:text-muted-foreground">
-          {employees.length} employee{employees.length !== 1 ? 's' : ''} with self review tasks in this cycle.
+          {t('self-reviews-description', { count: employees.length })}
         </p>
       </CardHeader>
       <CardContent>
@@ -75,10 +78,10 @@ export const SelfReviewsTable: React.FC<SelfReviewsTableProps> = ({ evaluations,
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Total Tasks</TableHead>
-                <TableHead>Completed</TableHead>
-                <TableHead>Pending</TableHead>
+                <TableHead>{t('table-employee')}</TableHead>
+                <TableHead>{t('table-total-tasks')}</TableHead>
+                <TableHead>{t('table-completed')}</TableHead>
+                <TableHead>{t('table-pending')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,7 +94,7 @@ export const SelfReviewsTable: React.FC<SelfReviewsTableProps> = ({ evaluations,
               ) : employees.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground gba:py-8">
-                    No self reviews found for this cycle.
+                    {t('empty-no-self-reviews')}
                   </TableCell>
                 </TableRow>
               ) : (
