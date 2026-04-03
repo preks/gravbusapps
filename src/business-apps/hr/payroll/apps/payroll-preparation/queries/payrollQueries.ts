@@ -3,7 +3,64 @@
  *
  * Fetches employee master data, positions, salaries, absences, bank accounts,
  * and tax details needed to compute payroll readiness per employee.
+ *
+ * PayrollRun reads come from Hasura (read-only).
+ * PayrollRun writes go through the Kogito REST process (savePayrollRun).
  */
+
+const PAYROLL_RUN_FIELDS = `
+  id
+  month
+  year
+  country
+  legalEntityId
+  legalEntityName
+  cutOffDate
+  paymentDate
+  status
+  createdBy
+  createdAt
+  preparedBy
+  preparedAt
+  reviewedBy
+  reviewedAt
+  reviewComment
+  approvalDecision
+  updatedAt
+  updatedBy
+  version
+  isDeleted
+`
+
+export const GET_PAYROLL_RUNS_BY_COMPANY = `
+  query GetPayrollRunsByCompany($legalEntityId: uuid!) {
+    PayrollRun(
+      where: {
+        legalEntityId: { _eq: $legalEntityId }
+        isDeleted: { _eq: false }
+      }
+      orderBy: [{ year: DESC }, { month: DESC }]
+    ) {
+      ${PAYROLL_RUN_FIELDS}
+    }
+  }
+`
+
+export const GET_PAYROLL_RUN = `
+  query GetPayrollRun($year: Int!, $month: Int!, $legalEntityId: uuid!) {
+    PayrollRun(
+      where: {
+        year: { _eq: $year }
+        month: { _eq: $month }
+        legalEntityId: { _eq: $legalEntityId }
+        isDeleted: { _eq: false }
+      }
+      limit: 1
+    ) {
+      ${PAYROLL_RUN_FIELDS}
+    }
+  }
+`
 
 export const GET_PAYROLL_EMPLOYEES = `
   query GetPayrollEmployees($companyId: uuid!, $activeUserLocale: String!) {
@@ -159,6 +216,7 @@ export const GET_PAYROLL_ABSENCES = `
       type {
         id
         value
+        parentEntryId
         objectValue
         translations(where: {localeCode: {_eq: $activeUserLocale}}) {
           value
