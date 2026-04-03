@@ -1124,8 +1124,20 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
-    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+    // Full page navigation matches prod host routing and avoids dev-only history + popstate gaps.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
+  }, [])
+
+  /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
+  const handleSpreadsheetHubHome = useCallback(() => {
+    try {
+      sessionStorage.removeItem('space_return_url')
+    } catch (e) {
+      console.warn('Failed to clear space_return_url:', e)
+    }
+    // Same as handleBack default: fullPage avoids host nwNavigate only updating the URL while the
+    // viewer stays mounted (first click short URL, second click reload → hub).
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
   }, [])
 
   const handleStartUpload = useCallback(() => {
@@ -1248,6 +1260,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           <SpreadsheetAppViewer
             app={app}
             onBack={handleBack}
+            onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
             onShare={() => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
@@ -1295,6 +1308,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleRefreshShares,
       handleShare,
       handleShareApp,
+      handleSpreadsheetHubHome,
       handleUnshare,
       selectedAppForShare,
       setShareDialogOpen,
@@ -1330,11 +1344,25 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const renderCurrentView = () => {
     if (currentView === 'viewer' && currentApp) {
-      return renderViewerContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderViewerContent(currentApp)}
+        </div>
+      )
     }
 
     if (currentView === 'editor' && currentApp) {
-      return renderEditorContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderEditorContent(currentApp)}
+        </div>
+      )
     }
 
     const heroNewButton = (
