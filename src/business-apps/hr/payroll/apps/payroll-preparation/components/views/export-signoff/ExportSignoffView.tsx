@@ -310,7 +310,9 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     return (
       <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-1-card">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-1-label')}</h3>
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground gba:flex gba:items-center">
+            {t('step-1-label')}
+          </h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
           {isActive && (
             <PayrollRunStatusBadge status={currentStatus} translatedLabel={getRunStatusLabel(currentStatus, t)} />
@@ -358,7 +360,9 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     return (
       <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-2-card">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-2-label')}</h3>
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground gba:flex gba:items-center">
+            {t('step-2-label')}
+          </h3>
           {isCompleted && payrollRun?.approvalDecision === 'APPROVED' && (
             <span className="gba:text-xs gba:font-medium gba:text-success gba:flex gba:items-center gba:gap-1">
               <CheckCircleIcon size={14} weight="fill" /> {t('signoff-decision-approved')}
@@ -452,8 +456,8 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 
     return (
       <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-3-card">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3 ">
+          <h3 className="gba:text-base gba:font-semibold gba:text-foreground gba:flex gba:items-center">
             <ExportIcon size={20} className="gba:inline gba:mr-2" />
             {t('step-3-label')}
           </h3>
@@ -648,7 +652,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
 
   const renderAuditTrail = () => (
     <Card className="gba:p-6" data-testid="payroll-prep-export-audit-trail-card">
-      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
+      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4  gba:flex gba:items-center">
         <ClockIcon size={20} className="gba:inline gba:mr-2" />
         {t('audit-trail')}
       </h3>
