@@ -27,7 +27,17 @@ import ReactQuill from 'react-quill'
 import { TableHandler } from '../quillTableSetup'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
-import { CONTENT_GROUP_VALUES, CONTENT_GROUP_KEY } from '@/common/data/content/constants/contentConstants'
+import {
+  CONTENT_GROUP_VALUES,
+  CONTENT_GROUP_KEY,
+  CONTENT_GROUP_LABEL,
+  resolveContentCategoryName,
+  resolveContentTagName,
+  resolveContentTypeName
+} from '@/common/data/content/constants/contentConstants'
+import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
+import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
 import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
 import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
 import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
@@ -39,7 +49,9 @@ interface AiTextGeneratorWrapperProps {
   watchPreview: string
   watchContentTypeId?: string
   watchContentCategoryIds?: string[]
+  watchContentCategoryNames?: string[]
   watchContentTagIds?: string[]
+  watchContentTagNames?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
   extractedContentGroup?: string | null
@@ -55,7 +67,9 @@ const AiTextGeneratorWrapper = React.memo(function AiTextGeneratorWrapper({
   watchPreview,
   watchContentTypeId,
   watchContentCategoryIds,
+  watchContentCategoryNames,
   watchContentTagIds,
+  watchContentTagNames,
   setValue,
   context,
   extractedContentGroup,
@@ -65,6 +79,56 @@ const AiTextGeneratorWrapper = React.memo(function AiTextGeneratorWrapper({
   onContentTagIdsChange
 }: AiTextGeneratorWrapperProps) {
   const content = useWatch({ control, name: 'content' })
+  const watchContentGroup = useWatch({ control, name: 'contentGroup' })
+  const activeContentGroup = extractedContentGroup || watchContentGroup
+
+  const contentGroupOptions = useMemo(
+    () =>
+      CONTENT_GROUP_VALUES.map(group => ({
+        id: group,
+        name: CONTENT_GROUP_LABEL[group]
+      })),
+    []
+  )
+
+  const { options: contentTypePromptOptions } = useContentTypeOptions(context.accessToken, activeContentGroup)
+  const { options: contentCategoryPromptOptions } = useContentCategoryOptions(context.accessToken)
+  const { options: contentTagPromptOptions } = useContentTagOptions(context.accessToken)
+
+  const mappedContentTypeOptions = useMemo(
+    () =>
+      contentTypePromptOptions.flatMap(contentType =>
+        contentType.contentGroup
+          ? [
+              {
+                id: contentType.id,
+                name: resolveContentTypeName(contentType) || contentType.name || contentType.id,
+                contentGroup: contentType.contentGroup
+              }
+            ]
+          : []
+      ),
+    [contentTypePromptOptions]
+  )
+
+  const mappedContentCategoryOptions = useMemo(
+    () =>
+      contentCategoryPromptOptions.map(contentCategory => ({
+        id: contentCategory.id,
+        name: resolveContentCategoryName(contentCategory) || contentCategory.name || contentCategory.id
+      })),
+    [contentCategoryPromptOptions]
+  )
+
+  const mappedContentTagOptions = useMemo(
+    () =>
+      contentTagPromptOptions.map(contentTag => ({
+        id: contentTag.id,
+        name: resolveContentTagName(contentTag) || contentTag.name || contentTag.id
+      })),
+    [contentTagPromptOptions]
+  )
+
   return (
     <ContentAiTextGenerator
       title={watchTitle || ''}
@@ -76,13 +140,22 @@ const AiTextGeneratorWrapper = React.memo(function AiTextGeneratorWrapper({
       onPictureChange={handlePictureUrl}
       accessToken={context.accessToken || ''}
       context={context}
-      contentGroup={extractedContentGroup}
+      contentGroup={activeContentGroup}
       contentTypeId={watchContentTypeId}
       contentCategoryIds={watchContentCategoryIds || []}
+      contentCategoryNames={watchContentCategoryNames || []}
       contentTagIds={watchContentTagIds || []}
+      contentTagNames={watchContentTagNames || []}
+      contentGroupOptions={contentGroupOptions}
+      contentTypeOptions={mappedContentTypeOptions}
+      contentCategoryOptions={mappedContentCategoryOptions}
+      contentTagOptions={mappedContentTagOptions}
+      onContentGroupChange={extractedContentGroup ? undefined : value => setValue('contentGroup', value ?? '')}
       onContentTypeIdChange={onContentTypeIdChange}
       onContentCategoryIdsChange={onContentCategoryIdsChange}
+      onContentCategoryNamesChange={names => setValue('contentCategoryNames', names)}
       onContentTagIdsChange={onContentTagIdsChange}
+      onContentTagNamesChange={names => setValue('contentTagNames', names)}
     />
   )
 })
@@ -309,7 +382,9 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
               watchPreview={watchPreview}
               watchContentTypeId={watchContentTypeId}
               watchContentCategoryIds={watchContentCategoryIds}
+              watchContentCategoryNames={watchContentCategoryNames}
               watchContentTagIds={watchContentTagIds}
+              watchContentTagNames={watchContentTagNames}
               setValue={setValue}
               context={context}
               extractedContentGroup={extractedContentGroup}

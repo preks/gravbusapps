@@ -1,3 +1,10 @@
+import type {
+  ContentGroupPromptOption,
+  ContentTaxonomyPromptOption,
+  ContentTypePromptOption
+} from '../services/ContentEntryAIService'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+
 export type AiActionType = 'generate' | 'improve' | 'summarize' | 'fixSpelling' | 'shorten' | 'changeTone' | 'translate'
 
 export interface AiAction {
@@ -13,12 +20,13 @@ export interface AiResponse {
   previewText: string
   content: string
   picture?: string | null
+  contentGroup?: string | null
   contentTypeId?: string
   contentCategoryIds?: string[]
+  contentCategoryNames?: string[]
   contentTagIds?: string[]
+  contentTagNames?: string[]
 }
-
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ContentAiTextGeneratorProps {
   title: string
@@ -33,10 +41,19 @@ export interface ContentAiTextGeneratorProps {
   contentGroup?: string | null
   contentTypeId?: string
   contentCategoryIds?: string[]
+  contentCategoryNames?: string[]
   contentTagIds?: string[]
+  contentTagNames?: string[]
+  contentGroupOptions?: ContentGroupPromptOption[]
+  contentTypeOptions?: ContentTypePromptOption[]
+  contentCategoryOptions?: ContentTaxonomyPromptOption[]
+  contentTagOptions?: ContentTaxonomyPromptOption[]
+  onContentGroupChange?: (value: string | undefined) => void
   onContentTypeIdChange?: (value: string | undefined) => void
   onContentCategoryIdsChange?: (ids: string[]) => void
+  onContentCategoryNamesChange?: (names: string[]) => void
   onContentTagIdsChange?: (ids: string[]) => void
+  onContentTagNamesChange?: (names: string[]) => void
 }
 
 export interface AiResponsePopoverProps {

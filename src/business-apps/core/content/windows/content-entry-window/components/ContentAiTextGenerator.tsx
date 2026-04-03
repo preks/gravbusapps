@@ -42,10 +42,19 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   contentGroup,
   contentTypeId,
   contentCategoryIds,
+  contentCategoryNames,
   contentTagIds,
+  contentTagNames,
+  contentGroupOptions,
+  contentTypeOptions,
+  contentCategoryOptions,
+  contentTagOptions,
+  onContentGroupChange,
   onContentTypeIdChange,
   onContentCategoryIdsChange,
-  onContentTagIdsChange
+  onContentCategoryNamesChange,
+  onContentTagIdsChange,
+  onContentTagNamesChange
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [view, setView] = useState<
@@ -67,7 +76,7 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
   // Initialize AI service
   useEffect(() => {
     if (context.accessToken) {
-      aiServiceRef.current = new ContentEntryAIService(promptManagerClient, context.accessToken)
+      aiServiceRef.current = new ContentEntryAIService(promptManagerClient)
     }
   }, [context.accessToken, promptManagerClient])
 
@@ -125,6 +134,12 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       const inputTitle = previousResponse?.title || title
       const inputPreviewText = previousResponse?.previewText || previewText
       const inputContent = previousResponse?.content || content
+      const inputContentGroup = previousResponse?.contentGroup ?? contentGroup
+      const inputContentTypeId = previousResponse?.contentTypeId ?? contentTypeId
+      const inputContentCategoryIds = previousResponse?.contentCategoryIds ?? contentCategoryIds
+      const inputContentCategoryNames = previousResponse?.contentCategoryNames ?? contentCategoryNames
+      const inputContentTagIds = previousResponse?.contentTagIds ?? contentTagIds
+      const inputContentTagNames = previousResponse?.contentTagNames ?? contentTagNames
 
       setActiveAction(actionType)
       setIsLoading(true)
@@ -145,20 +160,32 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         const existingContent: ContentEntryInput =
           actionType === 'generate'
             ? {
-                contentGroup,
-                contentTypeId,
-                contentCategoryIds,
-                contentTagIds
+                contentGroup: inputContentGroup,
+                contentTypeId: inputContentTypeId,
+                contentCategoryIds: inputContentCategoryIds,
+                contentCategoryNames: inputContentCategoryNames,
+                contentTagIds: inputContentTagIds,
+                contentTagNames: inputContentTagNames,
+                availableContentGroups: contentGroupOptions,
+                availableContentTypes: contentTypeOptions,
+                availableContentCategories: contentCategoryOptions,
+                availableContentTags: contentTagOptions
               }
             : {
                 title: inputTitle,
                 preview: inputPreviewText,
                 content: inputContent,
                 picture: null,
-                contentGroup,
-                contentTypeId,
-                contentCategoryIds,
-                contentTagIds
+                contentGroup: inputContentGroup,
+                contentTypeId: inputContentTypeId,
+                contentCategoryIds: inputContentCategoryIds,
+                contentCategoryNames: inputContentCategoryNames,
+                contentTagIds: inputContentTagIds,
+                contentTagNames: inputContentTagNames,
+                availableContentGroups: contentGroupOptions,
+                availableContentTypes: contentTypeOptions,
+                availableContentCategories: contentCategoryOptions,
+                availableContentTags: contentTagOptions
               }
 
         const result = await aiServiceRef.current.executeContentEntryOperation(operation, userPrompt, existingContent)
@@ -169,9 +196,12 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
           previewText: result.preview || '',
           content: result.content || '',
           picture: result.picture || null,
+          contentGroup: result.contentGroup,
           contentTypeId: result.contentTypeId,
           contentCategoryIds: result.contentCategoryIds,
-          contentTagIds: result.contentTagIds
+          contentCategoryNames: result.contentCategoryNames,
+          contentTagIds: result.contentTagIds,
+          contentTagNames: result.contentTagNames
         }
 
         setResponse(aiResponse)
@@ -184,7 +214,22 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
         setIsLoading(false)
       }
     },
-    [title, previewText, content, response, contentGroup, contentTypeId, contentCategoryIds, contentTagIds]
+    [
+      title,
+      previewText,
+      content,
+      response,
+      contentGroup,
+      contentTypeId,
+      contentCategoryIds,
+      contentCategoryNames,
+      contentTagIds,
+      contentTagNames,
+      contentGroupOptions,
+      contentTypeOptions,
+      contentCategoryOptions,
+      contentTagOptions
+    ]
   )
 
   const handleGenerate = useCallback(
@@ -286,14 +331,23 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
       }
 
       // Handle catalog fields from AI response
+      if (response.contentGroup !== undefined && onContentGroupChange) {
+        onContentGroupChange(response.contentGroup || undefined)
+      }
       if (response.contentTypeId !== undefined && onContentTypeIdChange) {
         onContentTypeIdChange(response.contentTypeId)
       }
       if (onContentCategoryIdsChange) {
         onContentCategoryIdsChange(response.contentCategoryIds || [])
       }
+      if (onContentCategoryNamesChange) {
+        onContentCategoryNamesChange(response.contentCategoryNames || [])
+      }
       if (onContentTagIdsChange) {
         onContentTagIdsChange(response.contentTagIds || [])
+      }
+      if (onContentTagNamesChange) {
+        onContentTagNamesChange(response.contentTagNames || [])
       }
 
       handleDiscard()
@@ -304,9 +358,12 @@ export const ContentAiTextGenerator: React.FC<ContentAiTextGeneratorProps> = ({
     onPreviewTextChange,
     onContentChange,
     onPictureChange,
+    onContentGroupChange,
     onContentTypeIdChange,
     onContentCategoryIdsChange,
+    onContentCategoryNamesChange,
     onContentTagIdsChange,
+    onContentTagNamesChange,
     handleDiscard
   ])
 

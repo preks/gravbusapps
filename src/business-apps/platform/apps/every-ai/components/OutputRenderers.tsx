@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, useTranslation } from
 import translations from '../_i18n'
 import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
-import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import type {
   OutputItem,
   AnswerOutput,
@@ -916,13 +916,20 @@ export const AnswerOutputRenderer: React.FC<{
 
                   setIsSendingFeedback(true)
                   try {
-                    flowbotClient.setAccessToken(accessToken)
-                    await flowbotClient.postAgentFeedback({
-                      session_id: sessionId,
-                      message_id: null,
-                      feedback: 'like',
-                      source: 'every-ai',
-                      assistant: 'Every'
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'like',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
                     })
                   } catch (error) {
                     console.error('[EveryAI] Failed to send like feedback:', error)
@@ -963,13 +970,20 @@ export const AnswerOutputRenderer: React.FC<{
 
                   setIsSendingFeedback(true)
                   try {
-                    flowbotClient.setAccessToken(accessToken)
-                    await flowbotClient.postAgentFeedback({
-                      session_id: sessionId,
-                      message_id: null,
-                      feedback: 'dislike',
-                      source: 'every-ai',
-                      assistant: 'Every'
+                    const baseUrl = resolveFlowbotBaseUrl()
+                    await fetch(`${baseUrl}/flowbot/api/agent/feedback`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`
+                      },
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        message_id: null,
+                        feedback: 'dislike',
+                        source: 'every-ai',
+                        assistant: 'Every'
+                      })
                     })
                   } catch (error) {
                     console.error('[EveryAI] Failed to send dislike feedback:', error)
