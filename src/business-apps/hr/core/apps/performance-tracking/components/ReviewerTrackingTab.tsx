@@ -85,19 +85,16 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null)
   const [comboboxOpen, setComboboxOpen] = useState(false)
 
-  const {
-    evaluations,
-    loading: evalLoading,
-    error: evalError
-  } = useReviewerEvaluations(accessToken, selectedReviewerId)
+  const selectedReviewer = reviewers.find(r => r.reviewerEmployeeId === selectedReviewerId) ?? reviewers[0] ?? null
+  const activeReviewerId = selectedReviewer?.reviewerEmployeeId ?? null
+
+  const { evaluations, loading: evalLoading, error: evalError } = useReviewerEvaluations(accessToken, activeReviewerId)
 
   const {
     evaluations: employeeEvals,
     loading: empEvalLoading,
     error: empEvalError
-  } = useEmployeeEvaluations(accessToken, selectedReviewerId)
-
-  const selectedReviewer = reviewers.find(r => r.reviewerEmployeeId === selectedReviewerId)
+  } = useEmployeeEvaluations(accessToken, activeReviewerId)
   const completedCount = evaluations.filter(e => e.completedDate).length
   const pendingCount = evaluations.length - completedCount
 
@@ -109,7 +106,7 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
   )
 
   const handleSelectReviewer = (value: string) => {
-    setSelectedReviewerId(prev => (prev === value ? null : value))
+    setSelectedReviewerId(value)
     setComboboxOpen(false)
   }
 
@@ -167,7 +164,7 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
                     >
                       <Check
                         size={16}
-                        className={`gba:mr-2 ${selectedReviewerId === option.value ? 'gba:opacity-100' : 'gba:opacity-0'}`}
+                        className={`gba:mr-2 ${activeReviewerId === option.value ? 'gba:opacity-100' : 'gba:opacity-0'}`}
                       />
                       {option.label}
                     </CommandItem>

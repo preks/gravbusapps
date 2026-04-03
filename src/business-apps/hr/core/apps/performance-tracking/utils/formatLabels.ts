@@ -7,7 +7,7 @@ const REVIEWER_TYPE_MAP: Record<string, string> = {
 const REVIEWER_STATUS_MAP: Record<string, string> = {
   COMPLETED_REVIEWER_STATUS: 'Completed',
   IN_PROGRESS_REVIEWER_STATUS: 'In Progress',
-  PENDING_APPROVAL_REVIEWER_STATUS: 'Pending Approval',
+  PENDING_APPROVAL_REVIEWER_STATUS: 'Pending',
   APPROVED_REVIEWER_STATUS: 'Approved',
   PENDING_REVIEWER_STATUS: 'Pending',
   ASSIGNED_REVIEWER_STATUS: 'Assigned'

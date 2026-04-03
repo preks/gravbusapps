@@ -1,12 +1,65 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { Spinner, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { ChartBar, UsersThree, ClipboardText, UserCircle, User } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking'
 import { useCycleDetail } from '../hooks/useCycleDetail'
 import { CycleDetailView } from './CycleDetailView'
+import { ManagerReviewsTable } from './ManagerReviewsTable'
+import { SelfReviewsTable } from './SelfReviewsTable'
 import type { CycleTrackingSummary } from '../types'
 import { formatDate } from '../utils/formatLabels'
+
+const CARD_SELECTOR = 'div[class*="card"], div[class*="Card"]'
+
+function findCardByTitle(root: HTMLElement, title: string): HTMLElement | null {
+  const titleNode = Array.from(root.querySelectorAll<HTMLElement>('h1,h2,h3,h4,h5,h6,p,span,div')).find(
+    node => node.textContent?.trim() === title.trim()
+  )
+  if (!titleNode) return null
+  const card = titleNode.closest<HTMLElement>(CARD_SELECTOR)
+  if (!card) return null
+  let top = card
+  let ancestor = top.parentElement?.closest<HTMLElement>(CARD_SELECTOR)
+  while (ancestor) {
+    top = ancestor
+    ancestor = top.parentElement?.closest<HTMLElement>(CARD_SELECTOR)
+  }
+  return top
+}
+
+function wireClickableWidgets(root: HTMLElement, widgets: WidgetItem[]): () => void {
+  const controller = new AbortController()
+  const { signal } = controller
+
+  for (const widget of widgets) {
+    if (typeof widget.onClick !== 'function') continue
+    const card = findCardByTitle(root, widget.title)
+    if (!card) continue
+
+    card.style.cursor = 'pointer'
+    card.setAttribute('role', 'button')
+    card.tabIndex = 0
+    if (widget.title) card.setAttribute('aria-label', widget.title)
+
+    const activate = (): void => {
+      widget.onClick?.()
+    }
+    card.addEventListener('click', activate, { signal })
+    card.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          activate()
+        }
+      },
+      { signal }
+    )
+  }
+
+  return () => controller.abort()
+}
 
 function formatCycleLabel(cycle: CycleTrackingSummary): string {
   const start = formatDate(cycle.evaluationPeriodStartDate ?? cycle.startDate, '')
@@ -74,6 +127,9 @@ interface CycleTrackingTabProps {
 export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken }) => {
   const { cycles, loading, error, refetch } = usePerformanceTracking(accessToken)
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
+  const [showManagerTable, setShowManagerTable] = useState(false)
+  const [showSelfTable, setShowSelfTable] = useState(false)
+  const kpiContainerRef = useRef<HTMLDivElement>(null)
 
   const selectedCycle = cycles.find(c => c.id === selectedCycleId) ?? cycles[0] ?? null
   const activeCycleId = selectedCycle?.id ?? null
@@ -81,8 +137,35 @@ export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken 
   const { evaluations, loading: detailLoading, error: detailError } = useCycleDetail(accessToken, activeCycleId)
 
   const kpiWidgets = useMemo(() => {
-    return selectedCycle ? buildKpiWidgets(selectedCycle) : []
-  }, [selectedCycle])
+    if (!selectedCycle) return []
+    const widgets = buildKpiWidgets(selectedCycle)
+    const managerWidget = widgets.find(w => w.key === 'manager-reviews')
+    if (managerWidget) {
+      managerWidget.onClick = () => setShowManagerTable(prev => !prev)
+      managerWidget.active = showManagerTable
+    }
+    const selfWidget = widgets.find(w => w.key === 'self-reviews')
+    if (selfWidget) {
+      selfWidget.onClick = () => setShowSelfTable(prev => !prev)
+      selfWidget.active = showSelfTable
+    }
+    return widgets
+  }, [selectedCycle, showManagerTable, showSelfTable])
+
+  useEffect(() => {
+    if (!kpiContainerRef.current || kpiWidgets.length === 0) return
+    let cleanup = wireClickableWidgets(kpiContainerRef.current, kpiWidgets)
+    const timeoutId = setTimeout(() => {
+      cleanup()
+      if (kpiContainerRef.current) {
+        cleanup = wireClickableWidgets(kpiContainerRef.current, kpiWidgets)
+      }
+    }, 100)
+    return () => {
+      clearTimeout(timeoutId)
+      cleanup()
+    }
+  }, [kpiWidgets])
 
   if (error) {
     return (
@@ -129,13 +212,21 @@ export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken 
 
       {selectedCycle && (
         <>
-          <WidgetGroup
-            widgets={kpiWidgets}
-            isLoading={false}
-            error={null}
-            onRetry={refetch}
-            data-testid="cycle-tracking-kpis"
-          />
+          <div ref={kpiContainerRef}>
+            <WidgetGroup
+              widgets={kpiWidgets}
+              isLoading={false}
+              error={null}
+              onRetry={refetch}
+              data-testid="cycle-tracking-kpis"
+            />
+          </div>
+          {showManagerTable && (
+            <ManagerReviewsTable evaluations={evaluations} loading={detailLoading} cycleName={selectedCycle.name} />
+          )}
+          {showSelfTable && (
+            <SelfReviewsTable evaluations={evaluations} loading={detailLoading} cycleName={selectedCycle.name} />
+          )}
           <CycleDetailView
             evaluations={evaluations}
             loading={detailLoading}
