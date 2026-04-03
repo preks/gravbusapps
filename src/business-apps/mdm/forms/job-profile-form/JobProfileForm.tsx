@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import {
@@ -17,6 +17,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { env } from '@/common/env/EnvUtils'
 import SkillsSection from './components/SkillsSection'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import type { FileListEntry } from '@/common/types/FileTypes'
 
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
@@ -26,6 +27,16 @@ interface JobProfileSkill {
   skillId: string
   skillName: string
   level: number | null
+}
+
+interface JobDescriptionInitialFile {
+  id: string
+  fileId: string
+  name: string
+  type: string
+  path: string
+  size: number
+  url: string
 }
 
 export interface JobProfileFormProps extends BusinessAppContextProps {
@@ -66,6 +77,103 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
     id: string
     name: string
   } | null>(jobProfile?.jobLevel ?? null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLoadingJobDescriptionFile, setIsLoadingJobDescriptionFile] = useState(false)
+  const [initialJobDescriptionFile, setInitialJobDescriptionFile] = useState<JobDescriptionInitialFile | null>(null)
+  const [previousJobDescriptionFileIds, setPreviousJobDescriptionFileIds] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    let objectUrlToRevoke: string | null = null
+
+    const fetchJobDescriptionFile = async () => {
+      if (!isModalOpen || !jobProfile?.id) {
+        setInitialJobDescriptionFile(null)
+        setPreviousJobDescriptionFileIds([])
+        setIsLoadingJobDescriptionFile(false)
+        return
+      }
+
+      try {
+        setIsLoadingJobDescriptionFile(true)
+        const response = await fileClient.getAllFiles(
+          { accessScope: 'tenant' },
+          {
+            appName: 'mdm',
+            folderPath: `/job-profiles/${jobProfile.id}/documents`
+          }
+        )
+
+        const files = Array.isArray(response.files) ? response.files : []
+        const fileIds = files.map(file => file.fileId).filter((fileId): fileId is string => Boolean(fileId))
+        setPreviousJobDescriptionFileIds(fileIds)
+
+        const latestFile = [...files]
+          .sort((a: FileListEntry, b: FileListEntry) => {
+            const first = new Date(a.uploadedAt || '').getTime()
+            const second = new Date(b.uploadedAt || '').getTime()
+            return second - first
+          })
+          .find(file => Boolean(file.fileId))
+
+        if (!latestFile || cancelled) {
+          setInitialJobDescriptionFile(null)
+          return
+        }
+
+        let fileSize = 0
+        let fileUrl = latestFile.path || latestFile.fileId
+        const filePath = latestFile.path || ''
+
+        try {
+          const downloaded = filePath
+            ? await fileClient.downloadFileByPath(filePath, accessToken || '')
+            : await fileClient.getFile(
+                { accessScope: 'tenant', fileId: latestFile.fileId },
+                {
+                  appName: 'mdm',
+                  folderPath: `/job-profiles/${jobProfile.id}/documents`
+                }
+              )
+
+          fileSize = downloaded.size
+          objectUrlToRevoke = URL.createObjectURL(downloaded)
+          fileUrl = objectUrlToRevoke
+        } catch (downloadError) {
+          console.error('Error downloading existing job description file:', downloadError)
+        }
+
+        setInitialJobDescriptionFile({
+          id: latestFile.fileId,
+          fileId: latestFile.fileId,
+          name: latestFile.fileMetadata?.originalFileName || latestFile.fileId,
+          type: latestFile.fileMetadata?.mimeType || '',
+          path: latestFile.path || latestFile.fileId,
+          size: fileSize,
+          url: fileUrl
+        })
+      } catch (error) {
+        if (!cancelled) {
+          setInitialJobDescriptionFile(null)
+          setPreviousJobDescriptionFileIds([])
+        }
+        console.error('Error fetching existing job description file:', error)
+      } finally {
+        if (!cancelled) {
+          setIsLoadingJobDescriptionFile(false)
+        }
+      }
+    }
+
+    fetchJobDescriptionFile()
+
+    return () => {
+      cancelled = true
+      if (objectUrlToRevoke) {
+        URL.revokeObjectURL(objectUrlToRevoke)
+      }
+    }
+  }, [accessToken, fileClient, isModalOpen, jobProfile?.id])
 
   const jobLevels = useMemo(() => {
     if (!jobFunctions || !Array.isArray(jobFunctions)) {
@@ -100,9 +208,21 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 
       // Upload job description file if provided
       let jobDescriptionFileId: string | null = null
-      if (values.jobDescriptionFile) {
+      let uploadedNewJobDescriptionFile = false
+      const previousFileIds = previousJobDescriptionFileIds
+      const jobDescriptionValue = values.jobDescriptionFile
+      const currentJobDescriptionEntries = Array.isArray(jobDescriptionValue)
+        ? jobDescriptionValue.filter(Boolean)
+        : jobDescriptionValue
+          ? [jobDescriptionValue]
+          : []
+      const fileWasRemoved =
+        Boolean(jobProfile?.id) && previousFileIds.length > 0 && currentJobDescriptionEntries.length === 0
+
+      if (currentJobDescriptionEntries.length > 0) {
         try {
-          const file = values.jobDescriptionFile?.originFileObj || values.jobDescriptionFile?.file
+          const firstEntry = currentJobDescriptionEntries[0]
+          const file = firstEntry?.originFileObj || firstEntry?.file
           if (file instanceof File) {
             const uploadResponse = await fileClient.uploadFile(
               file,
@@ -114,9 +234,10 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
               }
             )
             jobDescriptionFileId = uploadResponse?.fileInfo?.fileId || null
-          } else if (values.jobDescriptionFile?.fileId) {
+            uploadedNewJobDescriptionFile = Boolean(jobDescriptionFileId)
+          } else if (firstEntry?.fileId) {
             // File already uploaded, use existing fileId
-            jobDescriptionFileId = values.jobDescriptionFile.fileId
+            jobDescriptionFileId = firstEntry.fileId
           }
         } catch (fileError) {
           console.error('Error uploading job description file:', fileError)
@@ -145,7 +266,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
           jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
           recordState: values.active,
           ...(skills.length > 0 ? { skills } : {}),
-          ...(jobDescriptionFileId ? { jobDescriptionFileId } : {}),
+          ...(jobDescriptionFileId ? { jobDescriptionFileId } : fileWasRemoved ? { jobDescriptionFileId: null } : {}),
           ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
         }
       }
@@ -153,6 +274,31 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
       await restClient.post('/employee/saveJobProfile', payload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
+
+      const fileIdsToDelete =
+        Boolean(jobProfile?.id) && fileWasRemoved
+          ? previousFileIds
+          : Boolean(jobProfile?.id) && uploadedNewJobDescriptionFile
+            ? previousFileIds.filter(fileId => fileId !== jobDescriptionFileId)
+            : []
+
+      if (fileIdsToDelete.length > 0 && jobProfile?.id) {
+        try {
+          await Promise.all(
+            fileIdsToDelete.map(fileId =>
+              fileClient.deleteFile(
+                { accessScope: 'tenant', fileId },
+                {
+                  appName: 'mdm',
+                  folderPath: `/job-profiles/${jobProfile.id}/documents`
+                }
+              )
+            )
+          )
+        } catch (deleteError) {
+          console.error('Failed to delete previous job description files:', deleteError)
+        }
+      }
 
       refetch()
     } catch (error) {
@@ -208,6 +354,8 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
       loading={loading}
       dataTestId={dataTestId}
       isDrawerActive={isDrawerActive}
+      open={isModalOpen}
+      setOpen={setIsModalOpen}
     >
       <FormField
         name="name"
@@ -386,7 +534,12 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
         )}
       />
 
-      <SkillsSection dataTestId={dataTestId} accessToken={accessToken || ''} />
+      <SkillsSection
+        dataTestId={dataTestId}
+        accessToken={accessToken || ''}
+        isLoadingJobDescriptionFile={isLoadingJobDescriptionFile}
+        initialJobDescriptionFile={initialJobDescriptionFile}
+      />
 
       <FormField
         name="active"

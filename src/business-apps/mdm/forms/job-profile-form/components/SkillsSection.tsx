@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import { FormField, FormItem, FormControl, FormMessage, Combobox, Button, FileUpload } from '@newwork/nw-design-system'
+import {
+  FormField,
+  FormItem,
+  FormControl,
+  FormMessage,
+  Combobox,
+  Button,
+  FileUpload,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { SkillLevelRow } from '@/business-apps/hr/core/forms/add-skill/components/SkillLevelRow'
 import { DebouncedInput } from '@/components/debounced-input'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -8,10 +18,21 @@ import { SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from '@/business-apps/hr/cor
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
+import translations from '../_i18n'
 
 interface SkillsSectionProps {
   dataTestId: string
   accessToken?: string
+  isLoadingJobDescriptionFile?: boolean
+  initialJobDescriptionFile?: {
+    id: string
+    fileId: string
+    name: string
+    type: string
+    path: string
+    size: number
+    url: string
+  } | null
 }
 
 const getSkillValidationError = (name: string): string | null => {
@@ -22,7 +43,13 @@ const getSkillValidationError = (name: string): string | null => {
   return null
 }
 
-const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }) => {
+const SkillsSection: React.FC<SkillsSectionProps> = ({
+  dataTestId,
+  accessToken,
+  isLoadingJobDescriptionFile = false,
+  initialJobDescriptionFile
+}) => {
+  const { t } = useTranslation(translations)
   const levelOptions = [
     { value: '1', label: '1' },
     { value: '2', label: '2' },
@@ -51,6 +78,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
   const [inputKey, setInputKey] = useState(0)
   const suppressOpenRef = useRef(false)
   const searchSeqRef = useRef(0)
+  const hydratedInitialFileIdRef = useRef<string | null>(null)
 
   // Get currently selected skill IDs to filter them out
   const selectedSkillIds = useMemo(() => {
@@ -118,6 +146,42 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
       isActive = false
     }
   }, [searchTerm, loadSearchResults])
+
+  useEffect(() => {
+    if (!initialJobDescriptionFile) {
+      hydratedInitialFileIdRef.current = null
+      return
+    }
+
+    const currentValue = form.getValues('jobDescriptionFile')
+    const hasAnyCurrentFile = Boolean(
+      currentValue?.originFileObj instanceof File ||
+        currentValue?.file instanceof File ||
+        currentValue?.fileId ||
+        currentValue?.uid
+    )
+
+    if (hasAnyCurrentFile) {
+      hydratedInitialFileIdRef.current = initialJobDescriptionFile.fileId
+      return
+    }
+
+    if (hydratedInitialFileIdRef.current === initialJobDescriptionFile.fileId) {
+      return
+    }
+
+    form.setValue(
+      'jobDescriptionFile',
+      {
+        fileId: initialJobDescriptionFile.fileId,
+        name: initialJobDescriptionFile.name,
+        mimeType: initialJobDescriptionFile.type,
+        path: initialJobDescriptionFile.path
+      },
+      { shouldDirty: false }
+    )
+    hydratedInitialFileIdRef.current = initialJobDescriptionFile.fileId
+  }, [form, initialJobDescriptionFile])
 
   const handleSelectSkill = (skill: { id: string; name: string }) => {
     append({
@@ -323,41 +387,106 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
 
       {/* Job Description File Upload */}
       <div className="gba:space-y-2">
-        <label className="gba:text-sm gba:font-medium gba:text-foreground">Job Description (Optional)</label>
-        <FormField
-          name="jobDescriptionFile"
-          render={({ field }) => (
-            <FormItem>
-              <FormControl>
-                <FileUpload
-                  multiple={false}
-                  maxFiles={1}
-                  accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-                  layout="list"
-                  preview="icon"
-                  onChange={(files: any[]) => {
-                    if (files && files.length > 0) {
-                      const fileObj = files[0]
-                      // Store the file object with the actual File instance
-                      const uploadFile = {
-                        uid: fileObj.id || fileObj.uid || Date.now().toString(),
-                        name: fileObj.file?.name || fileObj.name || 'file',
-                        status: 'done' as const,
-                        originFileObj: fileObj.file instanceof File ? fileObj.file : fileObj.originFileObj || null,
-                        file: fileObj.file instanceof File ? fileObj.file : fileObj.originFileObj || null
+        <label className="gba:text-sm gba:font-medium gba:text-foreground">{t('job-description-label')}</label>
+        {isLoadingJobDescriptionFile ? (
+          <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:min-h-20 gba:px-4 gba:rounded-md gba:border gba:border-border gba:bg-muted/30">
+            <Spinner size="sm" />
+            <span className="gba:text-sm gba:text-muted-foreground">{t('job-description-loading-message')}</span>
+          </div>
+        ) : (
+          <FormField
+            name="jobDescriptionFile"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <div className="gba:min-w-0 gba:[&_span]:gba:whitespace-normal gba:[&_span]:gba:break-all gba:[&_p]:gba:whitespace-normal gba:[&_p]:gba:break-all">
+                    <FileUpload
+                      key={
+                        field.value?.fileId ||
+                        field.value?.uid ||
+                        initialJobDescriptionFile?.fileId ||
+                        initialJobDescriptionFile?.id ||
+                        'job-description-empty'
                       }
-                      field.onChange(uploadFile)
-                    } else {
-                      field.onChange(null)
-                    }
-                  }}
-                  data-testid={`${dataTestId}-job-description-upload`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                      multiple={false}
+                      maxFiles={1}
+                      accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                      layout="list"
+                      preview="icon"
+                      initialFiles={
+                        field.value || initialJobDescriptionFile
+                          ? [
+                              {
+                                id:
+                                  field.value?.fileId ||
+                                  field.value?.uid ||
+                                  initialJobDescriptionFile?.fileId ||
+                                  initialJobDescriptionFile?.id ||
+                                  'job-description',
+                                name:
+                                  field.value?.name ||
+                                  field.value?.file?.name ||
+                                  initialJobDescriptionFile?.name ||
+                                  'file',
+                                size:
+                                  field.value?.file?.size || field.value?.size || initialJobDescriptionFile?.size || 0,
+                                type:
+                                  field.value?.mimeType ||
+                                  field.value?.file?.type ||
+                                  initialJobDescriptionFile?.type ||
+                                  '',
+                                url:
+                                  field.value?.url ||
+                                  field.value?.path ||
+                                  initialJobDescriptionFile?.url ||
+                                  initialJobDescriptionFile?.path ||
+                                  ''
+                              }
+                            ]
+                          : []
+                      }
+                      onChange={(files: any[]) => {
+                        if (files && files.length > 0) {
+                          const fileObj = files[0]
+                          const uploadedFile =
+                            fileObj?.file instanceof File
+                              ? fileObj.file
+                              : fileObj?.originFileObj instanceof File
+                                ? fileObj.originFileObj
+                                : null
+
+                          if (uploadedFile) {
+                            field.onChange({
+                              uid: fileObj.id || fileObj.uid || Date.now().toString(),
+                              name: uploadedFile.name,
+                              status: 'done' as const,
+                              originFileObj: uploadedFile,
+                              file: uploadedFile
+                            })
+                            return
+                          }
+
+                          field.onChange({
+                            fileId: fileObj.fileId || fileObj.id || null,
+                            name: fileObj.name || 'file',
+                            mimeType: fileObj.type || fileObj.mimeType || '',
+                            path: fileObj.path || fileObj.url || '',
+                            size: fileObj.size || 0,
+                            url: fileObj.url || fileObj.path || ''
+                          })
+                        } else {
+                          field.onChange(null)
+                        }
+                      }}
+                      data-testid={`${dataTestId}-job-description-upload`}
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
       </div>
     </div>
   )
