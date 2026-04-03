@@ -141,23 +141,31 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
   }, [])
 
   return (
-    <div className="gba:space-y-6">
+    <div className="gba:space-y-6" data-testid="payroll-prep-exceptions-view">
       <div className="gba:grid gba:grid-cols-4 gba:gap-4">
-        <Card className="gba:p-4 gba:text-center">
-          <p className="gba:text-2xl gba:font-bold gba:text-destructive">{blockerCount}</p>
-          <p className="gba:text-sm gba:text-muted-foreground">{t('severity-blocker')}s</p>
+        <Card className="gba:p-4 gba:min-h-[96px]">
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full">
+            <p className="gba:text-2xl gba:font-bold gba:text-destructive">{blockerCount}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">{t('severity-blocker')}s</p>
+          </div>
         </Card>
-        <Card className="gba:p-4 gba:text-center">
-          <p className="gba:text-2xl gba:font-bold gba:text-warning">{warningCount}</p>
-          <p className="gba:text-sm gba:text-muted-foreground">{t('severity-warning')}s</p>
+        <Card className="gba:p-4 gba:min-h-[96px]">
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full">
+            <p className="gba:text-2xl gba:font-bold gba:text-warning">{warningCount}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">{t('severity-warning')}s</p>
+          </div>
         </Card>
-        <Card className="gba:p-4 gba:text-center">
-          <p className="gba:text-2xl gba:font-bold gba:text-primary">{infoCount}</p>
-          <p className="gba:text-sm gba:text-muted-foreground">{t('severity-info')}</p>
+        <Card className="gba:p-4 gba:min-h-[96px]">
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full">
+            <p className="gba:text-2xl gba:font-bold gba:text-primary">{infoCount}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">{t('severity-info')}</p>
+          </div>
         </Card>
-        <Card className="gba:p-4 gba:text-center">
-          <p className="gba:text-2xl gba:font-bold gba:text-foreground">{affectedEmployees}</p>
-          <p className="gba:text-sm gba:text-muted-foreground">{t('summary-total')}</p>
+        <Card className="gba:p-4 gba:min-h-[96px]">
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full">
+            <p className="gba:text-2xl gba:font-bold gba:text-foreground">{affectedEmployees}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">{t('summary-total')}</p>
+          </div>
         </Card>
       </div>
 
@@ -172,7 +180,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                 value={severityFilter}
                 onValueChange={(val: string) => setSeverityFilter(val as IssueSeverity | 'all')}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="payroll-prep-exceptions-severity-select">
                   <SelectValue placeholder="Severity" />
                 </SelectTrigger>
                 <SelectContent>
@@ -193,7 +201,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                 value={categoryFilter}
                 onValueChange={(val: string) => setCategoryFilter(val as IssueCategory | 'all')}
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="payroll-prep-exceptions-category-select">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -209,14 +217,24 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
           </div>
           {addressedIds.size > 0 && (
             <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <Checkbox checked={hideAddressed} onCheckedChange={checked => setHideAddressed(!!checked)} />
+              <Checkbox
+                checked={hideAddressed}
+                onCheckedChange={checked => setHideAddressed(!!checked)}
+                data-testid="payroll-prep-exceptions-hide-addressed-checkbox"
+              />
               <span className="gba:text-sm gba:text-muted-foreground">
                 {t('exceptions-hide-addressed')} ({addressedIds.size})
               </span>
             </label>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={refreshing}
+          data-testid="payroll-prep-exceptions-refresh-button"
+        >
           <ArrowsClockwiseIcon size={16} className={refreshing ? 'gba:animate-spin' : ''} />
           {t('refresh-data')}
         </Button>
@@ -224,7 +242,10 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
 
       <div className="gba:space-y-2">
         {filteredIssues.length === 0 ? (
-          <Card className="gba:p-8 gba:text-center gba:text-muted-foreground">
+          <Card
+            className="gba:p-8 gba:text-center gba:text-muted-foreground"
+            data-testid="payroll-prep-exceptions-empty-state"
+          >
             {allIssues.length === 0
               ? 'No exceptions found. All employees pass validation.'
               : 'No issues match the selected filters.'}
@@ -237,6 +258,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
               <Card
                 key={issueKey}
                 className={`gba:p-4 gba:transition-colors ${isAddressed ? 'gba:opacity-50' : 'gba:hover:bg-muted/50'}`}
+                data-testid={`payroll-prep-exception-card-${issueKey}`}
               >
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <Checkbox
@@ -244,12 +266,14 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                     onCheckedChange={() => toggleAddressed(issueKey)}
                     aria-label={t('exceptions-mark-addressed')}
                     className="gba:mt-0.5"
+                    data-testid={`payroll-prep-exception-addressed-checkbox-${issueKey}`}
                   />
                   <SeverityIcon severity={issue.severity} />
                   <button
                     type="button"
                     className="gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:text-left"
                     onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
+                    data-testid={`payroll-prep-exception-open-${issueKey}`}
                   >
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
                       <div className="gba:flex gba:items-center gba:gap-2">

@@ -15,8 +15,11 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
   }, 0)
 
   return (
-    <div className="gba:space-y-6">
-      <Card className="gba:p-4 gba:flex gba:items-center gba:justify-between">
+    <div className="gba:space-y-6" data-testid="payroll-prep-country-checks-de-view">
+      <Card
+        className="gba:p-4 gba:flex gba:items-center gba:justify-between"
+        data-testid="payroll-prep-country-checks-de-summary-card"
+      >
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
             {t('country-de')} — {t('country-checks-title')}
@@ -29,7 +32,7 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
 
       <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
         <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">
-          <Table>
+          <Table data-testid="payroll-prep-country-checks-de-table">
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:min-w-[180px]">{t('grid-employee')}</TableHead>
@@ -50,7 +53,7 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
                 const hasBlockers = deOpenIssues.some(i => i.severity === 'blocker')
 
                 return (
-                  <TableRow key={emp.id}>
+                  <TableRow key={emp.id} data-testid={`payroll-prep-country-checks-de-row-${emp.id}`}>
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <div className="gba:w-7 gba:h-7 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">

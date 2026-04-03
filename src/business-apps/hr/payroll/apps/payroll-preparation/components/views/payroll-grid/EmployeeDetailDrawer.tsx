@@ -61,8 +61,12 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
         aria-label={t('close')}
         className="gba:fixed gba:inset-0 gba:z-[100] gba:bg-black/20 gba:cursor-default"
         onClick={onClose}
+        data-testid="payroll-prep-employee-drawer-backdrop"
       />
-      <aside className="gba:fixed gba:top-0 gba:bottom-0 gba:right-0 gba:w-[480px] gba:max-w-[100vw] gba:bg-background gba:shadow-2xl gba:z-[101] gba:overflow-y-auto gba:border-l gba:border-border">
+      <aside
+        className="gba:fixed gba:top-0 gba:bottom-0 gba:right-0 gba:w-[480px] gba:max-w-[100vw] gba:bg-background gba:shadow-2xl gba:z-[101] gba:overflow-y-auto gba:border-l gba:border-border"
+        data-testid="payroll-prep-employee-drawer"
+      >
         <div className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border gba:px-6 gba:py-4">
           <div className="gba:flex gba:items-center gba:justify-between">
             <div className="gba:flex gba:items-center gba:gap-3">
@@ -83,10 +87,21 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <Button variant="ghost" size="icon" onClick={openEmployeeRecord} title={t('employee-detail-title')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openEmployeeRecord}
+                title={t('employee-detail-title')}
+                data-testid="payroll-prep-employee-drawer-open-record-button"
+              >
                 <ArrowSquareOutIcon size={18} />
               </Button>
-              <Button variant="ghost" size="icon" onClick={onClose}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                data-testid="payroll-prep-employee-drawer-close-button"
+              >
                 <XIcon size={18} />
               </Button>
             </div>

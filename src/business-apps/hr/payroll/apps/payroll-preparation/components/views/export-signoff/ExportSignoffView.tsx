@@ -308,7 +308,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep > 0
 
     return (
-      <Card className={getStepCardClasses(isActive, isCompleted)}>
+      <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-1-card">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-1-label')}</h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
@@ -320,7 +320,11 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
         {isActive && (
           <>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('step-1-description')}</p>
-            <Button onClick={handleMarkReady} disabled={saving || summary.blockedCount > 0}>
+            <Button
+              onClick={handleMarkReady}
+              disabled={saving || summary.blockedCount > 0}
+              data-testid="payroll-prep-export-mark-ready-button"
+            >
               {t('signoff-mark-ready')}
             </Button>
             {summary.blockedCount > 0 && (
@@ -352,7 +356,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep > 1
 
     return (
-      <Card className={getStepCardClasses(isActive, isCompleted)}>
+      <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-2-card">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-2-label')}</h3>
           {isCompleted && payrollRun?.approvalDecision === 'APPROVED' && (
@@ -396,17 +400,23 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                   commentError ? 'gba:border-destructive' : 'gba:border-border'
                 }`}
                 placeholder={t('signoff-comments-placeholder')}
+                data-testid="payroll-prep-export-review-comment-textarea"
               />
               {commentError && (
                 <p className="gba:text-xs gba:text-destructive gba:mt-1">{t('step-2-comment-required')}</p>
               )}
             </div>
             <div className="gba:flex gba:gap-3">
-              <Button onClick={handleApprove} disabled={saving}>
+              <Button onClick={handleApprove} disabled={saving} data-testid="payroll-prep-export-approve-button">
                 <CheckCircleIcon size={16} weight="fill" className="gba:mr-2" />
                 {t('signoff-approve')}
               </Button>
-              <Button variant="outline" onClick={handleReject} disabled={saving}>
+              <Button
+                variant="outline"
+                onClick={handleReject}
+                disabled={saving}
+                data-testid="payroll-prep-export-reject-button"
+              >
                 <ArrowClockwiseIcon size={16} className="gba:mr-2" />
                 {t('signoff-reject')}
               </Button>
@@ -441,7 +451,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep > 2
 
     return (
-      <Card className={getStepCardClasses(isActive, isCompleted)}>
+      <Card className={getStepCardClasses(isActive, isCompleted)} data-testid="payroll-prep-export-step-3-card">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
             <ExportIcon size={20} className="gba:inline gba:mr-2" />
@@ -482,7 +492,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                     value={exportMode}
                     onValueChange={(val: string) => setExportMode(val as ExportOptions['mode'])}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="payroll-prep-export-mode-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -498,7 +508,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                     {t('export-format-label')}
                   </label>
                   <Select value={exportFormat} onValueChange={(val: string) => setExportFormat(val as 'csv' | 'xlsx')}>
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="payroll-prep-export-format-select">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -516,6 +526,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                     checked={includeIssues}
                     onChange={e => setIncludeIssues(e.target.checked)}
                     className="gba:rounded gba:border-border"
+                    data-testid="payroll-prep-export-include-issues-checkbox"
                   />
                   {t('export-include-issues')}
                 </label>
@@ -526,6 +537,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
                     checked={applyGridFilters}
                     onChange={e => setApplyGridFilters(e.target.checked)}
                     className="gba:rounded gba:border-border"
+                    data-testid="payroll-prep-export-apply-grid-filters-checkbox"
                   />
                   <span
                     className={gridFiltersActive ? 'gba:text-foreground gba:font-medium' : 'gba:text-muted-foreground'}
@@ -542,11 +554,19 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
               </div>
 
               <div className="gba:flex gba:gap-3">
-                <Button onClick={handleExport} disabled={exportCount === 0 || exporting}>
+                <Button
+                  onClick={handleExport}
+                  disabled={exportCount === 0 || exporting}
+                  data-testid="payroll-prep-export-button"
+                >
                   <ExportIcon size={16} className="gba:mr-2" />
                   {t('export-button')} ({exportCount})
                 </Button>
-                <Button variant="outline" onClick={handleExportExceptions}>
+                <Button
+                  variant="outline"
+                  onClick={handleExportExceptions}
+                  data-testid="payroll-prep-export-exceptions-button"
+                >
                   {t('export-exceptions-button')}
                 </Button>
               </div>
@@ -570,7 +590,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
     const isCompleted = currentStep >= 3
 
     return (
-      <Card className={`gba:p-6 ${isCompleted ? '' : 'gba:opacity-50'}`}>
+      <Card className={`gba:p-6 ${isCompleted ? '' : 'gba:opacity-50'}`} data-testid="payroll-prep-export-step-4-card">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{t('step-4-label')}</h3>
           {isCompleted && <CompletedStepBadge label={t('step-completed')} />}
@@ -627,7 +647,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   }
 
   const renderAuditTrail = () => (
-    <Card className="gba:p-6">
+    <Card className="gba:p-6" data-testid="payroll-prep-export-audit-trail-card">
       <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
         <ClockIcon size={20} className="gba:inline gba:mr-2" />
         {t('audit-trail')}
@@ -635,9 +655,16 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
       {auditEvents.length === 0 ? (
         <p className="gba:text-sm gba:text-muted-foreground">{t('audit-empty')}</p>
       ) : (
-        <div className="gba:space-y-2 gba:max-h-[400px] gba:overflow-y-auto">
+        <div
+          className="gba:space-y-2 gba:max-h-[400px] gba:overflow-y-auto"
+          data-testid="payroll-prep-export-audit-events-list"
+        >
           {auditEvents.map(event => (
-            <div key={event.id} className="gba:flex gba:items-start gba:gap-3 gba:py-2 gba:border-b gba:border-border">
+            <div
+              key={event.id}
+              className="gba:flex gba:items-start gba:gap-3 gba:py-2 gba:border-b gba:border-border"
+              data-testid={`payroll-prep-export-audit-event-${event.id}`}
+            >
               <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:mt-1.5 gba:flex-shrink-0" />
               <div className="gba:flex-1">
                 <p className="gba:text-sm gba:text-foreground">{getAuditDescriptionLabel(event, t)}</p>
@@ -654,7 +681,7 @@ export const ExportSignoffView: React.FC<ExportSignoffViewProps> = ({
   )
 
   return (
-    <div className="gba:space-y-6">
+    <div className="gba:space-y-6" data-testid="payroll-prep-export-signoff-view">
       {renderStepIndicator()}
       {renderStep1()}
       {renderStep2()}

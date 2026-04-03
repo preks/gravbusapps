@@ -119,7 +119,7 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
                 {t('create-run-month')}
               </label>
               <Select value={String(month)} onValueChange={handleMonthChange}>
-                <SelectTrigger>
+                <SelectTrigger data-testid="payroll-prep-create-run-month-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -137,7 +137,7 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
                 {t('create-run-year')}
               </label>
               <Select value={String(year)} onValueChange={handleYearChange}>
-                <SelectTrigger>
+                <SelectTrigger data-testid="payroll-prep-create-run-year-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -159,6 +159,7 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
               type="date"
               value={cutOffDate}
               onChange={val => setCutOffDate(typeof val === 'string' ? val : '')}
+              data-testid="payroll-prep-create-run-cutoff-input"
             />
           </div>
 
@@ -170,6 +171,7 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
               type="date"
               value={paymentDate}
               onChange={val => setPaymentDate(typeof val === 'string' ? val : '')}
+              data-testid="payroll-prep-create-run-payment-input"
             />
           </div>
 
@@ -177,10 +179,19 @@ export const CreatePayrollRunDialog: React.FC<CreatePayrollRunDialogProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+            data-testid="payroll-prep-create-run-cancel-button"
+          >
             {t('create-run-cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || saving}>
+          <Button
+            onClick={handleSubmit}
+            disabled={!isValid || saving}
+            data-testid="payroll-prep-create-run-submit-button"
+          >
             {t('create-run-submit')}
           </Button>
         </DialogFooter>

@@ -27,14 +27,14 @@ export const PayrollRunSelector: React.FC<PayrollRunSelectorProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
+    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap" data-testid="payroll-prep-company-selector">
       <div className="gba:flex gba:items-center gba:gap-2">
         <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
           {t('label-company')}
         </span>
         <div className="gba:min-w-[240px]">
           <Select value={selectedCompanyId || ''} onValueChange={handleCompanyChange}>
-            <SelectTrigger>
+            <SelectTrigger data-testid="payroll-prep-company-select-trigger">
               <SelectValue placeholder={companiesLoading ? t('loading') : t('select-company')} />
             </SelectTrigger>
             <SelectContent>

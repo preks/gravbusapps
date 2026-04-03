@@ -55,16 +55,18 @@ interface ReadinessSegmentConfig {
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
-  <Card className="gba:p-4 gba:flex gba:flex-row gba:items-center gba:gap-3">
-    <Badge
-      variant={variant}
-      className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:flex gba:items-center gba:justify-center"
-    >
-      {icon}
-    </Badge>
-    <div className="gba:min-w-0">
-      <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
-      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
+  <Card className="gba:p-4">
+    <div className="gba:flex gba:flex-row gba:items-center gba:gap-3">
+      <Badge
+        variant={variant}
+        className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:flex gba:items-center gba:justify-center"
+      >
+        {icon}
+      </Badge>
+      <div className="gba:min-w-0">
+        <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
+      </div>
     </div>
   </Card>
 )
@@ -106,16 +108,23 @@ function RunsListView({
   t: (key: string) => string
 }>) {
   if (runsLoading) {
-    return <Card className="gba:p-12 gba:text-center gba:text-muted-foreground">{t('loading')}</Card>
+    return (
+      <Card
+        className="gba:p-12 gba:text-center gba:text-muted-foreground"
+        data-testid="payroll-prep-overview-runs-loading"
+      >
+        {t('loading')}
+      </Card>
+    )
   }
 
   if (runs.length === 0) {
     return (
-      <Card className="gba:p-12 gba:text-center">
+      <Card className="gba:p-12 gba:text-center" data-testid="payroll-prep-overview-runs-empty">
         <FolderOpenIcon size={48} className="gba:mx-auto gba:text-muted-foreground/40 gba:mb-4" />
         <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">{t('runs-empty')}</h3>
         <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('runs-empty-hint')}</p>
-        <Button onClick={onCreateRun}>
+        <Button onClick={onCreateRun} data-testid="payroll-prep-overview-create-run-empty-button">
           <PlusIcon size={16} className="gba:mr-2" />
           {t('runs-new-button')}
         </Button>
@@ -130,14 +139,14 @@ function RunsListView({
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('runs-title')}</h3>
           <p className="gba:text-sm gba:text-muted-foreground">{t('runs-description')}</p>
         </div>
-        <Button onClick={onCreateRun}>
+        <Button onClick={onCreateRun} data-testid="payroll-prep-overview-create-run-button">
           <PlusIcon size={16} className="gba:mr-2" />
           {t('runs-new-button')}
         </Button>
       </div>
 
-      <Card className="gba:overflow-hidden">
-        <Table>
+      <Card className="gba:overflow-hidden" data-testid="payroll-prep-overview-runs-table-container">
+        <Table data-testid="payroll-prep-overview-runs-table">
           <TableHeader>
             <TableRow>
               <TableHead className="gba:whitespace-nowrap">{t('runs-col-period')}</TableHead>
@@ -149,7 +158,12 @@ function RunsListView({
           </TableHeader>
           <TableBody>
             {runs.map(run => (
-              <TableRow key={run.id} className="gba:cursor-pointer gba:hover:bg-muted" onClick={() => onSelectRun(run)}>
+              <TableRow
+                key={run.id}
+                className="gba:cursor-pointer gba:hover:bg-muted"
+                onClick={() => onSelectRun(run)}
+                data-testid={`payroll-prep-overview-run-row-${run.id}`}
+              >
                 <TableCell className="gba:font-medium gba:text-foreground">
                   {t(`month-${run.month}`)} {run.year}
                 </TableCell>
@@ -263,7 +277,7 @@ function RunDashboardView({
   )
 
   return (
-    <div className="gba:space-y-6">
+    <div className="gba:space-y-6" data-testid="payroll-prep-overview-dashboard">
       {employeesWithoutCompany.length > 0 && (
         <Card className="gba:p-4 gba:border-warning gba:bg-warning/5">
           <div className="gba:flex gba:items-start gba:gap-3">
@@ -309,14 +323,14 @@ function RunDashboardView({
         </div>
       </Card>
 
-      <div className="gba:grid gba:grid-cols-4 gba:gap-4">
+      <div className="gba:grid gba:grid-cols-4 gba:gap-4" data-testid="payroll-prep-overview-kpi-grid">
         {kpiCards.map(card => (
           <KpiCard key={card.label} label={card.label} value={card.value} icon={card.icon} variant={card.variant} />
         ))}
       </div>
 
       {summary.totalEmployees > 0 && (
-        <Card className="gba:p-6">
+        <Card className="gba:p-6" data-testid="payroll-prep-overview-readiness-card">
           <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-4">{t('overview-readiness')}</h4>
           <div className="gba:flex gba:h-4 gba:rounded-full gba:overflow-hidden gba:bg-muted">
             {readinessSegments

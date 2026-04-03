@@ -110,7 +110,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
   }
 
   return (
-    <div className="gba:space-y-6">
+    <div className="gba:space-y-6" data-testid="payroll-prep-changes-view">
       <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-4">
         <Card className="gba:p-4 gba:text-center">
           <p className="gba:text-2xl gba:font-bold gba:text-primary">{changedEmployees.length}</p>
@@ -133,6 +133,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
             onChange={(val: string | number) => setSearchQuery(String(val))}
             placeholder={t('changes-search-placeholder')}
             className="gba:pl-9"
+            data-testid="payroll-prep-changes-search-input"
           />
         </div>
 
@@ -149,7 +150,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
               value={changeTypeFilter}
               onValueChange={(val: string) => setChangeTypeFilter(val as ChangeType | 'all')}
             >
-              <SelectTrigger>
+              <SelectTrigger data-testid="payroll-prep-changes-type-select">
                 <SelectValue placeholder={t('filter-all')} />
               </SelectTrigger>
               <SelectContent>
@@ -179,7 +180,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
 
       <Card className="gba:overflow-hidden">
         <div className="gba:overflow-x-auto">
-          <Table>
+          <Table data-testid="payroll-prep-changes-table">
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee')}</TableHead>
@@ -195,13 +196,17 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
             <TableBody>
               {filteredChanges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                  <TableCell
+                    colSpan={8}
+                    className="gba:text-center gba:py-8 gba:text-muted-foreground"
+                    data-testid="payroll-prep-changes-empty-state"
+                  >
                     {allChanges.length === 0 ? t('changes-empty') : t('changes-no-match')}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredChanges.map(change => (
-                  <TableRow key={change.id}>
+                  <TableRow key={change.id} data-testid={`payroll-prep-changes-row-${change.id}`}>
                     <TableCell>
                       <div>
                         <p className="gba:text-sm gba:font-medium gba:text-foreground">{change.employeeName}</p>

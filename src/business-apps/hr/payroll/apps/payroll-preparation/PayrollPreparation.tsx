@@ -373,7 +373,12 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
         <div className="gba:mb-6 gba:flex gba:items-center gba:justify-between gba:gap-4">
           <div className="gba:flex gba:items-center gba:gap-3">
             {activeRun && (
-              <Button variant="outline" size="sm" onClick={handleBackToRuns}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackToRuns}
+                data-testid="payroll-prep-back-to-runs-button"
+              >
                 <ArrowLeftIcon size={16} className="gba:mr-1" />
                 {t('back-to-runs')}
               </Button>

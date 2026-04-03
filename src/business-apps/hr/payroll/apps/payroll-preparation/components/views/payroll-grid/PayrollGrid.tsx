@@ -128,10 +128,12 @@ const SortableHead: React.FC<{
   order: SortOrder
   onSort: (field: SortField) => void
   className?: string
-}> = ({ field, label, activeField, order, onSort, className }) => (
+  testId?: string
+}> = ({ field, label, activeField, order, onSort, className, testId }) => (
   <TableHead
     className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${className || ''}`}
     onClick={() => onSort(field)}
+    data-testid={testId}
   >
     <span className="gba:flex gba:items-center gba:gap-1">
       {label}
@@ -155,6 +157,7 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
       key={employee.id}
       className="gba:cursor-pointer gba:hover:bg-muted"
       onClick={() => onSelectEmployee(employee)}
+      data-testid={`payroll-prep-grid-row-${employee.id}`}
     >
       <TableCell className="gba:sticky gba:left-0 gba:z-10 gba:bg-card">
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -301,7 +304,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   }
 
   return (
-    <div className="gba:space-y-4">
+    <div className="gba:space-y-4" data-testid="payroll-prep-grid-view">
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
         <div className="gba:flex-1">
           <PayrollGridFilters
@@ -314,7 +317,13 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
             t={t}
           />
         </div>
-        <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={refreshing}
+          data-testid="payroll-prep-grid-refresh-button"
+        >
           <ArrowsClockwiseIcon size={16} className={refreshing ? 'gba:animate-spin' : ''} />
           {t('refresh-data')}
         </Button>
@@ -322,7 +331,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
 
       <Card className="gba:overflow-hidden gba:bg-transparent gba:shadow-none gba:border-none gba:pt-2">
         <div className="gba:overflow-x-auto gba:bg-card gba:rounded-lg">
-          <Table>
+          <Table data-testid="payroll-prep-grid-table">
             <TableHeader>
               <TableRow>
                 <SortableHead
@@ -332,6 +341,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   order={sortOrder}
                   onSort={handleSort}
                   className="gba:min-w-[200px] gba:sticky gba:left-0 gba:z-20 gba:bg-card"
+                  testId="payroll-prep-grid-sort-display-name"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
@@ -341,6 +351,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   activeField={sortField}
                   order={sortOrder}
                   onSort={handleSort}
+                  testId="payroll-prep-grid-sort-department"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-hire-date')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-termination-date')}</TableHead>
@@ -354,6 +365,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   activeField={sortField}
                   order={sortOrder}
                   onSort={handleSort}
+                  testId="payroll-prep-grid-sort-base-salary"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-bank-details')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-variable-pay')}</TableHead>
@@ -370,6 +382,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   activeField={sortField}
                   order={sortOrder}
                   onSort={handleSort}
+                  testId="payroll-prep-grid-sort-issues"
                 />
                 <SortableHead
                   field="readinessStatus"
@@ -377,6 +390,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   activeField={sortField}
                   order={sortOrder}
                   onSort={handleSort}
+                  testId="payroll-prep-grid-sort-readiness"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-changed')}</TableHead>
               </TableRow>
@@ -384,7 +398,11 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
             <TableBody>
               {paginated.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={23} className="gba:text-center gba:py-12 gba:text-muted-foreground">
+                  <TableCell
+                    colSpan={23}
+                    className="gba:text-center gba:py-12 gba:text-muted-foreground"
+                    data-testid="payroll-prep-grid-empty-state"
+                  >
                     {t('no-data')}
                   </TableCell>
                 </TableRow>
@@ -411,7 +429,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                   setCurrentPage(1)
                 }}
               >
-                <SelectTrigger className="gba:h-8 gba:w-[100px]">
+                <SelectTrigger className="gba:h-8 gba:w-[100px]" data-testid="payroll-prep-grid-page-size-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -429,6 +447,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
+                data-testid="payroll-prep-grid-pagination-prev-button"
               >
                 Prev
               </Button>
@@ -440,6 +459,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
+                data-testid="payroll-prep-grid-pagination-next-button"
               >
                 Next
               </Button>
