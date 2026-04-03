@@ -193,7 +193,7 @@ const AnalysisContent: React.FC<{ result: FeedbackAnalysisResult }> = ({ result 
         <CollapsibleSection title={t('feedback-hub-ai-panel-themes')} count={result.themes.length} defaultOpen>
           <div className="gba:space-y-3">
             {result.themes.map((theme, i) => (
-              <div key={i} className="gba:flex gba:items-start gba:gap-3 gba:p-2 gba:rounded gba:bg-muted/30">
+              <div key={i} className="gba:flex gba:items-start gba:gap-3 gba:p-2 gba:rounded">
                 <div className="gba:flex-1">
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                     <span className="gba:font-medium gba:text-sm">{theme.name}</span>
