@@ -21,7 +21,8 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CaretUpDown, Check, ClipboardText, User, Users, UserCircle } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
@@ -31,8 +32,12 @@ import { useEmployeeEvaluations } from '../hooks/useEmployeeEvaluations'
 import { EmployeeEvaluationsCard } from './EmployeeEvaluationsCard'
 import type { ReviewerEvaluationItem } from '../types'
 import { formatDate, formatReviewerType, formatReviewerStatus, getStatusBadgeVariant } from '../utils/formatLabels'
+import translations from '../_i18n'
 
-function buildReviewerKpis(evaluations: ReviewerEvaluationItem[]): WidgetItem[] {
+function buildReviewerKpis(
+  evaluations: ReviewerEvaluationItem[],
+  t: (key: string, vars?: Record<string, unknown>) => string
+): WidgetItem[] {
   const byType = (type: string) => evaluations.filter(e => e.reviewerType === type)
   const completed = (items: ReviewerEvaluationItem[]) => items.filter(e => e.completedDate).length
 
@@ -43,35 +48,41 @@ function buildReviewerKpis(evaluations: ReviewerEvaluationItem[]): WidgetItem[] 
   return [
     {
       key: 'total-reviews',
-      title: 'Total Reviews',
+      title: t('kpi-total-reviews'),
       value: evaluations.length,
       prefix: <ClipboardText size={20} aria-hidden />,
       color: '#1890ff',
-      footer: `${completed(evaluations)} completed · ${evaluations.length - completed(evaluations)} pending`
+      footer: t('kpi-completed-pending-footer', {
+        completed: completed(evaluations),
+        pending: evaluations.length - completed(evaluations)
+      })
     },
     {
       key: 'manager-reviews',
-      title: 'Manager Reviews',
+      title: t('kpi-manager-reviews'),
       value: manager.length,
       prefix: <UserCircle size={20} aria-hidden />,
       color: '#722ed1',
-      footer: `${completed(manager)} completed · ${manager.length - completed(manager)} pending`
+      footer: t('kpi-completed-pending-footer', {
+        completed: completed(manager),
+        pending: manager.length - completed(manager)
+      })
     },
     {
       key: 'self-reviews',
-      title: 'Self Reviews',
+      title: t('kpi-self-reviews'),
       value: self.length,
       prefix: <User size={20} aria-hidden />,
       color: '#13c2c2',
-      footer: `${completed(self)} completed · ${self.length - completed(self)} pending`
+      footer: t('kpi-completed-pending-footer', { completed: completed(self), pending: self.length - completed(self) })
     },
     {
       key: 'peer-reviews',
-      title: 'Peer Reviews',
+      title: t('kpi-peer-reviews'),
       value: peer.length,
       prefix: <Users size={20} aria-hidden />,
       color: '#fa8c16',
-      footer: `${completed(peer)} completed · ${peer.length - completed(peer)} pending`
+      footer: t('kpi-completed-pending-footer', { completed: completed(peer), pending: peer.length - completed(peer) })
     }
   ]
 }
@@ -81,27 +92,25 @@ interface ReviewerTrackingTabProps {
 }
 
 export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const { reviewers, loading: listLoading, error: listError } = useReviewerList(accessToken)
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null)
   const [comboboxOpen, setComboboxOpen] = useState(false)
 
-  const {
-    evaluations,
-    loading: evalLoading,
-    error: evalError
-  } = useReviewerEvaluations(accessToken, selectedReviewerId)
+  const selectedReviewer = reviewers.find(r => r.reviewerEmployeeId === selectedReviewerId) ?? reviewers[0] ?? null
+  const activeReviewerId = selectedReviewer?.reviewerEmployeeId ?? null
+
+  const { evaluations, loading: evalLoading, error: evalError } = useReviewerEvaluations(accessToken, activeReviewerId)
 
   const {
     evaluations: employeeEvals,
     loading: empEvalLoading,
     error: empEvalError
-  } = useEmployeeEvaluations(accessToken, selectedReviewerId)
-
-  const selectedReviewer = reviewers.find(r => r.reviewerEmployeeId === selectedReviewerId)
+  } = useEmployeeEvaluations(accessToken, activeReviewerId)
   const completedCount = evaluations.filter(e => e.completedDate).length
   const pendingCount = evaluations.length - completedCount
 
-  const kpiWidgets = useMemo(() => buildReviewerKpis(evaluations), [evaluations])
+  const kpiWidgets = useMemo(() => buildReviewerKpis(evaluations, t), [evaluations, t])
 
   const reviewerOptions = useMemo(
     () => reviewers.map(r => ({ value: r.reviewerEmployeeId, label: r.reviewerName })),
@@ -109,7 +118,7 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
   )
 
   const handleSelectReviewer = (value: string) => {
-    setSelectedReviewerId(prev => (prev === value ? null : value))
+    setSelectedReviewerId(value)
     setComboboxOpen(false)
   }
 
@@ -133,8 +142,8 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-muted-foreground">
         <UserCircle size={48} className="gba:mb-4 gba:opacity-40" />
-        <p className="gba:text-lg gba:font-medium">No reviewers found</p>
-        <p className="gba:text-sm">Reviewer tasks will appear after evaluations are started.</p>
+        <p className="gba:text-lg gba:font-medium">{t('empty-no-reviewers-title')}</p>
+        <p className="gba:text-sm">{t('empty-no-reviewers-description')}</p>
       </div>
     )
   }
@@ -149,15 +158,15 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
               className="gba:min-w-[320px] gba:justify-between"
               data-testid="reviewer-tracking-employee-select"
             >
-              {selectedReviewer ? selectedReviewer.reviewerName : 'Select a reviewer...'}
+              {selectedReviewer ? selectedReviewer.reviewerName : t('select-reviewer-placeholder')}
               <CaretUpDown className="gba:ml-2 gba:opacity-50" size={16} />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="gba:w-[320px] gba:p-0" align="start">
             <Command>
-              <CommandInput placeholder="Search reviewers..." />
+              <CommandInput placeholder={t('search-reviewers-placeholder')} />
               <CommandList>
-                <CommandEmpty>No reviewer found.</CommandEmpty>
+                <CommandEmpty>{t('empty-no-reviewer-found')}</CommandEmpty>
                 <CommandGroup>
                   {reviewerOptions.map(option => (
                     <CommandItem
@@ -167,7 +176,7 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
                     >
                       <Check
                         size={16}
-                        className={`gba:mr-2 ${selectedReviewerId === option.value ? 'gba:opacity-100' : 'gba:opacity-0'}`}
+                        className={`gba:mr-2 ${activeReviewerId === option.value ? 'gba:opacity-100' : 'gba:opacity-0'}`}
                       />
                       {option.label}
                     </CommandItem>
@@ -186,10 +195,15 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
       {selectedReviewer && (
         <Card data-testid="reviewer-evaluations-card">
           <CardHeader>
-            <CardTitle className="gba:text-lg">{selectedReviewer.reviewerName} — Reviews</CardTitle>
+            <CardTitle className="gba:text-lg">
+              {t('reviewer-reviews-title', { name: selectedReviewer.reviewerName })}
+            </CardTitle>
             <p className="gba:text-sm gba:text-muted-foreground">
-              {evaluations.length} review{evaluations.length !== 1 ? 's' : ''} total · {pendingCount} pending ·{' '}
-              {completedCount} completed
+              {t('reviewer-reviews-description', {
+                count: evaluations.length,
+                pending: pendingCount,
+                completed: completedCount
+              })}
             </p>
           </CardHeader>
           <CardContent>
@@ -202,12 +216,12 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Employee Evaluated</TableHead>
-                    <TableHead>Cycle</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Assigned</TableHead>
-                    <TableHead>Completed</TableHead>
+                    <TableHead>{t('table-employee-evaluated')}</TableHead>
+                    <TableHead>{t('table-cycle')}</TableHead>
+                    <TableHead>{t('table-role')}</TableHead>
+                    <TableHead>{t('table-status')}</TableHead>
+                    <TableHead>{t('table-assigned')}</TableHead>
+                    <TableHead>{t('table-completed')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -220,7 +234,7 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
                   ) : evaluations.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="gba:text-center gba:text-muted-foreground gba:py-8">
-                        No reviews found for this reviewer.
+                        {t('empty-no-reviews-for-reviewer')}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -246,17 +260,19 @@ export const ReviewerTrackingTab: React.FC<ReviewerTrackingTabProps> = ({ access
 }
 
 function ReviewRow({ evaluation }: Readonly<{ evaluation: ReviewerEvaluationItem }>) {
+  const { t } = useTranslation(translations)
+
   return (
     <TableRow data-testid={`reviewer-eval-row-${evaluation.id}`}>
       <TableCell className="gba:font-medium">{evaluation.employeeName}</TableCell>
       <TableCell>{evaluation.cycleName}</TableCell>
       <TableCell>
         <Badge variant="outline" className="gba:text-xs">
-          {formatReviewerType(evaluation.reviewerType)}
+          {formatReviewerType(evaluation.reviewerType, t)}
         </Badge>
       </TableCell>
       <TableCell>
-        <Badge variant={getStatusBadgeVariant(evaluation.status)}>{formatReviewerStatus(evaluation.status)}</Badge>
+        <Badge variant={getStatusBadgeVariant(evaluation.status)}>{formatReviewerStatus(evaluation.status, t)}</Badge>
       </TableCell>
       <TableCell>{formatDate(evaluation.assignedDate)}</TableCell>
       <TableCell>{formatDate(evaluation.completedDate)}</TableCell>

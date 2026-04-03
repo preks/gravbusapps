@@ -14,11 +14,25 @@ function mapCycleToSummary(api: CycleTrackingApi): CycleTrackingSummary {
 
   let totalReviewerTasks = 0
   let completedReviewerTasks = 0
+  let totalManagerReviews = 0
+  let completedManagerReviews = 0
+  let totalSelfReviews = 0
+  let completedSelfReviews = 0
 
   for (const evaluation of evaluations) {
     const reviewers = evaluation.performanceEvaluationReviewer ?? []
     totalReviewerTasks += reviewers.length
     completedReviewerTasks += reviewers.filter(r => r.completedDate).length
+
+    for (const reviewer of reviewers) {
+      if (reviewer.reviewerType === 'MANAGER_EVALUATION_PARTICIPANT_TYPE') {
+        totalManagerReviews++
+        if (reviewer.completedDate) completedManagerReviews++
+      } else if (reviewer.reviewerType === 'SELF_EVALUATION_PARTICIPANT_TYPE') {
+        totalSelfReviews++
+        if (reviewer.completedDate) completedSelfReviews++
+      }
+    }
   }
 
   return {
@@ -33,7 +47,11 @@ function mapCycleToSummary(api: CycleTrackingApi): CycleTrackingSummary {
     totalEvaluations,
     completedEvaluations,
     totalReviewerTasks,
-    completedReviewerTasks
+    completedReviewerTasks,
+    totalManagerReviews,
+    completedManagerReviews,
+    totalSelfReviews,
+    completedSelfReviews
   }
 }
 
