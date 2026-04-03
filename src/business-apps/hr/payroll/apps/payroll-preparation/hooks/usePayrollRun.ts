@@ -60,6 +60,10 @@ function getUserDisplayName(userInfo?: UserInfoProps): string {
   return userInfo.userName || DEFAULT_AUDIT_USER_UNKNOWN_NAME
 }
 
+function isPresentString(value: string | undefined): value is string {
+  return Boolean(value)
+}
+
 export interface UsePayrollRunResult {
   payrollRun: PayrollRun | null
   loading: boolean
@@ -80,7 +84,7 @@ function resolveCreatedByDisplayName(createdBy: string, userInfo?: UserInfoProps
   }
 
   const currentUserIdentifiers = [userInfo.id, userInfo.userName, userInfo.employeeDetails?.employeeId].filter(
-    identifier => Boolean(identifier)
+    isPresentString
   )
 
   if (currentUserIdentifiers.includes(createdBy)) {
@@ -98,67 +102,108 @@ function resolveBackendUserDisplayName(userIdentifier: string | null | undefined
   return resolveCreatedByDisplayName(userIdentifier, userInfo)
 }
 
+function resolveCreatedUserName(
+  activeRun: PayrollRun,
+  userInfo?: UserInfoProps,
+  locallyCreatedRunMeta?: { runId: string; userName: string; createdAt: string } | null
+): string {
+  if (activeRun.createdBy) {
+    return resolveCreatedByDisplayName(activeRun.createdBy, userInfo)
+  }
+
+  if (locallyCreatedRunMeta?.runId === activeRun.id) {
+    return locallyCreatedRunMeta.userName
+  }
+
+  return DEFAULT_AUDIT_USER_SYSTEM_NAME
+}
+
+function buildCreatedAuditEvent(
+  activeRun: PayrollRun,
+  userInfo?: UserInfoProps,
+  locallyCreatedRunMeta?: { runId: string; userName: string; createdAt: string } | null
+): AuditEvent | null {
+  const localCreatedAt = locallyCreatedRunMeta?.runId === activeRun.id ? locallyCreatedRunMeta.createdAt : null
+  const createdTimestamp = activeRun.createdAt || localCreatedAt
+
+  if (!createdTimestamp) {
+    return null
+  }
+
+  return {
+    id: `audit-created-${activeRun.id}`,
+    eventType: 'payroll_run_created',
+    description: `Payroll run created`,
+    userId: '',
+    userName: resolveCreatedUserName(activeRun, userInfo, locallyCreatedRunMeta),
+    timestamp: createdTimestamp
+  }
+}
+
+function buildPreparedAuditEvent(activeRun: PayrollRun): AuditEvent | null {
+  if (!activeRun.preparedBy || !activeRun.preparedAt) {
+    return null
+  }
+
+  return {
+    id: `audit-prepared-${activeRun.id}`,
+    eventType: 'marked_ready',
+    description: `Marked ready for review`,
+    userId: '',
+    userName: activeRun.preparedBy,
+    timestamp: activeRun.preparedAt
+  }
+}
+
+function buildReviewedAuditEvent(activeRun: PayrollRun): AuditEvent | null {
+  if (!activeRun.reviewedBy || !activeRun.reviewedAt) {
+    return null
+  }
+
+  const decision = activeRun.approvalDecision || ''
+  const comment = activeRun.reviewComment ? `: ${activeRun.reviewComment}` : ''
+
+  return {
+    id: `audit-reviewed-${activeRun.id}`,
+    eventType: decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
+    description: `${decision}${comment}`,
+    userId: '',
+    userName: activeRun.reviewedBy,
+    timestamp: activeRun.reviewedAt
+  }
+}
+
+function buildExportAuditEvent(activeRun: PayrollRun, userInfo?: UserInfoProps): AuditEvent | null {
+  const hasExportedStatus = activeRun.status === 'PAYROLL_EXPORTED' || activeRun.status === 'PAYROLL_CLOSED'
+  if (!hasExportedStatus || !activeRun.updatedAt) {
+    return null
+  }
+
+  return {
+    id: `audit-export-${activeRun.id}`,
+    eventType: 'export_generated',
+    description: 'Export generated',
+    userId: '',
+    userName: resolveBackendUserDisplayName(activeRun.updatedBy ?? null, userInfo),
+    timestamp: activeRun.updatedAt
+  }
+}
+
+function isAuditEvent(event: AuditEvent | null): event is AuditEvent {
+  return event !== null
+}
+
 function buildPersistedAuditEvents(
   activeRun: PayrollRun,
   userInfo?: UserInfoProps,
   locallyCreatedRunMeta?: { runId: string; userName: string; createdAt: string } | null
 ): AuditEvent[] {
-  const persisted: AuditEvent[] = []
-  const localCreatedAt = locallyCreatedRunMeta?.runId === activeRun.id ? locallyCreatedRunMeta.createdAt : null
-  const createdTimestamp = activeRun.createdAt || localCreatedAt
-
-  if (createdTimestamp) {
-    const createdUserName = activeRun.createdBy
-      ? resolveCreatedByDisplayName(activeRun.createdBy, userInfo)
-      : locallyCreatedRunMeta?.runId === activeRun.id
-        ? locallyCreatedRunMeta.userName
-        : DEFAULT_AUDIT_USER_SYSTEM_NAME
-
-    persisted.push({
-      id: `audit-created-${activeRun.id}`,
-      eventType: 'payroll_run_created',
-      description: `Payroll run created`,
-      userId: '',
-      userName: createdUserName,
-      timestamp: createdTimestamp
-    })
-  }
-
-  if (activeRun.preparedBy && activeRun.preparedAt) {
-    persisted.push({
-      id: `audit-prepared-${activeRun.id}`,
-      eventType: 'marked_ready',
-      description: `Marked ready for review`,
-      userId: '',
-      userName: activeRun.preparedBy,
-      timestamp: activeRun.preparedAt
-    })
-  }
-
-  if (activeRun.reviewedBy && activeRun.reviewedAt) {
-    const decision = activeRun.approvalDecision || ''
-    const comment = activeRun.reviewComment ? `: ${activeRun.reviewComment}` : ''
-    persisted.push({
-      id: `audit-reviewed-${activeRun.id}`,
-      eventType: decision === 'APPROVED' ? 'review_approved' : 'review_rejected',
-      description: `${decision}${comment}`,
-      userId: '',
-      userName: activeRun.reviewedBy,
-      timestamp: activeRun.reviewedAt
-    })
-  }
-
-  const hasExportedStatus = activeRun.status === 'PAYROLL_EXPORTED' || activeRun.status === 'PAYROLL_CLOSED'
-  if (hasExportedStatus && activeRun.updatedAt) {
-    persisted.push({
-      id: `audit-export-${activeRun.id}`,
-      eventType: 'export_generated',
-      description: 'Export generated',
-      userId: '',
-      userName: resolveBackendUserDisplayName(activeRun.updatedBy ?? null, userInfo),
-      timestamp: activeRun.updatedAt
-    })
-  }
+  const persisted = [
+    buildCreatedAuditEvent(activeRun, userInfo, locallyCreatedRunMeta),
+    buildPreparedAuditEvent(activeRun),
+    buildReviewedAuditEvent(activeRun),
+    buildExportAuditEvent(activeRun, userInfo)
+  ].filter(isAuditEvent)
 
   persisted.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   return persisted
@@ -337,10 +382,7 @@ export function usePayrollRun(
     [payrollRun, restClient, userInfo, refetchRun]
   )
 
-  const recordExport = useCallback((mode: string, count: number) => {
-    void mode
-    void count
-  }, [])
+  const recordExport = useCallback(() => {}, [])
 
   return {
     payrollRun,

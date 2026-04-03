@@ -106,7 +106,15 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
   }, [setActiveRun])
 
   useEffect(() => {
-    if (!activeRun || !payrollRun || activeRun.id !== payrollRun.id) {
+    if (activeRun?.id !== payrollRun?.id) {
+      return
+    }
+
+    if (!activeRun) {
+      return
+    }
+
+    if (!payrollRun) {
       return
     }
 
