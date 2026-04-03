@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Spinner, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { ChartBar, UsersThree, CheckCircle, ClipboardText, Target } from '@phosphor-icons/react'
+import { ChartBar, UsersThree, ClipboardText, UserCircle, User } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking'
 import { useCycleDetail } from '../hooks/useCycleDetail'
@@ -28,16 +28,12 @@ function buildKpiWidgets(cycle: CycleTrackingSummary): WidgetItem[] {
       value: cycle.totalEvaluations,
       prefix: <UsersThree size={20} aria-hidden />,
       color: '#1890ff',
-      footer: `${cycle.completedEvaluations} completed`
-    },
-    {
-      key: 'evaluation-progress',
-      title: 'Evaluation Progress',
-      value: `${evalPercent}%`,
-      valueIsString: true,
-      prefix: <Target size={20} aria-hidden />,
-      color: evalPercent === 100 ? '#52c41a' : '#fa8c16',
-      footer: `${cycle.completedEvaluations} of ${cycle.totalEvaluations} done`
+      footer: `${cycle.completedEvaluations} completed`,
+      trend: {
+        value: `${evalPercent}%`,
+        positive: evalPercent > 0,
+        description: `${cycle.completedEvaluations} of ${cycle.totalEvaluations} done`
+      }
     },
     {
       key: 'reviewer-tasks',
@@ -45,16 +41,28 @@ function buildKpiWidgets(cycle: CycleTrackingSummary): WidgetItem[] {
       value: cycle.totalReviewerTasks,
       prefix: <ClipboardText size={20} aria-hidden />,
       color: '#722ed1',
-      footer: `${cycle.completedReviewerTasks} completed`
+      footer: `${cycle.completedReviewerTasks} completed`,
+      trend: {
+        value: `${reviewerPercent}%`,
+        positive: reviewerPercent > 0,
+        description: `${cycle.completedReviewerTasks} of ${cycle.totalReviewerTasks} done`
+      }
     },
     {
-      key: 'reviewer-progress',
-      title: 'Reviewer Progress',
-      value: `${reviewerPercent}%`,
-      valueIsString: true,
-      prefix: <CheckCircle size={20} aria-hidden />,
-      color: reviewerPercent === 100 ? '#52c41a' : '#fa8c16',
-      footer: `${cycle.completedReviewerTasks} of ${cycle.totalReviewerTasks} done`
+      key: 'manager-reviews',
+      title: 'Manager Reviews',
+      value: cycle.totalManagerReviews,
+      prefix: <UserCircle size={20} aria-hidden />,
+      color: '#722ed1',
+      footer: `${cycle.completedManagerReviews} completed · ${cycle.totalManagerReviews - cycle.completedManagerReviews} pending`
+    },
+    {
+      key: 'self-reviews',
+      title: 'Self Reviews',
+      value: cycle.totalSelfReviews,
+      prefix: <User size={20} aria-hidden />,
+      color: '#1890ff',
+      footer: `${cycle.completedSelfReviews} completed · ${cycle.totalSelfReviews - cycle.completedSelfReviews} pending`
     }
   ]
 }
