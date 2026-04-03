@@ -181,6 +181,7 @@ export function createExpenseItemColumns({
     {
       id: 'reimbursableAmount',
       accessorKey: 'reimbursableAmount',
+      sortDescFirst: false,
       header: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount'),
       size: 140,
       meta: { align: 'right' as const },

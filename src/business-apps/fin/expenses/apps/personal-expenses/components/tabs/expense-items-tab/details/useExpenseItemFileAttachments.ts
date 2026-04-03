@@ -9,7 +9,7 @@ import {
 } from './expenseItemAttachmentFetch'
 
 function collectBlobUrls(files: UploadFile[]): string[] {
-  return files.map(f => f.url).filter((url): url is string => Boolean(url && url.startsWith('blob:')))
+  return files.map(f => f.url).filter((url): url is string => url?.startsWith('blob:') === true)
 }
 
 async function fileRecordToUploadFile(

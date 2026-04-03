@@ -17,7 +17,7 @@ export function ExpenseItemMediaPreviewDialogs({
   pdfPreviewOpen,
   onPdfPreviewOpenChange,
   pdfPreviewUrl
-}: ExpenseItemMediaPreviewDialogsProps) {
+}: Readonly<ExpenseItemMediaPreviewDialogsProps>) {
   return (
     <>
       <Dialog open={previewOpen} onOpenChange={onPreviewOpenChange}>

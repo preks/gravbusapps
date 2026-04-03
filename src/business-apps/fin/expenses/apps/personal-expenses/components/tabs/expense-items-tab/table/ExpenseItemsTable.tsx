@@ -91,8 +91,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         props.activeWidgetKey ?? '',
         expenseDateRange?.[0]?.toISOString() ?? '',
         expenseDateRange?.[1]?.toISOString() ?? '',
-        amountRange?.min != null ? String(amountRange.min) : '',
-        amountRange?.max != null ? String(amountRange.max) : ''
+        typeof amountRange?.min === 'number' ? String(amountRange.min) : '',
+        typeof amountRange?.max === 'number' ? String(amountRange.max) : ''
       ].join('\0'),
     [allSelectedFilters, props.activeWidgetKey, expenseDateRange, amountRange]
   )
@@ -105,6 +105,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   // Server-side sorting state - properly managed for server-side sorting
   const [sortField, setSortField] = useState<string>('expenseDate')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
+  const effectiveSortField = sortOrder ? sortField : 'expenseDate'
+  const effectiveSortOrder: 'ascend' | 'descend' = sortOrder ?? 'descend'
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -192,8 +194,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     if (!initialized) return
     const searchTerm = debouncedSearch?.trim() || '%'
     const apiFilters = buildApiFilters()
-    fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
-  }, [fetchItems, currentPage, pageSize, debouncedSearch, sortField, sortOrder, initialized, buildApiFilters])
+    fetchItems(searchTerm, currentPage, pageSize, apiFilters, effectiveSortField, effectiveSortOrder)
+  }, [
+    fetchItems,
+    currentPage,
+    pageSize,
+    debouncedSearch,
+    initialized,
+    buildApiFilters,
+    effectiveSortField,
+    effectiveSortOrder
+  ])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
@@ -201,7 +212,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       const searchTerm = debouncedSearch?.trim() || '%'
       const apiFilters = buildApiFilters()
       // Force refresh to bypass cache and get fresh data after process completion
-      fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder, { force: true })
+      fetchItems(searchTerm, currentPage, pageSize, apiFilters, effectiveSortField, effectiveSortOrder, { force: true })
       // Clear selection when table is refreshed (process finished)
       setSelectedRowKeys([])
     }
@@ -211,9 +222,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     debouncedSearch,
     currentPage,
     pageSize,
-    sortField,
-    sortOrder,
-    buildApiFilters
+    buildApiFilters,
+    effectiveSortField,
+    effectiveSortOrder
   ])
 
   const [selectedItem, setSelectedItem] = useState<any>(null)
@@ -395,27 +406,22 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       const entry = newSorting[0]
-      const field = entry?.id || 'expenseDate'
-      let orderFromTable: 'ascend' | 'descend' | undefined
-      if (entry) {
-        orderFromTable = entry.desc ? 'descend' : 'ascend'
-      } else {
-        orderFromTable = undefined
+      if (!entry) {
+        if (sortField !== 'expenseDate') {
+          setSortField('expenseDate')
+          setSortOrder('descend')
+        } else {
+          setSortOrder(undefined)
+        }
+        setCurrentPage(1)
+        return
       }
-      const isSameColumn = sortField === field
-      let nextOrder: 'ascend' | 'descend'
-      if (isSameColumn && orderFromTable != null && orderFromTable !== sortOrder) {
-        nextOrder = orderFromTable
-      } else if (isSameColumn) {
-        nextOrder = sortOrder === 'descend' ? 'ascend' : 'descend'
-      } else {
-        nextOrder = 'ascend'
-      }
-      setSortField(field)
-      setSortOrder(nextOrder)
+      const incomingOrder: 'ascend' | 'descend' = entry.desc ? 'descend' : 'ascend'
+      setSortField(entry.id)
+      setSortOrder(incomingOrder)
       setCurrentPage(1)
     },
-    [sortField, sortOrder]
+    [sortField]
   )
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
   const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
@@ -565,7 +571,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           onClick={() => {
             const searchTerm = debouncedSearch?.trim() || '%'
             const apiFilters = buildApiFilters()
-            fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
+            fetchItems(searchTerm, currentPage, pageSize, apiFilters, effectiveSortField, effectiveSortOrder)
           }}
           data-testid={`${EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX}-retry-button`}
         >

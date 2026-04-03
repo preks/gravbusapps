@@ -25,7 +25,7 @@ export function ExpenseItemAttachmentGrid({
   fileList,
   onImagePreview,
   onPdfPreview
-}: ExpenseItemAttachmentGridProps) {
+}: Readonly<ExpenseItemAttachmentGridProps>) {
   const renderFilePreview = useCallback(
     (fileUrl: string, fileName: string, fileType: string, ext: string, idx: number) => {
       if (isExpenseItemImageFile(fileType, ext)) {
