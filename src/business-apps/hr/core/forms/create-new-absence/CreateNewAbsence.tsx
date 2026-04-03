@@ -8,7 +8,8 @@ import {
   Button,
   Textarea,
   Label,
-  Alert
+  Alert,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
 import { AlertCircle } from 'lucide-react'
@@ -30,6 +31,8 @@ import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { getPrevalidateErrorPresentation } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
+import formsTranslations from '../_i18n'
 
 type Employee = {
   id: string
@@ -47,6 +50,7 @@ type CreateNewAbsenceFormValues = {
 }
 
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
+  const { t } = useTranslation(formsTranslations)
   const { accessToken, userInfo, additionalData } = props
   const client = useGraphQLClient(accessToken)
   const structureId = getCurrentActiveStructureId()
@@ -132,6 +136,24 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     prevalidateEndDateStr
   )
   const hasPrevalidateError = !!prevalidate.errorCode
+  const prevalidateErrorPresentation = useMemo(() => {
+    if (!prevalidate.errorCode) {
+      return null
+    }
+
+    const presentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
+    return {
+      title: t(presentation.messageKey) || presentation.messageFallback,
+      detail: t(presentation.detailKey) || presentation.detailFallback
+    }
+  }, [prevalidate.errorCode, prevalidate.errorDetail, t])
+  const visibleValidationWarnings = useMemo(() => {
+    if (!hasPrevalidateError) {
+      return validationWarnings
+    }
+
+    return validationWarnings.filter(warning => warning.type !== 'balance')
+  }, [hasPrevalidateError, validationWarnings])
 
   useEffect(() => {
     const start = formValuesState.startDate
@@ -561,7 +583,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 </div>
               )}
 
-              {(hasValidationErrors || validationWarnings.length > 0) && (
+              {(hasValidationErrors || visibleValidationWarnings.length > 0 || prevalidateErrorPresentation) && (
                 <div className="gba:mb-4" data-testid="validation-errors-container">
                   {generalErrors.map((error, index) => (
                     <Alert key={`general-${index}`} className="gba:mb-2" data-testid={`general-error-${index}`}>
@@ -583,7 +605,16 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                       <span>{error.message}</span>
                     </Alert>
                   ))}
-                  {validationWarnings.map((warning, index) => (
+                  {prevalidateErrorPresentation && (
+                    <Alert className="gba:mb-2" data-testid="prevalidate-sync-error">
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      <span className="gba:flex gba:flex-col gba:gap-0.5">
+                        <strong>{prevalidateErrorPresentation.title}</strong>
+                        <span>{prevalidateErrorPresentation.detail}</span>
+                      </span>
+                    </Alert>
+                  )}
+                  {visibleValidationWarnings.map((warning, index) => (
                     <Alert key={`warning-${index}`} className="gba:mb-2" data-testid={`validation-warning-${index}`}>
                       <AlertCircle className="gba:h-4 gba:w-4" />
                       <span>{warning.message}</span>
