@@ -20,6 +20,7 @@ export const GET_CYCLES_TRACKING = /* GraphQL */ `
         actualCompletionDate
         performanceEvaluationReviewer(where: { isDeleted: { _eq: false } }) {
           id
+          reviewerType
           status
           completedDate
         }
@@ -30,6 +31,7 @@ export const GET_CYCLES_TRACKING = /* GraphQL */ `
 
 export interface ReviewerSummaryApi {
   id: string
+  reviewerType: string | null
   status: string | null
   completedDate: string | null
 }

@@ -1,10 +1,9 @@
 export type PayrollRunStatus =
-  | 'not_started'
-  | 'in_progress'
-  | 'ready_for_review'
-  | 'approved_for_export'
-  | 'exported'
-  | 'closed'
+  | 'PAYROLL_IN_PROGRESS'
+  | 'PAYROLL_READY_FOR_REVIEW'
+  | 'PAYROLL_APPROVED_FOR_EXPORT'
+  | 'PAYROLL_EXPORTED'
+  | 'PAYROLL_CLOSED'
 
 export type ReadinessStatus = 'ready' | 'warning' | 'blocked' | 'excluded'
 
@@ -46,20 +45,24 @@ export interface PayrollRun {
   id: string
   month: number
   year: number
-  country: PayrollCountry
+  country: string
   legalEntityId: string
   legalEntityName: string
   cutOffDate: string
   paymentDate: string
-  ownerUserId: string
   status: PayrollRunStatus
+  createdBy: string
   createdAt: string
+  preparedBy?: string | null
+  preparedAt?: string | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewComment?: string | null
+  approvalDecision?: string | null
   updatedAt: string
-  preparedBy?: string
-  preparedAt?: string
-  reviewedBy?: string
-  reviewedAt?: string
-  reviewComment?: string
+  updatedBy?: string | null
+  version: number
+  isDeleted: boolean
 }
 
 export interface PayrollEmployee {
@@ -99,15 +102,22 @@ export interface PayrollEmployee {
 
   cnpStatus?: string
 
+  totalVariablePay: number | null
+  variablePayCurrency: string | null
+  variablePayStatus: 'all_approved' | 'pending' | 'none' | null
+
   paidLeaveDays: number
   sickLeaveDays: number
   unpaidLeaveDays: number
   otherLeaveDays: number
+  sickLeaveHours: number
+  paidLeaveHours: number
 
   loggedHours: number | null
   contractCapacityHours: number | null
   overtimeHours: number | null
   balanceHours: number | null
+  missingPresenceDays: number
 
   readinessStatus: ReadinessStatus
   issues: PayrollIssue[]
@@ -172,14 +182,19 @@ export interface PayrollSummary {
   changedSinceLastPayroll: number
 }
 
-export interface SignOffData {
-  preparedBy: string
-  preparedAt: string
-  reviewedBy?: string
-  reviewedAt?: string
-  approvalDecision?: 'approved' | 'rejected'
-  comments?: string
+export interface PayrollBonus {
+  id: string
+  employeeId: string
+  bonusType: string
+  bonusTypeCode: string
+  amount: number
+  currency: string
+  paymentDate: string | null
+  fiscalYear: number
+  status: string
 }
+
+export type ApprovalDecision = 'APPROVED' | 'NOT APPROVED'
 
 export interface AuditEvent {
   id: string
@@ -202,5 +217,6 @@ export interface PayrollGridFilters {
 export interface ExportOptions {
   mode: 'all' | 'ready_only' | 'ready_and_warning'
   includeIssueSummary: boolean
-  format: 'csv'
+  format: 'csv' | 'xlsx'
+  applyGridFilters: boolean
 }
