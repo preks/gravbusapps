@@ -28,6 +28,7 @@ export const BENEFIT_TYPE_CATALOG_QUERY = `query fetchBenefitTypeCatalog($benefi
   CatalogEntry(
     where: {
       id: { _eq: $benefitTypeRef }
+      isDeleted: { _eq: false }
     }
   ) {
     id
@@ -53,6 +54,7 @@ export const BENEFIT_PROVIDER_CATALOG_QUERY = `query fetchBenefitProviderCatalog
   CatalogEntry(
     where: {
       id: { _eq: $benefitProviderRef }
+      isDeleted: { _eq: false }
     }
   ) {
     id

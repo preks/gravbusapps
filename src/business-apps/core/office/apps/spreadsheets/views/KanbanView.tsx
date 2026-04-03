@@ -5,8 +5,9 @@
  */
 
 import React, { memo } from 'react'
-import { Card, Badge } from '@newwork/nw-design-system'
+import { Card, Badge, useTranslation } from '@newwork/nw-design-system'
 import type { SpreadsheetSheet, SheetView } from '../types'
+import translations from '../_i18n'
 
 export interface KanbanViewProps {
   sheet: SpreadsheetSheet
@@ -29,6 +30,7 @@ export const KanbanView = memo<KanbanViewProps>(function KanbanView({
   canEdit = true,
   testId
 }) {
+  const { t } = useTranslation(translations)
   if (view.config.type !== 'kanban') {
     return null
   }
@@ -39,7 +41,7 @@ export const KanbanView = memo<KanbanViewProps>(function KanbanView({
   if (!statusCol) {
     return (
       <Card className="gba:p-8 gba:text-center">
-        <p className="gba:text-muted-foreground">Status column not found for Kanban view</p>
+        <p className="gba:text-muted-foreground">{t('view-kanban-status-column-not-found')}</p>
       </Card>
     )
   }
@@ -82,7 +84,7 @@ export const KanbanView = memo<KanbanViewProps>(function KanbanView({
                   onClick={canEdit ? () => onEdit(row) : undefined}
                 >
                   <p className="gba:font-medium gba:text-foreground gba:mb-1">
-                    {String(row[titleColumn] || 'Untitled')}
+                    {String(row[titleColumn] || t('view-kanban-untitled'))}
                   </p>
                   {descriptionColumn && Boolean(row[descriptionColumn]) && (
                     <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2">

@@ -13,6 +13,7 @@ const GET_EQUITY_INVESTMENT_TYPES = `
   query GetEquityInvestmentTypes {
     CatalogEntry(
       where: {
+        isDeleted: { _eq: false }
         catalog: { name: { _eq: "Investment Type" } }
         parentEntryId: { _eq: "InvestmentGroup:v1:EQUITY" }
       }

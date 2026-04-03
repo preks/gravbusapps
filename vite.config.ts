@@ -931,6 +931,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
       // Generate the wrapper module content
       const originalEntryPath = dynamicEntries[entryKey]
       const relativeEntryPath = path.relative(path.dirname(wrappedEntryPath), originalEntryPath).replace(/\\/g, '/')
+      const originalEntrySource = fs.readFileSync(originalEntryPath, 'utf8')
+      const hasDefaultExport =
+        /export\s+default/.test(originalEntrySource) || /export\s*\{[^}]*\bdefault\b[^}]*\}/s.test(originalEntrySource)
 
       // Check if this is a types, queries, hooks, tabs, components, utils, views, pages, or services entry (contains any of these keywords in the path)
       // These directories typically export multiple named exports but no single default export
@@ -952,7 +955,8 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         entryKey.includes('/pages') ||
         entryKey.endsWith('/pages') ||
         entryKey.includes('/services') ||
-        entryKey.endsWith('/services')
+        entryKey.endsWith('/services') ||
+        !hasDefaultExport
 
       const isDebugViewEntry = entryKey === '.debug/apps/debug-view' || entryKey.includes('/.debug/apps/debug-view')
       let wrapperContent: string
@@ -995,6 +999,17 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
   return {
     optimizeDeps: {
       include: [
+        // Excalidraw transitive deps: CJS or mixed interop — pre-bundle when @excalidraw/excalidraw is excluded above
+        'es6-promise-pool',
+        'png-chunks-extract',
+        'png-chunk-text',
+        'png-chunks-encode',
+        'lodash.throttle',
+        'lodash.debounce',
+        'fuzzy',
+        '@braintree/sanitize-url',
+        'pako',
+        'roughjs',
         'antd',
         'recharts',
         '@newwork/nw-design-system',
@@ -1010,11 +1025,24 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         'react',
         'react-dom'
       ],
-      // Optimize caching strategy
       esbuildOptions: {
-        target: 'es2020'
+        target: 'es2020',
+        plugins: [
+          {
+            name: 'patch-roughjs-nan-guard',
+            setup(build) {
+              build.onLoad({ filter: /roughjs[/\\]bin[/\\]generator\.js$/ }, async args => {
+                const src = await readFile(args.path, 'utf-8')
+                const patched = src.replace(
+                  `d = (d || '').replace(/\\n/g, ' ').replace(/(-\\s)/g, '-').replace('/(\\s\\s)/g', ' ');`,
+                  `d = (d || '').replace(/\\n/g, ' ').replace(/(-\\s)/g, '-').replace('/(\\s\\s)/g', ' ');\n        if (/NaN|undefined|Infinity/.test(d)) { return this._d('path', paths, o); }`
+                )
+                return { contents: patched, loader: 'js' }
+              })
+            }
+          }
+        ]
       }
-      // Let Vite automatically handle all other dependencies including React, antd, etc.
     },
     plugins: [
       ...(command === 'serve' ? [spaHistoryFallbackPlugin] : []),

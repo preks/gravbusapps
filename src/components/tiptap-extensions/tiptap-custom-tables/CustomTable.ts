@@ -4,6 +4,7 @@ import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { CustomTableView } from './CustomTableView'
 import { createTablePaginationMetadataPlugin } from './tablePaginationMetadata'
+import { createTableRowIdentityPlugin } from './tableRowIdentityPlugin'
 import {
   applyBorderPresetToSelection,
   setSelectedColumnsWidthPx,
@@ -177,6 +178,12 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   addAttributes() {
     return {
       ...this.parent?.(),
+      /** @deprecated Yjs/legacy only; identity is `id` from UniqueID. Cleared after migration. */
+      tableId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-table-id') || element.getAttribute('tableid'),
+        renderHTML: () => ({})
+      },
       tableWidth: {
         default: this.options.defaultTableWidth,
         parseHTML: element => {
@@ -376,7 +383,11 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   },
 
   addProseMirrorPlugins() {
-    return [...(this.parent?.() ?? []), createTablePaginationMetadataPlugin(this.name)]
+    return [
+      ...(this.parent?.() ?? []),
+      createTableRowIdentityPlugin('tableRow'),
+      createTablePaginationMetadataPlugin(this.name)
+    ]
   },
 
   addCommands() {

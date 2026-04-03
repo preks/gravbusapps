@@ -1,6 +1,7 @@
 import type { RequestOptions } from '../rest/RestClient'
 import { env } from '../../env/EnvUtils'
 import type { ResourceClient } from './ResourceClient'
+import { capLimit } from './paginationConstants'
 import type { NavigationDTO, GetNavigationsParams } from '@/common/data/resources/types/navigation.types'
 import type { MenuItemDTO, MenuItemUpsertRequestDTO } from '@/common/data/resources/types/menuItem.types'
 
@@ -19,6 +20,11 @@ export class NavigationClient {
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<{ data: NavigationDTO[]; totalCount: number }> {
     const endpoint = '/resource-url'
+    const safeParams = {
+      ...params,
+      limit: capLimit(params?.limit),
+      offset: params?.offset ?? 0
+    }
 
     const response = await this.resourceClient['get']<
       | NavigationDTO[]
@@ -29,7 +35,7 @@ export class NavigationClient {
       endpoint,
       {
         ...options,
-        params: params as Record<string, string | number | boolean>,
+        params: safeParams as Record<string, string | number | boolean>,
         withCredentials: false
       },
       this.baseUrl
@@ -72,6 +78,65 @@ export class NavigationClient {
       console.error('NavigationClient: Error getting navigation by ID:', error)
       return null
     }
+  }
+
+  /**
+   * Filter resource URLs by url path (e.g. platform/a/b/c from screen key url_a~b~c).
+   * API: GET /resource-url/filter?url=<path>
+   */
+  public async getResourceUrlsByFilter(
+    url: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<{ data: NavigationDTO[] }> {
+    const response = await this.resourceClient['get']<
+      | NavigationDTO[]
+      | NavigationDTO
+      | { data: NavigationDTO[] }
+      | { resourceUrlList: NavigationDTO[] }
+    >(
+      '/resource-url/filter',
+      {
+        ...options,
+        params: { url },
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+    if (Array.isArray(response)) return { data: response }
+    if (response && 'resourceUrlList' in response && Array.isArray(response.resourceUrlList)) {
+      return { data: response.resourceUrlList }
+    }
+    if (response && 'data' in response && Array.isArray(response.data)) return { data: response.data }
+    if (response && typeof response === 'object' && 'id' in response && 'url' in response) {
+      return { data: [response as NavigationDTO] }
+    }
+    return { data: [] }
+  }
+
+  /**
+   * Filter hubs (menu) by url. API: GET /hubs/filter?url=<path>
+   */
+  public async getHubsByFilter(
+    url: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<{ data: Array<{ id: string; name?: string; menuItems?: MenuItemDTO[] }> }> {
+    const response = await this.resourceClient['get']<
+      | Array<{ id: string; name?: string; menuItems?: MenuItemDTO[] }>
+      | { data: Array<{ id: string; name?: string; menuItems?: MenuItemDTO[] }> }
+      | { hubs: Array<{ id: string; name?: string; menuItems?: MenuItemDTO[] }> }
+    >(
+      '/hubs/filter',
+      {
+        ...options,
+        params: { url },
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+    if (Array.isArray(response)) return { data: response }
+    if (response && 'hubs' in response && Array.isArray(response.hubs)) return { data: response.hubs }
+    if (response && 'data' in response && Array.isArray(response.data)) return { data: response.data }
+    return { data: [] }
   }
 
   public async createNavigation(

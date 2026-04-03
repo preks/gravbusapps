@@ -26,10 +26,10 @@ import BirthAndGenderGroup from './components/BirthAndGenderGroup'
 import NationalityLanguageStatusGroup from './components/NationalityLanguageStatusGroup'
 import QualificationFields from './components/QualificationFields'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from '../../apps/employee-record/_i18n'
+import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
 
 const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   const { data, isLoading } = useChangePersonalData()
@@ -369,8 +369,7 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
                   'fileContent'
                 )
 
-                const processesBase =
-                  env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+                const processesBase = PROCESSES_BASE_URL
                 const createDocUrl = `${processesBase}/employee/employeeDocuments`
                 const body = {
                   employeeDocument: {

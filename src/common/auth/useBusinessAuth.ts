@@ -69,7 +69,9 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       setAccessToken(token)
       setTokenParsed(parsed)
       try {
-        window.dispatchEvent(new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: true }))
+        window.dispatchEvent(
+          new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: { accessToken: token } })
+        )
       } catch {
         // ignore dispatch errors in non-browser environments
       }
@@ -205,7 +207,9 @@ export function useBusinessAuth(): UseBusinessAuthResult {
         setAccessToken(token)
         setTokenParsed(parsed)
         try {
-          window.dispatchEvent(new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: true }))
+          window.dispatchEvent(
+            new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: { accessToken: token } })
+          )
         } catch {
           // ignore dispatch errors
         }

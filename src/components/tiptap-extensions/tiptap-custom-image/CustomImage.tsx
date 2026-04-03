@@ -122,8 +122,14 @@ function resolvePresetAttrs(
 
 export const CustomImage = Image.extend<CustomImageOptions>({
   addOptions() {
+    const parentOptions = this.parent?.()
     return {
-      ...this.parent?.(),
+      ...parentOptions,
+      // Spreading optional `parent()` leaves ImageOptions fields typed as optional; normalize to required shapes.
+      inline: parentOptions?.inline ?? false,
+      allowBase64: parentOptions?.allowBase64 ?? false,
+      HTMLAttributes: parentOptions?.HTMLAttributes ?? {},
+      resize: parentOptions?.resize ?? false,
       getAccessToken: () => '',
       isProtectedSrc: () => false,
       resolveProtectedSrc: undefined,
@@ -674,7 +680,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
   renderHTML({ node, HTMLAttributes }) {
     const imageAttributes = node.attrs as CustomImageAttributes
     const figureAttrs = getFigureDataAttributes(imageAttributes)
-    const figureClass = appendClassName(CUSTOM_IMAGE_FIGURE_CLASS, figureAttrs.class)
+    const figureClass = CUSTOM_IMAGE_FIGURE_CLASS
     const imageClass = appendClassName('editor-image', HTMLAttributes.class)
     const width = normalizeNullableNumber(imageAttributes.width ?? HTMLAttributes.width)
     const height = normalizeNullableNumber(imageAttributes.height ?? HTMLAttributes.height)

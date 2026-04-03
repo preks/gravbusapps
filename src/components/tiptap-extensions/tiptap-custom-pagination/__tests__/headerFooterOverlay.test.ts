@@ -281,7 +281,7 @@ describe('HeaderFooterOverlayManager', () => {
     })
   })
 
-  it('force-closes a detached overlay without triggering close refresh callbacks', () => {
+  it('force-closes a detached overlay and invokes onClose so the host can refresh layout', () => {
     const storage = createStorage()
     const onActiveEditorChange = jest.fn()
     const onClose = jest.fn()
@@ -328,7 +328,7 @@ describe('HeaderFooterOverlayManager', () => {
     expect(storage.activeEditor).toBeNull()
     expect(storage.activeEditorType).toBeNull()
     expect(storage.activePageNumber).toBeNull()
-    expect(onClose).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(1)
     expect(onActiveEditorChange).toHaveBeenLastCalledWith({
       activeEditor: null,
       activeEditorType: null,

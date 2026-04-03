@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Spinner } from '@newwork/nw-design-system'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AlertRule, AlertRuleCreateRequest } from '../../types/agentMesh'
-import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
 import { AlertRuleForm } from './AlertRuleForm'
 
 interface AlertRulesManagerProps {
@@ -9,7 +9,7 @@ interface AlertRulesManagerProps {
 }
 
 export const AlertRulesManager = ({ accessToken }: AlertRulesManagerProps) => {
-  const client = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [showForm, setShowForm] = useState(false)
   const [rules, setRules] = useState<AlertRule[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,14 +25,14 @@ export const AlertRulesManager = ({ accessToken }: AlertRulesManagerProps) => {
   const loadRules = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await client.getAlertRules()
+      const data = await promptManagerClient.getAlertRules()
       setRules(data)
     } catch (err) {
       console.error('Failed to load alert rules:', err)
     } finally {
       setLoading(false)
     }
-  }, [client])
+  }, [promptManagerClient])
 
   useEffect(() => {
     loadRules()
@@ -40,7 +40,7 @@ export const AlertRulesManager = ({ accessToken }: AlertRulesManagerProps) => {
 
   const handleSubmit = async () => {
     try {
-      await client.createAlertRule(formData)
+      await promptManagerClient.createAlertRule(formData)
       setShowForm(false)
       resetForm()
       await loadRules()
@@ -51,7 +51,7 @@ export const AlertRulesManager = ({ accessToken }: AlertRulesManagerProps) => {
 
   const handleDelete = async (ruleId: string) => {
     try {
-      await client.deleteAlertRule(ruleId)
+      await promptManagerClient.deleteAlertRule(ruleId)
       await loadRules()
     } catch (err) {
       console.error('Failed to delete alert rule:', err)
@@ -61,7 +61,7 @@ export const AlertRulesManager = ({ accessToken }: AlertRulesManagerProps) => {
   const handleToggleStatus = async (rule: AlertRule) => {
     try {
       const newStatus = rule.status === 'active' ? 'paused' : 'active'
-      await client.updateAlertRule(rule.rule_id, { status: newStatus })
+      await promptManagerClient.updateAlertRule(rule.rule_id, { status: newStatus })
       await loadRules()
     } catch (err) {
       console.error('Failed to toggle alert rule:', err)

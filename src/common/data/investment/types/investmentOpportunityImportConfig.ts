@@ -1,27 +1,58 @@
 /**
- * Investment Opportunity Import Configuration
- * Extends base opportunity fields with investment-specific fields
- * Used by IRM (Investment Relations Management) domain
+ * Investment Opportunity Import Configuration (IRM)
+ * Full explicit field list for InvestmentOpportunity schema.
+ *
+ * Key differences from CRM Opportunity:
+ * - opportunityStatusRef   → InvestmentOpportunityStatus   (not OpportunityStatus)
+ * - opportunityForecastRef → InvestmentOpportunityForecast (not OpportunityForecast)
+ * - opportunityPipelineRef → InvestmentOpportunityPipeline
+ * - opportunityPipelineStageRef → InvestmentOpportunityPipelineStage
  */
 
-import { baseOpportunityImportFields } from '@/common/data/relations/types/opportunityImportConfig'
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
-// IRM-specific: investment pipeline + investment fields
-const investmentOpportunityFields: TargetFieldDefinition[] = [
-  // Pipeline (IRM naming)
+const irmOpportunityFields: TargetFieldDefinition[] = [
+  // Basic Information
+  { value: 'name', label: 'Opportunity Name', type: 'direct' },
+  { value: 'description', label: 'Description', type: 'direct' },
+
+  // Status & Forecast — IRM catalog identifiers
+  {
+    value: 'opportunityStatusRef',
+    label: 'Status (Catalog)',
+    type: 'catalog',
+    catalog: 'InvestmentOpportunityStatus'
+  },
+  {
+    value: 'opportunityForecastRef',
+    label: 'Forecast (Catalog)',
+    type: 'catalog',
+    catalog: 'InvestmentOpportunityForecast'
+  },
+
+  // Pipeline — IRM catalog identifiers
   {
     value: 'opportunityPipelineRef',
     label: 'Pipeline (Catalog)',
     type: 'catalog',
-    catalog: 'OpportunityPipeline'
+    catalog: 'InvestmentOpportunityPipeline'
   },
   {
     value: 'opportunityPipelineStageRef',
     label: 'Pipeline Stage (Catalog)',
     type: 'catalog',
-    catalog: 'OpportunityPipelineStage'
+    catalog: 'InvestmentOpportunityPipelineStage'
   },
+
+  // Financial Information
+  { value: 'estimatedAmount', label: 'Estimated Amount', type: 'direct' },
+  { value: 'currencyRef', label: 'Currency (Catalog)', type: 'catalog', catalog: 'Currency' },
+  { value: 'closeDate', label: 'Expected Close Date', type: 'direct' },
+  { value: 'probability', label: 'Probability (%)', type: 'direct' },
+
+  // Owner
+  { value: 'ownerEmployeeId', label: 'Owner Employee ID', type: 'direct' },
+  { value: 'source', label: 'Source', type: 'direct' },
 
   // Investment-Specific
   { value: 'dealType', label: 'Deal Type', type: 'direct' },
@@ -54,5 +85,5 @@ const investmentOpportunityFields: TargetFieldDefinition[] = [
 export const investmentOpportunityImportConfig: ImportConfig = {
   entityType: 'opportunity',
   domain: 'investment',
-  targetFields: [...baseOpportunityImportFields, ...investmentOpportunityFields]
+  targetFields: irmOpportunityFields
 }

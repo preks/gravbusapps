@@ -611,7 +611,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   }
 
   return (
-    <div data-testid={DATA_TEST_ID_PREFIX}>
+    <>
       <style>
         {`
           .record-layout-content {
@@ -622,6 +622,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         `}
       </style>
       <RecordLayout
+        data-testid={DATA_TEST_ID_PREFIX}
         headerOrientation="horizontal"
         headerIcon={UsersThree}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.performance.team', 'TEAM OVERVIEW')}
@@ -630,7 +631,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         headerMeta={headerMeta}
         subViews={subViewsConfig}
       />
-    </div>
+    </>
   )
 }
 

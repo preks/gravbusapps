@@ -139,7 +139,6 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
   }
 
-  const toDateString = (d: Date) => d.toISOString().slice(0, 10)
   const toLocalDateKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -174,8 +173,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
     const variables = {
       employeeId,
-      dateFrom: toDateString(monthStart),
-      dateTo: toDateString(monthEnd),
+      dateFrom: toLocalDateKey(monthStart),
+      dateTo: toLocalDateKey(monthEnd),
       limit: pageSize,
       offset: (page - 1) * pageSize
     }
@@ -399,8 +398,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     // Fetch all rows for the month to compute worked minutes until yesterday
     const allRes = await graphqlClient.request<any>(employeeAttendanceMonthlyAllQuery, {
       employeeId,
-      dateFrom: toDateString(monthStart),
-      dateTo: toDateString(monthEnd)
+      dateFrom: toLocalDateKey(monthStart),
+      dateTo: toLocalDateKey(monthEnd)
     })
     const allRows: any[] = allRes?.EmployeeAttendance ?? []
     const allMapped = allRows.map(mapAttendanceToEntry)
@@ -711,8 +710,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
         const allRes = await graphqlClient.request<any>(allQuery, {
           employeeId,
-          dateFrom: toDateString(monthStart),
-          dateTo: toDateString(monthEnd)
+          dateFrom: toLocalDateKey(monthStart),
+          dateTo: toLocalDateKey(monthEnd)
         })
         const allRows: any[] = allRes?.EmployeeAttendance ?? []
         const todayStr = toLocalDateKey(today)

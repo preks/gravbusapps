@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Card, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
 import { Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { PathIcon, HandCoinsIcon, MapPinIcon, ClockIcon, ChatCircleIcon, WalletIcon, CalendarIcon } from '@phosphor-icons/react'
+import {
+  PathIcon,
+  HandCoinsIcon,
+  MapPinIcon,
+  ClockIcon,
+  ChatCircleIcon,
+  WalletIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import Pill from '@/components/pill'
 import { formatDate } from '@/common/utils/windowUtils'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
@@ -12,7 +20,7 @@ import { getExpenseRequestStatusDisplay } from './utils'
 import { formatCurrencyDisplay } from '../expense-plan-record/utils/currency'
 import { BackButton } from '@/components/back-button'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import TravelOrderAttachmentPreview from '../../common/components/TravelOrderAttachmentPreview'
+import TravelOrderAttachmentPreview from '../../common/components/document-preview/TravelOrderAttachmentPreview'
 
 // Import tab components
 import ExpenseRequestItems from './components/ExpenseRequestItems.tsx'

@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Checkbox, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Button, Checkbox, Tabs, TabsContent, TabsList, TabsTrigger, useTranslation } from '@newwork/nw-design-system'
 import { BarChart3, X, Sparkles, Copy, RefreshCw, Download, Presentation } from 'lucide-react'
 import { toPng } from 'html-to-image'
 import {
@@ -33,6 +33,7 @@ import {
 import { indexToExcelCol, parseChartRange } from '../utils/chartRangeUtils'
 import { useSpreadsheetAnalyticsAI } from '../hooks/useSpreadsheetAnalyticsAI'
 import { SendToSlidesDialog } from './SendToSlidesDialog'
+import translations from '../_i18n'
 
 const CHART_COLORS = [
   'var(--nw-chart-1)',
@@ -281,6 +282,7 @@ interface ChartPreviewProps {
   showGrid: boolean
   showLegend: boolean
   getColumnHeader: (column: SpreadsheetColumn) => string
+  t: (key: string, vars?: Record<string, unknown>) => string
 }
 
 function ChartPreview({
@@ -295,20 +297,21 @@ function ChartPreview({
   chartType,
   showGrid,
   showLegend,
-  getColumnHeader
+  getColumnHeader,
+  t
 }: ChartPreviewProps): React.ReactNode {
   if (chartData.length === 0) {
     const hasAxes = chartXAxis && chartYAxis.length > 0
     const hasData = normalizedChartRows.length > 0
     return (
       <div className="gba:text-xs gba:text-muted-foreground" data-testid="chart-preview-empty">
-        {!hasAxes && 'Select X and Y fields to render a chart preview.'}
+        {!hasAxes && t('analytics-chart-preview-select-axes')}
         {hasAxes &&
           !hasData &&
           (chartXRange || chartYRange
-            ? 'No data in the specified range. Try a different range or clear the range fields to use all data.'
-            : 'No data rows available. Add data to your sheet.')}
-        {hasAxes && hasData && 'Could not extract chart data. Ensure your columns contain the selected fields.'}
+            ? t('analytics-chart-preview-no-data-range')
+            : t('analytics-chart-preview-no-data-rows'))}
+        {hasAxes && hasData && t('analytics-chart-preview-extract-failed')}
       </div>
     )
   }
@@ -452,22 +455,23 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   getSheetDataFromGrid,
   'data-testid': testId = 'analytics-panel'
 }) {
+  const { t } = useTranslation(translations)
   const memoizedEngineRef = useRef(createAnalyticsMemo())
   const [activeTab, setActiveTab] = useState('charts')
   const panelTitle = useMemo(() => {
     switch (activeTab) {
       case 'charts':
-        return 'Generate charts'
+        return t('analytics-panel-title-generate-charts')
       case 'insights':
-        return 'AI insights'
+        return t('analytics-panel-title-ai-insights')
       case 'summary':
-        return 'AI summary'
+        return t('analytics-panel-title-ai-summary')
       case 'pivot':
-        return 'Pivot table'
+        return t('analytics-panel-title-pivot-table')
       default:
-        return 'AI Analytics'
+        return t('menu-ai-analytics')
     }
-  }, [activeTab])
+  }, [activeTab, t])
   const showTabs = initialTab !== 'charts'
   useEffect(() => {
     if (isOpen) {
@@ -655,8 +659,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     })
     const xCol = columns.find(c => c.name === chartXAxis)
     const xLabel = xCol ? firstRowHeaderMap.get(xCol.name) || xCol.label || xCol.name : chartXAxis
-    return yLabels.length > 0 ? `${yLabels.join(', ')} by ${xLabel}` : `Values by ${xLabel}`
-  }, [chartXAxis, chartYAxis, columns, firstRowHeaderMap])
+    return yLabels.length > 0
+      ? t('analytics-chart-title-by-axis', { yLabels: yLabels.join(', '), xLabel })
+      : t('analytics-chart-title-values-by-axis', { xLabel })
+  }, [chartXAxis, chartYAxis, columns, firstRowHeaderMap, t])
 
   const getChartAsPngDataUrl = useCallback(async (): Promise<string | null> => {
     const container = chartContainerRef.current
@@ -809,7 +815,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
         className="gba:absolute gba:inset-0 gba:bg-transparent"
         role="button"
         tabIndex={0}
-        aria-label="Close panel"
+        aria-label={t('analytics-close-panel-aria')}
         onClick={onClose}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') onClose()
@@ -836,7 +842,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
             <div>
               <h2 className="gba:font-semibold gba:text-sm">{panelTitle}</h2>
               <p className="gba:text-xs gba:text-muted-foreground">
-                {`${analyticsRows.length} rows x ${columns.length} cols`}
+                {t('analytics-rows-cols', { rows: analyticsRows.length, cols: columns.length })}
               </p>
             </div>
           </div>
@@ -858,19 +864,19 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   value="charts"
                   className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
                 >
-                  Charts
+                  {t('analytics-tab-charts')}
                 </TabsTrigger>
                 <TabsTrigger
                   value="insights"
                   className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
                 >
-                  Insights
+                  {t('analytics-tab-insights')}
                 </TabsTrigger>
                 <TabsTrigger
                   value="summary"
                   className="gba:flex-1 gba:rounded-lg gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:transition-all data-[state=active]:gba:bg-background data-[state=active]:gba:text-foreground data-[state=active]:gba:shadow-sm data-[state=inactive]:gba:text-muted-foreground data-[state=inactive]:hover:gba:text-foreground data-[state=inactive]:hover:gba:bg-background/50"
                 >
-                  Summary
+                  {t('analytics-tab-summary')}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -880,7 +886,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
             <TabsContent value="pivot" className="gba:space-y-4">
               <div className="gba:grid gba:grid-cols-1 gba:gap-3">
                 <label className="gba:text-xs gba:text-muted-foreground">
-                  Row Fields
+                  {t('analytics-pivot-row-fields')}
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
                     value={pivotRowField}
@@ -895,13 +901,13 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </label>
 
                 <label className="gba:text-xs gba:text-muted-foreground">
-                  Column Fields
+                  {t('analytics-pivot-column-fields')}
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
                     value={pivotColumnField}
                     onChange={e => setPivotColumnField(e.target.value)}
                   >
-                    <option value="">None</option>
+                    <option value="">{t('analytics-option-none')}</option>
                     {columns.map(col => (
                       <option key={col.id} value={col.name}>
                         {getColumnHeader(col)}
@@ -911,14 +917,14 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </label>
 
                 <label className="gba:text-xs gba:text-muted-foreground">
-                  Value Fields
+                  {t('analytics-pivot-value-fields')}
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
                     value={pivotValueField}
                     onChange={e => setPivotValueField(e.target.value)}
                     disabled={aggregation === 'count'}
                   >
-                    <option value="">None</option>
+                    <option value="">{t('analytics-option-none')}</option>
                     {numericColumns.map(col => (
                       <option key={col.id} value={col.name}>
                         {getColumnHeader(col)}
@@ -928,23 +934,23 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </label>
 
                 <label className="gba:text-xs gba:text-muted-foreground">
-                  Aggregation
+                  {t('analytics-aggregation')}
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
                     value={aggregation}
                     onChange={e => setAggregation(e.target.value as AnalyticsAggregation)}
                   >
-                    <option value="count">COUNT</option>
-                    <option value="sum">SUM</option>
-                    <option value="avg">AVG</option>
-                    <option value="min">MIN</option>
-                    <option value="max">MAX</option>
+                    <option value="count">{t('analytics-aggregation-count')}</option>
+                    <option value="sum">{t('analytics-aggregation-sum')}</option>
+                    <option value="avg">{t('analytics-aggregation-avg')}</option>
+                    <option value="min">{t('analytics-aggregation-min')}</option>
+                    <option value="max">{t('analytics-aggregation-max')}</option>
                   </select>
                 </label>
               </div>
 
               <Button className="gba:w-full" onClick={handleComputePivot} disabled={!canComputePivot}>
-                Compute Pivot Table
+                {t('analytics-compute-pivot')}
               </Button>
 
               {pivotRows.length > 0 && (
@@ -980,14 +986,12 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
             <TabsContent value="charts" className="gba:space-y-5">
               <div className="gba:border gba:border-primary/20 gba:bg-primary/5 gba:rounded-md gba:p-3.5">
-                <p className="gba:text-xs gba:leading-relaxed gba:text-primary">
-                  Visualize your data and optionally send the chart to a Slides presentation.
-                </p>
+                <p className="gba:text-xs gba:leading-relaxed gba:text-primary">{t('analytics-chart-description')}</p>
               </div>
 
               <div className="gba:grid gba:grid-cols-1 gba:gap-4">
                 <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
-                  Chart Type
+                  {t('analytics-chart-type')}
                   <div className="gba:mt-1 gba:grid gba:grid-cols-5 gba:gap-1">
                     {(['bar', 'line', 'pie', 'area', 'scatter'] as const).map(type => (
                       <Button
@@ -997,14 +1001,14 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                         className="gba:h-8 gba:px-2 gba:text-[11px]"
                         onClick={() => setChartType(type)}
                       >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                        {t(`analytics-chart-type-${type}`)}
                       </Button>
                     ))}
                   </div>
                 </label>
 
                 <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
-                  X-Axis (Categories)
+                  {t('analytics-x-axis-categories')}
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
                     value={chartXAxis}
@@ -1017,10 +1021,10 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                     ))}
                   </select>
                   <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:text-xs gba:text-muted-foreground/80">Range:</span>
+                    <span className="gba:text-xs gba:text-muted-foreground/80">{t('analytics-range-label')}</span>
                     <input
                       type="text"
-                      placeholder={getDefaultRangeForColumn(chartXAxis) || 'e.g. A2:A100'}
+                      placeholder={getDefaultRangeForColumn(chartXAxis) || t('analytics-range-placeholder-x')}
                       className="gba:flex-1 gba:min-w-0 gba:h-8 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-2.5 gba:text-sm gba:font-mono"
                       value={chartXRange}
                       onChange={e => setChartXRange(e.target.value)}
@@ -1030,7 +1034,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </label>
 
                 <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
-                  Y-Axis (Values)
+                  {t('analytics-y-axis-values')}
                   <div className="gba:mt-1 gba:flex gba:flex-wrap gba:gap-1">
                     {chartableValueColumns.length > 0 ? (
                       chartableValueColumns
@@ -1050,11 +1054,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                           )
                         })
                     ) : (
-                      <span className="gba:text-xs gba:text-muted-foreground">No value columns detected.</span>
+                      <span className="gba:text-xs gba:text-muted-foreground">{t('analytics-no-value-columns')}</span>
                     )}
                   </div>
                   <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:text-xs gba:text-muted-foreground/80">Range:</span>
+                    <span className="gba:text-xs gba:text-muted-foreground/80">{t('analytics-range-label')}</span>
                     <input
                       type="text"
                       placeholder={yRangePlaceholder}
@@ -1067,17 +1071,17 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 </label>
 
                 <label className="gba:text-[11px] gba:leading-relaxed gba:text-muted-foreground">
-                  Aggregation
+                  {t('analytics-aggregation')}
                   <select
                     className="gba:mt-1 gba:w-full gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
                     value={chartAggregation}
                     onChange={e => setChartAggregation(e.target.value as AnalyticsAggregation)}
                   >
-                    <option value="sum">SUM</option>
-                    <option value="avg">AVG</option>
-                    <option value="count">COUNT</option>
-                    <option value="min">MIN</option>
-                    <option value="max">MAX</option>
+                    <option value="sum">{t('analytics-aggregation-sum')}</option>
+                    <option value="avg">{t('analytics-aggregation-avg')}</option>
+                    <option value="count">{t('analytics-aggregation-count')}</option>
+                    <option value="min">{t('analytics-aggregation-min')}</option>
+                    <option value="max">{t('analytics-aggregation-max')}</option>
                   </select>
                 </label>
 
@@ -1085,11 +1089,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   <div className="gba:flex gba:items-center gba:gap-4">
                     <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
                       <Checkbox checked={showLegend} onCheckedChange={v => setShowLegend(v === true)} />
-                      Legend
+                      {t('analytics-legend')}
                     </label>
                     <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:cursor-pointer">
                       <Checkbox checked={showGrid} onCheckedChange={v => setShowGrid(v === true)} />
-                      Grid
+                      {t('analytics-grid')}
                     </label>
                   </div>
                 </div>
@@ -1104,7 +1108,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                     memoizedEngineRef.current.clear()
                     setChartRefreshKey(k => k + 1)
                   }}
-                  aria-label="Refresh chart"
+                  aria-label={t('analytics-refresh-chart-aria')}
                 >
                   <RefreshCw className="gba:w-4 gba:h-4" />
                 </Button>
@@ -1131,6 +1135,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                       showGrid={showGrid}
                       showLegend={showLegend}
                       getColumnHeader={getColumnHeader}
+                      t={t}
                     />
                   </div>
                 </div>
@@ -1141,7 +1146,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Button onClick={() => void generateInsights()} disabled={isLoadingInsights} className="gba:flex-1">
                   <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isLoadingInsights ? 'Generating...' : 'AI insights'}
+                  {isLoadingInsights ? t('analytics-generating') : t('analytics-panel-title-ai-insights')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -1155,7 +1160,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
               {insightsError && (
                 <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
-                  {`Using local fallback: ${insightsError}`}
+                  {t('analytics-using-local-fallback', { error: insightsError })}
                 </p>
               )}
               <div className="gba:space-y-2">
@@ -1170,9 +1175,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   ))
                 ) : (
                   <div className="gba:border gba:border-secondary/30 gba:bg-secondary/5 gba:rounded-md gba:p-3">
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      Generate business summary, trend interpretation, and executive direction.
-                    </p>
+                    <p className="gba:text-xs gba:text-muted-foreground">{t('analytics-insights-empty')}</p>
                   </div>
                 )}
               </div>
@@ -1182,7 +1185,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Button onClick={() => void generateSummary()} disabled={isLoadingSummary} className="gba:flex-1">
                   <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isLoadingSummary ? 'Generating...' : 'AI Summary'}
+                  {isLoadingSummary ? t('analytics-generating') : t('analytics-summary-button')}
                 </Button>
                 <Button
                   variant="secondary"
@@ -1196,7 +1199,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
 
               {summaryError && (
                 <p className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/30 gba:rounded-md gba:p-2">
-                  {`Using local fallback: ${summaryError}`}
+                  {t('analytics-using-local-fallback', { error: summaryError })}
                 </p>
               )}
               {summary ? (
@@ -1212,10 +1215,12 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <h4 className="gba:text-sm gba:font-medium">{card.columnName}</h4>
                         <span className="gba:text-xs gba:text-muted-foreground">
-                          {`Count ${card.count} · Unique ${card.unique}`}
+                          {t('analytics-card-count-unique', { count: card.count, unique: card.unique })}
                         </span>
                       </div>
-                      <p className="gba:text-xs gba:text-muted-foreground">{`Mode: ${card.mode}`}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('analytics-card-mode', { mode: card.mode })}
+                      </p>
                       <div className="gba:space-y-1">
                         {card.topValues.slice(0, 4).map(item => {
                           const ratio = card.count > 0 ? (item.count / card.count) * 100 : 0
@@ -1239,9 +1244,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                   ))}
                 </div>
               ) : (
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  Generate AI summary to see per-column statistics.
-                </p>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('analytics-summary-empty')}</p>
               )}
             </TabsContent>
           </div>
@@ -1254,7 +1257,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
               onClick={() => void handleInsertPivotRows()}
               disabled={!canInsertPivot || isInsertingPivot}
             >
-              {isInsertingPivot ? 'Inserting...' : 'Insert into Sheet'}
+              {isInsertingPivot ? t('analytics-inserting') : t('analytics-insert-into-sheet')}
             </Button>
           )}
           {activeTab === 'charts' && (
@@ -1267,7 +1270,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 disabled={chartData.length === 0}
               >
                 <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                PNG
+                {t('analytics-download-png')}
               </Button>
               <Button
                 size="sm"
@@ -1276,7 +1279,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
                 disabled={chartData.length === 0}
               >
                 <Presentation className="gba:w-4 gba:h-4 gba:mr-2" />
-                Send to Slides
+                {t('analytics-send-to-slides')}
               </Button>
             </div>
           )}

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AgentRegistryEntry, Connection } from '../types/agentMesh'
-import { useAgentMeshClient } from './useAgentMeshClient'
 import type { MergedEdge } from '../utils/meshGraphUtils'
 
 interface UseMeshConnectionsParams {
@@ -28,7 +28,7 @@ export function useMeshConnections({
   setConnectSource,
   loadData
 }: UseMeshConnectionsParams) {
-  const api = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
   const onConnect = useCallback(
     async (params: { source: string | null; target: string | null }) => {
@@ -40,7 +40,7 @@ export function useMeshConnections({
       if (alreadyExists) return
 
       try {
-        await api.createConnection({
+        await promptManagerClient.createMeshConnection({
           caller_id: sourceAgent.id,
           caller_name: sourceAgent.name,
           callee_id: targetAgent.id,
@@ -51,7 +51,7 @@ export function useMeshConnections({
         console.error('Failed to create connection:', err)
       }
     },
-    [agents, connections, api, loadData]
+    [agents, connections, promptManagerClient, loadData]
   )
 
   const handleEdgeClick = useCallback(
@@ -71,13 +71,15 @@ export function useMeshConnections({
   const handleDeleteConnection = useCallback(async () => {
     if (!selectedEdgeInfo) return
     try {
-      await Promise.allSettled(selectedEdgeInfo.connectionIds.map(id => api.deleteConnection(id)))
+      await Promise.allSettled(
+        selectedEdgeInfo.connectionIds.map(connectionId => promptManagerClient.deleteMeshConnection(connectionId))
+      )
       setSelectedEdgeId(null)
       loadData()
     } catch (err) {
       console.error('Failed to delete connection:', err)
     }
-  }, [selectedEdgeInfo, api, setSelectedEdgeId, loadData])
+  }, [selectedEdgeInfo, promptManagerClient, setSelectedEdgeId, loadData])
 
   const handleNodeClick = useCallback(
     async (_: React.MouseEvent, node: { id: string }) => {
@@ -104,7 +106,7 @@ export function useMeshConnections({
       const alreadyExists = connections.some(c => c.caller_id === sourceAgent.id && c.callee_id === targetAgent.id)
       if (!alreadyExists) {
         try {
-          await api.createConnection({
+          await promptManagerClient.createMeshConnection({
             caller_id: sourceAgent.id,
             caller_name: sourceAgent.name,
             callee_id: targetAgent.id,
@@ -117,7 +119,7 @@ export function useMeshConnections({
       }
       setConnectSource(null)
     },
-    [editMode, connectSource, agents, connections, api, loadData, setSelectedEdgeId, setConnectSource]
+    [editMode, connectSource, agents, connections, promptManagerClient, loadData, setSelectedEdgeId, setConnectSource]
   )
 
   return {

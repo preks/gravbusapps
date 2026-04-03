@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
 
 export interface UploadedEmployeeDocument {
   id: string
@@ -29,7 +29,7 @@ export const uploadEmployeeDocumentIfAny = async (
         'fileContent'
       )
 
-      const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+      const processesBase = PROCESSES_BASE_URL
       const createDocUrl = `${processesBase}/employee/employeeDocuments`
       const body = {
         employeeDocument: {

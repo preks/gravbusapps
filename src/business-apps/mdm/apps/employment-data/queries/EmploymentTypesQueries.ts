@@ -1,7 +1,7 @@
 import { CatalogManagerClient } from '@/common/network/catalogs/CatalogManagerClient'
 import { EmploymentType } from '../components/tabs'
 import { useCallback } from 'react'
-import { parseEmploymentMetadata } from '../utils/catalogEntryMetadata'
+import { isEmploymentTypeMarkedDeleted } from '../utils/catalogEntryMetadata'
 import {
   EMPLOYMENT_TYPE_CATALOG,
   EMPLOYMENT_TYPE_VERSION
@@ -33,9 +33,10 @@ export const useGetEmploymentTypesData = (catalogClient: CatalogManagerClient, u
             additionalValue1: entry.additionalValue1,
             additionalValue2: entry.additionalValue2,
             additionalValue3: entry.additionalValue3,
+            isDeleted: entry.isDeleted,
             translations: entry.translations || []
           }))
-          .filter(entry => !parseEmploymentMetadata(entry.additionalValue2).is_deleted)
+          .filter(entry => !isEmploymentTypeMarkedDeleted(entry))
         return types
       }
     } catch {

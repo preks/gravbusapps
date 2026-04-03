@@ -33,7 +33,8 @@ import {
   Checkbox,
   Spinner,
   Alert,
-  AlertDescription
+  AlertDescription,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Users,
@@ -50,6 +51,7 @@ import {
 } from 'lucide-react'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import type { SpreadsheetAutomation, WorkflowRowLink, WorkflowStatus } from '../../types/automation'
+import translations from '../../_i18n'
 
 export interface BulkCollectionPanelProps {
   /** Bulk collection automation */
@@ -100,6 +102,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
   onRefresh,
   'data-testid': testId = 'bulk-collection-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const config = automation.collectionConfig
 
   // State
@@ -181,7 +184,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
     if (config?.fieldMappings && config.fieldMappings.length > 0) {
       return columns.filter(c => config.fieldMappings.some(m => m.targetColumnId === c.id))
     }
-    return columns.filter(c => c.isVisible).slice(0, 5)
+    return columns.filter(c => c.isVisible !== false).slice(0, 5)
   }, [columns, config?.fieldMappings])
 
   return (
@@ -194,7 +197,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             {automation.name}
           </h2>
           <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-            {automation.description || 'Collect responses from multiple users'}
+            {automation.description || t('bulk-collection-default-description')}
           </p>
         </div>
 
@@ -206,12 +209,12 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
           {isCollecting ? (
             <Button variant="destructive" size="sm" onClick={onStopCollection}>
               <Pause className="gba:w-4 gba:h-4 gba:mr-2" />
-              Stop Collection
+              {t('bulk-collection-stop')}
             </Button>
           ) : (
             <Button size="sm" onClick={() => setIsStartDialogOpen(true)}>
               <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-              Start Collection
+              {t('bulk-collection-start')}
             </Button>
           )}
         </div>
@@ -224,7 +227,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <div className="gba:text-2xl gba:font-bold">{stats.total}</div>
-                <div className="gba:text-sm gba:text-muted-foreground">Total Sent</div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('bulk-collection-total-sent')}</div>
               </div>
               <Send className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
             </div>
@@ -236,7 +239,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <div className="gba:text-2xl gba:font-bold gba:text-success">{stats.completed}</div>
-                <div className="gba:text-sm gba:text-muted-foreground">Completed</div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('tasks-completed')}</div>
               </div>
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
@@ -248,7 +251,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <div className="gba:text-2xl gba:font-bold gba:text-warning">{stats.pending}</div>
-                <div className="gba:text-sm gba:text-muted-foreground">Pending</div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('tasks-pending')}</div>
               </div>
               <Clock className="gba:w-8 gba:h-8 gba:text-warning" />
             </div>
@@ -260,7 +263,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <div className="gba:text-2xl gba:font-bold">{stats.responseRate}%</div>
-                <div className="gba:text-sm gba:text-muted-foreground">Response Rate</div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('bulk-collection-response-rate')}</div>
               </div>
               <BarChart3 className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
             </div>
@@ -273,7 +276,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
         <Card>
           <CardContent className="gba:p-4">
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-              <span className="gba:text-sm gba:font-medium">Collection Progress</span>
+              <span className="gba:text-sm gba:font-medium">{t('bulk-collection-progress')}</span>
               <span className="gba:text-sm gba:text-muted-foreground">
                 {stats.completed} of {stats.total} responses
               </span>
@@ -290,7 +293,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
                   ) : (
                     <Send className="gba:w-4 gba:h-4 gba:mr-2" />
                   )}
-                  Send Reminders
+                  {t('bulk-collection-send-reminders')}
                 </Button>
               </div>
             )}
@@ -307,7 +310,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             onClick={() => setViewMode('progress')}
           >
             <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-            Response Status
+            {t('bulk-collection-response-status')}
           </Button>
           <Button
             variant={viewMode === 'responses' ? 'default' : 'ghost'}
@@ -315,14 +318,14 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             onClick={() => setViewMode('responses')}
           >
             <BarChart3 className="gba:w-4 gba:h-4 gba:mr-2" />
-            Collected Data
+            {t('bulk-collection-collected-data')}
           </Button>
         </div>
 
         {viewMode === 'responses' && collectedData.length > 0 && (
           <Button variant="outline" size="sm" onClick={onExportData}>
             <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-            Export Data
+            {t('bulk-collection-export-data')}
           </Button>
         )}
       </div>
@@ -331,24 +334,24 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
       {viewMode === 'progress' ? (
         <Card>
           <CardHeader className="gba:pb-3">
-            <CardTitle className="gba:text-base">Response Status by User</CardTitle>
+            <CardTitle className="gba:text-base">{t('bulk-collection-response-status-by-user')}</CardTitle>
           </CardHeader>
           <CardContent>
             {workflowLinks.length === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                 <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
-                <p>No collection in progress.</p>
-                <p className="gba:text-sm gba:mt-1">Start a collection to send workflows to users.</p>
+                <p>{t('bulk-collection-no-progress')}</p>
+                <p className="gba:text-sm gba:mt-1">{t('bulk-collection-no-progress-hint')}</p>
               </div>
             ) : (
               <ScrollArea className="gba:h-[300px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Submitted At</TableHead>
-                      <TableHead className="gba:w-20">Actions</TableHead>
+                      <TableHead>{t('bulk-collection-user')}</TableHead>
+                      <TableHead>{t('bulk-collection-status')}</TableHead>
+                      <TableHead>{t('bulk-collection-submitted-at')}</TableHead>
+                      <TableHead className="gba:w-20">{t('bulk-collection-actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -391,26 +394,28 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
       ) : (
         <Card>
           <CardHeader className="gba:pb-3">
-            <CardTitle className="gba:text-base">Collected Responses</CardTitle>
-            <CardDescription>{collectedData.length} response(s) collected</CardDescription>
+            <CardTitle className="gba:text-base">{t('bulk-collection-collected-responses')}</CardTitle>
+            <CardDescription>
+              {t('bulk-collection-responses-collected', { count: collectedData.length })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {collectedData.length === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                 <BarChart3 className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
-                <p>No data collected yet.</p>
-                <p className="gba:text-sm gba:mt-1">Data will appear here as users complete their responses.</p>
+                <p>{t('bulk-collection-no-data')}</p>
+                <p className="gba:text-sm gba:mt-1">{t('bulk-collection-no-data-hint')}</p>
               </div>
             ) : (
               <ScrollArea className="gba:h-[300px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {!config?.anonymize && <TableHead>Respondent</TableHead>}
+                      {!config?.anonymize && <TableHead>{t('bulk-collection-respondent')}</TableHead>}
                       {visibleColumns.map(column => (
                         <TableHead key={column.id}>{column.label}</TableHead>
                       ))}
-                      <TableHead>Submitted</TableHead>
+                      <TableHead>{t('bulk-collection-submitted')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -443,42 +448,40 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
       <Dialog open={isStartDialogOpen} onOpenChange={setIsStartDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start Data Collection</DialogTitle>
-            <DialogDescription>Send workflows to collect data from selected users.</DialogDescription>
+            <DialogTitle>{t('bulk-collection-start-dialog-title')}</DialogTitle>
+            <DialogDescription>{t('bulk-collection-start-dialog-description')}</DialogDescription>
           </DialogHeader>
 
           <div className="gba:space-y-4">
             <div>
-              <Label className="gba:mb-2 gba:block">Target Users</Label>
+              <Label className="gba:mb-2 gba:block">{t('bulk-collection-target-users')}</Label>
               <Input
-                placeholder="Search users or enter user IDs..."
+                placeholder={t('bulk-collection-target-users-placeholder')}
                 value={userSearchQuery}
                 onChange={e => setUserSearchQuery(e.target.value)}
               />
-              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                Enter comma-separated user IDs or email addresses
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('bulk-collection-target-users-hint')}</p>
             </div>
 
             {/* Quick selection options */}
             <div className="gba:flex gba:flex-wrap gba:gap-2">
               <Button size="sm" variant="outline" onClick={() => setSelectedUsers(['all-employees'])}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-1" />
-                All Employees
+                {t('bulk-collection-all-employees')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setSelectedUsers(['my-team'])}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-1" />
-                My Team
+                {t('bulk-collection-my-team')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setSelectedUsers(['department'])}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-1" />
-                My Department
+                {t('bulk-collection-my-department')}
               </Button>
             </div>
 
             {selectedUsers.length > 0 && (
               <div className="gba:p-3 gba:bg-muted gba:rounded-lg">
-                <Label className="gba:text-xs gba:text-muted-foreground">Selected</Label>
+                <Label className="gba:text-xs gba:text-muted-foreground">{t('bulk-collection-selected')}</Label>
                 <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-1">
                   {selectedUsers.map(user => (
                     <Badge key={user} variant="outline" className="gba:gap-1">
@@ -499,27 +502,25 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
                 onCheckedChange={checked => setAnonymizeResponses(!!checked)}
               />
               <Label htmlFor="anonymize" className="gba:text-sm">
-                Anonymize responses (hide respondent identities)
+                {t('bulk-collection-anonymize')}
               </Label>
             </div>
 
             {anonymizeResponses && (
               <Alert>
                 <AlertTriangle className="gba:w-4 gba:h-4" />
-                <AlertDescription>
-                  Anonymous mode is enabled. You won't be able to see who submitted each response.
-                </AlertDescription>
+                <AlertDescription>{t('bulk-collection-anonymize-warning')}</AlertDescription>
               </Alert>
             )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsStartDialogOpen(false)}>
-              Cancel
+              {t('checkpoint-cancel')}
             </Button>
             <Button onClick={handleStartCollection} disabled={selectedUsers.length === 0 || isStarting}>
               {isStarting ? <Spinner size="sm" className="gba:mr-2" /> : <Send className="gba:w-4 gba:h-4 gba:mr-2" />}
-              Start Collection
+              {t('bulk-collection-start')}
             </Button>
           </DialogFooter>
         </DialogContent>

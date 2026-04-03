@@ -128,7 +128,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         const assignmentsPage = await resourceClient.action.getActionAssignments({
           ...restParams,
           returnTotalRecords: true,
-          limit: paramsRef.current?.limit ?? 20,
+          limit: paramsRef.current?.limit ?? 25,
           offset: append ? currentOffsetRef.current : 0
         })
 

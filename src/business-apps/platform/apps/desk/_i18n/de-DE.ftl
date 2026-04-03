@@ -32,6 +32,8 @@ app-notes-title = Notizen
 app-notes-description = Ideen schnell mit Formatierung und Tags erfassen
 app-slides-title = Folien
 app-slides-description = Präsentationen mit Live-Zusammenarbeit erstellen
+app-whiteboards-title = Whiteboards
+app-whiteboards-description = Zusammenarbeit auf unendlicher Leinwand mit Formen, Diagrammen und Haftnotizen
 
 # Quick Actions
 search-placeholder = Dokumente, Tabellen und Notizen durchsuchen...

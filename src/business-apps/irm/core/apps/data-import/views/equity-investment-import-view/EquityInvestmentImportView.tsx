@@ -59,7 +59,7 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
     setUnmappedSourceFields
   } = useEntityMappings(equityInvestmentImportConfig.targetFields, agentResponse?.fieldMappings || [])
 
-  // Sync mappings when agent response changes
+  // Sync mappings and unmapped fields when agent response changes
   React.useEffect(() => {
     if (agentResponse) {
       setMappings(agentResponse.fieldMappings)
@@ -80,7 +80,7 @@ export const EquityInvestmentImportView: React.FC<EquityInvestmentImportViewProp
       onBack={onBack}
       data-testid={testId}
     >
-      {error && <ImportErrorCard error={error} data-testid={`${testId}-error`} />}
+      {error && <ImportErrorCard step={step} error={error} data-testid={`${testId}-error`} />}
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
