@@ -165,10 +165,6 @@ export const CustomImage = Image.extend<CustomImageOptions>({
       {
         tag: 'img[src]',
         getAttrs: element => {
-          if (element.parentElement?.closest(`[data-node-type="${CUSTOM_IMAGE_TAG}"]`)) {
-            return false
-          }
-
           const attrs = getImageFigureAttributesFromElement(element, defaults)
           return attrs.src ? attrs : false
         }

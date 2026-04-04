@@ -103,6 +103,24 @@ describe('enhanceImportedHtmlWithImageLayouts', () => {
     expect(out).toContain('height="150"')
   })
 
+  it('preserves data-uri image sources when upgrading Mammoth html', () => {
+    const html = '<p><img src="data:image/png;base64,abc123" alt="Imported"></p>'
+    const out = enhanceImportedHtmlWithImageLayouts(html, [
+      { wrapMode: 'top-bottom', align: 'center', widthPx: 240, heightPx: 120 }
+    ])
+    const doc = new DOMParser().parseFromString(out, 'text/html')
+    const figure = doc.body.querySelector('figure[data-node-type="custom-image"]')
+    const image = figure?.querySelector('img')
+
+    expect(figure).not.toBeNull()
+    expect(figure?.getAttribute('data-image-wrap')).toBe('top-bottom')
+    expect(figure?.getAttribute('data-image-anchor')).toBe('move-with-text')
+    expect(figure?.getAttribute('data-image-display')).toBe('block')
+    expect(image?.getAttribute('src')).toBe('data:image/png;base64,abc123')
+    expect(image?.getAttribute('width')).toBe('240')
+    expect(image?.getAttribute('height')).toBe('120')
+  })
+
   it('returns original html when layouts empty', () => {
     const html = '<p><img src="data:image/png;base64,xx"></p>'
     expect(enhanceImportedHtmlWithImageLayouts(html, [])).toBe(html)
