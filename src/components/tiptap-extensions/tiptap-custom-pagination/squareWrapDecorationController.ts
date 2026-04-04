@@ -90,6 +90,8 @@ export function createSquareWrapDecorationElement(options: {
   element.style.pointerEvents = 'none'
   element.style.userSelect = 'none'
   element.style.visibility = 'hidden'
+  element.style.lineHeight = '0'
+  element.style.fontSize = '0'
 
   return element
 }

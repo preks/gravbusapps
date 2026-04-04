@@ -537,6 +537,13 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, pre):has([data-image-flow-mode="float"]) {
       display: flow-root;
     }
+    .rm-pages-root :where(p, h1, h2, h3, h4, h5, h6, li, blockquote):has([data-image-flow-mode="float"]) {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .ProseMirror-widget:has(> .rm-square-wrap-decoration) {
+      display: contents;
+    }
     .rm-pages-root .rm-page-spacer {
       position: relative;
       float: left;
