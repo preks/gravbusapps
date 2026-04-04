@@ -5,7 +5,15 @@ import type {
   ImageDisplayMode,
   ImageSizeReference,
   ImageSizeUnit,
+  ImageWrapTextSide,
+  LegacyImageWrapMode,
   ImageWrapMode
+} from './types'
+import {
+  IMAGE_WRAP_MODES,
+  IMAGE_WRAP_TEXT_SIDES,
+  LEGACY_IMAGE_WRAP_MODE_TO_ALIGN,
+  LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE
 } from './types'
 import { normalizeImageCrop } from './cropUtils'
 
@@ -20,12 +28,23 @@ export function normalizeImageAlign(value: unknown, fallback: ImageAlignment = '
   return normalizeEnumValue(['left', 'center', 'right'] as const, value, fallback)
 }
 
+function isLegacyImageWrapMode(value: unknown): value is LegacyImageWrapMode {
+  return typeof value === 'string' && value in LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE
+}
+
 export function normalizeImageWrapMode(value: unknown, fallback: ImageWrapMode = 'inline'): ImageWrapMode {
-  return normalizeEnumValue(
-    ['inline', 'square-left', 'square-right', 'tight', 'through', 'top-bottom', 'behind', 'front'] as const,
-    value,
-    fallback
-  )
+  if (isLegacyImageWrapMode(value)) {
+    return 'square'
+  }
+
+  return normalizeEnumValue(IMAGE_WRAP_MODES, value, fallback)
+}
+
+export function normalizeImageWrapTextSide(
+  value: unknown,
+  fallback: ImageWrapTextSide = 'bothSides'
+): ImageWrapTextSide {
+  return normalizeEnumValue(IMAGE_WRAP_TEXT_SIDES, value, fallback)
 }
 
 export function normalizeImageAnchorMode(value: unknown, fallback: ImageAnchorMode = 'inline'): ImageAnchorMode {
@@ -87,6 +106,22 @@ export function getImageFigureAttributesFromElement(
 
   const readFigureAttr = (name: string) => container?.getAttribute(name) ?? element.getAttribute(name)
   const readImageAttr = (name: string) => image?.getAttribute(name) ?? element.getAttribute(name)
+  const rawWrapMode = readFigureAttr('data-image-wrap')
+  const align = normalizeImageAlign(
+    readFigureAttr('data-image-align'),
+    (isLegacyImageWrapMode(rawWrapMode) ? LEGACY_IMAGE_WRAP_MODE_TO_ALIGN[rawWrapMode] : null) ?? defaults.align
+  )
+  const wrapMode = normalizeImageWrapMode(rawWrapMode, defaults.wrapMode)
+  const wrapTextSide =
+    wrapMode === 'square'
+      ? normalizeImageWrapTextSide(
+          readFigureAttr('data-image-wrap-text-side'),
+          (isLegacyImageWrapMode(rawWrapMode) ? LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE[rawWrapMode] : null) ??
+            (align === 'right' ? 'left' : 'right')
+        )
+      : wrapMode === 'tight' || wrapMode === 'through'
+        ? normalizeImageWrapTextSide(readFigureAttr('data-image-wrap-text-side'), 'bothSides')
+        : null
 
   return {
     src: readImageAttr('src'),
@@ -109,10 +144,11 @@ export function getImageFigureAttributesFromElement(
     cropRight: normalizeNullableNumber(readFigureAttr('data-image-crop-right'), 0),
     cropBottom: normalizeNullableNumber(readFigureAttr('data-image-crop-bottom'), 0),
     cropLeft: normalizeNullableNumber(readFigureAttr('data-image-crop-left'), 0),
-    align: normalizeImageAlign(readFigureAttr('data-image-align'), defaults.align),
+    align,
     caption: caption || readFigureAttr('data-image-caption'),
     display: normalizeImageDisplay(readFigureAttr('data-image-display'), defaults.display),
-    wrapMode: normalizeImageWrapMode(readFigureAttr('data-image-wrap'), defaults.wrapMode),
+    wrapMode,
+    wrapTextSide,
     anchorMode: normalizeImageAnchorMode(readFigureAttr('data-image-anchor'), defaults.anchorMode),
     lockAspectRatio: normalizeNullableBoolean(readFigureAttr('data-image-lock-ratio'), true),
     distanceTop: normalizeNullableNumber(readFigureAttr('data-image-distance-top'), defaults.distance),
@@ -129,6 +165,12 @@ export function getImageFigureAttributesFromElement(
 export function getFigureDataAttributes(attributes: CustomImageAttributes) {
   const align = normalizeImageAlign(attributes.align)
   const wrapMode = normalizeImageWrapMode(attributes.wrapMode)
+  const wrapTextSide =
+    wrapMode === 'square'
+      ? normalizeImageWrapTextSide(attributes.wrapTextSide, align === 'right' ? 'left' : 'bothSides')
+      : wrapMode === 'tight' || wrapMode === 'through'
+        ? normalizeImageWrapTextSide(attributes.wrapTextSide, 'bothSides')
+        : null
   const anchorMode = normalizeImageAnchorMode(attributes.anchorMode)
   const display = normalizeImageDisplay(attributes.display, wrapMode === 'inline' ? 'inline' : 'block')
   const widthUnit = normalizeImageSizeUnit(attributes.widthUnit, 'px')
@@ -157,6 +199,7 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
     'data-node-type': CUSTOM_IMAGE_TAG,
     'data-image-align': align,
     'data-image-wrap': wrapMode,
+    ...(wrapTextSide ? { 'data-image-wrap-text-side': wrapTextSide } : {}),
     'data-image-anchor': anchorMode,
     'data-image-display': display,
     'data-image-width-unit': widthUnit,

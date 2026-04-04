@@ -1,11 +1,12 @@
 import { resolveWordLikeImageLayout } from './wrapLayoutEngine'
 
 describe('wrapLayoutEngine', () => {
-  it('computes floating square geometry for square-left', () => {
+  it('computes floating square geometry for text on the right', () => {
     const layout = resolveWordLikeImageLayout({
       width: 120,
       height: 80,
-      wrapMode: 'square-left',
+      wrapMode: 'square',
+      wrapTextSide: 'right',
       align: 'left',
       distanceTop: 4,
       distanceRight: 6,
@@ -18,6 +19,9 @@ describe('wrapLayoutEngine', () => {
     expect(layout.floatingSide).toBe('left')
     expect(layout.wrapTextSide).toBe('right')
     expect(layout.exclusionMode).toBe('square')
+    expect(layout.renderMode).toBe('local')
+    expect(layout.flowMode).toBe('float')
+    expect(layout.measurementMode).toBe('flow')
     expect(layout.runtimeAttributes['data-image-exclusion-mode']).toBe('square')
     expect(layout.runtimeAttributes['data-image-wrap-text-side']).toBe('right')
   })
@@ -26,7 +30,8 @@ describe('wrapLayoutEngine', () => {
     const layout = resolveWordLikeImageLayout({
       width: 120,
       height: 80,
-      wrapMode: 'square-right',
+      wrapMode: 'square',
+      wrapTextSide: 'left',
       align: 'right',
       distanceTop: 4,
       distanceRight: 6,
@@ -42,17 +47,18 @@ describe('wrapLayoutEngine', () => {
     expect(layout.layoutHeight).toBe(97)
     expect(layout.figureLeft).toBe(22)
     expect(layout.figureTop).toBe(4)
-    expect(layout.measurementMode).toBe('overlay')
+    expect(layout.measurementMode).toBe('flow')
     expect(layout.wrapperStyle).toMatchObject({
-      width: 0,
-      height: 0,
-      minHeight: 0
+      width: 148,
+      minHeight: 97,
+      float: 'right'
     })
-    expect(layout.renderMode).toBe('overlay')
+    expect(layout.renderMode).toBe('local')
     expect(layout.flowMode).toBe('float')
-    expect(layout.overlayLayer).toBe('floating')
+    expect(layout.overlayLayer).toBeNull()
     expect(layout.runtimeAttributes['data-image-exclusion-mode']).toBe('square')
     expect(layout.runtimeAttributes['data-image-wrap-text-side']).toBe('left')
+    expect(layout.runtimeAttributes['data-image-render-mode']).toBe('local')
   })
 
   it('resolves page anchoring for fixed top-bottom layouts', () => {
@@ -95,10 +101,27 @@ describe('wrapLayoutEngine', () => {
 
     expect(tightLayout.wrapPolygon?.source).toBe('cropped-frame-rect')
     expect(tightLayout.exclusionMode).toBe('polygon')
+    expect(tightLayout.renderMode).toBe('overlay')
+    expect(tightLayout.measurementMode).toBe('overlay')
     expect(tightLayout.wrapperStyle.shapeOutside).toBeUndefined()
     expect(throughLayout.wrapPolygon?.source).toBe('through-fallback')
     expect(throughLayout.fallbackStrategy).toBe('through-outer-contour-fallback')
     expect(throughLayout.wrapTextSide).toBe('bothSides')
+    expect(throughLayout.renderMode).toBe('overlay')
+  })
+
+  it('preserves both-side square wrapping when explicitly selected', () => {
+    const layout = resolveWordLikeImageLayout({
+      width: 120,
+      height: 80,
+      wrapMode: 'square',
+      wrapTextSide: 'bothSides',
+      align: 'center'
+    })
+
+    expect(layout.wrapTextSide).toBe('bothSides')
+    expect(layout.floatingSide).toBe('left')
+    expect(layout.runtimeAttributes['data-image-wrap-text-side']).toBe('bothSides')
   })
 
   it('marks behind-text images as overlay-rendered with no flow measurement footprint', () => {

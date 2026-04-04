@@ -1,15 +1,19 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
+import { NodeSelection } from '@tiptap/pm/state'
 import { X } from '@phosphor-icons/react'
 import { Button, Input, Label, ScrollArea, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
 import {
   dispatchDocumentImageUiMode,
+  IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS,
+  IMAGE_WRAP_UI_OPTIONS,
   normalizeImageCrop,
   resolveImageWrapPreset,
+  resolveSquareWrapTextSideSelection,
+  resolveWordWrapTextSide,
   type CustomImageAttributes,
   type ImageAlignment,
-  type ImageAnchorMode,
-  type ImageWrapMode
+  type ImageAnchorMode
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { ImageAdvancedSizeSection } from './ImageAdvancedSizeSection'
 import { ImageSidebarSection } from './ImageSidebarSection'
@@ -21,17 +25,6 @@ const ALIGN_OPTIONS: ReadonlyArray<{ key: string; value: ImageAlignment }> = [
   { key: 'editor-toolbar-align-left', value: 'left' },
   { key: 'editor-toolbar-align-center', value: 'center' },
   { key: 'editor-toolbar-align-right', value: 'right' }
-]
-
-const WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
-  { key: 'image-wrap-inline', value: 'inline' },
-  { key: 'image-wrap-left', value: 'square-left' },
-  { key: 'image-wrap-right', value: 'square-right' },
-  { key: 'image-wrap-tight', value: 'tight' },
-  { key: 'image-wrap-through', value: 'through' },
-  { key: 'image-wrap-center', value: 'top-bottom' },
-  { key: 'image-wrap-behind', value: 'behind' },
-  { key: 'image-wrap-in-front', value: 'front' }
 ]
 
 const ANCHOR_OPTIONS: ReadonlyArray<{ key: string; value: ImageAnchorMode }> = [
@@ -130,8 +123,10 @@ export function ImageSettingsSidebar({
           : {})
       })
 
+      tr.setSelection(NodeSelection.create(tr.doc, imagePos))
       editor.view.dispatch(tr)
       editor.commands.refreshPagesAndStabilize?.()
+      editor.view.focus()
       return true
     },
     [editor, imagePos, onClose]
@@ -151,6 +146,11 @@ export function ImageSettingsSidebar({
 
   const align = attrs.align ?? 'left'
   const wrapMode = attrs.wrapMode ?? 'inline'
+  const wrapTextSide = resolveWordWrapTextSide({
+    wrapMode,
+    align,
+    wrapTextSide: attrs.wrapTextSide ?? null
+  })
   const anchorMode = attrs.anchorMode ?? 'inline'
   const caption = attrs.caption ?? ''
   const alt = attrs.alt ?? ''
@@ -213,7 +213,7 @@ export function ImageSettingsSidebar({
 
             <ImageSidebarSection title={t('image-context-wrap-text')} data-testid={`${testId}-wrap-section`}>
               <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
-                {WRAP_OPTIONS.map(option => (
+                {IMAGE_WRAP_UI_OPTIONS.map(option => (
                   <Button
                     key={option.value}
                     variant={wrapMode === option.value ? 'secondary' : 'outline'}
@@ -227,6 +227,28 @@ export function ImageSettingsSidebar({
                   </Button>
                 ))}
               </div>
+              {wrapMode === 'square' ? (
+                <div className="gba:mt-3 gba:space-y-2">
+                  <span className="gba:block gba:text-xs gba:font-medium gba:text-foreground">
+                    {t('image-wrap-text-side')}
+                  </span>
+                  <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
+                    {IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS.map(option => (
+                      <Button
+                        key={option.value}
+                        variant={wrapTextSide === option.value ? 'secondary' : 'outline'}
+                        size="sm"
+                        className={choiceButtonClass}
+                        onMouseDown={preventEditorBlurOnMouseDown}
+                        onClick={() => updateImageAttrs(resolveSquareWrapTextSideSelection(option.value, attrs))}
+                        data-testid={`${testId}-wrap-text-side-${option.value}`}
+                      >
+                        {t(option.key)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </ImageSidebarSection>
 
             <ImageSidebarSection title={t('image-context-position')} data-testid={`${testId}-position-section`}>

@@ -73,11 +73,12 @@ describe('parseDocumentXmlForImageLayouts', () => {
     expect(layouts[0]?.heightPx).toBe(300)
   })
 
-  it('maps wrapSquare wrapText=right to square-right', () => {
+  it('maps wrapSquare wrapText=right to square with persisted text side', () => {
     const xml = minimalDocumentXml(anchorSquareRight())
     const layouts = parseDocumentXmlForImageLayouts(xml)
     expect(layouts).toHaveLength(1)
-    expect(layouts[0]?.wrapMode).toBe('square-right')
+    expect(layouts[0]?.wrapMode).toBe('square')
+    expect(layouts[0]?.wrapTextSide).toBe('right')
     expect(layouts[0]?.align).toBe('right')
     expect(layouts[0]?.widthPx).toBe(200)
     expect(layouts[0]?.heightPx).toBe(150)
@@ -92,10 +93,11 @@ describe('enhanceImportedHtmlWithImageLayouts', () => {
   it('wraps images with figure and data-image-wrap from layouts', () => {
     const html = '<p><img src="data:image/png;base64,xx" alt=""></p>'
     const out = enhanceImportedHtmlWithImageLayouts(html, [
-      { wrapMode: 'square-right', align: 'right', widthPx: 200, heightPx: 150 }
+      { wrapMode: 'square', wrapTextSide: 'right', align: 'right', widthPx: 200, heightPx: 150 }
     ])
     expect(out).toContain('data-node-type="custom-image"')
-    expect(out).toContain('data-image-wrap="square-right"')
+    expect(out).toContain('data-image-wrap="square"')
+    expect(out).toContain('data-image-wrap-text-side="right"')
     expect(out).toContain('data-image-align="right"')
     expect(out).toContain('width="200"')
     expect(out).toContain('height="150"')

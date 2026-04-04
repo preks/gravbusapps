@@ -4,7 +4,11 @@
  */
 
 import JSZip from 'jszip'
-import type { ImageAlignment, ImageWrapMode } from '@/components/tiptap-extensions/tiptap-custom-image/types'
+import type {
+  ImageAlignment,
+  ImageWrapMode,
+  ImageWrapTextSide
+} from '@/components/tiptap-extensions/tiptap-custom-image/types'
 import {
   CUSTOM_IMAGE_FIGURE_CLASS,
   CUSTOM_IMAGE_TAG
@@ -14,6 +18,7 @@ const PX_TO_EMU = 9525
 
 export interface DocxImageLayout {
   wrapMode: ImageWrapMode
+  wrapTextSide?: ImageWrapTextSide | null
   align: ImageAlignment
   widthPx: number | null
   heightPx: number | null
@@ -65,15 +70,18 @@ function readHorizontalAlign(anchor: Element): ImageAlignment {
   return 'left'
 }
 
-function mapSquareWrap(wrapText: string | null | undefined, horizontalAlign: ImageAlignment): ImageWrapMode {
+function normalizeSquareWrapTextSide(
+  wrapText: string | null | undefined,
+  horizontalAlign: ImageAlignment
+): ImageWrapTextSide {
   const wt = (wrapText ?? 'bothSides').toLowerCase()
-  if (wt === 'left') return 'square-left'
-  if (wt === 'right') return 'square-right'
+  if (wt === 'left') return 'left'
+  if (wt === 'right') return 'right'
   if (wt === 'bothSides' || wt === 'largest') {
-    if (horizontalAlign === 'right') return 'square-right'
-    return 'square-left'
+    return 'bothSides'
   }
-  return 'square-left'
+
+  return horizontalAlign === 'right' ? 'left' : 'right'
 }
 
 function resolveAnchorLayout(anchor: Element): DocxImageLayout {
@@ -97,7 +105,8 @@ function resolveAnchorLayout(anchor: Element): DocxImageLayout {
   if (wrapSquare) {
     const wrapText = wrapSquare.getAttribute('wrapText')
     return {
-      wrapMode: mapSquareWrap(wrapText, align),
+      wrapMode: 'square',
+      wrapTextSide: normalizeSquareWrapTextSide(wrapText, align),
       align,
       widthPx,
       heightPx
@@ -197,6 +206,9 @@ function applyLayoutToFigure(figure: HTMLElement, layout: DocxImageLayout): void
   figure.classList.add(CUSTOM_IMAGE_FIGURE_CLASS)
   figure.setAttribute('data-image-wrap', layout.wrapMode)
   figure.setAttribute('data-image-align', layout.align)
+  if (layout.wrapTextSide) {
+    figure.setAttribute('data-image-wrap-text-side', layout.wrapTextSide)
+  }
 
   if (layout.wrapMode !== 'inline') {
     figure.setAttribute('data-image-anchor', 'move-with-text')

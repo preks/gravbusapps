@@ -186,12 +186,12 @@ export function resolveWordLikeImageLayout(
   const layoutWidth = Math.max(1, Math.round(frameWidth + marginLeft + marginRight))
   const layoutHeight = Math.max(1, Math.round(frameHeight + marginTop + marginBottom))
   const floatingSide =
-    wrapMode === 'square-left' || wrapMode === 'square-right' || wrapMode === 'tight' || wrapMode === 'through'
-      ? resolveFloatingSide({ wrapMode, align })
+    wrapMode === 'square' || wrapMode === 'tight' || wrapMode === 'through'
+      ? resolveFloatingSide({ wrapMode, align, wrapTextSide: attributes.wrapTextSide })
       : null
   const wrapTextSide =
-    wrapMode === 'square-left' || wrapMode === 'square-right' || wrapMode === 'tight' || wrapMode === 'through'
-      ? resolveWordWrapTextSide({ wrapMode, align })
+    wrapMode === 'square' || wrapMode === 'tight' || wrapMode === 'through'
+      ? resolveWordWrapTextSide({ wrapMode, align, wrapTextSide: attributes.wrapTextSide })
       : null
   const anchorReference = wrapMode === 'inline' ? 'inline' : anchorMode === 'fixed' ? 'page' : 'paragraph'
   const crop = normalizeImageCrop(attributes)
@@ -258,6 +258,30 @@ export function resolveWordLikeImageLayout(
       left: figureLeft,
       top: figureTop
     }
+  } else if (wrapMode === 'square' && anchorMode !== 'fixed') {
+    exclusionMode = 'square'
+    renderMode = 'overlay'
+    flowMode = 'float'
+    measurementMode = 'overlay'
+    overlayLayer = 'floating'
+    overlayZIndex = Math.max(1, attributes.zIndex ?? 1)
+    wrapperStyle = {
+      display: 'inline-block',
+      position: 'relative',
+      width: 0,
+      height: 0,
+      overflow: 'visible',
+      minHeight: 0,
+      verticalAlign: 'baseline',
+      pointerEvents: 'none'
+    }
+    figureStyle = {
+      ...baseFigureStyle,
+      position: 'absolute',
+      left: figureLeft,
+      top: figureTop
+    }
+    fallbackStrategy = 'square-decoration-exclusion'
   } else if (wrapMode === 'top-bottom') {
     exclusionMode = 'top-bottom'
     renderMode = 'overlay'

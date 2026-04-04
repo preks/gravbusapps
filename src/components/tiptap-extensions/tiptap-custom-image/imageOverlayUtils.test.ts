@@ -4,14 +4,15 @@ describe('imageOverlayUtils', () => {
   it('keeps fixed floating images page-positioned instead of paragraph-positioned', () => {
     const style = resolveImageOverlayFigureStyle({
       layout: {
-        wrapMode: 'square-right',
+        wrapMode: 'square',
         align: 'right',
         anchorMode: 'fixed',
         frameWidth: 120,
         figureLeft: 0,
         figureTop: 0,
         flowMode: 'float',
-        layoutWidth: 120
+        layoutWidth: 120,
+        floatingSide: 'right'
       },
       attributes: {
         align: 'right',
@@ -28,8 +29,11 @@ describe('imageOverlayUtils', () => {
         anchorTop: 80,
         anchorWidth: 120,
         anchorHeight: 90,
+        blockTop: 0,
         blockLeft: 0,
-        blockWidth: 0
+        blockWidth: 0,
+        wrapperOffsetLeft: 0,
+        wrapperOffsetTop: 0
       }
     })
 
@@ -58,8 +62,11 @@ describe('imageOverlayUtils', () => {
         anchorTop: 40,
         anchorWidth: 0,
         anchorHeight: 0,
+        blockTop: 0,
         blockLeft: 0,
-        blockWidth: 0
+        blockWidth: 0,
+        wrapperOffsetLeft: 0,
+        wrapperOffsetTop: 0
       }
     })
 
@@ -87,8 +94,11 @@ describe('imageOverlayUtils', () => {
         anchorTop: 40,
         anchorWidth: 0,
         anchorHeight: 0,
+        blockTop: 0,
         blockLeft: 0,
-        blockWidth: 0
+        blockWidth: 0,
+        wrapperOffsetLeft: 0,
+        wrapperOffsetTop: 0
       }
     })
 
@@ -96,32 +106,36 @@ describe('imageOverlayUtils', () => {
     expect(style.zIndex).toBe(2)
   })
 
-  it('places square-right float overlay using the paragraph block width, not the inline anchor', () => {
+  it('places polygon float overlay from paragraph top while keeping inline horizontal anchoring', () => {
     const style = resolveImageOverlayFigureStyle({
       layout: {
-        wrapMode: 'square-right',
-        align: 'right',
+        wrapMode: 'tight',
+        align: 'left',
         anchorMode: 'move-with-text',
         frameWidth: 120,
         figureLeft: 10,
         figureTop: 4,
         flowMode: 'float',
-        layoutWidth: 132
+        layoutWidth: 132,
+        floatingSide: 'left'
       },
-      attributes: { align: 'right', offsetX: 0, offsetY: 0 },
+      attributes: { align: 'left', wrapTextSide: 'bothSides', offsetX: 0, offsetY: 0 },
       mount: {
         layer: document.createElement('div'),
         pageNumber: 1,
         anchorLeft: 100,
-        anchorTop: 50,
+        anchorTop: 92,
         anchorWidth: 0,
         anchorHeight: 0,
+        blockTop: 24,
         blockLeft: 40,
-        blockWidth: 280
+        blockWidth: 280,
+        wrapperOffsetLeft: 0,
+        wrapperOffsetTop: 0
       }
     })
 
-    expect(style.left).toBe(188)
-    expect(style.top).toBe(54)
+    expect(style.left).toBe(110)
+    expect(style.top).toBe(28)
   })
 })

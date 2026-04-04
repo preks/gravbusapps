@@ -12,25 +12,18 @@ import {
 import type { Editor } from '@tiptap/react'
 import {
   dispatchDocumentImageUiMode,
+  IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS,
+  IMAGE_WRAP_UI_OPTIONS,
   hasImageCrop,
   normalizeImageCrop,
   resolveImageWrapPreset,
+  resolveSquareWrapTextSideSelection,
+  resolveWordWrapTextSide,
   type ImageAlignment,
   type ImageAnchorMode,
   type ImageWrapMode
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import translations from '../../_i18n'
-
-const WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
-  { key: 'image-wrap-inline', value: 'inline' },
-  { key: 'image-wrap-left', value: 'square-left' },
-  { key: 'image-wrap-right', value: 'square-right' },
-  { key: 'image-wrap-tight', value: 'tight' },
-  { key: 'image-wrap-through', value: 'through' },
-  { key: 'image-wrap-center', value: 'top-bottom' },
-  { key: 'image-wrap-behind', value: 'behind' },
-  { key: 'image-wrap-in-front', value: 'front' }
-]
 
 const ALIGN_OPTIONS: ReadonlyArray<{ key: string; value: ImageAlignment }> = [
   { key: 'editor-toolbar-align-left', value: 'left' },
@@ -103,6 +96,11 @@ export function ImageBubbleMenu({
   const imageAttrs = imageSelection?.attrs ?? {}
   const wrapMode = (imageAttrs.wrapMode as ImageWrapMode | undefined) ?? 'inline'
   const align = (imageAttrs.align as ImageAlignment | undefined) ?? 'left'
+  const wrapTextSide = resolveWordWrapTextSide({
+    wrapMode,
+    align,
+    wrapTextSide: (imageAttrs.wrapTextSide as 'bothSides' | 'left' | 'right' | undefined) ?? null
+  })
   const anchorMode = (imageAttrs.anchorMode as ImageAnchorMode | undefined) ?? 'inline'
   const zIndex = parseImageAttributeNumber(imageAttrs.zIndex, 1)
   const crop = normalizeImageCrop({
@@ -156,6 +154,7 @@ export function ImageBubbleMenu({
   )
 
   const wrapButtonLabel = t('image-context-wrap-text')
+  const wrapTextSideButtonLabel = t('image-wrap-text-side')
   const alignButtonLabel = t('image-context-align')
   const anchorButtonLabel = t('image-context-anchor')
   const positionButtonLabel = t('image-position-menu')
@@ -181,14 +180,10 @@ export function ImageBubbleMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          {WRAP_OPTIONS.map(option => (
+          {IMAGE_WRAP_UI_OPTIONS.map(option => (
             <DropdownMenuItem
               key={option.value}
-              onSelect={() =>
-                editor.commands.setImageLayout?.({
-                  ...resolveImageWrapPreset(option.value, imageAttrs)
-                })
-              }
+              onSelect={() => updateImageAttrs(resolveImageWrapPreset(option.value, imageAttrs))}
               data-testid={`image-bubble-wrap-${option.value}`}
             >
               {wrapMode === option.value ? (
@@ -201,6 +196,38 @@ export function ImageBubbleMenu({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      {wrapMode === 'square' ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              className="gba:h-8 gba:gap-1"
+              data-testid="image-bubble-wrap-text-side-trigger"
+            >
+              {wrapTextSideButtonLabel}
+              <ChevronDown className="gba:h-3 gba:w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS.map(option => (
+              <DropdownMenuItem
+                key={option.value}
+                onSelect={() => updateImageAttrs(resolveSquareWrapTextSideSelection(option.value, imageAttrs))}
+                data-testid={`image-bubble-wrap-text-side-${option.value}`}
+              >
+                {wrapTextSide === option.value ? (
+                  <Check className="gba:mr-2 gba:h-4 gba:w-4" />
+                ) : (
+                  <span className="gba:mr-2 gba:w-4" />
+                )}
+                {t(option.key)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

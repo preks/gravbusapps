@@ -1,4 +1,10 @@
-import { isFloatingWrapMode, resolveFloatingSide, resolveImageWrapPreset, resolveWordWrapTextSide } from './wrapUtils'
+import {
+  isFloatingWrapMode,
+  resolveFloatingSide,
+  resolveImageWrapPreset,
+  resolveSquareWrapTextSideSelection,
+  resolveWordWrapTextSide
+} from './wrapUtils'
 
 describe('wrapUtils', () => {
   it('treats top and bottom as a floating wrap mode', () => {
@@ -9,6 +15,7 @@ describe('wrapUtils', () => {
   it('resolves shared wrap presets for inline and floating modes', () => {
     expect(resolveImageWrapPreset('inline', { align: 'right', anchorMode: 'fixed' })).toMatchObject({
       wrapMode: 'inline',
+      wrapTextSide: null,
       display: 'inline',
       anchorMode: 'inline',
       allowOverlap: false,
@@ -17,30 +24,42 @@ describe('wrapUtils', () => {
       align: 'right'
     })
 
-    expect(resolveImageWrapPreset('square-right', { align: 'left', anchorMode: 'inline' })).toMatchObject({
-      wrapMode: 'square-right',
+    expect(resolveImageWrapPreset('square', { align: 'left', anchorMode: 'inline' })).toMatchObject({
+      wrapMode: 'square',
+      wrapTextSide: 'bothSides',
       display: 'block',
       anchorMode: 'move-with-text',
       allowOverlap: false,
-      align: 'right'
+      align: 'left'
     })
 
     expect(resolveImageWrapPreset('behind', { align: 'center', anchorMode: 'fixed' })).toMatchObject({
       wrapMode: 'behind',
+      wrapTextSide: null,
       display: 'block',
       anchorMode: 'fixed',
       allowOverlap: true,
       align: 'center'
     })
+
+    expect(resolveSquareWrapTextSideSelection('left', { align: 'left', anchorMode: 'inline' })).toMatchObject({
+      wrapMode: 'square',
+      wrapTextSide: 'left',
+      display: 'block',
+      anchorMode: 'move-with-text',
+      allowOverlap: false,
+      align: 'right'
+    })
   })
 
   it('resolves floating side and Word wrap side consistently', () => {
-    expect(resolveFloatingSide({ wrapMode: 'square-right', align: 'left' })).toBe('right')
+    expect(resolveFloatingSide({ wrapMode: 'square', align: 'left', wrapTextSide: 'left' })).toBe('right')
+    expect(resolveFloatingSide({ wrapMode: 'square', align: 'right', wrapTextSide: 'right' })).toBe('left')
     expect(resolveFloatingSide({ wrapMode: 'tight', align: 'right' })).toBe('right')
     expect(resolveFloatingSide({ wrapMode: 'tight', align: 'center' })).toBe('left')
 
-    expect(resolveWordWrapTextSide({ wrapMode: 'square-left', align: 'left' })).toBe('right')
-    expect(resolveWordWrapTextSide({ wrapMode: 'square-right', align: 'right' })).toBe('left')
+    expect(resolveWordWrapTextSide({ wrapMode: 'square', align: 'left', wrapTextSide: 'right' })).toBe('right')
+    expect(resolveWordWrapTextSide({ wrapMode: 'square', align: 'right', wrapTextSide: null })).toBe('left')
     expect(resolveWordWrapTextSide({ wrapMode: 'tight', align: 'right' })).toBe('bothSides')
   })
 })

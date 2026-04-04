@@ -17,11 +17,12 @@ import {
   normalizeImageSizeReference,
   normalizeImageSizeUnit,
   normalizeImageWrapMode,
+  normalizeImageWrapTextSide,
   normalizeNullableBoolean,
   normalizeNullableNumber
 } from './styleUtils'
 import type { CustomImageAttributes, CustomImageOptions, SetImageCropOptions, SetImageLayoutOptions } from './types'
-import { isFloatingWrapMode, resolveImageWrapPreset } from './wrapUtils'
+import { isFloatingWrapMode, resolveImageWrapPreset, resolveLegacyImagePreset } from './wrapUtils'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -101,23 +102,8 @@ function getNormalizedCropAttrs(input: SetImageCropOptions) {
   }
 }
 
-function resolvePresetAttrs(
-  preset: 'inline' | 'floating-left' | 'floating-right' | 'behind-text' | 'in-front-of-text',
-  currentAttributes: Pick<CustomImageAttributes, 'align' | 'anchorMode'> = {}
-) {
-  switch (preset) {
-    case 'floating-left':
-      return resolveImageWrapPreset('square-left', currentAttributes)
-    case 'floating-right':
-      return resolveImageWrapPreset('square-right', currentAttributes)
-    case 'behind-text':
-      return resolveImageWrapPreset('behind', currentAttributes)
-    case 'in-front-of-text':
-      return resolveImageWrapPreset('front', currentAttributes)
-    case 'inline':
-    default:
-      return resolveImageWrapPreset('inline', currentAttributes)
-  }
+function refreshPaginationLayout(editor: Pick<import('@tiptap/core').Editor, 'commands'>) {
+  editor.commands.refreshPagesAndStabilize?.()
 }
 
 export const CustomImage = Image.extend<CustomImageOptions>({
@@ -524,6 +510,21 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           'data-image-wrap': normalizeImageWrapMode(attributes.wrapMode, this.options.defaultWrapMode)
         })
       },
+      wrapTextSide: {
+        default: null,
+        parseHTML: element =>
+          getImageFigureAttributesFromElement(element, {
+            align: this.options.defaultAlign,
+            wrapMode: this.options.defaultWrapMode,
+            anchorMode: this.options.defaultAnchorMode,
+            display: this.options.defaultDisplay,
+            distance: this.options.defaultDistance
+          }).wrapTextSide,
+        renderHTML: attributes =>
+          attributes.wrapTextSide
+            ? { 'data-image-wrap-text-side': normalizeImageWrapTextSide(attributes.wrapTextSide) }
+            : {}
+      },
       anchorMode: {
         default: this.options.defaultAnchorMode,
         parseHTML: element =>
@@ -726,6 +727,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, { width, height })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageCrop:
@@ -734,6 +736,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, getNormalizedCropAttrs(crop))
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       resetImageCrop:
@@ -742,6 +745,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, getNormalizedCropAttrs({}))
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageRotation:
@@ -752,6 +756,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       moveImage:
@@ -773,6 +778,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageAnchorMode:
@@ -783,6 +789,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       applyImagePreset:
@@ -793,9 +800,10 @@ export const CustomImage = Image.extend<CustomImageOptions>({
 
           tr.setNodeMarkup(image.pos, undefined, {
             ...image.node.attrs,
-            ...resolvePresetAttrs(preset, image.node.attrs as CustomImageAttributes)
+            ...resolveLegacyImagePreset(preset, image.node.attrs as CustomImageAttributes)
           })
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageAlign:
@@ -806,6 +814,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageCaption:
@@ -836,6 +845,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageLayout:
@@ -887,6 +897,9 @@ export const CustomImage = Image.extend<CustomImageOptions>({
               })
             )
           }
+          if (options.wrapTextSide !== undefined) {
+            nextAttrs.wrapTextSide = options.wrapTextSide ? normalizeImageWrapTextSide(options.wrapTextSide) : null
+          }
           if (options.anchorMode !== undefined) {
             nextAttrs.anchorMode = normalizeImageAnchorMode(options.anchorMode, this.options.defaultAnchorMode)
           }
@@ -911,6 +924,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
             ...nextAttrs
           })
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       replaceImage:
@@ -919,6 +933,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, attrs)
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       removeSelectedImage:
@@ -928,6 +943,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           if (!image) return false
           tr.delete(image.pos, image.pos + image.node.nodeSize)
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         }
     }

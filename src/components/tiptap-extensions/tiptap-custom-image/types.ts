@@ -3,25 +3,43 @@ import type { ImageOptions as TiptapImageOptions } from '@tiptap/extension-image
 export const IMAGE_ALIGNMENTS = ['left', 'center', 'right'] as const
 export const IMAGE_SIZE_UNITS = ['px', 'percent'] as const
 export const IMAGE_SIZE_REFERENCES = ['page'] as const
-export const IMAGE_WRAP_MODES = [
-  'inline',
-  'square-left',
-  'square-right',
-  'tight',
-  'through',
-  'top-bottom',
-  'behind',
-  'front'
-] as const
+export const IMAGE_WRAP_MODES = ['inline', 'square', 'tight', 'through', 'top-bottom', 'behind', 'front'] as const
+export const IMAGE_WRAP_TEXT_SIDES = ['bothSides', 'left', 'right'] as const
 export const IMAGE_ANCHOR_MODES = ['inline', 'move-with-text', 'fixed'] as const
 export const IMAGE_DISPLAY_MODES = ['inline', 'block'] as const
+export const LEGACY_IMAGE_WRAP_MODE_TO_ALIGN = {
+  'square-left': 'left',
+  'square-right': 'right'
+} as const
+export const LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE = {
+  'square-left': 'right',
+  'square-right': 'left'
+} as const
 
 export type ImageAlignment = (typeof IMAGE_ALIGNMENTS)[number]
 export type ImageSizeUnit = (typeof IMAGE_SIZE_UNITS)[number]
 export type ImageSizeReference = (typeof IMAGE_SIZE_REFERENCES)[number]
 export type ImageWrapMode = (typeof IMAGE_WRAP_MODES)[number]
+export type ImageWrapTextSide = (typeof IMAGE_WRAP_TEXT_SIDES)[number]
 export type ImageAnchorMode = (typeof IMAGE_ANCHOR_MODES)[number]
 export type ImageDisplayMode = (typeof IMAGE_DISPLAY_MODES)[number]
+export type LegacyImageWrapMode = keyof typeof LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE
+
+export const IMAGE_WRAP_UI_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
+  { key: 'image-wrap-inline', value: 'inline' },
+  { key: 'image-wrap-square', value: 'square' },
+  { key: 'image-wrap-tight', value: 'tight' },
+  { key: 'image-wrap-through', value: 'through' },
+  { key: 'image-wrap-center', value: 'top-bottom' },
+  { key: 'image-wrap-behind', value: 'behind' },
+  { key: 'image-wrap-in-front', value: 'front' }
+]
+
+export const IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapTextSide }> = [
+  { key: 'image-wrap-text-both-sides', value: 'bothSides' },
+  { key: 'image-wrap-text-left-only', value: 'left' },
+  { key: 'image-wrap-text-right-only', value: 'right' }
+]
 
 export interface CustomImageAttributes {
   src?: string | null
@@ -48,6 +66,7 @@ export interface CustomImageAttributes {
   caption?: string | null
   display?: ImageDisplayMode | null
   wrapMode?: ImageWrapMode | null
+  wrapTextSide?: ImageWrapTextSide | null
   anchorMode?: ImageAnchorMode | null
   lockAspectRatio?: boolean | null
   distanceTop?: number | null

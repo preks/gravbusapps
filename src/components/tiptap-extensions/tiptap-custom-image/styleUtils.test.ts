@@ -56,7 +56,8 @@ describe('styleUtils custom image crop attrs', () => {
       cropBottom: 0.05,
       cropLeft: 0.15,
       rotation: 30,
-      wrapMode: 'square-right',
+      wrapMode: 'square',
+      wrapTextSide: 'left',
       anchorMode: 'fixed'
     })
   })
@@ -87,6 +88,30 @@ describe('styleUtils custom image crop attrs', () => {
       offsetX: 18,
       offsetY: -4,
       caption: 'Example caption'
+    })
+  })
+
+  it('serializes and reads persisted square wrap text side attrs', () => {
+    expect(
+      getFigureDataAttributes({
+        wrapMode: 'square',
+        wrapTextSide: 'bothSides',
+        align: 'center'
+      })
+    ).toMatchObject({
+      'data-image-wrap': 'square',
+      'data-image-wrap-text-side': 'bothSides'
+    })
+
+    const figure = document.createElement('figure')
+    figure.setAttribute('data-image-wrap', 'square')
+    figure.setAttribute('data-image-wrap-text-side', 'bothSides')
+    figure.setAttribute('data-image-align', 'center')
+
+    expect(getImageFigureAttributesFromElement(figure, defaults)).toMatchObject({
+      wrapMode: 'square',
+      wrapTextSide: 'bothSides',
+      align: 'center'
     })
   })
 })

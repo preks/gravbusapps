@@ -148,7 +148,8 @@ function getHorizontalAlignmentXml(
 
   if (
     wordLayout &&
-    (wordLayout.wrapMode === 'square-left' || wordLayout.wrapMode === 'square-right') &&
+    wordLayout.wrapMode === 'square' &&
+    (wordLayout.wrapTextSide === 'left' || wordLayout.wrapTextSide === 'right') &&
     wordLayout.floatingSide
   ) {
     return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${wordLayout.floatingSide}</wp:align></wp:positionH>`

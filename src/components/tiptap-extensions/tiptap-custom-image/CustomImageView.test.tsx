@@ -57,7 +57,7 @@ function setRect(element: HTMLElement, rect: { top: number; bottom: number; left
 }
 
 describe('CustomImageView', () => {
-  it('renders a right-aligned flow shim for square-right images', () => {
+  it('renders right-only square images locally and floats the paragraph anchor', () => {
     render(
       <CustomImageView
         node={{
@@ -65,7 +65,8 @@ describe('CustomImageView', () => {
             src: BASE64_IMAGE,
             width: 120,
             height: 80,
-            wrapMode: 'square-right',
+            wrapMode: 'square',
+            wrapTextSide: 'left',
             align: 'right'
           }
         }}
@@ -77,12 +78,15 @@ describe('CustomImageView', () => {
     )
 
     expect(screen.getByTestId('document-editor-image-anchor').tagName).toBe('SPAN')
-    expect(screen.getByTestId('document-editor-image-flow-shim')).toHaveStyle({
+    expect(screen.getByTestId('document-editor-image-anchor')).toHaveStyle({
       float: 'right'
     })
+    expect(screen.getByTestId('document-editor-image-anchor')).toHaveAttribute('data-image-render-mode', 'local')
+    expect(screen.getByTestId('document-editor-image-figure')).toBeInTheDocument()
+    expect(screen.queryByTestId('document-editor-image-flow-shim')).toBeNull()
   })
 
-  it('mounts paragraph-anchored flow shims before paragraph content', async () => {
+  it('keeps square images inside the paragraph DOM', () => {
     render(
       <p data-testid="image-paragraph">
         prefix
@@ -92,7 +96,8 @@ describe('CustomImageView', () => {
               src: BASE64_IMAGE,
               width: 120,
               height: 80,
-              wrapMode: 'square-right',
+              wrapMode: 'square',
+              wrapTextSide: 'left',
               align: 'right'
             }
           }}
@@ -105,13 +110,12 @@ describe('CustomImageView', () => {
     )
 
     const paragraph = screen.getByTestId('image-paragraph')
+    const anchor = screen.getByTestId('document-editor-image-anchor')
+    const figure = screen.getByTestId('document-editor-image-figure')
 
-    await waitFor(() => {
-      expect(screen.getByTestId('document-editor-image-flow-shim')).toBeInTheDocument()
-    })
-
-    expect(paragraph.firstChild).toBeInstanceOf(HTMLElement)
-    expect((paragraph.firstChild as HTMLElement).dataset.imageFlowShimHost).toBe('true')
+    expect(paragraph.contains(anchor)).toBe(true)
+    expect(paragraph.contains(figure)).toBe(true)
+    expect(screen.queryByTestId('document-editor-image-flow-shim')).toBeNull()
   })
 
   it('treats top and bottom wrapping as a movable floating mode', () => {
@@ -317,62 +321,6 @@ describe('CustomImageView', () => {
     )
   })
 
-  it('renders square-right images into the floating page overlay layer while keeping the flow anchor', async () => {
-    const editorDom = document.createElement('div')
-    const bodyLayer = document.createElement('div')
-    const floatingLayer = document.createElement('div')
-
-    bodyLayer.className = 'rm-page-body-layer'
-    bodyLayer.dataset.rmPageNumber = '1'
-    floatingLayer.className = 'rm-page-image-overlay-layer'
-    floatingLayer.dataset.rmPageNumber = '1'
-    floatingLayer.dataset.rmImageLayer = 'floating'
-
-    editorDom.append(bodyLayer, floatingLayer)
-    document.body.appendChild(editorDom)
-
-    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
-    setRect(editorDom, { top: 0, bottom: 400, left: 0, right: 400 })
-    setRect(bodyLayer, { top: 0, bottom: 320, left: 0, right: 320 })
-    setRect(floatingLayer, { top: 0, bottom: 320, left: 0, right: 320 })
-
-    const { container } = render(
-      <CustomImageView
-        node={{
-          attrs: {
-            src: BASE64_IMAGE,
-            width: 120,
-            height: 80,
-            wrapMode: 'square-right',
-            align: 'right'
-          }
-        }}
-        editor={
-          {
-            view: {
-              dom: editorDom
-            }
-          } as never
-        }
-        getPos={() => 1}
-        selected={false}
-        options={createOptions()}
-      />
-    )
-
-    const flowShim = screen.getByTestId('document-editor-image-flow-shim')
-    setRect(flowShim, { top: 40, bottom: 137, left: 172, right: 320 })
-    editorDom.style.setProperty('--overlay-refresh', '2')
-
-    await waitFor(() => {
-      expect(floatingLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
-    })
-
-    expect(flowShim).toHaveStyle({ float: 'right' })
-    expect(flowShim).toHaveAttribute('data-image-flow-mode', 'float')
-    expect(container.querySelector('[data-testid="document-editor-image-figure"]')).toBeNull()
-  })
-
   it('does not crash when overlay images render before the editor view mounts', () => {
     const editor = {
       get view() {
@@ -403,10 +351,7 @@ describe('CustomImageView', () => {
     expect(screen.getByTestId('document-editor-image-anchor')).toBeInTheDocument()
   })
 
-  it('selects floating overlay images through the portal-rendered figure', async () => {
-    const editorDom = document.createElement('div')
-    const bodyLayer = document.createElement('div')
-    const floatingLayer = document.createElement('div')
+  it('selects square images through the paragraph-rendered figure', async () => {
     const tr = {
       setSelection: jest.fn(function setSelection() {
         return this
@@ -415,20 +360,6 @@ describe('CustomImageView', () => {
     const dispatch = jest.fn()
     const focus = jest.fn()
 
-    bodyLayer.className = 'rm-page-body-layer'
-    bodyLayer.dataset.rmPageNumber = '1'
-    floatingLayer.className = 'rm-page-image-overlay-layer'
-    floatingLayer.dataset.rmPageNumber = '1'
-    floatingLayer.dataset.rmImageLayer = 'floating'
-
-    editorDom.append(bodyLayer, floatingLayer)
-    document.body.appendChild(editorDom)
-
-    Object.defineProperty(editorDom, 'scrollTop', { configurable: true, value: 0 })
-    setRect(editorDom, { top: 0, bottom: 400, left: 0, right: 400 })
-    setRect(bodyLayer, { top: 0, bottom: 320, left: 0, right: 320 })
-    setRect(floatingLayer, { top: 0, bottom: 320, left: 0, right: 320 })
-
     render(
       <CustomImageView
         node={{
@@ -436,7 +367,8 @@ describe('CustomImageView', () => {
             src: BASE64_IMAGE,
             width: 120,
             height: 80,
-            wrapMode: 'square-right',
+            wrapMode: 'square',
+            wrapTextSide: 'left',
             align: 'right'
           }
         }}
@@ -449,7 +381,7 @@ describe('CustomImageView', () => {
               tr
             },
             view: {
-              dom: editorDom,
+              dom: document.createElement('div'),
               dispatch,
               focus
             }
@@ -460,14 +392,6 @@ describe('CustomImageView', () => {
         options={createOptions()}
       />
     )
-
-    const flowShim = screen.getByTestId('document-editor-image-flow-shim')
-    setRect(flowShim, { top: 40, bottom: 137, left: 172, right: 320 })
-    editorDom.style.setProperty('--overlay-refresh', '3')
-
-    await waitFor(() => {
-      expect(floatingLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
-    })
 
     fireEvent.click(screen.getByTestId('document-editor-image-figure'))
 

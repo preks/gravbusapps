@@ -42,8 +42,8 @@ describe('docxExport image layout', () => {
       `<figure data-node-type="custom-image" data-image-wrap="tight"><img src="${base64Image}" width="120" height="80" /></figure>`,
       `<figure data-node-type="custom-image" data-image-wrap="through"><img src="${base64Image}" width="120" height="80" /></figure>`,
       `<figure data-node-type="custom-image" data-image-wrap="top-bottom"><img src="${base64Image}" width="120" height="80" /></figure>`,
-      `<figure data-node-type="custom-image" data-image-wrap="square-left"><img src="${base64Image}" width="120" height="80" /></figure>`,
-      `<figure data-node-type="custom-image" data-image-wrap="square-right" data-image-align="right"><img src="${base64Image}" width="120" height="80" /></figure>`
+      `<figure data-node-type="custom-image" data-image-wrap="square" data-image-wrap-text-side="right"><img src="${base64Image}" width="120" height="80" /></figure>`,
+      `<figure data-node-type="custom-image" data-image-wrap="square" data-image-wrap-text-side="left" data-image-align="right"><img src="${base64Image}" width="120" height="80" /></figure>`
     ].join('')
 
     const blob = await buildDocxBlob('Wrap doc', html)
