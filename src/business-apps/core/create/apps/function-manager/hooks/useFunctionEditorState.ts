@@ -13,6 +13,7 @@ import type {
   FunctionExecutionLogEntry
 } from '@/common/network/functions/FunctionsServiceClient'
 import type { ConfigRow } from '../components/editor/SettingsEditor'
+import { getApplicableDraftUpdates, hasMeaningfulSchema } from '../utils/functionDraftGuards'
 
 function safeJsonParseObject(value: string): Record<string, unknown> | undefined {
   const v = String(value || '').trim()
@@ -162,8 +163,24 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       }
 
       if (func.latestVersion) {
-        setInputSchema(JSON.stringify(func.latestVersion.inputSchema || {}, null, 2))
-        setOutputSchema(JSON.stringify(func.latestVersion.outputSchema || {}, null, 2))
+        setInputSchema(
+          JSON.stringify(
+            hasMeaningfulSchema(func.latestVersion.inputSchema)
+              ? func.latestVersion.inputSchema
+              : { type: 'object', properties: {}, additionalProperties: true },
+            null,
+            2
+          )
+        )
+        setOutputSchema(
+          JSON.stringify(
+            hasMeaningfulSchema(func.latestVersion.outputSchema)
+              ? func.latestVersion.outputSchema
+              : { type: 'object', properties: {}, additionalProperties: true },
+            null,
+            2
+          )
+        )
       }
 
       loadVersionSource()
@@ -274,6 +291,20 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   }, [])
 
   const applyDraft = (draft: FunctionAssistantDraftResponse) => {
+    const {
+      source: nextSource,
+      inputSchemaText: nextInputSchema,
+      outputSchemaText: nextOutputSchema,
+      configKeys: nextConfigKeys
+    } = getApplicableDraftUpdates(draft)
+    const hasApplicableChange =
+      Boolean(nextSource || nextInputSchema || nextOutputSchema || nextConfigKeys?.length) ||
+      (mode === 'create' && Boolean(draft.name && !name.trim())) ||
+      Boolean(draft.description && !description.trim()) ||
+      Boolean(draft.connectorEnabled)
+
+    if (!hasApplicableChange) return
+
     // Capture a rollback snapshot so the user can undo AI changes.
     setAssistantUndoSnapshot({
       name,
@@ -293,11 +324,11 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setConnectorEnabled(true)
       setConnectorKind(draft.connectorKind || 'structured')
     }
-    if (draft.source) setSource(draft.source)
-    if (draft.inputSchema) setInputSchema(JSON.stringify(draft.inputSchema, null, 2))
-    if (draft.outputSchema) setOutputSchema(JSON.stringify(draft.outputSchema, null, 2))
-    if (Array.isArray(draft.configKeys) && draft.configKeys.length) {
-      setConfigKeys(prev => mergeConfigKeys(prev, draft.configKeys))
+    if (nextSource) setSource(nextSource)
+    if (nextInputSchema) setInputSchema(nextInputSchema)
+    if (nextOutputSchema) setOutputSchema(nextOutputSchema)
+    if (nextConfigKeys?.length) {
+      setConfigKeys(prev => mergeConfigKeys(prev, nextConfigKeys))
     }
   }
 
@@ -336,11 +367,17 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       } catch (e) {
         throw new Error(`Invalid input schema JSON: ${e instanceof Error ? e.message : 'Unknown error'}`)
       }
+      if (!hasMeaningfulSchema(inputSchemaObj)) {
+        throw new Error('Input schema must be a non-empty JSON Schema object and must not be {}')
+      }
 
       try {
         outputSchemaObj = outputSchema.trim() ? (JSON.parse(outputSchema) as Record<string, unknown>) : {}
       } catch (e) {
         throw new Error(`Invalid output schema JSON: ${e instanceof Error ? e.message : 'Unknown error'}`)
+      }
+      if (!hasMeaningfulSchema(outputSchemaObj)) {
+        throw new Error('Output schema must be a non-empty JSON Schema object and must not be {}')
       }
 
       const config = buildConfigObject(configKeys)
@@ -408,17 +445,13 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
 
   const buildTestIterationSnapshot = () => {
     if (!source.trim()) return null
-    let inputSchemaObj: Record<string, unknown> | undefined
-    let outputSchemaObj: Record<string, unknown> | undefined
-    try {
-      inputSchemaObj = safeJsonParseObject(inputSchema)
-    } catch {
-      inputSchemaObj = undefined
+    const inputSchemaObj = safeJsonParseObject(inputSchema)
+    const outputSchemaObj = safeJsonParseObject(outputSchema)
+    if (!hasMeaningfulSchema(inputSchemaObj)) {
+      throw new Error('Input schema must be valid JSON Schema and must not be {} before using Fix with AI')
     }
-    try {
-      outputSchemaObj = safeJsonParseObject(outputSchema)
-    } catch {
-      outputSchemaObj = undefined
+    if (!hasMeaningfulSchema(outputSchemaObj)) {
+      throw new Error('Output schema must be valid JSON Schema and must not be {} before using Fix with AI')
     }
     const config = buildConfigObject(configKeys)
     const keys = (configKeys || [])
@@ -451,11 +484,17 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     } catch (e) {
       throw new Error(`Invalid input schema JSON: ${e instanceof Error ? e.message : 'Unknown error'}`)
     }
+    if (!hasMeaningfulSchema(inputSchemaObj)) {
+      throw new Error('Input schema must be a non-empty JSON Schema object and must not be {}')
+    }
 
     try {
       outputSchemaObj = safeJsonParseObject(outputSchema)
     } catch (e) {
       throw new Error(`Invalid output schema JSON: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    }
+    if (!hasMeaningfulSchema(outputSchemaObj)) {
+      throw new Error('Output schema must be a non-empty JSON Schema object and must not be {}')
     }
 
     const config = buildConfigObject(configKeys)
