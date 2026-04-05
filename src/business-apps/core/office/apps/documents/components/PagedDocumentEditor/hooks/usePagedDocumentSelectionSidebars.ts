@@ -859,6 +859,11 @@ export function usePagedDocumentSelectionSidebars({
         return
       }
 
+      // Radix DropdownMenu portals its content to document.body, outside the sidebar DOM.
+      if (target.closest('[data-document-image-sidebar-dropdown="true"]')) {
+        return
+      }
+
       if (target.closest('[data-testid="document-signature-settings-sidebar"]')) {
         return
       }

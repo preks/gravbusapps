@@ -5,11 +5,7 @@ import { X } from '@phosphor-icons/react'
 import { Button, Input, Label, ScrollArea, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
 import {
   dispatchDocumentImageUiMode,
-  IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS,
-  IMAGE_WRAP_UI_OPTIONS,
   normalizeImageCrop,
-  resolveImageWrapPreset,
-  resolveSquareWrapTextSideSelection,
   resolveWordWrapTextSide,
   type CustomImageAttributes,
   type ImageAlignment,
@@ -17,6 +13,7 @@ import {
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { ImageAdvancedSizeSection } from './ImageAdvancedSizeSection'
 import { ImageSidebarSection } from './ImageSidebarSection'
+import { ImageWrapSection } from './ImageWrapSection'
 import translations from '../../_i18n'
 
 const DEFAULT_IMAGE_DISTANCE = 0
@@ -164,6 +161,10 @@ export function ImageSettingsSidebar({
 
   const choiceButtonClass =
     'gba:h-auto gba:min-h-10 gba:whitespace-normal gba:px-2.5 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:leading-snug'
+  const orderedAnchorOptions =
+    wrapMode === 'inline'
+      ? ANCHOR_OPTIONS
+      : [...ANCHOR_OPTIONS.filter(option => option.value !== 'inline'), ANCHOR_OPTIONS[0]]
 
   return (
     <div
@@ -211,45 +212,14 @@ export function ImageSettingsSidebar({
               updateImageAttrs={updateImageAttrs}
             />
 
-            <ImageSidebarSection title={t('image-context-wrap-text')} data-testid={`${testId}-wrap-section`}>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
-                {IMAGE_WRAP_UI_OPTIONS.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={wrapMode === option.value ? 'secondary' : 'outline'}
-                    size="sm"
-                    className={choiceButtonClass}
-                    onMouseDown={preventEditorBlurOnMouseDown}
-                    onClick={() => updateImageAttrs(resolveImageWrapPreset(option.value, attrs))}
-                    data-testid={`${testId}-wrap-${option.value}`}
-                  >
-                    {t(option.key)}
-                  </Button>
-                ))}
-              </div>
-              {wrapMode === 'square' ? (
-                <div className="gba:mt-3 gba:space-y-2">
-                  <span className="gba:block gba:text-xs gba:font-medium gba:text-foreground">
-                    {t('image-wrap-text-side')}
-                  </span>
-                  <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
-                    {IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS.map(option => (
-                      <Button
-                        key={option.value}
-                        variant={wrapTextSide === option.value ? 'secondary' : 'outline'}
-                        size="sm"
-                        className={choiceButtonClass}
-                        onMouseDown={preventEditorBlurOnMouseDown}
-                        onClick={() => updateImageAttrs(resolveSquareWrapTextSideSelection(option.value, attrs))}
-                        data-testid={`${testId}-wrap-text-side-${option.value}`}
-                      >
-                        {t(option.key)}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </ImageSidebarSection>
+            <ImageWrapSection
+              attrs={attrs}
+              wrapMode={wrapMode}
+              wrapTextSide={wrapTextSide}
+              updateImageAttrs={updateImageAttrs}
+              onChoiceMouseDown={preventEditorBlurOnMouseDown}
+              testId={testId}
+            />
 
             <ImageSidebarSection title={t('image-context-position')} data-testid={`${testId}-position-section`}>
               <div className="gba:flex gba:flex-col gba:gap-3">
@@ -258,7 +228,7 @@ export function ImageSettingsSidebar({
                     {t('image-context-anchor')}
                   </span>
                   <div className="gba:flex gba:flex-col gba:gap-1.5">
-                    {ANCHOR_OPTIONS.map(option => (
+                    {orderedAnchorOptions.map(option => (
                       <Button
                         key={option.value}
                         variant={anchorMode === option.value ? 'secondary' : 'outline'}
