@@ -6,6 +6,7 @@
 import JSZip from 'jszip'
 import type {
   ImageAlignment,
+  ImageBorderDash,
   ImageWrapMode,
   ImageWrapTextSide
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
@@ -13,8 +14,39 @@ import {
   CUSTOM_IMAGE_FIGURE_CLASS,
   CUSTOM_IMAGE_TAG
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT
+} from '@/components/tiptap-extensions/tiptap-custom-image/types'
+import {
+  normalizeImageBorderColor,
+  normalizeImageBorderDash,
+  normalizeImageBorderWidthPt
+} from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
 
 const PX_TO_EMU = 9525
+const POINT_TO_OOXML_LINE_WIDTH = 12700
+
+const OOXML_SCHEME_COLOR_MAP: Readonly<Record<string, string>> = {
+  tx1: '#000000',
+  bg1: '#FFFFFF',
+  tx2: '#1F497D',
+  bg2: '#EEECE1',
+  accent1: '#4F81BD',
+  accent2: '#C0504D',
+  accent3: '#9BBB59',
+  accent4: '#8064A2',
+  accent5: '#4BACC6',
+  accent6: '#F79646'
+}
+
+interface DocxImageBorder {
+  borderVisible: boolean
+  borderColor: string
+  borderWidthPt: number
+  borderDash: ImageBorderDash
+}
 
 export interface DocxImageLayout {
   wrapMode: ImageWrapMode
@@ -22,6 +54,10 @@ export interface DocxImageLayout {
   align: ImageAlignment
   widthPx: number | null
   heightPx: number | null
+  borderVisible?: boolean
+  borderColor?: string | null
+  borderWidthPt?: number | null
+  borderDash?: ImageBorderDash | null
 }
 
 function emuToPx(emu: string | null | undefined): number | null {
@@ -82,6 +118,86 @@ function normalizeSquareWrapTextSide(
   }
 
   return horizontalAlign === 'right' ? 'left' : 'right'
+}
+
+function lineWidthToPoints(value: string | null | undefined): number {
+  const parsed = Number.parseInt(value ?? '', 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_IMAGE_BORDER_WIDTH_PT
+  }
+
+  return Math.round((parsed / POINT_TO_OOXML_LINE_WIDTH) * 100) / 100
+}
+
+function mapOoxmlDashToImageBorderDash(value: string | null | undefined): ImageBorderDash {
+  switch ((value ?? '').trim()) {
+    case 'dash':
+    case 'lgDash':
+    case 'sysDash':
+      return 'dash'
+    case 'dot':
+    case 'sysDot':
+      return 'dot'
+    case 'dashDot':
+    case 'lgDashDot':
+    case 'sysDashDot':
+      return 'dash-dot'
+    case 'dashDotDot':
+    case 'lgDashDotDot':
+    case 'sysDashDotDot':
+      return 'dash-dot-dot'
+    case 'solid':
+    default:
+      return DEFAULT_IMAGE_BORDER_DASH
+  }
+}
+
+function resolveLineColor(line: Element): string {
+  const solidFill = firstChildByLocalName(line, 'solidFill')
+  const srgbColor = solidFill ? firstChildByLocalName(solidFill, 'srgbClr') : null
+  const schemeColor = solidFill ? firstChildByLocalName(solidFill, 'schemeClr') : null
+
+  if (srgbColor) {
+    return (
+      normalizeImageBorderColor(srgbColor.getAttribute('val'), DEFAULT_IMAGE_BORDER_COLOR) ?? DEFAULT_IMAGE_BORDER_COLOR
+    )
+  }
+
+  if (schemeColor) {
+    const mappedColor = OOXML_SCHEME_COLOR_MAP[schemeColor.getAttribute('val') ?? '']
+    return normalizeImageBorderColor(mappedColor, DEFAULT_IMAGE_BORDER_COLOR) ?? DEFAULT_IMAGE_BORDER_COLOR
+  }
+
+  return DEFAULT_IMAGE_BORDER_COLOR
+}
+
+function readPictureBorder(drawing: Element): DocxImageBorder {
+  const picture = descendantsByLocalName(drawing, 'pic')[0]
+  const shapeProps = picture ? firstChildByLocalName(picture, 'spPr') : null
+  const line = shapeProps ? firstChildByLocalName(shapeProps, 'ln') : null
+
+  if (!line || firstChildByLocalName(line, 'noFill')) {
+    return {
+      borderVisible: false,
+      borderColor: DEFAULT_IMAGE_BORDER_COLOR,
+      borderWidthPt: DEFAULT_IMAGE_BORDER_WIDTH_PT,
+      borderDash: DEFAULT_IMAGE_BORDER_DASH
+    }
+  }
+
+  const presetDash = firstChildByLocalName(line, 'prstDash')
+
+  return {
+    borderVisible: true,
+    borderColor: resolveLineColor(line),
+    borderWidthPt:
+      normalizeImageBorderWidthPt(lineWidthToPoints(line.getAttribute('w')), DEFAULT_IMAGE_BORDER_WIDTH_PT) ??
+      DEFAULT_IMAGE_BORDER_WIDTH_PT,
+    borderDash: normalizeImageBorderDash(
+      mapOoxmlDashToImageBorderDash(presetDash?.getAttribute('val')),
+      DEFAULT_IMAGE_BORDER_DASH
+    )
+  }
 }
 
 function resolveAnchorLayout(anchor: Element): DocxImageLayout {
@@ -151,15 +267,19 @@ export function parseDocumentXmlForImageLayouts(xml: string): DocxImageLayout[] 
 
       const inline = descendantsByLocalName(drawing, 'inline')[0]
       const anchor = descendantsByLocalName(drawing, 'anchor')[0]
+      const pictureBorder = readPictureBorder(drawing)
 
       if (inline) {
         const { widthPx, heightPx } = readExtentPx(inline)
-        layouts.push({ wrapMode: 'inline', align: 'left', widthPx, heightPx })
+        layouts.push({ wrapMode: 'inline', align: 'left', widthPx, heightPx, ...pictureBorder })
         continue
       }
 
       if (anchor) {
-        layouts.push(resolveAnchorLayout(anchor))
+        layouts.push({
+          ...resolveAnchorLayout(anchor),
+          ...pictureBorder
+        })
         continue
       }
     }
@@ -206,8 +326,18 @@ function applyLayoutToFigure(figure: HTMLElement, layout: DocxImageLayout): void
   figure.classList.add(CUSTOM_IMAGE_FIGURE_CLASS)
   figure.setAttribute('data-image-wrap', layout.wrapMode)
   figure.setAttribute('data-image-align', layout.align)
+  figure.setAttribute('data-image-border-visible', String(layout.borderVisible ?? false))
   if (layout.wrapTextSide) {
     figure.setAttribute('data-image-wrap-text-side', layout.wrapTextSide)
+  }
+  if (layout.borderColor) {
+    figure.setAttribute('data-image-border-color', layout.borderColor)
+  }
+  if (layout.borderWidthPt != null) {
+    figure.setAttribute('data-image-border-width-pt', String(layout.borderWidthPt))
+  }
+  if (layout.borderDash) {
+    figure.setAttribute('data-image-border-dash', layout.borderDash)
   }
 
   if (layout.wrapMode !== 'inline') {

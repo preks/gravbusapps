@@ -35,6 +35,25 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<wp:anchor')
   })
 
+  it('emits picture border line properties when a border is configured', async () => {
+    const html = [
+      '<figure data-node-type="custom-image"',
+      ' data-image-border-visible="true"',
+      ' data-image-border-color="#1F4E79"',
+      ' data-image-border-width-pt="2.25"',
+      ' data-image-border-dash="dash-dot">',
+      '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII=" width="240" height="120" />',
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Border doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<a:ln w="28575">')
+    expect(documentXml).toContain('<a:srgbClr val="1F4E79"/>')
+    expect(documentXml).toContain('<a:prstDash val="dashDot"/>')
+  })
+
   it('exports each wrap mode with the matching WordprocessingML wrapping element', async () => {
     const base64Image =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII='

@@ -18,7 +18,11 @@ describe('styleUtils custom image crop attrs', () => {
         cropLeft: 0.15,
         rotation: 45,
         wrapMode: 'front',
-        anchorMode: 'fixed'
+        anchorMode: 'fixed',
+        borderVisible: true,
+        borderColor: '#1F4E79',
+        borderWidthPt: 2.25,
+        borderDash: 'dash-dot'
       })
     ).toMatchObject({
       'data-image-crop-top': '0.1',
@@ -27,7 +31,11 @@ describe('styleUtils custom image crop attrs', () => {
       'data-image-crop-left': '0.15',
       'data-image-rotation': '45',
       'data-image-wrap': 'front',
-      'data-image-anchor': 'fixed'
+      'data-image-anchor': 'fixed',
+      'data-image-border-visible': 'true',
+      'data-image-border-color': '#1F4E79',
+      'data-image-border-width-pt': '2.25',
+      'data-image-border-dash': 'dash-dot'
     })
   })
 
@@ -88,6 +96,27 @@ describe('styleUtils custom image crop attrs', () => {
       offsetX: 18,
       offsetY: -4,
       caption: 'Example caption'
+    })
+  })
+
+  it('serializes and reads border attrs back from figure markup', () => {
+    const figure = document.createElement('figure')
+    const image = document.createElement('img')
+
+    image.setAttribute('src', 'data:image/png;base64,border')
+    image.setAttribute('width', '200')
+    image.setAttribute('height', '100')
+    figure.setAttribute('data-image-border-visible', 'true')
+    figure.setAttribute('data-image-border-color', '#1f4e79')
+    figure.setAttribute('data-image-border-width-pt', '3')
+    figure.setAttribute('data-image-border-dash', 'dash-dot-dot')
+    figure.appendChild(image)
+
+    expect(getImageFigureAttributesFromElement(figure, defaults)).toMatchObject({
+      borderVisible: true,
+      borderColor: '#1F4E79',
+      borderWidthPt: 3,
+      borderDash: 'dash-dot-dot'
     })
   })
 

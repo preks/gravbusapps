@@ -431,6 +431,40 @@ describe('CustomImageView', () => {
     expect(screen.getByTestId('document-editor-image-broken')).toHaveTextContent('Loading image...')
   })
 
+  it('renders the configured picture border as a separate overlay', () => {
+    const { container } = render(
+      <CustomImageView
+        node={{
+          attrs: {
+            src: '/protected/image.png',
+            width: 240,
+            height: 120,
+            wrapMode: 'inline',
+            borderVisible: true,
+            borderColor: '#1F4E79',
+            borderWidthPt: 3,
+            borderDash: 'dash-dot'
+          }
+        }}
+        editor={null}
+        getPos={() => 1}
+        selected={false}
+        options={{
+          ...createOptions(),
+          getAccessToken: () => 'token',
+          isProtectedSrc: () => true,
+          resolveProtectedSrc: jest.fn(() => new Promise<string>(() => undefined))
+        }}
+      />
+    )
+
+    const borderRect = container.querySelector('[data-testid="document-editor-image-border"] rect')
+
+    expect(borderRect).not.toBeNull()
+    expect(borderRect).toHaveAttribute('stroke', '#1F4E79')
+    expect(borderRect).toHaveAttribute('stroke-dasharray')
+  })
+
   it('keeps the current protected image visible when selection rerenders the node view', async () => {
     let resolveProtectedImage: ((value: string) => void) | null = null
     const initialResolver = jest.fn(

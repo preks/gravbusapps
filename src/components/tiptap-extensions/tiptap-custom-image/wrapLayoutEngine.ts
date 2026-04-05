@@ -2,8 +2,21 @@ import type { CSSProperties } from 'react'
 import { hasImageCrop, normalizeImageCrop, resolveImageCropDimensions } from './cropUtils'
 import type { ImageMeasurementContext } from './sizeUtils'
 import { resolveImageDimensions } from './sizeUtils'
-import { normalizeImageAlign, normalizeImageAnchorMode, normalizeImageWrapMode } from './styleUtils'
-import type { CustomImageAttributes } from './types'
+import {
+  normalizeImageAlign,
+  normalizeImageAnchorMode,
+  normalizeImageBorderColor,
+  normalizeImageBorderDash,
+  normalizeImageBorderWidthPt,
+  normalizeImageWrapMode
+} from './styleUtils'
+import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type CustomImageAttributes,
+  type ImageBorderDash
+} from './types'
 import type { ImageWrapContour } from './wrapContourUtils'
 import {
   resolveFloatingSide,
@@ -34,6 +47,17 @@ export interface WordLikeImageLayoutContext extends ImageMeasurementContext {
   wrapContour?: ImageWrapContour | null
 }
 
+export interface WordLikeImageBorderStyle {
+  visible: boolean
+  color: string
+  widthPt: number
+  widthPx: number
+  dash: ImageBorderDash
+  dashArray: string | null
+  inset: number
+  radius: number
+}
+
 export interface WordLikeImageLayout {
   wrapMode: NonNullable<CustomImageAttributes['wrapMode']>
   align: NonNullable<CustomImageAttributes['align']>
@@ -58,6 +82,7 @@ export interface WordLikeImageLayout {
   fallbackStrategy: string
   crop: ReturnType<typeof normalizeImageCrop>
   cropDimensions: ReturnType<typeof resolveImageCropDimensions>
+  imageBorder: WordLikeImageBorderStyle
   renderedImageStyle: CSSProperties
   cropViewportStyle: CSSProperties
   imageFrameStyle: CSSProperties
@@ -76,6 +101,32 @@ function clampNonNegative(value: number) {
 
 function clampPolygonPoint(value: number) {
   return Math.min(1, Math.max(0, value))
+}
+
+function roundToHundredths(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function pointsToPixels(points: number) {
+  return roundToHundredths((points * 96) / 72)
+}
+
+function resolveBorderDashArray(dash: ImageBorderDash, widthPx: number): string | null {
+  const unit = Math.max(1, widthPx)
+
+  switch (dash) {
+    case 'dot':
+      return `${roundToHundredths(unit)} ${roundToHundredths(unit * 1.5)}`
+    case 'dash':
+      return `${roundToHundredths(unit * 3)} ${roundToHundredths(unit * 2)}`
+    case 'dash-dot':
+      return `${roundToHundredths(unit * 3)} ${roundToHundredths(unit * 1.75)} ${roundToHundredths(unit)} ${roundToHundredths(unit * 1.75)}`
+    case 'dash-dot-dot':
+      return `${roundToHundredths(unit * 3)} ${roundToHundredths(unit * 1.5)} ${roundToHundredths(unit)} ${roundToHundredths(unit * 1.5)} ${roundToHundredths(unit)} ${roundToHundredths(unit * 1.5)}`
+    case 'solid':
+    default:
+      return null
+  }
 }
 
 function createRectPolygon(source: WordWrapPolygon['source']): WordWrapPolygon {
@@ -200,6 +251,24 @@ export function resolveWordLikeImageLayout(
     height: frameHeight,
     crop
   })
+  const borderVisible = attributes.borderVisible ?? false
+  const borderColor =
+    normalizeImageBorderColor(attributes.borderColor, DEFAULT_IMAGE_BORDER_COLOR) ?? DEFAULT_IMAGE_BORDER_COLOR
+  const borderWidthPt =
+    normalizeImageBorderWidthPt(attributes.borderWidthPt, DEFAULT_IMAGE_BORDER_WIDTH_PT) ??
+    DEFAULT_IMAGE_BORDER_WIDTH_PT
+  const borderDash = normalizeImageBorderDash(attributes.borderDash, DEFAULT_IMAGE_BORDER_DASH)
+  const borderWidthPx = pointsToPixels(borderWidthPt)
+  const imageBorder: WordLikeImageBorderStyle = {
+    visible: borderVisible,
+    color: borderColor,
+    widthPt: borderWidthPt,
+    widthPx: borderWidthPx,
+    dash: borderDash,
+    dashArray: borderVisible ? resolveBorderDashArray(borderDash, borderWidthPx) : null,
+    inset: borderWidthPx / 2,
+    radius: 8
+  }
   const wrapPolygon = resolveWrapPolygon(attributes, context.wrapContour)
   const renderedImageStyle: CSSProperties = {
     width: cropDimensions.renderedWidth,
@@ -389,6 +458,7 @@ export function resolveWordLikeImageLayout(
     fallbackStrategy,
     crop,
     cropDimensions,
+    imageBorder,
     renderedImageStyle,
     cropViewportStyle,
     imageFrameStyle,

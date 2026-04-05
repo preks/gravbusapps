@@ -17,7 +17,7 @@ describe('CustomImage HTML parsing', () => {
       content: [
         '<p>Before</p>',
         '<p>',
-        '<span data-node-type="custom-image" data-image-wrap="square" data-image-align="right">',
+        '<span data-node-type="custom-image" data-image-wrap="square" data-image-align="right" data-image-border-visible="true" data-image-border-color="#1F4E79" data-image-border-width-pt="2.25" data-image-border-dash="dash-dot">',
         '<img src="data:image/png;base64,abc123" width="120" height="80" alt="Imported image" />',
         '</span>',
         '</p>',
@@ -37,7 +37,11 @@ describe('CustomImage HTML parsing', () => {
           width: 120,
           height: 80,
           wrapMode: 'square',
-          align: 'right'
+          align: 'right',
+          borderVisible: true,
+          borderColor: '#1F4E79',
+          borderWidthPt: 2.25,
+          borderDash: 'dash-dot'
         })
       })
     } finally {

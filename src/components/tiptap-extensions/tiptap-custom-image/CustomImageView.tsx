@@ -9,7 +9,13 @@ import { resolveImageOverlayFigureStyle, resolveImageOverlayMount } from './imag
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
 import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
 import { getFigureDataAttributes, normalizeNullableNumber } from './styleUtils'
-import type { CustomImageAttributes, CustomImageOptions } from './types'
+import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type CustomImageAttributes,
+  type CustomImageOptions
+} from './types'
 import { analyzeImageWrapContour, type ImageWrapContour } from './wrapContourUtils'
 import {
   getImageFlowShimAttributes,
@@ -160,7 +166,11 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       offsetX: node.attrs.offsetX ?? 0,
       offsetY: node.attrs.offsetY ?? 0,
       allowOverlap: node.attrs.allowOverlap ?? false,
-      zIndex: node.attrs.zIndex ?? 1
+      zIndex: node.attrs.zIndex ?? 1,
+      borderVisible: node.attrs.borderVisible ?? false,
+      borderColor: node.attrs.borderColor ?? DEFAULT_IMAGE_BORDER_COLOR,
+      borderWidthPt: node.attrs.borderWidthPt ?? DEFAULT_IMAGE_BORDER_WIDTH_PT,
+      borderDash: node.attrs.borderDash ?? DEFAULT_IMAGE_BORDER_DASH
     }),
     [
       node.attrs,

@@ -1,5 +1,6 @@
 import type {
   CustomImageAttributes,
+  ImageBorderDash,
   ImageAlignment,
   ImageAnchorMode,
   ImageDisplayMode,
@@ -10,6 +11,10 @@ import type {
   ImageWrapMode
 } from './types'
 import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  IMAGE_BORDER_DASHES,
   IMAGE_WRAP_MODES,
   IMAGE_WRAP_TEXT_SIDES,
   LEGACY_IMAGE_WRAP_MODE_TO_ALIGN,
@@ -55,6 +60,13 @@ export function normalizeImageDisplay(value: unknown, fallback: ImageDisplayMode
   return normalizeEnumValue(['inline', 'block'] as const, value, fallback)
 }
 
+export function normalizeImageBorderDash(
+  value: unknown,
+  fallback: ImageBorderDash = DEFAULT_IMAGE_BORDER_DASH
+): ImageBorderDash {
+  return normalizeEnumValue(IMAGE_BORDER_DASHES, value, fallback)
+}
+
 export function normalizeImageSizeUnit(value: unknown, fallback: ImageSizeUnit = 'px'): ImageSizeUnit {
   return normalizeEnumValue(['px', 'percent'] as const, value, fallback)
 }
@@ -84,6 +96,56 @@ export function normalizeNullableBoolean(value: unknown, fallback: boolean | nul
   if (['true', '1', 'yes', 'on'].includes(lower)) return true
   if (['false', '0', 'no', 'off'].includes(lower)) return false
   return fallback
+}
+
+function expandHexColor(hex: string): string | null {
+  const normalized = hex.trim().replace(/^#/, '')
+
+  if (/^[0-9a-f]{3}$/i.test(normalized)) {
+    return normalized
+      .split('')
+      .map(char => char.repeat(2))
+      .join('')
+      .toUpperCase()
+  }
+
+  if (/^[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized.toUpperCase()
+  }
+
+  return null
+}
+
+export function normalizeImageBorderColor(
+  value: unknown,
+  fallback: string | null = DEFAULT_IMAGE_BORDER_COLOR
+): string | null {
+  if (value == null || value === '') {
+    return fallback
+  }
+
+  if (typeof value !== 'string') {
+    return fallback
+  }
+
+  const expandedHex = expandHexColor(value)
+  return expandedHex ? `#${expandedHex}` : fallback
+}
+
+export function normalizeImageBorderWidthPt(
+  value: unknown,
+  fallback: number | null = DEFAULT_IMAGE_BORDER_WIDTH_PT
+): number | null {
+  const normalized = normalizeNullableNumber(value, fallback)
+  if (normalized == null) {
+    return fallback
+  }
+
+  if (normalized <= 0) {
+    return fallback
+  }
+
+  return Math.min(96, Math.round(normalized * 100) / 100)
 }
 
 export function getImageFigureAttributesFromElement(
@@ -158,7 +220,14 @@ export function getImageFigureAttributesFromElement(
     offsetX: normalizeNullableNumber(readFigureAttr('data-image-offset-x'), 0),
     offsetY: normalizeNullableNumber(readFigureAttr('data-image-offset-y'), 0),
     allowOverlap: normalizeNullableBoolean(readFigureAttr('data-image-allow-overlap'), false),
-    zIndex: normalizeNullableNumber(readFigureAttr('data-image-z-index'), 1)
+    zIndex: normalizeNullableNumber(readFigureAttr('data-image-z-index'), 1),
+    borderVisible: normalizeNullableBoolean(readFigureAttr('data-image-border-visible'), false),
+    borderColor: normalizeImageBorderColor(readFigureAttr('data-image-border-color'), DEFAULT_IMAGE_BORDER_COLOR),
+    borderWidthPt: normalizeImageBorderWidthPt(
+      readFigureAttr('data-image-border-width-pt'),
+      DEFAULT_IMAGE_BORDER_WIDTH_PT
+    ),
+    borderDash: normalizeImageBorderDash(readFigureAttr('data-image-border-dash'), DEFAULT_IMAGE_BORDER_DASH)
   }
 }
 
@@ -194,6 +263,10 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
   const offsetY = normalizeNullableNumber(attributes.offsetY, 0) ?? 0
   const allowOverlap = attributes.allowOverlap ?? false
   const zIndex = normalizeNullableNumber(attributes.zIndex, 1) ?? 1
+  const borderVisible = attributes.borderVisible ?? false
+  const borderColor = normalizeImageBorderColor(attributes.borderColor, DEFAULT_IMAGE_BORDER_COLOR)
+  const borderWidthPt = normalizeImageBorderWidthPt(attributes.borderWidthPt, DEFAULT_IMAGE_BORDER_WIDTH_PT)
+  const borderDash = normalizeImageBorderDash(attributes.borderDash, DEFAULT_IMAGE_BORDER_DASH)
 
   return {
     'data-node-type': CUSTOM_IMAGE_TAG,
@@ -222,6 +295,10 @@ export function getFigureDataAttributes(attributes: CustomImageAttributes) {
     'data-image-offset-y': String(offsetY),
     'data-image-allow-overlap': String(allowOverlap),
     'data-image-z-index': String(zIndex),
+    'data-image-border-visible': String(borderVisible),
+    ...(borderColor == null ? {} : { 'data-image-border-color': borderColor }),
+    ...(borderWidthPt == null ? {} : { 'data-image-border-width-pt': String(borderWidthPt) }),
+    'data-image-border-dash': borderDash,
     ...(originalWidth == null ? {} : { 'data-image-original-width': String(Math.round(originalWidth)) }),
     ...(originalHeight == null ? {} : { 'data-image-original-height': String(Math.round(originalHeight)) }),
     ...(widthPercent == null ? {} : { 'data-image-width-percent': String(widthPercent) }),

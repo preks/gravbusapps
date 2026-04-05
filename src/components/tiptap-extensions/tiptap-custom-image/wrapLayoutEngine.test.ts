@@ -148,4 +148,27 @@ describe('wrapLayoutEngine', () => {
     expect(layout.runtimeAttributes['data-image-visual-bottom']).toBe('0')
     expect(layout.runtimeAttributes['data-image-render-mode']).toBe('overlay')
   })
+
+  it('keeps border rendering metadata separate from layout geometry', () => {
+    const layout = resolveWordLikeImageLayout({
+      width: 180,
+      height: 90,
+      wrapMode: 'inline',
+      borderVisible: true,
+      borderColor: '#1F4E79',
+      borderWidthPt: 3,
+      borderDash: 'dash-dot'
+    })
+
+    expect(layout.layoutWidth).toBe(180)
+    expect(layout.layoutHeight).toBe(90)
+    expect(layout.imageBorder).toMatchObject({
+      visible: true,
+      color: '#1F4E79',
+      widthPt: 3,
+      dash: 'dash-dot'
+    })
+    expect(layout.imageBorder.widthPx).toBeGreaterThan(0)
+    expect(layout.imageBorder.dashArray).toBeTruthy()
+  })
 })

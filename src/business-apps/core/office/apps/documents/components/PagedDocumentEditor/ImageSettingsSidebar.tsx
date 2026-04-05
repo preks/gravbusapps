@@ -12,6 +12,7 @@ import {
   type ImageAnchorMode
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { ImageAdvancedSizeSection } from './ImageAdvancedSizeSection'
+import { ImageBorderSection } from './ImageBorderSection'
 import { ImageSidebarSection } from './ImageSidebarSection'
 import { ImageWrapSection } from './ImageWrapSection'
 import translations from '../../_i18n'
@@ -216,6 +217,13 @@ export function ImageSettingsSidebar({
               attrs={attrs}
               wrapMode={wrapMode}
               wrapTextSide={wrapTextSide}
+              updateImageAttrs={updateImageAttrs}
+              onChoiceMouseDown={preventEditorBlurOnMouseDown}
+              testId={testId}
+            />
+
+            <ImageBorderSection
+              attrs={attrs}
               updateImageAttrs={updateImageAttrs}
               onChoiceMouseDown={preventEditorBlurOnMouseDown}
               testId={testId}

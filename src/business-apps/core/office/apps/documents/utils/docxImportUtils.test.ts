@@ -39,6 +39,30 @@ function inlinePictureDrawing(): string {
   )
 }
 
+function inlinePictureDrawingWithBorder(): string {
+  const cx = String(400 * 9525)
+  const cy = String(300 * 9525)
+  return pictureDrawing(
+    `<wp:inline distT="0" distB="0" distL="0" distR="0">
+      <wp:extent cx="${cx}" cy="${cy}"/>
+      <wp:docPr id="3" name="Picture"/>
+      <a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+        <pic:pic>
+          <pic:nvPicPr><pic:cNvPr id="0" name=""/></pic:nvPicPr>
+          <pic:blipFill><a:blip r:embed="rId3"/></pic:blipFill>
+          <pic:spPr>
+            <a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+            <a:ln w="38100">
+              <a:solidFill><a:srgbClr val="1F4E79"/></a:solidFill>
+              <a:prstDash val="dashDotDot"/>
+            </a:ln>
+          </pic:spPr>
+        </pic:pic>
+      </a:graphicData></a:graphic>
+    </wp:inline>`
+  )
+}
+
 function anchorSquareRight(): string {
   const cx = String(200 * 9525)
   const cy = String(150 * 9525)
@@ -84,6 +108,19 @@ describe('parseDocumentXmlForImageLayouts', () => {
     expect(layouts[0]?.heightPx).toBe(150)
   })
 
+  it('parses picture border metadata from DrawingML line properties', () => {
+    const xml = minimalDocumentXml(inlinePictureDrawingWithBorder())
+    const layouts = parseDocumentXmlForImageLayouts(xml)
+
+    expect(layouts).toHaveLength(1)
+    expect(layouts[0]).toMatchObject({
+      borderVisible: true,
+      borderColor: '#1F4E79',
+      borderWidthPt: 3,
+      borderDash: 'dash-dot-dot'
+    })
+  })
+
   it('returns empty array for invalid XML', () => {
     expect(parseDocumentXmlForImageLayouts('not xml')).toEqual([])
   })
@@ -119,6 +156,27 @@ describe('enhanceImportedHtmlWithImageLayouts', () => {
     expect(image?.getAttribute('src')).toBe('data:image/png;base64,abc123')
     expect(image?.getAttribute('width')).toBe('240')
     expect(image?.getAttribute('height')).toBe('120')
+  })
+
+  it('persists imported border attrs on the upgraded custom-image figure', () => {
+    const html = '<p><img src="data:image/png;base64,xx" alt=""></p>'
+    const out = enhanceImportedHtmlWithImageLayouts(html, [
+      {
+        wrapMode: 'inline',
+        align: 'left',
+        widthPx: 200,
+        heightPx: 150,
+        borderVisible: true,
+        borderColor: '#1F4E79',
+        borderWidthPt: 3,
+        borderDash: 'dash-dot-dot'
+      }
+    ])
+
+    expect(out).toContain('data-image-border-visible="true"')
+    expect(out).toContain('data-image-border-color="#1F4E79"')
+    expect(out).toContain('data-image-border-width-pt="3"')
+    expect(out).toContain('data-image-border-dash="dash-dot-dot"')
   })
 
   it('returns original html when layouts empty', () => {
