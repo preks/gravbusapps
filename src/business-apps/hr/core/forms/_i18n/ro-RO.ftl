@@ -308,9 +308,16 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Cererea este trimisă către manager pentru aprobare
 request-correction-date-absence-error = Această dată este o sărbătoare sau o absență și nu poate fi folosită pentru o cerere de corectare.
+request-correction-zero-planned-warning = Această dată nu are ore de lucru planificate. Timpul introdus va fi considerat ore suplimentare.
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
+notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
+feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
+entitlements-valid-from-month-start-hint = Data trimisa va fi intotdeauna prima zi a lunii selectate, indiferent de ziua aleasa.
+entitlements-valid-from = Valabil de la
+entitlements-effective-from = Efectiv de la
+entitlements-effective-to = Efectiv pana la
 
 # ============================================
 # Create Employee Form
@@ -376,3 +383,21 @@ create-absence-overlap-prefix = Există deja o
 create-absence-overlap-scheduled = absență programată
 create-absence-from = de la
 create-absence-to = până la
+create-absence-prevalidate-working-hours-title = Lipsesc orele de lucru
+create-absence-prevalidate-working-hours-detail = Nu am putut găsi o definiție validă a orelor de lucru pentru profilul dumneavoastră. Aceasta este necesară pentru a calcula durata concediului. Vă rugăm să contactați HR pentru a vă actualiza profilul.
+create-absence-prevalidate-region-title = Regiunea de angajare nu este atribuită
+create-absence-prevalidate-region-detail = Pentru a determina sărbătorile legale, profilului dumneavoastră trebuie să-i fie atribuită o regiune de angajare. Vă rugăm să contactați HR pentru a vă actualiza profilul.
+create-absence-prevalidate-entitlement-title = Nu a fost găsit niciun drept la concediu
+create-absence-prevalidate-entitlement-detail = Nu aveți un drept activ pentru acest tip de absență. Vă rugăm să contactați HR pentru asistență.
+create-absence-prevalidate-balance-title = Sold insuficient
+create-absence-prevalidate-balance-detail = Soldul dumneavoastră disponibil nu este suficient pentru perioada de absență selectată.
+create-absence-prevalidate-date-range-title = Interval de date invalid
+create-absence-prevalidate-date-range-detail = Datele selectate nu pot fi validate. Ajustați intervalul și încercați din nou.
+create-absence-prevalidate-invalid-request-title = Cerere invalidă
+create-absence-prevalidate-invalid-request-detail = Vă rugăm să verificați tipul de absență și datele selectate, apoi încercați din nou.
+create-absence-prevalidate-auth-title = Autentificare necesară
+create-absence-prevalidate-auth-detail = Este posibil ca sesiunea dumneavoastră să fi expirat. Reîmprospătați pagina și încercați din nou.
+create-absence-prevalidate-permission-title = Permisiune necesară
+create-absence-prevalidate-permission-detail = Nu aveți permisiunea de a valida această cerere de absență.
+create-absence-prevalidate-generic-title = Cererea nu a putut fi validată
+create-absence-prevalidate-generic-detail = Nu am putut valida această absență în acest moment. Vă rugăm să încercați din nou în scurt timp.

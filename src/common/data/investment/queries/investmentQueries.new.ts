@@ -54,6 +54,7 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'acquisitionDate',
     'additionalProperties',
     'code',
+    'company',
     'createdAt',
     'createdBy',
     'currency',
@@ -395,6 +396,7 @@ export const buildInvestmentFragment = (fields: string[]): string => {
         ${RealEstateInvestmentFields.size}
         ${RealEstateInvestmentFields.locality}
         ${RealEstateInvestmentFields.postalCode}
+        ${RealEstateInvestmentFields.sizeMeasurementUnitRef}
         ${RealEstateInvestmentFields.sizeMeasurementUnit} {
           ${CATALOG_ENTRY}
         }

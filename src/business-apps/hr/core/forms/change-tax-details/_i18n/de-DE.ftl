@@ -1,5 +1,19 @@
 # Change Tax Details - Bezeichnungen und Validierungsmeldungen
 
+change-tax-details-title = Steuerdaten ändern
+submit = Senden
+cancel = Abbrechen
+placeholder-enter = Bitte eingeben
+placeholder-select = Bitte auswählen
+tax-number = Steuernummer
+tax-bracket = Steuerklasse
+health-insurance = Krankenversicherung
+health-insurance-type = Art der Krankenversicherung
+tax-identification-number = Steuer-Identifikationsnummer
+church-affiliation = Kirchenzugehörigkeit
+social-security-number = Sozialversicherungsnummer
+child-tax-allowance = Kinderfreibetrag
+request-at-tax-office = Anfrage beim Finanzamt
 employee-tax-office = Finanzamt des Arbeitnehmers
 individual-free-amount = Individueller Freibetrag
 health-insurance-document-upload = Dokument hochladen
@@ -9,8 +23,17 @@ document-valid-to = Gültig bis
 upload-new-health-insurance-document = Neuen Krankenversicherungsnachweis hochladen
 religion = Religion
 
+required-health-insurance-text = Das Feld Krankenversicherung ist erforderlich.
+required-tax-identification-number-text = Das Feld Steuer-Identifikationsnummer ist erforderlich.
+required-social-security-number-text = Das Feld Sozialversicherungsnummer ist erforderlich.
 invalid-tax-number-text = Bitte geben Sie eine gültige deutsche Steuernummer ein (10, 11 oder 13 Ziffern, z. B. 313/876/56432) oder lassen Sie das Feld leer.
 invalid-tax-identification-number-text = Bitte geben Sie eine gültige 11-stellige deutsche Steuer-Identifikationsnummer ein.
 invalid-social-security-number-text = Bitte geben Sie eine gültige deutsche Rentenversicherungsnummer ein (z. B. 89 010299 B 123).
+ssn-birth-date-missing-text = Die Sozialversicherungsnummer kann nicht validiert werden: Für diesen Mitarbeitenden ist kein Geburtsdatum hinterlegt.
+ssn-birth-date-mismatch-text = Das Geburtsdatum in der Sozialversicherungsnummer stimmt nicht mit dem hinterlegten Geburtsdatum des Mitarbeitenden überein.
+ssn-birth-name-missing-text = Die Sozialversicherungsnummer kann nicht validiert werden: Für diesen Mitarbeitenden sind weder Geburtsname noch Nachname hinterlegt.
+ssn-birth-name-mismatch-text = Der Geburtsnamensbuchstabe in der Sozialversicherungsnummer stimmt nicht mit dem Geburtsnamen (oder dem Nachnamen als Fallback) überein.
+ssn-check-digit-invalid-text = Die Prüfziffer der Sozialversicherungsnummer ist ungültig.
 invalid-cnp-text = Bitte geben Sie eine gültige 13-stellige rumänische CNP (Cod Numeric Personal) ein.
 invalid-localized-number-text = Bitte geben Sie eine gültige Zahl im lokalen Format ein (z. B. 1.234,56 oder 1,234.56).
+required-health-insurance-type-text = Das Feld Art der Krankenversicherung ist erforderlich.

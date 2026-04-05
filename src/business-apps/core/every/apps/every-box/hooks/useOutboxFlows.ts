@@ -3,32 +3,35 @@
  * Fetches workflows initiated by the user
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Flow, FlowStatus } from '../types'
 import { getCflowEndpoint } from '../../every-api/utils/config'
 import { getEveryboxServiceApiUrl } from '../../every-api/utils/everyboxServiceUrl'
+import { EVERYBOX_FIRST_PAGE_LIMIT } from '../../every-api/constants/everyboxPagination'
+import { fetchCflowUserInitiatedFlowsCount } from '../../every-api/utils/CflowClient'
 
 const FLOW_ENGINE_API = getCflowEndpoint()
 
-export const useOutboxFlows = (context: BusinessAppContextProps, options?: { enabled?: boolean }) => {
+export const useOutboxFlows = (
+  context: BusinessAppContextProps,
+  options?: { enabled?: boolean; initialTotalCount?: number }
+) => {
   const enabled = options?.enabled !== false
   const [flows, setFlows] = useState<Flow[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(options?.initialTotalCount ?? 0)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Use Keycloak user ID for CFlow (flows are initiated by Keycloak ID, not employee ID)
   const userId = context.userInfo?.id || ''
 
-  // Track last flow data to avoid unnecessary re-renders
-  const lastFlowDataRef = useRef<string>('')
-
   /**
    * Fetch initiated workflows
    */
-  const fetchInitiatedFlows = useCallback(async (): Promise<Flow[]> => {
+  const fetchInitiatedFlows = useCallback(async (): Promise<{ flows: Flow[]; totalCount: number }> => {
     if (!userId) {
-      return []
+      return { flows: [], totalCount: 0 }
     }
 
     try {
@@ -45,7 +48,7 @@ export const useOutboxFlows = (context: BusinessAppContextProps, options?: { ena
         throw new Error('Everybox service URL not configured')
       }
 
-      const url = `${everyboxApi}/flows/user/${userId}/initiated?limit=50&offset=0`
+      const url = `${everyboxApi}/flows/user/${userId}/initiated?limit=${EVERYBOX_FIRST_PAGE_LIMIT}&offset=0`
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController()
@@ -67,7 +70,10 @@ export const useOutboxFlows = (context: BusinessAppContextProps, options?: { ena
 
       const data = await response.json()
       const flowsFromService: Flow[] = data.flows || []
-      return flowsFromService
+      return {
+        flows: flowsFromService,
+        totalCount: data.totalCount ?? flowsFromService.length
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error('Request timed out. The server is taking too long to respond.')
@@ -75,7 +81,7 @@ export const useOutboxFlows = (context: BusinessAppContextProps, options?: { ena
 
       // Fallback to Flow Engine direct call if everybox-service is not routed yet
       try {
-        const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
+        const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=${EVERYBOX_FIRST_PAGE_LIMIT}&offset=0`
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 30000)
 
@@ -99,7 +105,9 @@ export const useOutboxFlows = (context: BusinessAppContextProps, options?: { ena
         const data = await response.json()
         const rawFlows: any[] = data.data?.flows || []
         const transformed = rawFlows.map(flow => transformFlow(flow))
-        return groupFlowsByBlinkId(transformed)
+        const grouped = groupFlowsByBlinkId(transformed)
+        const totalCount = await fetchCflowUserInitiatedFlowsCount(userId, context.accessToken)
+        return { flows: grouped, totalCount }
       } catch {
         throw err
       }
@@ -107,63 +115,67 @@ export const useOutboxFlows = (context: BusinessAppContextProps, options?: { ena
   }, [userId, context.accessToken])
 
   /**
-   * Build a lightweight fingerprint for change-detection (avoids full JSON.stringify)
-   */
-  const flowFingerprint = useCallback((flowList: Flow[]): string => {
-    return flowList.map(f => `${f.id}:${f.status}:${f.completedAssignees ?? ''}`).join('|')
-  }, [])
-
-  /**
    * Load all flows (shows loading spinner — use for manual refresh / initial load)
+   *
+   * Always applies the latest list to state. A previous fingerprint optimization skipped
+   * setState when id/status/completedAssignees matched; new child flows merged into the same
+   * blink group keep the same representative id/status, so the UI never updated until a full
+   * remount (e.g. tab visibility) forced a fresh tree.
    */
   const loadFlows = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const groupedFlows = await fetchInitiatedFlows()
-
-      const fp = flowFingerprint(groupedFlows)
-      if (fp !== lastFlowDataRef.current) {
-        lastFlowDataRef.current = fp
-        setFlows(groupedFlows)
-      }
+      const { flows: groupedFlows, totalCount: nextTotalCount } = await fetchInitiatedFlows()
+      setTotalCount(nextTotalCount)
+      setFlows(groupedFlows)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load flows'
       setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
-  }, [fetchInitiatedFlows, flowFingerprint])
+  }, [fetchInitiatedFlows])
 
   /**
    * Background refresh — does NOT set isLoading (no spinner during polling)
    */
   const backgroundRefresh = useCallback(async () => {
     try {
-      const groupedFlows = await fetchInitiatedFlows()
-
-      const fp = flowFingerprint(groupedFlows)
-      if (fp !== lastFlowDataRef.current) {
-        lastFlowDataRef.current = fp
-        setFlows(groupedFlows)
-      }
+      const { flows: groupedFlows, totalCount: nextTotalCount } = await fetchInitiatedFlows()
+      setTotalCount(nextTotalCount)
+      setFlows(groupedFlows)
     } catch {
       // Ignore background refresh errors silently
     }
-  }, [fetchInitiatedFlows, flowFingerprint])
+  }, [fetchInitiatedFlows])
 
   /**
-   * Initial load
+   * While outbox is hidden, keep total in sync with bootstrap badge counts (no network).
+   * Do not mix this with the load effect: including initialTotalCount there re-fetched initiated
+   * every time bootstrap completed (duplicate /initiated requests).
    */
   useEffect(() => {
-    if (enabled && context.accessToken && userId) {
-      loadFlows()
+    if (!enabled) {
+      setIsLoading(false)
+      setTotalCount(options?.initialTotalCount ?? 0)
     }
+  }, [enabled, options?.initialTotalCount])
+
+  /**
+   * One network load when the outbox tab becomes active — deps intentionally omit initialTotalCount.
+   */
+  useEffect(() => {
+    if (!enabled || !context.accessToken || !userId) {
+      return
+    }
+    void loadFlows()
   }, [enabled, context.accessToken, userId, loadFlows])
 
   return {
     flows,
+    totalCount,
     isLoading,
     error,
     refetch: loadFlows,

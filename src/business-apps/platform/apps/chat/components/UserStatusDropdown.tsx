@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { UserPresenceStatus } from '../types'
 import { useUserStatus } from '../hooks/useUserStatus'
-import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
 import {
   DropdownMenu,
   DropdownMenuContent,

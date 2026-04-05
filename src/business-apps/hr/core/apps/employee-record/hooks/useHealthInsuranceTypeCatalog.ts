@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { CatalogEntry } from '@/common/types/CatalogTypes'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // Extend from the base CatalogEntry type
 type HealthInsuranceTypeEntry = CatalogEntry & {
@@ -27,6 +28,7 @@ export const useHealthInsuranceTypeCatalog = (accessToken: string): UseHealthIns
 
   // Get catalog manager client instance
   const catalogClient = useCatalogManagerClient(accessToken)
+  const activeLocale = getCurrentActiveUserLocale()
 
   // Fetch health insurance type catalog entries
   useEffect(() => {
@@ -47,7 +49,9 @@ export const useHealthInsuranceTypeCatalog = (accessToken: string): UseHealthIns
             limit: 50,
             offset: 0,
             returnTotalRecords: true,
-            includeChildCatalogEntries: true
+            includeChildCatalogEntries: true,
+            includeTranslations: true,
+            localeCode: activeLocale
           }
         )
 
@@ -73,7 +77,7 @@ export const useHealthInsuranceTypeCatalog = (accessToken: string): UseHealthIns
       const matchingEntry = healthInsuranceTypeEntries.find(entry => entry.id === id)
 
       // Return the human-readable value or the original ID if no match found
-      return matchingEntry?.value || id
+      return matchingEntry?.translations?.[0]?.value || matchingEntry?.value || id
     }
   }, [healthInsuranceTypeEntries])
 

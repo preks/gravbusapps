@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { isEmploymentTypeMarkedDeleted } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
 import { SelectOption } from '../types'
 
 const EMPLOYMENT_TYPE_CATALOG = 'EmploymentType'
@@ -58,7 +59,7 @@ export const useEmploymentTypes = (accessToken: string): UseEmploymentTypesRetur
           }
         )
 
-        const entries = response.data || []
+        const entries = (response.data || []).filter((entry: any) => !isEmploymentTypeMarkedDeleted(entry))
         const selectOptions: SelectOption[] = entries.map((entry: any) => ({
           id: entry.id,
           name: entry.value || entry.code || 'Unknown',

@@ -7,6 +7,9 @@ export type DevReportScreenshot = {
   height: number
 }
 
+export const MAX_SCREENSHOTS_PER_ISSUE = 3
+export const MAX_SCREENSHOT_DATA_URL_SIZE = 1_150_000 // ~1.1 MB
+
 function safeMessage(e: unknown): string {
   if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 500)
   return String(e).slice(0, 500)
@@ -74,6 +77,62 @@ function boostAlpha(rgba: string, minAlpha = 0.85): string {
   return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${boosted})`
 }
 
+function collectFontFaceRules(): string {
+  const rules: string[] = []
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        for (const rule of Array.from(sheet.cssRules)) {
+          if (rule instanceof CSSFontFaceRule) {
+            rules.push(rule.cssText)
+          }
+        }
+      } catch {
+        // cross-origin stylesheet
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return rules.join('\n')
+}
+
+export async function blobToDevReportScreenshot(blob: Blob): Promise<DevReportScreenshot | null> {
+  try {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+
+    return await new Promise<DevReportScreenshot | null>(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(null)
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.75)
+        if (jpegDataUrl.length > MAX_SCREENSHOT_DATA_URL_SIZE) {
+          resolve(null)
+          return
+        }
+        resolve({ dataUrl: jpegDataUrl, mimeType: 'image/jpeg', width: img.naturalWidth, height: img.naturalHeight })
+      }
+      img.onerror = () => resolve(null)
+      img.src = dataUrl
+    })
+  } catch {
+    return null
+  }
+}
+
 export async function captureDevReportScreenshot(): Promise<{
   screenshot: DevReportScreenshot | null
   error?: string
@@ -81,11 +140,18 @@ export async function captureDevReportScreenshot(): Promise<{
   if (typeof window === 'undefined' || typeof document === 'undefined') return { screenshot: null, error: 'no_dom' }
 
   try {
+    try {
+      await document.fonts.ready
+    } catch {
+      // font API unavailable
+    }
+
     const width = Math.max(1, window.innerWidth || 0)
     const height = Math.max(1, window.innerHeight || 0)
     const videoFrames = captureVideoFrames()
     const posterUrls = getVideoPosterUrls()
     const backdropEls = collectBackdropElements()
+    const fontFaceCss = collectFontFaceRules()
 
     const canvas = await html2canvas(document.body, {
       width,
@@ -111,10 +177,13 @@ export async function captureDevReportScreenshot(): Promise<{
         }
         return false
       },
-      onclone: (clonedDoc: Document) => {
+      onclone: async (clonedDoc: Document) => {
         try {
           const patchCss = clonedDoc.createElement('style')
-          patchCss.textContent = '* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }'
+          patchCss.textContent = [
+            '* { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }',
+            fontFaceCss
+          ].join('\n')
           clonedDoc.head.appendChild(patchCss)
 
           const allCloned = clonedDoc.querySelectorAll('*')
@@ -156,6 +225,12 @@ export async function captureDevReportScreenshot(): Promise<{
               img.removeAttribute('src')
             }
           })
+
+          try {
+            await clonedDoc.fonts.ready
+          } catch {
+            // font API unavailable on cloned doc
+          }
         } catch {
           // ignore
         }
@@ -163,7 +238,7 @@ export async function captureDevReportScreenshot(): Promise<{
     })
 
     const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
-    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > 4_000_000) {
+    if (!dataUrl || dataUrl === 'data:,' || dataUrl.length > MAX_SCREENSHOT_DATA_URL_SIZE) {
       return { screenshot: null, error: 'screenshot_too_large' }
     }
     return { screenshot: { dataUrl, mimeType: 'image/jpeg', width, height } }

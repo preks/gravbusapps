@@ -8,13 +8,11 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  InputGroup,
-  InputGroupInput,
-  InputGroupTextarea,
-  InputGroupAddon,
-  InputGroupButton,
+  Input,
+  Textarea,
   DateInput,
   FileUpload,
+  Spinner,
   Select,
   SelectTrigger,
   SelectContent,
@@ -189,13 +187,13 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             )}
           />
 
-          {/* Priority | Timing | Deadline */}
-          <FormFieldGroup className="gba:w-full">
+          {/* Priority | Timing | Deadline — flex-wrap prevents overlapping on narrow panels */}
+          <FormFieldGroup className="gba:w-full gba:flex-wrap gba:gap-y-2">
             <FormField
               control={form.control}
               name="taskPriorityRef"
               render={({ field }) => (
-                <FormItem className="gba:min-w-0 gba:flex-[0.8]">
+                <FormItem className="gba:min-w-24 gba:flex-1">
                   <FormLabel>{t('tasks-priority')}</FormLabel>
                   <FormControl>
                     <CatalogSelect.Provider accessToken={accessToken}>
@@ -217,7 +215,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               control={form.control}
               name="taskTiming"
               render={({ field }) => (
-                <FormItem className="gba:min-w-0 gba:flex-[0.8]">
+                <FormItem className="gba:min-w-28 gba:flex-1">
                   <FormLabel>{t('tasks-timingType')}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
@@ -252,7 +250,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               control={form.control}
               name="deadline"
               render={({ field }) => (
-                <FormItem className="gba:min-w-0 gba:flex-[1.2]">
+                <FormItem className="gba:min-w-36 gba:flex-1">
                   <FormLabel>{t('tasks-deadline')}</FormLabel>
                   <FormControl>
                     <div className="gba:min-w-0 gba:w-full gba:max-w-full gba:overflow-hidden">
@@ -272,7 +270,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             />
           </FormFieldGroup>
 
-          {/* Title + Description + Submit in one InputGroup */}
+          {/* Title + description only — submit is in footer below attachments */}
           <FormItem>
             {/* TODO: Revisit when DS supports automatic required asterisk for group labels; remove manual asterisk if automation applies. */}
             <FormLabel>
@@ -282,17 +280,17 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               </span>
             </FormLabel>
             <FormControl>
-              <InputGroup>
+              <div className="gba:flex gba:flex-col gba:w-full gba:overflow-hidden gba:rounded-md gba:border gba:border-border gba:bg-background">
                 <FormField
                   control={form.control}
                   name="task.title"
                   render={({ field }) => (
-                    <InputGroupInput
+                    <Input
                       {...field}
                       placeholder={t('tasks-quickAddPlaceholder')}
                       disabled={isProcessing}
                       data-testid="task-quick-add-title"
-                      className="gba:border-b gba:border-border"
+                      className="gba:rounded-none gba:border-0 gba:border-b gba:border-border gba:shadow-none gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
                   )}
                 />
@@ -300,29 +298,17 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                   control={form.control}
                   name="task.description"
                   render={({ field }) => (
-                    <InputGroupTextarea
+                    <Textarea
                       {...field}
                       placeholder={t('tasks-descriptionPlaceholder')}
                       disabled={isProcessing}
                       data-testid="task-quick-add-description"
-                      rows={2}
-                      className="gba:text-xs gba:resize-none gba:text-muted-foreground"
+                      rows={5}
+                      className="gba:min-h-24 gba:rounded-none gba:border-0 gba:shadow-none gba:text-xs gba:resize-y gba:text-muted-foreground gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
                   )}
                 />
-                <InputGroupAddon align="block-end">
-                  <InputGroupButton
-                    type="submit"
-                    disabled={isProcessing}
-                    size="sm"
-                    data-testid="task-quick-add-submit"
-                    className="gba:ml-auto"
-                  >
-                    <PaperPlaneTiltIcon size={14} weight="bold" />
-                    {isProcessing ? t('common-creating') : t('tasks-create')}
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
+              </div>
             </FormControl>
           </FormItem>
 
@@ -360,6 +346,28 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               </FormItem>
             )}
           />
+
+          <div className="gba:border-t gba:border-border gba:pt-3 gba:mt-1">
+            <Button
+              type="submit"
+              variant="default"
+              disabled={isProcessing}
+              className="gba:w-full gba:gap-2"
+              data-testid="task-quick-add-submit"
+            >
+              {isProcessing ? (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <Spinner size="sm" />
+                  {t('common-creating')}
+                </span>
+              ) : (
+                <span className="gba:inline-flex gba:items-center gba:gap-2">
+                  <PaperPlaneTiltIcon size={16} weight="bold" />
+                  {t('tasks-create')}
+                </span>
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
     </div>

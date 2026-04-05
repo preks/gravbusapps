@@ -26,6 +26,7 @@ import type {
 import { gradientToCss } from './slideElements'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
+import { getCachedImageUrl } from '../hooks/useImageObjectUrls'
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const cleanHex = hex.replace('#', '')
@@ -131,6 +132,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     // Multi-select drag state - stores initial positions of all selected elements
     const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
 
+    // Single-click-to-edit: track mousedown origin to detect click vs drag
+    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
+    const CLICK_MOVE_THRESHOLD = 4
+
+    // Tracks which element's textarea has been initialized (cursor placed at end)
+    const textareaInitializedRef = useRef<string | null>(null)
+
     // Marquee selection state (for rendering the selection box)
     const [isMarquee, setIsMarquee] = useState(false)
     const [marqueeStart, setMarqueeStart] = useState<Position>({ x: 0, y: 0 })
@@ -176,7 +184,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         }
         case 'image':
           return background.imageUrl
-            ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            ? {
+                backgroundImage: `url(${getCachedImageUrl(background.imageUrl)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+              }
             : {}
         case 'video':
           return { backgroundColor: '#000000' }
@@ -293,16 +305,42 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const handleCanvasClick = (e: React.MouseEvent) => {
       // Skip if we just finished a marquee selection (to avoid clearing the selection)
       if (justFinishedMarqueeRef.current) {
+        mouseDownElementRef.current = null
+        // Still finish inline editing when clicking away from the edited element
+        if (inlineEditing?.editingTextId) {
+          const target = e.target as HTMLElement
+          const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
+          if (!editingElement) {
+            textareaInitializedRef.current = null
+            inlineEditing.onFinishEditing()
+          }
+        }
         return
       }
 
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
 
+      // Single-click-to-edit: if mouseDown ref survived (mouse didn't drag), enter text editing
+      const mdRef = mouseDownElementRef.current
+      mouseDownElementRef.current = null
+
+      if (mdRef && mdRef.type === 'text') {
+        if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
+          textareaInitializedRef.current = null
+          inlineEditing.onFinishEditing()
+        }
+        if (inlineEditing?.editingTextId !== mdRef.id) {
+          onEditText(mdRef.id)
+        }
+        return
+      }
+
       // Finish inline editing if clicking outside the editing element
       if (inlineEditing?.editingTextId) {
         const editingElement = target.closest(`[data-element-id="${inlineEditing.editingTextId}"]`)
         if (!editingElement) {
+          textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
           return
         }
@@ -399,6 +437,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         if (el) positions.set(id, { ...el.position })
       })
       setMultiDragStart(positions)
+
+      // Track mousedown for single-click-to-edit detection (plain click on single element only)
+      if (!isShiftKey && !isCtrlKey && effectiveSelection.size === 1) {
+        mouseDownElementRef.current = { id: element.id, x: e.clientX, y: e.clientY, type: element.type }
+      } else {
+        mouseDownElementRef.current = null
+      }
     }
 
     const handleResizeMouseDown = (e: React.MouseEvent, handle: ResizeHandle, element: AnySlideElement) => {
@@ -488,9 +533,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           }
         })
 
-        if (closestXSnap) {
-          snappedX = closestXSnap.snapTo
-          guides.push({ type: 'vertical', position: closestXSnap.guideX })
+        const xSnap = closestXSnap as { distance: number; snapTo: number; guideX: number } | null
+        if (xSnap) {
+          snappedX = xSnap.snapTo
+          guides.push({ type: 'vertical', position: xSnap.guideX })
         }
 
         // Check horizontal snap points (Y axis)
@@ -513,9 +559,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           }
         })
 
-        if (closestYSnap) {
-          snappedY = closestYSnap.snapTo
-          guides.push({ type: 'horizontal', position: closestYSnap.guideY })
+        const ySnap = closestYSnap as { distance: number; snapTo: number; guideY: number } | null
+        if (ySnap) {
+          snappedY = ySnap.snapTo
+          guides.push({ type: 'horizontal', position: ySnap.guideY })
         }
 
         return {
@@ -656,19 +703,31 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       ]
     )
 
-    const handleMouseUp = useCallback(() => {
-      // Only handle element drag/resize cleanup here (marquee is handled inline)
-      // Notify parent that drag/resize ended (for history recording)
-      if (isDragging || isResizing) {
-        onDragEnd?.()
-      }
-      setIsDragging(false)
-      setIsResizing(false)
-      setResizeHandle(null)
-      setElementStart(null)
-      setMultiDragStart(new Map())
-      setSnapGuides([])
-    }, [isDragging, isResizing, onDragEnd])
+    const handleMouseUp = useCallback(
+      (e: MouseEvent) => {
+        // If mouse moved beyond threshold, clear the click-to-edit ref (it was a drag)
+        const mdRef = mouseDownElementRef.current
+        if (mdRef) {
+          const dx = Math.abs(e.clientX - mdRef.x)
+          const dy = Math.abs(e.clientY - mdRef.y)
+          if (dx >= CLICK_MOVE_THRESHOLD || dy >= CLICK_MOVE_THRESHOLD) {
+            mouseDownElementRef.current = null
+          }
+        }
+
+        // Notify parent that drag/resize ended (for history recording)
+        if (isDragging || isResizing) {
+          onDragEnd?.()
+        }
+        setIsDragging(false)
+        setIsResizing(false)
+        setResizeHandle(null)
+        setElementStart(null)
+        setMultiDragStart(new Map())
+        setSnapGuides([])
+      },
+      [isDragging, isResizing, onDragEnd]
+    )
 
     // Event listeners for element drag/resize (marquee has its own inline handlers)
     useEffect(() => {
@@ -696,9 +755,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
       switch (shapeType) {
         case 'rectangle':
-          return <div style={baseStyle} />
         case 'rounded-rectangle':
-          return <div style={{ ...baseStyle, borderRadius: cornerRadius }} />
+          return <div style={{ ...baseStyle, borderRadius: cornerRadius || 0 }} />
         case 'circle':
           return <div style={{ ...baseStyle, borderRadius: '50%' }} />
         case 'ellipse':
@@ -844,7 +902,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           data-element-id={element.id}
           style={wrapperStyle}
           onMouseDown={e => handleElementMouseDown(e, element)}
-          onDoubleClick={() => element.type === 'text' && onEditText(element.id)}
         >
           {element.type === 'text' && (
             <div
@@ -873,12 +930,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
               {inlineEditing?.editingTextId === element.id ? (
                 <>
                   <textarea
-                    autoFocus
+                    ref={el => {
+                      if (el && textareaInitializedRef.current !== element.id) {
+                        textareaInitializedRef.current = element.id
+                        el.focus()
+                        el.selectionStart = el.selectionEnd = el.value.length
+                      }
+                    }}
                     value={(element as TextElement).content}
                     onChange={e => inlineEditing.onTextChange(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Escape') {
                         e.preventDefault()
+                        textareaInitializedRef.current = null
                         inlineEditing.onFinishEditing()
                       }
                     }}
@@ -964,66 +1028,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       <Check className="gba:w-4 gba:h-4" />
                     </button>
                   </div>
-                  {/* Voice feedback panel */}
-                  {inlineEditing.voiceInput?.isListening && (
-                    <div
-                      className="gba:bg-background gba:rounded-xl gba:shadow-xl gba:border gba:border-border"
-                      style={{
-                        position: 'absolute',
-                        top: -120 / scale,
-                        left: '50%',
-                        transform: `translateX(-50%) scale(${1 / scale})`,
-                        transformOrigin: 'bottom center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 16px',
-                        minWidth: 200,
-                        maxWidth: 400,
-                        zIndex: 10000
-                      }}
-                      onClick={e => e.stopPropagation()}
-                      onMouseDown={e => e.stopPropagation()}
-                    >
-                      {/* Recording status with volume bars */}
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:w-full">
-                        <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:bg-destructive/10 gba:rounded-md">
-                          <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse" />
-                          <span className="gba:text-xs gba:font-semibold gba:text-destructive">REC</span>
-                        </div>
-
-                        {/* Volume indicator bars */}
-                        <div className="gba:flex gba:items-end gba:gap-0.5 gba:h-5">
-                          {[0.15, 0.3, 0.5, 0.7, 0.85].map((threshold, i) => {
-                            const volume = inlineEditing.voiceInput?.volume || 0
-                            const isActive = volume > threshold
-                            return (
-                              <div
-                                key={i}
-                                className={`gba:w-1 gba:rounded-sm gba:transition-colors ${isActive ? 'gba:bg-green-500' : 'gba:bg-border'}`}
-                                style={{ height: 6 + i * 3 }}
-                              />
-                            )
-                          })}
-                        </div>
-
-                        <span className="gba:text-[11px] gba:text-muted-foreground gba:ml-auto">Speak now...</span>
-                      </div>
-
-                      {/* Interim transcript */}
-                      {inlineEditing.voiceInput?.interimTranscript && (
-                        <div className="gba:w-full gba:px-2.5 gba:py-2 gba:bg-muted gba:rounded-md gba:text-sm gba:text-foreground gba:italic gba:leading-relaxed gba:max-h-[60px] gba:overflow-hidden">
-                          "{inlineEditing.voiceInput.interimTranscript}"
-                        </div>
-                      )}
-
-                      {/* Hint */}
-                      <div className="gba:text-[11px] gba:text-muted-foreground">
-                        Click mic button or outside to stop
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div
@@ -1044,7 +1048,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 >
                   <TextWithLinks
                     content={(element as TextElement).content}
-                    links={(element as TextElement).links}
+                    links={(element as TextElement).links ?? []}
                     isPresenting={isPresenting}
                     onLinkClick={onLinkClick}
                   />
@@ -1059,7 +1063,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             <>
               {!failedImages.has(element.id) && sanitizeMediaUrl((element as ImageElement).src, ['image/']) ? (
                 <img
-                  src={sanitizeMediaUrl((element as ImageElement).src, ['image/'])}
+                  src={getCachedImageUrl(sanitizeMediaUrl((element as ImageElement).src, ['image/']))}
                   alt={(element as ImageElement).alt}
                   style={{
                     width: '100%',
@@ -1659,7 +1663,8 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             height: 720,
             ...getBackgroundStyle(),
             transform: `scale(${scale})`,
-            transformOrigin: 'top left'
+            transformOrigin: 'top left',
+            userSelect: isDragging || isResizing || isMarquee ? 'none' : undefined
           }}
           onMouseDown={handleCanvasMouseDown}
           onClick={handleCanvasClick}

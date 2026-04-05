@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { Profiler, useCallback, useEffect } from 'react'
 import { createElement } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { Alert } from '@newwork/nw-design-system'
 import { Button } from '@newwork/nw-design-system'
 import { useDynamicScreen } from '@/common/hooks/useDynamicScreen'
+import { recordScreenRender, setActiveProfiledScreen } from '@/common/hooks/useScreenPerformanceMetrics'
 import { BusinessAppInfo } from '@/components/ide-main-menu'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 
@@ -94,6 +95,8 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   additionalData,
   onAppSelect
 }) => {
+  const selectedScreenKey = selectedApp?.screenKey ?? null
+
   // Manage dialog visibility internally based on app type
   const [dialogVisible, setDialogVisible] = React.useState<boolean>(false)
 
@@ -106,6 +109,21 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     }
   }, [selectedApp])
 
+  React.useEffect(() => {
+    setActiveProfiledScreen(selectedScreenKey)
+  }, [selectedScreenKey])
+
+  const handleScreenProfileRender = useCallback(
+    (_id: string, phase: 'mount' | 'update' | 'nested-update', actualDuration: number, baseDuration: number) => {
+      if (!selectedScreenKey) {
+        return
+      }
+
+      recordScreenRender(selectedScreenKey, phase, actualDuration, baseDuration)
+    },
+    [selectedScreenKey]
+  )
+
   const handleDialogClose = () => {
     setDialogVisible(false)
     onAppSelect(null) // Clear the selected app when dialog closes
@@ -115,19 +133,23 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     if (!selectedApp) return null
 
     return (
-      <DynamicComponentWrapper
-        app={selectedApp}
-        userInfo={userInfo}
-        accessToken={accessToken}
-        additionalData={additionalData}
-        key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
-      />
+      <Profiler id={selectedApp.screenKey} onRender={handleScreenProfileRender}>
+        <DynamicComponentWrapper
+          app={selectedApp}
+          userInfo={userInfo}
+          accessToken={accessToken}
+          additionalData={additionalData}
+          key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
+        />
+      </Profiler>
     )
   }
 
   // Render app content directly in main area (fills parent)
-  if (selectedApp && selectedApp.type === 'app') {
-    return <div className="gba:w-full gba:h-full">{renderAppContent()}</div>
+  if (selectedApp && (selectedApp.type === 'app' || selectedApp.type === 'record')) {
+    return (
+      <div className="gba:flex gba:min-h-0 gba:h-full gba:w-full gba:flex-1 gba:flex-col">{renderAppContent()}</div>
+    )
   }
 
   // Render forms and popups in dialog

@@ -429,7 +429,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const approvalActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.investmentTaskCreate],
-      externalContextData: { opportunityId, typeRef: APPROVAL_TASK_TYPE_REF },
+      externalContextData: {
+        opportunityId,
+        opportunity: opportunityId,
+        typeRef: APPROVAL_TASK_TYPE_REF,
+        investmentTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
+      },
       prefixDataTestId: 'opportunity-approval'
     }),
     [opportunityId]
@@ -1042,6 +1047,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: TaskSection,
                   props: {
                     ...props,
+                    opportunityId,
                     sectionTitle: 'Approval Tasks',
                     buildReferenceUrl,
                     tasks: approvals,
@@ -1137,23 +1143,23 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }
 
   return (
-    <div className="gba:opportunity-details-container" data-testid="investment-opportunity-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
-        headerOverline="OPPORTUNITY"
-        onBack={handleDealTypeBack}
-        headerTitle={opportunityData?.name || ''}
-        headerMeta={headerMeta}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="investment-opportunity-detail"
+      className="gba:opportunity-details-container"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+      headerOverline="OPPORTUNITY"
+      onBack={handleDealTypeBack}
+      headerTitle={opportunityData?.name || ''}
+      headerMeta={headerMeta}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

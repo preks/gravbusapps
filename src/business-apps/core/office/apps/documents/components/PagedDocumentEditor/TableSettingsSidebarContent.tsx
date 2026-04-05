@@ -1,0 +1,567 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Button, Input, Label, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
+import type { TableTheme } from '@/components/tiptap-extensions/tiptap-custom-tables'
+import { normalizeColorValue } from '@/components/tiptap-extensions/tiptap-custom-tables/styleUtils'
+import translations from '../../_i18n'
+import { ImageSidebarSection } from './ImageSidebarSection'
+import { TableBorderControlsSection } from './TableBorderControlsSection'
+import { useTableSidebarActions } from './useTableSidebarActions'
+
+const TABLE_THEME_OPTIONS: ReadonlyArray<{ value: TableTheme; labelKey: string }> = [
+  { value: 'blue', labelKey: 'table-theme-blue' },
+  { value: 'teal', labelKey: 'table-theme-teal' },
+  { value: 'green', labelKey: 'table-theme-green' },
+  { value: 'orange', labelKey: 'table-theme-orange' },
+  { value: 'purple', labelKey: 'table-theme-purple' },
+  { value: 'gray', labelKey: 'table-theme-gray' }
+]
+
+/** Matches default in `useTableSidebarActions` / table node attrs. */
+const DEFAULT_TABLE_BACKGROUND_COLOR = '#ffffff'
+
+const FILL_OPTIONS: ReadonlyArray<{ value: string; labelKey: string }> = [
+  { value: '#E0F2FE', labelKey: 'table-sidebar-fill-blue' },
+  { value: '#ECFCCB', labelKey: 'table-sidebar-fill-green' },
+  { value: '#FEF3C7', labelKey: 'table-sidebar-fill-yellow' },
+  { value: '#F3E8FF', labelKey: 'table-sidebar-fill-purple' }
+]
+
+function preventEditorBlurOnMouseDown(event: React.MouseEvent<HTMLElement>) {
+  event.preventDefault()
+}
+
+function formatCentimeterValue(value: number | null) {
+  if (value == null) return ''
+  return `${((value * 2.54) / 96).toFixed(2)}cm`
+}
+
+function ensureUnit(value: string) {
+  const trimmed = value.trim().replace(',', '.')
+  if (!trimmed) return ''
+  return /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}cm` : trimmed
+}
+
+/** 6-digit #rrggbb for native color input (falls back to white). */
+function hexForColorInput(value: string): string {
+  const n = normalizeColorValue(value.trim())
+  if (!n) return '#ffffff'
+  if (/^#[0-9a-f]{6}$/i.test(n)) return n.toLowerCase()
+  if (/^#[0-9a-f]{3}$/i.test(n)) {
+    const r = n[1]
+    const g = n[2]
+    const b = n[3]
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase()
+  }
+  return '#ffffff'
+}
+
+interface TableSettingsSidebarContentProps {
+  testId: string
+  controller: ReturnType<typeof useTableSidebarActions>
+}
+
+export function TableSettingsSidebarContent({ testId, controller }: Readonly<TableSettingsSidebarContentProps>) {
+  const { t } = useTranslation(translations)
+  const { actions, capability, selectionMetrics, values } = controller
+
+  const [tableWidthInput, setTableWidthInput] = useState(values.tableWidth)
+  const [rowHeightInput, setRowHeightInput] = useState(values.rowHeight)
+  const [columnWidthInput, setColumnWidthInput] = useState(formatCentimeterValue(values.columnWidthPx))
+  const [tableBackgroundInput, setTableBackgroundInput] = useState(values.tableBackgroundColor)
+
+  useEffect(() => {
+    setTableWidthInput(values.tableWidth)
+  }, [values.tableWidth])
+
+  useEffect(() => {
+    setRowHeightInput(values.rowHeight)
+  }, [values.rowHeight])
+
+  useEffect(() => {
+    setColumnWidthInput(formatCentimeterValue(values.columnWidthPx))
+  }, [values.columnWidthPx])
+
+  useEffect(() => {
+    setTableBackgroundInput(values.tableBackgroundColor)
+  }, [values.tableBackgroundColor])
+
+  useEffect(() => {
+    if (values.tableWidthMode !== 'manual') {
+      actions.setTableWidthMode('manual')
+    }
+  }, [actions, values.tableWidthMode])
+
+  const selectionLabel = useMemo(() => t('table-sidebar-selection-summary', selectionMetrics), [selectionMetrics, t])
+
+  const tableBackgroundHexForPicker = hexForColorInput(tableBackgroundInput)
+
+  const styleSwitchRowClass =
+    'gba:flex gba:items-center gba:justify-between gba:gap-2 gba:rounded-lg gba:bg-muted/30 gba:px-3 gba:py-2.5'
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-3 gba:px-4 gba:py-4">
+      <ImageSidebarSection title={t('table-sidebar-section-style')} data-testid={`${testId}-style-section`}>
+        <div className="gba:space-y-2">
+          <Label htmlFor={`${testId}-table-background-hex`} className="gba:text-xs gba:font-medium">
+            {t('table-sidebar-surface-background')}
+          </Label>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <input
+              type="color"
+              value={tableBackgroundHexForPicker}
+              onChange={event => setTableBackgroundInput(event.target.value)}
+              className="gba:h-10 gba:w-14 gba:cursor-pointer gba:rounded-md gba:border gba:border-input gba:shrink-0"
+              data-testid={`${testId}-table-background-color`}
+              aria-label={t('table-sidebar-surface-background')}
+            />
+            <Input
+              id={`${testId}-table-background-hex`}
+              value={tableBackgroundInput}
+              onChange={event => setTableBackgroundInput(event.target.value)}
+              placeholder="#ffffff"
+              className="gba:flex-1 gba:font-mono gba:text-sm"
+              maxLength={32}
+              data-testid={`${testId}-table-background`}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gba:shrink-0"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableStyleOptions({ tableBackgroundColor: tableBackgroundInput })}
+              data-testid={`${testId}-table-background-apply`}
+            >
+              {t('table-sidebar-apply')}
+            </Button>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gba:w-full gba:text-muted-foreground"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => {
+              setTableBackgroundInput(DEFAULT_TABLE_BACKGROUND_COLOR)
+              actions.setTableStyleOptions({ tableBackgroundColor: DEFAULT_TABLE_BACKGROUND_COLOR })
+            }}
+            data-testid={`${testId}-table-background-reset-default`}
+          >
+            {t('table-sidebar-reset-default')}
+          </Button>
+        </div>
+
+        <div className="gba:space-y-1.5">
+          <p
+            className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed"
+            data-testid={`${testId}-selection-summary`}
+          >
+            {selectionLabel}
+          </p>
+        </div>
+
+        <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
+          {TABLE_THEME_OPTIONS.map(option => (
+            <Button
+              key={option.value}
+              type="button"
+              variant={values.tableTheme === option.value ? 'secondary' : 'outline'}
+              size="sm"
+              className="gba:text-xs gba:font-medium"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableTheme(option.value)}
+              data-testid={`${testId}-theme-${option.value}`}
+            >
+              {t(option.labelKey)}
+            </Button>
+          ))}
+        </div>
+
+        <div className="gba:space-y-2">
+          <span className="gba:block gba:text-xs gba:font-medium gba:text-foreground">
+            {t('table-sidebar-section-style-options')}
+          </span>
+          <div className="gba:grid gba:grid-cols-1 gba:gap-2">
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-header-row`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-header-row')}
+              </Label>
+              <Switch
+                id={`${testId}-style-header-row`}
+                checked={values.styleHeaderRow}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleHeaderRow: checked })}
+                data-testid={`${testId}-style-header-row`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-first-column`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-first-column')}
+              </Label>
+              <Switch
+                id={`${testId}-style-first-column`}
+                checked={values.styleFirstColumn}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleFirstColumn: checked })}
+                data-testid={`${testId}-style-first-column`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-last-column`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-last-column')}
+              </Label>
+              <Switch
+                id={`${testId}-style-last-column`}
+                checked={values.styleLastColumn}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleLastColumn: checked })}
+                data-testid={`${testId}-style-last-column`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-banded-rows`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-banded-rows')}
+              </Label>
+              <Switch
+                id={`${testId}-style-banded-rows`}
+                checked={values.styleBandedRows}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleBandedRows: checked })}
+                data-testid={`${testId}-style-banded-rows`}
+              />
+            </div>
+            <div className={styleSwitchRowClass}>
+              <Label htmlFor={`${testId}-style-banded-columns`} className="gba:text-sm gba:font-medium">
+                {t('table-sidebar-style-banded-columns')}
+              </Label>
+              <Switch
+                id={`${testId}-style-banded-columns`}
+                checked={values.styleBandedColumns}
+                onCheckedChange={checked => actions.setTableStyleOptions({ styleBandedColumns: checked })}
+                data-testid={`${testId}-style-banded-columns`}
+              />
+            </div>
+          </div>
+        </div>
+      </ImageSidebarSection>
+
+      <Separator className="gba:my-1" />
+
+      <ImageSidebarSection title={t('table-sidebar-section-structure')} data-testid={`${testId}-structure-section`}>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canAddRowBefore}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.addRowBefore}
+            data-testid={`${testId}-row-before`}
+          >
+            {t('editor-toolbar-table-row-before')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canAddRowAfter}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.addRowAfter}
+            data-testid={`${testId}-row-after`}
+          >
+            {t('editor-toolbar-table-row-after')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canAddColumnBefore}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.addColumnBefore}
+            data-testid={`${testId}-column-before`}
+          >
+            {t('editor-toolbar-table-column-before')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canAddColumnAfter}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.addColumnAfter}
+            data-testid={`${testId}-column-after`}
+          >
+            {t('editor-toolbar-table-column-after')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canDuplicateRow}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.duplicateRow}
+            data-testid={`${testId}-duplicate-row`}
+          >
+            {t('editor-toolbar-table-duplicate-row')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canDuplicateColumn}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.duplicateColumn}
+            data-testid={`${testId}-duplicate-column`}
+          >
+            {t('editor-toolbar-table-duplicate-column')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canDeleteRow}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.deleteRow}
+            data-testid={`${testId}-delete-row`}
+          >
+            {t('editor-toolbar-table-delete-row')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canDeleteColumn}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.deleteColumn}
+            data-testid={`${testId}-delete-column`}
+          >
+            {t('editor-toolbar-table-delete-column')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canMergeCells}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.mergeCells}
+            data-testid={`${testId}-merge-cells`}
+          >
+            {t('editor-toolbar-table-merge-cells')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canSplitCell}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={actions.splitCell}
+            data-testid={`${testId}-split-cell`}
+          >
+            {t('editor-toolbar-table-split-cell')}
+          </Button>
+        </div>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          className="gba:w-full gba:text-xs gba:font-medium"
+          disabled={!capability.canDeleteTable}
+          onMouseDown={preventEditorBlurOnMouseDown}
+          onClick={actions.deleteTable}
+          data-testid={`${testId}-delete-table`}
+        >
+          {t('editor-toolbar-table-delete-table')}
+        </Button>
+      </ImageSidebarSection>
+
+      <Separator className="gba:my-1" />
+
+      <ImageSidebarSection title={t('table-sidebar-section-layout')} data-testid={`${testId}-layout-section`}>
+        <div className="gba:space-y-1.5">
+          <Label htmlFor={`${testId}-table-width`} className="gba:text-xs gba:font-medium">
+            {t('table-sidebar-table-width')}
+          </Label>
+          <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+            <Input
+              id={`${testId}-table-width`}
+              value={tableWidthInput}
+              onChange={event => setTableWidthInput(event.target.value)}
+              placeholder="100%"
+              data-testid={`${testId}-table-width`}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setTableWidth(ensureUnit(tableWidthInput))}
+              data-testid={`${testId}-table-width-apply`}
+            >
+              {t('table-sidebar-apply')}
+            </Button>
+          </div>
+        </div>
+
+        <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
+          <Button
+            type="button"
+            variant={values.tableAlign === 'left' ? 'secondary' : 'outline'}
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => actions.setTableAlign('left')}
+            data-testid={`${testId}-table-align-left`}
+          >
+            {t('table-sidebar-layout-align-left')}
+          </Button>
+          <Button
+            type="button"
+            variant={values.tableAlign === 'center' ? 'secondary' : 'outline'}
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => actions.setTableAlign('center')}
+            data-testid={`${testId}-table-align-center`}
+          >
+            {t('table-sidebar-layout-align-center')}
+          </Button>
+          <Button
+            type="button"
+            variant={values.tableAlign === 'right' ? 'secondary' : 'outline'}
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => actions.setTableAlign('right')}
+            data-testid={`${testId}-table-align-right`}
+          >
+            {t('table-sidebar-layout-align-right')}
+          </Button>
+        </div>
+
+        <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-xs gba:font-medium">{t('table-sidebar-row-height')}</Label>
+            <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+              <Input
+                value={rowHeightInput}
+                onChange={event => setRowHeightInput(event.target.value)}
+                placeholder="0.8cm"
+                data-testid={`${testId}-row-height`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onMouseDown={preventEditorBlurOnMouseDown}
+                onClick={() => actions.setSelectedRowHeight(ensureUnit(rowHeightInput) || null)}
+                data-testid={`${testId}-row-height-apply`}
+              >
+                {t('table-sidebar-apply')}
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gba:w-full gba:text-xs gba:font-medium"
+              disabled={!capability.canDistributeRows}
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.distributeRowsEvenly(ensureUnit(rowHeightInput) || '0.8cm')}
+              data-testid={`${testId}-distribute-rows`}
+            >
+              {t('table-sidebar-distribute-rows')}
+            </Button>
+          </div>
+
+          <div className="gba:space-y-2">
+            <Label className="gba:text-xs gba:font-medium">{t('table-sidebar-column-width')}</Label>
+            <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
+              <Input
+                value={columnWidthInput}
+                onChange={event => setColumnWidthInput(event.target.value)}
+                placeholder="3cm"
+                data-testid={`${testId}-column-width`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onMouseDown={preventEditorBlurOnMouseDown}
+                onClick={() => actions.setSelectedColumnWidth(ensureUnit(columnWidthInput) || null)}
+                data-testid={`${testId}-column-width-apply`}
+              >
+                {t('table-sidebar-apply')}
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gba:w-full gba:text-xs gba:font-medium"
+              disabled={!capability.canDistributeColumns}
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.distributeColumnsEvenly(ensureUnit(columnWidthInput) || '3cm')}
+              data-testid={`${testId}-distribute-columns`}
+            >
+              {t('table-sidebar-distribute-columns')}
+            </Button>
+          </div>
+        </div>
+      </ImageSidebarSection>
+
+      <Separator className="gba:my-1" />
+
+      <ImageSidebarSection title={t('table-sidebar-section-cell')} data-testid={`${testId}-cell-section`}>
+        <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
+          {FILL_OPTIONS.map(option => (
+            <Button
+              key={option.value}
+              type="button"
+              variant={values.backgroundColor === option.value ? 'secondary' : 'outline'}
+              size="sm"
+              className="gba:text-xs gba:font-medium"
+              disabled={!capability.canSetCellBackground}
+              onMouseDown={preventEditorBlurOnMouseDown}
+              onClick={() => actions.setCellBackground(option.value)}
+              data-testid={`${testId}-fill-${option.value.replace('#', '').toLowerCase()}`}
+            >
+              {t(option.labelKey)}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gba:text-xs gba:font-medium"
+            disabled={!capability.canSetCellBackground}
+            onMouseDown={preventEditorBlurOnMouseDown}
+            onClick={() => actions.setCellBackground(null)}
+            data-testid={`${testId}-fill-clear`}
+          >
+            {t('editor-toolbar-table-fill-clear')}
+          </Button>
+        </div>
+      </ImageSidebarSection>
+
+      <Separator className="gba:my-1" />
+
+      <ImageSidebarSection title={t('table-sidebar-section-borders')} data-testid={`${testId}-borders-section`}>
+        <p className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed">{t('table-sidebar-border-hint')}</p>
+        <TableBorderControlsSection
+          testId={`${testId}-borders`}
+          initialStyle={values.borderStyle}
+          initialWidth={values.borderWidth}
+          initialColor={values.borderColor}
+          canApplyBorders={capability.canApplyBorders}
+          onApplyPreset={(preset, options) => actions.applyBorderPreset({ preset, ...options })}
+        />
+      </ImageSidebarSection>
+    </div>
+  )
+}

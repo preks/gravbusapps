@@ -12,6 +12,25 @@ import { useBlinkOptional } from '@/common/providers/BlinkProvider'
  * This ensures consistent behavior across AppAction, AppActionButton, and AppActionMenu
  */
 export const appActionPropsComparison = (prevProps: any, nextProps: any): boolean => {
+  // Prefer primary API comparison when contexts are used.
+  const prevPrimaryContexts = prevProps.contexts || []
+  const nextPrimaryContexts = nextProps.contexts || []
+  if (prevPrimaryContexts.length !== nextPrimaryContexts.length) {
+    return false
+  }
+  for (let i = 0; i < prevPrimaryContexts.length; i++) {
+    const prevContextItem = prevPrimaryContexts[i]
+    const nextContextItem = nextPrimaryContexts[i]
+    if (prevContextItem?.context !== nextContextItem?.context) {
+      return false
+    }
+    const prevContextData = prevContextItem?.contextData ?? {}
+    const nextContextData = nextContextItem?.contextData ?? {}
+    if (JSON.stringify(prevContextData) !== JSON.stringify(nextContextData)) {
+      return false
+    }
+  }
+
   // Deep comparison for contextsArray (arrays with same values should be equal)
   const prevContexts = prevProps.contextsArray || []
   const nextContexts = nextProps.contextsArray || []

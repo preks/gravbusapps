@@ -24,31 +24,44 @@ export function orderNodesForTemplate(nodes: StudioNode[], edges: FlowGraphEdge[
   const nodeById = new Map(nodes.map(n => [n.id, n] as const))
   const adjacency = buildForwardAdjacency(edges)
 
-  const visited = new Set<string>()
+  const stepNodeIds = nodes.filter(n => n.id !== startId && n.id !== endId).map(n => n.id)
+  const stepNodeIdSet = new Set(stepNodeIds)
+
+  const inDegree = new Map<string, number>()
+  for (const id of stepNodeIds) inDegree.set(id, 0)
+
+  for (const edge of edges) {
+    if (!isForwardEdge(edge)) continue
+    if (edge.source === startId || edge.source === endId || edge.target === startId || edge.target === endId) continue
+    if (!stepNodeIdSet.has(edge.source) || !stepNodeIdSet.has(edge.target)) continue
+    if (edge.source === edge.target) continue
+    inDegree.set(edge.target, (inDegree.get(edge.target) ?? 0) + 1)
+  }
+
+  const queue: string[] = []
+  for (const id of stepNodeIds) {
+    if (inDegree.get(id) === 0) queue.push(id)
+  }
+  queue.sort((a, b) => a.localeCompare(b))
+
   const orderedIds: string[] = []
-
-  const initial = adjacency.get(startId) ?? []
-  const stack: string[] = []
-  for (let i = initial.length - 1; i >= 0; i--) stack.push(initial[i])
-
-  while (stack.length > 0) {
-    const current = stack.pop()!
-    if (!current || current === startId || current === endId) continue
-    if (visited.has(current)) continue
-    const node = nodeById.get(current)
-    if (!node) continue
-    visited.add(current)
+  while (queue.length > 0) {
+    const current = queue.shift()!
     orderedIds.push(current)
 
     const next = adjacency.get(current) ?? []
-    for (let i = next.length - 1; i >= 0; i--) stack.push(next[i])
+    for (const targetId of next) {
+      if (targetId === endId || !stepNodeIdSet.has(targetId)) continue
+      const nextDegree = (inDegree.get(targetId) ?? 0) - 1
+      inDegree.set(targetId, nextDegree)
+      if (nextDegree === 0) queue.push(targetId)
+    }
+
+    queue.sort((a, b) => a.localeCompare(b))
   }
 
-  // Append any remaining nodes (incl. unreachable) to avoid data loss.
-  for (const n of nodes) {
-    if (n.id === startId || n.id === endId) continue
-    if (visited.has(n.id)) continue
-    orderedIds.push(n.id)
+  for (const id of stepNodeIds) {
+    if (!orderedIds.includes(id)) orderedIds.push(id)
   }
 
   return orderedIds.map(id => nodeById.get(id)).filter(Boolean) as StudioNode[]

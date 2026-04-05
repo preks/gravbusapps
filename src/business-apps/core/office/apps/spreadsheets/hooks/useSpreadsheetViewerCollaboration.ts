@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { Socket } from 'socket.io-client'
 import { useCollaboration } from '../../../../../platform/apps/shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type {
@@ -87,6 +88,7 @@ export interface SpreadsheetViewerCollaborationState {
 
   // Collaboration state
   isCollaborationConnected: boolean
+  socket: Socket | null
   emitOperation: (operation: Omit<CollaborationOperation, 'userId' | 'timestamp'>) => void
   emitCursor: (position: { line?: number; column?: number; offset?: number; path?: string[] }) => void
 }
@@ -128,6 +130,7 @@ export function useSpreadsheetViewerCollaboration({
   const {
     participants: rawParticipants,
     isConnected: isCollaborationConnected,
+    socket,
     emitOperation,
     emitCursor
   } = useCollaboration({
@@ -161,7 +164,7 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
       try {
-        const token = localStorage.getItem('business-app-ide-access-token')
+        const token = localStorage.getItem('business-app-ide-access-token') || accessToken
         if (token) {
           const payload = safeParseJwtPayload(token)
           if (!payload) return
@@ -195,7 +198,7 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCurrentUserInfo()
-  }, [authToken, graphqlClient])
+  }, [accessToken, authToken, graphqlClient])
 
   // Fetch avatars for header presence
   useEffect(() => {
@@ -338,6 +341,7 @@ export function useSpreadsheetViewerCollaboration({
     currentUserAvatar,
     currentUserIdRef,
     isCollaborationConnected,
+    socket,
     emitOperation,
     emitCursor
   }

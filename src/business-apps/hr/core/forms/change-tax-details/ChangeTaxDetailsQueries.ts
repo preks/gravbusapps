@@ -14,12 +14,14 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
     taxIdentificationNumber
     taxableChurchAffiliationRef
     wageTaxClassRef
-    religionRef
     socialSecurityNumber
     childTaxAllowance
   }
   EmployeeByPk(id: $idEmployee){
     id
+    birthDate
+    birthName
+    lastName
     gender{
       id
       value
@@ -42,7 +44,7 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
 `
 
 export const GET_TAX_DETAILS_CATALOG = `query fetchTaxDetailsCatalog($activeUserLocale: String!) {
-  taxBracket: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "TaxBracket"}}}, orderBy: {value: ASC}) {
+  taxBracket: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "TaxBracket"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     objectValue
@@ -51,7 +53,7 @@ export const GET_TAX_DETAILS_CATALOG = `query fetchTaxDetailsCatalog($activeUser
       value
     }
   }
-  religion: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Religion"}}}, orderBy: {value: ASC}) {
+  churchAffiliation: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "TaxableChurchAffiliation"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     objectValue
@@ -60,7 +62,7 @@ export const GET_TAX_DETAILS_CATALOG = `query fetchTaxDetailsCatalog($activeUser
       value
     }
   }
-  churchAffiliation: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "TaxableChurchAffiliation"}}}, orderBy: {value: ASC}) {
+  healthInsuranceType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "HealthInsuranceType"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     objectValue
@@ -69,16 +71,7 @@ export const GET_TAX_DETAILS_CATALOG = `query fetchTaxDetailsCatalog($activeUser
       value
     }
   }
-  healthInsuranceType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "HealthInsuranceType"}}}, orderBy: {value: ASC}) {
-    id
-    value
-    objectValue
-    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-      localeCode
-      value
-    }
-  }
-  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}, parentEntryId: {_eq: "DocumentGroup:v1:SALARY"}, value: {_ilike: "%Insurance%"}}, orderBy: {value: ASC}) {
+  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}, parentEntryId: {_eq: "DocumentGroup:v1:SALARY"}, value: {_ilike: "%Insurance%"}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     parentEntryId

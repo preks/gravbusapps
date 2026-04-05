@@ -3,6 +3,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { UserIcon, CurrencyDollarIcon, TrophyIcon, BankIcon } from '@phosphor-icons/react'
 import { CampaignAnalyticsMetrics } from '../../queries/CampaignAnalyticsQueries'
 import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 interface CampaignAnalyticsStatisticsProps {
   metrics: CampaignAnalyticsMetrics | null
@@ -50,7 +51,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       title: 'Total Leads',
       value: totalLeads,
       prefix: <UserIcon />,
-      color: '#1890ff',
+      color: NW_CHART_COLOR_VARS[0],
       description: createCombinedDescription(
         'Leads generated from campaign',
         `${convertedLeads}/${totalLeads} converted (${formatPercentage(conversionRate)})`
@@ -63,7 +64,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       title: 'Total Opportunities',
       value: totalOpportunities,
       prefix: <TrophyIcon />,
-      color: '#722ed1',
+      color: NW_CHART_COLOR_VARS[1],
       description: createCombinedDescription(
         'Opportunities created from campaign',
         `Win rate: ${formatPercentage(winRate)}`
@@ -76,7 +77,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       title: 'Won Revenue',
       value: formatCurrencyCompact(wonRevenue),
       prefix: <CurrencyDollarIcon />,
-      color: '#52c41a',
+      color: NW_CHART_COLOR_VARS[2],
       valueIsString: true,
       description: createCombinedDescription(
         'Revenue from won opportunities',
@@ -90,7 +91,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       title: 'Total Accounts',
       value: totalAccounts,
       prefix: <BankIcon />,
-      color: '#fa8c16',
+      color: NW_CHART_COLOR_VARS[3],
       description: createCombinedDescription('Accounts associated with campaign', `${totalContacts} contacts linked`)
     }
   ]

@@ -1,6 +1,7 @@
 import { CatalogManagerClient } from '@/common/network/catalogs/CatalogManagerClient'
 import { EmploymentType } from '../components/tabs'
 import { useCallback } from 'react'
+import { isEmploymentTypeMarkedDeleted } from '../utils/catalogEntryMetadata'
 import {
   EMPLOYMENT_TYPE_CATALOG,
   EMPLOYMENT_TYPE_VERSION
@@ -23,19 +24,22 @@ export const useGetEmploymentTypesData = (catalogClient: CatalogManagerClient, u
       )
 
       if (response.data) {
-        const types: EmploymentType[] = response.data.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          alternativeCode: entry.alternativeCode,
-          additionalValue1: entry.additionalValue1,
-          additionalValue2: entry.additionalValue2,
-          additionalValue3: entry.additionalValue3,
-          translations: entry.translations || []
-        }))
+        const types: EmploymentType[] = response.data
+          .map((entry: any) => ({
+            id: entry.id,
+            code: entry.code,
+            value: entry.value,
+            alternativeCode: entry.alternativeCode,
+            additionalValue1: entry.additionalValue1,
+            additionalValue2: entry.additionalValue2,
+            additionalValue3: entry.additionalValue3,
+            isDeleted: entry.isDeleted,
+            translations: entry.translations || []
+          }))
+          .filter(entry => !isEmploymentTypeMarkedDeleted(entry))
         return types
       }
-    } catch (error) {
+    } catch {
       console.error('Failed to load employment types')
     }
   }, [catalogClient, userLocale])

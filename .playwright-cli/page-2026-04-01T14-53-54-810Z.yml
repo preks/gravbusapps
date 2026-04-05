@@ -1,0 +1,101 @@
+- generic [ref=e2]:
+  - generic [ref=e5]:
+    - generic "Main navigation" [ref=e7]:
+      - generic [ref=e8]:
+        - button "Expand sidebar" [ref=e14]:
+          - img
+        - generic [ref=e19]:
+          - list [ref=e21]:
+            - listitem [ref=e22]:
+              - link "Home" [ref=e24]:
+                - /url: /platform
+                - img [ref=e26]
+                - generic: Home
+          - list [ref=e31]:
+            - listitem [ref=e32]:
+              - button "AI Ai" [ref=e34]:
+                - generic [ref=e35]: AI
+                - generic: Ai
+            - listitem [ref=e36]:
+              - button "COM Common" [ref=e38]:
+                - generic [ref=e39]: COM
+                - generic: Common
+            - listitem [ref=e40]:
+              - button "COR Core" [ref=e42]:
+                - generic [ref=e43]: COR
+                - generic: Core
+            - listitem [ref=e44]:
+              - button "CRM" [ref=e46]:
+                - img [ref=e48]
+                - generic: CRM
+            - listitem [ref=e50]:
+              - button "EVE Every" [ref=e52]:
+                - generic [ref=e53]: EVE
+                - generic: Every
+            - listitem [ref=e54]:
+              - button "FIN Fin" [ref=e56]:
+                - generic [ref=e57]: FIN
+                - generic: Fin
+            - listitem [ref=e58]:
+              - button "FLO Flow" [ref=e60]:
+                - generic [ref=e61]: FLO
+                - generic: Flow
+            - listitem [ref=e62]:
+              - button "HR Hr" [ref=e64]:
+                - generic [ref=e65]: HR
+                - generic: Hr
+            - listitem [ref=e66]:
+              - button "IRM Irm" [ref=e68]:
+                - generic [ref=e69]: IRM
+                - generic: Irm
+            - listitem [ref=e70]:
+              - button "MDM Mdm" [ref=e72]:
+                - generic [ref=e73]: MDM
+                - generic: Mdm
+            - listitem [ref=e74]:
+              - button "PLA Platform" [ref=e76]:
+                - generic [ref=e77]: PLA
+                - generic: Platform
+            - listitem [ref=e78]:
+              - button "SAL Sales-demo" [ref=e80]:
+                - generic [ref=e81]: SAL
+                - generic: Sales-demo
+            - listitem [ref=e82]:
+              - button "SER Ser" [ref=e84]:
+                - generic [ref=e85]: SER
+                - generic: Ser
+          - list [ref=e89]:
+            - listitem [ref=e90]:
+              - button "EXA Examples" [ref=e92]:
+                - generic [ref=e93]: EXA
+                - generic: Examples
+        - button "Toggle Sidebar" [ref=e94]
+    - main [ref=e95]:
+      - banner [ref=e96]:
+        - generic [ref=e97]:
+          - button "Go back" [ref=e98] [cursor=pointer]:
+            - img
+          - button "All" [ref=e102] [cursor=pointer]:
+            - text: All
+            - img
+          - navigation "Breadcrumb" [ref=e103]:
+            - button "Home" [ref=e105] [cursor=pointer]:
+              - generic [ref=e106]: Home
+            - img [ref=e107]
+            - generic [ref=e110]: WhiteboardId 83f5c2d8-7ec4-4a7...
+        - generic [ref=e111]:
+          - generic [ref=e113]: v0.0.1
+          - button "Publish Screen" [ref=e114] [cursor=pointer]:
+            - img
+          - button "Search (⌘K)" [ref=e115] [cursor=pointer]:
+            - img
+          - button "Settings" [ref=e116] [cursor=pointer]:
+            - img
+          - button "Preferences" [ref=e117] [cursor=pointer]:
+            - img
+          - button "Performance" [ref=e118] [cursor=pointer]:
+            - img
+      - generic [ref=e119]:
+        - generic [ref=e126]: Loading WhiteboardApps...
+        - complementary
+  - region "Notifications alt+T"

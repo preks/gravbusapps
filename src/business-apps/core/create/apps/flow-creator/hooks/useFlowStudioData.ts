@@ -17,7 +17,8 @@ import { GET_CATALOGS } from '@/common/data/catalog/queries/catalogQueries'
 import type { BaseCatalog, CatalogResponse } from '@/common/data/catalog/types/catalogTypes'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { GetCatalogsResponse } from '@/common/types/CatalogTypes'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import { extractPromptParameters } from '../utils/promptParameterUtils'
 
 export interface CatalogOption {
   identifier: string
@@ -69,7 +70,7 @@ export interface FlowStudioData {
   /** Load versions for a specific agent */
   loadAgentVersions: (agentId: string) => Promise<PromptODM[]>
   /** Load parameters for a specific agent */
-  loadAgentParameters: (agentId: string) => Promise<{ system: string[]; user: string[] }>
+  loadAgentParameters: (agentId: string, version?: number) => Promise<{ system: string[]; user: string[] }>
 
   /** Load versions for a specific function */
   loadFunctionVersions: (functionId: string) => Promise<FunctionVersionMeta[]>
@@ -115,8 +116,18 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
   )
 
   const loadAgentParameters = useCallback(
-    async (agentId: string) => {
+    async (agentId: string, version?: number) => {
       try {
+        const normalizedVersion = Number(version)
+        if (Number.isFinite(normalizedVersion)) {
+          const res = await promptClient.getPromptVersions(agentId, { limit: 100, offset: 0 })
+          const matchedVersion = (res.data || []).find(item => Number(item.version) === normalizedVersion)
+          if (matchedVersion) return extractPromptParameters(matchedVersion)
+        }
+
+        const loadedPrompt = agents.find(item => item._id === agentId)
+        if (loadedPrompt) return extractPromptParameters(loadedPrompt)
+
         const params = await promptClient.getPromptParameters(agentId)
         return {
           system: params.system_parameters || [],
@@ -126,7 +137,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
         return { system: [], user: [] }
       }
     },
-    [promptClient]
+    [agents, promptClient]
   )
 
   // --- Functions ---
@@ -265,9 +276,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       setEntitiesLoading(true)
       setEntitiesError(null)
       try {
-        const apiUrl =
-          env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || `${env('NEXT_PUBLIC_BASE_URL') || ''}/flow-engine`
-        const response = await fetch(`${apiUrl}/api/entities?includeFields=true`)
+        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/entities?includeFields=true`)
         if (!response.ok) throw new Error(`Entities request failed: ${response.status} ${response.statusText}`)
         const data = await response.json()
         const list = Object.values((data && data.entities) || {}) as any[]
@@ -307,9 +316,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       if (!accessToken) return
       setCustomDataNamespacesLoading(true)
       try {
-        const apiUrl =
-          env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || `${env('NEXT_PUBLIC_BASE_URL') || ''}/flow-engine`
-        const response = await fetch(`${apiUrl}/api/custom-data/namespaces`, {
+        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/custom-data/namespaces`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
@@ -339,9 +346,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
 
       setCustomDataKeysLoadingByNamespace(prev => ({ ...prev, [ns]: true }))
       try {
-        const apiUrl =
-          env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || `${env('NEXT_PUBLIC_BASE_URL') || ''}/flow-engine`
-        const response = await fetch(`${apiUrl}/api/custom-data-sources/schema`, {
+        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/custom-data-sources/schema`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',

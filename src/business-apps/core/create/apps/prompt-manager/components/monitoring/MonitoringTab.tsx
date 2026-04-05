@@ -66,9 +66,11 @@ const StartedAtMsCell = ({ row }: any) => {
   return <span className="gba:text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
 }
 
-export type MonitoringTabProps = BusinessAppContextProps
+export interface MonitoringTabProps extends BusinessAppContextProps {
+  labelsReady?: boolean
+}
 
-export const MonitoringTab: React.FC<MonitoringTabProps> = context => {
+export const MonitoringTab: React.FC<MonitoringTabProps> = ({ labelsReady = false, ...context }) => {
   const { t } = useTranslation(translations)
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [status, setStatus] = useState<ExecutionRunStatus | 'all'>('all')
@@ -195,7 +197,7 @@ export const MonitoringTab: React.FC<MonitoringTabProps> = context => {
         size: 200
       }
     ],
-    [t, StatusCellRenderer]
+    [t, StatusCellRenderer, labelsReady]
   )
 
   const onApplyFilters = useCallback(() => {

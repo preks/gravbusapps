@@ -150,6 +150,16 @@ export type NavigationData = {
   reason: string
 }
 
+export type ChatReferenceData = {
+  type: 'chat_reference'
+  id: string
+  message_id?: string
+  conversation_type?: string
+  snippet: string
+  sender_name?: string
+  timestamp?: string
+}
+
 export type { AssetSummaryData, TeamAvailabilityData }
 export type { CrmFunnelData }
 export type DisplayData =
@@ -165,6 +175,7 @@ export type DisplayData =
   | CrmFunnelData
   | AssetSummaryData
   | TeamAvailabilityData
+  | ChatReferenceData
 
 export type NextStepProposal = {
   heading: string
@@ -192,6 +203,20 @@ export type ErrorOutput = {
   text?: string
 }
 
+export type BulkFlowProposalItem = {
+  key: string
+  label?: string
+  overrides: Record<string, any>
+  metadata?: Record<string, any>
+}
+
+export type BulkFlowProposal = {
+  varying_field: string
+  items: BulkFlowProposalItem[]
+  item_label?: string
+  require_explicit_item_confirmation?: boolean
+}
+
 export type FlowProposalOutput = {
   type: 'flow_proposal'
   flow_name: string
@@ -207,9 +232,57 @@ export type FlowProposalOutput = {
     required?: string[]
     properties?: Record<string, any>
   }
+  bulk_operation?: BulkFlowProposal
 }
 
-export type OutputItem = AnswerOutput | ToolOutput | LoadingOutput | ErrorOutput | FlowProposalOutput
+export type DocumentStreamStartOutput = {
+  type: 'document_stream_start'
+  edit_run_id: string
+  document_id?: string | null
+  mode: 'document' | 'selection'
+  sequence: number
+}
+
+export type DocumentStreamChunkOutput = {
+  type: 'document_stream_chunk'
+  edit_run_id: string
+  document_id?: string | null
+  mode: 'document' | 'selection'
+  sequence: number
+  chunk: string
+  is_final: boolean
+}
+
+export type DocumentStreamCompleteOutput = {
+  type: 'document_stream_complete'
+  edit_run_id: string
+  document_id: string
+  mode: 'document' | 'selection'
+  sequence: number
+  changed: boolean
+  change_summary: string
+}
+
+export type DocumentStreamErrorOutput = {
+  type: 'document_stream_error'
+  edit_run_id: string
+  document_id?: string | null
+  mode?: 'document' | 'selection' | null
+  sequence: number
+  error_code: string
+  message: string
+}
+
+export type OutputItem =
+  | AnswerOutput
+  | ToolOutput
+  | LoadingOutput
+  | ErrorOutput
+  | FlowProposalOutput
+  | DocumentStreamStartOutput
+  | DocumentStreamChunkOutput
+  | DocumentStreamCompleteOutput
+  | DocumentStreamErrorOutput
 
 export type ChatOutput = {
   items: OutputItem[]

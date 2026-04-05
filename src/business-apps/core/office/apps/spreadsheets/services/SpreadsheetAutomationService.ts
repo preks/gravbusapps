@@ -21,6 +21,7 @@ import { env } from '@/common/env/EnvUtils'
 import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { getSpreadsheetBasePath } from '../utils/spreadsheetPaths'
+import { fetchBulkCollectionEntitySelectOptions } from '../utils/entitySelectOptionsResolver'
 
 // Flow engine API base URL for tasks, flows, etc.
 // Develop flow engine uses /api/... (not /api/v1/...) for tasks and flows
@@ -71,6 +72,13 @@ const automationDebug = (...args: unknown[]) => {
 }
 
 const TRUTHY_STRING_VALUES = new Set(['true', '1', 'yes'])
+
+const maskIdentifier = (value: string | null | undefined): string => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'n/a'
+  if (normalized.length <= 8) return normalized
+  return `${normalized.slice(0, 4)}...${normalized.slice(-4)}`
+}
 
 /**
  * Parameters for executing a workflow for a single row
@@ -453,8 +461,24 @@ export class SpreadsheetAutomationService {
    */
   async executeBulkCollection(params: ExecuteBulkCollectionParams): Promise<AutomationExecutionResult> {
     const { automation, recipients, spreadsheetId, sheetId, initiatorId, accessToken } = params
-    const bulkGroupId = `bulk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
     const executedAt = new Date().toISOString()
+
+    let backendId: string
+    try {
+      backendId = await this.ensureBackendAutomationId(automation, { spreadsheetId, sheetId })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to ensure backend automation'
+      console.error('[SpreadsheetAutomationService]', msg)
+      return {
+        success: false,
+        error: msg,
+        workflows: [],
+        executedAt,
+        totalRows: recipients.length
+      }
+    }
+
+    const bulkGroupId = `bulk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
     const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = []
     const failedRecipients: string[] = []
@@ -475,7 +499,8 @@ export class SpreadsheetAutomationService {
             sheetId,
             initiatorId,
             accessToken,
-            bulkGroupId
+            bulkGroupId,
+            tagAutomationId: backendId
           })
 
           if (result.success && result.workflowId) {
@@ -500,14 +525,79 @@ export class SpreadsheetAutomationService {
       await Promise.all(promises)
     }
 
+    const hadClientOnlyId = !automation.backendId && !isUuid(automation.id)
+
     return {
       success: failedRecipients.length === 0,
       error: failedRecipients.length > 0 ? `Failed to send to ${failedRecipients.length} recipients` : undefined,
       workflows,
       executedAt,
       totalRows: recipients.length,
-      failedRows: failedRecipients.length > 0 ? failedRecipients : undefined
+      failedRows: failedRecipients.length > 0 ? failedRecipients : undefined,
+      ...(hadClientOnlyId ? { backendId } : {})
     }
+  }
+
+  /**
+   * Create or update the automation row in document-service so GET /automations/app/:id lists it
+   * (required for bulk/form collection parity with excel_collection).
+   */
+  async syncAutomationRecordOnBackend(
+    automation: SpreadsheetAutomation,
+    spreadsheetId: string,
+    sheetId: string,
+    options?: { persistMode?: 'upsert' | 'create-only' }
+  ): Promise<string | null> {
+    const persistMode = options?.persistMode ?? 'upsert'
+    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const spreadsheetAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
+
+    const backendCandidate =
+      (typeof automation.backendId === 'string' && automation.backendId.trim()) ||
+      (isUuid(automation.id) ? automation.id : null)
+
+    const payload = {
+      spreadsheetAppId,
+      sheetId,
+      name: automation.name,
+      description: automation.description,
+      type: automation.type,
+      trigger: automation.trigger ?? 'manual',
+      workflowConfig: automation.workflowConfig ?? {},
+      triggerConfig: automation.triggerConfig ?? {},
+      approvalConfig: automation.approvalConfig,
+      collectionConfig: automation.collectionConfig ?? {}
+    }
+
+    if (backendCandidate) {
+      if (persistMode === 'create-only') {
+        return backendCandidate
+      }
+      const res = await fetch(`${docBase}/automations/${backendCandidate}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`
+        },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) return null
+      return backendCandidate
+    }
+
+    const createRes = await fetch(`${docBase}/automations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify(payload)
+    })
+    if (!createRes.ok) return null
+    const created = await createRes.json()
+    const id = created.data?.id ?? created.id
+    if (!id || !isUuid(String(id))) return null
+    return String(id)
   }
 
   /**
@@ -516,51 +606,13 @@ export class SpreadsheetAutomationService {
    */
   private async ensureBackendAutomationId(
     automation: SpreadsheetAutomation,
-    params: ExecuteExcelCollectionParams
+    params: Pick<ExecuteExcelCollectionParams, 'spreadsheetId' | 'sheetId'>
   ): Promise<string> {
-    const backendId = automation.backendId || (isUuid(automation.id) ? automation.id : null)
-    if (backendId) return backendId
-
-    const { spreadsheetId, sheetId } = params
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
-    const templateAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
-
-    const createRes = await fetch(`${docBase}/automations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`
-      },
-      body: JSON.stringify({
-        spreadsheetAppId: templateAppId,
-        sheetId,
-        name: automation.name,
-        description: automation.description,
-        type: automation.type,
-        trigger: automation.trigger ?? 'manual',
-        workflowConfig: automation.workflowConfig ?? {},
-        triggerConfig: automation.triggerConfig ?? {},
-        approvalConfig: automation.approvalConfig ?? undefined,
-        collectionConfig: automation.collectionConfig ?? {}
-      })
+    const id = await this.syncAutomationRecordOnBackend(automation, params.spreadsheetId, params.sheetId, {
+      persistMode: 'create-only'
     })
-
-    if (!createRes.ok) {
-      const errText = await createRes.text()
-      let msg: string
-      try {
-        const err = JSON.parse(errText)
-        msg = err.message || err.error || errText
-      } catch {
-        msg = errText || `HTTP ${createRes.status}`
-      }
-      throw new Error(`Failed to create automation in document-service: ${msg}`)
-    }
-
-    const created = await createRes.json()
-    const id = created.data?.id ?? created.id
-    if (!id || !isUuid(id)) {
-      throw new Error('Document-service did not return a valid automation UUID')
+    if (!id) {
+      throw new Error('Failed to create automation in document-service')
     }
     return id
   }
@@ -635,7 +687,20 @@ export class SpreadsheetAutomationService {
       }
 
       const result = await response.json()
-      return this.mapExcelCollectionRunResult(result, recipients.length, executedAt, wasCreated ? backendId : undefined)
+      const mapped = this.mapExcelCollectionRunResult(
+        result,
+        recipients.length,
+        executedAt,
+        wasCreated ? backendId : undefined
+      )
+      console.info('[SpreadsheetAutomationService] Excel collection run result', {
+        automationId: maskIdentifier(backendId),
+        recipients: recipients.length,
+        workflowCount: mapped.workflows?.length || 0,
+        failedCount: mapped.failedRows?.length || 0,
+        success: mapped.success
+      })
+      return mapped
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Excel collection execution error:', error)
       return {
@@ -761,19 +826,21 @@ export class SpreadsheetAutomationService {
     initiatorId: string
     accessToken: string
     bulkGroupId: string
+    /** Document-service automation UUID (flows must tag this for aggregate + hub listing). */
+    tagAutomationId: string
   }): Promise<WorkflowExecutionResult> {
-    const { automation, recipientId, spreadsheetId, sheetId, initiatorId, bulkGroupId } = params
+    const { automation, recipientId, spreadsheetId, sheetId, initiatorId, bulkGroupId, tagAutomationId } = params
 
     try {
-      // Generate a template specifically for bulk collection
-      const template = this.generateBulkCollectionTemplate(automation, recipientId)
+      // Generate a template specifically for bulk collection (async: entity-backed SELECT options)
+      const template = await this.generateBulkCollectionTemplate(automation, recipientId, initiatorId)
 
       // Build tags for workflow-spreadsheet linking
       const tags = this.buildWorkflowTags({
         spreadsheetId,
         sheetId,
         rowId: `pending_${recipientId}`, // Row will be created when completed
-        automationId: automation.id,
+        automationId: tagAutomationId,
         automationType: automation.type,
         bulkGroupId,
         recipientId // Track which recipient this is for
@@ -838,24 +905,41 @@ export class SpreadsheetAutomationService {
   }
 
   /**
-   * Generate a template for bulk collection with form fields
+   * Build form inputs for bulk collection, resolving entity-backed SELECT options when configured.
    */
-  private generateBulkCollectionTemplate(
+  private async buildBulkCollectionFormInputs(
     automation: SpreadsheetAutomation,
-    recipientId: string
-  ): AutomationFlowTemplate {
+    initiatorId: string
+  ): Promise<AutomationFormInput[]> {
     const formFields = automation.collectionConfig?.formFields || []
+    const formInputs: AutomationFormInput[] = []
 
-    // Build form inputs from configured fields
-    const formInputs: AutomationFormInput[] = formFields.map(field => ({
-      name: field.columnId || field.id,
-      label: field.label,
-      type: field.inputType || 'TEXT',
-      required: field.required ?? true,
-      options: field.options?.map(opt => ({ value: opt, label: opt }))
-    }))
+    for (const field of formFields) {
+      const inputType = field.inputType || 'TEXT'
+      const base: AutomationFormInput = {
+        name: field.columnId || field.id,
+        label: field.label,
+        type: inputType,
+        required: field.required ?? true
+      }
 
-    // If no fields configured, create default text field
+      if (inputType === 'SELECT') {
+        const inferredSource =
+          field.selectOptionsSource ??
+          (field.entitySelect?.entityType && field.entitySelect?.valueField && field.entitySelect?.labelField
+            ? 'entity'
+            : 'static')
+
+        if (inferredSource === 'entity' && field.entitySelect) {
+          base.options = await fetchBulkCollectionEntitySelectOptions(this.accessToken, field.entitySelect, initiatorId)
+        } else {
+          base.options = field.options?.map(opt => ({ value: opt, label: opt }))
+        }
+      }
+
+      formInputs.push(base)
+    }
+
     if (formInputs.length === 0) {
       formInputs.push({
         name: 'response',
@@ -864,6 +948,19 @@ export class SpreadsheetAutomationService {
         required: true
       })
     }
+
+    return formInputs
+  }
+
+  /**
+   * Generate a template for bulk collection with form fields
+   */
+  private async generateBulkCollectionTemplate(
+    automation: SpreadsheetAutomation,
+    recipientId: string,
+    initiatorId: string
+  ): Promise<AutomationFlowTemplate> {
+    const formInputs = await this.buildBulkCollectionFormInputs(automation, initiatorId)
 
     return {
       type: 'TEMPLATE',
@@ -1734,12 +1831,8 @@ export class SpreadsheetAutomationService {
     }>
   > {
     try {
-      // For excel_collection, use document-service (implements aggregate-bulk).
-      // Flow engine does not have this endpoint (returns 404).
-      const aggregateUrl =
-        params.automationType === 'excel_collection'
-          ? `${getDocumentServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
-          : `${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk`
+      // Document-service lists flows and filters by tags (supports bulk_collection + excel_collection).
+      const aggregateUrl = `${getDocumentServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
 
       const queryParams = new URLSearchParams({
         spreadsheetId: params.spreadsheetId,
@@ -1758,7 +1851,8 @@ export class SpreadsheetAutomationService {
           spreadsheetId: params.spreadsheetId,
           sheetId: params.sheetId,
           automationId: params.automationId,
-          bulkGroupId: params.bulkGroupId || params.automationId
+          bulkGroupId: params.bulkGroupId || params.automationId,
+          automationType: params.automationType || 'bulk_collection'
         })
       })
 
@@ -2225,10 +2319,12 @@ export class SpreadsheetAutomationService {
   /**
    * Find and complete the Excel Collection task for the current user viewing their copy.
    * Looks up the open task by copyAppId (stored in flow tags) and completes it.
+   * Pass formData to capture submitted spreadsheet row data in the report sheet.
    */
   async findAndCompleteExcelCollectionTask(
     copyAppId: string,
-    userId: string
+    userId: string,
+    formData?: Record<string, unknown>
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const tasks = await this.fetchUserTasks(userId)
@@ -2250,7 +2346,7 @@ export class SpreadsheetAutomationService {
         return { success: false, error: 'Could not find your collection task. It may already be completed.' }
       }
 
-      const completed = await this.completeTask(targetTaskId, userId, copyAppId)
+      const completed = await this.completeTask(targetTaskId, userId, copyAppId, formData)
       if (!completed) {
         return { success: false, error: 'Failed to submit' }
       }
@@ -2324,7 +2420,16 @@ export class SpreadsheetAutomationService {
     return ((task.id as string) || (task.taskId as string) || '').trim() || null
   }
 
-  private async completeTask(taskId: string, userId: string, copyAppId: string): Promise<boolean> {
+  private async completeTask(
+    taskId: string,
+    userId: string,
+    copyAppId: string,
+    formData?: Record<string, unknown>
+  ): Promise<boolean> {
+    const baseFormData = { submitted: true, copyAppId }
+    const mergedFormData =
+      formData && Object.keys(formData).length > 0 ? { ...formData, ...baseFormData } : baseFormData
+
     const completeRes = await fetch(`${this.apiBaseUrl}/tasks/${taskId}/complete`, {
       method: 'POST',
       headers: {
@@ -2333,7 +2438,7 @@ export class SpreadsheetAutomationService {
       },
       body: JSON.stringify({
         userId,
-        formData: { submitted: true, copyAppId }
+        formData: mergedFormData
       })
     })
     if (!completeRes.ok) {

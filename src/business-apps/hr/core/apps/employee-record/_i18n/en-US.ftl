@@ -333,6 +333,11 @@ hr-growth-skills = Skills
 hr-growth-feedback = Feedback Hub
 hr-growth-performance = Goals
 
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = My Development
+my-development-page-description = Skills, feedback, goals, and performance — the same experience as HR Development in My Profile.
+my-development-unavailable = Your development area could not be loaded. Try again later.
+
 # Feedback Hub (sub-page under HR Development)
 feedback-hub-title = Feedback Hub
 feedback-hub-description = Give and receive feedback from colleagues and managers. Track requests and review insights.
@@ -395,6 +400,7 @@ feedback-hub-kpi-received-title = Feedback Received
 feedback-hub-kpi-given-title = Feedback Given
 feedback-hub-kpi-contributors-title = Distinct Contributors
 feedback-hub-kpi-trend-30d = Trend (30d): { $value }
+feedback-hub-kpi-trend-vs-30d = vs previous 30 days
 feedback-hub-suggested-actions-title = Suggested Actions
 feedback-hub-suggested-pending = You have { $count } feedback requests pending.
 feedback-hub-suggested-no-received = Consider asking for feedback. Your last feedback was { $days } days ago.
@@ -405,6 +411,7 @@ feedback-hub-pending-panel-title = Pending Feedback Requests
 feedback-hub-pending-give-feedback-btn = Give Feedback
 feedback-hub-pending-due = Due: { $date }
 feedback-hub-section-received-title = Feedback Received ({ $total } total)
+feedback-hub-section-received-visible-title = Feedback Received ({ $visible } visible)
 feedback-hub-section-given-title = Feedback Given ({ $total } total)
 feedback-hub-ai-insights-button = AI Insights
 feedback-hub-ai-insights-analyzing = Analyzing…
@@ -801,7 +808,7 @@ employment-label-tax-bracket = Tax Bracket
 employment-label-church-affiliation = Church Affiliation
 employment-label-child-tax-allowance = Child Tax Allowance
 employment-label-health-insurance = Health Insurance
-employment-label-type-of-health-insurance = Type Of Health Insurance
+employment-label-type-of-health-insurance = Type of Health Insurance
 employment-label-request-at-office = Request at tax office
 employment-label-last-updated = Last Updated
 employment-label-employee-tax-office = Employee's Tax Office

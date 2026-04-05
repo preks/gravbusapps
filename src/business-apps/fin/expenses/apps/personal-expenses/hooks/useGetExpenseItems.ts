@@ -199,7 +199,8 @@ export const useGetExpenseItems = (
         code: 'code',
         description: 'description'
       }
-      const gqlField = fieldMap[sortField] || sortField
+      const gqlField = fieldMap[sortField]
+      if (!gqlField) return [{ expenseDate: 'DESC' }]
       const direction = sortOrder === 'ascend' ? 'ASC' : 'DESC'
       return [{ [gqlField]: direction }]
     }

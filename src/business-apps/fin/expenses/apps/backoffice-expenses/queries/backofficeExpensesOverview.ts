@@ -266,10 +266,11 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
       }
     ) @include(if: $includeRequests) {
       id code title employeeId requestDate startDate endDate description
-      totalAmount reimbursableAmount currencyRef status createdAt updatedAt
+      totalAmount reimbursableAmount totalRemainingAmount currencyRef status createdAt updatedAt
       requestType { value translations { value localeCode } }
       expensePlan {
         code
+        advancePaymentPaidAmount
         requestType { value translations { value localeCode } }
         advancePayment(where: { isDeleted: { _eq: false } }) {
           id
@@ -306,7 +307,7 @@ export const BACKOFFICE_EXPENSES_OVERVIEW_TABLE = `
       }
     ) @include(if: $includePlans) {
       id code title employeeId startDate endDate status
-      activeFrom activeTo totalAmount currencyRef createdAt updatedAt decisionDate planDate
+      activeFrom activeTo totalAmount totalRemainingAmount advancePaymentPaidAmount currencyRef createdAt updatedAt decisionDate planDate
       requestType { value translations { value localeCode } }
       employeeDocument { id file fileSize name mimeType description type }
       expenseRequest(where: { isDeleted: { _eq: false } }) {

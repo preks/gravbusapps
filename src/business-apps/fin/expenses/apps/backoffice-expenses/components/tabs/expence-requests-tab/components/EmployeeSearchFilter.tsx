@@ -15,10 +15,8 @@ interface EmployeeSearchFilterProps {
   setShowEmployeeDropdown: (show: boolean) => void
   employeeSearchResults: Employee[]
   employeeSearchLoading: boolean
-  selectedEmployees: Employee[]
-  setSelectedEmployees: (employees: Employee[]) => void
-  setEmployeeFilter: (filter: string) => void
-  handleEmployeeFilter: (filter: string) => void
+  selectedEmployeeIds: string[]
+  onSelectedEmployeeIdsChange: (employeeIds: string[]) => void
   debouncedSearchEmployees: (searchText: string) => void
 }
 
@@ -29,10 +27,8 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
   setShowEmployeeDropdown,
   employeeSearchResults,
   employeeSearchLoading,
-  selectedEmployees,
-  setSelectedEmployees,
-  setEmployeeFilter,
-  handleEmployeeFilter,
+  selectedEmployeeIds,
+  onSelectedEmployeeIdsChange,
   debouncedSearchEmployees
 }) => {
   const { t } = useTranslation(translations)
@@ -71,19 +67,15 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
             employeeSearchResults.map(employee => (
               <button
                 key={employee.id}
+                type="button"
                 className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
-                  selectedEmployees.some(e => e.id === employee.id)
-                    ? 'gba:bg-blue-50 gba:text-blue-700'
-                    : 'gba:text-gray-700'
+                  selectedEmployeeIds.includes(employee.id) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
                 }`}
                 onClick={() => {
-                  const newSelected = selectedEmployees.some(e => e.id === employee.id)
-                    ? selectedEmployees.filter(e => e.id !== employee.id)
-                    : [...selectedEmployees, employee]
-                  setSelectedEmployees(newSelected)
-                  setEmployeeFilter(newSelected.map(e => e.id).join(','))
-
-                  handleEmployeeFilter(newSelected.map(e => e.id).join(','))
+                  const nextSelectedEmployeeIds = selectedEmployeeIds.includes(employee.id)
+                    ? selectedEmployeeIds.filter(id => id !== employee.id)
+                    : [...selectedEmployeeIds, employee.id]
+                  onSelectedEmployeeIdsChange(nextSelectedEmployeeIds)
                 }}
                 data-testid={`employee-option-${employee.id}`}
               >

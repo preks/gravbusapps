@@ -1,30 +1,29 @@
 /**
- * Customer Lead Import Configuration
- * Extends base lead fields with customer-specific fields
- * Used by CRM (Customer Relations Management) domain
+ * Customer Lead Import Configuration (CRM)
+ * Full explicit field list for CustomerLead schema.
+ * CRM-specific fields: city, Region catalog, industryRef, numberOfEmployeesRef, SalesLead* catalogs.
  */
 
-import { baseLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
+import { sharedLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 
-const customerLeadImportFields = baseLeadImportFields.map(field => {
-  if (field.type !== 'catalog') return field
-
-  switch (field.value) {
-    case 'leadStatusRef':
-      return { ...field, catalog: 'SalesLeadStatus' }
-    case 'leadSourceRef':
-      return { ...field, catalog: 'SalesLeadSource' }
-    case 'leadRatingRef':
-      return { ...field, catalog: 'SalesLeadRating' }
-    default:
-      return field
-  }
-})
-
-// CRM uses base fields only (no extensions)
 export const customerLeadImportConfig: ImportConfig = {
   entityType: 'lead',
   domain: 'customer',
-  targetFields: customerLeadImportFields
+  targetFields: [
+    ...sharedLeadImportFields,
+
+    // CRM-specific company fields (not in InvestmentLead schema)
+    { value: 'numberOfEmployeesRef', label: 'Company Size (Catalog)', type: 'catalog', catalog: 'CompanySize' },
+    { value: 'industryRef', label: 'Industry (Catalog)', type: 'catalog', catalog: 'IndustryClass' },
+
+    // CRM-specific address fields
+    { value: 'city', label: 'City', type: 'direct' },
+    { value: 'regionRef', label: 'Region (Catalog)', type: 'catalog', catalog: 'Region' },
+
+    // CRM-specific lead catalog fields
+    { value: 'leadStatusRef', label: 'Lead Status (Catalog)', type: 'catalog', catalog: 'SalesLeadStatus' },
+    { value: 'leadSourceRef', label: 'Lead Source (Catalog)', type: 'catalog', catalog: 'SalesLeadSource' },
+    { value: 'leadRatingRef', label: 'Lead Rating (Catalog)', type: 'catalog', catalog: 'SalesLeadRating' }
+  ]
 }

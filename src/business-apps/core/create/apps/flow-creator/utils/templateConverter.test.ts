@@ -169,9 +169,96 @@ describe('templateConverter', () => {
     expect(Array.isArray(fork.parallelBranches)).toBe(true)
     expect(fork.parallelBranches).toHaveLength(2)
     expect(fork.parallelBranches.map((b: any) => b.id).sort()).toEqual(['fb1', 'fb2'])
+    expect(fork.nextStep).toBe(template.steps.findIndex((s: any) => s.type === 'JOIN'))
 
     const join = template.steps.find((s: any) => s.type === 'JOIN')
     expect(join.forkReference).toBe(forkId)
+  })
+
+  it('maps GATEWAY steps to logic decisions with conditions preserved across import and save', () => {
+    const gatewayTemplate = {
+      type: 'TEMPLATE',
+      name: 'Gateway Flow',
+      version: 1,
+      steps: [
+        {
+          reference: 'gateway-1',
+          type: 'GATEWAY',
+          title: 'Gateway',
+          defaultBranch: 'reject-branch',
+          branches: [
+            {
+              id: 'approve-branch',
+              label: 'Approve',
+              condition: "$steps.self.resultData.decisionResult == 'approve'",
+              nextStep: 1
+            },
+            {
+              id: 'reject-branch',
+              label: 'Reject',
+              condition: "$steps.self.resultData.decisionResult == 'reject'",
+              nextStep: 2
+            }
+          ]
+        },
+        {
+          reference: 'approve-task',
+          type: 'TASK',
+          title: 'Approve task',
+          nextStep: null
+        },
+        {
+          reference: 'reject-task',
+          type: 'TASK',
+          title: 'Reject task',
+          nextStep: null
+        }
+      ]
+    } as any
+
+    const rebuilt = templateToStudioGraph(gatewayTemplate)
+    const rebuiltDecisionNode = rebuilt.nodes.find(node => node.id === 'gateway-1') as any
+
+    expect(rebuiltDecisionNode.config.decisionMode).toBe('LOGIC')
+    expect(rebuiltDecisionNode.config.defaultBranch).toBe('reject-branch')
+    expect(rebuiltDecisionNode.config.logicConfig.conditions).toEqual([
+      {
+        expression: "$steps.self.resultData.decisionResult == 'approve'",
+        branchId: 'approve-branch'
+      },
+      {
+        expression: "$steps.self.resultData.decisionResult == 'reject'",
+        branchId: 'reject-branch'
+      }
+    ])
+
+    const roundTrippedTemplate = studioGraphToTemplate(rebuilt.nodes, rebuilt.edges, 'Gateway Flow') as any
+    const roundTrippedDecisionStep = roundTrippedTemplate.steps.find((step: any) => step.reference === 'gateway-1')
+
+    expect(roundTrippedDecisionStep.type).toBe('DECISION')
+    expect(roundTrippedDecisionStep.decisionMode).toBe('LOGIC')
+    expect(roundTrippedDecisionStep.logicConfig.conditions).toEqual([
+      {
+        expression: "$steps.self.resultData.decisionResult == 'approve'",
+        branchId: 'approve-branch'
+      },
+      {
+        expression: "$steps.self.resultData.decisionResult == 'reject'",
+        branchId: 'reject-branch'
+      }
+    ])
+    expect(roundTrippedDecisionStep.branches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'approve-branch',
+          condition: "$steps.self.resultData.decisionResult == 'approve'"
+        }),
+        expect.objectContaining({
+          id: 'reject-branch',
+          condition: "$steps.self.resultData.decisionResult == 'reject'"
+        })
+      ])
+    )
   })
 
   it('round-trips control-flow steps without dropping node types', () => {
@@ -238,6 +325,73 @@ describe('templateConverter', () => {
       { type: 'URL', name: 'Guide', url: 'https://example.com/guide' }
     ])
     expect(rebuiltDecision.config.links).toEqual([{ type: 'URL', name: 'Guide', url: 'https://example.com/guide' }])
+  })
+
+  it('persists decision task expert param mappings across save and load', () => {
+    const decisionNode = makeDecisionNode('d-taskexpert', 'Decision Task Expert')
+    ;(decisionNode.config as any).decisionMode = 'AI'
+    ;(decisionNode.config as any).aiConfig = {
+      executor: 'TASK_EXPERT',
+      promptId: 'prompt-123',
+      promptName: 'Warranty Decision Expert',
+      promptVersion: 4,
+      promptUserContent: 'Context: {context}\nSerial: {serial}',
+      systemParamsMap: {
+        tenantName: '{{$workflow.context.tenantName}}'
+      },
+      userParamsMap: {
+        context: '{{$workflow.input}}',
+        serial: '{{$workflow.input.serial}}'
+      },
+      humanInstructions: 'Please review the AI decision.',
+      mapping: {
+        conditions: [{ expression: "$steps.self.resultData.decisionResult == 'approve'", branchId: 'approve-branch' }]
+      },
+      escalation: {
+        mode: 'USER',
+        assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM }
+      }
+    }
+
+    const nodes: StudioNode[] = [
+      makeStartNode(),
+      decisionNode,
+      makeTaskNode('approve', 'Approved'),
+      makeTaskNode('reject', 'Rejected'),
+      makeEndNode()
+    ]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-d', source: START_ID, target: 'd-taskexpert', direction: 'forward' } as any,
+      {
+        id: 'approve-branch',
+        source: 'd-taskexpert',
+        target: 'approve',
+        direction: 'forward',
+        label: 'Approve'
+      } as any,
+      { id: 'reject-branch', source: 'd-taskexpert', target: 'reject', direction: 'forward', label: 'Reject' } as any,
+      { id: 'e-approve-end', source: 'approve', target: END_ID, direction: 'forward' } as any,
+      { id: 'e-reject-end', source: 'reject', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Decision Task Expert') as any
+    expect(template.steps[0].aiConfig.systemParamsMap).toEqual({
+      tenantName: '{{$workflow.context.tenantName}}'
+    })
+    expect(template.steps[0].aiConfig.userParamsMap).toEqual({
+      context: '{{$workflow.input}}',
+      serial: '{{$workflow.input.serial}}'
+    })
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltDecision = rebuilt.nodes.find(n => n.id === 'd-taskexpert') as any
+    expect(rebuiltDecision.config.aiConfig.systemParamsMap).toEqual({
+      tenantName: '{{$workflow.context.tenantName}}'
+    })
+    expect(rebuiltDecision.config.aiConfig.userParamsMap).toEqual({
+      context: '{{$workflow.input}}',
+      serial: '{{$workflow.input.serial}}'
+    })
   })
 
   it('persists function output schema and pinned version across save/load', () => {

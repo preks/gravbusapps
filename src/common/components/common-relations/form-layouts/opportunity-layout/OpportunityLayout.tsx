@@ -15,19 +15,25 @@ interface OpportunityLayoutProps {
   // Account selection hook result - raw entities and refetch function
   useAccounts?: {
     accounts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   opportunityContacts?: any[]
   // Contact selection hook result - raw entities and refetch function
   useContacts?: {
     contacts: any[]
-    total: number
+    total?: number
     loading: boolean
     error: string | null
-    refetch: (variables?: any) => Promise<void>
+    hasMore?: boolean
+    search?: (searchTerm: string) => void
+    loadMore?: () => void
+    refetch?: (variables?: any) => Promise<void>
   }
   onNewContact?: () => void
   pipelineCatalogIdentifier?: string

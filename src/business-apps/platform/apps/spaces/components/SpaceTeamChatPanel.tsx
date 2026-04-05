@@ -21,7 +21,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Phone, VideoCamera, ChatCircle, ArrowRight, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { LinkedConversation } from '../types/space.types'
 import type { UserInfo } from '../hooks/useSpaceUserLookup'
 
@@ -57,27 +57,6 @@ interface ChatMessage {
   senderAvatar?: string
   createdAt: string
   type?: 'text' | 'file' | 'system'
-}
-
-function getChatServiceApiUrl(): string {
-  const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_URL')
-  if (chatServiceOverride) return chatServiceOverride
-
-  const chatApiUrl = env('NEXT_PUBLIC_CHAT_API')
-  if (chatApiUrl && !chatApiUrl.includes('localhost')) return chatApiUrl
-
-  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-
-  const currentHost = typeof window !== 'undefined' ? window.location.hostname : ''
-  const currentPort = typeof window !== 'undefined' ? window.location.port : ''
-  const isLocalPlatform = currentHost === 'localhost' && ['3000', '5173'].includes(currentPort)
-
-  if (isLocalPlatform) {
-    baseUrl = 'https://newwork-dev.newwork.com'
-  }
-
-  return `${baseUrl}/chat-service/api/v1`
 }
 
 // Get initials from name (same style as chat app)
@@ -120,31 +99,23 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
   onUserIdsNeeded,
   'data-testid': testId = 'space-team-chat-panel'
 }) => {
+  const chatClient = useChatClient(accessToken)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messagesLoading, setMessagesLoading] = useState(false)
 
-  // Fetch messages when conversation changes
   useEffect(() => {
     if (!conversation?.id || !accessToken) {
       setMessages([])
       return
     }
 
+    let cancelled = false
     const fetchMessages = async () => {
       setMessagesLoading(true)
       try {
-        const apiUrl = getChatServiceApiUrl()
-        const response = await fetch(`${apiUrl}/messages/conversation/${conversation.id}?page=1&limit=${maxMessages}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
-
-        if (!response.ok) throw new Error('Failed to fetch messages')
-
-        const data = await response.json()
-        const rawMessages = Array.isArray(data) ? data : data.messages || data.data || []
+        const response = await chatClient.getMessages<{ data: any[] }>(conversation.id, 1, maxMessages)
+        if (cancelled) return
+        const rawMessages = response?.data || []
 
         const transformedMessages: ChatMessage[] = rawMessages
           .map((msg: any) => ({
@@ -160,7 +131,6 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
 
         setMessages(transformedMessages)
 
-        // Request avatar lookup for senders
         if (onUserIdsNeeded) {
           const userIds = transformedMessages.filter((m: ChatMessage) => m.senderId).map((m: ChatMessage) => m.senderId)
           if (userIds.length > 0) {
@@ -168,15 +138,20 @@ export const SpaceTeamChatPanel: React.FC<SpaceTeamChatPanelProps> = ({
           }
         }
       } catch (err) {
-        console.error('[SpaceTeamChatPanel] Error fetching messages:', err)
-        setMessages([])
+        if (!cancelled) {
+          console.error('[SpaceTeamChatPanel] Error fetching messages:', err)
+          setMessages([])
+        }
       } finally {
-        setMessagesLoading(false)
+        if (!cancelled) setMessagesLoading(false)
       }
     }
 
     fetchMessages()
-  }, [conversation?.id, accessToken, maxMessages, onUserIdsNeeded])
+    return () => {
+      cancelled = true
+    }
+  }, [conversation?.id, accessToken, maxMessages, onUserIdsNeeded, chatClient])
 
   // Navigate to chat
   const handleOpenChat = useCallback(() => {

@@ -13,6 +13,9 @@ const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
 const PRECHAT_CACHE_TTL_MS = 10 * 60 * 1000
 const PRECHAT_MIN_REFETCH_MS = 3000
 const PRECHAT_LLM_MODEL = LLM_MODEL
+const DOCUMENT_REALTIME_EDIT_INTENT_PATTERN =
+  /\b(edit|rewrite|revise|improve|fix|update|rephrase|shorten|expand|draft|polish|refine)\b/i
+const DOCUMENT_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
 
 type PrechatCacheEntry = {
   suggestions: string[]
@@ -82,6 +85,94 @@ type UseFlowBotOptions = {
   isActive?: boolean
 }
 
+type RealtimeDocumentContext = {
+  type?: string
+  entity_name?: string
+  id?: string
+}
+
+type DocumentStreamCompleteOutputItem = Extract<OutputItem, { type: 'document_stream_complete' }>
+
+const HIDDEN_DOCUMENT_STREAM_OUTPUT_TYPES = new Set<OutputItem['type']>([
+  'document_stream_start',
+  'document_stream_chunk',
+  'document_stream_complete'
+])
+
+function shouldHideDocumentStreamOutput(output: OutputItem): boolean {
+  return HIDDEN_DOCUMENT_STREAM_OUTPUT_TYPES.has(output.type)
+}
+
+function buildRealtimeDocumentProgressOutput(documentId: string): OutputItem {
+  return {
+    type: 'answer',
+    displayData: [
+      {
+        type: 'textBlock',
+        text: `I started updating document ${documentId} in real time. Keep the document tab open to see live changes.`
+      }
+    ],
+    nextStepProposals: []
+  }
+}
+
+function buildRealtimeDocumentCompleteOutput(output: DocumentStreamCompleteOutputItem): OutputItem {
+  const summary = output.change_summary?.trim()
+  const baseMessage = output.changed
+    ? 'Document update is complete and applied successfully.'
+    : 'Document update finished. No content changes were required.'
+
+  return {
+    type: 'answer',
+    displayData: [
+      {
+        type: 'textBlock',
+        text: summary ? `${baseMessage}\n\n${summary}` : baseMessage
+      }
+    ],
+    nextStepProposals: []
+  }
+}
+
+function extractDocumentIdFromText(userInputText: string): string | null {
+  if (!userInputText) return null
+
+  const uriMatch = /document:\/\/([0-9a-f-]{36})/i.exec(userInputText)
+  if (uriMatch?.[1] && DOCUMENT_UUID_PATTERN.test(uriMatch[1])) {
+    return uriMatch[1]
+  }
+
+  const docPrefixMatch = /\bdoc(?:ument)?\s+([0-9a-f-]{36})/i.exec(userInputText)
+  if (docPrefixMatch?.[1] && DOCUMENT_UUID_PATTERN.test(docPrefixMatch[1])) {
+    return docPrefixMatch[1]
+  }
+
+  const genericMatch = DOCUMENT_UUID_PATTERN.exec(userInputText)
+  return genericMatch?.[0] || null
+}
+
+function resolveRealtimeDocumentId(params: {
+  userInputText: string
+  currentPagePayload: RealtimeDocumentContext
+  hasFiles: boolean
+  isThinking: boolean
+  isSearching: boolean
+}): string | null {
+  const { userInputText, currentPagePayload, hasFiles, isThinking, isSearching } = params
+  if (hasFiles || isThinking || isSearching) return null
+  if (!DOCUMENT_REALTIME_EDIT_INTENT_PATTERN.test(userInputText || '')) return null
+  if (
+    currentPagePayload?.type === 'entity' &&
+    currentPagePayload?.entity_name === 'document' &&
+    typeof currentPagePayload?.id === 'string' &&
+    currentPagePayload.id.trim().length > 0
+  ) {
+    return currentPagePayload.id
+  }
+
+  return extractDocumentIdFromText(userInputText)
+}
+
 function appendOutputToConversation(conversation: ConversationTurn[], output: OutputItem) {
   const lastTurn = conversation[conversation.length - 1]
   if (lastTurn && lastTurn.side === 'agent') {
@@ -108,6 +199,7 @@ function processSSEFrame(
   if (event === 'output-item') {
     try {
       const newOutput = JSON.parse(data) as OutputItem
+      if (shouldHideDocumentStreamOutput(newOutput)) return
       appendOutputItemToLastAgentTurn(newOutput)
       setState(prevState => ({ ...prevState }))
     } catch (err) {
@@ -332,15 +424,19 @@ export interface FlowBotSession {
   shortInfo?: string
 }
 
-const CHAT_LIST_LIMIT = 50
+const CHAT_LIST_LIMIT = 15
 
 /**
- * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...
+ * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...&offset=...
  */
-async function fetchChatListFromApi(accessToken: string, limit: number = CHAT_LIST_LIMIT): Promise<FlowBotSession[]> {
+export async function fetchChatListFromApi(
+  accessToken: string,
+  limit: number = CHAT_LIST_LIMIT,
+  offset: number = 0
+): Promise<FlowBotSession[]> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}`
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}&offset=${offset}`
 
     const res = await fetch(url, {
       method: 'GET',
@@ -384,7 +480,7 @@ async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSessio
 /**
  * Delete a chat session on the server: DELETE /flowbot/chat/sessions/:sessionId
  */
-async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
+export async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
@@ -406,7 +502,8 @@ async function deleteChatSession(sessionId: string, accessToken: string): Promis
 }
 
 /**
- * Save user message to the server for persistence using the existing /chat/messages endpoint
+ * Save user message to the server for persistence using the existing /chat/messages endpoint.
+ * Content is stored as structured JSON so history restores with full fidelity.
  */
 async function saveUserMessage(
   sessionId: string,
@@ -421,20 +518,28 @@ async function saveUserMessage(
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    // Prepare content with mentions and files info if present
-    let content = userInputText
-    if (mentions && mentions.length > 0) {
-      content += `\n\n[Mentions: ${mentions.map(m => m.display).join(', ')}]`
+    const fileMetas = files.map(f => ({
+      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+      name: f.name,
+      size: f.size,
+      type: f.type
+    }))
+
+    const content: Record<string, any> = {
+      type: 'user_input',
+      text: userInputText,
+      files: fileMetas
     }
-    if (files && files.length > 0) {
-      content += `\n\n[Files: ${files.map(f => f.name).join(', ')}]`
+
+    if (mentions && mentions.length > 0) {
+      content.mentions = mentions
     }
 
     const requestBody = {
       session_id: sessionId,
       role: 'user',
-      content: content,
-      short_info: '' // Let the backend auto-generate from content
+      content,
+      short_info: ''
     }
 
     const res = await fetch(url, {
@@ -457,44 +562,21 @@ async function saveUserMessage(
 }
 
 /**
- * Save agent response to the server for persistence using the existing /chat/messages endpoint
+ * Save agent response to the server for persistence using the existing /chat/messages endpoint.
+ * Stores the full OutputItem[] as JSONB so rich content (scatter plots, tables, entities)
+ * is preserved and can be faithfully restored from chat history.
  */
 async function saveAgentMessage(sessionId: string, outputs: OutputItem[], accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/messages`
 
-    // Convert outputs to readable content
-    let content = ''
-    for (const output of outputs) {
-      if (output.type === 'answer' && output.displayData) {
-        for (const data of output.displayData) {
-          if (data.type === 'textBlock') {
-            content += data.text + '\n\n'
-          } else if (data.type === 'table') {
-            content += `[Table: ${data.title || 'Data Table'}]\n`
-          } else if (data.type === 'entity') {
-            content += `[Entity: ${data.entity} - ${data.id}]\n`
-          } else {
-            content += `[${data.type}]\n`
-          }
-        }
-      } else if (output.type === 'flow_proposal') {
-        content += `[Flow Proposal: ${output.flow_name || 'Unknown'}]\n`
-      } else if (output.type !== 'tool' && output.type !== 'loading') {
-        content += `[${output.type}]\n`
-      }
-    }
-
-    // If no readable content, create a summary
-    if (!content.trim()) {
-      content = `[Agent Response: ${outputs.length} output(s)]`
-    }
+    const persistableOutputs = outputs.filter(o => o.type !== 'tool' && o.type !== 'loading')
 
     const requestBody = {
       session_id: sessionId,
       role: 'assistant',
-      content: content.trim(),
+      content: persistableOutputs,
       short_info: ''
     }
 
@@ -966,7 +1048,22 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         files.forEach(file => form.append('files', file))
 
         const baseUrl = resolveFlowbotBaseUrl()
-        const url = `${baseUrl}/flowbot/api/agent/v2/chat`
+        const realtimeDocumentId = resolveRealtimeDocumentId({
+          userInputText,
+          currentPagePayload,
+          hasFiles: files.length > 0,
+          isThinking,
+          isSearching
+        })
+        const useRealtimeDocumentEdit = typeof realtimeDocumentId === 'string' && realtimeDocumentId.length > 0
+        if (useRealtimeDocumentEdit) {
+          form.append('document_id', realtimeDocumentId)
+          form.append('mode', 'document')
+          appendOutputItemToLastAgentTurn(buildRealtimeDocumentProgressOutput(realtimeDocumentId))
+        }
+        const url = useRealtimeDocumentEdit
+          ? `${baseUrl}/flowbot/api/agent/v2/document/live-edit`
+          : `${baseUrl}/flowbot/api/agent/v2/chat`
 
         // Create abort controller for this request
         abortControllerRef.current = new AbortController()
@@ -1009,9 +1106,31 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           if (event === 'output-item') {
             try {
               const newOutput = JSON.parse(data) as OutputItem
-              appendOutputItemToLastAgentTurn(newOutput)
-              if (newOutput.type !== 'tool') {
+              const isHiddenDocumentStreamOutput = shouldHideDocumentStreamOutput(newOutput)
+              if (
+                newOutput.type === 'document_stream_complete' &&
+                typeof window !== 'undefined' &&
+                typeof newOutput.document_id === 'string' &&
+                newOutput.document_id
+              ) {
+                window.dispatchEvent(
+                  new CustomEvent('flowbot:document-stream-complete', {
+                    detail: {
+                      documentId: newOutput.document_id,
+                      mode: newOutput.mode,
+                      changed: newOutput.changed,
+                      changeSummary: newOutput.change_summary
+                    }
+                  })
+                )
+                appendOutputItemToLastAgentTurn(buildRealtimeDocumentCompleteOutput(newOutput))
                 pruneEphemeralOutputsFromLastAgentTurn()
+              }
+              if (!isHiddenDocumentStreamOutput) {
+                appendOutputItemToLastAgentTurn(newOutput)
+                if (newOutput.type !== 'tool') {
+                  pruneEphemeralOutputsFromLastAgentTurn()
+                }
               }
             } catch (err) {
               console.error('Failed to parse output item:', err)

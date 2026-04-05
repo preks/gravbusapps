@@ -2,6 +2,7 @@ import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { ChartBarIcon, PlayIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react'
 import { SalesCampaignStatistics } from './types/SalesCampaignTypes'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
 interface CampaignStatisticsProps {
   statistics: SalesCampaignStatistics
@@ -48,7 +49,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Total Campaigns',
       value: statistics.totalCampaigns,
       prefix: <ChartBarIcon />,
-      color: '#1890ff',
+      color: NW_CHART_COLOR_VARS[0],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'All campaigns in the system',
       trend: statistics.previousPeriod
@@ -60,7 +61,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Active Campaigns',
       value: statistics.activeCampaigns,
       prefix: <PlayIcon />,
-      color: '#52c41a',
+      color: NW_CHART_COLOR_VARS[1],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Currently running campaigns',
       trend: statistics.previousPeriod
@@ -72,7 +73,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       title: 'Completed Campaigns',
       value: statistics.completedCampaigns,
       prefix: <CheckCircleIcon />,
-      color: '#722ed1',
+      color: NW_CHART_COLOR_VARS[2],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Successfully finished campaigns',
       trend: statistics.previousPeriod
@@ -85,7 +86,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       value: formatDuration(statistics.averageDuration),
       valueIsString: true,
       prefix: <ClockIcon />,
-      color: '#fa8c16',
+      color: NW_CHART_COLOR_VARS[3],
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Average campaign duration in days',
       trend: statistics.previousPeriod

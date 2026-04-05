@@ -4,7 +4,7 @@
  *
  * OPTIMIZATION: Cursor-based pagination with accurate totalCount from API
  * - Uses cursor-based pagination for efficient "load more" without O(n²) re-fetching
- * - Fetch 1 batch of 20 tasks initially
+ * - First batch size matches EVERYBOX_FIRST_PAGE_LIMIT (same as inbox)
  * - Use API totalCount for accurate badge
  * - Load more on demand using nextCursor
  *
@@ -16,7 +16,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { fetchCompletedUserTasks } from '@/business-apps/core/every/apps/every-api'
+import { EVERYBOX_FIRST_PAGE_LIMIT, fetchCompletedUserTasks } from '@/business-apps/core/every/apps/every-api'
 import { UnifiedTask } from '@/business-apps/core/every/apps/every-api/types'
 
 type FetchBatchResult = { tasks: UnifiedTask[]; hasMore: boolean; totalCount: number; nextCursor?: string | null }
@@ -46,11 +46,13 @@ export const useCompletedTasks = (
     sortBy?: 'createdAt' | 'dueDate' | 'priority' | 'status' | 'title'
     sortOrder?: 'asc' | 'desc'
     dueFilter?: 'any' | 'dueSoon24h' | 'overdue' | 'hasDueDate' | 'noDueDate'
+    enabled?: boolean
+    initialTotalCount?: number
   }
 ): UseCompletedTasksResult => {
   const [allFetchedTasks, setAllFetchedTasks] = useState<UnifiedTask[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(options?.initialTotalCount ?? 0)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMoreToFetch, setHasMoreToFetch] = useState(true)
 
@@ -59,6 +61,7 @@ export const useCompletedTasks = (
   const sortBy = options?.sortBy || 'createdAt'
   const sortOrder = options?.sortOrder || 'desc'
   const dueFilter = options?.dueFilter || 'any'
+  const enabled = options?.enabled ?? true
   const hasInitialFetchRef = useRef(false)
   const lastTaskKeysRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
@@ -71,8 +74,15 @@ export const useCompletedTasks = (
   // Last successful background refresh timestamp (throttle polling)
   const lastBackgroundRefreshRef = useRef<number>(0)
 
-  const FETCH_SIZE = 20 // Match useInboxTasks
+  const FETCH_SIZE = EVERYBOX_FIRST_PAGE_LIMIT
   const BACKGROUND_REFRESH_THROTTLE_MS = 10000 // Minimum 10s between background refreshes
+
+  useEffect(() => {
+    if (!enabled) {
+      setIsLoading(false)
+      setTotalCount(options?.initialTotalCount ?? 0)
+    }
+  }, [enabled, options?.initialTotalCount])
 
   // Helper to update cursor (both ref and trigger re-render for hasMore calculation)
   const setCursor = useCallback((cursor: string | null) => {
@@ -85,7 +95,7 @@ export const useCompletedTasks = (
    */
   const fetchBatch = useCallback(
     async (cursor?: string | null): Promise<FetchBatchResult> => {
-      if (!userId) {
+      if (!userId || !enabled) {
         return { tasks: [], hasMore: false, totalCount: 0, nextCursor: null }
       }
 
@@ -105,7 +115,7 @@ export const useCompletedTasks = (
         nextCursor: response.nextCursor
       }
     },
-    [userId, context.accessToken, search, sortBy, sortOrder, dueFilter]
+    [userId, context.accessToken, search, sortBy, sortOrder, dueFilter, enabled]
   )
 
   const currentKey = `${userId}:${search}:${sortBy}:${sortOrder}:${dueFilter}`
@@ -148,7 +158,7 @@ export const useCompletedTasks = (
    * First request has no cursor, subsequent use nextCursor
    */
   const loadInitial = useCallback(async () => {
-    if (!userId) {
+    if (!userId || !enabled) {
       setIsLoading(false)
       isLoadingRef.current = false
       isRefetchingRef.current = false
@@ -180,17 +190,16 @@ export const useCompletedTasks = (
       isLoadingRef.current = false
       isRefetchingRef.current = false
     }
-  }, [userId, fetchBatch, prefetchNext, setCursor])
+  }, [userId, fetchBatch, prefetchNext, setCursor, enabled])
 
   /**
-   * Background refresh - lightweight check for new tasks
+   * Background refresh - first page is authoritative (new completed items + payload updates).
    *
    * PERFORMANCE: Throttled to prevent hammering the backend.
-   * Only fetches first page to detect new tasks, preserves existing cursor for pagination.
    */
   const backgroundRefresh = useCallback(async () => {
     // Skip if already loading, refetching, searching, or throttled
-    if (!userId || isLoadingRef.current || isRefetchingRef.current) {
+    if (!enabled || !userId || isLoadingRef.current || isRefetchingRef.current) {
       return
     }
     if (search) {
@@ -212,11 +221,7 @@ export const useCompletedTasks = (
         return
       }
 
-      const newKeys = new Set(batch.tasks.map(t => `${t.source}:${t.id}`))
-      const hasNewTasksDetected = Array.from(newKeys).some(key => !lastTaskKeysRef.current.has(key))
-      if (!hasNewTasksDetected) return
-
-      // Merge: keep newest server-ordered first batch, then keep previously loaded tasks without duplicates
+      // Merge: server-ordered first batch (fresh payloads), then prior pages without duplicates
       // PERF: Cap merged array to prevent unbounded memory growth from repeated polling
       const MAX_TASKS_IN_MEMORY = 500
       setAllFetchedTasks(prev => {
@@ -251,13 +256,14 @@ export const useCompletedTasks = (
     } catch {
       // Ignore background refresh errors silently
     }
-  }, [userId, fetchBatch, search])
+  }, [userId, fetchBatch, search, enabled])
 
   /**
    * Manual refetch - user-triggered full reload
    * Sets refetching flag to prevent loadMore during transition, then reloads
    */
   const refetch = useCallback(async () => {
+    if (!enabled) return
     // Mark as refetching to prevent loadMore during the transition
     isRefetchingRef.current = true
     setAllFetchedTasks([])
@@ -267,7 +273,7 @@ export const useCompletedTasks = (
     prefetchRef.current = null
     await loadInitial()
     // isRefetchingRef.current is cleared in loadInitial's finally block
-  }, [loadInitial, setCursor])
+  }, [loadInitial, setCursor, enabled])
 
   /**
    * Load more tasks - fetches additional batch using cursor-based pagination
@@ -281,7 +287,7 @@ export const useCompletedTasks = (
 
     // Prevent duplicate calls
     // Also block during refetch to prevent race conditions
-    if (isLoadingRef.current || isRefetchingRef.current || !hasMoreToFetch) {
+    if (!enabled || isLoadingRef.current || isRefetchingRef.current || !hasMoreToFetch) {
       return
     }
 
@@ -361,6 +367,7 @@ export const useCompletedTasks = (
     currentKey,
     prefetchNext,
     setCursor,
+    enabled,
     userId,
     context.accessToken,
     search,
@@ -373,6 +380,7 @@ export const useCompletedTasks = (
   // Single effect keyed on currentKey prevents double-fire when multiple params change simultaneously
   const previousKeyRef = useRef<string>('')
   useEffect(() => {
+    if (!enabled) return
     if (previousKeyRef.current && previousKeyRef.current !== currentKey) {
       isRefetchingRef.current = true
       setAllFetchedTasks([])
@@ -385,9 +393,10 @@ export const useCompletedTasks = (
       hasInitialFetchRef.current = true
     }
     previousKeyRef.current = currentKey
-  }, [currentKey, loadInitial, setCursor])
+  }, [currentKey, loadInitial, setCursor, enabled])
 
   useEffect(() => {
+    if (!enabled) return
     // Reset when userId changes
     if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
       hasInitialFetchRef.current = false
@@ -404,7 +413,7 @@ export const useCompletedTasks = (
       previousUserIdRef.current = userId
       loadInitial()
     }
-  }, [userId, loadInitial, setCursor])
+  }, [userId, loadInitial, setCursor, enabled])
 
   return {
     tasks: allFetchedTasks,

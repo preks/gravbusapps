@@ -1,5 +1,11 @@
 import type { Attribute } from '@tiptap/core'
-import { normalizeCellTextAlign, normalizeCellVerticalAlign, normalizeColorValue } from './styleUtils'
+import {
+  normalizeBorderStyle,
+  normalizeCellTextAlign,
+  normalizeCellVerticalAlign,
+  normalizeColorValue,
+  normalizeCssLength
+} from './styleUtils'
 
 type HtmlAttributeRecord = Record<string, unknown>
 
@@ -8,7 +14,43 @@ function getElementStyles(element: HTMLElement) {
     textAlign: normalizeCellTextAlign(element.style.textAlign),
     verticalAlign: normalizeCellVerticalAlign(element.style.verticalAlign),
     backgroundColor: normalizeColorValue(element.style.backgroundColor),
-    borderColor: normalizeColorValue(element.style.borderColor)
+    borderColor: normalizeColorValue(element.style.borderColor),
+    borderTopStyle: normalizeBorderStyle(element.style.borderTopStyle),
+    borderTopWidth: normalizeCssLength(element.style.borderTopWidth),
+    borderTopColor: normalizeColorValue(element.style.borderTopColor),
+    borderRightStyle: normalizeBorderStyle(element.style.borderRightStyle),
+    borderRightWidth: normalizeCssLength(element.style.borderRightWidth),
+    borderRightColor: normalizeColorValue(element.style.borderRightColor),
+    borderBottomStyle: normalizeBorderStyle(element.style.borderBottomStyle),
+    borderBottomWidth: normalizeCssLength(element.style.borderBottomWidth),
+    borderBottomColor: normalizeColorValue(element.style.borderBottomColor),
+    borderLeftStyle: normalizeBorderStyle(element.style.borderLeftStyle),
+    borderLeftWidth: normalizeCssLength(element.style.borderLeftWidth),
+    borderLeftColor: normalizeColorValue(element.style.borderLeftColor)
+  }
+}
+
+type CellAttrConfig = {
+  key: string
+  dataAttr: string
+  readStyle: (styles: ReturnType<typeof getElementStyles>) => string | null
+  normalize: (value: string | undefined | null) => string | null
+}
+
+function createNormalizedAttr({ key, dataAttr, readStyle, normalize }: CellAttrConfig): Attribute {
+  return {
+    default: null,
+    parseHTML: element =>
+      normalize(element.getAttribute(dataAttr)) ??
+      (element instanceof HTMLElement ? readStyle(getElementStyles(element)) : null),
+    renderHTML: attributes => {
+      const value = normalize(attributes[key])
+      if (!value) return {}
+
+      return {
+        [dataAttr]: value
+      } satisfies HtmlAttributeRecord
+    }
   }
 }
 
@@ -70,6 +112,85 @@ export function createCustomCellAttributes() {
         } satisfies HtmlAttributeRecord
       }
     }
+  }
+
+  const borderConfigs: CellAttrConfig[] = [
+    {
+      key: 'borderTopStyle',
+      dataAttr: 'data-cell-border-top-style',
+      readStyle: styles => styles.borderTopStyle,
+      normalize: normalizeBorderStyle
+    },
+    {
+      key: 'borderTopWidth',
+      dataAttr: 'data-cell-border-top-width',
+      readStyle: styles => styles.borderTopWidth,
+      normalize: normalizeCssLength
+    },
+    {
+      key: 'borderTopColor',
+      dataAttr: 'data-cell-border-top-color',
+      readStyle: styles => styles.borderTopColor,
+      normalize: normalizeColorValue
+    },
+    {
+      key: 'borderRightStyle',
+      dataAttr: 'data-cell-border-right-style',
+      readStyle: styles => styles.borderRightStyle,
+      normalize: normalizeBorderStyle
+    },
+    {
+      key: 'borderRightWidth',
+      dataAttr: 'data-cell-border-right-width',
+      readStyle: styles => styles.borderRightWidth,
+      normalize: normalizeCssLength
+    },
+    {
+      key: 'borderRightColor',
+      dataAttr: 'data-cell-border-right-color',
+      readStyle: styles => styles.borderRightColor,
+      normalize: normalizeColorValue
+    },
+    {
+      key: 'borderBottomStyle',
+      dataAttr: 'data-cell-border-bottom-style',
+      readStyle: styles => styles.borderBottomStyle,
+      normalize: normalizeBorderStyle
+    },
+    {
+      key: 'borderBottomWidth',
+      dataAttr: 'data-cell-border-bottom-width',
+      readStyle: styles => styles.borderBottomWidth,
+      normalize: normalizeCssLength
+    },
+    {
+      key: 'borderBottomColor',
+      dataAttr: 'data-cell-border-bottom-color',
+      readStyle: styles => styles.borderBottomColor,
+      normalize: normalizeColorValue
+    },
+    {
+      key: 'borderLeftStyle',
+      dataAttr: 'data-cell-border-left-style',
+      readStyle: styles => styles.borderLeftStyle,
+      normalize: normalizeBorderStyle
+    },
+    {
+      key: 'borderLeftWidth',
+      dataAttr: 'data-cell-border-left-width',
+      readStyle: styles => styles.borderLeftWidth,
+      normalize: normalizeCssLength
+    },
+    {
+      key: 'borderLeftColor',
+      dataAttr: 'data-cell-border-left-color',
+      readStyle: styles => styles.borderLeftColor,
+      normalize: normalizeColorValue
+    }
+  ]
+
+  for (const config of borderConfigs) {
+    attrs[config.key] = createNormalizedAttr(config)
   }
 
   return attrs

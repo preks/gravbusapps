@@ -50,6 +50,9 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
                 pictureThumbnail
                 userId
               }
+            supervisorEmployee {
+              userId
+            }
             jobPosition {
               name
             }
@@ -69,12 +72,13 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
         const result = await graphqlClient.request(query, variables)
 
         const employeeOptions: EmployeeOption[] = result.EmployeePosition.map((emp: any) => ({
-          id: emp.employeeId, // Use the actual employee ID from the employee object
+          id: emp.employeeId,
           name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
           jobTitle: emp.jobPosition?.name,
           department: emp.organizationalUnit?.name,
           pictureThumbnail: emp.employee?.pictureThumbnail,
-          userId: emp.employee?.userId || undefined // Use the userId from the employee object
+          userId: emp.employee?.userId || undefined,
+          managerUserId: emp.supervisorEmployee?.userId || undefined
         }))
           // Filter out the current user from the list
           .filter((emp: EmployeeOption) => emp.id !== currentUserId)

@@ -63,6 +63,7 @@ export interface Space {
   notes?: SpaceContentItem[]
   spreadsheets?: SpaceContentItem[]
   slides?: SpaceContentItem[]
+  whiteboards?: SpaceContentItem[]
   content?: SpaceContentItem[] // Combined content array from backend
   createdAt: string
   updatedAt: string
@@ -70,7 +71,7 @@ export interface Space {
 
 export interface SpaceContentItem {
   id: string
-  type: 'document' | 'note' | 'spreadsheet' | 'slide'
+  type: 'document' | 'note' | 'spreadsheet' | 'slide' | 'drive_file' | 'whiteboard'
   title: string
   description?: string
   updatedAt: string
@@ -110,8 +111,8 @@ export interface SpaceActivity {
   userId: string
   userName: string
   userAvatar?: string
-  action: 'created' | 'updated' | 'deleted' | 'shared' | 'moved' | 'commented'
-  entityType: 'document' | 'note' | 'spreadsheet' | 'slide' | 'space'
+  action: 'created' | 'updated' | 'deleted' | 'shared' | 'moved' | 'commented' | 'uploaded'
+  entityType: 'document' | 'note' | 'spreadsheet' | 'slide' | 'space' | 'file' | 'folder'
   entityId: string
   entityTitle: string
   metadata?: Record<string, any>
@@ -148,7 +149,7 @@ export interface AddMemberInput {
 }
 
 export interface MoveContentInput {
-  contentType: 'document' | 'note' | 'spreadsheet' | 'slide'
+  contentType: 'document' | 'note' | 'spreadsheet' | 'slide' | 'drive_file' | 'whiteboard'
   entityId: string
   targetSpaceId?: string
   folderId?: string | null

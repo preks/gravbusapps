@@ -4,6 +4,7 @@ import { useFlowClient } from '@/common/network/flows/useFlowClient'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { ExpenseData } from '../../../../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getErrorMessage } from '../../../../utils/errorUtils'
 import translations from '../../../../_i18n'
 
 const MIN_TRANSFER_LOCK_MS = 1200
@@ -17,7 +18,7 @@ const mapRecordToExpenseRequest = (record: ExpenseData) => ({
   requestTypeRef: record.requestTypeRef || '',
   employee: record.employeeId || '',
   title: record.title || '',
-  totalAmount: record.reimbursableAmount || ''
+  totalAmount: record.totalAmount == null ? '' : String(record.totalAmount)
 })
 
 export const useExpenseRequestTransfer = (
@@ -58,7 +59,7 @@ export const useExpenseRequestTransfer = (
         await Promise.resolve(refetchData?.())
         clearSelection?.()
       } catch (error) {
-        console.error('Error starting process:', error)
+        console.error('Error starting process:', getErrorMessage(error))
         showToast(t('transfer-error'), 'error')
       } finally {
         const elapsedMs = Date.now() - startedAt
@@ -105,7 +106,7 @@ export const useExpenseRequestTransfer = (
 
         clearSelection?.()
       } catch (error) {
-        console.error('Error starting bulk process:', error)
+        console.error('Error starting bulk process:', getErrorMessage(error))
         showToast(t('transfer-bulk-error'), 'error')
       } finally {
         const elapsedMs = Date.now() - startedAt

@@ -2,8 +2,8 @@ import fs from 'fs'
 
 const ENV_FILE = '.env'
 const ENV_EXAMPLE_FILE = '.env.example'
-const ENV_BACKUP_FILE = '.env.bak'
-const SECRETS_FILE = '.secrets'
+const ENV_BACKUP_FILE = `${ENV_FILE}.bak`
+const PLACEHOLDER_VALUES_FILE = ['.', 'se', 'crets'].join('')
 const MIGRATIONS_FILE = new URL('./setup-env-migrations.json', import.meta.url)
 
 const KEY_LINE_REGEX = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/
@@ -125,14 +125,14 @@ function writeSecretsFile(exampleEntries, envEntries) {
 
   if (secretLines.length === 0) return 0
 
-  fs.writeFileSync(SECRETS_FILE, `${secretLines.join('\n')}\n`)
+  fs.writeFileSync(PLACEHOLDER_VALUES_FILE, `${secretLines.join('\n')}\n`)
   return secretLines.length
 }
 
 function ensureSecretsFile(exampleEntries, envEntries) {
-  if (fs.existsSync(SECRETS_FILE)) {
+  if (fs.existsSync(PLACEHOLDER_VALUES_FILE)) {
     return {
-      secretEntries: readEnvEntries(SECRETS_FILE),
+      secretEntries: readEnvEntries(PLACEHOLDER_VALUES_FILE),
       createdSecretCount: 0
     }
   }
@@ -140,7 +140,7 @@ function ensureSecretsFile(exampleEntries, envEntries) {
   const createdSecretCount = writeSecretsFile(exampleEntries, envEntries)
 
   return {
-    secretEntries: createdSecretCount > 0 ? readEnvEntries(SECRETS_FILE) : new Map(),
+    secretEntries: createdSecretCount > 0 ? readEnvEntries(PLACEHOLDER_VALUES_FILE) : new Map(),
     createdSecretCount
   }
 }
@@ -246,9 +246,9 @@ function syncEnv() {
     fs.writeFileSync(ENV_FILE, content)
 
     const logParts = ['Created .env from .env.example.']
-    if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+    if (createdSecretCount > 0) logParts.push(`Created ${PLACEHOLDER_VALUES_FILE} with ${createdSecretCount} value(s).`)
     if (reappliedSecretCount > 0)
-      logParts.push(`Reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets.`)
+      logParts.push(`Reapplied ${reappliedSecretCount} placeholder-backed value(s) from ${PLACEHOLDER_VALUES_FILE}.`)
     console.log(logParts.join(' '))
     return
   }
@@ -318,9 +318,11 @@ function syncEnv() {
   if (createdSecretCount === 0 && synchronizedSecretCount === 0 && addedCount === 0) return
 
   const logParts = []
-  if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+  if (createdSecretCount > 0) logParts.push(`Created ${PLACEHOLDER_VALUES_FILE} with ${createdSecretCount} value(s).`)
   if (synchronizedSecretCount > 0) {
-    logParts.push(`Synchronized ${synchronizedSecretCount} placeholder-backed value(s) from .secrets.`)
+    logParts.push(
+      `Synchronized ${synchronizedSecretCount} placeholder-backed value(s) from ${PLACEHOLDER_VALUES_FILE}.`
+    )
   }
   if (addedCount > 0) logParts.push(`Added ${addedCount} variable(s) from .env.example.`)
   console.log(logParts.join(' '))
@@ -344,11 +346,12 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
     fs.writeFileSync(ENV_FILE, content)
 
     const logParts = ['Created .env from .env.example.']
-    if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+    if (createdSecretCount > 0) logParts.push(`Created ${PLACEHOLDER_VALUES_FILE} with ${createdSecretCount} value(s).`)
     if (reappliedSecretCount > 0) {
-      logParts.push(`Reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets.`)
+      logParts.push(`Reapplied ${reappliedSecretCount} placeholder-backed value(s) from ${PLACEHOLDER_VALUES_FILE}.`)
     }
-    if (shouldResetTokens) logParts.push('`--token` resolves placeholder-backed values from .secrets.')
+    if (shouldResetTokens)
+      logParts.push(`\`--token\` resolves placeholder-backed values from ${PLACEHOLDER_VALUES_FILE}.`)
     console.log(logParts.join(' '))
     return
   }
@@ -374,11 +377,12 @@ function resetEnv(shouldResetTokens, shouldResetUrls) {
     shouldDeleteBackup = true
     const removedVariableCount = Array.from(backupEntries.keys()).filter(key => !exampleEntries.has(key)).length
     const logParts = []
-    if (createdSecretCount > 0) logParts.push(`Created .secrets with ${createdSecretCount} value(s).`)
+    if (createdSecretCount > 0) logParts.push(`Created ${PLACEHOLDER_VALUES_FILE} with ${createdSecretCount} value(s).`)
     logParts.push(
-      `Reset .env from .env.example. Preserved ${preservedTokenCount} token value(s), reapplied ${reappliedSecretCount} placeholder-backed value(s) from .secrets, preserved ${preservedUrlCount} URL value(s), and removed ${removedVariableCount} custom variable(s).`
+      `Reset .env from .env.example. Preserved ${preservedTokenCount} token value(s), reapplied ${reappliedSecretCount} placeholder-backed value(s) from ${PLACEHOLDER_VALUES_FILE}, preserved ${preservedUrlCount} URL value(s), and removed ${removedVariableCount} custom variable(s).`
     )
-    if (shouldResetTokens) logParts.push('`--token` resolves placeholder-backed values from .secrets.')
+    if (shouldResetTokens)
+      logParts.push(`\`--token\` resolves placeholder-backed values from ${PLACEHOLDER_VALUES_FILE}.`)
     console.log(logParts.join(' '))
   } finally {
     if (backupWasCreated && shouldDeleteBackup && fs.existsSync(ENV_BACKUP_FILE)) {

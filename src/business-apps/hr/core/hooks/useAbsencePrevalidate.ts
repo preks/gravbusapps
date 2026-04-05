@@ -5,6 +5,8 @@ export interface PrevalidateResult {
   effectiveDays: number | null
   workingDays: number | null
   errorCode: string | null
+  errorTitle: string | null
+  errorDetail: string | null
   isLoading: boolean
 }
 
@@ -20,15 +22,13 @@ const IDLE_RESULT: PrevalidateResult = {
   effectiveDays: null,
   workingDays: null,
   errorCode: null,
+  errorTitle: null,
+  errorDetail: null,
   isLoading: false
 }
 
 const REQUEST_DEBOUNCE_MS = 400
-const PREVALIDATE_PATHS = [
-  '/employee-time/api/v1/absences/prevalidate',
-  '/processes/employee-time/api/v1/absences/prevalidate',
-  '/api/v1/absences/prevalidate'
-]
+const PREVALIDATE_PATHS = ['/employee-time/api/v1/absences/prevalidate']
 
 const STATUS_TO_ERROR_CODE: Record<number, string> = {
   400: 'INVALID_REQUEST',
@@ -38,19 +38,33 @@ const STATUS_TO_ERROR_CODE: Record<number, string> = {
   500: 'INTERNAL_ERROR'
 }
 
-const extractErrorCode = (errorData: any, status: number): string => {
-  const nestedCode =
-    errorData?.errors?.[0]?.code ??
-    errorData?.error?.code ??
-    errorData?.code ??
-    errorData?.details?.code ??
-    errorData?.messageCode
+type ParsedPrevalidateError = {
+  errorCode: string
+  errorTitle: string | null
+  errorDetail: string | null
+}
 
-  if (typeof nestedCode === 'string' && nestedCode.trim() !== '') {
-    return nestedCode
+const extractErrorInfo = (errorData: any, status: number): ParsedPrevalidateError => {
+  const nestedError = errorData?.errors?.[0] ?? errorData?.error ?? errorData?.details ?? errorData
+  const nestedCode = nestedError?.code ?? errorData?.code ?? errorData?.messageCode
+  const errorCode =
+    typeof nestedCode === 'string' && nestedCode.trim() !== ''
+      ? nestedCode
+      : (STATUS_TO_ERROR_CODE[status] ?? 'UNKNOWN_ERROR')
+  const errorTitle =
+    typeof nestedError?.title === 'string' && nestedError.title.trim() !== '' ? nestedError.title : null
+  const errorDetail =
+    typeof nestedError?.detail === 'string' && nestedError.detail.trim() !== ''
+      ? nestedError.detail
+      : typeof errorData?.message === 'string' && errorData.message.trim() !== ''
+        ? errorData.message
+        : null
+
+  return {
+    errorCode,
+    errorTitle,
+    errorDetail
   }
-
-  return STATUS_TO_ERROR_CODE[status] ?? 'UNKNOWN_ERROR'
 }
 
 const trimTrailingSlashes = (url: string): string => {
@@ -61,24 +75,28 @@ const trimTrailingSlashes = (url: string): string => {
   return normalized
 }
 
-const parseErrorCodeFromResponse = async (response: Response): Promise<string> => {
-  const errorCode = STATUS_TO_ERROR_CODE[response.status] ?? 'UNKNOWN_ERROR'
+const parseErrorInfoFromResponse = async (response: Response): Promise<ParsedPrevalidateError> => {
+  const fallbackError: ParsedPrevalidateError = {
+    errorCode: STATUS_TO_ERROR_CODE[response.status] ?? 'UNKNOWN_ERROR',
+    errorTitle: null,
+    errorDetail: null
+  }
   try {
     const errorData = await response.json()
-    return extractErrorCode(errorData, response.status)
+    return extractErrorInfo(errorData, response.status)
   } catch {
     try {
       const errorText = await response.text()
       if (typeof errorText === 'string' && errorText.trim() !== '') {
         const parsed = JSON.parse(errorText)
-        return extractErrorCode(parsed, response.status)
+        return extractErrorInfo(parsed, response.status)
       }
     } catch {
       // Keep status-mapped fallback.
     }
   }
 
-  return errorCode
+  return fallbackError
 }
 
 const toFiniteNumber = (value: unknown): number | null => {
@@ -101,12 +119,14 @@ export const useAbsencePrevalidateShared = ({
       return
     }
 
-    setResult(prev => ({ ...prev, isLoading: true, errorCode: null }))
+    setResult(prev => ({ ...prev, isLoading: true, errorCode: null, errorTitle: null, errorDetail: null }))
     const controller = new AbortController()
 
     const timer = setTimeout(async () => {
       try {
-        const baseUrl = trimTrailingSlashes(env('NEXT_PUBLIC_BASE_URL') ?? '')
+        const baseUrl = trimTrailingSlashes(
+          env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') ?? env('NEXT_PUBLIC_BASE_URL') ?? ''
+        )
         const requestBody = JSON.stringify({
           employeeId,
           typeRef,
@@ -136,6 +156,8 @@ export const useAbsencePrevalidateShared = ({
             effectiveDays: null,
             workingDays: null,
             errorCode: 'INTERNAL_ERROR',
+            errorTitle: null,
+            errorDetail: null,
             isLoading: false
           })
           return
@@ -147,17 +169,21 @@ export const useAbsencePrevalidateShared = ({
             effectiveDays: toFiniteNumber(data?.effectiveDays),
             workingDays: toFiniteNumber(data?.workingDays),
             errorCode: null,
+            errorTitle: null,
+            errorDetail: null,
             isLoading: false
           })
           return
         }
 
-        const errorCode = await parseErrorCodeFromResponse(response)
+        const errorInfo = await parseErrorInfoFromResponse(response)
 
         setResult({
           effectiveDays: null,
           workingDays: null,
-          errorCode,
+          errorCode: errorInfo.errorCode,
+          errorTitle: errorInfo.errorTitle,
+          errorDetail: errorInfo.errorDetail,
           isLoading: false
         })
       } catch (error: unknown) {
@@ -166,6 +192,8 @@ export const useAbsencePrevalidateShared = ({
           effectiveDays: null,
           workingDays: null,
           errorCode: 'INTERNAL_ERROR',
+          errorTitle: null,
+          errorDetail: null,
           isLoading: false
         })
       }

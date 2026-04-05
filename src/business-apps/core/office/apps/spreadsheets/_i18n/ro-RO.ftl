@@ -117,8 +117,25 @@ menu-share = Distribuie
 menu-export-to-excel = Exportă în Excel
 menu-add-column = Adaugă coloană
 menu-manage-columns = Gestionează coloanele
+menu-ai-analytics = Analiză AI
 menu-automations = Automatizări
+menu-check-collection-responses = Verifică răspunsurile colectării
 menu-settings = Setări
+
+# AI Capability Menu
+ai-generate-charts = Generează diagrame
+ai-generate-formula = Generează o formulă
+ai-analyze-data = Analizează datele
+ai-smart-review = Revizuire inteligentă
+ai-insights = Perspective AI
+
+# Header labels
+header-view-only = Doar vizualizare
+header-comments = Comentarii
+header-breadcrumb-spreadsheets = Foi de calcul
+header-submitted-at = Trimis – { $date }
+header-rename-file-title = Click pentru a redenumi fișierul
+header-rename-file-placeholder = Nume foaie de calcul
 
 # Version History (shared dialog)
 version-history-title = Istoric versiuni
@@ -321,6 +338,9 @@ automation-toolbar-pending = { $count } în așteptare
 automation-toolbar-completed = { $count } finalizate
 automation-toolbar-failed = { $count } eșuate
 automation-toolbar-refresh-tooltip = Actualizează statusurile fluxurilor
+automation-toolbar-check-responses = Verifică răspunsurile
+automation-toolbar-check-responses-tooltip = Preia trimiterile finalizate și actualizează foaia acum
+automation-toolbar-check-responses-error = Nu s-au putut verifica răspunsurile
 automation-toolbar-manage = Gestionează automatizările
 automation-toolbar-create-new = Creează automatizare nouă
 
@@ -355,6 +375,10 @@ toast-export-load-failed = Foaia nu a putut fi încărcată pentru descărcare
 toast-export-download-failed = Foaia nu a putut fi descărcată
 toast-spreadsheet-not-found = Această foaie nu a putut fi găsită sau nu ai acces. Poate fi fost ștearsă sau linkul e invalid.
 toast-no-edit-permission = Nu ai permisiunea de a edita această foaie
+toast-checkpoint-save-failed = Checkpoint-ul nu a putut fi salvat. Încearcă din nou.
+toast-file-name-required = Numele fișierului nu poate fi gol.
+toast-file-rename-success = Numele fișierului a fost actualizat.
+toast-file-rename-failed = Nu s-a putut redenumi fișierul.
 
 # Delete confirmation
 delete-confirm = Sigur vrei să ștergi această foaie de calcul?
@@ -391,6 +415,8 @@ excel-file-size-exceeds = Dimensiunea fișierului depășește limita de { $maxM
 # Comments (shared - matches document app)
 shared-error-create-comment = Crearea comentariului a eșuat
 shared-error-resolve-comment = Rezolvarea comentariului a eșuat
+shared-error-restore-version = Versiunea nu a putut fi restaurată. Nu au fost aplicate modificări.
+shared-error-restore-version-owner-only = Poți restaura această versiune doar dacă ești proprietarul aplicației sau utilizatorul care a creat-o.
 shared-comment-panel-title = Comentarii
 shared-comment-unresolved = nerezolvate
 shared-comment-all-caught-up = Totul este în regulă!
@@ -438,6 +464,9 @@ sa-started = Început
 sa-status-completed = Finalizat
 sa-status-sent = Trimis
 sa-stat-collections = Colecții de foi
+sa-stat-collection-breakdown = Colectări de date
+sa-stat-form-collections = Formular (rânduri)
+sa-stat-template-collections = Șablon (copie foaie)
 sa-stat-total-runs = Execuții totale
 sa-filter-all = Toate
 sa-filter-collection = Colecție foi de calcul
@@ -446,3 +475,47 @@ sa-error-no-token = Token de acces indisponibil
 sa-error-load = Nu s-au putut încărca automatizările
 sa-error-run = Nu s-a putut executa automatizarea
 sa-error-stop = Nu s-a putut opri execuția
+
+# Save status (inline header, not pill)
+spreadsheet-save-just-now = Salvat chiar acum
+
+# Save / persistence indicator (viewer header)
+persist-cell-failed = Modificările celulelor nu au putut fi salvate. Încearcă din nou sau reîmprospătează pagina.
+persist-row-update-failed = Modificările rândului nu au putut fi salvate.
+persist-row-delete-failed = Rândul nu a putut fi șters.
+persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
+persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.
+
+# Share App Dialog
+share-dialog-title = Partajează „{ $name }"
+share-dialog-description = Partajează această aplicație cu membrii echipei. Aceștia o pot accesa din tabloul lor de bord.
+share-dialog-add-people = Adaugă persoane
+share-dialog-search-placeholder = Caută după nume sau e-mail...
+share-dialog-searching = Se caută...
+share-dialog-no-users-found = Niciun utilizator găsit
+share-dialog-selected = Selectați ({ $count })
+share-dialog-success = Partajat cu succes! Notificări Blink trimise.
+share-dialog-sharing = Se partajează...
+share-dialog-share-button = Partajează cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
+}
+share-dialog-people-with-access = Persoane cu acces
+share-dialog-you = Tu
+share-dialog-owner = Proprietar
+share-dialog-not-shared = Nepartajat cu nimeni încă
+share-dialog-not-shared-hint = Adaugă persoane mai sus pentru a partaja această aplicație
+share-dialog-close = Închide
+share-dialog-error-select-user = Selectează cel puțin o persoană pentru partajare
+share-dialog-error-failed-retry = Partajarea aplicației a eșuat. Încearcă din nou.
+share-dialog-error-failed = Partajarea aplicației a eșuat
+share-dialog-toast-success = „{ $name }" partajat cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
+}!
+share-dialog-permission-view = Doar vizualizare
+share-dialog-permission-view-desc = Acces doar pentru citire (fără editare sau gestionare partajare)
+share-dialog-permission-edit = Poate edita
+share-dialog-permission-edit-desc = Poate vizualiza și edita date
+share-dialog-permission-admin = Administrator
+share-dialog-permission-admin-desc = Poate vizualiza, edita și gestiona partajarea

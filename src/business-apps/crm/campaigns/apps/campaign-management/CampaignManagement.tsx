@@ -188,6 +188,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
     isStatisticsLoading,
     statisticsError,
     refetch,
+    fetchSalesCampaignsWithCount,
     processFiltersAndFetch,
     refetchStatistics
   } = useSalesCampaignData(props)
@@ -458,6 +459,10 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         // Configuration
         filterConfiguration={dynamicFilterConfig}
         sortableColumns={createCampaignSortableColumns()}
+        // Export
+        enableExport
+        exportFilenamePrefix="campaigns"
+        fetchCampaignsForExport={fetchSalesCampaignsWithCount}
       />
 
       {/* Add Campaign Modal */}

@@ -6,6 +6,7 @@ import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
 import { createOpportunityDescriptors, OpportunityFields } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
+import { getStageTypeVariant } from '@/common/components/common-relations/setting-pages/pipelines/utils/pipelineStageTypeVariant'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
 export interface GenericOpportunityForColumns {
@@ -47,27 +48,8 @@ export const getOwnerName = (opportunity: GenericOpportunityForColumns) => {
   return '-'
 }
 
-// Helper function to get stage color based on alternativeCode
-export const getStageColor = (
-  alternativeCode?: string
-): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' => {
-  if (!alternativeCode) return 'outline'
-
-  switch (alternativeCode.toUpperCase()) {
-    case 'DISCOVERY':
-      return 'info'
-    case 'QUALIFICATION':
-      return 'warning'
-    case 'NEGOTIATION':
-      return 'secondary'
-    case 'CLOSED_WON':
-      return 'success'
-    case 'CLOSED_LOST':
-      return 'destructive'
-    default:
-      return 'outline'
-  }
-}
+// Helper function to get stage badge variant based on stage type (alternativeCode)
+export const getStageColor = getStageTypeVariant
 
 // Helper function to get status color based on alternativeCode
 export const getStatusColor = (

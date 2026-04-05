@@ -13,31 +13,57 @@ export const useInvestmentTabsInitialization = (
   setFiltersReady: React.Dispatch<React.SetStateAction<boolean>>
 ) => {
   useEffect(() => {
-    if (!availableCurrencies || availableCurrencies.length === 0 || filtersReady) {
+    // Wait for both currencies AND groups before initialising so all tab currencies are
+    // set in a single render — preventing the counts query from firing twice on page load.
+    if (!availableCurrencies || availableCurrencies.length === 0 || filtersReady || investmentGroups.length === 0) {
       return
     }
 
-    const defaultCurrency = 'EUR'
-    const currencyObj = (Array.isArray(availableCurrencies) ? availableCurrencies : []).find(
-      (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === defaultCurrency
-    )
-
-    if (!currencyObj) {
-      return
-    }
-
-    const defaultFilter = { currencyIds: [currencyObj.id] }
-
-    // Initialize overview
-    setCurrencyByTab(prev => ({ ...prev, overview: defaultCurrency }))
-    setFiltersByTab(prev => ({ ...prev, overview: defaultFilter }))
-
-    // Initialize all groups
-    investmentGroups.forEach(group => {
-      setCurrencyByTab(prev => ({ ...prev, [group.tabId]: defaultCurrency }))
-      setFiltersByTab(prev => ({ ...prev, [group.tabId]: defaultFilter }))
+    // Default: all currencies (no currencyIds) so the list shows every investment.
+    setCurrencyByTab(prev => {
+      const next = { ...prev, overview: 'all' }
+      investmentGroups.forEach(group => {
+        next[group.tabId] = 'all'
+      })
+      return next
+    })
+    setFiltersByTab(prev => {
+      const next = { ...prev, overview: {} }
+      investmentGroups.forEach(group => {
+        next[group.tabId] = {}
+      })
+      return next
     })
 
     setFiltersReady(true)
   }, [availableCurrencies, filtersReady, investmentGroups, setCurrencyByTab, setFiltersByTab, setFiltersReady])
+
+  // When catalog groups arrive after the first init, default missing tabs to "all currencies".
+  useEffect(() => {
+    if (!filtersReady || investmentGroups.length === 0) {
+      return
+    }
+    setCurrencyByTab(prev => {
+      let changed = false
+      const next = { ...prev }
+      investmentGroups.forEach(group => {
+        if (next[group.tabId] === undefined) {
+          next[group.tabId] = 'all'
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+    setFiltersByTab(prev => {
+      let changed = false
+      const next = { ...prev }
+      investmentGroups.forEach(group => {
+        if (next[group.tabId] === undefined) {
+          next[group.tabId] = {}
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [filtersReady, investmentGroups, setCurrencyByTab, setFiltersByTab])
 }

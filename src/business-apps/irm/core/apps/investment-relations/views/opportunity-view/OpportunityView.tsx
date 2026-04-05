@@ -53,7 +53,7 @@ const InvestmentOpportunityStatistics: React.FC<{
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunities(context)
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
   const handleQuickFilterChange = useCallback(
@@ -129,10 +129,14 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }),
 
         fetchOpportunities: async variables => {
-          const result = await fetchInvestmentOpportunities(variables)
+          const [result, aggregates] = await Promise.all([
+            fetchInvestmentOpportunities(variables),
+            fetchInvestmentOpportunityAggregates(variables)
+          ])
           return {
             opportunities: result.InvestmentOpportunity,
-            total: result.InvestmentOpportunityAggregate.aggregate.count
+            total: result.InvestmentOpportunityAggregate.aggregate.count,
+            aggregates
           }
         },
 
@@ -186,7 +190,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           opportunityId: row.original.id
         })
       }),
-    [fetchInvestmentOpportunities, opportunityStatisticsData]
+    [fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates, opportunityStatisticsData]
   )
 
   return (
@@ -196,6 +200,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       dataTestId="investment-opportunities-view"
       renderQuickFilters={renderQuickFilters}
       quickFilter={activeQuickFilter}
+      enableExport
+      exportFilenamePrefix="opportunities"
     />
   )
 }

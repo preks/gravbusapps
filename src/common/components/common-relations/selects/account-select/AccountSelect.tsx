@@ -53,6 +53,8 @@ interface AccountSelectProps {
   accountsLoading: boolean
   accountsError: string | null
   searchAccounts: (search: string) => void
+  hasMore?: boolean
+  onLoadMore?: () => void
 
   // Full account contacts with full account data (for email/phone extraction)
   accountContacts?: any[]
@@ -77,6 +79,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   accountsLoading,
   accountsError,
   searchAccounts,
+  hasMore,
+  onLoadMore,
   accountContacts = [],
   initialAccount,
   disabled = false
@@ -514,6 +518,9 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         disabled={disabled || accountsLoading}
         loading={accountsLoading}
         onSearch={searchAccounts}
+        searchDebounce={300}
+        hasMore={Boolean(hasMore)}
+        onLoadMore={onLoadMore}
         data-testid={formatDataTestId(dataTestId || 'account-list', 'add-account-combobox')}
       />
 

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, type FilterConfiguration, useTranslation } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan } from '../../../hooks/useGetExpensePlans'
@@ -9,6 +9,7 @@ import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails
 import { startProcess } from '@/common/utils/start-process'
 import { Badge, Button } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import personalTranslations from '../../../_i18n'
 import { AppAction } from '@/components/app-action'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
@@ -182,6 +183,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     availableStatuses = [],
     ...contextProps
   } = props
+
+  const { t: tPersonal } = useTranslation(personalTranslations)
 
   // Column visibility (like Items tab)
   const baseVisibleColumnIds = useMemo(
@@ -933,11 +936,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'Filter Expense Plans')}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_expense_plans_description',
-          'Apply filters to narrow down the expense plans list.'
-        )}
+        filterSheetTitle={tPersonal('filter-expense-plans-title')}
+        filterSheetDescription={tPersonal('filter-expense-plans-description')}
       >
         <DataTable<ExpensePlan>
           data={plans || []}

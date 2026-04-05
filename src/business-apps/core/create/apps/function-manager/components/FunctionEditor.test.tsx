@@ -5,26 +5,21 @@ jest.mock('@newwork/nw-design-system/style', () => ({}))
 
 import { FunctionEditor } from './FunctionEditor'
 
-jest.mock('@newwork/nw-design-system', () => {
-  const ReactModule = jest.requireActual('react') as typeof import('react')
-  const React = ReactModule.default || ReactModule
-  const passthrough =
-    (tag: string) =>
-    ({ children, ...props }: any) =>
-      React.createElement(tag, props, children)
-
-  return {
-    Avatar: passthrough('div'),
-    AvatarFallback: passthrough('div'),
-    Button: ({ children, ...props }: any) => React.createElement('button', props, children),
-    Card: passthrough('div')
-  }
-})
-
-const mockUseFunctionEditorState = jest.fn()
+const useFunctionEditorStateMock = jest.fn()
 
 jest.mock('../hooks/useFunctionEditorState', () => ({
-  useFunctionEditorState: (...args: any[]) => mockUseFunctionEditorState(...args)
+  useFunctionEditorState: (...args: unknown[]) => useFunctionEditorStateMock(...args)
+}))
+
+jest.mock('@newwork/nw-design-system', () => ({
+  Avatar: ({ children }: any) => <div data-testid="mock-avatar">{children}</div>,
+  AvatarFallback: ({ children }: any) => <div data-testid="mock-avatar-fallback">{children}</div>,
+  Button: ({ children, onClick, type = 'button', ...props }: any) => (
+    <button type={type} onClick={onClick} {...props}>
+      {children}
+    </button>
+  ),
+  Card: ({ children, ...props }: any) => <div {...props}>{children}</div>
 }))
 
 jest.mock('./editor/FunctionDefinitionCard', () => ({
@@ -35,8 +30,26 @@ jest.mock('./editor/FunctionDefinitionCard', () => ({
   )
 }))
 
+jest.mock('@/components/create-layout', () => ({
+  CreateLayout: ({ onBack, canvasPanel, chatPanel }: any) => (
+    <div data-testid="mock-create-layout">
+      {onBack ? (
+        <button type="button" onClick={onBack} data-testid="mock-create-layout-back">
+          Back
+        </button>
+      ) : null}
+      <div data-testid="mock-create-layout-chat">{chatPanel}</div>
+      <div data-testid="mock-create-layout-canvas">{canvasPanel}</div>
+    </div>
+  )
+}))
+
 jest.mock('./editor/FunctionEditorHeaderBar', () => ({
-  FunctionEditorHeaderBar: () => <div data-testid="mock-function-editor-header" />
+  FunctionEditorHeaderBar: ({ onBack }: any) => (
+    <div data-testid="mock-function-editor-header">
+      {onBack ? <button type="button" data-testid="function-editor-header-back" onClick={onBack} /> : null}
+    </div>
+  )
 }))
 
 jest.mock('./FunctionAssistantSidebar', () => ({
@@ -48,73 +61,107 @@ jest.mock('./FunctionAssistantSidebar', () => ({
   }
 }))
 
+function createFunctionEditorStateMock(overrides: Record<string, unknown> = {}) {
+  return {
+    assistantMode: 'create',
+    assistantOpen: false,
+    setAssistantOpen: jest.fn(),
+    existingSnapshot: undefined,
+    applyDraft: jest.fn(),
+    canUndoAssistantApply: false,
+    undoAssistantApply: jest.fn(),
+    dismissAssistantUndo: jest.fn(),
+    name: 'demoFunction',
+    setName: jest.fn(),
+    description: '',
+    setDescription: jest.fn(),
+    agentEnabled: false,
+    setAgentEnabled: jest.fn(),
+    workflowEnabled: false,
+    setWorkflowEnabled: jest.fn(),
+    connectorEnabled: false,
+    setConnectorEnabled: jest.fn(),
+    connectorKind: null,
+    setConnectorKind: jest.fn(),
+    source: 'module.exports.handler = async () => ({ ok: true })',
+    setSource: jest.fn(),
+    inputSchema: JSON.stringify({ type: 'object', properties: { id: { type: 'string' } } }, null, 2),
+    setInputSchema: jest.fn(),
+    outputSchema: JSON.stringify({ type: 'object', properties: { ok: { type: 'boolean' } } }, null, 2),
+    setOutputSchema: jest.fn(),
+    configKeys: [],
+    setConfigKeys: jest.fn(),
+    connectionOptions: [],
+    selectedConnectionId: null,
+    setSelectedConnectionId: jest.fn(),
+    isLoadingConnections: false,
+    isValid: true,
+    isSaving: false,
+    error: null,
+    onSave: jest.fn(),
+    schemaProperties: { id: { type: 'string' } },
+    requiredFields: ['id'],
+    testPayloadObj: { id: '123' },
+    setTestPayloadObj: jest.fn(),
+    updatePayloadField: jest.fn(),
+    testResult: '',
+    testLogs: [],
+    isTesting: false,
+    testError: 'Runtime error',
+    onTest: jest.fn(),
+    buildTestIterationSnapshot: jest.fn(() => ({
+      source: 'module.exports.handler = async () => ({ ok: true })',
+      inputSchema: { type: 'object', properties: { id: { type: 'string' } } },
+      outputSchema: { type: 'object', properties: { ok: { type: 'boolean' } } },
+      configKeys: [],
+      config: {},
+      payload: { id: '123' },
+      lastError: 'Runtime error',
+      lastResult: ''
+    })),
+    ...overrides
+  }
+}
+
 describe('FunctionEditor', () => {
   beforeEach(() => {
-    mockUseFunctionEditorState.mockReturnValue({
-      assistantMode: 'create',
-      assistantOpen: true,
-      setAssistantOpen: jest.fn(),
-      existingSnapshot: undefined,
-      applyDraft: jest.fn(),
-      canUndoAssistantApply: false,
-      undoAssistantApply: jest.fn(),
-      dismissAssistantUndo: jest.fn(),
-      name: 'demoFunction',
-      setName: jest.fn(),
-      description: '',
-      setDescription: jest.fn(),
-      agentEnabled: false,
-      setAgentEnabled: jest.fn(),
-      workflowEnabled: false,
-      setWorkflowEnabled: jest.fn(),
-      connectorEnabled: false,
-      setConnectorEnabled: jest.fn(),
-      connectorKind: null,
-      setConnectorKind: jest.fn(),
-      source: 'module.exports.handler = async () => ({ ok: true })',
-      setSource: jest.fn(),
-      inputSchema: JSON.stringify({ type: 'object', properties: { id: { type: 'string' } } }, null, 2),
-      setInputSchema: jest.fn(),
-      outputSchema: JSON.stringify({ type: 'object', properties: { ok: { type: 'boolean' } } }, null, 2),
-      setOutputSchema: jest.fn(),
-      configKeys: [{ key: '', value: '' }],
-      setConfigKeys: jest.fn(),
-      connectionOptions: [],
-      selectedConnectionId: null,
-      setSelectedConnectionId: jest.fn(),
-      isLoadingConnections: false,
-      isValid: true,
-      isSaving: false,
-      error: null,
-      onSave: jest.fn(),
-      schemaProperties: { id: { type: 'string' } },
-      requiredFields: ['id'],
-      testPayloadObj: { id: '123' },
-      setTestPayloadObj: jest.fn(),
-      updatePayloadField: jest.fn(),
-      testResult: '',
-      testLogs: [],
-      isTesting: false,
-      testError: 'Runtime error',
-      onTest: jest.fn(),
-      buildTestIterationSnapshot: jest.fn(() => ({
-        source: 'module.exports.handler = async () => ({ ok: true })',
-        inputSchema: { type: 'object', properties: { id: { type: 'string' } } },
-        outputSchema: { type: 'object', properties: { ok: { type: 'boolean' } } },
-        configKeys: [],
-        config: {},
-        payload: { id: '123' },
-        lastError: 'Runtime error',
-        lastResult: ''
-      }))
-    })
+    useFunctionEditorStateMock.mockReturnValue(createFunctionEditorStateMock())
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
   })
 
   it('forwards fix loading and fix error state into the definition card', () => {
+    useFunctionEditorStateMock.mockReturnValue(createFunctionEditorStateMock({ assistantOpen: true }))
+
     render(<FunctionEditor mode="create" accessToken="token" onSaved={jest.fn()} userInfo={{} as any} />)
 
     expect(screen.getByTestId('mock-function-definition-card')).toHaveTextContent(
       'fixing|AI returned an incomplete fix'
     )
+  })
+
+  it('keeps a single back action when rendered inside CreateLayout', () => {
+    render(
+      <FunctionEditor
+        mode="create"
+        accessToken="token"
+        onSaved={jest.fn()}
+        onBack={jest.fn()}
+        heroTitle="Create function"
+        heroSubtitle="Build a function"
+      />
+    )
+
+    expect(screen.getByTestId('mock-create-layout-back')).toBeInTheDocument()
+    expect(screen.queryByTestId('function-editor-header-back')).not.toBeInTheDocument()
+  })
+
+  it('keeps the header back action when CreateLayout is not used', () => {
+    render(<FunctionEditor mode="create" accessToken="token" onSaved={jest.fn()} onBack={jest.fn()} />)
+
+    expect(screen.getByTestId('function-editor-header-back')).toBeInTheDocument()
+    expect(screen.queryByTestId('mock-create-layout')).not.toBeInTheDocument()
   })
 })

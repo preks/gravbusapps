@@ -308,9 +308,16 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
 request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
+request-correction-zero-planned-warning = Für dieses Datum sind keine Arbeitsstunden geplant. Eingetragene Zeiten werden als Überstunden gewertet.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
+notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
+feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
+entitlements-valid-from-month-start-hint = Das eingereichte Datum ist immer der erste Tag des ausgewaehlten Monats, unabhaengig vom ausgewaehlten Tag.
+entitlements-valid-from = Gueltig ab
+entitlements-effective-from = Wirksam ab
+entitlements-effective-to = Wirksam bis
 
 # ============================================
 # Create Employee Form
@@ -376,3 +383,21 @@ create-absence-overlap-prefix = Es besteht bereits eine
 create-absence-overlap-scheduled = Abwesenheit geplant
 create-absence-from = vom
 create-absence-to = bis
+create-absence-prevalidate-working-hours-title = Arbeitszeiten fehlen
+create-absence-prevalidate-working-hours-detail = Wir konnten keine gueltige Arbeitszeitdefinition fuer Ihr Profil finden. Diese wird benoetigt, um die Dauer Ihrer Abwesenheit zu berechnen. Bitte wenden Sie sich an HR, um Ihr Profil zu aktualisieren.
+create-absence-prevalidate-region-title = Arbeitsregion nicht zugewiesen
+create-absence-prevalidate-region-detail = Um Ihre Feiertage zu bestimmen, muss Ihrem Profil eine Arbeitsregion zugewiesen sein. Bitte wenden Sie sich an HR, um Ihr Profil zu aktualisieren.
+create-absence-prevalidate-entitlement-title = Kein Urlaubsanspruch gefunden
+create-absence-prevalidate-entitlement-detail = Fuer diese Abwesenheitsart wurde kein aktiver Anspruch gefunden. Bitte wenden Sie sich an HR.
+create-absence-prevalidate-balance-title = Nicht ausreichendes Guthaben
+create-absence-prevalidate-balance-detail = Ihr verfuegbares Guthaben reicht fuer den ausgewaehlten Abwesenheitszeitraum nicht aus.
+create-absence-prevalidate-date-range-title = Ungueltiger Datumsbereich
+create-absence-prevalidate-date-range-detail = Die ausgewaehlten Daten koennen nicht validiert werden. Bitte passen Sie den Zeitraum an und versuchen Sie es erneut.
+create-absence-prevalidate-invalid-request-title = Ungueltige Anfrage
+create-absence-prevalidate-invalid-request-detail = Bitte pruefen Sie die ausgewaehlte Abwesenheitsart und die Daten und versuchen Sie es erneut.
+create-absence-prevalidate-auth-title = Authentifizierung erforderlich
+create-absence-prevalidate-auth-detail = Ihre Sitzung ist moeglicherweise abgelaufen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.
+create-absence-prevalidate-permission-title = Berechtigung erforderlich
+create-absence-prevalidate-permission-detail = Sie haben keine Berechtigung, diese Abwesenheitsanfrage zu validieren.
+create-absence-prevalidate-generic-title = Anfrage konnte nicht validiert werden
+create-absence-prevalidate-generic-detail = Diese Abwesenheit konnte derzeit nicht validiert werden. Bitte versuchen Sie es in kuerze erneut.

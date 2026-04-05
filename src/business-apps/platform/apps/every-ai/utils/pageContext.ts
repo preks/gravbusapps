@@ -52,7 +52,7 @@ const ENTITY_URL_PATTERNS = [
   },
 
   // Flow/Workflow entities
-  { pattern: /\/platform\/apps\/flow\/apps\/creator\?[^#]*templateId=([^&#]+)/, entity_name: 'workflow_template' },
+  { pattern: /\/platform\/create\/flow-studio\?[^#]*flowId=([^&#]+)/, entity_name: 'workflow_template' },
 
   // Every-office entities
   { pattern: /\/platform\/every-office\/slides\?[^#]*slideId=([^&]+)/, entity_name: 'slide' },
@@ -98,6 +98,7 @@ const OVERVIEW_URL_PATTERNS = [
   { pattern: /\/platform\/every-office\/notes/, entity_name: 'note' },
 
   // Other overviews
+  { pattern: /\/platform\/create\/flow-studio$/, entity_name: 'flow' },
   { pattern: /\/platform\/documents/, entity_name: 'document' },
   { pattern: /\/platform\/apps\/document-apps/, entity_name: 'document' },
   { pattern: /\/platform\/spreadsheets/, entity_name: 'spreadsheet' },

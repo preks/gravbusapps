@@ -15,7 +15,11 @@ import { GET_EMPLOYEE_ABSENCES } from '@/business-apps/hr/absences/apps/personal
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 import { fetchOfficeAndGeoLocation } from '../../../services/service-geo-location/geoLocationService'
-import { parseDurationToMinutes, minutesToHHMM } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import {
+  parseDurationToMinutes,
+  minutesToHHMM,
+  minutesToSignedHHMM
+} from '@/business-apps/hr/core/apps/my-time/utils/duration'
 
 export type TimeEntry = {
   id: string
@@ -85,6 +89,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [holidayDates, setHolidayDates] = useState<string[]>([])
   const [holidayNamesByDate, setHolidayNamesByDate] = useState<Record<string, string>>({})
   const [absenceLabelsByDate, setAbsenceLabelsByDate] = useState<Record<string, string>>({})
+  const [workAbsenceDates, setWorkAbsenceDates] = useState<Set<string>>(new Set())
   // monthly totals (minutes)
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
@@ -134,7 +139,6 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
   }
 
-  const toDateString = (d: Date) => d.toISOString().slice(0, 10)
   const toLocalDateKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -169,8 +173,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
     const variables = {
       employeeId,
-      dateFrom: toDateString(monthStart),
-      dateTo: toDateString(monthEnd),
+      dateFrom: toLocalDateKey(monthStart),
+      dateTo: toLocalDateKey(monthEnd),
       limit: pageSize,
       offset: (page - 1) * pageSize
     }
@@ -320,6 +324,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
     // Fetch personal absences (Vacation, Relocation, Health Cure, etc.) — same query as Personal Absences calendar
     const absenceLabelsByDateMap: Record<string, string> = {}
+    const workAbsenceDateSet = new Set<string>()
     try {
       const absRes = await graphqlClient.request<any>(GET_EMPLOYEE_ABSENCES, {
         where: { employee: { id: { _eq: employeeId } }, isDeleted: { _eq: false } },
@@ -329,7 +334,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         activeUserLocale: activeLocale
       })
       const absences: any[] = absRes?.EmployeeAbsence || []
-      const addAbsenceRange = (fromIso: string, toIso: string, label: string) => {
+      const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
+      const addAbsenceRange = (fromIso: string, toIso: string, label: string, isWork: boolean) => {
         const from = new Date(fromIso)
         const to = new Date(toIso)
         const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
@@ -339,34 +345,38 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           if (cursor >= monthStart && cursor <= monthEnd) {
             const existing = absenceLabelsByDateMap[key]
             absenceLabelsByDateMap[key] = existing ? `${existing}, ${label}` : label
+            if (isWork) workAbsenceDateSet.add(key)
           }
           cursor.setDate(cursor.getDate() + 1)
         }
       }
       for (const a of absences) {
         if (String(a.status).toUpperCase() !== 'APPROVED') continue
+        const isWork = a.type?.parentEntryId === WORK_ABSENCE_GROUP
         const translation = (a.type?.translations as { localeCode?: string; value?: string }[] | undefined)?.find(
           tr => tr.localeCode === activeLocale
         )
         const label = translation?.value ?? a.type?.translations?.[0]?.value ?? a.type?.objectValue ?? ''
         const trimmed = (label && String(label).trim()) || 'Absence'
         if (a.startDate && a.endDate) {
-          addAbsenceRange(String(a.startDate), String(a.endDate), trimmed)
+          addAbsenceRange(String(a.startDate), String(a.endDate), trimmed, isWork)
         }
       }
     } catch (e) {
       console.error(e)
     }
     setAbsenceLabelsByDate(absenceLabelsByDateMap)
+    setWorkAbsenceDates(workAbsenceDateSet)
 
-    // Compute monthly required totals based on working hours pattern, excluding holidays
+    // Compute monthly required totals based on working hours pattern, excluding holidays and non-work absences
     const computeRequiredMinutesForRange = (from: Date, to: Date) => {
       let acc = 0
       const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
       const end = new Date(to.getFullYear(), to.getMonth(), to.getDate())
       while (cursor <= end) {
         const key = toLocalDateKey(cursor)
-        if (!holidayDateSet.has(key)) {
+        const hasNonWorkAbsence = absenceLabelsByDateMap[key] && !workAbsenceDateSet.has(key)
+        if (!holidayDateSet.has(key) && !hasNonWorkAbsence) {
           acc += getPlannedMinutesForDate(cursor.toISOString())
         }
         cursor.setDate(cursor.getDate() + 1)
@@ -388,8 +398,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     // Fetch all rows for the month to compute worked minutes until yesterday
     const allRes = await graphqlClient.request<any>(employeeAttendanceMonthlyAllQuery, {
       employeeId,
-      dateFrom: toDateString(monthStart),
-      dateTo: toDateString(monthEnd)
+      dateFrom: toLocalDateKey(monthStart),
+      dateTo: toLocalDateKey(monthEnd)
     })
     const allRows: any[] = allRes?.EmployeeAttendance ?? []
     const allMapped = allRows.map(mapAttendanceToEntry)
@@ -574,7 +584,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           effectiveTime: minutesToHHMM(effectiveMinutes),
           breakTime: minutesToHHMM(breakMinutes),
           plannedTime: minutesToHHMM(plannedMinutes),
-          differenceTime: minutesToHHMM(diffMinutes),
+          differenceTime: minutesToSignedHHMM(diffMinutes),
           notes: 'Clock-out'
         }
       })
@@ -606,18 +616,24 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       return dayOfWeek === 0 || dayOfWeek === 6 ? 'weekend' : 'non_working'
     }
 
+    const isNonWorkAbsence = (key: string) => absenceLabelsByDate[key] && !workAbsenceDates.has(key)
+
     const filled: TimeEntry[] = allMonthEntries.map(e => {
       const key = toLocalDateKey(new Date(e.attendanceDateISO))
       const dayType = getDayType(key)
       const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
       const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
-      // When backend plannedTime is missing or zero, derive from working hours so work days show correct planned time
-      const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
-      const useComputedPlanned =
-        backendPlannedMinutes == null || Number.isNaN(backendPlannedMinutes) || backendPlannedMinutes <= 0
-      const plannedTime = useComputedPlanned
-        ? minutesToHHMM(getPlannedMinutesForDate(e.attendanceDateISO))
-        : e.plannedTime
+
+      let plannedTime: string | undefined
+      if (dayType === 'holiday' || isNonWorkAbsence(key)) {
+        plannedTime = minutesToHHMM(0)
+      } else {
+        const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
+        const useComputedPlanned =
+          backendPlannedMinutes == null || Number.isNaN(backendPlannedMinutes) || backendPlannedMinutes <= 0
+        plannedTime = useComputedPlanned ? minutesToHHMM(getPlannedMinutesForDate(e.attendanceDateISO)) : e.plannedTime
+      }
+
       return { ...e, dayType, holidayLabel, absenceLabel, plannedTime }
     })
     const cursor = new Date(monthStart)
@@ -625,11 +641,12 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const key = toLocalDateKey(cursor)
       if (!existingDates.has(key)) {
         const isHoliday = holidaySet.has(key)
-        const plannedMinutes = isHoliday
-          ? 0
-          : getPlannedMinutesForDate(
-              new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
-            )
+        const plannedMinutes =
+          isHoliday || isNonWorkAbsence(key)
+            ? 0
+            : getPlannedMinutesForDate(
+                new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
+              )
         const dayType = getDayType(key)
         const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
         const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
@@ -646,7 +663,15 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       cursor.setDate(cursor.getDate() + 1)
     }
     return filled
-  }, [allMonthEntries, currentMonth, workingHours, holidayDates, holidayNamesByDate, absenceLabelsByDate])
+  }, [
+    allMonthEntries,
+    currentMonth,
+    workingHours,
+    holidayDates,
+    holidayNamesByDate,
+    absenceLabelsByDate,
+    workAbsenceDates
+  ])
 
   const sortedFilledEntries = useMemo(() => {
     return [...filledMonthEntries].sort((a, b) => {
@@ -685,8 +710,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
         const allRes = await graphqlClient.request<any>(allQuery, {
           employeeId,
-          dateFrom: toDateString(monthStart),
-          dateTo: toDateString(monthEnd)
+          dateFrom: toLocalDateKey(monthStart),
+          dateTo: toLocalDateKey(monthEnd)
         })
         const allRows: any[] = allRes?.EmployeeAttendance ?? []
         const todayStr = toLocalDateKey(today)

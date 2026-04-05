@@ -326,6 +326,11 @@ hr-growth-skills = Fähigkeiten
 hr-growth-feedback = Feedback-Hub
 hr-growth-performance = Ziele
 
+# My Development (self-service screen — same content as HR Development tab)
+my-development-page-title = Meine Entwicklung
+my-development-page-description = Fähigkeiten, Feedback, Ziele und Leistung — dieselbe Ansicht wie „Personalentwicklung“ in Mein Profil.
+my-development-unavailable = Der Bereich Entwicklung konnte nicht geladen werden. Bitte später erneut versuchen.
+
 # Feedback Hub (Unterseite unter Personalentwicklung)
 feedback-hub-title = Feedback-Hub
 feedback-hub-description = Geben und erhalten Sie Feedback von Kollegen und Vorgesetzten. Verfolgen Sie Anfragen und Einblicke.
@@ -388,6 +393,7 @@ feedback-hub-kpi-received-title = Erhaltenes Feedback
 feedback-hub-kpi-given-title = Gegebenes Feedback
 feedback-hub-kpi-contributors-title = Unterschiedliche Beitragende
 feedback-hub-kpi-trend-30d = Trend (30T): { $value }
+feedback-hub-kpi-trend-vs-30d = ggü. den vorherigen 30 Tagen
 feedback-hub-suggested-actions-title = Empfohlene Aktionen
 feedback-hub-suggested-pending = Sie haben { $count } ausstehende Feedback-Anfragen.
 feedback-hub-suggested-no-received = Erwägen Sie, Feedback anzufragen. Ihr letztes Feedback war vor { $days } Tagen.
@@ -398,6 +404,7 @@ feedback-hub-pending-panel-title = Ausstehende Feedback-Anfragen
 feedback-hub-pending-give-feedback-btn = Feedback geben
 feedback-hub-pending-due = Fällig: { $date }
 feedback-hub-section-received-title = Erhaltenes Feedback ({ $total } gesamt)
+feedback-hub-section-received-visible-title = Erhaltenes Feedback ({ $visible } sichtbar)
 feedback-hub-section-given-title = Gegebenes Feedback ({ $total } gesamt)
 feedback-hub-ai-insights-button = KI-Einblicke
 feedback-hub-ai-insights-analyzing = Wird analysiert…

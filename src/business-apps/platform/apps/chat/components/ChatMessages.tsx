@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react'
 import { MessageList } from './MessageList'
 import { useMessages } from '../hooks/useMessages'
-import type { ChatApiClient } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { Conversation } from '../types'
 
 interface ChatMessagesProps {
   conversation: Conversation | null
-  apiClient: ChatApiClient
+  apiClient: ChatClient
   currentUserId: string | null
   accessToken: string
 }

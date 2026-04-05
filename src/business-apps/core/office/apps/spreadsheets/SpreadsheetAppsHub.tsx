@@ -32,6 +32,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Checkbox,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
@@ -85,6 +88,8 @@ import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUs
 import { useHubPagination } from '@/business-apps/platform/apps/shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
 
 // Services
 import { generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -102,6 +107,34 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
 
 type HubView = 'list' | 'upload' | 'viewer' | 'editor'
 type SidebarSection = SpreadsheetSection
+const TASK_DEBUG_PREFIX = '[SpreadsheetTasksDebug]'
+
+const isTaskDebugEnabled = (): boolean => {
+  try {
+    return globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
+  } catch {
+    return false
+  }
+}
+
+const taskDebugLog = (...args: unknown[]) => {
+  if (isTaskDebugEnabled()) {
+    console.debug(...args)
+  }
+}
+
+function maskIdentifier(id: string | null | undefined): string {
+  const normalized = String(id || '').trim()
+  if (!normalized) return 'n/a'
+  if (normalized.length <= 8) return normalized
+  return `${normalized.slice(0, 4)}...${normalized.slice(-4)}`
+}
+
+function summarizeIdSet(ids: Set<string>, maxItems = 10): string[] {
+  return Array.from(ids)
+    .slice(0, maxItems)
+    .map(id => maskIdentifier(id))
+}
 
 const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): string =>
   userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -109,11 +142,19 @@ const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): s
 const filterTaskDisplayedApps = (
   activeSection: SidebarSection,
   taskStatusFilter: 'pending' | 'completed',
-  filteredApps: SpreadsheetAppSummary[]
+  filteredApps: SpreadsheetAppSummary[],
+  pendingTaskAppIds: Set<string>,
+  completedTaskAppIds: Set<string>
 ): SpreadsheetAppSummary[] => {
   if (activeSection !== 'tasks') return filteredApps
   if (taskStatusFilter === 'pending') {
+    if (pendingTaskAppIds.size > 0) {
+      return filteredApps.filter(app => pendingTaskAppIds.has(app.id))
+    }
     return filteredApps.filter(app => !isSubmittedExcelCollectionCopy(app))
+  }
+  if (completedTaskAppIds.size > 0) {
+    return filteredApps.filter(app => completedTaskAppIds.has(app.id) && !pendingTaskAppIds.has(app.id))
   }
   return filteredApps.filter(app => isSubmittedExcelCollectionCopy(app))
 }
@@ -138,6 +179,34 @@ function isSubmittedExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
   return settings.excel_collection_submitted === true || Boolean(submittedAt) || status.includes('COMPLETED')
 }
 
+function hasExcelCollectionCopyMarker(app: SpreadsheetAppSummary): boolean {
+  const settings = (app.settings && typeof app.settings === 'object' ? app.settings : {}) as Record<string, unknown>
+  const isTruthy = (value: unknown): boolean => {
+    if (value === true) return true
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      return normalized === 'true' || normalized === '1' || normalized === 'yes'
+    }
+    if (typeof value === 'number') return value === 1
+    return false
+  }
+  return (
+    isTruthy(settings.excel_collection_copy) ||
+    isTruthy(settings.excelCollectionCopy) ||
+    (typeof settings.parentAppId === 'string' && settings.parentAppId.length > 0) ||
+    (typeof settings.copyAppId === 'string' && settings.copyAppId.length > 0) ||
+    (typeof settings.automationRunId === 'string' && settings.automationRunId.length > 0)
+  )
+}
+
+function isPendingTaskApp(app: SpreadsheetAppSummary, currentUserId: string, pendingTaskAppIds: Set<string>): boolean {
+  void currentUserId
+  // `apps` is already access-scoped by backend list API.
+  // Do not rely on optional permission flags for task visibility.
+  const isTask = pendingTaskAppIds.has(app.id) || hasExcelCollectionCopyMarker(app)
+  return isTask && !isSubmittedExcelCollectionCopy(app)
+}
+
 function formatAvatarUrl(src?: string): string | undefined {
   if (!src) return undefined
   return src.startsWith('data:') ? src : `data:image/png;base64,${src}`
@@ -155,10 +224,224 @@ function resolveCurrentUserName(userInfo?: SpreadsheetAppsHubProps['userInfo']):
   return userInfo?.nickName || userInfo?.userName || undefined
 }
 
+const OPEN_TASK_STATUS_BLOCKLIST = new Set(['COMPLETED', 'DONE', 'CANCELLED', 'CANCELED', 'FAILED', 'TERMINATED'])
+
+function normalizeStatus(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toUpperCase() : ''
+}
+
+function isOpenTask(task: Record<string, unknown>): boolean {
+  const status = normalizeStatus(task.status)
+  if (!status) return true
+  return !OPEN_TASK_STATUS_BLOCKLIST.has(status)
+}
+
+function extractTaskFlowId(task: Record<string, unknown>): string | null {
+  const flow = task.flow as Record<string, unknown> | undefined
+  const flowId = String(task.flowId || task.workflowId || task.businessKey || flow?.id || '').trim()
+  return flowId || null
+}
+
+function extractFlowId(flow: Record<string, unknown>): string | null {
+  const id = String(flow.id || flow.flowId || flow.workflowId || '').trim()
+  return id || null
+}
+
+function extractCopyAppIdFromFlow(flow: Record<string, unknown>): string | null {
+  const tags = (flow.tags as Record<string, unknown>) || {}
+  const automationType = String(tags.automationType || '')
+    .trim()
+    .toLowerCase()
+  if (automationType !== 'excel_collection') return null
+  const copyAppId = String(tags.copyAppId || tags.copy_app_id || '').trim()
+  return copyAppId || null
+}
+
+function extractCopyAppIdFromTask(task: Record<string, unknown>): string | null {
+  const tags = (task.tags as Record<string, unknown>) || {}
+  const copyAppId = String(task.copyAppId || task.copy_app_id || tags.copyAppId || tags.copy_app_id || '').trim()
+  return copyAppId || null
+}
+
+function areStringSetsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false
+  for (const value of a) {
+    if (!b.has(value)) return false
+  }
+  return true
+}
+
+async function fetchPendingExcelCollectionCopyAppIds(params: {
+  accessToken: string
+  currentUserId: string
+}): Promise<{ pendingIds: Set<string>; completedIds: Set<string> }> {
+  const { accessToken, currentUserId } = params
+  if (!accessToken || !currentUserId) {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Skipping task fetch due to missing auth/user`, {
+      hasAccessToken: Boolean(accessToken),
+      hasUserId: Boolean(currentUserId)
+    })
+    return { pendingIds: new Set<string>(), completedIds: new Set<string>() }
+  }
+
+  const apiBase = getFlowEngineApiBaseUrl().replace(/\/+$/, '')
+  const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` }
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Fetching task app ids`, {
+    apiBase,
+    userId: maskIdentifier(currentUserId)
+  })
+
+  const openTaskResponse = await fetch(`${apiBase}/tasks/user/${currentUserId}`, {
+    method: 'GET',
+    headers
+  })
+  const completedTaskResponse = await fetch(`${apiBase}/tasks/user/${currentUserId}/completed?limit=200`, {
+    method: 'GET',
+    headers
+  })
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Task API responses`, {
+    openStatus: openTaskResponse.status,
+    openOk: openTaskResponse.ok,
+    completedStatus: completedTaskResponse.status,
+    completedOk: completedTaskResponse.ok
+  })
+
+  const taskPayload = openTaskResponse.ok
+    ? ((await openTaskResponse.json()) as {
+        tasks?: Array<Record<string, unknown>>
+        data?: { tasks?: Array<Record<string, unknown>> }
+      })
+    : null
+  const completedTaskPayload = completedTaskResponse.ok
+    ? ((await completedTaskResponse.json()) as {
+        tasks?: Array<Record<string, unknown>>
+        data?: { tasks?: Array<Record<string, unknown>> }
+      })
+    : null
+
+  const openTasks = taskPayload ? taskPayload.tasks || taskPayload.data?.tasks || [] : []
+  const completedTasks = completedTaskPayload
+    ? completedTaskPayload.tasks || completedTaskPayload.data?.tasks || []
+    : []
+  if (
+    (!Array.isArray(openTasks) || openTasks.length === 0) &&
+    (!Array.isArray(completedTasks) || completedTasks.length === 0)
+  ) {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} No open/completed tasks returned`, {
+      openTasks: Array.isArray(openTasks) ? openTasks.length : 0,
+      completedTasks: Array.isArray(completedTasks) ? completedTasks.length : 0
+    })
+    return { pendingIds: new Set<string>(), completedIds: new Set<string>() }
+  }
+
+  const pendingFlowIds = new Set<string>()
+  const completedFlowIds = new Set<string>()
+  const pendingIds = new Set<string>()
+  const completedIds = new Set<string>()
+
+  const collectFromTask = (task: Record<string, unknown>, targetIds: Set<string>, targetFlowIds: Set<string>) => {
+    const directCopyAppId = extractCopyAppIdFromTask(task)
+    if (directCopyAppId) targetIds.add(directCopyAppId)
+    const flowId = extractTaskFlowId(task)
+    if (flowId) targetFlowIds.add(flowId)
+  }
+
+  if (Array.isArray(openTasks)) {
+    openTasks.filter(task => isOpenTask(task)).forEach(task => collectFromTask(task, pendingIds, pendingFlowIds))
+  }
+
+  if (Array.isArray(completedTasks)) {
+    completedTasks.forEach(task => collectFromTask(task, completedIds, completedFlowIds))
+  }
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Parsed task payload`, {
+    openTasks: Array.isArray(openTasks) ? openTasks.length : 0,
+    completedTasks: Array.isArray(completedTasks) ? completedTasks.length : 0,
+    pendingFlowIds: pendingFlowIds.size,
+    completedFlowIds: completedFlowIds.size,
+    pendingDirectCopyIds: pendingIds.size,
+    completedDirectCopyIds: completedIds.size
+  })
+
+  const allFlowIds = new Set<string>([...pendingFlowIds, ...completedFlowIds])
+  if (allFlowIds.size === 0) {
+    completedIds.forEach(id => {
+      if (pendingIds.has(id)) completedIds.delete(id)
+    })
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Resolved copy app ids without flow lookup`, {
+      pendingIds: pendingIds.size,
+      completedIds: completedIds.size,
+      pendingSamples: summarizeIdSet(pendingIds),
+      completedSamples: summarizeIdSet(completedIds)
+    })
+    return { pendingIds, completedIds }
+  }
+
+  const flowsResponse = await fetch(`${apiBase}/flows/list`, {
+    method: 'GET',
+    headers
+  })
+  if (!flowsResponse.ok) {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Flow list request failed, returning task-derived ids only`, {
+      status: flowsResponse.status
+    })
+    completedIds.forEach(id => {
+      if (pendingIds.has(id)) completedIds.delete(id)
+    })
+    return { pendingIds, completedIds }
+  }
+
+  const flowsPayload = (await flowsResponse.json()) as {
+    flows?: Array<Record<string, unknown>>
+    data?: { flows?: Array<Record<string, unknown>> }
+  }
+  const flows = flowsPayload.flows || flowsPayload.data?.flows || []
+  if (!Array.isArray(flows) || flows.length === 0) {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Flow list is empty, returning task-derived ids only`)
+    completedIds.forEach(id => {
+      if (pendingIds.has(id)) completedIds.delete(id)
+    })
+    return { pendingIds, completedIds }
+  }
+
+  const flowById = new Map<string, Record<string, unknown>>()
+  flows.forEach(flow => {
+    const id = extractFlowId(flow)
+    if (id) flowById.set(id, flow)
+  })
+
+  pendingFlowIds.forEach(flowId => {
+    const flow = flowById.get(flowId)
+    if (!flow) return
+    const copyAppId = extractCopyAppIdFromFlow(flow)
+    if (copyAppId) pendingIds.add(copyAppId)
+  })
+
+  completedFlowIds.forEach(flowId => {
+    const flow = flowById.get(flowId)
+    if (!flow) return
+    const copyAppId = extractCopyAppIdFromFlow(flow)
+    if (copyAppId) completedIds.add(copyAppId)
+  })
+
+  completedIds.forEach(id => {
+    if (pendingIds.has(id)) completedIds.delete(id)
+  })
+
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Final task app id resolution`, {
+    totalFlows: flows.length,
+    pendingIds: pendingIds.size,
+    completedIds: completedIds.size,
+    pendingSamples: summarizeIdSet(pendingIds),
+    completedSamples: summarizeIdSet(completedIds)
+  })
+
+  return { pendingIds, completedIds }
+}
+
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string, t: TranslationFn): string {
+function formatRelativeTime(dateString: string, t: TranslationFn, locale: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -171,7 +454,7 @@ function formatRelativeTime(dateString: string, t: TranslationFn): string {
   if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
@@ -181,18 +464,18 @@ function formatRelativeTime(dateString: string, t: TranslationFn): string {
 /**
  * Format date for table display
  */
-function formatDate(dateString: string, t: TranslationFn): string {
+function formatDate(dateString: string, t: TranslationFn, locale: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
   }
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
@@ -207,13 +490,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'spreadsheet-apps-hub'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
 
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [taskStatusFilter] = useState<'pending' | 'completed'>('pending')
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
+  const [pendingTaskAppIds, setPendingTaskAppIds] = useState<Set<string>>(new Set())
+  const [completedTaskAppIds, setCompletedTaskAppIds] = useState<Set<string>>(new Set())
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -248,6 +533,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
+  const flowTaskUserId = userInfo?.id || currentUserId
 
   // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
   useEffect(() => {
@@ -336,14 +622,110 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     currentUserId,
     activeSection,
     favorites,
+    taskAppIds: new Set<string>([...pendingTaskAppIds, ...completedTaskAppIds]),
     searchQuery,
     sortBy,
     sortOrder
   })
-  const taskDisplayedApps = useMemo(
-    () => filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps),
-    [activeSection, filteredApps, taskStatusFilter]
+
+  useEffect(() => {
+    if (!accessToken || !flowTaskUserId || currentView !== 'list') {
+      setPendingTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
+      setCompletedTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
+      return
+    }
+
+    let disposed = false
+    const refreshPendingTasks = async () => {
+      try {
+        const next = await fetchPendingExcelCollectionCopyAppIds({
+          accessToken,
+          currentUserId: flowTaskUserId
+        })
+        if (disposed) return
+        taskDebugLog(`${TASK_DEBUG_PREFIX} Refresh cycle complete`, {
+          pendingIds: next.pendingIds.size,
+          completedIds: next.completedIds.size,
+          pendingSamples: summarizeIdSet(next.pendingIds),
+          completedSamples: summarizeIdSet(next.completedIds)
+        })
+        setPendingTaskAppIds(prev => (areStringSetsEqual(prev, next.pendingIds) ? prev : next.pendingIds))
+        setCompletedTaskAppIds(prev => (areStringSetsEqual(prev, next.completedIds) ? prev : next.completedIds))
+      } catch {
+        if (disposed) return
+        taskDebugLog(`${TASK_DEBUG_PREFIX} Refresh cycle failed; clearing cached task ids`)
+        setPendingTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
+        setCompletedTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
+      }
+    }
+
+    void refreshPendingTasks()
+    const intervalId = globalThis.setInterval(() => {
+      void refreshPendingTasks()
+    }, 15000)
+    const handleVisibilityOrFocus = () => {
+      if (globalThis.document !== undefined && document.visibilityState !== 'visible') {
+        return
+      }
+      void refreshPendingTasks()
+    }
+    if (globalThis.window !== undefined) {
+      globalThis.addEventListener('focus', handleVisibilityOrFocus)
+      globalThis.addEventListener('pageshow', handleVisibilityOrFocus)
+    }
+    if (globalThis.document !== undefined) {
+      document.addEventListener('visibilitychange', handleVisibilityOrFocus)
+    }
+
+    return () => {
+      disposed = true
+      globalThis.clearInterval(intervalId)
+      if (globalThis.window !== undefined) {
+        globalThis.removeEventListener('focus', handleVisibilityOrFocus)
+        globalThis.removeEventListener('pageshow', handleVisibilityOrFocus)
+      }
+      if (globalThis.document !== undefined) {
+        document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
+      }
+    }
+  }, [accessToken, flowTaskUserId, currentView])
+
+  const pendingTaskCount = useMemo(
+    () => apps.filter(app => isPendingTaskApp(app, currentUserId, pendingTaskAppIds)).length,
+    [apps, currentUserId, pendingTaskAppIds]
   )
+  const completedTaskCount = useMemo(
+    () =>
+      activeSection === 'tasks'
+        ? filteredApps.filter(app => completedTaskAppIds.has(app.id) && !pendingTaskAppIds.has(app.id)).length
+        : 0,
+    [activeSection, filteredApps, completedTaskAppIds, pendingTaskAppIds]
+  )
+  const taskDisplayedApps = useMemo(
+    () =>
+      filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps, pendingTaskAppIds, completedTaskAppIds),
+    [activeSection, filteredApps, taskStatusFilter, pendingTaskAppIds, completedTaskAppIds]
+  )
+  useEffect(() => {
+    if (currentView !== 'list') return
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Hub task state snapshot`, {
+      activeSection,
+      taskStatusFilter,
+      filteredApps: filteredApps.length,
+      displayedTaskApps: taskDisplayedApps.length,
+      pendingTaskAppIds: pendingTaskAppIds.size,
+      completedTaskAppIds: completedTaskAppIds.size,
+      displayedSamples: taskDisplayedApps.slice(0, 10).map(app => maskIdentifier(app.id))
+    })
+  }, [
+    activeSection,
+    currentView,
+    filteredApps,
+    taskDisplayedApps,
+    taskStatusFilter,
+    pendingTaskAppIds,
+    completedTaskAppIds
+  ])
 
   const {
     paginatedItems: paginatedApps,
@@ -625,6 +1007,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [getSharedUsers, enrichSharedUsers, buildKnownUsersMap]
   )
 
+  const handleShareDialogOpenChange = useCallback((nextOpen: boolean) => {
+    setShareDialogOpen(nextOpen)
+    if (!nextOpen) {
+      setSelectedAppForShare(null)
+    }
+  }, [])
+
   const handleShareApp = useCallback(
     async (id: string) => {
       const fromList = apps.find(a => a.id === id)
@@ -674,8 +1063,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       if (!selectedAppForShare) return false
       const success = await shareApp(selectedAppForShare.id, shares)
       if (success) {
-        await fetchAndEnrichShares(selectedAppForShare.id, userDetails)
-        await refreshApps()
+        // Keep modal responsive: refresh data without blocking dialog flow.
+        void fetchAndEnrichShares(selectedAppForShare.id, userDetails)
+        void refreshApps()
       }
       return success
     },
@@ -715,10 +1105,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const handleBack = useCallback(() => {
     // Check if there's a space return URL in sessionStorage (takes priority)
     try {
-      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      const spaceReturnUrl = sanitizeSameOriginReturnUrl(sessionStorage.getItem('space_return_url'))
       if (spaceReturnUrl) {
         sessionStorage.removeItem('space_return_url')
-        globalThis.window.location.href = spaceReturnUrl
+        navigateTo(spaceReturnUrl)
         return
       }
     } catch (e) {
@@ -727,15 +1117,27 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
     // Fallback: Check if there's a returnUrl parameter
     const params = new URLSearchParams(globalThis.window.location.search)
-    const returnUrl = params.get('returnUrl')
+    const returnUrl = sanitizeSameOriginReturnUrl(params.get('returnUrl'))
 
     if (returnUrl) {
-      globalThis.window.location.href = returnUrl
+      navigateTo(returnUrl)
       return
     }
 
-    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
-    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+    // Full page navigation matches prod host routing and avoids dev-only history + popstate gaps.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
+  }, [])
+
+  /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
+  const handleSpreadsheetHubHome = useCallback(() => {
+    try {
+      sessionStorage.removeItem('space_return_url')
+    } catch (e) {
+      console.warn('Failed to clear space_return_url:', e)
+    }
+    // Same as handleBack default: fullPage avoids host nwNavigate only updating the URL while the
+    // viewer stays mounted (first click short URL, second click reload → hub).
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
   }, [])
 
   const handleStartUpload = useCallback(() => {
@@ -858,6 +1260,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           <SpreadsheetAppViewer
             app={app}
             onBack={handleBack}
+            onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
             onShare={() => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
@@ -876,7 +1279,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           {selectedAppForShare && (
             <ShareAppDialog
               open={shareDialogOpen}
-              onOpenChange={setShareDialogOpen}
+              onOpenChange={handleShareDialogOpenChange}
               appId={selectedAppForShare.id}
               appName={selectedAppForShare.name}
               appFilePath={selectedAppForShare.filePath || ''}
@@ -905,6 +1308,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleRefreshShares,
       handleShare,
       handleShareApp,
+      handleSpreadsheetHubHome,
       handleUnshare,
       selectedAppForShare,
       setShareDialogOpen,
@@ -940,11 +1344,25 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const renderCurrentView = () => {
     if (currentView === 'viewer' && currentApp) {
-      return renderViewerContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderViewerContent(currentApp)}
+        </div>
+      )
     }
 
     if (currentView === 'editor' && currentApp) {
-      return renderEditorContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderEditorContent(currentApp)}
+        </div>
+      )
     }
 
     const heroNewButton = (
@@ -983,6 +1401,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         <SpreadsheetHero
           activeSection={activeSection}
           onSectionChange={s => setActiveSection(s)}
+          tabBadges={{
+            tasks: { count: pendingTaskCount, highlight: pendingTaskCount > 0 }
+          }}
           newButton={heroNewButton}
           t={t}
           data-testid={`${testId}-hero`}
@@ -1138,6 +1559,31 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                       </div>
                     </div>
                   </div>
+                  {activeSection === 'tasks' && (
+                    <Tabs
+                      value={taskStatusFilter}
+                      onValueChange={(v: string) => setTaskStatusFilter(v as 'pending' | 'completed')}
+                      className="gba:mb-4"
+                      data-testid={`${testId}-tasks-subtabs`}
+                    >
+                      <TabsList className="gba:inline-flex gba:items-center gba:rounded-lg gba:bg-muted/50 gba:p-1">
+                        <TabsTrigger
+                          value="pending"
+                          className="gba:px-4 gba:py-2 gba:text-sm"
+                          data-testid={`${testId}-tasks-tab-pending`}
+                        >
+                          {t('tasks-pending')} ({pendingTaskCount})
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="completed"
+                          className="gba:px-4 gba:py-2 gba:text-sm"
+                          data-testid={`${testId}-tasks-tab-completed`}
+                        >
+                          {t('tasks-completed')} ({completedTaskCount})
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  )}
                 </div>
                 <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
                   {/* Loading state */}
@@ -1159,7 +1605,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           data-testid="spreadsheet-apps-hub-retry"
                         >
                           <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Retry
+                          {t('action-retry')}
                         </Button>
                       </Card>
                     </div>
@@ -1412,7 +1858,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                                 {/* Modified */}
                                 <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                  {formatDate(app.updatedAt, t)}
+                                  {formatDate(app.updatedAt, t, locale)}
                                 </div>
 
                                 {/* Modified By */}
@@ -1436,7 +1882,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                                 {/* Created */}
                                 <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                  {formatDate(app.createdAt, t)}
+                                  {formatDate(app.createdAt, t, locale)}
                                 </div>
 
                                 {/* Rows */}
@@ -1577,7 +2023,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                     variant="success"
                                     className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px]"
                                   >
-                                    Submitted
+                                    {t('badge-submitted')}
                                   </Badge>
                                 )}
                               </div>
@@ -1588,7 +2034,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {app.name}
                                 </h3>
                                 <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                                  <span>{formatRelativeTime(app.updatedAt, t)}</span>
+                                  <span>{formatRelativeTime(app.updatedAt, t, locale)}</span>
                                   <span>
                                     {app.rowCount} {t('rows-label')}
                                   </span>
@@ -1617,11 +2063,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
                                       <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      Settings
+                                      {t('action-settings')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
                                       <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      Duplicate
+                                      {t('action-duplicate')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
                                       <Download className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -1676,7 +2122,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         {selectedAppForShare && (
           <ShareAppDialog
             open={shareDialogOpen}
-            onOpenChange={setShareDialogOpen}
+            onOpenChange={handleShareDialogOpenChange}
             appId={selectedAppForShare.id}
             appName={selectedAppForShare.name}
             appFilePath={selectedAppForShare.filePath || ''}

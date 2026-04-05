@@ -18,6 +18,9 @@ studio-save-name-placeholder = ex. Onboarding angajat
 studio-save-name-validation = Introduceți un nume pentru flow înainte de salvare.
 studio-save-name-cancel = Anulează
 studio-save-name-confirm = Salvează flow-ul
+studio-unsaved-changes = Modificări nesalvate
+studio-saved = Salvat
+studio-loading = Se încarcă...
 
 # Labels / Tags
 labels-title = Etichete
@@ -43,8 +46,11 @@ labels-save = Salvează
 labels-error-duplicate = Cheie duplicată: {$key}
 
 # List
-list-title = Flows
+list-title = FLOWs
 list-subtitle = Răsfoiți și deschideți șabloane de flow existente
+list-tab-create = Creează
+list-tab-flows = FLOWs
+list-subtitle-create = Proiectați și creați flows noi
 list-search = Caută
 list-search-placeholder = Caută flows...
 list-sort = Sortare
@@ -175,6 +181,8 @@ task-input-params-empty = Nu au fost găsiți parametri.
 task-input-params-system = Parametri de sistem
 task-input-params-user = Parametri utilizator
 task-input-params-pick = Selectați valoarea
+task-input-params-expression-placeholder = Tastați {{ pentru a mapa date din flux.
+task-input-params-unmapped = Nemapat
 
 # EveryAI Agent output schema
 task-output-schema-title = Schemă de ieșire
@@ -279,6 +287,7 @@ decision-ai-taskexpert-picker-desc = Selectează ce Task Expert trebuie să rule
 decision-ai-taskexpert-picker-placeholder = Selectează un Task Expert...
 decision-ai-taskexpert-picker-search = Caută Task Experts...
 decision-ai-taskexpert-picker-empty = Nu s-au găsit Task Experts.
+decision-ai-taskexpert-params-desc = Mapează explicit fiecare parametru al promptului la contextul de flux care trebuie trimis către Task Expert-ul selectat.
 decision-ai-taskexpert-reasoning-label = Mapare ieșire pentru justificare
 decision-ai-taskexpert-reasoning-desc = Opțional. Selectează câmpul din ieșire care va fi folosit ca justificare pentru fallback-ul uman.
 decision-ai-taskexpert-reasoning-placeholder = Selectează câmpul (opțional)

@@ -7,7 +7,7 @@
 
 import { useCallback, useRef } from 'react'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn } from '../types'
-import { isTrackingColumn, getTrackingColumnDefaultWidth } from '../utils/trackingColumns'
+import { isTrackingColumn, getTrackingColumnDefaultWidth, isPlaceholderColumnTitle } from '../utils/trackingColumns'
 import { TRACKING_COLUMNS } from '../components/automations/TrackingColumnsConfig'
 
 // Internal metadata fields to skip (not user-visible columns)
@@ -18,8 +18,79 @@ const INTERNAL_METADATA_FIELDS = new Set([
   '_workflow_id',
   '_recipient_id',
   '_isBulkCollectionPending',
-  '_automationId'
+  '_automationId',
+  '__columnLabels__'
 ])
+
+/** Row metadata from bulk run: form-field column IDs whose placeholder titles should stay hidden until a response. */
+const BULK_DEFER_PLACEHOLDER_COLUMN_IDS_META = 'bulkDeferPlaceholderFormColumnIds'
+
+function mergeBulkDeferPlaceholderColumnIds(rows: Array<{ metadata?: Record<string, unknown> }>): string[] | undefined {
+  const set = new Set<string>()
+  for (const r of rows) {
+    const raw = r.metadata?.[BULK_DEFER_PLACEHOLDER_COLUMN_IDS_META]
+    if (!Array.isArray(raw)) continue
+    for (const id of raw) {
+      if (typeof id === 'string' && id.trim()) set.add(id)
+    }
+  }
+  return set.size > 0 ? [...set] : undefined
+}
+
+function applyDeferredBulkPlaceholderColumnVisibility(
+  columns: SpreadsheetColumn[],
+  deferredColumnIds: string[] | undefined
+): { columns: SpreadsheetColumn[]; changed: boolean } {
+  if (!deferredColumnIds?.length) return { columns, changed: false }
+  const idSet = new Set(deferredColumnIds)
+  let changed = false
+  const next = columns.map(col => {
+    if (!idSet.has(col.id)) return col
+    const title = (col.label?.trim() || col.name || '').trim()
+    if (!isPlaceholderColumnTitle(title)) return col
+    if (col.isVisible === false) return col
+    changed = true
+    return { ...col, isVisible: false }
+  })
+  return { columns: next, changed }
+}
+
+function collectColumnKeysTouchedByCollectionUpdates(
+  updates: Array<{ cells: Record<string, unknown>; columnLabels?: Record<string, string> }>
+): Set<string> {
+  const out = new Set<string>()
+  for (const u of updates) {
+    for (const key of Object.keys(u.cells ?? {})) {
+      if (INTERNAL_METADATA_FIELDS.has(key)) continue
+      out.add(key)
+    }
+    const cl = u.columnLabels
+    if (cl && typeof cl === 'object') {
+      for (const key of Object.keys(cl)) {
+        if (key.trim()) out.add(key)
+      }
+    }
+  }
+  return out
+}
+
+function revealBulkPlaceholderColumnsAfterResponse(
+  columns: SpreadsheetColumn[],
+  touchedKeys: Set<string>
+): { columns: SpreadsheetColumn[]; changed: boolean } {
+  if (touchedKeys.size === 0) return { columns, changed: false }
+  let changed = false
+  const next = columns.map(col => {
+    if (col.isVisible !== false) return col
+    const title = (col.label?.trim() || col.name || '').trim()
+    if (!isPlaceholderColumnTitle(title)) return col
+    const hit = touchedKeys.has(col.name) || touchedKeys.has(col.id)
+    if (!hit) return col
+    changed = true
+    return { ...col, isVisible: true }
+  })
+  return { columns: next, changed }
+}
 
 export interface UseSpreadsheetBulkRowsProps {
   app: SpreadsheetApp
@@ -37,12 +108,19 @@ export interface UseSpreadsheetBulkRowsProps {
   ) => Promise<Record<string, unknown> | null>
   onRowAdd?: (appId: string, sheetId: string, data: Record<string, unknown>) => Promise<Record<string, unknown>>
   saveTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>
+  /** Called when automation adds/updates rows so the grid can refresh (e.g. bump snapshotSeed). */
+  onRequestGridRefresh?: () => void
 }
 
 export interface SpreadsheetBulkRowsHandlers {
   handleAddRows: (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
   handleUpdateRows: (
-    updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+    updates: Array<{
+      workflowId: string
+      recipientId?: string
+      cells: Record<string, unknown>
+      columnLabels?: Record<string, string>
+    }>
   ) => void
   handleAddRowsRef: React.MutableRefObject<typeof handleAddRows | null>
   handleUpdateRowsRef: React.MutableRefObject<typeof handleUpdateRows | null>
@@ -50,7 +128,12 @@ export interface SpreadsheetBulkRowsHandlers {
 
 type HandleAddRowsFn = (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
 type HandleUpdateRowsFn = (
-  updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+  updates: Array<{
+    workflowId: string
+    recipientId?: string
+    cells: Record<string, unknown>
+    columnLabels?: Record<string, string>
+  }>
 ) => void
 
 const AUTO_FIT_MIN_WIDTH = 80
@@ -95,14 +178,16 @@ function findNewFields(allFieldNames: Set<string>, existingColumns: SpreadsheetC
 /**
  * Create columns for new fields
  */
-function createColumnsForFields(newFieldNames: string[]): SpreadsheetColumn[] {
+function createColumnsForFields(newFieldNames: string[], columnLabels?: Record<string, string>): SpreadsheetColumn[] {
   return newFieldNames.map((fieldName, index) => {
     const trackingCol = TRACKING_COLUMNS.find(tc => tc.name === fieldName)
 
     let label: string
     let colType: SpreadsheetColumn['type'] = 'text'
 
-    if (trackingCol) {
+    if (columnLabels?.[fieldName]?.trim()) {
+      label = columnLabels[fieldName].trim()
+    } else if (trackingCol) {
       label = trackingCol.label
       if (trackingCol.id === 'sent_at' || trackingCol.id === 'responded_at') {
         colType = 'datetime'
@@ -159,6 +244,26 @@ function mergeColumns(existingColumns: SpreadsheetColumn[], newColumns: Spreadsh
     ...col,
     order: idx
   }))
+}
+
+/** Apply display labels to existing columns (e.g. bulk form field titles) — createColumnsForFields only runs for new keys. */
+function applyColumnLabelPatches(
+  columns: SpreadsheetColumn[],
+  patches: Record<string, string> | undefined
+): { columns: SpreadsheetColumn[]; changed: boolean } {
+  if (!patches || Object.keys(patches).length === 0) {
+    return { columns, changed: false }
+  }
+  let changed = false
+  const next = columns.map(col => {
+    const raw = patches[col.name] ?? patches[col.id]
+    const nextLabel = typeof raw === 'string' ? raw.trim() : ''
+    if (!nextLabel) return col
+    if ((col.label || '').trim() === nextLabel) return col
+    changed = true
+    return { ...col, label: nextLabel }
+  })
+  return { columns: next, changed }
 }
 
 function buildColumnLookupMap(columns: SpreadsheetColumn[]): Map<string, SpreadsheetColumn> {
@@ -252,8 +357,13 @@ function applyDynamicColumnWidths(
 function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<string, unknown> {
   return updatedColumns.reduce<Record<string, unknown>>(
     (acc, col) => {
-      if (isTrackingColumn(col.name) || isTrackingColumn(col.id)) {
-        acc[col.name] = col.label || col.name
+      if (col.isVisible === false) return acc
+      // Every visible column needs a title cell (Univer has no separate schema headers for row 0).
+      // Previously only tracking columns were filled, so bulk form / data columns showed blank headers.
+      const title = (col.label?.trim() || col.name || '').trim()
+      if (title && !isPlaceholderColumnTitle(title)) {
+        acc[col.name] = title
+        if (col.id !== col.name) acc[col.id] = title
       }
       return acc
     },
@@ -264,6 +374,79 @@ function createTrackingHeaderRow(updatedColumns: SpreadsheetColumn[]): Record<st
       _height: 42
     }
   )
+}
+
+/** Align the synthetic header row with current column labels (e.g. after bulk form titles are resolved). */
+export function syncTrackingHeaderRowWithColumnLabels(
+  rows: Record<string, unknown>[],
+  columns: SpreadsheetColumn[]
+): Record<string, unknown>[] {
+  const headerIdx = rows.findIndex(r => r._isTrackingHeader === true)
+  if (headerIdx < 0) return rows
+  const header = rows[headerIdx]
+  let changed = false
+  const next: Record<string, unknown> = { ...header }
+  for (const col of columns) {
+    if (col.isVisible === false) continue
+    const text = (col.label?.trim() || col.name || '').trim()
+    if (!text) continue
+    const fromName = header[col.name]
+    const fromId = col.id !== col.name ? header[col.id] : undefined
+    let current = ''
+    if (fromName !== undefined && fromName !== null && String(fromName).trim() !== '') {
+      current = String(fromName).trim()
+    } else if (fromId !== undefined && fromId !== null && String(fromId).trim() !== '') {
+      current = String(fromId).trim()
+    }
+    // User cleared an unused "Column B"-style header; schema still has the placeholder — do not refill.
+    if (current === '' && isPlaceholderColumnTitle(text)) {
+      continue
+    }
+    if (current !== text) {
+      next[col.name] = text
+      if (col.id !== col.name) next[col.id] = text
+      changed = true
+    }
+  }
+  if (!changed) return rows
+  const out = [...rows]
+  out[headerIdx] = next
+  return out
+}
+
+function mergeColumnLabelsFromRowMetadata(
+  rows: Array<{ metadata?: Record<string, unknown> }>
+): Record<string, string> | undefined {
+  const merged: Record<string, string> = {}
+  let hasAny = false
+  for (const row of rows) {
+    const labels = row.metadata?.columnLabels as Record<string, string> | undefined
+    if (!labels || typeof labels !== 'object') continue
+    for (const [name, label] of Object.entries(labels)) {
+      if (typeof label === 'string' && label.trim()) {
+        merged[name] = label.trim()
+        hasAny = true
+      }
+    }
+  }
+  return hasAny ? merged : undefined
+}
+
+function mergeColumnLabelsFromUpdates(
+  updates: Array<{ columnLabels?: Record<string, string> }>
+): Record<string, string> | undefined {
+  const merged: Record<string, string> = {}
+  let hasAny = false
+  for (const u of updates) {
+    if (!u.columnLabels) continue
+    for (const [name, label] of Object.entries(u.columnLabels)) {
+      if (typeof label === 'string' && label.trim()) {
+        merged[name] = label.trim()
+        hasAny = true
+      }
+    }
+  }
+  return hasAny ? merged : undefined
 }
 
 function collectFieldNamesFromUpdates(
@@ -328,8 +511,34 @@ function buildCompletedRowIndices(
   return { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId }
 }
 
-type UpdateEntry = { workflowId: string; recipientId?: string; cells: Record<string, unknown> }
-type UpdatePayload = Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+/** Find rows by workflowId/recipientId for completion updates, regardless of current status (e.g. "Sent" → "Completed"). */
+function buildCompletionTargetRowIndices(
+  currentData: Record<string, unknown>[],
+  completedByWorkflowId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>,
+  completedByRecipientId: Map<string, { workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+): { byWorkflowId: Map<string, number>; byRecipientId: Map<string, number> } {
+  const byWorkflowId = new Map<string, number>()
+  const byRecipientId = new Map<string, number>()
+  currentData.forEach((row, idx) => {
+    const workflowId = row._workflow_id as string | undefined
+    const recipientId = row.recipientId as string | undefined
+    if (workflowId && completedByWorkflowId.has(workflowId) && !byWorkflowId.has(workflowId)) {
+      byWorkflowId.set(workflowId, idx)
+    }
+    if (recipientId && completedByRecipientId.has(recipientId) && !byRecipientId.has(recipientId)) {
+      byRecipientId.set(recipientId, idx)
+    }
+  })
+  return { byWorkflowId, byRecipientId }
+}
+
+type UpdateEntry = {
+  workflowId: string
+  recipientId?: string
+  cells: Record<string, unknown>
+  columnLabels?: Record<string, string>
+}
+type UpdatePayload = Array<UpdateEntry>
 
 function applyRowUpdates(
   currentData: Record<string, unknown>[],
@@ -340,7 +549,9 @@ function applyRowUpdates(
   completedByRecipientId: Map<string, UpdateEntry>,
   recipientIdToBestRowIndex: Map<string, number>,
   completedRowByWorkflowId: Map<string, number>,
-  completedRowByRecipientId: Map<string, number>
+  completedRowByRecipientId: Map<string, number>,
+  completionTargetByWorkflowId: Map<string, number>,
+  completionTargetByRecipientId: Map<string, number>
 ): {
   updatedExisting: Record<string, unknown>[]
   matchCount: number
@@ -414,6 +625,43 @@ function applyRowUpdates(
           _workflow_id: update.workflowId,
           _updatedAt: new Date().toISOString()
         }
+      }
+    }
+
+    // First-time completion: match by workflowId/recipientId regardless of row status (e.g. "Sent" → "Completed")
+    if (
+      workflowId &&
+      completedByWorkflowId.has(workflowId) &&
+      !matchedCompletedWorkflowIds.has(workflowId) &&
+      completionTargetByWorkflowId.get(workflowId) === rowIndex
+    ) {
+      matchCount++
+      const update = completedByWorkflowId.get(workflowId)!
+      matchedCompletedWorkflowIds.add(update.workflowId)
+      matchedUpdateIds.add(update.workflowId)
+      return {
+        ...row,
+        ...mapCellsToColumnNames(update.cells, columnMap),
+        _workflow_id: update.workflowId,
+        _updatedAt: new Date().toISOString()
+      }
+    }
+
+    if (
+      recipientId &&
+      completedByRecipientId.has(recipientId) &&
+      !matchedCompletedRecipientIds.has(recipientId) &&
+      completionTargetByRecipientId.get(recipientId) === rowIndex
+    ) {
+      matchCount++
+      const update = completedByRecipientId.get(recipientId)!
+      matchedCompletedRecipientIds.add(recipientId)
+      matchedUpdateIds.add(update.workflowId)
+      return {
+        ...row,
+        ...mapCellsToColumnNames(update.cells, columnMap),
+        _workflow_id: update.workflowId,
+        _updatedAt: new Date().toISOString()
       }
     }
 
@@ -682,7 +930,8 @@ export function useSpreadsheetBulkRows({
   onSheetUpdate,
   onRowUpdate,
   onRowAdd,
-  saveTimeoutRef
+  saveTimeoutRef,
+  onRequestGridRefresh
 }: UseSpreadsheetBulkRowsProps): SpreadsheetBulkRowsHandlers {
   const handleAddRowsRef = useRef<HandleAddRowsFn | null>(null)
   const handleUpdateRowsRef = useRef<HandleUpdateRowsFn | null>(null)
@@ -700,18 +949,29 @@ export function useSpreadsheetBulkRows({
       // Collect field names and find new ones
       const allFieldNames = collectFieldNames(rows, INTERNAL_METADATA_FIELDS)
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
-      const newColumns = createColumnsForFields(newFieldNames)
-      const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
+      const mergedColumnLabels = mergeColumnLabelsFromRowMetadata(rows)
+      const newColumns = createColumnsForFields(newFieldNames, mergedColumnLabels)
+      const mergedSheetColumns = mergeColumns(activeSheet.columns, newColumns)
+      const { columns: patchedColumns, changed: columnLabelsPatched } = applyColumnLabelPatches(
+        mergedSheetColumns,
+        mergedColumnLabels
+      )
+      const deferredIds = mergeBulkDeferPlaceholderColumnIds(rows)
+      const { columns: updatedColumns, changed: deferPlaceholderVisibilityChanged } =
+        applyDeferredBulkPlaceholderColumnVisibility(patchedColumns, deferredIds)
 
       const columnMap = buildColumnLookupMap(updatedColumns)
 
       // Build new rows
       const newRows = rows.map(rowData => {
+        const rawMeta = rowData.metadata ?? {}
+        const rowMetadataWithoutDefer = { ...(rawMeta as Record<string, unknown>) }
+        delete rowMetadataWithoutDefer[BULK_DEFER_PLACEHOLDER_COLUMN_IDS_META]
         const newRow: Record<string, unknown> = {
           // Use non-UUID temp id so persistence layer treats it as new row (addRow).
           _id: `tmp_${crypto.randomUUID()}`,
           _createdAt: new Date().toISOString(),
-          ...rowData.metadata
+          ...rowMetadataWithoutDefer
         }
 
         Object.assign(newRow, mapCellsToColumnNames(rowData.cells, columnMap))
@@ -735,11 +995,12 @@ export function useSpreadsheetBulkRows({
       const { columns: autoSizedColumns, changed: autoWidthChanged } = applyDynamicColumnWidths(updatedColumns, newData)
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
+      onRequestGridRefresh?.()
 
       // Persist changes
       // NOTE: `onAppUpdate` does not persist sheet row data in database-backed mode.
       // Prefer sheet/row persistence callbacks so collection report rows survive refresh.
-      if (newColumns.length > 0 || autoWidthChanged) {
+      if (newColumns.length > 0 || autoWidthChanged || columnLabelsPatched || deferPlaceholderVisibilityChanged) {
         if (onSheetUpdate) {
           Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: autoSizedColumns })).catch(err =>
             console.error('[handleAddRows] onSheetUpdate failed:', err)
@@ -805,19 +1066,35 @@ export function useSpreadsheetBulkRows({
       onSheetUpdate,
       localSheetDataRef,
       setLocalSheetData,
-      saveTimeoutRef
+      saveTimeoutRef,
+      onRequestGridRefresh
     ]
   )
 
   const handleUpdateRows = useCallback(
-    (updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>) => {
+    (
+      updates: Array<{
+        workflowId: string
+        recipientId?: string
+        cells: Record<string, unknown>
+        columnLabels?: Record<string, string>
+      }>
+    ) => {
       clearPendingSave(saveTimeoutRef)
       if (!activeSheet || updates.length === 0) return
 
       const allFieldNames = collectFieldNamesFromUpdates(updates, INTERNAL_METADATA_FIELDS)
       const newFieldNames = findNewFields(allFieldNames, activeSheet.columns)
-      const newColumns = createColumnsForFields(newFieldNames)
-      const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
+      const mergedColumnLabels = mergeColumnLabelsFromUpdates(updates)
+      const newColumns = createColumnsForFields(newFieldNames, mergedColumnLabels)
+      const mergedSheetColumns = mergeColumns(activeSheet.columns, newColumns)
+      const { columns: patchedColumns, changed: columnLabelsPatched } = applyColumnLabelPatches(
+        mergedSheetColumns,
+        mergedColumnLabels
+      )
+      const touchedKeys = collectColumnKeysTouchedByCollectionUpdates(updates)
+      const { columns: updatedColumns, changed: revealedPlaceholderVisibilityChanged } =
+        revealBulkPlaceholderColumnsAfterResponse(patchedColumns, touchedKeys)
       const columnMap = buildColumnLookupMap(updatedColumns)
       const { completedUpdates, nonCompletedUpdates } = splitUpdatesByCompletion(updates)
       const { updateByWorkflowId, updateByRecipientId, completedByWorkflowId, completedByRecipientId } =
@@ -827,6 +1104,8 @@ export function useSpreadsheetBulkRows({
       const recipientIdToBestRowIndex = buildRecipientIdToBestRowIndex(currentData, updateByRecipientId)
       const { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId } =
         buildCompletedRowIndices(currentData, completedByWorkflowId, completedByRecipientId)
+      const { byWorkflowId: completionTargetByWorkflowId, byRecipientId: completionTargetByRecipientId } =
+        buildCompletionTargetRowIndices(currentData, completedByWorkflowId, completedByRecipientId)
 
       const {
         updatedExisting,
@@ -844,7 +1123,9 @@ export function useSpreadsheetBulkRows({
         completedByRecipientId,
         recipientIdToBestRowIndex,
         completedRowByWorkflowId,
-        completedRowByRecipientId
+        completedRowByRecipientId,
+        completionTargetByWorkflowId,
+        completionTargetByRecipientId
       )
 
       const unmatchedUpdates = buildUnmatchedUpdates({
@@ -858,16 +1139,42 @@ export function useSpreadsheetBulkRows({
       const baseAddedRows = createRowsFromUnmatchedUpdates(unmatchedUpdates, columnMap)
       const addedRows = insertTrackingHeaderIfNeeded(baseAddedRows, updatedColumns, localSheetDataRef.current)
 
-      const newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting
+      let newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting
+
+      const shouldSyncHeaderRowLabels =
+        newData.some(r => r._isTrackingHeader === true) &&
+        (columnLabelsPatched ||
+          Object.keys(mergedColumnLabels ?? {}).length > 0 ||
+          revealedPlaceholderVisibilityChanged)
+
+      let headerRowLabelCellsChanged = false
+      if (shouldSyncHeaderRowLabels) {
+        const beforeSync = newData
+        newData = syncTrackingHeaderRowWithColumnLabels(newData, updatedColumns)
+        headerRowLabelCellsChanged = newData !== beforeSync
+      }
+
       const { columns: autoSizedColumns, changed: autoWidthChanged } = applyDynamicColumnWidths(updatedColumns, newData)
 
-      if (matchCount === 0 && addedRows.length === 0 && newColumns.length === 0 && !autoWidthChanged) return
+      if (
+        matchCount === 0 &&
+        addedRows.length === 0 &&
+        newColumns.length === 0 &&
+        !autoWidthChanged &&
+        !columnLabelsPatched &&
+        !headerRowLabelCellsChanged &&
+        !revealedPlaceholderVisibilityChanged
+      ) {
+        return
+      }
 
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
+      onRequestGridRefresh?.()
 
       persistColumnChanges({
-        shouldPersistColumns: newColumns.length > 0 || autoWidthChanged,
+        shouldPersistColumns:
+          newColumns.length > 0 || autoWidthChanged || columnLabelsPatched || revealedPlaceholderVisibilityChanged,
         onSheetUpdate,
         onAppUpdate,
         app,
@@ -886,10 +1193,11 @@ export function useSpreadsheetBulkRows({
           localSheetDataRef,
           setLocalSheetData
         })
-        persistAddedRows({ addedRows, onRowAdd, onDataChange, appId: app.id, sheetId: activeSheet.id, newData })
-        return
       }
-      if (matchCount > 0 || addedRows.length > 0) {
+      if (addedRows.length > 0) {
+        persistAddedRows({ addedRows, onRowAdd, onDataChange, appId: app.id, sheetId: activeSheet.id, newData })
+      }
+      if (matchCount > 0 || addedRows.length > 0 || headerRowLabelCellsChanged) {
         onDataChange?.(activeSheet.id, newData)
       }
     },
@@ -903,7 +1211,8 @@ export function useSpreadsheetBulkRows({
       onRowAdd,
       localSheetDataRef,
       setLocalSheetData,
-      saveTimeoutRef
+      saveTimeoutRef,
+      onRequestGridRefresh
     ]
   )
 

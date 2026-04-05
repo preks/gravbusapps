@@ -29,6 +29,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { Building2, Palette, Image, FileText, Plus, X } from 'lucide-react'
+import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
 import type {
   BrandIdentity,
   BrandLogo,
@@ -39,19 +40,6 @@ import type {
   LogoSize
 } from '../types/template'
 import translations from '../_i18n'
-
-/**
- * Sanitize URL to prevent XSS attacks.
- * Only allows http, https, and data:image URLs.
- */
-const sanitizeImageUrl = (url: string): string => {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('data:image/')) {
-    return trimmed
-  }
-  return ''
-}
 
 export interface BrandSettingsDialogProps {
   open: boolean
@@ -393,14 +381,11 @@ export const BrandSettingsDialog: React.FC<BrandSettingsDialogProps> = ({
                     placeholder="https://example.com/logo-white.svg"
                     data-testid="brand-logo-light-input"
                   />
-                  {sanitizeImageUrl(logo.lightUrl) && (
+                  {sanitizeImageSourceUrl(logo.lightUrl) && (
                     <div className="gba:p-2 gba:bg-gray-800 gba:rounded gba:flex gba:justify-center">
-                      {/* deepcode ignore DOMXSS: sanitizeImageUrl validates URL protocol */}
-                      <img
-                        src={sanitizeImageUrl(logo.lightUrl)}
-                        alt="Light logo preview"
-                        className="gba:max-h-12 gba:object-contain"
-                      />
+                      <span className="gba:text-xs gba:text-white/80">
+                        {t('brand-logo-preview-ready') || 'Valid logo URL'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -414,14 +399,11 @@ export const BrandSettingsDialog: React.FC<BrandSettingsDialogProps> = ({
                     placeholder="https://example.com/logo-dark.svg"
                     data-testid="brand-logo-dark-input"
                   />
-                  {sanitizeImageUrl(logo.darkUrl) && (
+                  {sanitizeImageSourceUrl(logo.darkUrl) && (
                     <div className="gba:p-2 gba:bg-gray-100 gba:rounded gba:flex gba:justify-center">
-                      {/* deepcode ignore DOMXSS: sanitizeImageUrl validates URL protocol */}
-                      <img
-                        src={sanitizeImageUrl(logo.darkUrl)}
-                        alt="Dark logo preview"
-                        className="gba:max-h-12 gba:object-contain"
-                      />
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {t('brand-logo-preview-ready') || 'Valid logo URL'}
+                      </span>
                     </div>
                   )}
                 </div>

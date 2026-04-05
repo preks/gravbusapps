@@ -14,6 +14,7 @@ export interface UseOrchestratorConversationalEffectsOptions {
   state: OrchestratorState
   chat: Pick<UseCreateChatResult, 'messages' | 'addAssistantMessage' | 'addSystemMessage'>
   currentPlan: BuildPlan | null
+  buildSummaryMessage?: string | null
   initialJobId?: string
   lastSessionId: string | null
   lastRepoId: string | null
@@ -43,6 +44,7 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
     state,
     chat,
     currentPlan,
+    buildSummaryMessage,
     initialJobId,
     lastSessionId,
     lastRepoId,
@@ -80,6 +82,14 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
     globalThis.history.replaceState({}, '', newUrl)
   }, [planJobId])
 
+  const buildCompletionSentRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (viewState === 'building') {
+      buildCompletionSentRef.current = null
+    }
+  }, [viewState])
+
   // Chat state messages on transitions (deduplicated via ref)
   useEffect(() => {
     if (isRestoringSessionRef.current) return
@@ -91,14 +101,24 @@ export function useOrchestratorConversationalEffects(options: UseOrchestratorCon
       chat.addSystemMessage(`Plan ready: ${planTitle}`)
     } else if (viewState === 'building') {
       chat.addSystemMessage('Build started. Watch the progress on the canvas.')
-    } else if (viewState === 'complete') {
-      chat.addSystemMessage(
-        planJobId
-          ? 'Build complete. You can keep chatting and request further changes.'
-          : 'Imported app ready. You can keep chatting and request further changes.'
-      )
+    } else if (viewState === 'complete' && !planJobId) {
+      chat.addSystemMessage('Imported app ready. You can keep chatting and request further changes.')
     }
   }, [viewState, planJobId, planTitle, chat, isRestoringSessionRef, lastChatStateRef])
+
+  // Build summary: add enriched agent response when it arrives from the SSE stream.
+  // This is separate from the state transition effect because the response event
+  // arrives after the build_complete event (different SSE chunks).
+  useEffect(() => {
+    if (isRestoringSessionRef.current) return
+    if (viewState !== 'complete') return
+    if (!planJobId) return
+    if (!buildSummaryMessage) return
+    if (buildCompletionSentRef.current === buildSummaryMessage) return
+
+    buildCompletionSentRef.current = buildSummaryMessage
+    chat.addAssistantMessage(buildSummaryMessage)
+  }, [viewState, planJobId, buildSummaryMessage, chat, isRestoringSessionRef])
 
   // Reset incremental chat persistence when session changes.
   useEffect(() => {

@@ -12,7 +12,6 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SortingState } from '@tanstack/react-table'
 import { useTaskExperts } from '../hooks/useTaskExperts'
-import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 import { createTaskExpertColumns } from '../config/taskExpertColumns'
@@ -23,6 +22,7 @@ type TaskExpertRow = PromptODM & { id: string }
 
 interface TaskExpertsSpaceProps extends BusinessAppContextProps {
   translations: { enUS: string; deDE: string; roRO: string }
+  labelsReady?: boolean
   onViewPrompt: (id: string, name: string) => void
   onEditPrompt: (id: string, name: string) => void
   refreshKey: number
@@ -41,13 +41,13 @@ const buildSortParam = (sorting: SortingState): string | null => {
 
 export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   translations,
+  labelsReady = false,
   onViewPrompt,
   onEditPrompt,
   refreshKey,
   ...context
 }) => {
   const { t } = useTranslation(translations)
-  const meshApi = useAgentMeshClient(context.accessToken)
   const pmClient = usePromptManagerClient(context.accessToken)
   const [search, setSearch] = useState<string>('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
@@ -92,7 +92,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   // Transform prompts to add id property (DataTable requires id, not _id)
   const data: TaskExpertRow[] = useMemo(() => prompts.map(p => ({ ...p, id: p._id || p.name })), [prompts])
 
-  const columns = useMemo(() => createTaskExpertColumns(t, workspaceMap), [t, workspaceMap])
+  const columns = useMemo(() => createTaskExpertColumns(t, workspaceMap), [t, workspaceMap, labelsReady])
 
   // Refresh when parent signals
   useEffect(() => {
@@ -130,12 +130,12 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   const handleAddToMesh = useCallback(
     async (agentId: string) => {
       try {
-        const layout = await meshApi.getMeshLayout()
+        const layout = await pmClient.getMeshLayout()
         const existing = layout?.positions || []
         if (existing.some(p => p.agent_id === agentId)) {
           setMeshStatus(t('already-in-mesh'))
         } else {
-          await meshApi.saveMeshLayout([...existing, { agent_id: agentId, x: 0, y: 0 }])
+          await pmClient.saveMeshLayout([...existing, { agent_id: agentId, x: 0, y: 0 }])
           setMeshStatus(t('added-to-mesh'))
         }
         setTimeout(() => setMeshStatus(null), 3000)
@@ -143,7 +143,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
         console.error('Failed to add agent to mesh')
       }
     },
-    [meshApi, t]
+    [pmClient, t]
   )
 
   const handleRowClick = useCallback(

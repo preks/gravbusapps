@@ -169,6 +169,16 @@ export interface DecisionNodeConfig {
       conditions: Array<{ expression: string; branchId: string }>
     }
     /**
+     * Explicit Prompt Manager system parameter mappings for TASK_EXPERT decisions.
+     * Keys come from the selected prompt definition and values are studio expressions.
+     */
+    systemParamsMap?: Record<string, string>
+    /**
+     * Explicit Prompt Manager user parameter mappings for TASK_EXPERT decisions.
+     * Keys come from the selected prompt definition and values are studio expressions.
+     */
+    userParamsMap?: Record<string, string>
+    /**
      * Optional path used to extract a reasoning string from the task expert output (resultData).
      * Example: \"reasoning\" or \"result.reasoning\"
      */
@@ -231,9 +241,31 @@ export interface ReworkTarget {
 }
 
 /** The full studio state */
+/** Chat message in the flow studio (session-persistent when panel is collapsed) */
+export interface FlowStudioChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  toolCalls?: Array<{
+    tool: string
+    args?: string
+    result?: string
+    status: 'running' | 'complete'
+    id: string
+    order?: number
+    displayTitle?: string
+    displayDetail?: string
+    displayStep?: 'call' | 'progress' | 'result'
+  }>
+  blocks?: Array<{ type: 'thinking' | 'response'; content: string; collapsed?: boolean; order?: number }>
+  thinkingLog?: string
+  messageId?: string
+}
+
 export interface FlowStudioState {
   /** Current designer mode */
   mode: DesignerMode
+  /** Chat messages (persist for session when chat panel is collapsed) */
+  chatMessages: FlowStudioChatMessage[]
   /** All nodes in the flow */
   nodes: StudioNode[]
   /** All edges (connections) */
@@ -315,7 +347,7 @@ export interface FlowStudioActions {
   setTemplateMetadata: (metadata: { name?: string; description?: string }) => void
   setTemplateTags: (tags: FlowTags) => void
   loadTemplate: (
-    templateId: string,
+    templateId: string | undefined,
     nodes: StudioNode[],
     edges: FlowGraphEdge[],
     metadata: { name: string; description?: string; version: number; tags?: FlowTags }
@@ -343,4 +375,9 @@ export interface FlowStudioActions {
 
   // Convert to FlowGraphDefinition for the viewer
   toGraphDefinition: () => FlowGraphDefinition
+
+  // Chat (session-persistent)
+  setChatMessages: (
+    messages: FlowStudioChatMessage[] | ((prev: FlowStudioChatMessage[]) => FlowStudioChatMessage[])
+  ) => void
 }

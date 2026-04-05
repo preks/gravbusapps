@@ -15,7 +15,11 @@ export type {
   BoardStatsResponse,
   BoardShare,
   BoardPermission,
-  BoardQuickFilter
+  BoardQuickFilter,
+  BoardAuditAction,
+  BoardAuditChange,
+  BoardAuditLogEntry,
+  BoardAuditLogResponse
 } from './board'
 
 export type {
@@ -94,3 +98,5 @@ export type {
   ColumnProfile,
   DataProfile
 } from './analytics'
+
+export type { BoardCollection, CollectionMember, CollectionMemberRole } from './collection'

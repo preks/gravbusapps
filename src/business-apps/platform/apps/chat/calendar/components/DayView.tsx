@@ -1,13 +1,14 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { cn, useLocale } from '@newwork/nw-design-system'
+import { cn, useLocale, useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent } from '../types'
+import { CalendarAllDayStack } from './CalendarAllDayStack'
 import { CalendarEventItem } from './CalendarEventItem'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import translations from '../../_i18n'
 
 dayjs.extend(localizedFormat)
 
@@ -70,6 +71,13 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   return { top, height }
 }
 
+const getLocalDateKey = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export const DayView: React.FC<DayViewProps> = ({
   currentDate,
   events,
@@ -78,7 +86,7 @@ export const DayView: React.FC<DayViewProps> = ({
   activeConversationCalls,
   onJoinCall
 }) => {
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const { locale } = useLocale()
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
   const isTodayDate = isToday(currentDate)
@@ -174,20 +182,15 @@ export const DayView: React.FC<DayViewProps> = ({
       {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/20">
-          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">All Day</div>
-          <div className="gba:space-y-1">
-            {allDayEvents.map(event => (
-              <CalendarEventItem
-                key={event.id}
-                event={event}
-                compact
-                onClick={() => onEventClick(event)}
-                t={t}
-                activeConversationCalls={activeConversationCalls}
-                onJoinCall={onJoinCall}
-              />
-            ))}
-          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">{t('calendar-allDay')}</div>
+          <CalendarAllDayStack
+            columnId={getLocalDateKey(currentDate)}
+            events={allDayEvents}
+            onEventClick={onEventClick}
+            t={t}
+            activeConversationCalls={activeConversationCalls}
+            onJoinCall={onJoinCall}
+          />
         </div>
       )}
 

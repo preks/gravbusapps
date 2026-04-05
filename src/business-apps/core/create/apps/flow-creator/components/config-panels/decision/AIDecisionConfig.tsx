@@ -65,6 +65,10 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
     getAiConfigOrDefault,
     decisionTaskExperts,
     selectedTaskExpert,
+    promptParams,
+    promptParamsLoading,
+    taskExpertVersions,
+    taskExpertVersionsLoading,
     decisionResultEnumOptions,
     taskExpertSchemaPaths,
     taskExpertMappingExpressionSuggestions,
@@ -72,6 +76,7 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
     mappingWrapperUpdate,
     onSelectPolicy,
     onSelectTaskExpert,
+    onChangeTaskExpertVersion,
     changeExecutor,
     onChangeReasoningPath
   } = useAIDecisionConfigState({ config, update, studioData })
@@ -111,12 +116,17 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
             variant="simple"
             aiConfig={getAiConfigOrDefault('TASK_EXPERT')}
             studioAgentsLoading={Boolean(studioData.agentsLoading)}
-            selectedTaskExpertName={selectedTaskExpert?.name}
+            selectedTaskExpert={selectedTaskExpert}
             candidates={decisionTaskExperts}
             onSelectTaskExpert={onSelectTaskExpert}
+            onChangeTaskExpertVersion={onChangeTaskExpertVersion}
+            availablePromptVersions={taskExpertVersions}
+            promptVersionsLoading={taskExpertVersionsLoading}
             mappingWrapperConfig={mappingWrapperConfig}
             mappingWrapperUpdate={mappingWrapperUpdate}
             mappingSuggestions={taskExpertMappingExpressionSuggestions}
+            promptParams={promptParams}
+            promptParamsLoading={promptParamsLoading}
             decisionResultEnumOptions={decisionResultEnumOptions}
             schemaPaths={taskExpertSchemaPaths}
             onChangeReasoningPath={onChangeReasoningPath}
@@ -171,12 +181,17 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
           variant="advanced"
           aiConfig={getAiConfigOrDefault('TASK_EXPERT')}
           studioAgentsLoading={Boolean(studioData.agentsLoading)}
-          selectedTaskExpertName={selectedTaskExpert?.name}
+          selectedTaskExpert={selectedTaskExpert}
           candidates={decisionTaskExperts}
           onSelectTaskExpert={onSelectTaskExpert}
+          onChangeTaskExpertVersion={onChangeTaskExpertVersion}
+          availablePromptVersions={taskExpertVersions}
+          promptVersionsLoading={taskExpertVersionsLoading}
           mappingWrapperConfig={mappingWrapperConfig}
           mappingWrapperUpdate={mappingWrapperUpdate}
           mappingSuggestions={taskExpertMappingExpressionSuggestions}
+          promptParams={promptParams}
+          promptParamsLoading={promptParamsLoading}
           decisionResultEnumOptions={decisionResultEnumOptions}
           schemaPaths={taskExpertSchemaPaths}
           onChangeReasoningPath={onChangeReasoningPath}

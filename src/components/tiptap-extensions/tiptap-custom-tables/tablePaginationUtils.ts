@@ -5,6 +5,47 @@ export interface TableRowGroupRange {
   endIndex: number
 }
 
+interface ResolveSplitTableRowsOptions {
+  repeatHeaderRow?: boolean
+}
+
+export interface TableRowEntry {
+  node: ProseMirrorNode
+  rowIndex: number
+  rowPos: number
+}
+
+function normalizeRowGroupIndex(value: string) {
+  const parsed = Number.parseInt(value, 10)
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+}
+
+function computeTableRowGroupsFromRows(rows: ProseMirrorNode[]): TableRowGroupRange[] {
+  if (!rows.length) return []
+
+  const rawGroups = rows.map((rowNode, rowIndex) => {
+    const endIndex = Math.min(rows.length - 1, rowIndex + getMaximumRowSpan(rowNode) - 1)
+    return [rowIndex, endIndex] as const
+  })
+
+  const mergedGroups: TableRowGroupRange[] = []
+
+  rawGroups.forEach(([startIndex, endIndex]) => {
+    const previousGroup = mergedGroups[mergedGroups.length - 1]
+    if (previousGroup && startIndex <= previousGroup.endIndex) {
+      previousGroup.endIndex = Math.max(previousGroup.endIndex, endIndex)
+      return
+    }
+
+    mergedGroups.push({
+      startIndex,
+      endIndex
+    })
+  })
+
+  return mergedGroups
+}
+
 export function getTableRows(table: ProseMirrorNode) {
   const rows: ProseMirrorNode[] = []
 
@@ -24,6 +65,40 @@ export function getTableRows(table: ProseMirrorNode) {
   })
 
   return rows
+}
+
+export function getTableRowEntries(table: ProseMirrorNode, tablePos: number): TableRowEntry[] {
+  const rows: TableRowEntry[] = []
+
+  table.forEach((childNode, childOffset) => {
+    if (!childNode.type || childNode.type.name === 'tableRow') {
+      rows.push({
+        node: childNode,
+        rowIndex: rows.length,
+        rowPos: tablePos + 1 + childOffset
+      })
+      return
+    }
+
+    if (childNode.type.name !== 'tableRowGroup') return
+
+    const rowGroupPos = tablePos + 1 + childOffset
+    childNode.forEach((rowNode, rowOffset) => {
+      if (rowNode.type && rowNode.type.name !== 'tableRow') return
+
+      rows.push({
+        node: rowNode,
+        rowIndex: rows.length,
+        rowPos: rowGroupPos + 1 + rowOffset
+      })
+    })
+  })
+
+  return rows
+}
+
+export function getTableRowCount(table: ProseMirrorNode) {
+  return getTableRows(table).length
 }
 
 export function rowHasMergedCells(row: ProseMirrorNode) {
@@ -67,59 +142,124 @@ export function getMaximumRowSpan(row: ProseMirrorNode) {
 
 export function getTableRowGroups(table: ProseMirrorNode): TableRowGroupRange[] {
   const rows = getTableRows(table)
-  if (!rows.length) return []
+  const maximumIndex = rows.length - 1
+  const storedGroups = parseSerializedTableRowGroups(table.attrs.paginationRowGroups).filter(
+    group => group.startIndex <= maximumIndex && group.endIndex <= maximumIndex
+  )
 
-  const rawGroups = rows.map((rowNode, rowIndex) => {
-    const endIndex = Math.min(rows.length - 1, rowIndex + getMaximumRowSpan(rowNode) - 1)
-    return [rowIndex, endIndex] as const
-  })
-
-  const mergedGroups: TableRowGroupRange[] = []
-
-  rawGroups.forEach(([startIndex, endIndex]) => {
-    const previousGroup = mergedGroups[mergedGroups.length - 1]
-    if (previousGroup && startIndex <= previousGroup.endIndex) {
-      previousGroup.endIndex = Math.max(previousGroup.endIndex, endIndex)
-      return
-    }
-
-    mergedGroups.push({
-      startIndex,
-      endIndex
-    })
-  })
-
-  return mergedGroups
+  return storedGroups.length > 0 ? storedGroups : computeTableRowGroupsFromRows(rows)
 }
 
 export function serializeTableRowGroups(groups: TableRowGroupRange[]) {
   return groups.map(group => `${group.startIndex}-${group.endIndex}`).join(',')
 }
 
-export function tableHasRowSpanCrossingAt(table: ProseMirrorNode, splitIndex: number) {
-  const rows = getTableRows(table)
+export function parseSerializedTableRowGroups(value: unknown): TableRowGroupRange[] {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return []
+  }
 
-  return rows.some((rowNode, rowIndex) => {
-    if (rowIndex >= splitIndex) return false
+  return value
+    .split(',')
+    .map(part => {
+      const [rawStart, rawEnd] = part.split('-', 2)
+      const startIndex = normalizeRowGroupIndex(rawStart ?? '')
+      const endIndex = normalizeRowGroupIndex(rawEnd ?? '')
 
-    let crossesSplit = false
-    rowNode.forEach(cellNode => {
-      const rowSpan = Number(cellNode.attrs.rowspan ?? 1)
-      if (rowIndex + rowSpan > splitIndex) {
-        crossesSplit = true
+      if (startIndex == null || endIndex == null || endIndex < startIndex) {
+        return null
+      }
+
+      return {
+        startIndex,
+        endIndex
       }
     })
+    .filter((group): group is TableRowGroupRange => group !== null)
+}
 
-    return crossesSplit
-  })
+export function getSerializedTableRowGroups(table: ProseMirrorNode) {
+  const groups = computeTableRowGroupsFromRows(getTableRows(table))
+  return groups.length > 0 ? serializeTableRowGroups(groups) : null
+}
+
+export function getSerializedTableRowGroupsForRows(rows: ProseMirrorNode[]) {
+  const groups = computeTableRowGroupsFromRows(rows)
+  return groups.length > 0 ? serializeTableRowGroups(groups) : null
+}
+
+export function buildTableChildrenFromRows(_table: ProseMirrorNode, rows: ProseMirrorNode[]) {
+  return rows
+}
+
+export function getMergedSecondTableRowOffset(firstTable: ProseMirrorNode, secondTable: ProseMirrorNode) {
+  const firstRows = getTableRows(firstTable)
+  const secondRows = getTableRows(secondTable)
+  return isHeaderRow(firstRows[0]) && isHeaderRow(secondRows[0]) ? 1 : 0
+}
+
+export function resolveMergedTableRows(firstTable: ProseMirrorNode, secondTable: ProseMirrorNode) {
+  const firstRows = getTableRows(firstTable)
+  const secondRows = getTableRows(secondTable)
+  return [...firstRows, ...secondRows.slice(getMergedSecondTableRowOffset(firstTable, secondTable))]
+}
+
+export function resolveMergedSplitIndex(
+  firstTable: ProseMirrorNode,
+  secondTable: ProseMirrorNode,
+  secondTableSplitIndex: number
+) {
+  return (
+    getTableRowCount(firstTable) +
+    Math.max(0, secondTableSplitIndex - getMergedSecondTableRowOffset(firstTable, secondTable))
+  )
+}
+
+export function resolveSplitTableRows(
+  table: ProseMirrorNode,
+  proposedSplitIndex: number,
+  options: ResolveSplitTableRowsOptions = {}
+) {
+  const rows = getTableRows(table)
+  if (proposedSplitIndex <= 0 || proposedSplitIndex >= rows.length) {
+    return null
+  }
+
+  const safeSplitIndex = findSafeSplitRow(table, proposedSplitIndex)
+  if (safeSplitIndex < 1 || safeSplitIndex >= rows.length) {
+    return null
+  }
+
+  const leadingRows = rows.slice(0, safeSplitIndex)
+  const remainingRows = rows.slice(safeSplitIndex)
+  if (!leadingRows.length || !remainingRows.length) {
+    return null
+  }
+
+  return {
+    safeSplitIndex,
+    leadingRows,
+    continuationRows:
+      options.repeatHeaderRow === true && isHeaderRow(rows[0]) ? [rows[0], ...remainingRows] : remainingRows
+  }
+}
+
+export function tableHasRowSpanCrossingAt(table: ProseMirrorNode, splitIndex: number) {
+  return getTableRowGroups(table).some(group => group.startIndex < splitIndex && group.endIndex >= splitIndex)
 }
 
 export function findSafeSplitRow(table: ProseMirrorNode, proposedSplitIndex: number) {
-  for (let splitIndex = proposedSplitIndex; splitIndex >= 1; splitIndex -= 1) {
-    if (!tableHasRowSpanCrossingAt(table, splitIndex)) {
-      return splitIndex
+  let safeSplitIndex = -1
+
+  for (const group of getTableRowGroups(table)) {
+    if (group.startIndex >= proposedSplitIndex) {
+      break
+    }
+
+    if (group.endIndex < proposedSplitIndex) {
+      safeSplitIndex = group.endIndex + 1
     }
   }
 
-  return -1
+  return safeSplitIndex
 }
