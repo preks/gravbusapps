@@ -19,6 +19,8 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   const { mode, function: func, onSaved, accessToken, onBack, userInfo } = props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
+  const [isFixingWithAi, setIsFixingWithAi] = React.useState(false)
+  const [fixWithAiError, setFixWithAiError] = React.useState<string | null>(null)
   const [fixTestRequest, setFixTestRequest] = React.useState<null | {
     nonce: string
     source: string
@@ -89,8 +91,16 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   const handleFixWithAi = React.useCallback(() => {
     // Open the assistant and let the chat run the "fix test" iteration flow.
     setAssistantOpen(true)
-    const snap = buildTestIterationSnapshot()
+    setFixWithAiError(null)
+    let snap: ReturnType<typeof buildTestIterationSnapshot> = null
+    try {
+      snap = buildTestIterationSnapshot()
+    } catch (e) {
+      setFixWithAiError(e instanceof Error ? e.message : 'Unable to start AI fix')
+      return
+    }
     if (!snap) return
+    setIsFixingWithAi(true)
     setFixTestRequest({ nonce: `${Date.now()}-${Math.random().toString(16).slice(2)}`, ...snap })
   }, [buildTestIterationSnapshot, setAssistantOpen])
 
@@ -202,6 +212,8 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
               testResult={testResult}
               testLogs={testLogs}
               onFixWithAi={handleFixWithAi}
+              isFixingWithAi={isFixingWithAi}
+              fixWithAiError={fixWithAiError}
               activeTab={definitionTab}
               onTabChange={setDefinitionTab}
               data-testid="function-editor-definition"
@@ -219,6 +231,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             onOpenDefinitionTab={openDefinitionTab}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
+            onFixTestStateChange={({ isFixing, error }) => {
+              setIsFixingWithAi(isFixing)
+              setFixWithAiError(error)
+            }}
             onClose={() => setAssistantOpen(false)}
             data-testid="function-assistant"
           />

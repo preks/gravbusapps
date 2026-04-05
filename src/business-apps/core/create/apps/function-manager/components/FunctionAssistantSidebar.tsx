@@ -32,6 +32,7 @@ export interface FunctionAssistantSidebarProps {
   onOpenDefinitionTab?: (tab: FunctionDefinitionTab) => void
   fixTestRequest?: (AssistantFixTestArgs & { nonce: string }) | null
   onFixTestRequestHandled?: () => void
+  onFixTestStateChange?: (state: { isFixing: boolean; error: string | null }) => void
   onClose?: () => void
   'data-testid'?: string
 }
@@ -86,6 +87,7 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
   onOpenDefinitionTab,
   fixTestRequest,
   onFixTestRequestHandled,
+  onFixTestStateChange,
   onClose,
   'data-testid': testId = 'function-assistant-sidebar'
 }) => {
@@ -95,6 +97,8 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
     input,
     setInput,
     isGenerating,
+    isFixingTest,
+    fixTestError,
     messages,
     activityLines,
     clarifyWizard,
@@ -131,6 +135,10 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
     fixTest(args)
     onFixTestRequestHandled?.()
   }, [fixTest, fixTestRequest?.nonce, onFixTestRequestHandled])
+
+  React.useEffect(() => {
+    onFixTestStateChange?.({ isFixing: isFixingTest, error: fixTestError })
+  }, [fixTestError, isFixingTest, onFixTestStateChange])
 
   const hasUserMessage = messages.some(m => m.role === 'user')
 
