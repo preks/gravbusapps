@@ -13,7 +13,10 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TableHead
+  TableHead,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { UserIcon, CaretUpIcon, CaretDownIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollGridFilters as FilterState, PayrollCountry } from '../../../types/payrollTypes'
@@ -21,6 +24,7 @@ import { useFilteredEmployees } from '../../../hooks/usePayrollEmployees'
 import { ReadinessStatusBadge, IssueCountBadge, ChangedBadge, FieldStatusBadge } from '../../shared/StatusBadge'
 import { PayrollGridFilters } from './PayrollGridFilters'
 import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
+import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface PayrollGridViewProps {
   employees: PayrollEmployee[]
@@ -114,16 +118,18 @@ const SortIcon: React.FC<{ field: SortField; activeField: SortField; order: Sort
   order
 }) => {
   if (activeField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
-  return order === 'asc' ? (
+  return sortOrder === 'asc' ? (
     <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
   ) : (
     <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
   )
 }
 
-const SortableHead: React.FC<{
+type PayrollGridSortableHeadProps = Readonly<{
   field: SortField
   label: string
+  className?: string
+  sticky?: boolean
   activeField: SortField
   order: SortOrder
   onSort: (field: SortField) => void
@@ -334,22 +340,24 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
           <Table data-testid="payroll-prep-grid-table">
             <TableHeader>
               <TableRow>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="displayName"
                   label={t('grid-employee')}
+                  className="gba:min-w-[220px]"
+                  sticky
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   className="gba:min-w-[200px] gba:sticky gba:left-0 gba:z-20 gba:bg-card"
                   testId="payroll-prep-grid-sort-display-name"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="department"
                   label={t('grid-department')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-department"
                 />
@@ -359,11 +367,11 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <TableHead className="gba:whitespace-nowrap">{t('grid-location')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-contract-type')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-fte')}</TableHead>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="baseSalary"
                   label={t('grid-base-salary')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-base-salary"
                 />
@@ -376,19 +384,19 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <TableHead className="gba:whitespace-nowrap">{t('grid-logged-hours')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-capacity')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-balance')}</TableHead>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="issues"
                   label={t('grid-issues')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-issues"
                 />
-                <SortableHead
+                <PayrollGridSortableHead
                   field="readinessStatus"
                   label={t('grid-readiness')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-readiness"
                 />

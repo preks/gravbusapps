@@ -44,6 +44,7 @@ interface RawEmployeePosition {
     displayName: string
     pictureThumbnail: string | null
     additionalProperties: Record<string, unknown> | null
+    updatedAt: string | null
     workingCondition: Array<{
       id: string
       contractType: {
@@ -56,6 +57,8 @@ interface RawEmployeePosition {
       hireDate: string | null
       exitDate: string | null
       region: { id: string; value: string; parentEntry?: { code?: string } } | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
     workingHours: Array<{
       weeklyHours: number | null
@@ -67,12 +70,16 @@ interface RawEmployeePosition {
       fridayHours: number | null
       saturdayHours: number | null
       sundayHours: number | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
     bankAccounts: Array<{
       id: string
       iban: string | null
       bankName: string | null
       accountHolder: string | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
     taxDetails: Array<{
       taxNumber: string | null
@@ -83,6 +90,8 @@ interface RawEmployeePosition {
       taxBracketRef: string | null
       childTaxAllowance: number | null
       additionalProperties: Record<string, unknown> | null
+      updatedAt: string | null
+      updatedBy: string | null
     }>
   }
 }

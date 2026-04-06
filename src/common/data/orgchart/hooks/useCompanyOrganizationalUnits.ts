@@ -16,6 +16,9 @@ export interface CompanyOrganizationalUnit {
   updatedAt?: string
   version?: number
   isDeleted?: boolean
+  /** Present when API exposes org-unit budget fields (e.g. compensation planning). */
+  salaryBudget?: number | null
+  bonusBudget?: number | null
 }
 
 export interface UseCompanyOrganizationalUnitsResult {

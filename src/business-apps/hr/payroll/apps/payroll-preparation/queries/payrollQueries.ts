@@ -106,6 +106,7 @@ export const GET_PAYROLL_EMPLOYEES = `
         displayName
         pictureThumbnail
         additionalProperties
+        updatedAt
         workingCondition {
           id
           contractType {
@@ -132,6 +133,8 @@ export const GET_PAYROLL_EMPLOYEES = `
               code
             }
           }
+          updatedAt
+          updatedBy
         }
         workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
           weeklyHours
@@ -143,12 +146,16 @@ export const GET_PAYROLL_EMPLOYEES = `
           fridayHours
           saturdayHours
           sundayHours
+          updatedAt
+          updatedBy
         }
         bankAccounts {
           id
           iban
           bankName
           accountHolder
+          updatedAt
+          updatedBy
         }
         taxDetails {
           taxNumber
@@ -159,6 +166,8 @@ export const GET_PAYROLL_EMPLOYEES = `
           taxBracketRef
           childTaxAllowance
           additionalProperties
+          updatedAt
+          updatedBy
         }
       }
     }
@@ -259,6 +268,30 @@ export const GET_PAYROLL_BONUSES = `
   }
 `
 
+export const GET_PREVIOUS_SALARIES = `
+  query GetPreviousSalaries($employeeIds: [uuid!]!, $beforeDate: timestamptz!) {
+    EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+        createdAt: { _lt: $beforeDate }
+      }
+      orderBy: [{ startDate: DESC_NULLS_LAST }, { createdAt: DESC }]
+    ) {
+      id
+      employeeId
+      monthlyGrossSalary
+      currency {
+        code
+      }
+      currencyRef
+      startDate
+      createdAt
+    }
+  }
+`
+
 export const GET_PAYROLL_ATTENDANCE = `
   query GetPayrollAttendance($employeeIds: [uuid!]!, $dateFrom: date!, $dateTo: date!) {
     EmployeeAttendance(
@@ -275,6 +308,18 @@ export const GET_PAYROLL_ATTENDANCE = `
       effectiveTime
       plannedTime
       recordedTime
+    }
+  }
+`
+
+export const GET_EMPLOYEES_BY_USER_IDS = `
+  query GetEmployeesByUserIds($userIds: [String!]!) {
+    Employee(
+      where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }
+    ) {
+      userId
+      displayName
+      fullName
     }
   }
 `
