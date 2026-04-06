@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Button, Card, Alert, useTranslation } from '@newwork/nw-design-system'
+import { CalendarBlankIcon, ArrowLeftIcon } from '@phosphor-icons/react'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import { TimeEntriesTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/TimeEntriesTable'
@@ -16,11 +17,13 @@ import {
   employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { getEmployeeAbsences } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
+import DailyLog from './DailyLog'
 
 interface TimeHistoryProps {
   employeeId: string
   accessToken: string
   userId?: string
+  employee?: any
   employeeCode?: string
   employeeFirstName?: string
   employeeLastName?: string
@@ -39,6 +42,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   employeeId,
   accessToken,
   userId,
+  employee,
   employeeCode,
   employeeFirstName,
   employeeLastName,
@@ -53,6 +57,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     })
 
   const { t } = useTranslation(timeTrackingTranslations)
+  const [showCalendar, setShowCalendar] = React.useState(false)
   const graphqlClient = useGraphQLClient(accessToken)
 
   const handleGenerateReport = async () => {
@@ -185,10 +190,47 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     }
   })
 
+  if (showCalendar) {
+    return (
+      <div data-testid="time-tracking-history-container">
+        <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between gba:gap-2">
+          <Button variant="outline" onClick={() => setShowCalendar(false)} data-testid="my-time-history-back-button">
+            <ArrowLeftIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+            {t('history')}
+          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button onClick={handleGenerateReport} data-testid="my-time-history-generate-report-button">
+              {t('generate_report')}
+            </Button>
+            <AppAction
+              variant="update-primary"
+              data-testid="my-time-history-request-correction-button"
+              contexts={[
+                {
+                  context: FlowContextName.employeeAttendanceCorrectionRequest,
+                  contextData: { employeeId }
+                }
+              ]}
+              prefixDataTestId="my-time-history-request-correction"
+              accessToken={accessToken}
+            >
+              {t('manual_entry')}
+            </AppAction>
+          </div>
+        </div>
+        <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} hideSummaryCards />
+      </div>
+    )
+  }
+
   return (
     <div data-testid="time-tracking-history-container">
       {/* Top-right actions */}
       <div className="gba:mb-3 gba:flex gba:items-center gba:justify-end gba:gap-2">
+        <Button variant="outline" onClick={() => setShowCalendar(true)} data-testid="my-time-history-calendar-button">
+          <CalendarBlankIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+          {t('calendar_view')}
+        </Button>
         <Button onClick={handleGenerateReport} data-testid="my-time-history-generate-report-button">
           {t('generate_report')}
         </Button>
