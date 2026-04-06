@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import type { DistributionMethod } from '../../../types/compensationPlanningTypes'
+
 /** Field names passed to SortableTableHead (must match compare keys in useTeamMembersPipeline) */
 export type ManagerTeamSortField =
   | 'displayName'
@@ -27,6 +29,8 @@ interface ManagerPlanningState {
   filterLastRaiseTo: string | null
   currentPage: number
   pageSize: number
+  /** Salary increase pool preview split method (manager team distribution UI). */
+  distributionMethod: DistributionMethod
 
   setSearchQuery: (query: string) => void
   setSortFromTable: (field: string, order: 'ASC' | 'DESC' | '') => void
@@ -38,11 +42,13 @@ interface ManagerPlanningState {
   setLastRaiseFilterRange: (from: string | null, to: string | null) => void
   setCurrentPage: (page: number) => void
   setPageSize: (size: number) => void
+  setDistributionMethod: (method: DistributionMethod) => void
   resetTableUi: () => void
 }
 
 const DEFAULT_SORT_FIELD: ManagerTeamSortField = 'displayName'
 const DEFAULT_SORT_DIR: SortDirection = 'asc'
+const DEFAULT_DISTRIBUTION_METHOD: DistributionMethod = 'proportional_salary_cost'
 
 export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   searchQuery: '',
@@ -52,6 +58,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   sidebarFilterIds: [],
   currentPage: 1,
   pageSize: 10,
+  distributionMethod: DEFAULT_DISTRIBUTION_METHOD,
 
   setSearchQuery: query => set({ searchQuery: query, currentPage: 1 }),
 
@@ -90,7 +97,8 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       searchQuery: '',
       sortField: DEFAULT_SORT_FIELD,
       sortDirection: DEFAULT_SORT_DIR,
-      pageSize: 10
+      pageSize: 10,
+      distributionMethod: DEFAULT_DISTRIBUTION_METHOD
     }),
 
   toggleSidebarFilter: (filterId, selected) =>
@@ -128,6 +136,8 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       return { pageSize: size, currentPage: 1 }
     }),
 
+  setDistributionMethod: method => set({ distributionMethod: method }),
+
   resetTableUi: () =>
     set({
       searchQuery: '',
@@ -139,6 +149,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       filterLastRaiseFrom: null,
       filterLastRaiseTo: null,
       currentPage: 1,
-      pageSize: 10
+      pageSize: 10,
+      distributionMethod: DEFAULT_DISTRIBUTION_METHOD
     })
 }))

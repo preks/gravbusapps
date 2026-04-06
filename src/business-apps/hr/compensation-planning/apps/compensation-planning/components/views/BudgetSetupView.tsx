@@ -39,7 +39,9 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({
     error: teamError
   } = useTeamCompensationData({
     accessToken,
-    companyId
+    companyId,
+    /** Same scope as Overview: payroll-relevant contract types only. */
+    requirePayrollRelevantContractType: true
   })
 
   const currentSalaryCost = useMemo(

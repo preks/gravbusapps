@@ -16,7 +16,9 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ accessToken, c
     error: teamError
   } = useTeamCompensationData({
     accessToken,
-    companyId
+    companyId,
+    /** Same scope as Overview / budget setup (payroll-relevant contract types). */
+    requirePayrollRelevantContractType: true
   })
 
   const currencyCode = teamMembers[0]?.currency ?? 'EUR'

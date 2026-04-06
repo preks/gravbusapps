@@ -18,3 +18,6 @@ export const SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH = '/saveCompensationBudg
 
 /** Path segment for inserting/updating plan–org-unit budget rows. */
 export const SAVE_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_PATH = '/saveCompensationBudgetPlanOrganizationalUnit'
+
+/** Path segment for inserting/updating plan–employee budget rows (manager proposals). */
+export const SAVE_COMPENSATION_BUDGET_PLAN_EMPLOYEE_PATH = '/saveCompensationBudgetPlanEmployee'

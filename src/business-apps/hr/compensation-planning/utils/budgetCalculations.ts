@@ -148,6 +148,98 @@ function allocateProportionalToWeights(
   return result
 }
 
+/** Inputs for {@link distributeToEmployees} (per direct report in manager team view). */
+export interface EmployeeDistributionInput {
+  employeeId: string
+  displayName: string
+  annualSalary: number
+  performanceScore: number
+}
+
+function allocateProportionalToEmployeeWeights(
+  totalBudget: number,
+  employees: EmployeeDistributionInput[],
+  weightFor: (e: EmployeeDistributionInput) => number
+): Map<string, number> {
+  const result = new Map<string, number>()
+  if (employees.length === 0) return result
+
+  const weights = employees.map(e => Math.max(0, weightFor(e)))
+  const totalWeight = weights.reduce((a, b) => a + b, 0)
+  if (totalWeight <= 0) {
+    employees.forEach(e => result.set(e.employeeId, 0))
+    return result
+  }
+
+  const totalCents = Math.round(totalBudget * 100)
+  const baseCents: number[] = []
+  const fractionalRemainders: number[] = []
+
+  for (let i = 0; i < employees.length; i++) {
+    const exact = (weights[i] / totalWeight) * totalCents
+    const floorCents = Math.floor(exact)
+    baseCents.push(floorCents)
+    fractionalRemainders.push(exact - floorCents)
+  }
+
+  const distributed = baseCents.reduce((a, b) => a + b, 0)
+  const leftover = totalCents - distributed
+
+  const indices = employees.map((_, i) => i)
+  indices.sort((a, b) => {
+    const diff = fractionalRemainders[b] - fractionalRemainders[a]
+    if (diff !== 0) return diff
+    return a - b
+  })
+
+  for (let k = 0; k < leftover; k++) {
+    baseCents[indices[k]] += 1
+  }
+
+  employees.forEach((e, i) => {
+    result.set(e.employeeId, baseCents[i] / 100)
+  })
+  return result
+}
+
+/**
+ * Preview split of the manager team salary increase pool across employees (same methods as org-unit
+ * distribution except `proportional_headcount` is treated like equal weight per row when passed.
+ *
+ * For `performance_weighted`, when no employee has a positive score, falls back to **equal** split
+ * (manager view does not use headcount-based fallback).
+ */
+export function distributeToEmployees(
+  totalBudget: number,
+  employees: EmployeeDistributionInput[],
+  method: DistributionMethod
+): Map<string, number> {
+  const result = new Map<string, number>()
+  if (employees.length === 0) return result
+
+  switch (method) {
+    case 'equal':
+      return allocateProportionalToEmployeeWeights(totalBudget, employees, () => 1)
+    case 'proportional_headcount':
+      return allocateProportionalToEmployeeWeights(totalBudget, employees, () => 1)
+    case 'proportional_salary_cost':
+      return allocateProportionalToEmployeeWeights(totalBudget, employees, e => e.annualSalary)
+    case 'performance_weighted': {
+      const ratedPositive = employees.filter(e => e.performanceScore > 0)
+      if (ratedPositive.length === 0) {
+        return allocateProportionalToEmployeeWeights(totalBudget, employees, () => 1)
+      }
+      return allocateProportionalToEmployeeWeights(totalBudget, employees, e =>
+        e.performanceScore > 0 ? e.performanceScore : 0
+      )
+    }
+    case 'custom':
+    default:
+      employees.forEach(e => result.set(e.employeeId, 0))
+      return result
+  }
+}
+
 /**
  * Preview split of the salary increase pool across org units.
  *

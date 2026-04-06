@@ -52,7 +52,9 @@ export function BudgetDistributionView({ accessToken, companyId, companyToolbarG
     error: teamError
   } = useTeamCompensationData({
     accessToken,
-    companyId
+    companyId,
+    /** Same scope as Overview / budget setup (payroll-relevant contract types). */
+    requirePayrollRelevantContractType: true
   })
 
   const employeeIdsForPerformance = useMemo(() => [...new Set(teamMembers.map(m => m.employeeId))], [teamMembers])

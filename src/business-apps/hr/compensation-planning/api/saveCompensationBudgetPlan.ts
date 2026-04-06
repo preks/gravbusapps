@@ -2,6 +2,7 @@ import type { RestClient } from '@/common/network/rest/RestClient'
 import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 import {
   SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH,
+  SAVE_COMPENSATION_BUDGET_PLAN_EMPLOYEE_PATH,
   SAVE_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_PATH
 } from './compensationBudgetRestConfig'
 import type { CompensationBudgetPlanCompanyRestPayload } from './createCompensationBudgetPlan'
@@ -90,6 +91,37 @@ export async function saveCompensationBudgetPlanCompany(
   body: SaveCompensationBudgetPlanCompanyRestBody
 ): Promise<unknown> {
   return restClient.post<unknown>(SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH, body, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+}
+
+export interface CompensationBudgetPlanEmployeeRestPayload {
+  proposedSalaryIncreaseAmount: number
+  proposedSalaryIncreasePercent: number
+  proposedNewSalary: number
+  justification: string
+  budgetPlanStatus: BudgetPlanStatusApi
+  submittedAt: string
+  reviewNotes: string
+  /** `compensation_budget_plan_organizational_unit.id` */
+  compensationBudgetPlanOrganizationalUnit: string
+  /** Employee UUID */
+  employee: string
+  /** Submitting manager employee UUID */
+  submittedByEmployee: string
+}
+
+export interface SaveCompensationBudgetPlanEmployeeRestBody {
+  compensationBudgetPlanEmployee: CompensationBudgetPlanEmployeeRestPayload
+  changeMode: CompensationBudgetPlanChangeMode
+}
+
+export async function saveCompensationBudgetPlanEmployee(
+  restClient: RestClient,
+  accessToken: string,
+  body: SaveCompensationBudgetPlanEmployeeRestBody
+): Promise<unknown> {
+  return restClient.post<unknown>(SAVE_COMPENSATION_BUDGET_PLAN_EMPLOYEE_PATH, body, {
     headers: { Authorization: `Bearer ${accessToken}` }
   })
 }

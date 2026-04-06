@@ -4,16 +4,23 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import { createCompensationBudgetPlanCompany } from '../../../api/createCompensationBudgetPlan'
 import {
+  buildSaveCompensationBudgetPlanCompanyUpdateBody,
+  saveCompensationBudgetPlanCompany,
+  type SaveCompensationBudgetPlanCompanyRowInput
+} from '../../../api/saveCompensationBudgetPlan'
+import {
   GET_COMPENSATION_BUDGET_PLAN_COMPANY,
-  INSERT_COMPENSATION_BUDGET_PLAN_COMPANY,
   LIST_COMPENSATION_BUDGET_PLANS,
-  LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY,
-  UPDATE_COMPENSATION_BUDGET_PLAN_COMPANY_BY_PK
+  LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
 import type { BudgetType } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
-import { DEFAULT_BUDGET_PLAN_STATUS_DRAFT } from '../../../types/budgetPlanGraphqlEnums'
+import {
+  DEFAULT_BUDGET_DISTRIBUTION_METHOD,
+  DEFAULT_BUDGET_PLAN_STATUS_DRAFT
+} from '../../../types/budgetPlanGraphqlEnums'
+import { coerceStoredDistributionMethodToApi } from '../../../utils/mapDistributionMethodToApi'
 import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 
 /** Mirrors GraphQL `CompensationBudgetPlan` (DB: fiscal_year, start_date, …). */
@@ -333,20 +340,52 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         const changes = buildCompanyBudgetChanges(input)
 
         if (companyRow) {
-          await graphqlClient.request(UPDATE_COMPENSATION_BUDGET_PLAN_COMPANY_BY_PK, {
+          const salaryBudgetAmount = roundMoney2(changes.salaryBudgetAmount)
+          const salaryBudgetPercent = roundMoney2(changes.salaryBudgetPercent)
+          const bonusBudgetAmount = roundMoney2(changes.bonusBudgetAmount)
+          const bonusBudgetPercent = roundMoney2(changes.bonusBudgetPercent)
+          const currentTotalSalaryCost = roundMoney2(changes.currentTotalSalaryCost)
+          const currencyRef = input.currencyRef !== undefined ? input.currencyRef : companyRow.currencyRef
+
+          const rowInput: SaveCompensationBudgetPlanCompanyRowInput = {
             id: companyRow.id,
-            changes
-          })
+            compensationBudgetPlanId: companyRow.compensationBudgetPlanId,
+            companyId: companyRow.companyId,
+            salaryBudgetAmount,
+            salaryBudgetPercent,
+            bonusBudgetAmount,
+            bonusBudgetPercent,
+            budgetPlanStatus: companyRow.budgetPlanStatus,
+            currentTotalSalaryCost,
+            currencyRef,
+            headcount: input.headcount
+          }
+          const body = buildSaveCompensationBudgetPlanCompanyUpdateBody(
+            rowInput,
+            coerceStoredDistributionMethodToApi(companyRow.distributionMethod)
+          )
+          await saveCompensationBudgetPlanCompany(restClient, accessToken, body)
         } else {
-          await graphqlClient.request(INSERT_COMPENSATION_BUDGET_PLAN_COMPANY, {
-            object: {
-              compensationBudgetPlanId: selectedBudgetPlanId,
-              companyId,
+          const { id, raw } = await createCompensationBudgetPlanCompany(restClient, accessToken, {
+            compensationBudgetPlanCompany: {
+              compensationBudgetPlan: selectedBudgetPlanId,
+              company: companyId,
+              salaryBudgetAmount: roundMoney2(changes.salaryBudgetAmount),
+              salaryBudgetPercent: roundMoney2(changes.salaryBudgetPercent),
+              bonusBudgetAmount: roundMoney2(changes.bonusBudgetAmount),
+              bonusBudgetPercent: roundMoney2(changes.bonusBudgetPercent),
               budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_DRAFT,
-              isDeleted: false,
-              ...changes
+              currentTotalSalaryCost: roundMoney2(input.currentTotalSalaryCost),
+              currencyRef: input.currencyRef ?? null,
+              headcount: input.headcount,
+              distributionMethod: DEFAULT_BUDGET_DISTRIBUTION_METHOD
             }
           })
+          if (!id) {
+            console.error('createCompensationBudgetPlanCompany: missing id in response', raw)
+            setError('Failed to create company budget row: unexpected response from server')
+            return false
+          }
         }
         await fetchCompanyRow()
         await fetchCompanyRowsForCompany()
@@ -360,15 +399,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         setSaving(false)
       }
     },
-    [
-      accessToken,
-      companyId,
-      companyRow,
-      fetchCompanyRow,
-      fetchCompanyRowsForCompany,
-      graphqlClient,
-      selectedBudgetPlanId
-    ]
+    [accessToken, companyId, companyRow, fetchCompanyRow, fetchCompanyRowsForCompany, restClient, selectedBudgetPlanId]
   )
 
   return {

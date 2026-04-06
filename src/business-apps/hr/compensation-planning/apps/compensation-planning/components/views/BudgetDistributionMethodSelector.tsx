@@ -78,6 +78,8 @@ export interface BudgetDistributionMethodSelectorProps {
   disabled?: boolean
   sectionTitle: string
   t: Translate
+  /** Methods omitted from the radio list (e.g. manager team view excludes headcount). */
+  excludedMethods?: readonly DistributionMethod[]
 }
 
 export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethodSelectorProps> = ({
@@ -85,27 +87,29 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
   onMethodChange,
   disabled = false,
   sectionTitle,
-  t
+  t,
+  excludedMethods
 }) => {
-  const options = useMemo(
-    () =>
-      METHOD_ORDER.map(value => {
-        const keys = methodFluentKeys(value)
-        const Icon = methodIcon(value)
-        return {
-          value,
-          title: t(keys.title),
-          description: t(keys.description),
-          Icon
-        }
-      }),
-    [t]
-  )
+  const options = useMemo(() => {
+    const excluded = new Set(excludedMethods ?? [])
+    return METHOD_ORDER.filter(value => !excluded.has(value)).map(value => {
+      const keys = methodFluentKeys(value)
+      const Icon = methodIcon(value)
+      return {
+        value,
+        title: t(keys.title),
+        description: t(keys.description),
+        Icon
+      }
+    })
+  }, [t, excludedMethods])
 
   const selectedDetail = useMemo(
     () => options.find(o => o.value === selectedMethod) ?? options[0],
     [options, selectedMethod]
   )
+
+  const radioValue = selectedDetail?.value ?? selectedMethod
 
   return (
     <Card className="gba:overflow-hidden" data-testid="budget-distribution-method-selector">
@@ -115,14 +119,14 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
         </div>
 
         <RadioGroup
-          value={selectedMethod}
+          value={radioValue}
           onValueChange={v => onMethodChange(v as DistributionMethod)}
           disabled={disabled}
           className="gba:flex gba:w-full gba:min-w-0 gba:flex-nowrap gba:gap-1"
           data-testid="budget-distribution-method-radio-group"
         >
           {options.map(opt => {
-            const isSelected = selectedMethod === opt.value
+            const isSelected = radioValue === opt.value
             const inputId = `budget-distribution-method-${opt.value}`
             const OptionIcon = opt.Icon
             return (
@@ -178,7 +182,7 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
           className="gba:border-t gba:border-border gba:pt-2 gba:text-xs gba:leading-snug gba:text-muted-foreground"
           data-testid="budget-distribution-method-selected-description"
         >
-          {selectedDetail.description}
+          {selectedDetail?.description ?? ''}
         </p>
       </CardContent>
     </Card>

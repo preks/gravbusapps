@@ -21,7 +21,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
   const { units: companyOrgUnits } = useCompanyOrganizationalUnits(accessToken, companyId, OVERVIEW_ORG_UNIT_LIMIT)
   const { teamMembers, loading, error, refetch } = useTeamCompensationData({
     accessToken,
-    companyId
+    companyId,
+    requirePayrollRelevantContractType: true
   })
 
   const orgUnitSalaryRows = useMemo(() => {

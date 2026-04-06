@@ -1,29 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { SortingState } from '@tanstack/react-table'
-import {
-  DataDisplay,
-  DataTable,
-  TooltipProvider,
-  useTranslation,
-  type FilterConfiguration
-} from '@newwork/nw-design-system'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
+
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import { formatTenureSinceHireDate } from '@/business-apps/hr/core/utils/formatTenureSinceHireDate'
-import { useManagerPlanningStore } from '../hooks/useManagerPlanningStore'
+
+import { useManagerPlanningStore } from './useManagerPlanningStore'
 import translations from '../_i18n'
-import { buildTeamCompensationMembersColumns, type TeamMemberTableRow } from './buildTeamCompensationMembersColumns'
 
 const EMPTY_RANGE_INPUT_PLACEHOLDER = '\u200b'
-
-const VISIBLE_COLUMN_IDS = [
-  'displayName',
-  'hireDate',
-  'currentAnnualSalary',
-  'compaRatio',
-  'performance',
-  'lastRaiseDate',
-  'currentBonusTotal'
-] as const
 
 function applySalaryRangeFromFilters(
   amt: { min?: number | null; max?: number | null } | undefined,
@@ -56,23 +41,7 @@ function applyLastRaiseRangeFromFilters(
   }
 }
 
-export interface TeamCompensationMembersTableProps {
-  teamMembers: TeamMemberCompensationData[]
-  filteredRows: TeamMemberCompensationData[]
-  totalFiltered: number
-  loading: boolean
-  error: string | null
-  companyToolbarEnd: React.ReactNode
-}
-
-export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTableProps> = ({
-  teamMembers,
-  filteredRows,
-  totalFiltered,
-  loading,
-  error,
-  companyToolbarEnd
-}) => {
+export function useManagerTeamCompensationDataDisplay(teamMembers: TeamMemberCompensationData[]) {
   const { t } = useTranslation(translations)
   const {
     searchQuery,
@@ -87,25 +56,8 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
     setLastRaiseFilterRange,
     sortField,
     sortDirection,
-    setSortFromTable,
-    currentPage,
-    pageSize,
-    setCurrentPage,
-    setPageSize
+    setSortFromTable
   } = useManagerPlanningStore()
-
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...VISIBLE_COLUMN_IDS])
-
-  const tenure = useCallback(
-    (hireDate: string | null): string =>
-      formatTenureSinceHireDate(hireDate, {
-        year: t('profile-header-year'),
-        years: t('profile-header-years'),
-        month: t('profile-header-month'),
-        months: t('profile-header-months')
-      }) ?? '-',
-    [t]
-  )
 
   const selectedEmployeeIds = useMemo(
     () => sidebarFilterIds.filter(id => id.startsWith('employee:')).map(id => id.slice('employee:'.length)),
@@ -220,8 +172,6 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
     return obj
   }, [selectedEmployeeIds, filterSalaryMin, filterSalaryMax, filterLastRaiseFrom, filterLastRaiseTo])
 
-  const emptyMessage = t('table-empty')
-
   const sorting = useMemo(
     (): SortingState => [{ id: sortField, desc: sortDirection === 'desc' }],
     [sortField, sortDirection]
@@ -239,21 +189,6 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
     [sortField, setSortFromTable]
   )
 
-  const data = useMemo((): TeamMemberTableRow[] => filteredRows.map(m => ({ ...m, id: m.employeeId })), [filteredRows])
-
-  const pageIndexZeroBased = Math.max(0, currentPage - 1)
-  const pagedData = useMemo(() => {
-    const start = pageIndexZeroBased * pageSize
-    return data.slice(start, start + pageSize)
-  }, [data, pageIndexZeroBased, pageSize])
-
-  const columns = useMemo(() => buildTeamCompensationMembersColumns(t, tenure), [t, tenure])
-
-  const visibleTableColumns = useMemo(
-    () => columns.filter(col => visibleColumns.includes(String((col as { id?: string }).id ?? ''))),
-    [columns, visibleColumns]
-  )
-
   const sortableColumns = useMemo(
     () => [
       { id: 'displayName', label: t('col-employee') },
@@ -266,92 +201,15 @@ export const TeamCompensationMembersTable: React.FC<TeamCompensationMembersTable
     [t]
   )
 
-  const availableColumnsForDisplay = useMemo(
-    () => [
-      { id: 'displayName', label: t('col-employee') },
-      { id: 'hireDate', label: t('col-tenure') },
-      { id: 'currentAnnualSalary', label: t('col-current-salary') },
-      { id: 'compaRatio', label: t('col-band-position') },
-      { id: 'performance', label: t('col-performance') },
-      { id: 'lastRaiseDate', label: t('col-last-raise') },
-      { id: 'currentBonusTotal', label: t('col-bonuses-ytd') }
-    ],
-    [t]
-  )
-
-  const handlePaginationChange = useCallback(
-    (next: { pageIndex: number; pageSize: number }) => {
-      if (next.pageSize !== pageSize) {
-        setPageSize(next.pageSize)
-      }
-      setCurrentPage(next.pageIndex + 1)
-    },
-    [setCurrentPage, setPageSize, pageSize]
-  )
-
-  useEffect(() => {
-    const safePageSize = Math.max(1, pageSize)
-    const maxPage = Math.max(1, Math.ceil(totalFiltered / safePageSize))
-    if (currentPage > maxPage) {
-      setCurrentPage(1)
-    }
-  }, [totalFiltered, pageSize, currentPage, setCurrentPage])
-
-  const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
-
-  return (
-    <DataDisplay
-      data-testid="manager-team-compensation-display"
-      titleSections={[
-        {
-          id: 'team-members',
-          label: t('table-section-title'),
-          metadata: { count: totalFiltered, isLoading: loading }
-        }
-      ]}
-      currentSection="team-members"
-      toolbarDensity="default"
-      searchValue={searchQuery}
-      searchPlaceholder={t('search-placeholder')}
-      onSearchChange={setSearchQuery}
-      filters={filtersObject}
-      filterConfiguration={filterConfiguration}
-      onFilterChange={handleFilterChangeFromDisplay}
-      enableLiveFiltering
-      filterSheetTitle={t('filter-sheet-title')}
-      filterSheetDescription={t('filter-sheet-description')}
-      sorting={sorting}
-      sortableColumns={sortableColumns}
-      onSortingChange={handleSortingChange}
-      availableColumns={availableColumnsForDisplay}
-      visibleColumns={visibleColumns}
-      onVisibleColumnsChange={setVisibleColumns}
-      secondaryActions={companyToolbarEnd}
-    >
-      <TooltipProvider>
-        <DataTable<TeamMemberTableRow>
-          data={pagedData}
-          columns={visibleTableColumns}
-          loading={loading}
-          error={error ?? undefined}
-          totalCount={totalFiltered}
-          sorting={sorting}
-          onSortingChange={handleSortingChange}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          enablePagination
-          enableSorting
-          enableSelection={false}
-          enableColumnPinning
-          enableResizing={false}
-          tableLayout="fixed"
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          showPageNumbers
-          maxVisiblePages={7}
-          emptyMessage={emptyMessage}
-          data-testid="manager-team-table"
-        />
-      </TooltipProvider>
-    </DataDisplay>
-  )
+  return {
+    t,
+    searchQuery,
+    setSearchQuery,
+    filterConfiguration,
+    filtersObject,
+    handleFilterChangeFromDisplay,
+    sorting,
+    handleSortingChange,
+    sortableColumns
+  }
 }

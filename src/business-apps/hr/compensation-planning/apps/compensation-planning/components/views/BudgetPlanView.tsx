@@ -35,6 +35,7 @@ export const BudgetPlanView: React.FC<BudgetPlanViewProps> = ({ accessToken, com
         open={createOpen}
         onOpenChange={setCreateOpen}
         creating={creating}
+        existingPlans={rows}
         onCreate={insertPlan}
       />
 

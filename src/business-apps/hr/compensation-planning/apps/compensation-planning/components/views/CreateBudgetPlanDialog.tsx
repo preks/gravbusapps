@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -24,7 +24,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { DEFAULT_BUDGET_PLAN_STATUS_DRAFT, BUDGET_PLAN_STATUS_OPTIONS } from '../../../../types/budgetPlanGraphqlEnums'
-import type { InsertBudgetPlanInput } from '../../hooks/useBudgetPlansTable'
+import type { CompensationBudgetPlanRow, InsertBudgetPlanInput } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
 import { buildCreateBudgetPlanFormSchema, type CreateBudgetPlanFormValues } from './createBudgetPlanFormSchema'
@@ -40,6 +40,8 @@ export interface CreateBudgetPlanDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   creating: boolean
+  /** Used to block a new plan with the same start/end dates as an existing plan. */
+  existingPlans: CompensationBudgetPlanRow[]
   onCreate: (input: InsertBudgetPlanInput) => Promise<string | null>
 }
 
@@ -47,13 +49,17 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
   open,
   onOpenChange,
   creating,
+  existingPlans,
   onCreate
 }) => {
   const { t } = useTranslation(translations)
-  const schema = React.useMemo(() => buildCreateBudgetPlanFormSchema((key: string) => t(key)), [t])
+  const resolver = useMemo(
+    () => zodResolver(buildCreateBudgetPlanFormSchema((key: string) => t(key), { existingPlans })),
+    [t, existingPlans]
+  )
 
   const form = useForm<CreateBudgetPlanFormValues>({
-    resolver: zodResolver(schema),
+    resolver,
     defaultValues: {
       name: '',
       description: '',

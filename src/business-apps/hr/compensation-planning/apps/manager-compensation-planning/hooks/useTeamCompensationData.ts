@@ -79,6 +79,33 @@ interface UseTeamCompensationDataParams {
   orgUnitId?: string | null
   supervisorEmployeeId?: string | null
   supervisorOnly?: boolean
+  /**
+   * When true, only positions whose employee has a non-deleted working condition with a contract type
+   * catalog `objectValue` containing `payroll_relevant: true` (same signal as payroll preparation).
+   */
+  requirePayrollRelevantContractType?: boolean
+}
+
+/**
+ * Single `employee` object for `EmployeePosition` filters so payroll rules combine with `isDeleted` reliably.
+ * Accepts boolean or string `"true"` in catalog JSON (matches {@link usePayrollEmployees} `resolvePayrollRelevant`).
+ */
+function buildEmployeeWhereForPosition(requirePayrollRelevantContractType: boolean): Record<string, unknown> {
+  const employee: Record<string, unknown> = {
+    isDeleted: { _eq: false }
+  }
+  if (requirePayrollRelevantContractType) {
+    employee.workingCondition = {
+      isDeleted: { _eq: false },
+      contractType: {
+        _or: [
+          { objectValue: { _contains: { payroll_relevant: true } } },
+          { objectValue: { _contains: { payroll_relevant: 'true' } } }
+        ]
+      }
+    }
+  }
+  return employee
 }
 
 export function useTeamCompensationData({
@@ -86,7 +113,8 @@ export function useTeamCompensationData({
   companyId,
   orgUnitId,
   supervisorEmployeeId,
-  supervisorOnly = false
+  supervisorOnly = false,
+  requirePayrollRelevantContractType = false
 }: UseTeamCompensationDataParams) {
   const [teamMembers, setTeamMembers] = useState<TeamMemberCompensationData[]>([])
   const [loading, setLoading] = useState(false)
@@ -111,7 +139,9 @@ export function useTeamCompensationData({
     setError(null)
 
     try {
-      const whereConditions: any[] = [{ employee: { isDeleted: { _eq: false } } }]
+      const whereConditions: Record<string, unknown>[] = [
+        { employee: buildEmployeeWhereForPosition(requirePayrollRelevantContractType) }
+      ]
       /** Company selector: only positions tied to the selected company. */
       if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
       if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
@@ -202,7 +232,15 @@ export function useTeamCompensationData({
     } finally {
       setLoading(false)
     }
-  }, [accessToken, companyId, orgUnitId, supervisorEmployeeId, supervisorOnly, graphqlClient])
+  }, [
+    accessToken,
+    companyId,
+    orgUnitId,
+    supervisorEmployeeId,
+    supervisorOnly,
+    requirePayrollRelevantContractType,
+    graphqlClient
+  ])
 
   useEffect(() => {
     fetchData()
