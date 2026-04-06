@@ -3,31 +3,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Combobox,
-  DateInput,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  Input,
-  Label,
   useTranslation
 } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import translations from '../_i18n'
+import { AbsenceTypeVersionBasicSection } from '../components/AbsenceTypeVersionBasicSection'
 import { AbsenceTypeSettingsSection } from '../components/AbsenceTypeSettingsSection'
-import {
-  defaultAbsenceTypeVersionValues,
-  getAbsenceGroupLabel,
-  type AbsenceTypeVersionFormValues
-} from '../utils/absenceSetup'
+import { createDefaultAbsenceTypeVersionValues, type AbsenceTypeVersionFormValues } from '../utils/absenceSetup'
 import { getAbsenceTypeVersionFormValues } from '../utils/absenceTypeVersionObjectValue'
+import { validateAbsenceTypeVersion } from '../utils/absenceTypeVersionValidation'
 
 interface AbsenceTypeVersionModalProps {
   open: boolean
@@ -35,6 +25,7 @@ interface AbsenceTypeVersionModalProps {
   onSave: (values: AbsenceTypeVersionFormValues) => Promise<void>
   entry?: CatalogEntry | null
   absenceTypes: AbsenceType[]
+  absenceTypeVersions: CatalogEntry[]
 }
 
 export const AbsenceTypeVersionModal: React.FC<AbsenceTypeVersionModalProps> = ({
@@ -42,50 +33,54 @@ export const AbsenceTypeVersionModal: React.FC<AbsenceTypeVersionModalProps> = (
   onClose,
   onSave,
   entry,
-  absenceTypes
+  absenceTypes,
+  absenceTypeVersions
 }) => {
   const { t } = useTranslation(translations)
-  const [formValues, setFormValues] = useState<AbsenceTypeVersionFormValues>(defaultAbsenceTypeVersionValues)
+  const [formValues, setFormValues] = useState<AbsenceTypeVersionFormValues>(createDefaultAbsenceTypeVersionValues())
   const [isSaving, setIsSaving] = useState(false)
-
-  const normalizeDateInputValue = (value: string): string => {
-    if (!value) {
-      return ''
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return value
-    }
-
-    if (/^\d{2}\.\d{2}\.\d{4}$/.test(value)) {
-      const [day, month, year] = value.split('.')
-      return `${year}-${month}-${day}`
-    }
-
-    return value
-  }
 
   useEffect(() => {
     if (!open) return
 
-    setFormValues(getAbsenceTypeVersionFormValues(entry, defaultAbsenceTypeVersionValues))
+    const defaultValues = createDefaultAbsenceTypeVersionValues()
+    setFormValues(getAbsenceTypeVersionFormValues(entry, defaultValues))
   }, [entry, open])
 
-  const selectedType = useMemo(
-    () => absenceTypes.find(item => item.code === formValues.code),
-    [absenceTypes, formValues.code]
-  )
+  useEffect(() => {
+    if (!open || entry) {
+      return
+    }
 
-  const absenceTypeOptions = useMemo(
+    const selectedType = absenceTypes.find(item => item.code === formValues.code)
+    if (!selectedType) {
+      return
+    }
+
+    const defaultEnglishLabel = `${selectedType.value || selectedType.code} ${formValues.version}`.trim()
+    if (!formValues.translations.enUS.trim()) {
+      setFormValues(current => ({
+        ...current,
+        translations: {
+          ...current.translations,
+          enUS: defaultEnglishLabel
+        }
+      }))
+    }
+  }, [absenceTypes, entry, formValues.code, formValues.translations.enUS, formValues.version, open])
+
+  const validationErrors = useMemo(
     () =>
-      absenceTypes.map(item => ({
-        value: item.code,
-        label: item.value || item.code
-      })),
-    [absenceTypes]
+      validateAbsenceTypeVersion({
+        values: formValues,
+        entries: absenceTypeVersions,
+        currentEntryId: entry?.id
+      }),
+    [absenceTypeVersions, entry?.id, formValues]
   )
 
-  const isSaveDisabled = isSaving || !formValues.code
+  const isSaveDisabled =
+    isSaving || !formValues.code || !formValues.translations.enUS.trim() || Object.keys(validationErrors).length > 0
 
   const updateSettingsField = <K extends keyof AbsenceTypeVersionFormValues['settings']>(
     field: K,
@@ -130,88 +125,13 @@ export const AbsenceTypeVersionModal: React.FC<AbsenceTypeVersionModalProps> = (
           </DialogHeader>
 
           <div className="gba:flex-1 gba:space-y-3 gba:overflow-y-auto gba:px-4 gba:py-4">
-            <Card
-              data-testid="absence-type-version-basic-section"
-              className="gba:border gba:border-border gba:bg-muted/10"
-            >
-              <CardHeader className="gba:border-b gba:border-border gba:bg-background">
-                <CardTitle>{t('version-basic-section-title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="gba:grid gba:gap-3 gba:p-4 gba:md:grid-cols-3">
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-version-code">
-                    {t('field-code-label')}
-                    <span className="gba:text-destructive"> *</span>
-                  </Label>
-                  <Combobox
-                    value={formValues.code}
-                    onValueChange={value => setFormValues(current => ({ ...current, code: String(value || '') }))}
-                    options={absenceTypeOptions}
-                    placeholder={t('add-absence-type-row-placeholder')}
-                    searchPlaceholder={t('add-absence-type-row-placeholder')}
-                    emptyText={t('empty-absence-types')}
-                    disabled={Boolean(entry)}
-                    data-testid="absence-type-version-code-select"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-version-name">{t('field-name-label')}</Label>
-                  <Input
-                    id="absence-type-version-name"
-                    value={selectedType?.value || ''}
-                    disabled
-                    className="gba:bg-muted"
-                    data-testid="absence-type-version-name-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-version-group">{t('field-group-label')}</Label>
-                  <Input
-                    id="absence-type-version-group"
-                    value={selectedType ? getAbsenceGroupLabel(selectedType.parentEntryId, t('no-group')) : ''}
-                    disabled
-                    className="gba:bg-muted"
-                    data-testid="absence-type-version-group-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-version-value">{t('field-version-label')}</Label>
-                  <Input
-                    id="absence-type-version-value"
-                    value={formValues.version}
-                    onChange={event => setFormValues(current => ({ ...current, version: event.target.value }))}
-                    data-testid="absence-type-version-value-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-version-valid-from">{t('field-valid-from-label')}</Label>
-                  <DateInput
-                    id="absence-type-version-valid-from"
-                    type="date"
-                    outputFormat="iso"
-                    value={normalizeDateInputValue(formValues.validFrom)}
-                    onChange={value => setFormValues(current => ({ ...current, validFrom: value || '' }))}
-                    data-testid="absence-type-version-valid-from-input"
-                  />
-                </div>
-
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-type-version-valid-to">{t('field-valid-to-label')}</Label>
-                  <DateInput
-                    id="absence-type-version-valid-to"
-                    type="date"
-                    outputFormat="iso"
-                    value={normalizeDateInputValue(formValues.validTo)}
-                    onChange={value => setFormValues(current => ({ ...current, validTo: value || '' }))}
-                    data-testid="absence-type-version-valid-to-input"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            <AbsenceTypeVersionBasicSection
+              entryId={entry?.id}
+              absenceTypes={absenceTypes}
+              formValues={formValues}
+              validationErrors={validationErrors}
+              onChange={setFormValues}
+            />
 
             <AbsenceTypeSettingsSection settings={formValues.settings} onFieldChange={updateSettingsField} />
           </div>
