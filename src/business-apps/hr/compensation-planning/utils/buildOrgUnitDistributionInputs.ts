@@ -18,6 +18,7 @@ export function buildOrgUnitDistributionInputs(
     const inUnit = teamMembers.filter(m => m.organizationalUnitId === u.id)
     const headcount = inUnit.length
     const currentTotalSalaryCost = inUnit.reduce((sum, m) => sum + (m.currentAnnualSalary ?? 0), 0)
+    const currentTotalBonusYtd = inUnit.reduce((sum, m) => sum + (m.currentBonusTotal ?? 0), 0)
     const ratings = inUnit.map(m => m.performanceOverallScore).filter((x): x is number => x != null && !Number.isNaN(x))
     const totalPerformanceScore = ratings.reduce((a, b) => a + b, 0)
     const averagePerformanceRating = ratings.length > 0 ? totalPerformanceScore / ratings.length : null
@@ -27,6 +28,7 @@ export function buildOrgUnitDistributionInputs(
       orgUnitName: u.name,
       headcount,
       currentTotalSalaryCost,
+      currentTotalBonusYtd,
       totalPerformanceScore,
       averagePerformanceRating
     }
@@ -40,9 +42,10 @@ export function buildOrgUnitDistributionInputs(
  */
 export function buildOrgUnitDistributionInputsFromTeamMembers(
   teamMembers: TeamMemberCompensationData[],
-  options?: { unassignedLabel?: string }
+  options?: { unassignedLabel?: string; companyOrgUnits?: CompanyOrganizationalUnit[] }
 ): OrgUnitDistributionInput[] {
   const unassignedLabel = options?.unassignedLabel ?? 'Unassigned'
+  const companyOrgUnits = options?.companyOrgUnits
   const groups = new Map<string, TeamMemberCompensationData[]>()
 
   for (const m of teamMembers) {
@@ -56,6 +59,7 @@ export function buildOrgUnitDistributionInputsFromTeamMembers(
   for (const [id, members] of groups) {
     const headcount = members.length
     const currentTotalSalaryCost = members.reduce((sum, x) => sum + (x.currentAnnualSalary ?? 0), 0)
+    const currentTotalBonusYtd = members.reduce((sum, x) => sum + (x.currentBonusTotal ?? 0), 0)
     /** Department score for weights = sum of employee overall scores (`performanceOverallScore`). */
     const ratings = members
       .map(x => x.performanceOverallScore)
@@ -63,16 +67,17 @@ export function buildOrgUnitDistributionInputsFromTeamMembers(
     const totalPerformanceScore = ratings.reduce((a, b) => a + b, 0)
     const averagePerformanceRating = ratings.length > 0 ? totalPerformanceScore / ratings.length : null
 
-    const orgUnitName =
-      id === UNASSIGNED_ORG_UNIT_ID
-        ? unassignedLabel
-        : (members.find(m => m.orgUnitName)?.orgUnitName ?? members[0]?.organizationalUnitId ?? id)
+    const nameFromChart = companyOrgUnits?.find(u => u.id === id)?.name?.trim()
+    const nameFromMembers =
+      members.find(m => m.orgUnitName?.trim())?.orgUnitName?.trim() ?? members[0]?.orgUnitName?.trim()
+    const orgUnitName = id === UNASSIGNED_ORG_UNIT_ID ? unassignedLabel : nameFromChart || nameFromMembers || id
 
     result.push({
       orgUnitId: id,
       orgUnitName,
       headcount,
       currentTotalSalaryCost,
+      currentTotalBonusYtd,
       totalPerformanceScore,
       averagePerformanceRating
     })

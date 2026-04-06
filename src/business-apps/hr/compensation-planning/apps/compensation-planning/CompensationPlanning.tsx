@@ -68,7 +68,10 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
   const isBudgetPlanTab = activeTab === 'budget-plan'
   /** Company + primary actions live in the DataDisplay toolbar (like Currency + Add). */
   const showCompanyInPageToolbar =
-    activeTab !== 'budget-plan' && activeTab !== 'budget' && activeTab !== 'budget-distribution'
+    activeTab !== 'budget-plan' &&
+    activeTab !== 'budget' &&
+    activeTab !== 'budget-distribution' &&
+    activeTab !== 'submissions'
 
   const companySelectValue =
     selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
@@ -151,7 +154,13 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
           />
         )
       case 'submissions':
-        return <SubmissionsView accessToken={accessToken} companyId={selectedCompanyId} />
+        return (
+          <SubmissionsView
+            accessToken={accessToken}
+            companyId={selectedCompanyId}
+            companyToolbarGroup={companyToolbarGroup}
+          />
+        )
       default:
         return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
     }

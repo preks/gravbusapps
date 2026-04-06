@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, useTranslation } from '@newwork/nw-design-system'
+import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import { buildOrgUnitDistributionInputsFromTeamMembers } from '../../../../utils/buildOrgUnitDistributionInputs'
 import { formatCurrency } from '@/common/utils/numberFormatter'
@@ -8,6 +9,8 @@ import { CompensationOverviewStatistics } from '../CompensationOverviewStatistic
 import { OverviewOrgUnitSalaryCard } from './OverviewOrgUnitSalaryCard'
 import translations from '../../_i18n'
 
+const OVERVIEW_ORG_UNIT_LIMIT = 500
+
 interface OverviewViewProps {
   accessToken: string
   companyId: string
@@ -15,6 +18,7 @@ interface OverviewViewProps {
 
 export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, companyId }) => {
   const { t } = useTranslation(translations)
+  const { units: companyOrgUnits } = useCompanyOrganizationalUnits(accessToken, companyId, OVERVIEW_ORG_UNIT_LIMIT)
   const { teamMembers, loading, error, refetch } = useTeamCompensationData({
     accessToken,
     companyId
@@ -22,17 +26,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
 
   const orgUnitSalaryRows = useMemo(() => {
     return buildOrgUnitDistributionInputsFromTeamMembers(teamMembers, {
-      unassignedLabel: t('overview-org-unit-unassigned')
+      unassignedLabel: t('overview-org-unit-unassigned'),
+      companyOrgUnits
     }).map(o => ({
       orgUnitId: o.orgUnitId,
       orgUnitName: o.orgUnitName,
       headcount: o.headcount,
-      salaryCost: o.currentTotalSalaryCost
+      salaryCost: o.currentTotalSalaryCost,
+      bonusCostYtd: o.currentTotalBonusYtd
     }))
-  }, [teamMembers, t])
+  }, [companyOrgUnits, teamMembers, t])
 
   const totalSalaryAcrossOrgUnits = useMemo(
     () => orgUnitSalaryRows.reduce((sum, r) => sum + r.salaryCost, 0),
+    [orgUnitSalaryRows]
+  )
+
+  const totalBonusAcrossOrgUnits = useMemo(
+    () => orgUnitSalaryRows.reduce((sum, r) => sum + r.bonusCostYtd, 0),
     [orgUnitSalaryRows]
   )
 
@@ -129,6 +140,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ accessToken, company
         <OverviewOrgUnitSalaryCard
           rows={orgUnitSalaryRows}
           totalSalaryAcrossUnits={totalSalaryAcrossOrgUnits}
+          totalBonusAcrossUnits={totalBonusAcrossOrgUnits}
           currency={currency}
           teamMemberCount={teamMembers.length}
         />

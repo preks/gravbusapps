@@ -132,7 +132,11 @@ function mapGraphqlOrgUnitRow(
 }
 
 /** Stable client-only id for org units that have no `compensation_budget_plan_organizational_unit` row yet. */
-const PENDING_ORG_UNIT_ROW_PREFIX = 'pending-org-unit:'
+export const PENDING_ORG_UNIT_ROW_PREFIX = 'pending-org-unit:'
+
+export function isPendingCompensationBudgetPlanOrgUnitRowId(rowId: string): boolean {
+  return rowId.startsWith(PENDING_ORG_UNIT_ROW_PREFIX)
+}
 
 /**
  * Ensures every organizational unit of the company appears in the table: existing API rows keep their data;

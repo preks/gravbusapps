@@ -47,6 +47,8 @@ export interface OrgUnitDistributionInput {
   orgUnitName: string
   headcount: number
   currentTotalSalaryCost: number
+  /** Sum of `currentBonusTotal` (YTD) for employees in this org unit; overview / analytics only. */
+  currentTotalBonusYtd: number
   /** Sum of employee `performanceOverallScore` values in this department; drives `performance_weighted` weights. */
   totalPerformanceScore: number
   /** Mean of employee overall scores (for display only). */
@@ -72,6 +74,26 @@ export function resolveCompanySalaryIncreasePool(args: {
   }
   if (args.salaryBudgetPercent > 0 && baseline > 0) {
     return resolveAbsoluteBudget('percentage', args.salaryBudgetPercent, baseline)
+  }
+  return 0
+}
+
+/**
+ * Resolves the company **bonus budget pool** (absolute amount) from `compensation_budget_plan_company`
+ * bonus amount/percent vs the same salary-cost baseline used in budget setup (percentage is applied to
+ * `currentTotalSalaryCost`, consistent with {@link computeCompanyBudgetSummary} for cycles).
+ */
+export function resolveCompanyBonusBudgetPool(args: {
+  bonusBudgetAmount: number
+  bonusBudgetPercent: number
+  currentTotalSalaryCost: number
+}): number {
+  const baseline = args.currentTotalSalaryCost
+  if (args.bonusBudgetAmount > 0) {
+    return args.bonusBudgetAmount
+  }
+  if (args.bonusBudgetPercent > 0 && baseline > 0) {
+    return resolveAbsoluteBudget('percentage', args.bonusBudgetPercent, baseline)
   }
   return 0
 }

@@ -12,3 +12,9 @@ export const CREATE_COMPENSATION_BUDGET_PLAN_PATH = '/createCompensationBudgetPl
 
 /** Path segment for creating a plan–company row (budget setup “add” form). */
 export const CREATE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH = '/createCompensationBudgetPlanCompany'
+
+/** Path segment for updating a plan–company row (e.g. distribution method). */
+export const SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH = '/saveCompensationBudgetPlanCompany'
+
+/** Path segment for inserting/updating plan–org-unit budget rows. */
+export const SAVE_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_PATH = '/saveCompensationBudgetPlanOrganizationalUnit'

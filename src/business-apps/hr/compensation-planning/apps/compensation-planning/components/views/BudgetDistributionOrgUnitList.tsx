@@ -6,8 +6,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Input,
-  Label,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -15,6 +13,8 @@ import type { CompanyOrganizationalUnit } from '@/common/data/orgchart/hooks/use
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
 import translations from '../../_i18n'
+import type { CustomBudgetInputMode, OrgUnitCustomBudgetInput } from './budgetDistributionCustomTypes'
+import { BudgetDistributionCustomOrgUnitInputs } from './BudgetDistributionCustomOrgUnitInputs'
 import { BudgetDistributionDepartmentsPagination } from './BudgetDistributionDepartmentsPagination'
 import { useDepartmentPagination } from './useDepartmentPagination'
 
@@ -25,11 +25,12 @@ function formatShareOfTotalSalary(part: number, total: number): string {
   return `${((100 * part) / total).toFixed(1)}%`
 }
 
-function formatPercentOfWhole(part: number, whole: number): string | null {
-  if (whole <= 0 || !Number.isFinite(part) || !Number.isFinite(whole)) {
+/** Percent of the salary increase pool for this row’s preview allocation; null when the pool is missing or zero. */
+function formatPercentOfPool(part: number, pool: number | null): string | null {
+  if (pool == null || pool <= 0 || !Number.isFinite(part) || !Number.isFinite(pool)) {
     return null
   }
-  return ((100 * part) / whole).toFixed(1)
+  return ((100 * part) / pool).toFixed(1)
 }
 
 function formatPerformanceScoreSum(value: number): string {
@@ -51,16 +52,18 @@ export interface BudgetDistributionOrgUnitListProps {
   totalPerformanceScoreByOrgUnitId: ReadonlyMap<string, number>
   /** Sum of {@link totalPerformanceScoreByOrgUnitId} across departments (performance-weighted denominator). */
   grandTotalPerformanceScore: number
-  /** Salary increase pool (for salary-cost formula line). */
-  salaryIncreasePool: number | null
+  /** Salary increase pool for preview and custom inputs. */
+  distributionPool: number | null
   allocationByOrgUnitId: ReadonlyMap<string, number>
   currencyCode: string
   loading: boolean
   error: string | null
   hasSelectedPlan: boolean
   selectedMethod: DistributionMethod
-  customAmountByOrgUnitId: Record<string, string>
-  onCustomAmountChange: (orgUnitId: string, value: string) => void
+  customBudgetByOrgUnitId: Record<string, OrgUnitCustomBudgetInput>
+  onCustomAmountRawChange: (orgUnitId: string, value: string) => void
+  onCustomPercentRawChange: (orgUnitId: string, value: string) => void
+  onCustomModeChange: (orgUnitId: string, mode: CustomBudgetInputMode) => void
   performanceFallbackToHeadcount: boolean
   performancePartialScores: boolean
   toolbarSecondary?: React.ReactNode
@@ -73,15 +76,17 @@ export function BudgetDistributionOrgUnitList({
   totalSalaryCostAcrossOrgUnits,
   totalPerformanceScoreByOrgUnitId,
   grandTotalPerformanceScore,
-  salaryIncreasePool,
+  distributionPool,
   allocationByOrgUnitId,
   currencyCode,
   loading,
   error,
   hasSelectedPlan,
   selectedMethod,
-  customAmountByOrgUnitId,
-  onCustomAmountChange,
+  customBudgetByOrgUnitId,
+  onCustomAmountRawChange,
+  onCustomPercentRawChange,
+  onCustomModeChange,
   performanceFallbackToHeadcount,
   performancePartialScores,
   toolbarSecondary
@@ -99,9 +104,22 @@ export function BudgetDistributionOrgUnitList({
     [sortedOrgUnits, allocationByOrgUnitId]
   )
 
-  const poolForCustomContext = salaryIncreasePool != null && salaryIncreasePool > 0 ? salaryIncreasePool : null
-  const totalDiffersFromPool =
-    poolForCustomContext != null && Math.abs(totalCustomAllocated - poolForCustomContext) > 0.01
+  const poolForCustomContext = distributionPool != null && distributionPool > 0 ? distributionPool : null
+
+  /** Remaining pool after allocations from the top of the list through this row (inclusive), same order as {@link sortedOrgUnits}. */
+  const sequentialPoolRemainingByOrgUnitId = useMemo(() => {
+    const map = new Map<string, number>()
+    const pool = distributionPool != null && distributionPool > 0 ? distributionPool : null
+    if (pool == null) {
+      return map
+    }
+    let cumulative = 0
+    for (const u of sortedOrgUnits) {
+      cumulative += allocationByOrgUnitId.get(u.id) ?? 0
+      map.set(u.id, pool - cumulative)
+    }
+    return map
+  }, [sortedOrgUnits, allocationByOrgUnitId, distributionPool])
 
   const {
     pagedItems: pagedDepartments,
@@ -178,8 +196,8 @@ export function BudgetDistributionOrgUnitList({
                 : t('budget-distribution-salary-cost-basis-alert', {
                     total: formatCurrency(totalSalaryCostAcrossOrgUnits, currencyCode),
                     pool:
-                      salaryIncreasePool != null && salaryIncreasePool > 0
-                        ? formatCurrency(salaryIncreasePool, currencyCode)
+                      distributionPool != null && distributionPool > 0
+                        ? formatCurrency(distributionPool, currencyCode)
                         : '—'
                   })}
             </AlertDescription>
@@ -194,8 +212,8 @@ export function BudgetDistributionOrgUnitList({
                 : t('budget-distribution-performance-basis-alert', {
                     total: formatPerformanceScoreSum(grandTotalPerformanceScore),
                     pool:
-                      salaryIncreasePool != null && salaryIncreasePool > 0
-                        ? formatCurrency(salaryIncreasePool, currencyCode)
+                      distributionPool != null && distributionPool > 0
+                        ? formatCurrency(distributionPool, currencyCode)
                         : '—'
                   })}
             </AlertDescription>
@@ -204,20 +222,34 @@ export function BudgetDistributionOrgUnitList({
 
         {hasSelectedPlan && sortedOrgUnits.length > 0 && !loading ? (
           <>
-            <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border">
+            <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border gba:min-w-0">
+              {isCustom ? (
+                <li
+                  className="gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-center gba:gap-x-4 gba:border-b gba:border-border gba:bg-muted/40 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground"
+                  data-testid="budget-distribution-custom-column-headers"
+                >
+                  <span>{t('budget-distribution-col-org-unit')}</span>
+                  <span>{t('budget-distribution-custom-column-amount')}</span>
+                  <span>{t('budget-distribution-custom-column-details')}</span>
+                </li>
+              ) : null}
               {pagedDepartments.map(unit => {
                 const amount = allocationByOrgUnitId.get(unit.id) ?? 0
+                const poolPercentPoints = formatPercentOfPool(amount, distributionPool)
                 const headcount = headcountByOrgUnitId.get(unit.id) ?? 0
                 const unitSalaryCost = salaryCostByOrgUnitId.get(unit.id) ?? 0
                 const unitPerformanceSum = totalPerformanceScoreByOrgUnitId.get(unit.id) ?? 0
-                const inputId = `budget-distribution-custom-amount-${unit.id}`
                 return (
                   <li
                     key={unit.id}
-                    className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3"
+                    className={
+                      isCustom
+                        ? 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
+                        : 'gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3'
+                    }
                     data-testid={`budget-distribution-department-row-${unit.id}`}
                   >
-                    <div className="gba:min-w-0 gba:flex-1">
+                    <div className={isCustom ? 'gba:min-w-0' : 'gba:min-w-0 gba:flex-1'}>
                       <div className="gba:font-medium gba:text-foreground">{unit.name}</div>
                       <div
                         className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground"
@@ -249,52 +281,36 @@ export function BudgetDistributionOrgUnitList({
                       ) : null}
                     </div>
                     {isCustom ? (
-                      <div className="gba:flex gba:min-w-[14rem] gba:flex-col gba:gap-1">
-                        <Label htmlFor={inputId} className="gba:text-xs gba:text-muted-foreground">
-                          {t('budget-distribution-custom-amount-label')}
-                        </Label>
-                        <Input
-                          id={inputId}
-                          type="text"
-                          inputMode="decimal"
-                          value={customAmountByOrgUnitId[unit.id] ?? ''}
-                          onChange={e => onCustomAmountChange(unit.id, e.target.value)}
-                          placeholder="0"
-                          data-testid={`budget-distribution-custom-input-${unit.id}`}
-                        />
-                        {amount > 0 ? (
-                          <div
-                            className="gba:space-y-0.5 gba:text-xs gba:text-muted-foreground"
-                            data-testid={`budget-distribution-custom-meaning-${unit.id}`}
-                          >
-                            <p data-testid={`budget-distribution-custom-parsed-${unit.id}`}>
-                              {t('budget-distribution-custom-parsed-amount', {
-                                amount: formatCurrency(amount, currencyCode)
-                              })}
-                            </p>
-                            {poolForCustomContext != null ? (
-                              <p data-testid={`budget-distribution-custom-pool-pct-${unit.id}`}>
-                                {t('budget-distribution-custom-percent-of-pool', {
-                                  percent: formatPercentOfWhole(amount, poolForCustomContext) ?? '—'
-                                })}
-                              </p>
-                            ) : null}
-                            {totalCustomAllocated > 0 && (poolForCustomContext == null || totalDiffersFromPool) ? (
-                              <p data-testid={`budget-distribution-custom-total-pct-${unit.id}`}>
-                                {t('budget-distribution-custom-percent-of-total', {
-                                  percent: formatPercentOfWhole(amount, totalCustomAllocated) ?? '—'
-                                })}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
+                      <BudgetDistributionCustomOrgUnitInputs
+                        orgUnitId={unit.id}
+                        currencyCode={currencyCode}
+                        amount={amount}
+                        distributionPool={distributionPool}
+                        poolRemainingSequential={sequentialPoolRemainingByOrgUnitId.get(unit.id) ?? null}
+                        customBudget={customBudgetByOrgUnitId[unit.id]}
+                        onAmountRawChange={onCustomAmountRawChange}
+                        onPercentRawChange={onCustomPercentRawChange}
+                        onModeChange={onCustomModeChange}
+                        t={t}
+                      />
                     ) : (
-                      <span
-                        className="gba:shrink-0 gba:tabular-nums gba:text-foreground"
-                        data-testid={`budget-distribution-allocation-${unit.id}`}
-                      >
-                        {formatCurrency(amount, currencyCode)}
+                      <span className="gba:flex gba:shrink-0 gba:flex-wrap gba:items-baseline gba:justify-end gba:gap-x-2 gba:text-right">
+                        <span
+                          className="gba:tabular-nums gba:text-foreground"
+                          data-testid={`budget-distribution-allocation-${unit.id}`}
+                        >
+                          {formatCurrency(amount, currencyCode)}
+                        </span>
+                        {poolPercentPoints != null ? (
+                          <span
+                            className="gba:text-sm gba:tabular-nums gba:text-muted-foreground"
+                            data-testid={`budget-distribution-allocation-pool-percent-${unit.id}`}
+                          >
+                            {t('budget-distribution-allocation-pool-percent', {
+                              percent: poolPercentPoints
+                            })}
+                          </span>
+                        ) : null}
                       </span>
                     )}
                   </li>
@@ -310,42 +326,17 @@ export function BudgetDistributionOrgUnitList({
                 t={t}
               />
             ) : null}
-            {isCustom && totalCustomAllocated > 0 ? (
-              <div className="gba:space-y-2" data-testid="budget-distribution-custom-total-summary">
-                {poolForCustomContext != null ? (
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {t('budget-distribution-custom-total-vs-pool', {
+            {isCustom && poolForCustomContext != null && totalCustomAllocated > poolForCustomContext + 0.01 ? (
+              <div className="gba:pt-2" data-testid="budget-distribution-custom-total-summary">
+                <Alert data-testid="budget-distribution-custom-exceeds-pool-alert">
+                  <AlertDescription>
+                    {t('budget-distribution-custom-exceeds-pool', {
                       total: formatCurrency(totalCustomAllocated, currencyCode),
-                      percent: formatPercentOfWhole(totalCustomAllocated, poolForCustomContext) ?? '—'
+                      pool: formatCurrency(poolForCustomContext, currencyCode),
+                      diff: formatCurrency(totalCustomAllocated - poolForCustomContext, currencyCode)
                     })}
-                  </p>
-                ) : (
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {t('budget-distribution-custom-total-only', {
-                      total: formatCurrency(totalCustomAllocated, currencyCode)
-                    })}
-                  </p>
-                )}
-                {poolForCustomContext != null && totalCustomAllocated > poolForCustomContext + 0.01 ? (
-                  <Alert data-testid="budget-distribution-custom-exceeds-pool-alert">
-                    <AlertDescription>
-                      {t('budget-distribution-custom-exceeds-pool', {
-                        total: formatCurrency(totalCustomAllocated, currencyCode),
-                        pool: formatCurrency(poolForCustomContext, currencyCode),
-                        diff: formatCurrency(totalCustomAllocated - poolForCustomContext, currencyCode)
-                      })}
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                {poolForCustomContext != null &&
-                totalCustomAllocated + 0.01 < poolForCustomContext &&
-                totalCustomAllocated > 0 ? (
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {t('budget-distribution-custom-under-pool', {
-                      remaining: formatCurrency(poolForCustomContext - totalCustomAllocated, currencyCode)
-                    })}
-                  </p>
-                ) : null}
+                  </AlertDescription>
+                </Alert>
               </div>
             ) : null}
           </>

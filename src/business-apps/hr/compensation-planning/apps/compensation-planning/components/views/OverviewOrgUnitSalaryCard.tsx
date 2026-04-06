@@ -8,17 +8,18 @@ export interface OverviewOrgUnitSalaryRow {
   orgUnitName: string
   headcount: number
   salaryCost: number
+  bonusCostYtd: number
 }
 
 export interface OverviewOrgUnitSalaryCardProps {
   rows: OverviewOrgUnitSalaryRow[]
   totalSalaryAcrossUnits: number
+  totalBonusAcrossUnits: number
   currency: string
-  /** Org units list still loading (team data already available). */
-  loadingOrgUnits: boolean
+  teamMemberCount: number
 }
 
-function formatShareOfTotalSalary(part: number, total: number): string {
+function formatShareOfTotal(part: number, total: number): string {
   if (total <= 0 || !Number.isFinite(part) || !Number.isFinite(total)) {
     return '—'
   }
@@ -28,6 +29,7 @@ function formatShareOfTotalSalary(part: number, total: number): string {
 export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps> = ({
   rows,
   totalSalaryAcrossUnits,
+  totalBonusAcrossUnits,
   currency,
   teamMemberCount
 }) => {
@@ -37,7 +39,6 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
     <Card className="gba:w-full" data-testid="compensation-overview-org-unit-salary-card">
       <CardHeader>
         <CardTitle className="gba:text-base">{t('overview-section-org-unit-salary-title')}</CardTitle>
-        <p className="gba:text-sm gba:text-muted-foreground">{t('overview-section-org-unit-salary-description')}</p>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
@@ -66,13 +67,31 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
                     </div>
                   </div>
                   <div className="gba:text-right">
-                    <div className="gba:font-medium gba:tabular-nums gba:text-foreground">
-                      {formatCurrency(row.salaryCost, currency)}
+                    <div>
+                      <div className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                        {t('overview-org-unit-block-annual-salary-label')}
+                      </div>
+                      <div className="gba:font-medium gba:tabular-nums gba:text-foreground">
+                        {formatCurrency(row.salaryCost, currency)}
+                      </div>
+                      <div className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground">
+                        {t('overview-org-unit-salary-share-line', {
+                          share: formatShareOfTotal(row.salaryCost, totalSalaryAcrossUnits)
+                        })}
+                      </div>
                     </div>
-                    <div className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground">
-                      {t('overview-org-unit-salary-share-line', {
-                        share: formatShareOfTotalSalary(row.salaryCost, totalSalaryAcrossUnits)
-                      })}
+                    <div className="gba:mt-3">
+                      <div className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                        {t('overview-org-unit-block-bonuses-ytd-label')}
+                      </div>
+                      <div className="gba:font-medium gba:tabular-nums gba:text-foreground">
+                        {formatCurrency(row.bonusCostYtd, currency)}
+                      </div>
+                      <div className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground">
+                        {t('overview-org-unit-bonus-share-line', {
+                          share: formatShareOfTotal(row.bonusCostYtd, totalBonusAcrossUnits)
+                        })}
+                      </div>
                     </div>
                   </div>
                 </li>
@@ -80,13 +99,24 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
             </ul>
             <Separator className="gba:my-4" />
             <div
-              className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-4"
+              className="gba:flex gba:flex-wrap gba:items-end gba:justify-between gba:gap-4"
               data-testid="compensation-overview-org-unit-salary-total"
             >
               <span className="gba:text-sm gba:font-semibold">{t('overview-org-unit-salary-total-row')}</span>
-              <span className="gba:text-sm gba:font-semibold gba:tabular-nums">
-                {formatCurrency(totalSalaryAcrossUnits, currency)}
-              </span>
+              <div className="gba:flex gba:flex-col gba:items-end gba:gap-2">
+                <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-end gba:gap-x-3 gba:gap-y-0.5">
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-total-salary')}</span>
+                  <span className="gba:text-sm gba:font-semibold gba:tabular-nums">
+                    {formatCurrency(totalSalaryAcrossUnits, currency)}
+                  </span>
+                </div>
+                <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-end gba:gap-x-3 gba:gap-y-0.5">
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-bonuses-ytd')}</span>
+                  <span className="gba:text-sm gba:font-semibold gba:tabular-nums">
+                    {formatCurrency(totalBonusAcrossUnits, currency)}
+                  </span>
+                </div>
+              </div>
             </div>
           </>
         )}

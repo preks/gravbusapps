@@ -149,6 +149,33 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
   }
 `
 
+/** All org-unit budget rows for any company-budget row in `$compensationBudgetPlanCompanyIds` (Manager Submissions tab). */
+export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET_IDS = `
+  query ListCompensationBudgetPlanOrganizationalUnitByCompanyBudgetIds(
+    $compensationBudgetPlanCompanyIds: [uuid!]!
+  ) {
+    CompensationBudgetPlanOrganizationalUnit(
+      where: {
+        _and: [
+          { compensationBudgetPlanCompanyId: { _in: $compensationBudgetPlanCompanyIds } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      orderBy: [{ organizationalUnitId: ASC }, { compensationBudgetPlanCompanyId: ASC }]
+      limit: 2000
+    ) {
+      id
+      compensationBudgetPlanCompanyId
+      organizationalUnitId
+      salaryBudgetAmount
+      salaryBudgetPercent
+      bonusBudgetAmount
+      bonusBudgetPercent
+      budgetPlanStatus
+    }
+  }
+`
+
 export const GET_COMPENSATION_BUDGET_PLAN_COMPANY = `
   query GetCompensationBudgetPlanCompany($planId: uuid!, $companyId: uuid!) {
     CompensationBudgetPlanCompany(
