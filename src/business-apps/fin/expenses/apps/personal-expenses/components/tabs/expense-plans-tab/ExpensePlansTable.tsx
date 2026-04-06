@@ -20,7 +20,8 @@ import {
   applyDateRangeFromFilter,
   resolveSelectedCurrencyCode,
   applyCurrencyChange,
-  buildEmptyMessage
+  buildFilteredEmptyMessage,
+  buildDefaultEmptyMessage
 } from '../../../utils/tableUtils'
 import {
   CurrencyDropdown,
@@ -600,11 +601,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     },
     [onTableChange]
   )
-  const emptyMessage = buildEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:personal_expenses.no_plan_data',
-    'No expense plans found. Create your first expense plan to get started.'
-  )
+  const emptyMessage = hasActiveFilters
+    ? buildFilteredEmptyMessage()
+    : buildDefaultEmptyMessage(
+        'lowcoder:personal_expenses.no_plan_data',
+        'No expense plans found. Create your first expense plan to get started.'
+      )
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(selectedFilters || [], props.currencyStats || []),

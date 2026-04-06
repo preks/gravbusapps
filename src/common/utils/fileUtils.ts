@@ -100,6 +100,34 @@ export const formatFileSize = (bytes: number | undefined): string => {
 }
 
 /**
+ * Shorten a file name for compact UI (preserves extension when possible).
+ */
+export function truncateFileName(fileName: string, maxLength = 15): string {
+  if (!fileName || fileName.length <= maxLength) {
+    return fileName || ''
+  }
+
+  const lastDotIndex = fileName.lastIndexOf('.')
+  if (lastDotIndex === -1) {
+    return fileName.substring(0, maxLength - 3) + '...'
+  }
+
+  const name = fileName.substring(0, lastDotIndex)
+  const extension = fileName.substring(lastDotIndex)
+
+  if (extension.length >= maxLength - 3) {
+    return '...' + extension
+  }
+
+  if (name.length <= 3) {
+    return fileName.substring(0, maxLength - 3) + '...'
+  }
+
+  const maxNameLength = maxLength - extension.length - 3
+  return name.substring(0, maxNameLength) + '...' + extension
+}
+
+/**
  * Get appropriate file icon component based on MIME type
  * Returns the component itself (not instantiated), caller must render it
  * @param mimeType - MIME type of the file

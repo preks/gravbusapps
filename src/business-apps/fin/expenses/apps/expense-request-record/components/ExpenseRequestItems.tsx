@@ -10,7 +10,7 @@ import { Check } from '@phosphor-icons/react'
 import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency'
 import { formatDate } from '@/common/utils/windowUtils'
 import { ExpenseDetailsShell } from '../../../common/components/details-panel/ExpenseDetailsShell'
-import { ExpenseItemDetails } from '../../personal-expenses/components/tabs/expense-items-tab/ExpenseItemDetails'
+import { ExpenseItemDetails } from '../../personal-expenses/components/tabs/expense-items-tab/details/ExpenseItemDetails'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpensePositionsSection from './ExpensePositionsSection'
 

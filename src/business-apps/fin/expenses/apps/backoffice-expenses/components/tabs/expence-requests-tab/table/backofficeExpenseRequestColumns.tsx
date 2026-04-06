@@ -126,7 +126,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
       {
         getRowTestId: row => `expense-request-status-${row.id}`,
         cellWrapperClassName:
-          'gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:justify-center'
+          'gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:items-center'
       }
     ),
     {

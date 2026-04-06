@@ -60,6 +60,8 @@ export interface FunctionDefinitionCardProps {
   testResult: string
   testLogs: FunctionExecutionLogEntry[]
   onFixWithAi?: () => void
+  isFixingWithAi?: boolean
+  fixWithAiError?: string | null
   activeTab: FunctionDefinitionTab
   onTabChange: (tab: FunctionDefinitionTab) => void
   'data-testid'?: string
@@ -102,6 +104,8 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   testResult,
   testLogs,
   onFixWithAi,
+  isFixingWithAi = false,
+  fixWithAiError = null,
   activeTab,
   onTabChange,
   'data-testid': testId = 'function-editor-definition'
@@ -357,6 +361,8 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
               testResult={testResult}
               testLogs={testLogs}
               onFixWithAi={onFixWithAi}
+              isFixingWithAi={isFixingWithAi}
+              fixWithAiError={fixWithAiError}
               data-testid="function-editor-test"
             />
           </TabsContent>
