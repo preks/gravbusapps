@@ -10,9 +10,11 @@ import timeTrackingTranslations from './_i18n'
 import DailyLog from './components/DailyLog'
 import TimeHistory from './components/TimeHistory'
 import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
+import { InterventionsTable } from '../employee-record/components/tabs/components/InterventionsTable'
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
+  EveryAIAssistant = 'everyai-assistant',
   SmartBooking = 'smart-booking',
   DailyLog = 'daily-log',
   History = 'history'
@@ -43,7 +45,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
           items: [
             {
               value: MyTimeTabEnum.TimeTracking,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Time Tracking')
+              label: t('tab_timesheet')
             },
             {
               value: MyTimeTabEnum.SmartBooking,
@@ -56,6 +58,10 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
             {
               value: MyTimeTabEnum.History,
               label: t('history')
+            },
+            {
+              value: MyTimeTabEnum.EveryAIAssistant,
+              label: t('tab_everyai_assistant')
             }
           ]
         }}
@@ -64,7 +70,24 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
       >
         {activeTab === MyTimeTabEnum.TimeTracking && (
           <div data-testid="my-time-timesheet-content" className="gba:mt-4">
-            <TimeTracking employee={employee} employeeId={employeeId} accessToken={accessToken} isSelfView={true} />
+            <TimeTracking
+              employee={employee}
+              employeeId={employeeId}
+              accessToken={accessToken}
+              isSelfView={true}
+              onNavigateToEveryAI={() => setActiveTab(MyTimeTabEnum.EveryAIAssistant)}
+            />
+          </div>
+        )}
+
+        {activeTab === MyTimeTabEnum.EveryAIAssistant && (
+          <div data-testid="my-time-everyai-content" className="gba:mt-4">
+            <InterventionsTable
+              employeeId={employeeId}
+              accessToken={accessToken}
+              workingHours={employee?.workingHours?.[0]}
+              defaultExpanded
+            />
           </div>
         )}
 
