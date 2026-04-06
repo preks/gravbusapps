@@ -466,7 +466,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   const getNextSortState = useCallback(
     (sorter: any): { nextField: string; nextOrder: 'ascend' | 'descend' } => {
-      if (!sorter?.field) return { nextField: 'createdAt', nextOrder: 'ascend' }
+      if (!sorter?.field) {
+        return { nextField: 'planDate', nextOrder: 'descend' }
+      }
       const isSameColumn = sortField === sorter.field
       const orderFromTable = sorter.order ?? null
       if (isSameColumn && orderFromTable !== null) {
@@ -474,7 +476,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       }
       if (isSameColumn) {
         if (sortOrder === 'ascend') return { nextField: sorter.field, nextOrder: 'descend' }
-        if (sortOrder === 'descend') return { nextField: 'createdAt', nextOrder: 'ascend' }
+        if (sortOrder === 'descend') return { nextField: 'planDate', nextOrder: 'descend' }
         return { nextField: sorter.field, nextOrder: 'ascend' }
       }
       return { nextField: sorter.field, nextOrder: 'ascend' }
@@ -491,9 +493,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setCurrentPage(validPage)
       setPageSize(pagination.pageSize)
 
-      const { nextField, nextOrder } = getNextSortState(sorter)
-      setSortField(nextField)
-      setSortOrder(nextOrder)
+      const sortPayload = sorter && typeof sorter === 'object' && 'field' in sorter
+      if (sortPayload) {
+        const { nextField, nextOrder } = getNextSortState(sorter)
+        setSortField(nextField)
+        setSortOrder(nextOrder)
+      }
     },
     [getNextSortState, overview?.totalCount]
   )
@@ -522,11 +527,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         // Strip synthetic token before storing in the real filters state.
         const strippedFilters = filters.filter(f => !f.startsWith(TOP_DESTINATION_FILTER_TOKEN_PREFIX))
 
-        // manage auto-select suppression
+        // manage auto-select suppression (must allow fetch when toolbar Currency = All: no currency token)
         if (strippedFilters.length === 0) {
           setSuppressCurrencyAutoSelect(true)
         } else if (strippedFilters.some(f => f.startsWith('currency:'))) {
           setSuppressCurrencyAutoSelect(false)
+        } else {
+          setSuppressCurrencyAutoSelect(true)
         }
         setFilters(strippedFilters)
       }}

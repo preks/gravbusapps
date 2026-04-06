@@ -1,0 +1,187 @@
+import React, { useCallback } from 'react'
+import { AppAction } from '@/components/app-action'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { startProcess } from '@/common/utils/start-process'
+import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
+import { RowActionsIcon, RowActionsWrapper } from '../../../shared/TableSharedComponents'
+import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from '../columns/expensePlanColumns'
+
+export interface UseExpensePlanRowActionsParams {
+  employeeId: string | undefined
+  accessToken: string
+  onPrintPlan: (record: ExpensePlan) => void
+  onViewExpensePlanDetails: (record: ExpensePlan) => void
+  onViewExpenseRequestDetails: (record: ExpensePlan) => void
+}
+
+function hasExpenseRequest(record: ExpensePlan): boolean {
+  const requests = record.expenseRequest as unknown
+  if (!Array.isArray(requests) || requests.length === 0) {
+    return false
+  }
+  return requests[0]?.id != null
+}
+
+export function useExpensePlanRowActions({
+  employeeId,
+  accessToken,
+  onPrintPlan,
+  onViewExpensePlanDetails,
+  onViewExpenseRequestDetails
+}: Readonly<UseExpensePlanRowActionsParams>) {
+  return useCallback(
+    (row: { original: ExpensePlan }) => {
+      const record = row.original
+      const actionsCategory = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:employee_list.flows_button.actions',
+        'Actions'
+      )
+      const navigationsCategory = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:employee_list.flows_button.navigations',
+        'Navigations'
+      )
+
+      const updatePlanAction =
+        record.status === 'CREATED' || record.status === 'REJECTED'
+          ? [
+              {
+                category: actionsCategory,
+                key: 'update-plan',
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_plan_list.expense_plan_flows.update_plan',
+                  'Update Plan'
+                ),
+                onClick: () => {
+                  startProcess({
+                    domain: 'employee-expense',
+                    processName: 'changeExpensePlan',
+                    payload: {
+                      employeeId,
+                      expensePlanId: record.id
+                    },
+                    builderType: 'NATIVE_SCREEN'
+                  })
+                }
+              }
+            ]
+          : []
+
+      const printAction =
+        (record.status === 'APPROVED' || record.status === 'CLOSED') && record.employeeDocument?.file?.trim()
+          ? [
+              {
+                category: actionsCategory,
+                key: 'print',
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_plan_list.expense_plan_flows.print',
+                  'Print'
+                ),
+                onClick: () => onPrintPlan(record)
+              }
+            ]
+          : []
+
+      const requestAdvanceAction =
+        record.status === 'APPROVED'
+          ? [
+              {
+                category: actionsCategory,
+                key: 'request-advance',
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label',
+                  'Request Advance Payment'
+                ),
+                onClick: () => {
+                  startProcess({
+                    domain: 'employee-expense',
+                    processName: 'changeAdvancePayment',
+                    payload: {
+                      employeeId,
+                      expensePlan: record.id
+                    },
+                    builderType: 'NATIVE_SCREEN'
+                  })
+                }
+              }
+            ]
+          : []
+
+      const createExpenseRequestAction =
+        record.status === 'APPROVED'
+          ? [
+              {
+                category: actionsCategory,
+                key: 'create-expense-request',
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_list.flows_button.create_expense_request',
+                  'Create Expense Request'
+                ),
+                onClick: () => {
+                  startProcess({
+                    domain: 'employee-expense',
+                    processName: 'changeExpenseRequest',
+                    payload: {
+                      employeeId,
+                      expensePlanId: record.id
+                    },
+                    builderType: 'NATIVE_SCREEN'
+                  })
+                }
+              }
+            ]
+          : []
+
+      const viewPlanDetailsAction = {
+        category: navigationsCategory,
+        key: 'view-plan-details',
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details_btn',
+          'View Plan Details'
+        ),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onViewExpensePlanDetails(record)
+        }
+      }
+
+      const viewRequestDetailsAction = hasExpenseRequest(record)
+        ? [
+            {
+              category: navigationsCategory,
+              key: 'view-request-details',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                'View Request Details'
+              ),
+              onClick: (e?: React.MouseEvent) => {
+                e?.stopPropagation()
+                onViewExpenseRequestDetails(record)
+              }
+            }
+          ]
+        : []
+
+      return (
+        <RowActionsWrapper>
+          <AppAction
+            variant="table-row"
+            customActions={[
+              ...updatePlanAction,
+              ...printAction,
+              ...requestAdvanceAction,
+              ...createExpenseRequestAction,
+              viewPlanDetailsAction,
+              ...viewRequestDetailsAction
+            ]}
+            prefixDataTestId={`${EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX}-update-expense-plan`}
+            accessToken={accessToken}
+            data-testid={`${EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX}-update-expense-plan-button-${record.id}`}
+          >
+            <RowActionsIcon />
+          </AppAction>
+        </RowActionsWrapper>
+      )
+    },
+    [employeeId, accessToken, onPrintPlan, onViewExpensePlanDetails, onViewExpenseRequestDetails]
+  )
+}
