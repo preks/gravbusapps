@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
-import { createCompensationBudgetPlanCompany } from '../../../api/createCompensationBudgetPlan'
 import {
   buildSaveCompensationBudgetPlanCompanyUpdateBody,
   saveCompensationBudgetPlanCompany,
@@ -289,7 +288,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     void fetchCompanyRowsForCompany()
   }, [fetchCompanyRowsForCompany])
 
-  /** Budget **setup** tab add dialog: REST `createCompensationBudgetPlanCompany` (plan–company row). */
+  /** Budget **setup** tab add dialog: REST `saveCompensationBudgetPlanCompany` with `changeMode: INSERT`. */
   const createPlan = useCallback(
     async (input: CreateBudgetPlanInput) => {
       if (!accessToken) return null
@@ -297,7 +296,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       setError(null)
       try {
         const c = input.companyBudget
-        const { id, raw } = await createCompensationBudgetPlanCompany(restClient, accessToken, {
+        const { id, raw } = await saveCompensationBudgetPlanCompany(restClient, accessToken, {
+          changeMode: 'INSERT',
           compensationBudgetPlanCompany: {
             compensationBudgetPlan: c.compensationBudgetPlanId,
             company: c.companyId,
@@ -311,7 +311,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           }
         })
         if (!id) {
-          console.error('createCompensationBudgetPlanCompany: missing id in response', raw)
+          console.error('saveCompensationBudgetPlanCompany: missing id in response', raw)
           setError('Failed to create company budget row: unexpected response from server')
           return null
         }
@@ -366,7 +366,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           )
           await saveCompensationBudgetPlanCompany(restClient, accessToken, body)
         } else {
-          const { id, raw } = await createCompensationBudgetPlanCompany(restClient, accessToken, {
+          const { id, raw } = await saveCompensationBudgetPlanCompany(restClient, accessToken, {
+            changeMode: 'INSERT',
             compensationBudgetPlanCompany: {
               compensationBudgetPlan: selectedBudgetPlanId,
               company: companyId,
@@ -382,7 +383,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             }
           })
           if (!id) {
-            console.error('createCompensationBudgetPlanCompany: missing id in response', raw)
+            console.error('saveCompensationBudgetPlanCompany: missing id in response', raw)
             setError('Failed to create company budget row: unexpected response from server')
             return false
           }

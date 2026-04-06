@@ -2,10 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
-import {
-  buildCreateCompensationBudgetPlanRestBody,
-  createCompensationBudgetPlan
-} from '../../../api/createCompensationBudgetPlan'
+import { buildCreateCompensationBudgetPlanRestBody } from '../../../api/createCompensationBudgetPlan'
+import { saveCompensationBudgetPlan } from '../../../api/saveCompensationBudgetPlan'
 import { LIST_COMPENSATION_BUDGET_PLANS } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
 import type { BudgetPlanStatusApi } from '../../../types/budgetPlanGraphqlEnums'
@@ -76,14 +74,14 @@ export function useBudgetPlansTable(accessToken: string) {
     void fetchPlans()
   }, [fetchPlans])
 
-  /** Budget **plan** tab: REST `createCompensationBudgetPlan` only (no GraphQL mutations). */
+  /** Budget **plan** tab: REST `saveCompensationBudgetPlan` with `changeMode: INSERT` (no GraphQL mutations). */
   const insertPlan = useCallback(
     async (input: InsertBudgetPlanInput): Promise<string | null> => {
       if (!accessToken) return null
       setCreating(true)
       setError(null)
       try {
-        const body = buildCreateCompensationBudgetPlanRestBody({
+        const built = buildCreateCompensationBudgetPlanRestBody({
           name: input.name,
           description: input.description?.trim() ? input.description.trim() : null,
           fiscalYear: input.fiscalYear,
@@ -92,7 +90,10 @@ export function useBudgetPlansTable(accessToken: string) {
           endDate: input.endDate,
           effectiveDate: input.effectiveDate
         })
-        const { id } = await createCompensationBudgetPlan(restClient, accessToken, body)
+        const { id } = await saveCompensationBudgetPlan(restClient, accessToken, {
+          changeMode: 'INSERT',
+          compensationBudgetPlan: built.compensationBudgetPlan
+        })
         if (!id) {
           setError('Create budget plan failed: server did not return a plan id.')
           return null
@@ -100,7 +101,7 @@ export function useBudgetPlansTable(accessToken: string) {
         await fetchPlans()
         return id
       } catch (err) {
-        logBudgetGraphqlFailure('createCompensationBudgetPlan REST', err)
+        logBudgetGraphqlFailure('saveCompensationBudgetPlan REST', err)
         const message = err instanceof Error ? err.message : 'Failed to create budget plan'
         setError(message)
         return null

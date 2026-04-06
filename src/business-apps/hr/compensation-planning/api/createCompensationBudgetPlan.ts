@@ -1,17 +1,12 @@
 /**
  * REST helpers for compensation budget employee-process routes.
  *
- * - **Budget plan tab** (add plan): `createCompensationBudgetPlan` → `/createCompensationBudgetPlan`
- *   (see `useBudgetPlansTable`).
- * - **Budget setup tab** (add budget setup for a company): `createCompensationBudgetPlanCompany` →
- *   `/createCompensationBudgetPlanCompany` (see `useBudgetSetupForCompany`).
+ * - **Budget plan tab** (add plan): `saveCompensationBudgetPlan` with `changeMode: 'INSERT'` →
+ *   `/saveCompensationBudgetPlan` (see `useBudgetPlansTable`).
+ * - **Budget setup tab** (add plan–company row): `saveCompensationBudgetPlanCompany` with `changeMode: 'INSERT'` →
+ *   `/saveCompensationBudgetPlanCompany` (see `useBudgetSetupForCompany`).
  */
-import type { RestClient } from '@/common/network/rest/RestClient'
 import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
-import {
-  CREATE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH,
-  CREATE_COMPENSATION_BUDGET_PLAN_PATH
-} from './compensationBudgetRestConfig'
 
 export interface CompensationBudgetPlanCreatePayload {
   name: string
@@ -62,10 +57,6 @@ export interface CompensationBudgetPlanCompanyRestPayload {
   /** Optional — omitted from payloads until the product sends them again. */
   distributionMethod?: BudgetDistributionMethodApi
   headcount?: number
-}
-
-export interface CreateCompensationBudgetPlanCompanyRestBody {
-  compensationBudgetPlanCompany: CompensationBudgetPlanCompanyRestPayload
 }
 
 function readStringId(value: unknown): string | null {
@@ -124,28 +115,4 @@ export function extractCreatedCompensationBudgetPlanCompanyId(response: unknown)
     }
   }
   return null
-}
-
-/** Creates a **compensation budget plan** (plan-level row). Budget **plan** tab only. */
-export async function createCompensationBudgetPlan(
-  restClient: RestClient,
-  accessToken: string,
-  body: CreateCompensationBudgetPlanRestBody
-): Promise<{ id: string | null; raw: unknown }> {
-  const raw = await restClient.post<unknown>(CREATE_COMPENSATION_BUDGET_PLAN_PATH, body, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  })
-  return { id: extractCreatedCompensationBudgetPlanId(raw), raw }
-}
-
-/** Creates a **plan–company** budget row. Budget **setup** tab add dialog only. */
-export async function createCompensationBudgetPlanCompany(
-  restClient: RestClient,
-  accessToken: string,
-  body: CreateCompensationBudgetPlanCompanyRestBody
-): Promise<{ id: string | null; raw: unknown }> {
-  const raw = await restClient.post<unknown>(CREATE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH, body, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  })
-  return { id: extractCreatedCompensationBudgetPlanCompanyId(raw), raw }
 }

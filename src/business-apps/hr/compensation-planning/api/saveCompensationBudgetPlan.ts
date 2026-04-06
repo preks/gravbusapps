@@ -1,11 +1,17 @@
 import type { RestClient } from '@/common/network/rest/RestClient'
 import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 import {
+  SAVE_COMPENSATION_BUDGET_PLAN_PATH,
   SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH,
   SAVE_COMPENSATION_BUDGET_PLAN_EMPLOYEE_PATH,
   SAVE_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_PATH
 } from './compensationBudgetRestConfig'
-import type { CompensationBudgetPlanCompanyRestPayload } from './createCompensationBudgetPlan'
+import {
+  extractCreatedCompensationBudgetPlanId,
+  extractCreatedCompensationBudgetPlanCompanyId,
+  type CompensationBudgetPlanCreatePayload,
+  type CompensationBudgetPlanCompanyRestPayload
+} from './createCompensationBudgetPlan'
 
 /** Row fields required to build a company-budget UPDATE payload (mirrors `CompensationBudgetPlanCompanyRow`). */
 export interface SaveCompensationBudgetPlanCompanyRowInput {
@@ -23,6 +29,12 @@ export interface SaveCompensationBudgetPlanCompanyRowInput {
 }
 
 export type CompensationBudgetPlanChangeMode = 'INSERT' | 'UPDATE'
+
+/** Insert/update a **compensation budget plan** (plan-level entity). */
+export interface SaveCompensationBudgetPlanRestBody {
+  changeMode: CompensationBudgetPlanChangeMode
+  compensationBudgetPlan: CompensationBudgetPlanCreatePayload
+}
 
 export interface CompensationBudgetPlanOrganizationalUnitRestPayload {
   /** Present when {@link CompensationBudgetPlanChangeMode} is `UPDATE`. */
@@ -43,19 +55,28 @@ export interface SaveCompensationBudgetPlanOrganizationalUnitRestBody {
   changeMode: CompensationBudgetPlanChangeMode
 }
 
-export interface SaveCompensationBudgetPlanCompanyRestBody {
+export interface SaveCompensationBudgetPlanCompanyInsertBody {
+  changeMode: 'INSERT'
+  compensationBudgetPlanCompany: CompensationBudgetPlanCompanyRestPayload
+}
+
+export interface SaveCompensationBudgetPlanCompanyUpdateBody {
+  changeMode: 'UPDATE'
   compensationBudgetPlanCompany: CompensationBudgetPlanCompanyRestPayload & {
     id: string
     distributionMethod: BudgetDistributionMethodApi
     headcount: number
   }
-  changeMode: CompensationBudgetPlanChangeMode
 }
+
+export type SaveCompensationBudgetPlanCompanyRestBody =
+  | SaveCompensationBudgetPlanCompanyInsertBody
+  | SaveCompensationBudgetPlanCompanyUpdateBody
 
 export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
   row: SaveCompensationBudgetPlanCompanyRowInput,
   distributionMethod: BudgetDistributionMethodApi
-): SaveCompensationBudgetPlanCompanyRestBody {
+): SaveCompensationBudgetPlanCompanyUpdateBody {
   return {
     changeMode: 'UPDATE',
     compensationBudgetPlanCompany: {
@@ -75,6 +96,17 @@ export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
   }
 }
 
+export async function saveCompensationBudgetPlan(
+  restClient: RestClient,
+  accessToken: string,
+  body: SaveCompensationBudgetPlanRestBody
+): Promise<{ id: string | null; raw: unknown }> {
+  const raw = await restClient.post<unknown>(SAVE_COMPENSATION_BUDGET_PLAN_PATH, body, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  return { id: extractCreatedCompensationBudgetPlanId(raw), raw }
+}
+
 export async function saveCompensationBudgetPlanOrganizationalUnit(
   restClient: RestClient,
   accessToken: string,
@@ -89,10 +121,11 @@ export async function saveCompensationBudgetPlanCompany(
   restClient: RestClient,
   accessToken: string,
   body: SaveCompensationBudgetPlanCompanyRestBody
-): Promise<unknown> {
-  return restClient.post<unknown>(SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH, body, {
+): Promise<{ id: string | null; raw: unknown }> {
+  const raw = await restClient.post<unknown>(SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH, body, {
     headers: { Authorization: `Bearer ${accessToken}` }
   })
+  return { id: extractCreatedCompensationBudgetPlanCompanyId(raw), raw }
 }
 
 export interface CompensationBudgetPlanEmployeeRestPayload {
