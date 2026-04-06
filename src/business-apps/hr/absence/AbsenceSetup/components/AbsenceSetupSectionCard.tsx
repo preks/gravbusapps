@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowDownAZ, ArrowUpAZ, Info, Plus } from 'lucide-react'
+import { ArrowDownAZ, ArrowUpAZ, Info, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Alert,
@@ -294,8 +294,9 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                           }}
                           disabled={item.canEdit === false}
                           data-testid={`${cardTestId}-edit-${item.id}`}
+                          aria-label={editLabel}
                         >
-                          {editLabel}
+                          <Pencil className="gba:h-4 gba:w-4" />
                         </Button>
                         {showDeleteAction && (
                           <Button
@@ -309,8 +310,9 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                             disabled={item.canDelete === false}
                             data-testid={`${cardTestId}-delete-${item.id}`}
                             className="gba:text-destructive gba:hover:text-destructive"
+                            aria-label={deleteLabel}
                           >
-                            {deleteLabel}
+                            <Trash2 className="gba:h-4 gba:w-4" />
                           </Button>
                         )}
                       </div>

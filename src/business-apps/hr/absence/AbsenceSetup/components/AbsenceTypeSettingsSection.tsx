@@ -24,7 +24,6 @@ type BooleanFieldKey =
   | 'checkEntitlement'
   | 'enableSubstitute'
   | 'enableAttachement'
-  | 'requiresSubstitute'
   | 'requiresAttachment'
   | 'countsAsWorkingTime'
 
@@ -41,7 +40,6 @@ const booleanFieldLabelKeys: Record<BooleanFieldKey, string> = {
   checkEntitlement: 'toggle-requires-entitlement',
   enableSubstitute: 'toggle-show-substitute-selection',
   enableAttachement: 'toggle-show-document-upload',
-  requiresSubstitute: 'toggle-requires-substitute',
   requiresAttachment: 'toggle-requires-attachment',
   countsAsWorkingTime: 'toggle-counts-as-working-time'
 }
@@ -53,7 +51,6 @@ const booleanFieldKeys: BooleanFieldKey[] = [
   'checkEntitlement',
   'enableSubstitute',
   'enableAttachement',
-  'requiresSubstitute',
   'requiresAttachment',
   'countsAsWorkingTime'
 ]

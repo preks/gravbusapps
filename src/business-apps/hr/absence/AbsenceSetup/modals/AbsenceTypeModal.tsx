@@ -83,7 +83,10 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
   }, [absenceType, open])
 
   const isSaveDisabled =
-    isSaving || !formValues.code.trim() || !translationValues.enUS.trim() || !formValues.parentEntryId.trim()
+    isSaving ||
+    !formValues.code.trim() ||
+    !translationValues.enUS.trim() ||
+    (!absenceType?.id && !formValues.parentEntryId.trim())
 
   const handleSubmit = async () => {
     if (isSaveDisabled) {
@@ -178,20 +181,22 @@ export function AbsenceTypeModal({ open, onClose, onSave, absenceType, groups }:
                   />
                 </div>
 
-                <div className="gba:space-y-2">
-                  <Label>{t('field-group-label')}</Label>
-                  <Combobox
-                    value={formValues.parentEntryId}
-                    onValueChange={value =>
-                      setFormValues(current => ({ ...current, parentEntryId: String(value || '') }))
-                    }
-                    options={groupOptions}
-                    placeholder={t('group-placeholder')}
-                    searchPlaceholder={t('group-placeholder')}
-                    emptyText={t('empty-catalog-entries', { entity: t('absence-group-entity-label') })}
-                    data-testid="absence-type-group-select"
-                  />
-                </div>
+                {!absenceType?.id ? (
+                  <div className="gba:space-y-2">
+                    <Label>{t('field-group-label')}</Label>
+                    <Combobox
+                      value={formValues.parentEntryId}
+                      onValueChange={value =>
+                        setFormValues(current => ({ ...current, parentEntryId: String(value || '') }))
+                      }
+                      options={groupOptions}
+                      placeholder={t('group-placeholder')}
+                      searchPlaceholder={t('group-placeholder')}
+                      emptyText={t('empty-catalog-entries', { entity: t('absence-group-entity-label') })}
+                      data-testid="absence-type-group-select"
+                    />
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>
