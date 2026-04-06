@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
   Spinner,
+  Checkbox,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -30,6 +31,16 @@ interface CatalogListViewProps extends BusinessAppContextProps {
   onViewCatalog: (catalog: Catalog) => void
   'data-testid'?: string
 }
+
+const STATUS_STYLES: Record<string, React.CSSProperties> = {
+  active: { backgroundColor: 'var(--nw-color-success-50)', borderColor: 'var(--nw-color-success-200)' },
+  draft: { backgroundColor: 'var(--nw-color-warning-50)', borderColor: 'var(--nw-color-warning-200)' }
+}
+const DEFAULT_STATUS_STYLE: React.CSSProperties = {
+  backgroundColor: 'var(--nw-color-surface-secondary)',
+  borderColor: 'var(--nw-color-border-default)'
+}
+const getStatusStyles = (status: string): React.CSSProperties => STATUS_STYLES[status] ?? DEFAULT_STATUS_STYLE
 
 interface CatalogListState {
   pagination: {
@@ -147,7 +158,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
         validFrom: formatDateTimeForAPI(data.validFrom),
         validTo: formatDateTimeForAPI(data.validTo),
         defaultLocale: data.defaultLocale,
-        description: data.description || undefined
+        description: data.description || undefined,
+        isCustomerManaged: data.isCustomerManaged ?? false
       } as any
       const created = await createCatalog(payload)
       if (created) {
@@ -219,23 +231,7 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
         </code>
       </TableCell>
       <TableCell>
-        <Badge
-          variant="outline"
-          style={{
-            backgroundColor:
-              catalog.status === 'active'
-                ? 'var(--nw-color-success-50)'
-                : catalog.status === 'draft'
-                  ? 'var(--nw-color-warning-50)'
-                  : 'var(--nw-color-surface-secondary)',
-            borderColor:
-              catalog.status === 'active'
-                ? 'var(--nw-color-success-200)'
-                : catalog.status === 'draft'
-                  ? 'var(--nw-color-warning-200)'
-                  : 'var(--nw-color-border-default)'
-          }}
-        >
+        <Badge variant="outline" style={getStatusStyles(catalog.status)}>
           {catalog.status}
         </Badge>
       </TableCell>
@@ -254,6 +250,11 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
         ) : (
           <span style={{ color: 'var(--nw-color-text-secondary)' }}>—</span>
         )}
+      </TableCell>
+      <TableCell>
+        <div className="gba:flex gba:items-center gba:justify-center">
+          <Checkbox checked={!!catalog.isCustomerManaged} disabled />
+        </div>
       </TableCell>
       <TableCell className="gba:w-[60px]">
         <DropdownMenu>
@@ -353,7 +354,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
                 validTo: editingCatalog.validTo,
                 defaultLocale: editingCatalog.defaultLocale as any,
                 description: editingCatalog.description,
-                id: editingCatalog.id
+                id: editingCatalog.id,
+                isCustomerManaged: editingCatalog.isCustomerManaged
               }
             : undefined
         }
@@ -371,7 +373,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
             validFrom: formatDateTimeForAPI(data.validFrom),
             validTo: formatDateTimeForAPI(data.validTo),
             defaultLocale: data.defaultLocale as any,
-            description: data.description
+            description: data.description,
+            isCustomerManaged: data.isCustomerManaged ?? false
           } as any)
           setIsUpdateOpen(false)
           setEditingCatalog(null)
@@ -386,11 +389,13 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
           <CardTitle>Catalog Directory</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {isLoading && (
             <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${dataTestId}-Loading`}>
               <Spinner size="lg" />
             </div>
-          ) : catalogs.length === 0 ? (
+          )}
+
+          {!isLoading && catalogs.length === 0 && (
             <div
               className="gba:text-center gba:py-8"
               style={{ color: 'var(--nw-color-text-secondary)' }}
@@ -414,7 +419,9 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
                 </Button>
               )}
             </div>
-          ) : (
+          )}
+
+          {!isLoading && catalogs.length > 0 && (
             <>
               <Table data-testid={`${dataTestId}-Table`}>
                 <TableHeader>
@@ -424,6 +431,7 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
                     <TableHead>Status</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Last Updated</TableHead>
+                    <TableHead>Customer Managed</TableHead>
                     <TableHead className="gba:w-[60px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

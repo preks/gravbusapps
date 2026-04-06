@@ -13,8 +13,9 @@ import translations from '../../_i18n'
 import { DOMSerializer } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import type { LlmProvider } from './useAiEditProvider'
+import { DEFAULT_DOCUMENT_AI_LLM_PROVIDER, type LlmProvider } from './documentAiLlm'
 import type { AiEditResult } from '../../utils/documentOfficeOperations'
+import { truncateHtmlForAiContext } from '../../utils/documentContentUtils'
 
 export interface CapturedSelection {
   from: number
@@ -32,10 +33,17 @@ export interface UseAiEditOptions {
   editor: Editor | null
   documentId: string
   documentTitle: string
-  llmProvider: LlmProvider
+  /** Defaults to single-tier Azure-backed path (see documentAiLlm). */
+  llmProvider?: LlmProvider
 }
 
-export function useAiEdit({ accessToken, editor, documentId, documentTitle, llmProvider }: UseAiEditOptions) {
+export function useAiEdit({
+  accessToken,
+  editor,
+  documentId,
+  documentTitle,
+  llmProvider = DEFAULT_DOCUMENT_AI_LLM_PROVIDER
+}: UseAiEditOptions) {
   const { t } = useTranslation(translations)
   const officeClient = useOfficeClient(accessToken)
   const [instruction, setInstruction] = useState('')
@@ -149,7 +157,7 @@ export function useAiEdit({ accessToken, editor, documentId, documentTitle, llmP
     setIsApplied(false)
 
     try {
-      const documentHtml = editor.getHTML()
+      const documentHtml = truncateHtmlForAiContext(editor.getHTML())
       const documentPlainText = editor.getText()
 
       const payload: {

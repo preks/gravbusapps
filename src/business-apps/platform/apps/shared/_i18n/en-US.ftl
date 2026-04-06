@@ -161,6 +161,7 @@ shared-error-load-versions = Failed to load versions
 shared-error-create-checkpoint = Failed to create checkpoint
 shared-error-auto-save = Failed to auto-save
 shared-error-restore-version = Failed to restore version
+shared-error-restore-version-owner-only = You can only restore versions for files you own. Ask the owner to restore this version.
 shared-error-delete-version = Failed to delete version
 shared-error-compare-versions = Failed to compare versions
 shared-error-publish = Failed to publish

@@ -7,6 +7,7 @@ import {
   type FunctionAssistantMode,
   type FunctionAssistantQuestionOption
 } from '@/common/network/functions/FunctionsServiceClient'
+import { hasImplementedHandler, hasMeaningfulSchema } from '../utils/functionDraftGuards'
 
 export type AssistantChatMessage =
   | { id: string; role: 'assistant' | 'system'; kind: 'text'; content: string }
@@ -154,6 +155,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
   const client = useMemo(() => (accessToken ? new FunctionsServiceClient(accessToken) : null), [accessToken])
   const [input, setInput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isFixingTest, setIsFixingTest] = useState(false)
+  const [fixTestError, setFixTestError] = useState<string | null>(null)
 
   const [sessionId, setSessionId] = useState(() => uid('session'))
   const [messages, setMessages] = useState<AssistantChatMessage[]>(() => [])
@@ -1032,6 +1035,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
       const thinkingId = uid('thinking')
       const startedAt = Date.now()
       setIsGenerating(true)
+      setIsFixingTest(true)
+      setFixTestError(null)
       const errorText = String(args?.lastError || '').trim()
       const resultText = String(args?.lastResult || '').trim()
       const frontendError = errorText || (resultText ? 'Non-200 response or failed test (see result).' : '')
@@ -1069,6 +1074,14 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
           frontendResult: resultText || undefined,
           maxFixIterations: 2
         })
+
+        if (
+          !hasImplementedHandler(String(res?.source || '')) ||
+          !hasMeaningfulSchema(res?.inputSchema) ||
+          !hasMeaningfulSchema(res?.outputSchema)
+        ) {
+          throw new Error('AI returned an incomplete fix. The current function was not changed.')
+        }
 
         // Auto-apply fixes to the editor; user can undo in the editor UI.
         onApply(res)
@@ -1123,6 +1136,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
           ]
         })
       } catch (e) {
+        const summary = summarizeAssistantError(e)
+        setFixTestError(summary)
         setMessages(prev => {
           const withoutThinking = prev.filter(m => m.id !== thinkingId)
           return [
@@ -1131,12 +1146,13 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
               id: uid('assistant'),
               role: 'assistant',
               kind: 'error',
-              content: summarizeAssistantError(e)
+              content: summary
             }
           ]
         })
       } finally {
         setIsGenerating(false)
+        setIsFixingTest(false)
       }
     },
     [buildImplementationSummary, client, isGenerating, onApply]
@@ -1146,6 +1162,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
     input,
     setInput,
     isGenerating,
+    isFixingTest,
+    fixTestError,
     messages,
     activityLines,
     clarifyWizard,

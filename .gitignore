@@ -30,6 +30,9 @@ changed-tsx.txt
 *.sln
 *.sw?
 
+# Synced from @newwork/assets (npm run sync:platform-assets / dev server)
+public/platform/assets
+
 wrapped-entries
 temp_build
 temp_build_files
@@ -45,4 +48,8 @@ __pycache__
 # Test coverage and cache
 coverage/
 .jest-cache/
+
+# Local dev tooling
+.claude/
+scripts/start-document-service.sh
 

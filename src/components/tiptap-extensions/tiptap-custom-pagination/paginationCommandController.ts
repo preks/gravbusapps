@@ -207,12 +207,52 @@ export function createPaginationCommandController(options: {
       storage
     })
 
-    const transaction = editor.state.tr.setMeta(options.refreshMeta, true)
-    if (shouldStabilize) {
-      transaction.setMeta(options.refreshAndStabilizeMeta, true)
+    const buildRefreshTransaction = (targetView: EditorView) => {
+      // Must use the mounted view's state — it can diverge from `editor.state` during
+      // collaborative/Yjs updates or async doc hydration (e.g. DOCX with images).
+      const tr = targetView.state.tr.setMeta(options.refreshMeta, true)
+      if (shouldStabilize) {
+        tr.setMeta(options.refreshAndStabilizeMeta, true)
+      }
+      return tr
     }
 
-    view.dispatch(transaction)
+    const isMismatchError = (error: unknown) =>
+      error instanceof RangeError && String(error.message).includes('mismatched transaction')
+
+    // Yjs can call `prosemirrorView.dispatch` while we are building/applying our refresh
+    // (see y-tiptap `_typeChanged`). A second *synchronous* dispatch still sees a stale tr;
+    // defer follow-up attempts to the next microtask so Y-driven updates finish first.
+    const dispatchRefreshWithRetries = (mounted: EditorView) => {
+      let lastError: unknown
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        try {
+          mounted.dispatch(buildRefreshTransaction(mounted))
+          return
+        } catch (error) {
+          lastError = error
+          if (!isMismatchError(error)) {
+            throw error
+          }
+        }
+      }
+      throw lastError
+    }
+
+    try {
+      view.dispatch(buildRefreshTransaction(view))
+    } catch (error) {
+      if (!isMismatchError(error)) {
+        throw error
+      }
+      queueMicrotask(() => {
+        const mounted = options.getMountedEditorView(editor)
+        if (!mounted || mounted.isDestroyed) {
+          return
+        }
+        dispatchRefreshWithRetries(mounted)
+      })
+    }
     return true
   }
 

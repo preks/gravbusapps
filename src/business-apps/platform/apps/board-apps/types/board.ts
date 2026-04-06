@@ -170,4 +170,44 @@ export interface BoardShare {
 
 export type BoardPermission = 'view' | 'edit' | 'comment'
 
+export type BoardAuditAction =
+  | 'board.created'
+  | 'board.updated'
+  | 'board.deleted'
+  | 'board.shared'
+  | 'board.duplicated'
+  | 'sheet.updated'
+  | 'row.created'
+  | 'row.updated'
+  | 'row.deleted'
+  | 'row.reordered'
+  | 'rows.imported'
+
+export interface BoardAuditChange {
+  field: string
+  oldValue: unknown
+  newValue: unknown
+}
+
+export interface BoardAuditLogEntry {
+  id: string
+  boardId: string
+  sheetId?: string | null
+  rowId?: string | null
+  action: BoardAuditAction
+  changes?: BoardAuditChange[] | null
+  metadata?: Record<string, unknown> | null
+  actorUserId: string
+  actorName?: string | null
+  createdAt: string
+}
+
+export interface BoardAuditLogResponse {
+  items: BoardAuditLogEntry[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 export type { EntityDataSource }

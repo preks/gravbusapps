@@ -80,16 +80,13 @@ export type PageBreakerPlaceholderMetrics = {
   nextHeaderHeight: number
 }
 
+export type PageShellState = 'hydrated' | 'placeholder'
+
 export type WindowedPaginationRendererState = {
   activeRange: PaginationWindowRange | null
   mountedRange: PaginationWindowRange | null
   windowKey: string | null
   placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
-  spacerHeightsByRange: Map<string, number>
-}
-
-function createPageRangeKey(startPage: number, endPage: number) {
-  return `${startPage}-${endPage}`
 }
 
 function resolveMountedPageRange(
@@ -124,7 +121,7 @@ function resolveMountedPageRange(
 
 function shouldRenderFullPageBreaker(pageNumber: number, activeRange: PaginationWindowRange | null | undefined) {
   if (!activeRange) return true
-  return pageNumber >= activeRange.startPage - 1 && pageNumber <= activeRange.endPage
+  return pageNumber >= activeRange.startPage && pageNumber <= activeRange.endPage
 }
 
 export function resolvePaginationWindowRange(editorDom: HTMLElement): PaginationWindowRange | null {
@@ -179,42 +176,6 @@ function resolvePaginationRootElement(editorDom: HTMLElement): HTMLElement | nul
   }
 
   return null
-}
-
-function resolvePageRangeSpacerHeights(editorDom: HTMLElement): Map<string, number> {
-  const spacerHeights = new Map<string, number>()
-  const paginationRoot = resolvePaginationRootElement(editorDom)
-  if (!(paginationRoot instanceof HTMLElement)) {
-    return spacerHeights
-  }
-
-  Array.from(paginationRoot.children).forEach(child => {
-    if (!(child instanceof HTMLElement) || !child.classList.contains('rm-page-spacer')) {
-      return
-    }
-
-    const startPage = Number(child.dataset.rmPageRangeStart ?? '')
-    const endPage = Number(child.dataset.rmPageRangeEnd ?? '')
-    if (!Number.isInteger(startPage) || !Number.isInteger(endPage) || startPage < 1 || endPage < startPage) {
-      return
-    }
-
-    const dataHeight = Number.parseFloat(child.dataset.rmPageRangeHeight ?? '')
-    const styleHeight = Number.parseFloat(child.style.height || '')
-    let resolvedHeight = child.offsetHeight
-    if (Number.isFinite(dataHeight) && dataHeight >= 0) {
-      resolvedHeight = dataHeight
-    } else if (Number.isFinite(styleHeight) && styleHeight >= 0) {
-      resolvedHeight = styleHeight
-    }
-    if (!Number.isFinite(resolvedHeight) || resolvedHeight < 0) {
-      return
-    }
-
-    spacerHeights.set(createPageRangeKey(startPage, endPage), resolvedHeight)
-  })
-
-  return spacerHeights
 }
 
 export function findPaginationPageBreakElement(editorDom: HTMLElement, pageNumber: number): HTMLElement | null {
@@ -290,6 +251,24 @@ function resolvePageBreakNumber(pageBreakEl: HTMLElement) {
   return Number.isInteger(pageNumber) && pageNumber > 0 ? pageNumber : null
 }
 
+export function resolvePageBreakShellState(pageBreakEl: HTMLElement): PageShellState {
+  const explicitState = pageBreakEl.dataset.rmPageShellState
+  if (explicitState === 'hydrated' || explicitState === 'placeholder') {
+    return explicitState
+  }
+
+  const breaker = pageBreakEl.querySelector('.breaker') as HTMLElement | null
+  return breaker?.dataset.rmBreakerMode === 'placeholder' ? 'placeholder' : 'hydrated'
+}
+
+export function isHydratedPageBreakShell(pageBreakEl: HTMLElement): boolean {
+  return resolvePageBreakShellState(pageBreakEl) === 'hydrated'
+}
+
+function setPageBreakShellState(pageBreakEl: HTMLElement, shellState: PageShellState) {
+  pageBreakEl.dataset.rmPageShellState = shellState
+}
+
 export function resolvePageBreakerPlaceholderMetrics(
   editorDom: HTMLElement
 ): Map<number, PageBreakerPlaceholderMetrics> {
@@ -351,8 +330,7 @@ export function resolveWindowedPaginationRendererState(editorDom: HTMLElement): 
     activeRange: resolvePaginationWindowRange(editorDom),
     mountedRange: resolvePaginationMountedRange(editorDom),
     windowKey: viewport?.dataset.layoutWindowKey ?? null,
-    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom),
-    spacerHeightsByRange: resolvePageRangeSpacerHeights(editorDom)
+    placeholderBreakerMetricsByPage: resolvePageBreakerPlaceholderMetrics(editorDom)
   }
 }
 
@@ -387,72 +365,31 @@ function resolveDefaultBreakerHeight(params: {
   return currentLayout.footerReserved + storage.pageGap + nextLayout.headerReserved
 }
 
-function createPageRangeSpacer(params: {
-  startPage: number
-  endPage: number
+function resolveDefaultPlaceholderBreakerMetrics(params: {
+  pageNumber: number
   totalPages: number
   pageFormat: PageFormat
   options: PagesOptions
   storage: PagesStorage
-  placeholderBreakerMetricsByPage: Map<number, PageBreakerPlaceholderMetrics>
-  spacerHeightsByRange: Map<string, number>
 }) {
-  const {
-    startPage,
-    endPage,
-    totalPages,
-    pageFormat,
-    options,
-    storage,
-    placeholderBreakerMetricsByPage,
-    spacerHeightsByRange
-  } = params
-  const spacer = document.createElement('div')
-  spacer.className = 'rm-page-spacer'
-  spacer.dataset.rmPageRangeStart = String(startPage)
-  spacer.dataset.rmPageRangeEnd = String(endPage)
-  const pageSegmentHeights: number[] = []
+  const { pageNumber, totalPages, pageFormat, options, storage } = params
+  const currentLayout = getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
+  const nextLayout =
+    pageNumber >= totalPages
+      ? currentLayout
+      : getPageLayoutHeights(pageFormat, storage, options.headerHeight, options.footerHeight)
 
-  const preservedHeight = spacerHeightsByRange.get(createPageRangeKey(startPage, endPage))
-  const validPreservedHeight =
-    typeof preservedHeight === 'number' && Number.isFinite(preservedHeight) && preservedHeight > 0
-      ? preservedHeight
-      : undefined
-  let totalHeight = validPreservedHeight ?? 0
-  if (!Number.isFinite(totalHeight) || totalHeight <= 0) {
-    totalHeight = 0
+  return {
+    breakerHeight: resolveDefaultBreakerHeight(params),
+    footerHeight: currentLayout.footerReserved,
+    nextHeaderHeight: pageNumber >= totalPages ? 0 : nextLayout.headerReserved
   }
-
-  for (let pageNumber = startPage; pageNumber <= endPage; pageNumber += 1) {
-    const pageHeight =
-      getPageSpacerHeight(pageFormat, storage, pageNumber, options.headerHeight, options.footerHeight) +
-      Math.max(
-        0,
-        placeholderBreakerMetricsByPage.get(pageNumber)?.breakerHeight ??
-          resolveDefaultBreakerHeight({
-            pageNumber,
-            totalPages,
-            pageFormat,
-            options,
-            storage
-          })
-      )
-    pageSegmentHeights.push(pageHeight)
-
-    if (validPreservedHeight === undefined) {
-      totalHeight += pageHeight
-    }
-  }
-
-  if (totalHeight > 0) {
-    spacer.style.height = `${totalHeight}px`
-  }
-  spacer.dataset.rmPageRangeHeight = String(Math.max(0, totalHeight))
-  spacer.dataset.rmPageSegmentHeights = pageSegmentHeights.join(',')
-
-  return spacer
 }
 
+/**
+ * Page N break footer is for page N; the header in the same breaker is for page N+1.
+ * Physical page 1’s header is not here — it is a separate `.rm-first-page-header` (see `createFirstPageHeader`).
+ */
 function createFullPageBreaker(params: {
   pageNumber: number
   totalPages: number
@@ -567,6 +504,21 @@ export function refreshHeaderFooterRegionDisplay(params: {
   requestAnimationFrame(() => layoutPageNumberSlots(region))
 }
 
+function createPageImageOverlayLayer(params: {
+  pageNumber: number
+  pageBodyHeight: number
+  layer: 'behind' | 'floating' | 'front'
+}): HTMLElement {
+  const overlayLayer = document.createElement('div')
+  overlayLayer.className = 'rm-page-image-overlay-layer'
+  overlayLayer.dataset.rmPageImageOverlay = 'true'
+  overlayLayer.dataset.rmPageNumber = String(params.pageNumber)
+  overlayLayer.dataset.rmImageLayer = params.layer
+  overlayLayer.style.height = `var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px)`
+  overlayLayer.style.top = `calc(-1 * var(--rm-page-body-${params.pageNumber}, ${params.pageBodyHeight}px))`
+  return overlayLayer
+}
+
 export function ensurePagesStyles(targetDocument: Document) {
   if (targetDocument.head.querySelector(`[${STYLE_ATTR}]`)) return
 
@@ -597,6 +549,18 @@ export function ensurePagesStyles(targetDocument: Document) {
       height: 0;
       overflow: visible;
     }
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .ProseMirror :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
+      position: relative;
+      z-index: 1;
+    }
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-header-region :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-footer-region :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-first-page-header :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-overlay :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
+      position: static;
+      z-index: auto;
+    }
     .rm-pages-root .rm-page-body-layer {
       position: absolute;
       left: calc(-1 * var(--rm-page-margin-left));
@@ -605,6 +569,31 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       background: transparent;
       z-index: 1;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer {
+      position: absolute;
+      left: 0;
+      width: var(--rm-page-width);
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] {
+      z-index: 0;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="floating"] {
+      z-index: 3;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="front"] {
+      z-index: 4;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer > * {
+      pointer-events: auto;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] > * {
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] [data-image-handle="true"] {
+      pointer-events: auto;
     }
     .rm-pages-root .breaker {
       position: relative;
@@ -637,19 +626,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
+    /* Page 1 header lives outside page breaks (sibling of .rm-pages-wrapper). Match stacking with
+       .breaker (z-index: 2) and body layers (z-index: 1) so overlapping chrome does not sit above
+       the header. Use the same pointer-events model as .rm-page-header-region — no shell-wide none. */
     .rm-pages-root .rm-first-page-header {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 1;
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header > .rm-page-header {
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header .rm-page-header-content,
-    .rm-pages-root .rm-first-page-header .rm-page-number-slot {
-      pointer-events: auto;
+      z-index: 3;
     }
     .rm-pages-root .rm-page-header,
     .rm-pages-root .rm-page-footer {
@@ -689,6 +673,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
+    .rm-pages-root .rm-page-header-content[data-rm-empty="true"],
+    .rm-pages-root .rm-page-footer-content[data-rm-empty="true"] {
+      min-height: 1.25em;
+    }
     .rm-pages-root .rm-page-header-content .tableWrapper,
     .rm-pages-root .rm-page-footer-content .tableWrapper {
       overflow: visible;
@@ -697,6 +685,10 @@ export function ensurePagesStyles(targetDocument: Document) {
       border: 0;
       border-radius: 0;
       background: transparent;
+    }
+    .rm-pages-root .rm-page-header-content,
+    .rm-pages-root .rm-page-footer-content {
+      --default-cell-min-width: 25px;
     }
     .rm-pages-root .rm-page-header-content table,
     .rm-pages-root .rm-page-footer-content table {
@@ -709,14 +701,23 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-footer-content td,
     .rm-pages-root .rm-page-header-content th,
     .rm-pages-root .rm-page-footer-content th {
+      box-sizing: border-box;
+      position: relative;
       border: 1pt solid #333;
       padding: 4pt 6pt;
       text-align: start;
       vertical-align: top;
       font-size: 0.875rem;
       line-height: 1.3;
-      overflow-wrap: anywhere;
+      min-width: 0;
+      overflow-wrap: break-word;
       word-break: break-word;
+    }
+    .rm-pages-root .rm-page-header-content td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-footer-content td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-header-content th:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-footer-content th:not([colwidth]):not(.column-resize-dragging) {
+      min-width: var(--default-cell-min-width);
     }
     .rm-pages-root .rm-page-header-content th,
     .rm-pages-root .rm-page-footer-content th {
@@ -972,6 +973,11 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: text;
       white-space: break-spaces;
       tab-size: 4;
+      --default-cell-min-width: 25px;
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror.resize-cursor {
+      cursor: ew-resize;
+      cursor: col-resize;
     }
     .rm-pages-root .rm-page-overlay-editor table {
       width: 100%;
@@ -985,6 +991,28 @@ export function ensurePagesStyles(targetDocument: Document) {
       border-style: dashed;
       border-width: 1px;
       padding: 2px 6px;
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror td,
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror th {
+      box-sizing: border-box;
+      position: relative;
+      min-width: 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror th:not([colwidth]):not(.column-resize-dragging) {
+      min-width: var(--default-cell-min-width);
+    }
+    .rm-pages-root .rm-page-overlay-editor .ProseMirror .column-resize-handle {
+      position: absolute;
+      right: -2px;
+      top: 0;
+      bottom: -2px;
+      width: 4px;
+      z-index: 20;
+      background-color: #adf;
+      pointer-events: none;
     }
     .rm-pages-root .rm-page-inline-editor {
       width: 100%;
@@ -1004,6 +1032,11 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: text;
       white-space: break-spaces;
       tab-size: 4;
+      --default-cell-min-width: 25px;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror.resize-cursor {
+      cursor: ew-resize;
+      cursor: col-resize;
     }
     .rm-pages-root .rm-page-inline-editor .ProseMirror p {
       min-height: 1em;
@@ -1020,6 +1053,18 @@ export function ensurePagesStyles(targetDocument: Document) {
       margin: 0;
       border-collapse: collapse;
       table-layout: fixed;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror td,
+    .rm-pages-root .rm-page-inline-editor .ProseMirror th {
+      box-sizing: border-box;
+      position: relative;
+      min-width: 0;
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .rm-page-inline-editor .ProseMirror td:not([colwidth]):not(.column-resize-dragging),
+    .rm-pages-root .rm-page-inline-editor .ProseMirror th:not([colwidth]):not(.column-resize-dragging) {
+      min-width: var(--default-cell-min-width);
     }
     .rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after {
       z-index: 2;
@@ -1038,6 +1083,7 @@ export function ensurePagesStyles(targetDocument: Document) {
       top: 0;
       bottom: -2px;
       width: 4px;
+      z-index: 20;
       background-color: #adf;
       pointer-events: none;
     }
@@ -1075,15 +1121,58 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
 }
 
 export function refreshPageMinHeight(targetNode: HTMLElement) {
-  const paginationElement = resolvePaginationRootElement(targetNode)
-  const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
-  if (!lastPaginationChild) return
+  const apply = () => {
+    const paginationElement = resolvePaginationRootElement(targetNode)
+    const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
+    if (!lastPaginationChild) return
 
-  const measuredTarget = lastPaginationChild.classList.contains('rm-page-break')
-    ? ((lastPaginationChild.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
-    : lastPaginationChild
-  const minHeight = measuredTarget.offsetTop + measuredTarget.offsetHeight
-  targetNode.style.minHeight = `${minHeight + 2}px`
+    const pageBreak = lastPaginationChild.classList.contains('rm-page-break') ? lastPaginationChild : null
+    const measuredTarget = pageBreak
+      ? ((pageBreak.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
+      : lastPaginationChild
+
+    // Walk the offsetParent chain to accumulate the total vertical offset from targetNode.
+    // measuredTarget.offsetTop is relative to its offsetParent (e.g. .rm-page-break), not targetNode.
+    let totalOffset = measuredTarget.offsetTop + measuredTarget.offsetHeight
+    let currentParent: HTMLElement | null = measuredTarget.offsetParent as HTMLElement | null
+    while (currentParent && currentParent !== targetNode) {
+      totalOffset += currentParent.offsetTop
+      currentParent = currentParent.offsetParent as HTMLElement | null
+    }
+
+    const candidates: number[] = [totalOffset]
+    const rootRect = targetNode.getBoundingClientRect()
+    const scrollTop = targetNode.scrollTop
+
+    const pushRectBottomIfLaidOut = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect()
+      if (rect.bottom <= rect.top) return
+      candidates.push(rect.bottom - rootRect.top + scrollTop)
+    }
+
+    pushRectBottomIfLaidOut(measuredTarget)
+    if (pageBreak instanceof HTMLElement) {
+      const pageNumber = pageBreak.dataset.rmPageNumber
+      if (pageNumber) {
+        const footer = pageBreak.querySelector(
+          `.rm-page-footer-region[data-rm-page-number="${pageNumber}"]`
+        ) as HTMLElement | null
+        if (footer) {
+          pushRectBottomIfLaidOut(footer)
+        }
+      }
+    }
+
+    const minHeight = Math.max(...candidates)
+    // Ceil subpixels; extra padding covers focus/caret reflow and border rounding so the paper
+    // background still covers the last footer after layout settles.
+    targetNode.style.minHeight = `${Math.ceil(minHeight) + 8}px`
+  }
+
+  apply()
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(apply)
+  }
 }
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
@@ -1169,7 +1258,10 @@ export function createHeaderFooterRegion(params: {
     blockInactiveRegion(event, region)
   })
 
-  region.addEventListener('dblclick', event => {
+  region.addEventListener('click', event => {
+    if (event.detail !== 1) {
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
     onOpenEditor?.(type, pageNumber, region, {
@@ -1188,6 +1280,7 @@ export function createPageBreakElement(params: {
   options: PagesOptions
   storage: PagesStorage
   extensions: Extension[]
+  hydratedRange?: PaginationWindowRange | null
   activeRange?: PaginationWindowRange | null
   placeholderBreakerMetrics?: PageBreakerPlaceholderMetrics | null
   onOpenEditor?: (
@@ -1204,6 +1297,7 @@ export function createPageBreakElement(params: {
     options,
     storage,
     extensions,
+    hydratedRange,
     activeRange,
     placeholderBreakerMetrics,
     onOpenEditor
@@ -1212,6 +1306,11 @@ export function createPageBreakElement(params: {
   const pageContainer = document.createElement('div')
   pageContainer.className = 'rm-page-break'
   pageContainer.dataset.rmPageNumber = String(pageNumber)
+  const effectiveHydratedRange = hydratedRange ?? activeRange ?? null
+  const shellState: PageShellState = shouldRenderFullPageBreaker(pageNumber, effectiveHydratedRange)
+    ? 'hydrated'
+    : 'placeholder'
+  setPageBreakShellState(pageContainer, shellState)
 
   const page = document.createElement('div')
   page.className = 'page'
@@ -1239,11 +1338,35 @@ export function createPageBreakElement(params: {
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
-  page.appendChild(bodyLayer)
+  const behindImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'behind'
+  })
+  const floatingImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'floating'
+  })
+  const frontImageLayer = createPageImageOverlayLayer({
+    pageNumber,
+    pageBodyHeight: defaultBodyHeight,
+    layer: 'front'
+  })
+  page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =
-    !shouldRenderFullPageBreaker(pageNumber, activeRange) && placeholderBreakerMetrics != null
-      ? createPlaceholderBreaker(placeholderBreakerMetrics)
+    shellState === 'placeholder'
+      ? createPlaceholderBreaker(
+          placeholderBreakerMetrics ??
+            resolveDefaultPlaceholderBreakerMetrics({
+              pageNumber,
+              totalPages,
+              pageFormat,
+              options,
+              storage
+            })
+        )
       : createFullPageBreaker({
           pageNumber,
           totalPages,
@@ -1266,7 +1389,7 @@ export function createPaginationWrapper(params: {
   extensions: Extension[]
   rendererState?: Pick<
     WindowedPaginationRendererState,
-    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage' | 'spacerHeightsByRange'
+    'activeRange' | 'mountedRange' | 'windowKey' | 'placeholderBreakerMetricsByPage'
   > | null
   onOpenEditor?: (
     type: HeaderFooterEditorType,
@@ -1282,31 +1405,15 @@ export function createPaginationWrapper(params: {
   wrapper.id = 'pages'
   wrapper.className = 'rm-pages-wrapper'
 
-  const mountedRange = resolveMountedPageRange(totalPages, rendererState?.mountedRange, rendererState?.activeRange)
+  const mountedRange = resolveMountedPageRange(
+    totalPages,
+    rendererState?.activeRange ? rendererState.mountedRange : null,
+    rendererState?.activeRange
+  )
   wrapper.dataset.rmMountedStartPage = String(mountedRange.startPage)
   wrapper.dataset.rmMountedEndPage = String(mountedRange.endPage)
-  const shouldRenderSparseShells = mountedRange.startPage > 1 || mountedRange.endPage < totalPages
 
-  if (shouldRenderSparseShells && mountedRange.startPage > 1) {
-    wrapper.appendChild(
-      createPageRangeSpacer({
-        startPage: 1,
-        endPage: mountedRange.startPage - 1,
-        totalPages,
-        pageFormat,
-        options,
-        storage,
-        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
-        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
-      })
-    )
-  }
-
-  for (
-    let pageNumber = shouldRenderSparseShells ? mountedRange.startPage : 1;
-    pageNumber <= (shouldRenderSparseShells ? mountedRange.endPage : totalPages);
-    pageNumber += 1
-  ) {
+  for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
     const pageBreakElement = createPageBreakElement({
       pageNumber,
       totalPages,
@@ -1314,7 +1421,7 @@ export function createPaginationWrapper(params: {
       options,
       storage,
       extensions,
-      activeRange: mountedRange,
+      hydratedRange: mountedRange,
       placeholderBreakerMetrics: rendererState?.placeholderBreakerMetricsByPage.get(pageNumber) ?? null,
       onOpenEditor
     })
@@ -1324,21 +1431,6 @@ export function createPaginationWrapper(params: {
       rendererState?.windowKey ?? null
     )
     wrapper.appendChild(pageBreakElement)
-  }
-
-  if (shouldRenderSparseShells && mountedRange.endPage < totalPages) {
-    wrapper.appendChild(
-      createPageRangeSpacer({
-        startPage: mountedRange.endPage + 1,
-        endPage: totalPages,
-        totalPages,
-        pageFormat,
-        options,
-        storage,
-        placeholderBreakerMetricsByPage: rendererState?.placeholderBreakerMetricsByPage ?? new Map(),
-        spacerHeightsByRange: rendererState?.spacerHeightsByRange ?? new Map()
-      })
-    )
   }
 
   return wrapper
@@ -1375,6 +1467,7 @@ export function hydratePageBreakElement(params: {
   })
 
   breaker.replaceWith(nextBreaker)
+  setPageBreakShellState(params.pageContainer, 'hydrated')
   applyWindowAttributesToPageBreak(
     params.pageContainer,
     params.rendererState?.activeRange ?? null,
@@ -1396,7 +1489,7 @@ export function applyWindowAttributesToPageBreak(
   }
 
   const markerTargets = pageBreakEl.querySelectorAll<HTMLElement>(
-    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
+    '.page[data-rm-page-number], .rm-page-body-layer[data-rm-page-number], .rm-page-image-overlay-layer[data-rm-page-number], .rm-page-header-region[data-rm-page-number], .rm-page-footer-region[data-rm-page-number]'
   )
 
   const pageBreakNumber = resolvePageBreakNumber(pageBreakEl)
@@ -1426,6 +1519,11 @@ export function applyWindowAttributesToPageBreak(
   })
 }
 
+/**
+ * Shell for page 1’s header (class `rm-first-page-header`). Always mounted next to `.rm-pages-wrapper`
+ * via `renderWindowedPaginationChrome`, not inside the first `rm-page-break`. Content uses the
+ * `default` or `firstPage` storage variant depending on `differentFirstPage`, not a different DOM shape.
+ */
 export function createFirstPageHeader(params: {
   totalPages: number
   pageFormat: PageFormat

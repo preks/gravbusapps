@@ -1186,14 +1186,14 @@ describe('resolvePaginationWidgetTotalPages', () => {
     ).toBe(14)
   })
 
-  it('still preserves the existing page count until a downward refresh is explicitly accepted', () => {
+  it('allows the widget total to shrink under suppression when the measured page count drops', () => {
     expect(
       resolvePaginationWidgetTotalPages({
         storedPageCount: 14,
         measuredPageCount: 13,
         growthSuppressionPageCount: 14
       })
-    ).toBe(14)
+    ).toBe(13)
   })
 
   it('allows normal upward growth once suppression is cleared', () => {
@@ -1426,6 +1426,25 @@ describe('resolvePaginationSelectionBodyOverflow', () => {
         selection: {
           empty: true,
           head: 10
+        },
+        doc: {
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 2,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: {
+              textContent: 'b'
+            }
+          })
         }
       },
       coordsAtPos: () => ({
@@ -1500,6 +1519,70 @@ describe('resolvePaginationSelectionBodyOverflow', () => {
     } as never
 
     expect(resolvePaginationSelectionBodyOverflow(view, 'backward')).toEqual({ position: 7 })
+  })
+
+  it('clamps overflow away from the excluded side of a square-right wrapped image', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'square'
+    imageAnchor.dataset.imageWrapTextSide = 'left'
+    editorDom.append(bodyBand, imageAnchor)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+    setRect(imageAnchor, { top: 140, bottom: 220, left: 120, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true,
+          head: 10
+        },
+        doc: {
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 2,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: {
+              textContent: 'b'
+            }
+          })
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position === 8
+          ? {
+              top: 170,
+              bottom: 188,
+              left: 72,
+              right: 72
+            }
+          : {
+              top: 170,
+              bottom: 188,
+              left: 150,
+              right: 150
+            },
+      posAtCoords: ({ left }: { left: number }) => ({
+        pos: left < 120 ? 8 : 9
+      })
+    } as never
+
+    expect(resolvePaginationSelectionBodyOverflow(view)).toEqual({ position: 8 })
   })
 
   it('lands on the first line of the next page body when navigating forward across a page boundary', () => {
@@ -2100,6 +2183,147 @@ describe('resolvePaginationBodyClick', () => {
     } as never
 
     expect(resolvePaginationBodyClick(view, 72, 320)).toEqual({ action: 'allow' })
+  })
+
+  it('maps a blank last-page click to the document end when coords lookup misses', () => {
+    const editorDom = document.createElement('div')
+    const pageThirteenBodyBand = document.createElement('div')
+    const pageFourteenBodyBand = document.createElement('div')
+
+    pageThirteenBodyBand.className = 'rm-page-body-layer'
+    pageThirteenBodyBand.dataset.rmPageNumber = '13'
+    pageFourteenBodyBand.className = 'rm-page-body-layer'
+    pageFourteenBodyBand.dataset.rmPageNumber = '14'
+    editorDom.append(pageThirteenBodyBand, pageFourteenBodyBand)
+    document.body.appendChild(editorDom)
+
+    setRect(pageThirteenBodyBand, { top: 100, bottom: 220, left: 20, right: 180 })
+    setRect(pageFourteenBodyBand, { top: 240, bottom: 360, left: 20, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true
+        },
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 5
+            }
+          },
+          content: {
+            size: 42
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 5,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: null
+          })
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position === 42
+          ? {
+              top: 180,
+              bottom: 198,
+              left: 72,
+              right: 72
+            }
+          : {
+              top: 120,
+              bottom: 138,
+              left: 72,
+              right: 72
+            },
+      posAtCoords: () => null
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 72, 300)).toEqual({ action: 'set', position: 42 })
+  })
+
+  it('clamps clicks away from the excluded side of a square-right wrapped image', () => {
+    const editorDom = document.createElement('div')
+    const bodyBand = document.createElement('div')
+    const imageAnchor = document.createElement('div')
+
+    bodyBand.className = 'rm-page-body-layer'
+    bodyBand.dataset.rmPageNumber = '1'
+    imageAnchor.dataset.imageExclusionMode = 'square'
+    imageAnchor.dataset.imageWrapTextSide = 'left'
+    editorDom.append(bodyBand, imageAnchor)
+    document.body.appendChild(editorDom)
+
+    setRect(bodyBand, { top: 100, bottom: 300, left: 20, right: 180 })
+    setRect(imageAnchor, { top: 140, bottom: 220, left: 120, right: 180 })
+
+    const view = {
+      dom: editorDom,
+      state: {
+        selection: {
+          empty: true
+        },
+        doc: {
+          firstChild: {
+            type: {
+              name: 'paragraph'
+            },
+            content: {
+              size: 5
+            }
+          },
+          resolve: () => ({
+            parent: {
+              type: {
+                name: 'paragraph'
+              },
+              content: {
+                size: 5
+              }
+            },
+            parentOffset: 2,
+            nodeBefore: {
+              textContent: 'a'
+            },
+            nodeAfter: {
+              textContent: 'b'
+            }
+          })
+        }
+      },
+      coordsAtPos: (position: number) =>
+        position === 3
+          ? {
+              top: 170,
+              bottom: 188,
+              left: 72,
+              right: 72
+            }
+          : {
+              top: 170,
+              bottom: 188,
+              left: 150,
+              right: 150
+            },
+      posAtCoords: ({ left }: { left: number }) => ({
+        pos: left < 120 ? 3 : 4
+      })
+    } as never
+
+    expect(resolvePaginationBodyClick(view, 150, 176)).toEqual({ action: 'set', position: 3 })
   })
 })
 

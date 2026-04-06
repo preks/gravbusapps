@@ -1,6 +1,11 @@
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { UniverSheetGrid, type UniverSheetGridHandle } from '../UniverSheetGrid'
+import {
+  UniverSheetGrid,
+  extractFormatMenuLabel,
+  getGermanNumfmtPattern,
+  type UniverSheetGridHandle
+} from '../UniverSheetGrid'
 
 const eventHandlers: Record<string, (payload: any) => void> = {}
 
@@ -14,10 +19,15 @@ jest.mock(
 
 jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: true })
 
+let lastPresetContainer: unknown
+let lastSetNumfmtLocalMock: jest.Mock | undefined
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
-    UniverSheetsCorePreset: jest.fn(() => ({}))
+    UniverSheetsCorePreset: jest.fn((opts: { container?: unknown }) => {
+      lastPresetContainer = opts?.container
+      return {}
+    })
   }),
   { virtual: true }
 )
@@ -39,6 +49,7 @@ jest.mock(
         getRange: () => range
       }
       const workbook = {
+        setNumfmtLocal: jest.fn(),
         getActiveSheet: () => activeSheet,
         save: () => ({
           sheetOrder: ['sheet-1'],
@@ -52,6 +63,7 @@ jest.mock(
           }
         })
       }
+      lastSetNumfmtLocalMock = workbook.setNumfmtLocal
 
       return {
         univerAPI: {
@@ -94,6 +106,8 @@ describe('UniverSheetGrid read-only behavior', () => {
 
   beforeEach(() => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
+    lastPresetContainer = undefined
+    lastSetNumfmtLocalMock = undefined
   })
 
   afterEach(() => {
@@ -115,6 +129,72 @@ describe('UniverSheetGrid read-only behavior', () => {
     )
 
     expect(screen.getByTestId('univer-readonly-overlay')).toBeInTheDocument()
+  })
+
+  it('passes the mounted grid host element to Univer (not null from early effect)', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={true}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    expect(lastPresetContainer).toBeInstanceOf(HTMLDivElement)
+    expect(screen.getByTestId('univer-sheet-grid-container')).toBe(lastPresetContainer)
+  })
+
+  it('forces German number-format locale for currency/date/time defaults', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    expect(lastSetNumfmtLocalMock).toHaveBeenCalledWith('de_DE')
+  })
+
+  it('continues rendering when setting German number-format locale fails', () => {
+    lastSetNumfmtLocalMock?.mockImplementationOnce(() => {
+      throw new Error('numfmt unavailable')
+    })
+
+    expect(() =>
+      render(
+        <UniverSheetGrid
+          sheet={sheet}
+          data={data}
+          columns={columns}
+          isReadOnly={false}
+          onCellChange={jest.fn()}
+          onCellsChange={jest.fn()}
+          onDataChange={jest.fn()}
+        />
+      )
+    ).not.toThrow()
+  })
+
+  it('extracts number-format menu labels from preview rows', () => {
+    expect(extractFormatMenuLabel('Date and time 1903-5-4 AM 12:00')).toBe('Date and time')
+    expect(extractFormatMenuLabel('Currency $1,220.00')).toBe('Currency')
+    expect(extractFormatMenuLabel('Unknown row')).toBeNull()
+  })
+
+  it('returns German override patterns for key format labels', () => {
+    expect(getGermanNumfmtPattern('Currency')).toBe('#,##0.00 "EUR"')
+    expect(getGermanNumfmtPattern('Date')).toBe('dd.mm.yyyy')
+    expect(getGermanNumfmtPattern('Time')).toBe('hh:mm:ss')
+    expect(getGermanNumfmtPattern('Nope')).toBeUndefined()
   })
 
   it('does not emit local cell changes while read-only', () => {

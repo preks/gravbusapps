@@ -150,6 +150,11 @@ export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   filterConfiguration?: any
   sortableColumns?: Array<{ id: string; label: string }>
 
+  // Export
+  enableExport?: boolean
+  exportFilenamePrefix?: string
+  fetchCampaignsForExport?: (variables: Record<string, any>) => Promise<{ SalesCampaign?: any[] }>
+
   // Optional callbacks
   onBack?: () => void
 }

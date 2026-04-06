@@ -125,8 +125,6 @@ export function HeaderFooterSettingsSidebar({
               onOpenDate={() => setDateOpen(true)}
               reopenAfterLayoutToggle={actions.reopenAfterLayoutToggle}
               applyMargins={actions.applyMargins}
-              applyHeaderPreset={actions.applyHeaderPreset}
-              applyFooterPreset={actions.applyFooterPreset}
               insertInOverlay={actions.insertInOverlay}
               canInsertInOverlay={overlayEditor != null}
               onOpenPageNumbers={onOpenPageNumbers}

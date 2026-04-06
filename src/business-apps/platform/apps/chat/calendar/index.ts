@@ -9,6 +9,5 @@ export default {
 }
 
 export * from './types'
-export * from './calendarApiClient'
 export * from './hooks/useCalendar'
 export * from './components'

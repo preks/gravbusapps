@@ -1,5 +1,3 @@
-import React from 'react'
-
 export interface PagedDocumentEditorStylesProps {
   pageColor: string
   proseMinHeight: number
@@ -42,6 +40,19 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         line-height: 1.15;
         color: #1a1a1a;
         min-height: ${proseMinHeight}px;
+        --default-cell-min-width: 25px;
+      }
+
+      .paged-document-editor .ProseMirror .document-table-of-contents {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .paged-document-editor .ProseMirror.resize-cursor {
+        cursor: ew-resize;
+        cursor: col-resize;
       }
 
       .paged-document-editor .ProseMirror .editor-link {
@@ -49,6 +60,18 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         text-decoration: underline;
         cursor: pointer;
       }
+
+      /* Highlight (TipTap <mark>) — UA styles can alter typography; match parent / textStyle spans. */
+      .paged-document-editor .ProseMirror mark {
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        font-style: inherit;
+        font-variant: inherit;
+        line-height: inherit;
+        letter-spacing: inherit;
+      }
+
       .paged-document-editor .ProseMirror .navigation-search-highlight {
         background: color-mix(in srgb, var(--nw-primary) 22%, transparent);
         border-radius: 2px;
@@ -119,8 +142,8 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         margin: 0 0 6pt 0;
       }
 
+      /* Do not set display:inline on list paragraphs — it breaks ProseMirror caret/backspace at list boundaries. */
       .paged-document-editor .ProseMirror li > p {
-        display: inline;
         margin: 0;
       }
 
@@ -143,7 +166,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       }
 
       .document-ai-selection-preview-content li > p {
-        display: inline;
         margin: 0;
       }
 
@@ -228,17 +250,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       .paged-document-editor .ProseMirror figure[data-node-type='custom-image'] {
         max-width: 100%;
       }
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='square-left'],
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='tight'],
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='through'] {
-        float: left;
-      }
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='square-right'] {
-        float: right;
-      }
-      .paged-document-editor .ProseMirror figure[data-node-type='custom-image'][data-image-wrap='top-bottom'] {
-        clear: both;
-      }
       .paged-document-editor .ProseMirror .editor-image-caption {
         margin-top: 4pt;
         color: #6b7280;
@@ -254,6 +265,13 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         min-width: 0 !important;
         min-height: 0 !important;
         overflow: visible !important;
+      }
+
+      /* Signature crop scales the img larger than the frame; global img rules must not win. */
+      .paged-document-editor .ProseMirror img[data-testid='document-editor-signature'] {
+        max-width: none !important;
+        border-radius: 0;
+        background: transparent;
       }
 
       .paged-document-editor .ProseMirror .tableWrapper {
@@ -274,14 +292,22 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
 
       .paged-document-editor .ProseMirror td,
       .paged-document-editor .ProseMirror th {
+        box-sizing: border-box;
+        position: relative;
         border: 1pt solid #333;
         padding: 4pt 6pt;
         text-align: start;
         vertical-align: top;
         font-size: 0.875rem;
         line-height: 1.3;
-        overflow-wrap: anywhere;
+        min-width: 0;
+        overflow-wrap: break-word;
         word-break: break-word;
+      }
+
+      .paged-document-editor .ProseMirror td:not([colwidth]):not(.column-resize-dragging),
+      .paged-document-editor .ProseMirror th:not([colwidth]):not(.column-resize-dragging) {
+        min-width: var(--default-cell-min-width);
       }
 
       .paged-document-editor .ProseMirror th {
@@ -409,7 +435,9 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         height: 0;
       }
 
-      .paged-document-editor .ProseMirror ::selection {
+      /* Only style selection while the editor is focused. A global ::selection rule also paints
+         inactive (blurred) ranges the same color, so the highlight looked “stuck” until a second click. */
+      .paged-document-editor .ProseMirror:focus ::selection {
         background: #b4d5fe;
       }
 
@@ -418,12 +446,6 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         border-bottom: 2px solid rgba(99, 140, 230, 0.6);
         border-radius: 2px;
         transition: background 0.2s ease;
-      }
-
-      .paged-document-editor .ProseMirror .current-selection-highlight {
-        background: rgba(147, 197, 253, 0.22);
-        border-bottom: 1px solid rgba(59, 130, 246, 0.35);
-        border-radius: 2px;
       }
 
       .paged-document-editor .ProseMirror .document-autocomplete-ghost-text {
@@ -452,6 +474,7 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         top: 0;
         bottom: -2px;
         width: 4px;
+        z-index: 20;
         background-color: #adf;
         pointer-events: none;
       }

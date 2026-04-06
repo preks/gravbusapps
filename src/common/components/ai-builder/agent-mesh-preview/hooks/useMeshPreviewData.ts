@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getLayoutedPositions } from '@/common/utils/meshLayout'
-import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import {
   mergeConnectionsToEdges,
   buildMeshNodesAndEdges,
@@ -55,7 +55,7 @@ export interface UseMeshPreviewDataResult {
 }
 
 export function useMeshPreviewData(accessToken: string, agentIds: string[]): UseMeshPreviewDataResult {
-  const api = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
   const [loading, setLoading] = useState(!!agentIds.length)
@@ -69,9 +69,9 @@ export function useMeshPreviewData(accessToken: string, agentIds: string[]): Use
     setError(null)
     try {
       const [registryRes, connectionsRes, layoutRes] = await Promise.allSettled([
-        api.getAgentRegistry({}),
-        api.getConnections(),
-        api.getMeshLayout()
+        promptManagerClient.getAgentRegistry({}),
+        promptManagerClient.getMeshConnections(),
+        promptManagerClient.getMeshLayout()
       ])
 
       const registry = registryRes.status === 'fulfilled' ? registryRes.value : []
@@ -105,7 +105,7 @@ export function useMeshPreviewData(accessToken: string, agentIds: string[]): Use
     } finally {
       setLoading(false)
     }
-  }, [api, agentIds.join(',')])
+  }, [promptManagerClient, agentIds.join(',')])
 
   useEffect(() => {
     if (!agentIds.length) {

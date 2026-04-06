@@ -79,9 +79,11 @@ export const SpreadsheetSaveStatus: React.FC<SpreadsheetSaveStatusProps> = ({
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
-      <span className={spanClass} data-testid={`${testId}-${stateKey}`}>
-        {icon}
-        <span className="gba:truncate">{statusText}</span>
+      <span className="gba:w-40 gba:min-w-0" title={statusText}>
+        <span className={spanClass} data-testid={`${testId}-${stateKey}`}>
+          {icon}
+          <span className="gba:truncate">{statusText}</span>
+        </span>
       </span>
       {onManualSave && (
         <Button

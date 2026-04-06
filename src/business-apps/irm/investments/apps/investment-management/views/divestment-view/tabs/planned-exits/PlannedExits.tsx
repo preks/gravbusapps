@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { DataDisplay, Button } from '@newwork/nw-design-system'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { usePlannedExitsExport } from './hooks/usePlannedExitsExport'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
 import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
@@ -250,19 +252,52 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
     [availableCurrencies]
   )
 
+  const { isExporting, handleExportCsv, handleExportExcel } = usePlannedExitsExport({
+    accessToken: accessToken || '',
+    sectionState,
+    selectedFilters,
+    totalCount: sectionState.totalCount,
+    listAggregates: sectionState.listAggregates,
+    displayCurrencyCode: selectedCurrency === 'all' ? 'EUR' : selectedCurrency
+  })
+
   const secondaryActions = useMemo(
     () => (
-      <CurrencyFilter
-        value={selectedCurrency}
-        currencies={currencyCodes}
-        onChange={newCurrency => {
-          setSelectedCurrency(newCurrency)
-          sectionState.handlePaginationChange({ pageIndex: 0, pageSize: sectionState.pageSize })
-        }}
-        dataTestId="planned-exits-currency-filter"
-      />
+      <>
+        <CurrencyFilter
+          value={selectedCurrency}
+          currencies={currencyCodes}
+          onChange={newCurrency => {
+            setSelectedCurrency(newCurrency)
+            sectionState.handlePaginationChange({ pageIndex: 0, pageSize: sectionState.pageSize })
+          }}
+          dataTestId="planned-exits-currency-filter"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportCsv}
+          disabled={isExporting || sectionState.totalCount === 0}
+          title={isExporting ? 'Exporting…' : `Export ${sectionState.totalCount} planned exits as CSV`}
+          data-testid="export-planned-exits-csv"
+        >
+          <DownloadIcon size={16} />
+          CSV
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleExportExcel}
+          disabled={isExporting || sectionState.totalCount === 0}
+          title={isExporting ? 'Exporting…' : `Export ${sectionState.totalCount} planned exits as Excel`}
+          data-testid="export-planned-exits-excel"
+        >
+          <FileXlsIcon size={16} />
+          Excel
+        </Button>
+      </>
     ),
-    [currencyCodes, selectedCurrency, sectionState]
+    [currencyCodes, selectedCurrency, sectionState, isExporting, handleExportCsv, handleExportExcel]
   )
 
   return (
@@ -315,6 +350,10 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, enab
           pagination={sectionState.pagination}
           onPaginationChange={sectionState.handlePaginationChange}
           visibleColumns={sectionState.visibleColumns}
+          listAggregates={sectionState.listAggregates}
+          showAggregatesBar={!sectionState.isInitialLoading && !sectionState.error}
+          showEquityMetrics={false}
+          displayCurrencyCode={selectedCurrency === 'all' ? 'EUR' : selectedCurrency}
         />
       </DataDisplay>
     </div>

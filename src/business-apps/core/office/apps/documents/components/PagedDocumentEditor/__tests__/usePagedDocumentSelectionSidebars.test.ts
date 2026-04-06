@@ -1,4 +1,7 @@
 import {
+  CLOSED_SIGNATURE_SIDEBAR,
+  shouldKeepImageSidebarOpenForUiMode,
+  shouldKeepSignatureSidebarOpenForCropMode,
   resolveSidebarContextSubtitleKey,
   resolveSidebarPresentationState
 } from '../hooks/usePagedDocumentSelectionSidebars'
@@ -22,8 +25,10 @@ describe('resolveSidebarPresentationState', () => {
           editor: sharedEditor,
           tablePos: 10
         },
+        selectedSignatureSidebar: CLOSED_SIGNATURE_SIDEBAR,
         activeHeaderFooterEditor: sharedEditor,
-        isHeaderFooterEditing: true
+        isHeaderFooterEditing: true,
+        headerFooterSettingsSessionOpen: true
       })
     ).toEqual({
       documentRightPanelOffset: 412,
@@ -49,8 +54,76 @@ describe('resolveSidebarPresentationState', () => {
           editor: null,
           tablePos: null
         },
+        selectedSignatureSidebar: CLOSED_SIGNATURE_SIDEBAR,
         activeHeaderFooterEditor: {} as never,
-        isHeaderFooterEditing: true
+        isHeaderFooterEditing: true,
+        headerFooterSettingsSessionOpen: true
+      })
+    ).toEqual({
+      documentRightPanelOffset: 16,
+      showTableSidebar: false,
+      showHeaderFooterSidebar: true,
+      documentEditorRightReservePx: 376
+    })
+  })
+
+  it('prioritizes the signature sidebar over the table and header/footer sidebars for the same editor', () => {
+    const sharedEditor = {} as never
+
+    expect(
+      resolveSidebarPresentationState({
+        rightSidebar: 'closed',
+        selectedImageSidebar: {
+          open: false,
+          editor: null,
+          pos: null,
+          nodeSize: null,
+          attrs: null
+        },
+        selectedTableSidebar: {
+          open: true,
+          editor: sharedEditor,
+          tablePos: 10
+        },
+        selectedSignatureSidebar: {
+          open: true,
+          editor: sharedEditor,
+          pos: 3,
+          nodeSize: 1,
+          attrs: { snapshotSvg: 'x' } as never
+        },
+        activeHeaderFooterEditor: sharedEditor,
+        isHeaderFooterEditing: true,
+        headerFooterSettingsSessionOpen: true
+      })
+    ).toEqual({
+      documentRightPanelOffset: 16,
+      showTableSidebar: false,
+      showHeaderFooterSidebar: false,
+      documentEditorRightReservePx: 376
+    })
+  })
+
+  it('keeps the header/footer settings panel visible when the session is open but the overlay is temporarily torn down', () => {
+    expect(
+      resolveSidebarPresentationState({
+        rightSidebar: 'closed',
+        selectedImageSidebar: {
+          open: false,
+          editor: null,
+          pos: null,
+          nodeSize: null,
+          attrs: null
+        },
+        selectedTableSidebar: {
+          open: false,
+          editor: null,
+          tablePos: null
+        },
+        selectedSignatureSidebar: CLOSED_SIGNATURE_SIDEBAR,
+        activeHeaderFooterEditor: null,
+        isHeaderFooterEditing: false,
+        headerFooterSettingsSessionOpen: true
       })
     ).toEqual({
       documentRightPanelOffset: 16,
@@ -89,5 +162,110 @@ describe('resolveSidebarContextSubtitleKey', () => {
         activeHeaderFooterType: 'footer'
       })
     ).toBeUndefined()
+  })
+
+  it('returns the signature-in-header key for an overlay signature editor', () => {
+    const mainEditor = {} as never
+    const overlayEditor = {} as never
+
+    expect(
+      resolveSidebarContextSubtitleKey({
+        sidebar: 'signature',
+        open: true,
+        mainEditor,
+        sidebarEditor: overlayEditor,
+        activeHeaderFooterType: 'header'
+      })
+    ).toBe('signature-sidebar-in-header-context')
+  })
+})
+
+describe('shouldKeepSignatureSidebarOpenForCropMode', () => {
+  it('keeps the signature sidebar open while crop mode is active for the same signature', () => {
+    expect(
+      shouldKeepSignatureSidebarOpenForCropMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 12,
+          mode: 'crop'
+        }
+      )
+    ).toBe(true)
+  })
+
+  it('does not keep the signature sidebar open for a different node or default mode', () => {
+    expect(
+      shouldKeepSignatureSidebarOpenForCropMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 8,
+          mode: 'crop'
+        }
+      )
+    ).toBe(false)
+
+    expect(
+      shouldKeepSignatureSidebarOpenForCropMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 12,
+          mode: 'default'
+        }
+      )
+    ).toBe(false)
+  })
+})
+
+describe('shouldKeepImageSidebarOpenForUiMode', () => {
+  it('keeps the image sidebar open while crop mode is active for the same image', () => {
+    expect(
+      shouldKeepImageSidebarOpenForUiMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 12,
+          mode: 'crop'
+        }
+      )
+    ).toBe(true)
+  })
+
+  it('does not keep the image sidebar open for a different image or default mode', () => {
+    expect(
+      shouldKeepImageSidebarOpenForUiMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 8,
+          mode: 'crop'
+        }
+      )
+    ).toBe(false)
+
+    expect(
+      shouldKeepImageSidebarOpenForUiMode(
+        {
+          open: true,
+          pos: 12
+        },
+        {
+          pos: 12,
+          mode: 'default'
+        }
+      )
+    ).toBe(false)
   })
 })

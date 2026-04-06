@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
 import { formatCurrency } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/currencyUtils'
 import { buildAdvancePaymentFields } from '@/business-apps/fin/expenses/common/utils/advancePaymentUtils'
-import { AdvancePaymentDetailsFooter } from '@/business-apps/fin/expenses/common/components/AdvancePaymentDetailsFooter'
+import { AdvancePaymentDetailsFooter } from '@/business-apps/fin/expenses/common/components/advance-payment/AdvancePaymentDetailsFooter'
 import translations from '../../../_i18n'
 
 interface AdvancePaymentDetailsBackofficeProps extends BusinessAppContextProps {

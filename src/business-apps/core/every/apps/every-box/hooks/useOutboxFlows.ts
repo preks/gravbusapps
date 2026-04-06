@@ -3,7 +3,7 @@
  * Fetches workflows initiated by the user
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Flow, FlowStatus } from '../types'
 import { getCflowEndpoint } from '../../every-api/utils/config'
@@ -25,9 +25,6 @@ export const useOutboxFlows = (
 
   // Use Keycloak user ID for CFlow (flows are initiated by Keycloak ID, not employee ID)
   const userId = context.userInfo?.id || ''
-
-  // Track last flow data to avoid unnecessary re-renders
-  const lastFlowDataRef = useRef<string>('')
 
   /**
    * Fetch initiated workflows
@@ -118,14 +115,12 @@ export const useOutboxFlows = (
   }, [userId, context.accessToken])
 
   /**
-   * Build a lightweight fingerprint for change-detection (avoids full JSON.stringify)
-   */
-  const flowFingerprint = useCallback((flowList: Flow[]): string => {
-    return flowList.map(f => `${f.id}:${f.status}:${f.completedAssignees ?? ''}`).join('|')
-  }, [])
-
-  /**
    * Load all flows (shows loading spinner — use for manual refresh / initial load)
+   *
+   * Always applies the latest list to state. A previous fingerprint optimization skipped
+   * setState when id/status/completedAssignees matched; new child flows merged into the same
+   * blink group keep the same representative id/status, so the UI never updated until a full
+   * remount (e.g. tab visibility) forced a fresh tree.
    */
   const loadFlows = useCallback(async () => {
     setIsLoading(true)
@@ -134,19 +129,14 @@ export const useOutboxFlows = (
     try {
       const { flows: groupedFlows, totalCount: nextTotalCount } = await fetchInitiatedFlows()
       setTotalCount(nextTotalCount)
-
-      const fp = flowFingerprint(groupedFlows)
-      if (fp !== lastFlowDataRef.current) {
-        lastFlowDataRef.current = fp
-        setFlows(groupedFlows)
-      }
+      setFlows(groupedFlows)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load flows'
       setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
-  }, [fetchInitiatedFlows, flowFingerprint])
+  }, [fetchInitiatedFlows])
 
   /**
    * Background refresh — does NOT set isLoading (no spinner during polling)
@@ -155,16 +145,11 @@ export const useOutboxFlows = (
     try {
       const { flows: groupedFlows, totalCount: nextTotalCount } = await fetchInitiatedFlows()
       setTotalCount(nextTotalCount)
-
-      const fp = flowFingerprint(groupedFlows)
-      if (fp !== lastFlowDataRef.current) {
-        lastFlowDataRef.current = fp
-        setFlows(groupedFlows)
-      }
+      setFlows(groupedFlows)
     } catch {
       // Ignore background refresh errors silently
     }
-  }, [fetchInitiatedFlows, flowFingerprint])
+  }, [fetchInitiatedFlows])
 
   /**
    * While outbox is hidden, keep total in sync with bootstrap badge counts (no network).

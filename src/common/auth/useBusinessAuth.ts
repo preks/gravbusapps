@@ -69,7 +69,9 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       setAccessToken(token)
       setTokenParsed(parsed)
       try {
-        window.dispatchEvent(new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: true }))
+        window.dispatchEvent(
+          new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: { accessToken: token } })
+        )
       } catch {
         // ignore dispatch errors in non-browser environments
       }
@@ -182,6 +184,8 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       window.localStorage.removeItem(STORAGE_KEY_USER_INFO)
       window.localStorage.removeItem(STORAGE_KEY_ACCESS_TOKEN)
       window.localStorage.removeItem(STORAGE_KEY_ADDITIONAL_DATA)
+      window.localStorage.removeItem('newwork_every_ai')
+      window.localStorage.removeItem('everyai-submitted-forms')
     } catch {
       // ignore storage errors
     }
@@ -203,7 +207,9 @@ export function useBusinessAuth(): UseBusinessAuthResult {
         setAccessToken(token)
         setTokenParsed(parsed)
         try {
-          window.dispatchEvent(new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: true }))
+          window.dispatchEvent(
+            new CustomEvent('com.newwork.token.shouldRefreshAuthorizationHeader', { detail: { accessToken: token } })
+          )
         } catch {
           // ignore dispatch errors
         }

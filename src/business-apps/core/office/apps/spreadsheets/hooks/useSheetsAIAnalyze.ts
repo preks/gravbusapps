@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import type { SheetsAIAnalyzeResponse } from '../prompts/sheets-ai-analyze'
 import {
@@ -7,8 +8,7 @@ import {
   buildSheetsAIAnalyzeUserPrompt,
   parseSheetsAIAnalyzeResponse
 } from '../prompts/sheets-ai-analyze'
-
-const PREFERRED_MODEL_ID = '6799beda3544ce9d4dfaa322'
+import { selectPreferredModel } from '../utils/aiModelSelection'
 
 interface UseSheetsAIAnalyzeParams {
   accessToken: string
@@ -88,19 +88,14 @@ export const useSheetsAIAnalyze = ({
     setError(null)
     setIsLoading(true)
     try {
-      const modelsResponse = await promptClient.getAiModels({
-        limit: 10,
-        offset: 0,
-        returnTotalRecords: false
-      })
-      const selectedModel =
-        modelsResponse.data?.find(model => model._id === PREFERRED_MODEL_ID) ??
-        modelsResponse.data?.find(model => model.name.toLowerCase().includes('gpt-4')) ??
-        modelsResponse.data?.[0]
-      if (!selectedModel) throw new Error('No AI models available')
+      const selectedModel = await selectPreferredModel(promptClient)
+      const modelId = getPromptManagerDocumentId(selectedModel)
+      if (!modelId) {
+        throw new Error('Selected AI model has no document id')
+      }
 
       const formData = new FormData()
-      formData.append('model_id', selectedModel._id)
+      formData.append('model_id', modelId)
       formData.append('system_content', SHEETS_AI_ANALYZE_SYSTEM_PROMPT)
       formData.append('user_content', buildSheetsAIAnalyzeUserPrompt(sheetName, columns, sheetData))
       formData.append('model_settings', JSON.stringify({}))

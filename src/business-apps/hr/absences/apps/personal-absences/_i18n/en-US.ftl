@@ -2,9 +2,14 @@
 
 # Header & navigation
 request-absence = Request Absence
+absence-request-option-sick = Report Sick Leave
+absence-request-option-special = Request Special Leave
+absence-request-option-vacation = Request Vacation
+absence-request-option-work = Request Work Leave
 calendar = Calendar
 back-to-dashboard = Back to Dashboard
 absence-overview = Absences
+change-entitlement = Change Entitlement
 
 # My Balance
 my-balance = My Balance

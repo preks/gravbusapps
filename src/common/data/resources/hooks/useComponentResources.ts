@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Component } from '../types/component.types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useResourceClient } from '@/common/network/resources/useResourceClient'
@@ -24,6 +24,8 @@ interface UseComponentResourcesResult {
   isLoading: boolean
   error: string | null
   refetch: (params?: UseComponentResourcesParams, isInitial?: boolean) => Promise<void>
+  loadMore: () => Promise<void>
+  hasMore: boolean
 }
 
 /**
@@ -31,6 +33,8 @@ interface UseComponentResourcesResult {
  * Does NOT fetch Azure Storage data - that's handled by ResourceManagerContext
  * Supports pagination with limit/offset
  */
+const DEFAULT_LIMIT = 20
+
 export const useComponentResources = (
   context: BusinessAppContextProps,
   params?: UseComponentResourcesParams
@@ -40,13 +44,13 @@ export const useComponentResources = (
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
+  const currentOffsetRef = useRef(0)
+  const isFetchingRef = useRef(false)
 
-  // Memoize params to prevent infinite loops
   const memoizedParams = useMemo(
-    () => params,
+    () => ({ ...params, offset: undefined }) as UseComponentResourcesParams | undefined,
     [
       params?.limit,
-      params?.offset,
       params?.searchParameter,
       params?.sort?.field,
       params?.sort?.order,
@@ -57,102 +61,89 @@ export const useComponentResources = (
   )
 
   const fetchComponents = useCallback(
-    async (fetchParams?: UseComponentResourcesParams, showLoading = true) => {
+    async (append = false, showLoading = true) => {
+      if (isFetchingRef.current) return
       if (!context.accessToken) {
         setError('No access token available')
         setIsLoading(false)
         return
       }
 
-      if (showLoading) {
-        setIsLoading(true)
-      }
+      isFetchingRef.current = true
+      if (showLoading) setIsLoading(true)
       setError(null)
 
+      const limit = memoizedParams?.limit ?? DEFAULT_LIMIT
+      const offset = append ? currentOffsetRef.current : 0
+      const searchParameter = memoizedParams?.searchParameter
+      const filter = memoizedParams?.filter
+      const sort = memoizedParams?.sort
+
+      const requestParams = {
+        limit,
+        offset,
+        returnTotalRecords: true as const,
+        ...(searchParameter?.trim() && { searchParameter: searchParameter.trim() }),
+        ...(filter && { filter }),
+        ...(sort && { sort })
+      }
+
       try {
-        // Use provided params or memoized params
-        const limit = fetchParams?.limit ?? memoizedParams?.limit ?? 20
-        const offset = fetchParams?.offset ?? memoizedParams?.offset ?? 0
-        const searchParameter = fetchParams?.searchParameter ?? memoizedParams?.searchParameter
-        const filter = fetchParams?.filter ?? memoizedParams?.filter
-        const sort = fetchParams?.sort ?? memoizedParams?.sort
-
-        // Build request params according to OpenAPI spec
-        const requestParams: {
-          searchParameter?: string
-          filter?: {
-            appId?: string
-            screenKey?: string
-            builderType?: 'LOWCODER' | 'FORMIO' | 'NATIVE_SCREEN'
-          }
-          sort?: {
-            field: string
-            order: 'ASC' | 'DESC'
-          }
-          limit: number
-          offset: number
-          returnTotalRecords: boolean
-        } = {
-          limit: limit,
-          offset: offset,
-          returnTotalRecords: true // Always request total count for pagination
-        }
-
-        // Add search parameter if provided
-        if (searchParameter?.trim()) {
-          requestParams.searchParameter = searchParameter.trim()
-        }
-
-        // Add filter if provided (optional)
-        if (filter) {
-          requestParams.filter = filter
-        }
-
-        // Add sort if provided (defaults to name ASC in ComponentClient)
-        if (sort) {
-          requestParams.sort = sort
-        }
-
-        // Single request with pagination, search, filter, and sort
         const response = await resourceClient.component.getComponents(requestParams)
+        const data = response?.data && Array.isArray(response.data) ? response.data : []
+        const total = response?.paging?.totalRecords ?? data.length
 
-        if (response?.data && Array.isArray(response.data)) {
-          setComponents(response.data)
-          // Extract total count from paging
-          setTotalCount(response.paging?.totalRecords ?? response.data.length)
+        if (append) {
+          currentOffsetRef.current += data.length
+          setComponents(prev => [...prev, ...data])
         } else {
-          setComponents([])
-          setTotalCount(0)
+          currentOffsetRef.current = data.length
+          setComponents(data)
         }
+        setTotalCount(total)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch components'
         setError(errorMessage)
         setComponents([])
         setTotalCount(0)
+        if (!append) currentOffsetRef.current = 0
       } finally {
         setIsLoading(false)
+        isFetchingRef.current = false
       }
     },
     [context.accessToken, memoizedParams, resourceClient]
   )
 
-  // Auto-fetch when params change
   useEffect(() => {
-    fetchComponents(undefined, true)
+    currentOffsetRef.current = 0
+    fetchComponents(false, true)
   }, [fetchComponents])
 
   const refetch = useCallback(
-    async (fetchParams?: UseComponentResourcesParams, showLoading = false) => {
-      await fetchComponents(fetchParams, showLoading)
+    async (_fetchParams?: UseComponentResourcesParams, showLoading = false) => {
+      currentOffsetRef.current = 0
+      await fetchComponents(false, showLoading)
     },
     [fetchComponents]
   )
+
+  const loadMore = useCallback(() => {
+    if (components.length < totalCount) {
+      return fetchComponents(true, false)
+    }
+    return Promise.resolve()
+  }, [fetchComponents, components.length, totalCount])
+
+  const hasMore = components.length < totalCount
 
   return {
     components,
     totalCount,
     isLoading,
     error,
-    refetch
+    refetch,
+    loadMore,
+    hasMore
   }
 }

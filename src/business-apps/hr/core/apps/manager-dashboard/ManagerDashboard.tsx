@@ -2,7 +2,7 @@
 
 'use client'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useManagerWorkboardVM } from './hooks/useManagerWorkboardVM'
 import { NotClockedInView } from './views/NotClockedInView'
@@ -91,6 +91,24 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     () => vm.teamMembers.direct.map(report => ({ ...report, status: report.status || 'Available' })),
     [vm.teamMembers.direct]
   )
+
+  useEffect(() => {
+    const refreshDashboardData = () => {
+      void vm.actions.refreshManagerDashboardData()
+      globalThis.setTimeout(() => {
+        void vm.actions.refreshManagerDashboardData()
+      }, 1200)
+    }
+
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
+      if (customEvent.detail.resolution !== 'success') return
+      refreshDashboardData()
+    }
+
+    window.addEventListener('com.newwork.process.processCompletion', handler)
+    return () => window.removeEventListener('com.newwork.process.processCompletion', handler)
+  }, [vm.actions])
 
   const mainContent = (
     <div

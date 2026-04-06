@@ -1,16 +1,26 @@
 import React from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Button } from '@newwork/nw-design-system'
-import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 
 interface EntitlementsTableProps {
   entitlements: any[]
   page: number
   setPage: (updater: number | ((prev: number) => number)) => void
   pageSize: number
-  onRowClick: (row: any) => void
 }
 
-const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, page, setPage, pageSize, onRowClick }) => {
+const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, page, setPage, pageSize }) => {
+  const { t } = useTranslation(translations)
   const totalItems = (entitlements || []).length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const currentItems = (entitlements || []).slice((page - 1) * pageSize, page * pageSize)
@@ -26,72 +36,21 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, pag
             <TableHead>
               {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
             </TableHead>
-            <TableHead>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_overview.side_bar.payment_status',
-                'Pending'
-              )}
-            </TableHead>
-            <TableHead>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:manager_expense_landing_page.upcoming_approved_badge',
-                'Approved'
-              )}
-            </TableHead>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.remaining', 'Remaining')}</TableHead>
+            <TableHead>{t('entitlements-effective-from')}</TableHead>
+            <TableHead>{t('entitlements-effective-to')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {currentItems.map((row: any) => {
-            const remaining = Number(row.total || 0) - Number(row.approved || 0) - Number(row.pending || 0)
             return (
-              <TableRow
-                key={row.id}
-                data-testid={`entitlements-table-row-${row.id}`}
-                className="gba:cursor-pointer gba:hover:bg-accent"
-                onClick={() => onRowClick(row)}
-                tabIndex={0}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onRowClick(row)
-                  }
-                }}
-              >
-                <TableCell
-                  data-testid={`entitlements-type-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {getCatalogValue(row.type)}
+              <TableRow key={row.id} data-testid={`entitlements-table-row-${row.id}`}>
+                <TableCell data-testid={`entitlements-type-${row.id}`}>{getCatalogValue(row.type)}</TableCell>
+                <TableCell data-testid={`entitlements-total-${row.id}`}>{row.total ?? 0}</TableCell>
+                <TableCell data-testid={`entitlements-effective-from-${row.id}`}>
+                  {formatDate(row.validFrom) || '-'}
                 </TableCell>
-                <TableCell
-                  data-testid={`entitlements-total-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {row.total ?? 0}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-pending-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {row.pending ?? 0}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-approved-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {row.approved ?? 0}
-                </TableCell>
-                <TableCell
-                  data-testid={`entitlements-remaining-${row.id}`}
-                  className="gba:cursor-pointer"
-                  onClick={() => onRowClick(row)}
-                >
-                  {remaining}
+                <TableCell data-testid={`entitlements-effective-to-${row.id}`}>
+                  {formatDate(row.validTo) || '-'}
                 </TableCell>
               </TableRow>
             )

@@ -95,8 +95,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       abortControllerRef.current = new AbortController()
 
       try {
-        const isLocalDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-        const baseUrl = isLocalDev ? 'http://localhost:8000' : resolveFlowbotBaseUrl()
+        const baseUrl = resolveFlowbotBaseUrl()
         const url = `${baseUrl}/flowbot/api/agent/tts`
 
         const response = await fetch(url, {

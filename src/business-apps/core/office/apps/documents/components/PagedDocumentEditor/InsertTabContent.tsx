@@ -5,13 +5,16 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Hash, Image, Link, PenLine, SeparatorHorizontal, Table } from 'lucide-react'
+import { Hash, Image, Link, ListTree, PenLine, SeparatorHorizontal, Table } from 'lucide-react'
 import translations from '../../_i18n'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
+import { buildInitialInsertedImageAttrs } from '../../utils/initialInsertedImageLayout'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
 import { TableToolsMenu } from './TableToolsMenu'
 
 interface InsertTabContentProps {
   editor: Editor
+  paginationConfig?: PageLayoutPaginationConfig | null
   onOpenLinkDialog?: () => void
   onOpenInsertImageDialog?: () => void
   onOpenInsertSignatureDialog?: () => void
@@ -24,6 +27,7 @@ interface InsertTabContentProps {
 
 export function InsertTabContent({
   editor,
+  paginationConfig = null,
   onOpenLinkDialog,
   onOpenInsertImageDialog,
   onOpenInsertSignatureDialog,
@@ -56,8 +60,21 @@ export function InsertTabContent({
       return
     }
     const url = globalThis.prompt(t('editor-toolbar-image-prompt'))
-    if (url) editor.chain().focus().setImage({ src: url }).run()
-  }, [editor, t, onOpenInsertImageDialog])
+    if (!url) return
+    void (async () => {
+      try {
+        const attrs = await buildInitialInsertedImageAttrs({
+          src: url,
+          paginationConfig: paginationConfig ?? null,
+          editor,
+          insertPos: editor.state.selection.from
+        })
+        editor.chain().focus().setImage(attrs).run()
+      } catch {
+        editor.chain().focus().setImage({ src: url }).run()
+      }
+    })()
+  }, [editor, paginationConfig, t, onOpenInsertImageDialog])
 
   const insertTable = useCallback(() => {
     if (onOpenInsertTableDialog) {
@@ -71,6 +88,10 @@ export function InsertTabContent({
     editor.chain().focus().setPageBreak().run()
     onInsertPageBreak?.()
   }, [editor, onInsertPageBreak])
+
+  const insertTableOfContents = useCallback(() => {
+    editor.chain().focus().insertDocumentTableOfContents().run()
+  }, [editor])
 
   return (
     <RibbonGroup label={t('editor-ribbon-group-insert')} data-testid={`${testId}-group-insert`}>
@@ -95,6 +116,13 @@ export function InsertTabContent({
         <Table className="gba:h-4 gba:w-4" />
       </ToolbarButton>
       <TableToolsMenu editor={editor} t={t} testId={testId} onOpenSidebar={onOpenTableSidebar} />
+      <ToolbarButton
+        onClick={insertTableOfContents}
+        tooltip={t('editor-toolbar-insert-table-of-contents')}
+        data-testid={`${testId}-insert-toc`}
+      >
+        <ListTree className="gba:h-4 gba:w-4" />
+      </ToolbarButton>
       {onOpenPageNumbersDialog && (
         <ToolbarButton onClick={onOpenPageNumbersDialog} tooltip={t('editor-toolbar-page-numbers')}>
           <Hash className="gba:h-4 gba:w-4" />

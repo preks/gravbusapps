@@ -1,11 +1,27 @@
 import { mergeAttributes } from '@tiptap/core'
 import { TableRow as TiptapTableRow } from '@tiptap/extension-table-row'
+import { v4 as uuid } from 'uuid'
 import { normalizeCssLength } from './styleUtils'
 
 export const CustomTableRow = TiptapTableRow.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      id: {
+        default: () => uuid(),
+        parseHTML: element =>
+          element.getAttribute('data-id') || element.getAttribute('data-row-id') || element.getAttribute('rowid'),
+        renderHTML: attributes => {
+          const id = typeof attributes.id === 'string' ? attributes.id : null
+          return id ? { 'data-id': id, 'data-row-id': id } : {}
+        }
+      },
+      /** @deprecated Yjs/legacy only; identity is `id`. Cleared after migration. */
+      rowId: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-row-id') || element.getAttribute('rowid'),
+        renderHTML: () => ({})
+      },
       rowHeight: {
         default: null,
         parseHTML: element =>
@@ -25,6 +41,15 @@ export const CustomTableRow = TiptapTableRow.extend({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['tr', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
+    const id =
+      (typeof HTMLAttributes.id === 'string' && HTMLAttributes.id) ||
+      (typeof HTMLAttributes['data-id'] === 'string' && HTMLAttributes['data-id']) ||
+      null
+    const merged = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes)
+    if (id) {
+      merged['data-row-id'] = id
+    }
+
+    return ['tr', mergeAttributes(merged), 0]
   }
 })

@@ -12,7 +12,6 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SortingState } from '@tanstack/react-table'
 import { useTaskExperts } from '../hooks/useTaskExperts'
-import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 import { createTaskExpertColumns } from '../config/taskExpertColumns'
@@ -49,7 +48,6 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   ...context
 }) => {
   const { t } = useTranslation(translations)
-  const meshApi = useAgentMeshClient(context.accessToken)
   const pmClient = usePromptManagerClient(context.accessToken)
   const [search, setSearch] = useState<string>('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
@@ -132,12 +130,12 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   const handleAddToMesh = useCallback(
     async (agentId: string) => {
       try {
-        const layout = await meshApi.getMeshLayout()
+        const layout = await pmClient.getMeshLayout()
         const existing = layout?.positions || []
         if (existing.some(p => p.agent_id === agentId)) {
           setMeshStatus(t('already-in-mesh'))
         } else {
-          await meshApi.saveMeshLayout([...existing, { agent_id: agentId, x: 0, y: 0 }])
+          await pmClient.saveMeshLayout([...existing, { agent_id: agentId, x: 0, y: 0 }])
           setMeshStatus(t('added-to-mesh'))
         }
         setTimeout(() => setMeshStatus(null), 3000)
@@ -145,7 +143,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
         console.error('Failed to add agent to mesh')
       }
     },
-    [meshApi, t]
+    [pmClient, t]
   )
 
   const handleRowClick = useCallback(

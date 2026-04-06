@@ -1,13 +1,15 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { cn, useLocale } from '@newwork/nw-design-system'
+import { cn, useLocale, useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
 import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent, DateRange } from '../types'
+import { getDaysInDateRange } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
-import { useChatTranslation } from '../../contexts/TranslationContext'
+import { WeekAllDayRow } from './WeekAllDayRow'
+import translations from '../../_i18n'
 
 dayjs.extend(localizedFormat)
 
@@ -28,16 +30,6 @@ const formatHour = (hour: number, locale: string): string => {
   // Create a date at the specified hour to format it
   const date = dayjs().hour(hour).minute(0).second(0)
   return date.locale(baseLocale).format('LT')
-}
-
-const getDaysInWeek = (startDate: Date): Date[] => {
-  const days: Date[] = []
-  const current = new Date(startDate)
-  for (let i = 0; i < 7; i++) {
-    days.push(new Date(current))
-    current.setDate(current.getDate() + 1)
-  }
-  return days
 }
 
 // Get date key in local timezone (YYYY-MM-DD format)
@@ -86,7 +78,7 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   const endHour = effectiveEnd.getHours() + effectiveEnd.getMinutes() / 60
 
   const top = startHour * HOUR_HEIGHT
-  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 16) // Minimum height of 16px
+  const height = Math.max((endHour - startHour) * HOUR_HEIGHT, 20) // Keep 15-minute meetings tall enough for the short title card
 
   return { top, height }
 }
@@ -100,9 +92,9 @@ export const WeekView: React.FC<WeekViewProps> = ({
   onJoinCall
 }) => {
   const { locale } = useLocale()
-  const t = useChatTranslation()
+  const { t } = useTranslation(translations)
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
-  const days = useMemo(() => getDaysInWeek(dateRange.start), [dateRange.start])
+  const days = useMemo(() => getDaysInDateRange(dateRange), [dateRange])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const hasScrolledRef = useRef(false)
 
@@ -146,6 +138,15 @@ export const WeekView: React.FC<WeekViewProps> = ({
     return byDay
   }, [days, events])
 
+  const dayKeys = useMemo(() => days.map(d => getLocalDateKey(d)), [days])
+
+  const allDayColumns = useMemo(
+    () => dayKeys.map(key => (eventsByDay.get(key) || []).filter(e => e.allDay)),
+    [dayKeys, eventsByDay]
+  )
+
+  const hasAllDayRow = allDayColumns.some(col => col.length > 0)
+
   // Current time indicator position
   // Current time indicator position - updates every minute
   const [currentTimePosition, setCurrentTimePosition] = useState(() => {
@@ -170,46 +171,57 @@ export const WeekView: React.FC<WeekViewProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid="calendar-week-view">
-      {/* Day headers */}
-      <div className="gba:flex gba:border-b gba:border-border/50 gba:bg-muted/30 gba:sticky gba:top-0 gba:z-10">
-        {/* Time gutter */}
-        <div className="gba:w-10 gba:sm:w-14 gba:flex-shrink-0 gba:border-r gba:border-border/50" />
+      <div className="gba:sticky gba:top-0 gba:z-10 gba:bg-background">
+        {/* Day headers */}
+        <div className={cn('gba:flex gba:bg-muted/30', !hasAllDayRow && 'gba:border-b gba:border-border/50')}>
+          {/* Time gutter */}
+          <div className="gba:w-10 gba:sm:w-14 gba:flex-shrink-0 gba:border-r gba:border-border/50" />
 
-        {/* Day columns headers */}
-        {days.map(day => {
-          const dayKey = getLocalDateKey(day)
-          const dayEvents = eventsByDay.get(dayKey) || []
-          const isTodayDate = isToday(day)
+          {/* Day columns headers */}
+          {days.map(day => {
+            const dayKey = getLocalDateKey(day)
+            const dayEvents = eventsByDay.get(dayKey) || []
+            const isTodayDate = isToday(day)
 
-          return (
-            <div
-              key={dayKey}
-              className={cn(
-                'gba:flex-1 gba:min-w-0 gba:text-center gba:py-1 gba:sm:py-2 gba:border-r gba:border-border/50 gba:last:border-r-0',
-                isTodayDate && 'gba:bg-primary/5'
-              )}
-            >
-              <div className="gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:uppercase">
-                {dayjs(day).locale(baseLocale).format('dd')}
-              </div>
+            return (
               <div
+                key={dayKey}
                 className={cn(
-                  'gba:text-sm gba:sm:text-lg gba:font-semibold',
-                  isTodayDate
-                    ? 'gba:w-6 gba:h-6 gba:sm:w-8 gba:sm:h-8 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:mx-auto gba:text-xs gba:sm:text-base'
-                    : 'gba:text-foreground'
+                  'gba:flex-1 gba:min-w-0 gba:text-center gba:py-1 gba:sm:py-2 gba:border-r gba:border-border/50 gba:last:border-r-0',
+                  isTodayDate && 'gba:bg-primary/5'
                 )}
               >
-                {day.getDate()}
-              </div>
-              {dayEvents.length > 0 && (
-                <div className="gba:hidden gba:sm:block gba:text-[10px] gba:text-muted-foreground">
-                  {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
+                <div className="gba:text-[10px] gba:sm:text-xs gba:text-muted-foreground gba:uppercase">
+                  {dayjs(day).locale(baseLocale).format('dd')}
                 </div>
-              )}
-            </div>
-          )
-        })}
+                <div
+                  className={cn(
+                    'gba:text-sm gba:sm:text-lg gba:font-semibold',
+                    isTodayDate
+                      ? 'gba:w-6 gba:h-6 gba:sm:w-8 gba:sm:h-8 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:mx-auto gba:text-xs gba:sm:text-base'
+                      : 'gba:text-foreground'
+                  )}
+                >
+                  {day.getDate()}
+                </div>
+                {dayEvents.length > 0 && (
+                  <div className="gba:hidden gba:sm:block gba:text-[10px] gba:text-muted-foreground">
+                    {dayEvents.length} event{dayEvents.length !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        <WeekAllDayRow
+          dayKeys={dayKeys}
+          allDayColumns={allDayColumns}
+          onEventClick={onEventClick}
+          t={t}
+          activeConversationCalls={activeConversationCalls}
+          onJoinCall={onJoinCall}
+        />
       </div>
 
       {/* Time grid */}
@@ -270,35 +282,37 @@ export const WeekView: React.FC<WeekViewProps> = ({
                 </div>
               )}
 
-              {/* Events */}
-              {dayEvents.map(event => {
-                const dayStart = new Date(day)
-                dayStart.setHours(0, 0, 0, 0)
-                const position = getEventPosition(event, dayStart)
+              {/* Timed events (all-day shown in WeekAllDayRow above) */}
+              {dayEvents
+                .filter(e => !e.allDay)
+                .map(event => {
+                  const dayStart = new Date(day)
+                  dayStart.setHours(0, 0, 0, 0)
+                  const position = getEventPosition(event, dayStart)
 
-                if (!position || event.allDay) return null
+                  if (!position) return null
 
-                return (
-                  <div
-                    key={event.id}
-                    className="gba:absolute gba:left-0.5 gba:right-0.5 gba:sm:left-1 gba:sm:right-1 gba:z-10"
-                    style={{
-                      top: position.top,
-                      height: position.height
-                    }}
-                  >
-                    <CalendarEventItem
-                      event={event}
-                      compact={true}
-                      height={position.height}
-                      onClick={() => onEventClick(event)}
-                      t={t}
-                      activeConversationCalls={activeConversationCalls}
-                      onJoinCall={onJoinCall}
-                    />
-                  </div>
-                )
-              })}
+                  return (
+                    <div
+                      key={event.id}
+                      className="gba:absolute gba:left-0.5 gba:right-0.5 gba:sm:left-1 gba:sm:right-1 gba:z-10"
+                      style={{
+                        top: position.top,
+                        height: position.height
+                      }}
+                    >
+                      <CalendarEventItem
+                        event={event}
+                        compact={true}
+                        height={position.height}
+                        onClick={() => onEventClick(event)}
+                        t={t}
+                        activeConversationCalls={activeConversationCalls}
+                        onJoinCall={onJoinCall}
+                      />
+                    </div>
+                  )
+                })}
             </div>
           )
         })}

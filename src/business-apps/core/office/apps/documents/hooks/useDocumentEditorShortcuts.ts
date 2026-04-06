@@ -1,8 +1,8 @@
 /**
  * useDocumentEditorShortcuts
  *
- * Registers keyboard shortcuts (Cmd+S save, Cmd+Shift+M inline comment) and
- * context menu (right-click on selection → add inline comment) for the document editor.
+ * Registers keyboard shortcuts (Cmd+S save, Cmd+Shift+M inline comment)
+ * for the document editor.
  */
 
 import { useEffect } from 'react'
@@ -13,65 +13,46 @@ export interface UseDocumentEditorShortcutsParams {
     contextMenuPosition?: { x: number; y: number },
     selectionRange?: { from: number; to: number }
   ) => void
+  onAiEdit?: () => void
   /** Optional: Mod+k opens link dialog when editor has focus */
   onOpenLinkDialog?: () => void
-  editor: { state: { selection: { from: number; to: number } } } | null
   editorContainerRef: React.RefObject<HTMLDivElement | null>
 }
 
 /**
- * Sets up global keydown listener and ProseMirror context menu for save + inline comment.
+ * Sets up global keydown listener for save, inline comment, and link editing.
  */
 export function useDocumentEditorShortcuts({
   onSave,
   onAddInlineComment,
+  onAiEdit,
   onOpenLinkDialog,
-  editor,
   editorContainerRef
 }: UseDocumentEditorShortcutsParams): void {
-  // Keyboard: Cmd/Ctrl+S save, Cmd/Ctrl+Shift+M add inline comment, Mod+k link dialog
+  // Keyboard: Cmd/Ctrl+S save, Cmd/Ctrl+Shift+M add inline comment, Cmd/Ctrl+Shift+E AI edit, Mod+k link dialog
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      const key = e.key.toLowerCase()
+      const inEditor = editorContainerRef.current?.contains(document.activeElement)
+
+      if ((e.ctrlKey || e.metaKey) && key === 's') {
         e.preventDefault()
         onSave()
       }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'm') {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'm') {
         e.preventDefault()
         onAddInlineComment()
       }
-      if (onOpenLinkDialog && (e.ctrlKey || e.metaKey) && e.key === 'k') {
-        const inEditor = editorContainerRef.current?.contains(document.activeElement)
-        if (inEditor) {
-          e.preventDefault()
-          onOpenLinkDialog()
-        }
+      if (onAiEdit && inEditor && (e.ctrlKey || e.metaKey) && e.shiftKey && key === 'e') {
+        e.preventDefault()
+        onAiEdit()
+      }
+      if (onOpenLinkDialog && inEditor && (e.ctrlKey || e.metaKey) && key === 'k') {
+        e.preventDefault()
+        onOpenLinkDialog()
       }
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [onSave, onAddInlineComment, onOpenLinkDialog, editorContainerRef])
-
-  // Context menu: right-click on selected text → open selection action menu
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      if (!editor) return
-      const { from, to } = editor.state.selection
-      if (from === to) return
-      e.preventDefault()
-      onAddInlineComment(
-        {
-          x: e.clientX,
-          y: e.clientY
-        },
-        { from, to }
-      )
-    }
-
-    const editorElement = editorContainerRef.current?.querySelector('.ProseMirror')
-    if (editorElement) {
-      editorElement.addEventListener('contextmenu', handleContextMenu)
-      return () => editorElement.removeEventListener('contextmenu', handleContextMenu)
-    }
-  }, [editor, editorContainerRef, onAddInlineComment])
+  }, [onSave, onAddInlineComment, onAiEdit, onOpenLinkDialog, editorContainerRef])
 }

@@ -5,35 +5,13 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { useChatClient } from '@/common/network/chat/useChatClient'
 
 export interface MeetingParticipantWithStatus {
   userId: string
   displayName: string
   status: 'pending' | 'accepted' | 'declined' | 'tentative'
   isOrganizer: boolean
-}
-
-const CHAT_SERVICE_API_PREFIX = '/api/v1'
-
-function getChatServiceApiUrl(): string {
-  const override = env('NEXT_PUBLIC_CHAT_SERVICE_URL')
-  if (override) {
-    const base = override.endsWith('/') ? override.slice(0, -1) : override
-    return base.includes(CHAT_SERVICE_API_PREFIX) ? base : `${base}${CHAT_SERVICE_API_PREFIX}`
-  }
-  const api = env('NEXT_PUBLIC_CHAT_API')
-  if (api && !api.includes('localhost')) return api
-  let base = env('NEXT_PUBLIC_BASE_URL') || ''
-  base = base.endsWith('/') ? base.slice(0, -1) : base
-  if (
-    globalThis.window !== undefined &&
-    globalThis.window?.location?.hostname === 'localhost' &&
-    ['3000', '5173'].includes(globalThis.window?.location?.port ?? '')
-  ) {
-    base = 'https://newwork-dev.newwork.com'
-  }
-  return `${base}/chat-service${CHAT_SERVICE_API_PREFIX}`
 }
 
 export function useMeetingParticipants(
@@ -44,6 +22,7 @@ export function useMeetingParticipants(
   isLoading: boolean
   error: Error | null
 } {
+  const chatClient = useChatClient(accessToken)
   const [participants, setParticipants] = useState<MeetingParticipantWithStatus[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -56,14 +35,7 @@ export function useMeetingParticipants(
     setIsLoading(true)
     setError(null)
     try {
-      const baseUrl = getChatServiceApiUrl()
-      const res = await fetch(`${baseUrl}/meetings/${meetingId}`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      })
-      if (!res.ok) {
-        throw new Error(res.status === 404 ? 'Meeting not found' : `Failed to load meeting: ${res.status}`)
-      }
-      const data = await res.json()
+      const data = await chatClient.getMeeting<{ meeting: any }>(meetingId)
       const meeting = data?.meeting
       const raw = meeting?.participants || []
       const list: MeetingParticipantWithStatus[] = raw.map((p: any) => {
@@ -84,7 +56,7 @@ export function useMeetingParticipants(
     } finally {
       setIsLoading(false)
     }
-  }, [meetingId, accessToken])
+  }, [meetingId, accessToken, chatClient])
 
   useEffect(() => {
     fetchMeeting()

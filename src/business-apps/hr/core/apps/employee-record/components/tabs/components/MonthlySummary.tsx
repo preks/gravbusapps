@@ -17,14 +17,11 @@ import {
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../hooks/useTimeTrackingData'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import {
   UserIcon,
   ClockIcon,
   TimerIcon,
   ListBulletsIcon,
-  PencilIcon,
   MapPinIcon,
   HouseIcon,
   BuildingsIcon,
@@ -33,6 +30,7 @@ import {
 import { InterventionsTable } from './InterventionsTable'
 import { LiveClock } from './LiveClock'
 import timeTrackingTranslations from './_i18n'
+import { AbsenceRequestMenuButton } from './AbsenceRequestMenuButton'
 
 interface MonthlySummaryProps {
   employee: any
@@ -224,26 +222,14 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
                 {t('manual_entry')}
               </AppAction>
 
-              <AppAction
-                variant="update-secondary"
-                data-testid="timeclock-request-absence-button"
-                className="gba:!w-full"
-                contexts={[
-                  {
-                    context: FlowContextName.employeeAbsenceRecord,
-                    contextData: {
-                      employeeId: employee?.id
-                    }
-                  }
-                ]}
-                prefixDataTestId="timeclock-request-absence"
-                accessToken={accessToken}
-              >
-                <>
-                  <Icon icon={PencilIcon} />
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
-                </>
-              </AppAction>
+              <AbsenceRequestMenuButton
+                employeeId={employee?.id}
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+                variant="secondary"
+                className="gba:!w-full gba:justify-between"
+                buttonTestId="timeclock-request-absence-button"
+                menuTestIdPrefix="timeclock-request-absence"
+              />
             </div>
           </CardContent>
         </Card>

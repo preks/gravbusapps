@@ -3,6 +3,7 @@
  */
 
 import type { SlideData } from '../components/slideElements'
+import type { SlideMaster } from './slideMaster'
 
 /**
  * Template category for organization
@@ -163,6 +164,7 @@ export interface TemplateMeta {
   branding?: BrandIdentity
   slideMeta?: SlideTemplateMeta[]
   templateHints?: TemplateHints
+  masters?: SlideMaster[]
 }
 
 /**
@@ -177,6 +179,7 @@ export interface SlideTemplate {
   contentJson: {
     slides: SlideData[]
     themeId: string
+    masters?: SlideMaster[]
     _templateMeta?: TemplateMeta
   }
   createdAt: string

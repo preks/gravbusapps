@@ -44,6 +44,7 @@ export class OfficeDocumentsClient {
   unpublish(documentId: string, options?: RequestOptions) {
     return this.client.post(`/documents/${documentId}/unpublish`, undefined, options)
   }
+  /** LLM routing (e.g. Azure OpenAI) is configured on document-service, not in this client. */
   aiEdit<T = any>(documentId: string, body: any, options?: RequestOptions) {
     return this.client.post<T>(`/documents/${documentId}/ai/edit`, body, options)
   }

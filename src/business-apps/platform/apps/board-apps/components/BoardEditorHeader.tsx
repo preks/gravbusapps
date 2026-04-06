@@ -15,7 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { ArrowLeft, PanelLeft, Search, Share2, Database, GitBranch, Settings, LayoutGrid } from 'lucide-react'
+import { ArrowLeft, PanelLeft, Search, Share2, Database, GitBranch, Settings, LayoutGrid, Activity } from 'lucide-react'
 
 export interface BoardEditorHeaderProps {
   boardName: string
@@ -28,6 +28,7 @@ export interface BoardEditorHeaderProps {
   onImportSystemData: () => void
   onImportFlowData: () => void
   onSettings: () => void
+  onActivityLog?: () => void
   'data-testid'?: string
 }
 
@@ -42,6 +43,7 @@ export const BoardEditorHeader: React.FC<BoardEditorHeaderProps> = ({
   onImportSystemData,
   onImportFlowData,
   onSettings,
+  onActivityLog,
   'data-testid': testId = 'board-editor-header'
 }) => (
   <div
@@ -136,6 +138,23 @@ export const BoardEditorHeader: React.FC<BoardEditorHeaderProps> = ({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {onActivityLog && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="gba:h-7 gba:w-7 gba:text-muted-foreground hover:gba:text-foreground"
+                onClick={onActivityLog}
+                data-testid={`${testId}-activity-log`}
+              >
+                <Activity className="gba:w-3.5 gba:h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Board activity</TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>

@@ -5,7 +5,7 @@
 
 import RealtimeKitVideoBackgroundTransformer from '@cloudflare/realtimekit-virtual-background'
 import type { RealtimeKitMeeting, VideoMiddleware } from '@cloudflare/realtimekit-react'
-import backgroundPoster from '../assets/background-poster.jpg'
+import { getChatBackgroundPosterUrl } from '../constants/chatPlatformAssetUrls'
 
 export class RTKVirtualBackground {
   private transformer: RealtimeKitVideoBackgroundTransformer | null = null
@@ -47,7 +47,7 @@ export class RTKVirtualBackground {
     }
 
     // Create and apply background middleware
-    const backgroundUrl = imageUrl || backgroundPoster
+    const backgroundUrl = imageUrl || getChatBackgroundPosterUrl()
 
     this.currentMiddleware = await this.transformer.createStaticBackgroundVideoMiddleware(backgroundUrl)
 

@@ -3,6 +3,10 @@
  * Extracted to reduce cognitive complexity in InvestmentView
  */
 
+import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
+
+export { isAllCurrencySelection }
+
 /**
  * Find currency object by code from available currencies
  */
@@ -44,6 +48,9 @@ export const buildCurrencyFilter = (
   availableCurrencies: Array<{ id: string; code: string; value: string } | string> | undefined,
   currencyCode: string
 ): Record<string, any> => {
+  if (isAllCurrencySelection(currencyCode)) {
+    return {}
+  }
   const currencyObj = findCurrencyByCode(availableCurrencies, currencyCode)
   return currencyObj ? { currencyIds: [currencyObj.id] } : {}
 }

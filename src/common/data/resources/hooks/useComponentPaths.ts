@@ -97,7 +97,8 @@ export const useComponentPaths = (
       const versionsMap = new Map<string, ComponentPathVersionInfo>()
       let marker: string | null = null
 
-      // Paginate through all blobs using NextMarker continuation token
+      // Paginate through all blobs using NextMarker continuation token.
+      // (Container is already "screens" or equivalent; blob names have no leading screens/ prefix.)
       do {
         const markerParam = marker ? `&marker=${encodeURIComponent(marker)}` : ''
         const listBlobsUrl = `https://${accountName}.blob.core.windows.net/${containerName}?restype=container&comp=list${markerParam}&${sasToken}`

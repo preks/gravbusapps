@@ -5,7 +5,7 @@
  * Includes team collaboration features (chat, calls, calendar) for dimension-based spaces.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from '@newwork/nw-design-system'
@@ -16,7 +16,6 @@ import {
   SpaceStats,
   SpacePinned,
   SpaceActivity,
-  SpaceDriveView,
   SpaceMembersTab,
   AddContentDialog,
   SpaceCalendar,
@@ -25,9 +24,11 @@ import {
   SpaceTeamChatPanel,
   SpaceTeamPresence
 } from './components'
+import { SpaceDrivePanel } from './components/SpaceDrivePanel'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { MoveContentDialog } from './components/MoveContentDialog'
 import { SpaceSettingsDialog } from './components/SpaceSettingsDialog'
+import type { DriveItem } from '@/business-apps/core/office/apps/drive/types/drive.types'
 
 // Hooks
 import { useSpace } from './hooks/useSpace'
@@ -85,13 +86,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     spreadsheets,
     slides,
     allContent,
-    isLoading: contentLoading,
     moveContent,
-    removeContent,
     addItemsToLocalState,
     refresh: refreshContent
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
-  const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
+  const {
+    activities,
+    isLoading: activityLoading,
+    refresh: refreshActivity
+  } = useSpaceActivity(spaceId, accessToken, 20)
+
+  const drivePanelRefreshRef = useRef<(() => void) | null>(null)
 
   // Add activity user IDs to lookup when activities load
   useEffect(() => {
@@ -310,6 +315,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         case 'slide':
           url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
           break
+        case 'whiteboard':
+          url = `/platform/every-office/whiteboards?whiteboardId=${item.id}`
+          break
       }
 
       // Include spaceId parameter
@@ -319,25 +327,48 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [spaceId]
   )
 
+  const handleDriveItemClick = useCallback(
+    (item: DriveItem) => {
+      const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
+      const currentSpaceUrl = `/platform/every-office/spaces?spaceId=${encodeURIComponent(spaceId)}`
+      try {
+        sessionStorage.setItem('space_return_url', currentSpaceUrl)
+      } catch {
+        /* noop */
+      }
+
+      let url: string | undefined
+      switch (item.type) {
+        case 'document':
+          url = `/platform/every-office/documents?docId=${item.id}&view=editor`
+          break
+        case 'note':
+          url = `/platform/every-office/notes?noteId=${item.id}&view=editor`
+          break
+        case 'spreadsheet_app':
+          url = `/platform/every-office/spreadsheets?appId=${item.id}&view=viewer`
+          break
+        case 'slide':
+          url = `/platform/every-office/slides?slideId=${item.id}&view=editor`
+          break
+        case 'drive_file':
+          url = `/platform/every-office/drive?fileId=${item.id}&from=space`
+          break
+      }
+
+      if (url) {
+        const urlWithParams = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+        navigateTo(buildPlatformUrl(urlWithParams))
+      }
+    },
+    [spaceId]
+  )
+
   const handleMoveContent = useCallback(
     async (input: MoveContentInput) => {
       await moveContent({ contentType: input.contentType, entityId: input.entityId })
     },
     [moveContent]
-  )
-
-  const handleRemoveContent = useCallback(
-    async (item: SpaceContentItem) => {
-      const entityType = item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type
-      const confirmed = confirm(`Remove "${item.title}" from this space?`)
-      if (!confirmed) return
-
-      const success = await removeContent(entityType, item.id)
-      if (success) {
-        // Content is already removed from local state by the hook
-      }
-    },
-    [removeContent]
   )
 
   const handleAddContent = useCallback(
@@ -367,8 +398,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         })
 
         if (response.ok) {
-          // Fetch full data in background to get accurate info
           await refreshContent()
+          drivePanelRefreshRef.current?.()
+          refreshActivity()
           return
         }
 
@@ -376,15 +408,19 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         for (const item of items) {
           await moveContent({ contentType: item.type, entityId: item.id })
         }
+        drivePanelRefreshRef.current?.()
+        refreshActivity()
       } catch (error) {
         console.error('Failed to add content:', error)
         // Fallback to individual calls
         for (const item of items) {
           await moveContent({ contentType: item.type, entityId: item.id })
         }
+        drivePanelRefreshRef.current?.()
+        refreshActivity()
       }
     },
-    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent]
+    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent, refreshActivity]
   )
 
   // Loading state
@@ -540,18 +576,14 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
           </TabsContent>
 
           <TabsContent value="drive" data-testid={`${testId}-tab-content-drive`}>
-            <SpaceDriveView
+            <SpaceDrivePanel
               spaceId={spaceId}
               accessToken={accessToken}
-              space={space}
-              items={allContent}
-              isLoading={contentLoading}
+              userInfo={userInfo}
               canEdit={canEdit}
-              onItemClick={handleItemClick}
-              onMoveItemToFolder={async (item, folderId) => {
-                await moveContent({ contentType: item.type, entityId: item.id, folderId })
-              }}
-              onRemoveContent={handleRemoveContent}
+              onItemClick={handleDriveItemClick}
+              onRefreshRef={drivePanelRefreshRef}
+              onActivityChange={refreshActivity}
               data-testid={`${testId}-drive`}
             />
           </TabsContent>

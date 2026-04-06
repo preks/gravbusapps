@@ -501,6 +501,8 @@ async function main() {
 
   // Use cross-env compatible approach for Windows with additional env vars for temp files
   // Create an object with all environment variables to pass to execSync
+  const bundleReportInPipeline = process.env.BUNDLE_REPORT_IN_PIPELINE === 'true'
+
   const buildEnv = {
     ...process.env,
     PROJECT_ROOT_DIR: projectRootDir,
@@ -522,7 +524,8 @@ async function main() {
     TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, '/'),
     SINGLE_SCREEN_CSS: 'true',
     NODE_ENV: 'production',
-    VITE_BUILD_FOR_DEPLOYMENT: 'false'
+    VITE_BUILD_FOR_DEPLOYMENT: 'false',
+    ...(bundleReportInPipeline ? { VITE_ANALYZE: 'true' } : {})
   }
 
   const viteBuildCommand = `vite build`
@@ -535,6 +538,25 @@ async function main() {
       env: buildEnv
     })
     console.log('✅ Screen built successfully.')
+
+    if (bundleReportInPipeline) {
+      const statsPath = path.join(projectRootDir, 'dist', 'bundle-stats.json')
+      const rawDir = path.join(projectRootDir, 'logs', 'bundle-raw')
+      fs.mkdirSync(rawDir, { recursive: true })
+      const safe = viteEntryKey.replace(/\//g, '__')
+      if (fs.existsSync(statsPath)) {
+        fs.copyFileSync(statsPath, path.join(rawDir, `${safe}.json`))
+        console.log('📊 Saved bundle raw stats for dependency report')
+      } else {
+        console.log('⚠️  BUNDLE_REPORT_IN_PIPELINE: dist/bundle-stats.json missing after build')
+      }
+      const chunkJs = path.join(projectRootDir, 'dist', viteEntryKey, 'index.js')
+      let chunkJsBytes = 0
+      if (fs.existsSync(chunkJs)) {
+        chunkJsBytes = fs.statSync(chunkJs).size
+      }
+      fs.writeFileSync(path.join(rawDir, `${safe}.chunk.json`), JSON.stringify({ chunkJsBytes }), 'utf8')
+    }
 
     // Clean up temporary directory
     console.log('🧹 Cleaning up temporary build files...')

@@ -21,6 +21,7 @@ export type CatalogEntry = {
   additionalValue3?: string
   type: string
   objectValue?: JSONValue
+  isDeleted?: boolean
   parentEntryId?: string
   translations: TranslationValues[]
   children?: CatalogEntry[]
@@ -96,6 +97,7 @@ export interface CatalogManagement {
   isDeleted?: boolean
   recordState?: string
   schemaDefinition?: Record<string, ParameterDefinition>
+  isCustomerManaged?: boolean
 }
 
 export interface GetCatalogsResponse {

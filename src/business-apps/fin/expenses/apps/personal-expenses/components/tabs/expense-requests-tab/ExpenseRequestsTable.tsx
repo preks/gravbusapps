@@ -19,7 +19,8 @@ import {
   applyDateRangeFromFilter,
   resolveSelectedCurrencyCode,
   applyCurrencyChange,
-  buildEmptyMessage
+  buildFilteredEmptyMessage,
+  buildDefaultEmptyMessage
 } from '../../../utils/tableUtils'
 import {
   CurrencyDropdown,
@@ -623,11 +624,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     },
     [onTableChange, sortField, sortOrder]
   )
-  const emptyMessage = buildEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:personal_expenses.no_expense_request_data',
-    'No expense requests found. Create your first expense request to get started.'
-  )
+  const emptyMessage = hasActiveFilters
+    ? buildFilteredEmptyMessage()
+    : buildDefaultEmptyMessage(
+        'lowcoder:personal_expenses.no_expense_request_data',
+        'No expense requests found. Create your first expense request to get started.'
+      )
   const columns = useMemo<ColumnDef<ExpenseRequestRow>[]>(
     () => [
       {
@@ -904,14 +906,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_list.flows_button.expense_requests',
-          'Filter Expense Requests'
-        )}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.filter_expense_requests_description',
-          'Apply filters to narrow down the expense requests list.'
-        )}
+        filterSheetTitle={tPersonal('filter-expense-requests-title')}
+        filterSheetDescription={tPersonal('filter-expense-requests-description')}
       >
         <DataTable<ExpenseRequestRow>
           data={items}

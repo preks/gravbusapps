@@ -258,7 +258,7 @@ export const CreateLayout: React.FC<CreateLayoutProps> = ({
       <TabSwitch
         value={activeView}
         onValueChange={handleViewChange}
-        className="gba:w-full gba:[&_.nw\\:bg-foreground]:!bg-white"
+        className="gba:w-full gba:[&_[class*='nw:bg-foreground']]:!bg-white"
         data-testid={`${testId}-tabs`}
       >
         <div className="gba:-mx-4 gba:px-4 gba:overflow-x-auto gba:scrollbar-hide">

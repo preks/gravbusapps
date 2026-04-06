@@ -269,3 +269,161 @@ export const warnOnceForUnsupportedEntityType = (type: string, payload?: unknown
   LOGGED_UNSUPPORTED_TYPES.add(type)
   console.warn('[Chat] Unsupported entity reference type', payload ?? type)
 }
+
+// ==================== File Upload Types ====================
+
+export interface UploadedAttachment {
+  id: string
+  name: string
+  size: number
+  mimeType: string
+  url: string
+}
+
+// ==================== WebRTC Types ====================
+
+export interface IceServersResponse {
+  iceServers: Array<{
+    urls: string[]
+    username?: string
+    credential?: string
+  }>
+}
+
+// ==================== Analytics Types ====================
+
+export interface UserOverviewResponse {
+  totalMessagesSent: number
+  totalMessagesReceived: number
+  totalConversations: number
+  activeConversations: number
+  totalCallMinutes: number
+  averageMessagesPerDay: number
+  memberSince: string
+}
+
+export interface ContactInfo {
+  userId: string
+  displayName: string
+  avatarUrl?: string
+  messageCount: number
+  lastContact: string
+}
+
+export interface ReachOutSuggestion {
+  userId: string
+  displayName: string
+  avatarUrl?: string
+  daysSinceContact: number
+  reason: string
+}
+
+export interface UserContactsResponse {
+  mostContacted: ContactInfo[]
+  reachOutSuggestions: ReachOutSuggestion[]
+}
+
+export interface DailyMessageCount {
+  date: string
+  sent: number
+  received: number
+}
+
+export interface UserActivityResponse {
+  dailyMessages: DailyMessageCount[]
+  peakHour: number
+  mostActiveDay: string
+}
+
+export interface EmojiCount {
+  emoji: string
+  count: number
+}
+
+export interface UserReactionsResponse {
+  mostUsed: EmojiCount[]
+  mostReceived: EmojiCount[]
+}
+
+export interface GlobalStatsResponse {
+  totalMessages: number
+  totalUsers: number
+  totalConversations: number
+  totalCallMinutes: number
+  messagesLast24h: number
+  activeUsersNow: number
+  topReactions: EmojiCount[]
+}
+
+// ==================== Transcript / Meeting Minutes Types ====================
+
+export interface TranscriptParticipant {
+  participantId: string
+  userId: string
+  displayName: string
+  email: string
+}
+
+export interface TranscriptEntry {
+  timestamp: number
+  participantId: string
+  userId: string
+  speakerName: string
+  text: string
+}
+
+export interface TranscriptDataResponse {
+  sessionId: string
+  sessionName: string
+  startedAt: string
+  durationSeconds: number
+  participants: TranscriptParticipant[]
+  transcriptEntries: TranscriptEntry[]
+}
+
+export interface CreateMeetingMinutesResponse {
+  sessionId: string
+  noteId: string
+  transcriptId: string
+  transcriptionStatus: 'COMPLETED' | 'PROCESSING' | 'FAILED'
+  message: string
+}
+
+// ==================== RealtimeKit API Types ====================
+
+export interface RealtimeKitApiMeeting {
+  meetingId: string
+  conversationId: string
+  hostId: string
+  callType: 'audio' | 'video'
+  createdAt: string
+  participantCount: number
+  transcriptionEnabled?: boolean
+}
+
+export interface CreateRtkMeetingResponse {
+  success: boolean
+  data: {
+    sessionId: string
+    meetingId: string
+    hostAuthToken: string
+    meetingName?: string
+  }
+}
+
+export interface AddRtkParticipantResponse {
+  success: boolean
+  data: {
+    authToken: string
+  }
+}
+
+export interface RtkMeetingDetailsResponse {
+  success: boolean
+  data: RealtimeKitApiMeeting
+}
+
+export interface RtkParticipantInfo {
+  id: string
+  odName: string
+}

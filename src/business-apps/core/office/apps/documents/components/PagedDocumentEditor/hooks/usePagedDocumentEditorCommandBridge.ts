@@ -101,7 +101,7 @@ export function usePagedDocumentEditorCommandBridge({
   }, [editor, pagesOptions])
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed) return
 
     const resolvedTitle = title.trim() || documentTitle?.trim() || initialTitle?.trim() || ''
     ;(editor.commands as PaginationCommandMap).setPaginationDocumentTitle?.(resolvedTitle)

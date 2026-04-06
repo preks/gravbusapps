@@ -1,5 +1,5 @@
 /**
- * Signature extension – immutable signature snapshot node with resize.
+ * Signature extension – immutable signature snapshot node with resize, rotation, and crop.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core'
@@ -25,6 +25,11 @@ declare module '@tiptap/core' {
         height?: number
         lockAspectRatio?: boolean
         createdBy?: string
+        cropTop?: number
+        cropRight?: number
+        cropBottom?: number
+        cropLeft?: number
+        rotation?: number
       }) => ReturnType
     }
   }
@@ -70,7 +75,27 @@ export const Signature = Node.create<SignatureOptions>({
         default: true,
         parseHTML: el => (el as HTMLElement).getAttribute('data-lock-aspect-ratio') !== 'false'
       },
-      createdBy: { default: null, parseHTML: el => (el as HTMLElement).getAttribute('data-created-by') }
+      createdBy: { default: null, parseHTML: el => (el as HTMLElement).getAttribute('data-created-by') },
+      cropTop: {
+        default: 0,
+        parseHTML: el => parseFloat((el as HTMLElement).getAttribute('data-crop-top') || '0') || 0
+      },
+      cropRight: {
+        default: 0,
+        parseHTML: el => parseFloat((el as HTMLElement).getAttribute('data-crop-right') || '0') || 0
+      },
+      cropBottom: {
+        default: 0,
+        parseHTML: el => parseFloat((el as HTMLElement).getAttribute('data-crop-bottom') || '0') || 0
+      },
+      cropLeft: {
+        default: 0,
+        parseHTML: el => parseFloat((el as HTMLElement).getAttribute('data-crop-left') || '0') || 0
+      },
+      rotation: {
+        default: 0,
+        parseHTML: el => parseFloat((el as HTMLElement).getAttribute('data-rotation') || '0') || 0
+      }
     }
   },
 
@@ -92,7 +117,12 @@ export const Signature = Node.create<SignatureOptions>({
         'data-width': String(node.attrs.width),
         'data-height': String(node.attrs.height),
         'data-lock-aspect-ratio': node.attrs.lockAspectRatio,
-        'data-created-by': node.attrs.createdBy
+        'data-created-by': node.attrs.createdBy,
+        'data-crop-top': node.attrs.cropTop,
+        'data-crop-right': node.attrs.cropRight,
+        'data-crop-bottom': node.attrs.cropBottom,
+        'data-crop-left': node.attrs.cropLeft,
+        'data-rotation': node.attrs.rotation
       })
     ]
   },
@@ -123,7 +153,12 @@ export const Signature = Node.create<SignatureOptions>({
                 width,
                 height,
                 lockAspectRatio: attrs.lockAspectRatio ?? true,
-                createdBy: attrs.createdBy ?? null
+                createdBy: attrs.createdBy ?? null,
+                cropTop: attrs.cropTop ?? 0,
+                cropRight: attrs.cropRight ?? 0,
+                cropBottom: attrs.cropBottom ?? 0,
+                cropLeft: attrs.cropLeft ?? 0,
+                rotation: attrs.rotation ?? 0
               }
             })
             .run()

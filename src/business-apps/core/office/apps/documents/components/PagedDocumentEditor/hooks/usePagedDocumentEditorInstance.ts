@@ -25,13 +25,18 @@ import type { DocumentPagesFormatting } from '../../../types'
 import type { PageLayoutPaginationConfig } from '../../../utils/pageLayoutUtils'
 import { isAllowedHref } from '../../../utils/linkUtils'
 import { isDocumentImageProtectedSrc, resolveProtectedDocumentImageSrc } from '../../../utils/documentImageBindings'
+import { DocumentUniqueID } from '@/components/tiptap-extensions/documentUniqueId'
+import { legacyTableIdMigrationExtension } from '@/components/tiptap-extensions/legacyTableIdMigration'
 import { createYjsCursorExtension } from '../extensions/YjsCursor'
 import { LineAndParagraphSpacing } from '../extensions/LineAndParagraphSpacing'
 import { ParagraphIndent } from '../extensions/ParagraphIndent'
-import { DocumentImage, PageBreak, SearchHighlight, Signature } from '../extensions'
+import { DocumentImage, DocumentTableOfContents, PageBreak, SearchHighlight, Signature } from '../extensions'
 import { InlineComment as InlineCommentExtension } from '@/business-apps/platform/apps/shared/extensions/InlineCommentExtension'
 
 const PAGE_GAP_PX = 24
+
+/** Empty body for collaborative docs; Yjs + SocketIoYjsProvider populate the fragment. */
+const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
 
 type TranslateFn = (key: string) => string
 
@@ -59,9 +64,11 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
       isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
     }),
     DocumentImage.configure({
+      inline: true,
       getAccessToken: () => accessToken,
       isProtectedSrc: isDocumentImageProtectedSrc,
       resolveProtectedSrc: resolveProtectedDocumentImageSrc,
+      minSize: 40,
       HTMLAttributes: {
         class: 'editor-image'
       }
@@ -69,6 +76,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
     Signature,
     Table.configure({
       resizable: true,
+      handleWidth: 8,
       renderWrapper: false,
       HTMLAttributes: {
         class: 'editor-table'
@@ -187,6 +195,8 @@ export function usePagedDocumentEditorInstance({
     [onCommentClick]
   )
 
+  const tiptapInitialContent = isCollaborationMode ? COLLABORATION_EDITOR_SEED_HTML : editorContent
+
   const extensions = useMemo(
     () =>
       [
@@ -196,9 +206,11 @@ export function usePagedDocumentEditorInstance({
         }),
         ...createSharedDocumentExtensions(accessToken),
         PageBreak,
+        DocumentTableOfContents,
         SearchHighlight,
         ...(paginationConfig && !paginationDebugDisabled
           ? [
+              // Without this block there is no pagination widget: no `.rm-first-page-header` / `.rm-pages-wrapper`.
               Pages.configure({
                 pageFormat: paginationConfig.pageFormat,
                 pageGap: PAGE_GAP_PX,
@@ -243,6 +255,8 @@ export function usePagedDocumentEditorInstance({
           onCommentClick: handleInlineCommentClick
         }),
         ...(collaborationExtension ? [collaborationExtension] : []),
+        DocumentUniqueID,
+        legacyTableIdMigrationExtension,
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ] as any[],
     [
@@ -266,7 +280,7 @@ export function usePagedDocumentEditorInstance({
   return useEditor(
     {
       extensions,
-      content: editorContent,
+      content: tiptapInitialContent,
       editable: editorEditable,
       editorProps: {
         attributes: {
@@ -305,19 +319,33 @@ export function usePagedDocumentEditorInstance({
         scheduleAutocompleteRef.current()
       }
     },
-    [
-      documentId,
-      editorContent,
-      editorEditable,
-      extensions,
-      handlePaste,
-      handleDrop,
-      autocompleteSuggestionRef,
-      autocompleteCursorPosRef,
-      clearAutocompleteSuggestion,
-      editorRef,
-      onEditorUpdateRef,
-      scheduleAutocompleteRef
-    ]
+    isCollaborationMode
+      ? [
+          documentId,
+          editorEditable,
+          extensions,
+          handlePaste,
+          handleDrop,
+          autocompleteSuggestionRef,
+          autocompleteCursorPosRef,
+          clearAutocompleteSuggestion,
+          editorRef,
+          onEditorUpdateRef,
+          scheduleAutocompleteRef
+        ]
+      : [
+          documentId,
+          editorContent,
+          editorEditable,
+          extensions,
+          handlePaste,
+          handleDrop,
+          autocompleteSuggestionRef,
+          autocompleteCursorPosRef,
+          clearAutocompleteSuggestion,
+          editorRef,
+          onEditorUpdateRef,
+          scheduleAutocompleteRef
+        ]
   )
 }

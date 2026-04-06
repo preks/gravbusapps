@@ -8,11 +8,9 @@ import {
   createStatusBadgeColumn
 } from '../../../../common/columns/expenseColumnHelpers'
 import type { ExpenseData } from '../../../../types'
-import type { ExpenseRequestActionHandlers } from '../../../../types/expenseRequestActionHandlers'
 import { formatCurrency } from '../../../../utils/currencyUtils'
 import { extractCurrencyCode } from '../../../../utils/sharedUtils'
 import { getExpenseRequestStatusDisplay, type TranslateFn } from '../../../../utils/utils'
-import ExpenseRequestTableActions from '../components/ExpenseRequestTableActions'
 
 export const BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS = [
   'select',
@@ -26,18 +24,15 @@ export const BACKOFFICE_EXPENSE_REQUEST_TABLE_COLUMN_IDS = [
   'createdAt',
   'status',
   'totalRemainingAmount',
-  'totalAmount',
-  'actions'
+  'totalAmount'
 ] as const
 
-export interface BackofficeExpenseRequestTableChrome extends ExpenseRequestActionHandlers {
-  accessToken: string
+export interface BackofficeExpenseRequestTableChrome {
   bookableRecordsCount: number
   allBookableSelected: boolean
   onSelectAllRecords: (checked: boolean) => void
   selectedRowKeys: Key[]
   onSelectRecord: (record: ExpenseData, checked: boolean) => void
-  isTransferInProgress: (id: string) => boolean
 }
 
 /**
@@ -131,7 +126,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
       {
         getRowTestId: row => `expense-request-status-${row.id}`,
         cellWrapperClassName:
-          'gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:justify-center'
+          'gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:items-center'
       }
     ),
     {
@@ -173,9 +168,7 @@ export function createBackofficeExpenseRequestDataColumns(t: TranslateFn): Colum
   ]
 }
 
-/**
- * Full column set: bulk-select, data columns, then row actions (last column — matches manager expense requests).
- */
+/** Full column set: bulk-select + data columns. Row actions are wired via DataTable `actions` prop. */
 export function createBackofficeExpenseRequestColumns(
   t: TranslateFn,
   chrome: BackofficeExpenseRequestTableChrome
@@ -205,7 +198,6 @@ export function createBackofficeExpenseRequestColumns(
       return (
         <div
           className="gba:flex gba:items-center gba:justify-center"
-          role="presentation"
           onClick={e => e.stopPropagation()}
           onKeyDown={e => e.stopPropagation()}
         >
@@ -220,31 +212,5 @@ export function createBackofficeExpenseRequestColumns(
     }
   }
 
-  const actionsColumn: ColumnDef<ExpenseData> = {
-    id: 'actions',
-    header: () => (
-      <span className="gba:block gba:w-full gba:text-right gba:pr-2 gba:whitespace-nowrap">{t('header-actions')}</span>
-    ),
-    enableSorting: false,
-    size: 96,
-    minSize: 88,
-    maxSize: 120,
-    meta: { align: 'right' as const },
-    cell: ({ row }) => (
-      <div className="gba:box-border gba:flex gba:w-full gba:min-w-0 gba:items-center gba:justify-end gba:pr-3 gba:pl-1">
-        <ExpenseRequestTableActions
-          record={row.original}
-          accessToken={chrome.accessToken}
-          transferInProgress={chrome.isTransferInProgress(row.original.id)}
-          onNavigateToExpenseRequest={chrome.onNavigateToExpenseRequest}
-          onDownloadAccountingNote={chrome.onDownloadAccountingNote}
-          onTriggerCSV={chrome.onTriggerCSV}
-          onPrintExpenseRequest={chrome.onPrintExpenseRequest}
-          onTransferPayment={chrome.onTransferPayment}
-        />
-      </div>
-    )
-  }
-
-  return [selectColumn, ...createBackofficeExpenseRequestDataColumns(t), actionsColumn]
+  return [selectColumn, ...createBackofficeExpenseRequestDataColumns(t)]
 }

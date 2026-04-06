@@ -8,7 +8,7 @@
 export type DocumentLayoutSource = 'legacy-dom-pagination' | 'incremental-layout-engine'
 export type DocumentLayoutComputationStatus = 'idle' | 'scheduled' | 'measuring'
 export type DocumentLayoutInvalidationScope = 'viewport' | 'structure' | 'formatting' | 'full-document'
-export type DocumentLayoutFlowSnapshotKind = 'page-break' | 'spacer'
+export type DocumentLayoutFlowSnapshotKind = 'page-break' | 'placeholder' | 'spacer'
 export type DocumentLayoutInvalidationReason =
   | 'initial-load'
   | 'document-hydration'
@@ -40,7 +40,7 @@ export interface DocumentLayoutPagePositionRange {
 }
 
 export interface DocumentLayoutPageSpan extends DocumentLayoutPagePositionRange {
-  source: 'mounted' | 'spacer' | 'retained'
+  source: 'mounted' | 'placeholder' | 'spacer' | 'retained'
 }
 
 export interface DocumentLayoutPageChromeMetrics {

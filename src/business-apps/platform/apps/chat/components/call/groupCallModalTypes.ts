@@ -5,8 +5,8 @@
 import type { GroupCallParticipant, VideoQuality } from '../../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../../services/callTypes'
 import type { CallParticipant } from '../../services/webrtcClient'
-import type { ChatWebSocketClient } from '../../services/chatWebSocketClient'
-import type { ChatApiClient } from '../../services/chatApiClient'
+import type { ChatWebSocketClient } from '@/common/network/chat/ChatWebSocketClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type { AvailableParticipant } from './ParticipantsPanel'
 
 export interface RealtimeKitPeer extends GroupCallParticipant {
@@ -59,7 +59,7 @@ export interface GroupCallModalRtkProps {
   conversationName?: string
   wsClient?: ChatWebSocketClient | null
   transcriptionEnabled?: boolean
-  apiClient?: ChatApiClient
+  apiClient?: ChatClient
   callConversation?: any
   activeConversation?: any
   activeExperts?: any[]

@@ -5,6 +5,7 @@
  */
 
 export { DocumentImage } from './DocumentImage.tsx'
+export { DocumentTableOfContents } from './DocumentTableOfContents'
 export { PageBreak } from './PageBreak'
 export { SearchHighlight } from './SearchHighlight'
 export { Signature } from './Signature.tsx'

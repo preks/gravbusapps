@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react'
-import type { ChatApiClient, CreateMeetingMinutesResponse } from '../services/chatApiClient'
+import type { ChatClient } from '@/common/network/chat/ChatClient'
+import type { CreateMeetingMinutesResponse } from '../types'
 
 interface UseCreateMeetingMinutesOptions {
   onSuccess?: (noteId: string) => void
   onError?: (error: string) => void
 }
 
-export function useCreateMeetingMinutes(apiClient: ChatApiClient | null, options: UseCreateMeetingMinutesOptions = {}) {
+export function useCreateMeetingMinutes(apiClient: ChatClient | null, options: UseCreateMeetingMinutesOptions = {}) {
   const [isCreating, setIsCreating] = useState(false)
   const [noteId, setNoteId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

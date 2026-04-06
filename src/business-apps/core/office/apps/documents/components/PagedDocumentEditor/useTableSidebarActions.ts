@@ -9,11 +9,12 @@ import {
   normalizeTableWidth,
   normalizeTableWidthMode
 } from '@/components/tiptap-extensions/tiptap-custom-tables/styleUtils'
-import type {
-  SetTableStyleOptions,
-  TableBorderStyle,
-  TableTheme,
-  TableWidthMode
+import {
+  DEFAULT_TABLE_CELL_BORDER_COLOR,
+  type SetTableStyleOptions,
+  type TableBorderStyle,
+  type TableTheme,
+  type TableWidthMode
 } from '@/components/tiptap-extensions/tiptap-custom-tables/types'
 import {
   getSelectedTableRectContext,
@@ -117,7 +118,7 @@ export function useTableSidebarActions({ editor, tablePos }: Readonly<UseTableSi
       normalizeColorValue(cellAttrs.borderBottomColor as string | null) ??
       normalizeColorValue(cellAttrs.borderLeftColor as string | null) ??
       normalizeColorValue(cellAttrs.borderColor as string | null) ??
-      ''
+      DEFAULT_TABLE_CELL_BORDER_COLOR
 
     const borderStyle =
       normalizeBorderStyle(cellAttrs.borderTopStyle as string | null) ??

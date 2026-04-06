@@ -1,10 +1,17 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import type { FlowProposalOutput, ConversationTurn } from '../types/models'
+import type { FlowProposalOutput, ConversationTurn, BulkFlowProposalItem } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 import { useVoiceFormContext } from '../context/VoiceFormContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { FormHeader, FormActions, FormStatusMessages, SchemaField, SecondaryCollapsible } from './forms'
+import {
+  FormHeader,
+  FormActions,
+  FormStatusMessages,
+  SchemaField,
+  SecondaryCollapsible,
+  BulkItemSelector
+} from './forms'
 import { formatFlowName } from './forms/utils/formSchemaUtils'
 import { FlowProposalFormProvider } from '../context/FlowProposalFormContext'
 
@@ -64,8 +71,44 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   const [initialCheckComplete, setInitialCheckComplete] = useState(false)
   const submissionTriggeredRef = useRef(false)
 
+  const bulkOperation = data.bulk_operation ?? null
+  const [selectedBulkKeys, setSelectedBulkKeys] = useState<Set<string>>(() => {
+    if (!bulkOperation) return new Set<string>()
+    if (bulkOperation.require_explicit_item_confirmation) return new Set<string>()
+    return new Set(bulkOperation.items.map(i => i.key))
+  })
+  const [bulkItemsEdit, setBulkItemsEdit] = useState<BulkFlowProposalItem[] | null>(null)
+
+  const effectiveBulkItems = useMemo(() => {
+    if (!bulkOperation) return []
+    return bulkItemsEdit ?? bulkOperation.items
+  }, [bulkOperation, bulkItemsEdit])
+
+  const isBulk = bulkOperation !== null
+  const noBulkItemsSelected = isBulk && selectedBulkKeys.size === 0
+
+  const bulkVaryingFieldKey = useMemo(() => {
+    if (!bulkOperation?.varying_field) return null
+    const segments = bulkOperation.varying_field.split('.')
+    return segments[segments.length - 1] || null
+  }, [bulkOperation])
+
   // Track the current form key to detect when a new form instance is mounted
   const previousFormKeyRef = useRef<string>(formKey)
+
+  useEffect(() => {
+    setBulkItemsEdit(null)
+    const op = data.bulk_operation
+    if (!op) {
+      setSelectedBulkKeys(new Set())
+      return
+    }
+    if (op.require_explicit_item_confirmation) {
+      setSelectedBulkKeys(new Set())
+    } else {
+      setSelectedBulkKeys(new Set(op.items.map(i => i.key)))
+    }
+  }, [data.uuid])
 
   // Reset form state and refs when a new form instance is detected (different formKey)
   useEffect(() => {
@@ -504,16 +547,24 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         }
 
         if (sendMessage) {
+          const submissionData: Record<string, any> = {
+            flow: updatedArguments?.flow || {},
+            ...(updatedArguments?.task ? { task: updatedArguments.task } : {})
+          }
+
+          if (bulkOperation) {
+            const itemsSource = bulkItemsEdit ?? bulkOperation.items
+            const selectedItems: BulkFlowProposalItem[] = itemsSource.filter(i => selectedBulkKeys.has(i.key))
+            submissionData.bulk = { items: selectedItems }
+          }
+
           const formDataMessage = JSON.stringify(
             {
               action: 'form_submission',
               flow_name: data.flow_name || '',
               module_name: data.module_name || '',
               uuid: data.uuid || '',
-              data: {
-                flow: updatedArguments?.flow || {},
-                ...(updatedArguments?.task ? { task: updatedArguments.task } : {})
-              }
+              data: submissionData
             },
             null,
             2
@@ -557,7 +608,20 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         })
       }
     },
-    [formData, data, formKey, currentFormState, setFormState, sendMessage, objectKey, sourceType, markFormAsSubmitted]
+    [
+      formData,
+      data,
+      formKey,
+      currentFormState,
+      setFormState,
+      sendMessage,
+      objectKey,
+      sourceType,
+      markFormAsSubmitted,
+      bulkOperation,
+      bulkItemsEdit,
+      selectedBulkKeys
+    ]
   )
 
   const handleCancel = useCallback(() => {
@@ -758,10 +822,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     const primary: [string, any][] = []
     const secondary: [string, any][] = []
     for (const [k, s] of fields as [string, any][]) {
+      if (bulkVaryingFieldKey && k === bulkVaryingFieldKey) continue
       ;(decidePriority(k, s) === 'primary' ? primary : secondary).push([k, s])
     }
     return [primary, secondary] as [Array<[string, any]>, Array<[string, any]>]
-  }, [fields, decidePriority])
+  }, [fields, decidePriority, bulkVaryingFieldKey])
 
   const requiredFields = useMemo(() => schema?.required ?? [], [schema])
 
@@ -941,7 +1006,12 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       data-testid="dynamic-form-display"
       onClick={isDeleteOperation && deleteSummary?.entityUrl ? handleCardClick : undefined}
     >
-      <FormHeader flowName={data.flow_name || ''} isDeleteOperation={isDeleteOperation} operation={operation} />
+      <FormHeader
+        flowName={data.flow_name || ''}
+        isDeleteOperation={isDeleteOperation}
+        operation={operation}
+        bulkItemCount={isBulk ? selectedBulkKeys.size : undefined}
+      />
       <CardContent className="gba:p-4">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           {isDeleteOperation && deleteSummary ? (
@@ -984,7 +1054,18 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
             // Regular form with all fields
             <FlowProposalFormProvider flowProposalId={data.uuid}>
               <div className="gba:space-y-4">
-                {/* PRIMARY fields first */}
+                {bulkOperation && (
+                  <BulkItemSelector
+                    items={effectiveBulkItems}
+                    selectedKeys={selectedBulkKeys}
+                    onSelectionChange={setSelectedBulkKeys}
+                    onItemsChange={setBulkItemsEdit}
+                    itemLabel={bulkOperation.item_label}
+                    disabled={isCompleted}
+                    varyingFieldKey={bulkVaryingFieldKey}
+                    varyingFieldPath={bulkOperation.varying_field}
+                  />
+                )}
                 {primaryFields.map(([fieldName, fieldSchema]) => {
                   if (fieldSchema == null || typeof fieldSchema !== 'object') {
                     console.warn(
@@ -1021,7 +1102,6 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     )
                   }
                 })}
-                {/* SECONDARY fields in collapsible */}
                 {secondaryFields.length > 0 && (
                   <SecondaryCollapsible
                     fields={secondaryFields}
@@ -1045,6 +1125,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
               isDeleteOperation={isDeleteOperation}
               isLoading={isLoading}
               isAgentGenerating={isAgentGenerating}
+              submitDisabled={noBulkItemsSelected}
               onCancel={onCancel ? handleCancel : undefined}
             />
           )}
