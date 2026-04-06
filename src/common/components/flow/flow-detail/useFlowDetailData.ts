@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
-import type { FlowDetailData, FlowDetailState, HistoryEvent, HistorySummary } from './types'
+import type { FlowDetailData, FlowDetailState, HistoryEvent, HistorySummary, StepAssignmentInfo } from './types'
 import { buildExecutionState, generateFallbackSteps, transformAuditEntry, transformFlowStep } from './utils'
 
 function getWorkflowStatusMessage(status: string): string {
@@ -21,6 +21,7 @@ interface UseFlowDetailDataArgs {
 export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs): FlowDetailState {
   const [flowData, setFlowData] = useState<FlowDetailData | null>(null)
   const [flowSteps, setFlowSteps] = useState<ReturnType<typeof transformFlowStep>[]>([])
+  const [stepAssignmentsByStepIndex, setStepAssignmentsByStepIndex] = useState<Record<number, StepAssignmentInfo>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,9 +148,10 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
         setError(null)
 
         const apiBase = getFlowEngineApiBaseUrl()
-        const [progressResponse, stepsResponse] = await Promise.all([
+        const [progressResponse, stepsResponse, progressCompleteResponse] = await Promise.all([
           fetch(`${apiBase}/flows/${flowId}/progress`, { headers: requestHeaders }),
-          fetch(`${apiBase}/flows/${flowId}`, { headers: requestHeaders })
+          fetch(`${apiBase}/flows/${flowId}`, { headers: requestHeaders }),
+          fetch(`${apiBase}/flows/${flowId}/progress/complete`, { headers: requestHeaders })
         ])
 
         if (!progressResponse.ok) {
@@ -158,10 +160,20 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
         if (!stepsResponse.ok) {
           throw new Error(`Failed to fetch flow details: ${stepsResponse.status} ${stepsResponse.statusText}`)
         }
+        if (!progressCompleteResponse.ok) {
+          throw new Error(
+            `Failed to fetch complete flow progress: ${progressCompleteResponse.status} ${progressCompleteResponse.statusText}`
+          )
+        }
 
-        const [progressData, flowDetailResponse] = await Promise.all([progressResponse.json(), stepsResponse.json()])
+        const [progressData, flowDetailResponse, progressCompleteData] = await Promise.all([
+          progressResponse.json(),
+          stepsResponse.json(),
+          progressCompleteResponse.json()
+        ])
         const progress = progressData.data?.flow
         const flowDetails = flowDetailResponse
+        const workflowInput = progressCompleteData?.data?.workflow?.workflow_input
 
         if (!progress) {
           throw new Error('No progress data found')
@@ -221,8 +233,57 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
               normalizedFlowData.currentStep
             )
 
+        const nextStepAssignmentsByStepIndex: Record<number, StepAssignmentInfo> = {}
+        const rawStepAssignments =
+          workflowInput && typeof workflowInput === 'object' && workflowInput.stepAssignments
+            ? workflowInput.stepAssignments
+            : {}
+
+        Object.entries(rawStepAssignments as Record<string, any>).forEach(([stepReference, entry]) => {
+          const stepMatch = stepReference.match(/^step_(\d+)$/)
+          if (!stepMatch) return
+
+          const stepIndex = Number(stepMatch[1])
+          const assignedUserIds = new Set<string>()
+
+          const directUsers = entry?.assignment?.targets?.users
+          if (Array.isArray(directUsers)) {
+            directUsers.forEach((userId: unknown) => {
+              const normalized = String(userId || '').trim()
+              if (normalized) assignedUserIds.add(normalized)
+            })
+          }
+
+          const resolvedUsers = entry?.resolvedConfig?.users
+          if (Array.isArray(resolvedUsers)) {
+            resolvedUsers.forEach((userId: unknown) => {
+              const normalized = String(userId || '').trim()
+              if (normalized) assignedUserIds.add(normalized)
+            })
+          }
+
+          const taskNames = Array.isArray(entry?.resolvedConfig?.taskNames) ? entry.resolvedConfig.taskNames : []
+          taskNames.forEach((taskConfig: any) => {
+            const assignedTo = String(taskConfig?.inputParameters?.assignment?.assignedTo || '').trim()
+            if (assignedTo) assignedUserIds.add(assignedTo)
+          })
+
+          const tasksInput = entry?.resolvedConfig?.tasksInput
+          if (tasksInput && typeof tasksInput === 'object') {
+            Object.values(tasksInput as Record<string, any>).forEach((taskInput: any) => {
+              const assignedTo = String(taskInput?.assignment?.assignedTo || '').trim()
+              if (assignedTo) assignedUserIds.add(assignedTo)
+            })
+          }
+
+          nextStepAssignmentsByStepIndex[stepIndex] = {
+            assignedUserIds: Array.from(assignedUserIds)
+          }
+        })
+
         setFlowData(normalizedFlowData)
         setFlowSteps([...nextFlowSteps].sort((left, right) => left.stepIndex - right.stepIndex))
+        setStepAssignmentsByStepIndex(nextStepAssignmentsByStepIndex)
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Failed to load flow details')
       } finally {
@@ -249,6 +310,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
   return {
     flowData,
     flowSteps,
+    stepAssignmentsByStepIndex,
     executionState,
     isLoading,
     isRefreshing,
