@@ -10,33 +10,37 @@ import { startProcess } from '@/common/utils/start-process'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 type UnallocatedExpenseItemsProps = BusinessAppContextProps
+const ITEMS_TAB_AVAILABLE_STATUSES = [
+  'CREATED',
+  'ASSIGNED',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'VERIFIED',
+  'BOOKED',
+  'PAID',
+  'TRANSFERRED'
+] as const
 
 const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ accessToken, userInfo, additionalData }) => {
   // Block rendering until platform injects context to avoid unauthorized fetches
   const isContextReady = Boolean(accessToken && userInfo?.employeeDetails?.employeeId)
-  // Restrict to CREATED by default
-  const availableStatuses = useMemo(
-    () => [
-      'PREPARED',
-      'CREATED',
-      'ASSIGNED',
-      'PENDING',
-      'APPROVED',
-      'REJECTED',
-      'VERIFIED',
-      'BOOKED',
-      'PAID',
-      'CLOSED',
-      'TRANSFERRED'
-    ],
-    []
+  const availableStatuses = useMemo(() => [...ITEMS_TAB_AVAILABLE_STATUSES], [])
+  const availableStatusSet = useMemo(
+    () => new Set(availableStatuses.map(status => status.toLowerCase())),
+    [availableStatuses]
   )
 
   // Determine initial status from URL or default to 'created'
   const initialStatusFromUrl = (() => {
     const urlParams = new URLSearchParams(window.location.search)
-    const statusParam = (urlParams.get('status') || '').toUpperCase()
-    return !statusParam || statusParam === 'CREATED' ? 'created' : statusParam.toLowerCase()
+    const statusParam = (urlParams.get('status') || '').toLowerCase()
+
+    if (availableStatusSet.has(statusParam)) {
+      return statusParam
+    }
+
+    return 'created'
   })()
 
   const {
@@ -48,7 +52,10 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
     filterLabelMap,
     getFilters,
     setFilters,
-    amountRange
+    amountRange,
+    setAmountRange,
+    expenseDateRange,
+    setExpenseDateRange
   } = useExpenseItemsFilters(availableStatuses, [initialStatusFromUrl])
 
   const handleAddExpenseItem = useCallback(() => {
@@ -121,6 +128,9 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
           setFilters={setFilters}
           availableStatuses={availableStatuses}
           amountRange={amountRange}
+          setAmountRange={setAmountRange}
+          expenseDateRange={expenseDateRange}
+          setExpenseDateRange={setExpenseDateRange}
         />
       </PageLayout>
     </div>

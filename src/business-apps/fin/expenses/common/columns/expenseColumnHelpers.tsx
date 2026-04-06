@@ -89,14 +89,14 @@ export function createDateColumn<T extends object>(
     accessorFn,
     header,
     enableSorting: true,
-    ...(options?.sortDescFirst !== undefined ? { sortDescFirst: options.sortDescFirst } : {}),
+    ...(options?.sortDescFirst === undefined ? {} : { sortDescFirst: options.sortDescFirst }),
     size: 110,
     minSize: 90,
     maxSize: 150,
     cell: ({ row }) => {
       const value = hasFn
         ? (accessor as (row: T) => string | null | undefined)(row.original)
-        : (row.original as Record<string, string | null | undefined>)[accessor as string]
+        : (row.original as Record<string, string | null | undefined>)[accessor]
       return (
         <span className="gba:text-sm" data-testid={`${id}-${(row.original as { id?: string }).id ?? row.index}`}>
           {formatDate(value ?? null)}

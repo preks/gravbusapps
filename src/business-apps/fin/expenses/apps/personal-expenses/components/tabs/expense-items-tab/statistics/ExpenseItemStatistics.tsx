@@ -1,6 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../utils'
-import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
+import { formatCurrencyDisplay } from '../../../../utils'
+import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 import React, { useMemo, useCallback } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { CurrencyEurIcon, WalletIcon } from '@phosphor-icons/react'
