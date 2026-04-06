@@ -67,6 +67,7 @@ export function useExpensePlansTableFilters({
     (filters: Record<string, unknown>) => {
       const statusIds = (filters.statusIds as string[] | undefined) || []
       const planTypeIds = (filters.planTypeIds as string[] | undefined) || []
+      const topDestinationIds = (filters.topDestinationIds as string[] | undefined) || []
       const dateRangeTokens: string[] = []
       if (setPlanDateRange && applyDateRangeFromFilter(filters.planDateRange, setPlanDateRange)) {
         dateRangeTokens.push('planDateRange')
@@ -80,8 +81,8 @@ export function useExpensePlansTableFilters({
       if (setEndDateRange && applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)) {
         dateRangeTokens.push('endDateRange')
       }
-      const preserved = selectedFilters.filter(f => f.startsWith('currency:') || f.startsWith('topDestination:'))
-      setFilters([...preserved, ...statusIds, ...planTypeIds, ...dateRangeTokens])
+      const preserved = selectedFilters.filter(f => f.startsWith('currency:'))
+      setFilters([...preserved, ...statusIds, ...planTypeIds, ...topDestinationIds, ...dateRangeTokens])
       onFiltersChange?.()
     },
     [

@@ -1,5 +1,7 @@
 import { formatDateRangeForChip } from '../../../../utils/tableUtils'
 
+const TOP_DESTINATION_PREFIX = 'topDestination:'
+
 export function buildExpensePlansFiltersObject(
   selectedFilters: string[],
   planDateRange: [Date | null, Date | null] | null | undefined,
@@ -10,9 +12,11 @@ export function buildExpensePlansFiltersObject(
 ): Record<string, unknown> {
   const statusIds = selectedFilters.filter(f => availableStatuses.includes(f))
   const planTypeIds = selectedFilters.filter(f => f.startsWith('planType:'))
+  const topDestinationIds = selectedFilters.filter(f => f.startsWith(TOP_DESTINATION_PREFIX))
   const obj: Record<string, unknown> = {}
   if (statusIds.length > 0) obj.statusIds = statusIds
   if (planTypeIds.length > 0) obj.planTypeIds = planTypeIds
+  if (topDestinationIds.length > 0) obj.topDestinationIds = topDestinationIds
   const planDateStr = formatDateRangeForChip(planDateRange)
   if (planDateStr) obj.planDateRange = planDateStr
   const effectiveDateStr = formatDateRangeForChip(effectiveDateRange)

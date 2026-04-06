@@ -53,7 +53,17 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     removeFilter
   } = useExpensePlanFilters()
 
-  const availableStatuses = useMemo(() => Object.values(ExpenseStatus).filter(s => s !== ExpenseStatus.DISCARDED), [])
+  const availableStatuses = useMemo(
+    () => [
+      ExpenseStatus.CREATED,
+      ExpenseStatus.ASSIGNED,
+      ExpenseStatus.PENDING,
+      ExpenseStatus.APPROVED,
+      ExpenseStatus.REJECTED,
+      ExpenseStatus.CLOSED
+    ],
+    []
+  )
 
   const {
     data: overview,

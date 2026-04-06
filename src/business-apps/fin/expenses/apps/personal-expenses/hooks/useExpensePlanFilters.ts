@@ -88,24 +88,19 @@ export const useExpensePlanFilters = () => {
         type: DataFilterType.CHECKBOX_GROUP,
         filters: [
           {
-            id: ExpenseStatus.PREPARED,
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-            selected: selectedFilters.includes(ExpenseStatus.PREPARED)
-          },
-          {
             id: ExpenseStatus.CREATED,
             label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
             selected: selectedFilters.includes(ExpenseStatus.CREATED)
           },
           {
-            id: ExpenseStatus.PENDING,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
-            selected: selectedFilters.includes(ExpenseStatus.PENDING)
-          },
-          {
             id: ExpenseStatus.ASSIGNED,
             label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
             selected: selectedFilters.includes(ExpenseStatus.ASSIGNED)
+          },
+          {
+            id: ExpenseStatus.PENDING,
+            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
+            selected: selectedFilters.includes(ExpenseStatus.PENDING)
           },
           {
             id: ExpenseStatus.APPROVED,
@@ -118,29 +113,9 @@ export const useExpensePlanFilters = () => {
             selected: selectedFilters.includes(ExpenseStatus.REJECTED)
           },
           {
-            id: ExpenseStatus.VERIFIED,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
-            selected: selectedFilters.includes(ExpenseStatus.VERIFIED)
-          },
-          {
-            id: ExpenseStatus.BOOKED,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
-            selected: selectedFilters.includes(ExpenseStatus.BOOKED)
-          },
-          {
-            id: ExpenseStatus.PAID,
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-            selected: selectedFilters.includes(ExpenseStatus.PAID)
-          },
-          {
             id: ExpenseStatus.CLOSED,
             label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
             selected: selectedFilters.includes(ExpenseStatus.CLOSED)
-          },
-          {
-            id: ExpenseStatus.TRANSFERRED,
-            label: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
-            selected: selectedFilters.includes(ExpenseStatus.TRANSFERRED)
           }
         ]
       },

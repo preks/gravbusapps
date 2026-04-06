@@ -30,6 +30,14 @@ export function createExpensePlanFilterConfig({
     }
   ]
 
+  const topDestinationLabel = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:personal_expenses.top_destination',
+    'Top Destination'
+  )
+  const topDestinationOptions = Object.entries(filterLabelMap)
+    .filter(([key]) => key.startsWith('topDestination:'))
+    .map(([id, label]) => ({ id, label }))
+
   const groups: FilterConfiguration['groups'] = [
     createDateRangeFilterGroup(
       'effectiveDate',
@@ -58,6 +66,20 @@ export function createExpensePlanFilterConfig({
           label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
           type: 'multi-select',
           config: { options: planTypeOptions }
+        }
+      ]
+    },
+    {
+      id: 'topDestination-group',
+      label: topDestinationLabel,
+      collapsible: false,
+      filters: [
+        {
+          id: 'topDestinationIds',
+          field: 'topDestinationIds',
+          label: topDestinationLabel,
+          type: 'multi-select',
+          config: { options: topDestinationOptions }
         }
       ]
     }
