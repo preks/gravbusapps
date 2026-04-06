@@ -493,6 +493,8 @@ export interface SpreadsheetAppViewerProps {
     updates: Partial<SpreadsheetSheet>
   ) => Promise<SpreadsheetSheet | null>
   onBack?: () => void
+  /** Header breadcrumb (Spreadsheets home): spreadsheet hub only. Falls back to onBack when omitted. */
+  onNavigateToSpreadsheetHub?: () => void
   onShare?: () => void
   onEdit?: () => void
   isEditing?: boolean

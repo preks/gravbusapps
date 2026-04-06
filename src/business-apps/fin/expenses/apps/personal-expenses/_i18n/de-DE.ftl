@@ -16,3 +16,7 @@ filter-expense-items-description = Wenden Sie Filter an, um die Liste der Spesen
 
 # Expense Requests Tab
 personal-expenses-update-request-action = Anfrage aktualisieren
+
+# Expense Items Tab
+expense-items-date-label = Datum
+delete-selection-discard-error-draft = Sie können nur Elemente mit dem Status "Entwurf" oder "Zugewiesen" verwerfen.

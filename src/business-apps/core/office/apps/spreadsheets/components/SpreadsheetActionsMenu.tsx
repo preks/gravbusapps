@@ -15,6 +15,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { FileSpreadsheet, History, Save, Lock, Unlock, Share2, Download, Zap, BarChart3 } from 'lucide-react'
+import { ArrowsClockwise } from '@phosphor-icons/react'
 import translations from '../_i18n'
 
 export interface SpreadsheetActionsMenuProps {
@@ -30,6 +31,9 @@ export interface SpreadsheetActionsMenuProps {
   onShare?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
+  /** When provided with showCheckCollectionResponses, adds a menu entry to fetch collection completions */
+  onCheckCollectionResponses?: () => void | Promise<void>
+  showCheckCollectionResponses?: boolean
   onEdit?: () => void
   allowExport?: boolean
   onExport?: () => void
@@ -46,6 +50,8 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onShare,
   onOpenAnalytics,
   onOpenAutomations,
+  onCheckCollectionResponses,
+  showCheckCollectionResponses = false,
   allowExport,
   onExport,
   'data-testid': testId = 'spreadsheet-actions-menu'
@@ -104,6 +110,15 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
             {t('menu-automations')}
           </DropdownMenuItem>
+          {showCheckCollectionResponses && onCheckCollectionResponses && (
+            <DropdownMenuItem
+              onClick={() => void onCheckCollectionResponses()}
+              data-testid={`${testId}-check-collection-responses`}
+            >
+              <ArrowsClockwise className="gba:w-4 gba:h-4 gba:mr-2" aria-hidden />
+              {t('menu-check-collection-responses')}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -107,11 +107,21 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
     if (prevalidate.errorCode) {
       const errorPresentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
       return (
-        <div className="gba:flex gba:flex-col gba:items-start gba:gap-1.5" data-testid="prevalidate-error">
-          <Badge variant="destructive" data-testid="prevalidate-error-badge">
+        <div
+          className="gba:flex gba:flex-col gba:items-start gba:gap-1.5 gba:w-full gba:max-w-2xl"
+          data-testid="prevalidate-error"
+        >
+          <Badge
+            variant="destructive"
+            className="gba:max-w-full gba:whitespace-normal gba:break-words"
+            data-testid="prevalidate-error-badge"
+          >
             {t(errorPresentation.messageKey) || errorPresentation.messageFallback}
           </Badge>
-          <p className="gba:text-xs gba:text-muted-foreground" data-testid="prevalidate-error-detail">
+          <p
+            className="gba:text-xs gba:text-muted-foreground gba:max-w-full gba:whitespace-normal gba:break-words"
+            data-testid="prevalidate-error-detail"
+          >
             {t(errorPresentation.detailKey) || errorPresentation.detailFallback}
           </p>
         </div>

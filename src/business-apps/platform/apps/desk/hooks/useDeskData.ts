@@ -11,7 +11,7 @@ import { DeskApiService } from '../services/DeskApiService'
 /** Unified content item type */
 export interface ContentItem {
   id: string
-  type: 'document' | 'spreadsheet' | 'note' | 'slide'
+  type: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
   title: string
   updatedAt: string
   createdAt: string
@@ -38,6 +38,10 @@ export interface DeskStats {
     total: number
     shared: number
   }
+  whiteboards: {
+    total: number
+    shared: number
+  }
   totalItems: number
 }
 
@@ -48,6 +52,7 @@ export interface ActivityDataPoint {
   spreadsheets: number
   notes: number
   slides: number
+  whiteboards: number
 }
 
 /** Return type for useDeskData */
@@ -60,6 +65,8 @@ export interface UseDeskDataReturn {
   notes: ContentItem[]
   /** All slide decks */
   slides: ContentItem[]
+  /** All whiteboards */
+  whiteboards: ContentItem[]
   /** Combined recent items sorted by updatedAt */
   recentItems: ContentItem[]
   /** Whether any data is loading */
@@ -92,6 +99,7 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
     spreadsheets: { total: 0, shared: 0 },
     notes: { total: 0, shared: 0 },
     slides: { total: 0, shared: 0 },
+    whiteboards: { total: 0, shared: 0 },
     totalItems: 0
   })
 
@@ -126,6 +134,7 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
           spreadsheets: overview.counts.spreadsheets,
           notes: overview.counts.notes,
           slides: overview.counts.slides,
+          whiteboards: overview.counts.whiteboards ?? { total: 0, shared: 0 },
           totalItems: overview.counts.totalItems
         })
 
@@ -141,7 +150,9 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
                   ? 'Untitled Spreadsheet'
                   : item.type === 'note'
                     ? 'Untitled Note'
-                    : 'Untitled presentation'),
+                    : item.type === 'whiteboard'
+                      ? 'Untitled Whiteboard'
+                      : 'Untitled presentation'),
             updatedAt: item.updatedAt,
             createdAt: item.createdAt,
             isShared: item.isShared,
@@ -175,6 +186,7 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
   const spreadsheets = useMemo(() => recentItems.filter(i => i.type === 'spreadsheet'), [recentItems])
   const notes = useMemo(() => recentItems.filter(i => i.type === 'note'), [recentItems])
   const slides = useMemo(() => recentItems.filter(i => i.type === 'slide'), [recentItems])
+  const whiteboards = useMemo(() => recentItems.filter(i => i.type === 'whiteboard'), [recentItems])
 
   // Combine and sort recent items
   const recentItemsSorted: ContentItem[] = useMemo(() => {
@@ -220,12 +232,20 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
           return updated >= dayStart && updated <= dayEnd
         }).length
 
+      const whiteboardsCount = recentItemsSorted
+        .filter(w => w.type === 'whiteboard')
+        .filter(w => {
+          const updated = new Date(w.updatedAt)
+          return updated >= dayStart && updated <= dayEnd
+        }).length
+
       last7Days.push({
         day: getDayName(dayStart),
         documents: docsCount,
         spreadsheets: sheetsCount,
         notes: notesCount,
-        slides: slidesCount
+        slides: slidesCount,
+        whiteboards: whiteboardsCount
       })
     }
 
@@ -237,6 +257,7 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
     spreadsheets,
     notes,
     slides,
+    whiteboards,
     recentItems: recentItemsSorted.slice(0, 20),
     isLoading,
     stats,
