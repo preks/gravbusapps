@@ -25,6 +25,7 @@ import { Performance } from './tabs/Performance'
 import { RatingScales } from './tabs/RatingScales'
 import { CompanyValues } from './tabs/CompanyValues'
 import { StartCycleConfirmDialog } from './components/StartCycleConfirmDialog'
+import { CompleteCycleConfirmDialog } from './components/CompleteCycleConfirmDialog'
 
 function computeStatus(cycle: Omit<PerformanceCycle, 'status'>) {
   if (cycle.startDate && cycle.endDate) {
@@ -93,6 +94,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
   const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
   const [startingCycleId, setStartingCycleId] = useState<string | null>(null)
+  const [completingCycleId, setCompletingCycleId] = useState<string | null>(null)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
 
   // Values: use only API data (no localStorage merge) to avoid duplicates
@@ -183,9 +185,14 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }
 
-  const handleCompleteCycle = async (cycleId: string) => {
+  const handleCompleteCycle = (cycleId: string) => {
+    setCompletingCycleId(cycleId)
+  }
+
+  const handleConfirmCompleteCycle = async (cycleId: string) => {
     const cycle = cycles.find(c => c.id === cycleId)
     if (!cycle) return
+    setCompletingCycleId(null)
     if (accessToken) {
       try {
         await completeCycle(cycle)
@@ -560,6 +567,14 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           setStartingCycleId(null)
           setManualRunMode(false)
         }}
+      />
+
+      <CompleteCycleConfirmDialog
+        open={completingCycleId !== null}
+        cycle={cycles.find(c => c.id === completingCycleId) ?? null}
+        accessToken={accessToken}
+        onConfirm={handleConfirmCompleteCycle}
+        onCancel={() => setCompletingCycleId(null)}
       />
     </div>
   )

@@ -59,11 +59,13 @@ function AppIcon({ app }: { app: SpreadsheetApp }) {
 
 function BreadcrumbSection({
   onBack,
+  onNavigateToSpreadsheetHub,
   app,
   canRename,
   onRenameAppName
 }: {
   onBack?: () => void
+  onNavigateToSpreadsheetHub?: () => void
   app: SpreadsheetApp
   canRename: boolean
   onRenameAppName?: (name: string) => Promise<boolean> | boolean
@@ -120,20 +122,24 @@ function BreadcrumbSection({
     }
   }, [app.name, draftName, isRenaming, isRenamePending, onRenameAppName])
 
+  const hubNavigate = onNavigateToSpreadsheetHub ?? onBack
+  const showHubCrumb = Boolean(hubNavigate)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-1 gba:min-w-0">
-      {onBack && (
+      {showHubCrumb && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={onBack}
+          onClick={hubNavigate}
           className="gba:h-8 gba:px-2 gba:gap-1 gba:text-muted-foreground gba:hover:text-foreground"
+          data-testid="spreadsheet-header-hub-button"
         >
           <Home className="gba:w-4 gba:h-4" />
           <span className="gba:hidden sm:gba:inline">{t('header-breadcrumb-spreadsheets')}</span>
         </Button>
       )}
-      {onBack && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />}
+      {showHubCrumb && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:flex-shrink-0" />}
       <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
         <div className="gba:relative gba:flex-shrink-0">
           <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:flex gba:items-center gba:justify-center gba:shadow-sm">
@@ -348,6 +354,7 @@ export interface SpreadsheetHeaderProps {
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet
   onBack?: () => void
+  onNavigateToSpreadsheetHub?: () => void
   isEditing: boolean
   canEdit: boolean
 
@@ -392,6 +399,8 @@ export interface SpreadsheetHeaderProps {
   onShare?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
+  showCheckCollectionResponses?: boolean
+  onCheckCollectionResponses?: () => void | Promise<void>
   onEdit?: () => void
   onExport?: () => void
   isCollectionCopy?: boolean
@@ -405,6 +414,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   app,
   activeSheet,
   onBack,
+  onNavigateToSpreadsheetHub,
   isEditing,
   canEdit,
   headerParticipants,
@@ -425,6 +435,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onOpenAICapability,
   onOpenAnalytics,
   onOpenAutomations,
+  showCheckCollectionResponses = false,
+  onCheckCollectionResponses,
   onEdit,
   onExport,
   isCollectionCopy,
@@ -499,7 +511,13 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               : 'gba:flex gba:w-full gba:min-w-0 gba:items-center gba:gap-1'
           }
         >
-          <BreadcrumbSection onBack={onBack} app={app} canRename={canEdit} onRenameAppName={onRenameAppName} />
+          <BreadcrumbSection
+            onBack={onBack}
+            onNavigateToSpreadsheetHub={onNavigateToSpreadsheetHub}
+            app={app}
+            canRename={canEdit}
+            onRenameAppName={onRenameAppName}
+          />
         </div>
 
         <div
@@ -568,6 +586,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onShare={onShare}
             onOpenAnalytics={onOpenAnalytics}
             onOpenAutomations={onOpenAutomations}
+            showCheckCollectionResponses={showCheckCollectionResponses}
+            onCheckCollectionResponses={onCheckCollectionResponses}
             onEdit={onEdit}
             allowExport={activeSheet.settings.allowExport}
             onExport={onExport}

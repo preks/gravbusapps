@@ -3,7 +3,64 @@
  *
  * Fetches employee master data, positions, salaries, absences, bank accounts,
  * and tax details needed to compute payroll readiness per employee.
+ *
+ * PayrollRun reads come from Hasura (read-only).
+ * PayrollRun writes go through the Kogito REST process (savePayrollRun).
  */
+
+const PAYROLL_RUN_FIELDS = `
+  id
+  month
+  year
+  country
+  legalEntityId
+  legalEntityName
+  cutOffDate
+  paymentDate
+  status
+  createdBy
+  createdAt
+  preparedBy
+  preparedAt
+  reviewedBy
+  reviewedAt
+  reviewComment
+  approvalDecision
+  updatedAt
+  updatedBy
+  version
+  isDeleted
+`
+
+export const GET_PAYROLL_RUNS_BY_COMPANY = `
+  query GetPayrollRunsByCompany($legalEntityId: uuid!) {
+    PayrollRun(
+      where: {
+        legalEntityId: { _eq: $legalEntityId }
+        isDeleted: { _eq: false }
+      }
+      orderBy: [{ year: DESC }, { month: DESC }]
+    ) {
+      ${PAYROLL_RUN_FIELDS}
+    }
+  }
+`
+
+export const GET_PAYROLL_RUN = `
+  query GetPayrollRun($year: Int!, $month: Int!, $legalEntityId: uuid!) {
+    PayrollRun(
+      where: {
+        year: { _eq: $year }
+        month: { _eq: $month }
+        legalEntityId: { _eq: $legalEntityId }
+        isDeleted: { _eq: false }
+      }
+      limit: 1
+    ) {
+      ${PAYROLL_RUN_FIELDS}
+    }
+  }
+`
 
 export const GET_PAYROLL_EMPLOYEES = `
   query GetPayrollEmployees($companyId: uuid!, $activeUserLocale: String!) {
@@ -49,6 +106,7 @@ export const GET_PAYROLL_EMPLOYEES = `
         displayName
         pictureThumbnail
         additionalProperties
+        updatedAt
         workingCondition {
           id
           contractType {
@@ -75,6 +133,8 @@ export const GET_PAYROLL_EMPLOYEES = `
               code
             }
           }
+          updatedAt
+          updatedBy
         }
         workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
           weeklyHours
@@ -86,12 +146,16 @@ export const GET_PAYROLL_EMPLOYEES = `
           fridayHours
           saturdayHours
           sundayHours
+          updatedAt
+          updatedBy
         }
         bankAccounts {
           id
           iban
           bankName
           accountHolder
+          updatedAt
+          updatedBy
         }
         taxDetails {
           taxNumber
@@ -102,6 +166,8 @@ export const GET_PAYROLL_EMPLOYEES = `
           taxBracketRef
           childTaxAllowance
           additionalProperties
+          updatedAt
+          updatedBy
         }
       }
     }
@@ -159,6 +225,7 @@ export const GET_PAYROLL_ABSENCES = `
       type {
         id
         value
+        parentEntryId
         objectValue
         translations(where: {localeCode: {_eq: $activeUserLocale}}) {
           value
@@ -201,6 +268,30 @@ export const GET_PAYROLL_BONUSES = `
   }
 `
 
+export const GET_PREVIOUS_SALARIES = `
+  query GetPreviousSalaries($employeeIds: [uuid!]!, $beforeDate: timestamptz!) {
+    EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+        createdAt: { _lt: $beforeDate }
+      }
+      orderBy: [{ startDate: DESC_NULLS_LAST }, { createdAt: DESC }]
+    ) {
+      id
+      employeeId
+      monthlyGrossSalary
+      currency {
+        code
+      }
+      currencyRef
+      startDate
+      createdAt
+    }
+  }
+`
+
 export const GET_PAYROLL_ATTENDANCE = `
   query GetPayrollAttendance($employeeIds: [uuid!]!, $dateFrom: date!, $dateTo: date!) {
     EmployeeAttendance(
@@ -217,6 +308,18 @@ export const GET_PAYROLL_ATTENDANCE = `
       effectiveTime
       plannedTime
       recordedTime
+    }
+  }
+`
+
+export const GET_EMPLOYEES_BY_USER_IDS = `
+  query GetEmployeesByUserIds($userIds: [String!]!) {
+    Employee(
+      where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }
+    ) {
+      userId
+      displayName
+      fullName
     }
   }
 `

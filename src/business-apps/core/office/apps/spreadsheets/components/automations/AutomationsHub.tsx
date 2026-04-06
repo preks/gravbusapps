@@ -82,8 +82,8 @@ export interface AutomationsHubProps {
   onDuplicateAutomation: (automationId: string) => Promise<void>
   /** Callback when running an automation manually */
   onRunAutomation: (automationId: string) => Promise<void>
-  /** Callback when refreshing automations list */
-  onRefresh?: () => void
+  /** Callback when refreshing automations list (may be async; reload from API + workflow statuses) */
+  onRefresh?: () => void | Promise<void>
   /** Data test ID */
   'data-testid'?: string
 }
@@ -524,7 +524,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
           {onRefresh && (
-            <Button variant="outline" size="sm" onClick={onRefresh}>
+            <Button variant="outline" size="sm" onClick={() => void onRefresh()}>
               <RefreshCw className="gba:w-4 gba:h-4" />
             </Button>
           )}

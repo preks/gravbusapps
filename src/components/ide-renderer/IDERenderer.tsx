@@ -147,7 +147,9 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
 
   // Render app content directly in main area (fills parent)
   if (selectedApp && (selectedApp.type === 'app' || selectedApp.type === 'record')) {
-    return renderAppContent()
+    return (
+      <div className="gba:flex gba:min-h-0 gba:h-full gba:w-full gba:flex-1 gba:flex-col">{renderAppContent()}</div>
+    )
   }
 
   // Render forms and popups in dialog

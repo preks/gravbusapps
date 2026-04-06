@@ -11,7 +11,18 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Search, Plus, FileText, FileSpreadsheet, StickyNote, Presentation, X, ArrowRight, Clock } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  FileText,
+  FileSpreadsheet,
+  StickyNote,
+  Presentation,
+  PenTool,
+  X,
+  ArrowRight,
+  Clock
+} from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 import { useDocumentPresence } from '../hooks/useDocumentPresence'
 import deskTranslations from '../_i18n'
@@ -25,6 +36,7 @@ interface QuickActionsProps {
   onCreateSpreadsheet: () => void
   onCreateNote: () => void
   onCreateSlide: () => void
+  onCreateWhiteboard?: () => void
   searchResults?: ContentItem[]
   onItemClick?: (item: ContentItem) => void
   isLoading?: boolean
@@ -57,6 +69,12 @@ const getTypeConfig = (t: TranslateFn) =>
       color: 'gba:text-info',
       bg: 'gba:bg-info/10',
       label: t('type-presentation')
+    },
+    whiteboard: {
+      icon: PenTool,
+      color: 'gba:text-accent-foreground',
+      bg: 'gba:bg-accent/10',
+      label: t('type-whiteboard')
     }
   }) as const
 
@@ -208,6 +226,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   onCreateSpreadsheet,
   onCreateNote,
   onCreateSlide,
+  onCreateWhiteboard,
   searchResults = [],
   onItemClick,
   isLoading = false,
@@ -260,17 +279,19 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
   // Group results by type
   const groupedResults = useMemo(() => {
-    const groups: { type: 'document' | 'spreadsheet' | 'note' | 'slide'; items: ContentItem[] }[] = []
+    const groups: { type: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'; items: ContentItem[] }[] = []
 
     const docs = limitedResults.filter(r => r.type === 'document')
     const sheets = limitedResults.filter(r => r.type === 'spreadsheet')
     const notesItems = limitedResults.filter(r => r.type === 'note')
     const slidesItems = limitedResults.filter(r => r.type === 'slide')
+    const whiteboardItems = limitedResults.filter(r => r.type === 'whiteboard')
 
     if (docs.length > 0) groups.push({ type: 'document', items: docs })
     if (sheets.length > 0) groups.push({ type: 'spreadsheet', items: sheets })
     if (notesItems.length > 0) groups.push({ type: 'note', items: notesItems })
     if (slidesItems.length > 0) groups.push({ type: 'slide', items: slidesItems })
+    if (whiteboardItems.length > 0) groups.push({ type: 'whiteboard', items: whiteboardItems })
 
     return groups
   }, [limitedResults])
@@ -470,6 +491,26 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                     <p>{t('search-create-presentation')}</p>
                   </TooltipContent>
                 </Tooltip>
+
+                {onCreateWhiteboard && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-accent-foreground hover:gba:bg-accent/10"
+                        onClick={onCreateWhiteboard}
+                        data-testid={`${testId}-create-whiteboard`}
+                      >
+                        <Plus className="gba:w-3.5 gba:h-3.5" />
+                        <PenTool className="gba:w-4 gba:h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('search-create-whiteboard')}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </TooltipProvider>
             </div>
           </div>
@@ -531,7 +572,13 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                               <div className="gba:flex gba:items-center gba:gap-2">
                                 <GroupIcon className={`gba:w-3.5 gba:h-3.5 ${config.color}`} />
                                 <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                                  {t(group.type === 'slide' ? 'type-slides' : `type-${group.type}s`)}
+                                  {t(
+                                    group.type === 'slide'
+                                      ? 'type-slides'
+                                      : group.type === 'whiteboard'
+                                        ? 'type-whiteboards'
+                                        : `type-${group.type}s`
+                                  )}
                                 </span>
                                 <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground/60">
                                   {group.items.length}

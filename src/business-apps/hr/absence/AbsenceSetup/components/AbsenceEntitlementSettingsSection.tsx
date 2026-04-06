@@ -113,12 +113,6 @@ export function AbsenceEntitlementSettingsSection({
     { value: 'YEAR', label: t('period-per-year') }
   ]
 
-  const advanceGenerationTimeUnitOptions = [
-    { value: 'DAYS', label: t('advance-unit-days') },
-    { value: 'WEEKS', label: t('advance-unit-weeks') },
-    { value: 'MONTHS', label: t('advance-unit-months') }
-  ]
-
   const prorataMethodOptions = [
     { value: 'ALWAYS', label: 'always' },
     { value: 'NEVER,_EXCEPT_LESS_THAN_A_FULL_YEAR', label: 'never, except less than a full year' },
@@ -330,30 +324,6 @@ export function AbsenceEntitlementSettingsSection({
                     />
                   </div>
                 )}
-                <div className="gba:space-y-2">
-                  <Label htmlFor="absence-entitlement-advance-generation-amount-input">
-                    {t('field-advance-generation-amount-label')}
-                  </Label>
-                  <Input
-                    id="absence-entitlement-advance-generation-amount-input"
-                    type="number"
-                    value={settings.advance_generation_amount}
-                    onChange={event => onSettingsChange('advance_generation_amount', event.target.value)}
-                    data-testid="absence-entitlement-advance-generation-amount-input"
-                  />
-                </div>
-                <div className="gba:space-y-2">
-                  <Label>{t('field-advance-generation-time-unit-label')}</Label>
-                  <Combobox
-                    value={settings.advance_generation_time_unit}
-                    onValueChange={value => onSettingsChange('advance_generation_time_unit', String(value || 'MONTHS'))}
-                    options={advanceGenerationTimeUnitOptions}
-                    placeholder={t('field-advance-generation-time-unit-label')}
-                    searchPlaceholder={t('field-advance-generation-time-unit-label')}
-                    emptyText={t('empty-catalog-entries', { entity: t('absence-entitlement-entity-label') })}
-                    data-testid="absence-entitlement-advance-generation-time-unit-select"
-                  />
-                </div>
               </div>
             </CardContent>
           </Card>

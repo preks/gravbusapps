@@ -122,6 +122,34 @@ export function runGenericValidation(employee: PayrollEmployee): PayrollIssue[] 
     )
   }
 
+  if (employee.missingPresenceDays > 0) {
+    issues.push(
+      createIssue(
+        employee.employeeId,
+        'MISSING_PRESENCE_DAYS',
+        'missing_absence_data',
+        'warning',
+        `Employee has ${employee.missingPresenceDays} working day(s) without recorded time or absence.`,
+        'Verify if the employee was present and log attendance, or record an absence for those days.',
+        'attendance'
+      )
+    )
+  }
+
+  if (employee.variablePayStatus === 'pending' && employee.totalVariablePay != null && employee.totalVariablePay > 0) {
+    issues.push(
+      createIssue(
+        employee.employeeId,
+        'PENDING_VARIABLE_PAY',
+        'missing_approvals',
+        'warning',
+        'Variable compensation exists but has not been fully approved.',
+        'Review and approve pending bonus entries before payroll processing.',
+        'variablePay'
+      )
+    )
+  }
+
   return issues
 }
 

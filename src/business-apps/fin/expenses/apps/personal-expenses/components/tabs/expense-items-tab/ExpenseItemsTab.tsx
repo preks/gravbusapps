@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react'
 // import dayjs from 'dayjs'
-import { getItemsCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
+import { getItemsCardStrategies, preserveCurrencyAndReset } from './utils/cardStrategies'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_PENDING_ITEMS } from '../../../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 // import { ExpenseStatus } from '../../../utils'
-import ExpenseItemStatistics from './ExpenseItemStatistics'
-import ExpenseItemsTable from './ExpenseItemsTable'
+import ExpenseItemStatistics from './statistics/ExpenseItemStatistics'
+import ExpenseItemsTable from './table/ExpenseItemsTable'
 import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
 // import { env } from '@/common/env/EnvUtils'
@@ -34,19 +34,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   // Get all available statuses from the enum
   const availableStatuses = useMemo(
-    () => [
-      'PREPARED',
-      'CREATED',
-      'ASSIGNED',
-      'PENDING',
-      'APPROVED',
-      'REJECTED',
-      'VERIFIED',
-      'BOOKED',
-      'PAID',
-      'CLOSED',
-      'TRANSFERRED'
-    ],
+    () => ['CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'TRANSFERRED'],
     []
   )
 
@@ -75,14 +63,21 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
 
   useEffect(() => {
     if (!activeCard) return
-    const statusFilters = selectedFilters.filter(f => !f.includes(':'))
+    const statusFilters = new Set(selectedFilters.filter(f => !f.includes(':')))
     if (activeCard === 'total-expenses') {
-      const hasExpectedStatuses = statusFilters.includes('paid') || statusFilters.includes('closed')
-      if (!hasExpectedStatuses) setActiveCard(null)
+      if (!statusFilters.has('paid')) setActiveCard(null)
     } else if (activeCard === 'pending-reimbursement') {
-      if (!statusFilters.includes('pending')) setActiveCard(null)
+      if (!statusFilters.has('pending')) setActiveCard(null)
     }
   }, [selectedFilters, activeCard])
+
+  useEffect(() => {
+    if (!activeCard) return
+    const hasDateRange = Boolean(expenseDateRange?.[0] || expenseDateRange?.[1])
+    if (!hasDateRange) {
+      setActiveCard(null)
+    }
+  }, [activeCard, expenseDateRange])
 
   // Stats come from aggregated overview hook
   const [pendingItemCountFromApi, setPendingItemCountFromApi] = useState<number>(0)

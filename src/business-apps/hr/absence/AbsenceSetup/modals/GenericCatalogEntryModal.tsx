@@ -13,11 +13,15 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import {
+  type CatalogTranslationValues,
+  getCatalogTranslationValues
+} from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import translations from '../_i18n'
 
 export interface GenericCatalogEntryModalValues {
   code: string
-  value: string
+  translations: CatalogTranslationValues
 }
 
 interface GenericCatalogEntryModalProps {
@@ -37,17 +41,21 @@ export const GenericCatalogEntryModal: React.FC<GenericCatalogEntryModalProps> =
 }) => {
   const { t } = useTranslation(translations)
   const [code, setCode] = useState('')
-  const [value, setValue] = useState('')
+  const [translationValues, setTranslationValues] = useState<CatalogTranslationValues>({
+    enUS: '',
+    deDE: '',
+    roRO: ''
+  })
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
 
     setCode(entry?.code || '')
-    setValue(entry?.value || '')
+    setTranslationValues(getCatalogTranslationValues(entry))
   }, [entry, open])
 
-  const isSaveDisabled = isSaving || !code.trim() || !value.trim()
+  const isSaveDisabled = isSaving || !code.trim() || !translationValues.enUS.trim()
 
   const handleSubmit = async () => {
     if (isSaveDisabled) {
@@ -58,7 +66,11 @@ export const GenericCatalogEntryModal: React.FC<GenericCatalogEntryModalProps> =
       setIsSaving(true)
       await onSave({
         code: code.trim(),
-        value: value.trim()
+        translations: {
+          enUS: translationValues.enUS.trim(),
+          deDE: translationValues.deDE.trim(),
+          roRO: translationValues.roRO.trim()
+        }
       })
     } finally {
       setIsSaving(false)
@@ -97,17 +109,37 @@ export const GenericCatalogEntryModal: React.FC<GenericCatalogEntryModalProps> =
               />
             </div>
 
-            <div className="gba:space-y-2">
-              <Label htmlFor="generic-catalog-entry-name">
-                {t('field-name-label')}
-                <span className="gba:text-destructive"> *</span>
-              </Label>
-              <Input
-                id="generic-catalog-entry-name"
-                value={value}
-                onChange={event => setValue(event.target.value)}
-                data-testid="generic-catalog-entry-name-input"
-              />
+            <div className="gba:grid gba:gap-4 gba:md:grid-cols-3">
+              <div className="gba:space-y-2">
+                <Label htmlFor="generic-catalog-entry-name-en">
+                  {t('field-name-en-label')}
+                  <span className="gba:text-destructive"> *</span>
+                </Label>
+                <Input
+                  id="generic-catalog-entry-name-en"
+                  value={translationValues.enUS}
+                  onChange={event => setTranslationValues(current => ({ ...current, enUS: event.target.value }))}
+                  data-testid="generic-catalog-entry-name-en-input"
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label htmlFor="generic-catalog-entry-name-de">{t('field-name-de-label')}</Label>
+                <Input
+                  id="generic-catalog-entry-name-de"
+                  value={translationValues.deDE}
+                  onChange={event => setTranslationValues(current => ({ ...current, deDE: event.target.value }))}
+                  data-testid="generic-catalog-entry-name-de-input"
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label htmlFor="generic-catalog-entry-name-ro">{t('field-name-ro-label')}</Label>
+                <Input
+                  id="generic-catalog-entry-name-ro"
+                  value={translationValues.roRO}
+                  onChange={event => setTranslationValues(current => ({ ...current, roRO: event.target.value }))}
+                  data-testid="generic-catalog-entry-name-ro-input"
+                />
+              </div>
             </div>
           </div>
 
