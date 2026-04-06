@@ -890,3 +890,6 @@ service-requests-status-canceled = Anulat
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Se încarcă formularul de adresă...

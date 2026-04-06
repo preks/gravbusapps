@@ -890,3 +890,6 @@ service-requests-status-canceled = Abgebrochen
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Ihre Personalabteilung prüft derzeit Ihre letzten Änderungen. Sobald die Freigabe erfolgt ist, können Sie weitere Anpassungen vornehmen.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Adressformular wird geladen...

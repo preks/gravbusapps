@@ -14,7 +14,6 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  FileUpload,
   Combobox
 } from '@newwork/nw-design-system'
 import type { UseFormReturn } from 'react-hook-form'
@@ -24,6 +23,7 @@ import type { GetMessage } from './validationScope'
 import { ACCEPTED_HEALTH_INSURANCE_DOCUMENT_FILE_TYPES } from './constants'
 import type { TaxInfoFormValues, TaxDetailsCatalogs, CatalogEntry } from './types'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
 
 export interface ChangeTaxDetailsFormFieldsProps {
   form: UseFormReturn<TaxInfoFormValues>
@@ -37,6 +37,11 @@ export interface ChangeTaxDetailsFormFieldsProps {
   employeeBirthName?: string | null
   employeeLastName?: string | null
   healthInsuranceFileList: any[]
+  healthInsuranceInitialFiles: Array<{ id: string; name: string; size?: number; type?: string; url?: string }>
+  isLoadingHealthInsuranceInitialFiles?: boolean
+  isResolvingHealthInsuranceInitialDocuments?: boolean
+  hasExistingHealthInsuranceDocumentHint?: boolean
+  hasInitialHealthInsuranceDocumentCandidates?: boolean
   onHealthInsuranceFilesChange: (files: Array<{ file: File | { name: string }; id: string }>) => void
 }
 
@@ -79,6 +84,11 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
   employeeBirthName,
   employeeLastName,
   healthInsuranceFileList,
+  healthInsuranceInitialFiles,
+  isLoadingHealthInsuranceInitialFiles = false,
+  isResolvingHealthInsuranceInitialDocuments = false,
+  hasExistingHealthInsuranceDocumentHint = false,
+  hasInitialHealthInsuranceDocumentCandidates = false,
   onHealthInsuranceFilesChange
 }) => {
   const placeholderEnter = L.placeholderEnter
@@ -196,41 +206,21 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
       />
 
       {form.watch('healthInsuranceTypeRef') && (
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <Label>{L.uploadNewHealthInsuranceDocument}</Label>
-          <Switch
-            checked={form.watch('uploadNewHealthInsuranceDocument')}
-            onCheckedChange={(val: boolean) =>
-              form.setValue('uploadNewHealthInsuranceDocument', Boolean(val), { shouldDirty: true, shouldTouch: true })
-            }
-            data-testid="flw_changeTaxDetails_uploadNewHealthInsuranceDocument"
-          />
-        </div>
-      )}
-
-      {form.watch('healthInsuranceTypeRef') && form.watch('uploadNewHealthInsuranceDocument') && (
         <div className="gba:space-y-4" data-testid="change-tax-details-health-insurance-document-section">
-          <FormField
+          <EmployeeDocumentUploadField
             name="healthInsuranceDocumentUpload"
-            render={() => (
-              <FormItem>
-                <FormLabel data-testid="change-tax-details-health-insurance-document-upload-label">
-                  {L.healthInsuranceDocumentUpload}
-                </FormLabel>
-                <FormControl>
-                  <div data-testid="flw_changeTaxDetails_healthInsuranceDocument_uploadFile">
-                    <FileUpload
-                      multiple={false}
-                      maxFiles={1}
-                      accept={ACCEPTED_HEALTH_INSURANCE_DOCUMENT_FILE_TYPES}
-                      layout="list"
-                      preview="icon"
-                      onChange={onHealthInsuranceFilesChange as any}
-                    />
-                  </div>
-                </FormControl>
-              </FormItem>
-            )}
+            label={L.healthInsuranceDocumentUpload}
+            isLoading={isLoadingHealthInsuranceInitialFiles}
+            isResolvingInitialDocuments={isResolvingHealthInsuranceInitialDocuments}
+            hasExistingDocumentHint={hasExistingHealthInsuranceDocumentHint}
+            hasInitialDocumentCandidates={hasInitialHealthInsuranceDocumentCandidates}
+            loadingMessage={(L as any).loadingDocument || 'Loading document...'}
+            initialFiles={healthInsuranceInitialFiles}
+            onFilesChange={onHealthInsuranceFilesChange as any}
+            accept={ACCEPTED_HEALTH_INSURANCE_DOCUMENT_FILE_TYPES}
+            maxFiles={1}
+            multiple={false}
+            dataTestId="flw_changeTaxDetails_healthInsuranceDocument_uploadFile"
           />
           {healthInsuranceFileList.length > 0 && (
             <>
@@ -239,7 +229,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                 name={'healthInsuranceDocumentTypeId' as any}
                 rules={{
                   validate: (value: string | null) => {
-                    if (!form.getValues('uploadNewHealthInsuranceDocument')) return true
+                    if (healthInsuranceFileList.length === 0) return true
                     return value && String(value).trim() ? true : L.requiredDocumentType
                   }
                 }}
@@ -247,9 +237,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                   <FormItem>
                     <FormLabel data-testid="change-tax-details-health-insurance-document-type-label">
                       {L.documentType}
-                      {form.watch('uploadNewHealthInsuranceDocument') && (
-                        <span className="gba:text-destructive">*</span>
-                      )}
+                      {healthInsuranceFileList.length > 0 && <span className="gba:text-destructive">*</span>}
                     </FormLabel>
                     <FormControl>
                       <Combobox
