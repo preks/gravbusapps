@@ -1,11 +1,3 @@
-/**
- * REST helpers for compensation budget employee-process routes.
- *
- * - **Budget plan tab** (add plan): `saveCompensationBudgetPlan` with `changeMode: 'INSERT'` →
- *   `/saveCompensationBudgetPlan` (see `useBudgetPlansTable`).
- * - **Budget setup tab** (add plan–company row): `saveCompensationBudgetPlanCompany` with `changeMode: 'INSERT'` →
- *   `/saveCompensationBudgetPlanCompany` (see `useBudgetSetupForCompany`).
- */
 import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 
 export interface CompensationBudgetPlanCreatePayload {

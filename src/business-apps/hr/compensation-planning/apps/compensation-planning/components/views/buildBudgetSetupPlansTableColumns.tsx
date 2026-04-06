@@ -33,8 +33,8 @@ function formatPercentCell(value: number): string {
 const COL = {
   chosenPlan: { size: 260, minSize: 220 },
   status: { size: 180, minSize: 160 },
-  salaryBonusAmount: { size: 280, minSize: 260 },
-  salaryBonusPercent: { size: 220, minSize: 200 },
+  salaryAmount: { size: 280, minSize: 260 },
+  salaryPercent: { size: 220, minSize: 200 },
   salaryBaseline: { size: 340, minSize: 320 }
 } as const
 
@@ -68,8 +68,8 @@ export function buildBudgetSetupPlansTableColumns(
       id: 'salaryBudgetAmount',
       accessorKey: 'salaryBudgetAmount',
       header: budgetSetupColumnHeader(t, 'budget-setup-table-col-salary-budget-amount', 'right'),
-      size: COL.salaryBonusAmount.size,
-      minSize: COL.salaryBonusAmount.minSize,
+      size: COL.salaryAmount.size,
+      minSize: COL.salaryAmount.minSize,
       meta: { align: 'right', type: 'currency' },
       accessorFn: row => sortNumberOrFallback(row.salaryBudgetAmount),
       cell: ({ row }) => {
@@ -83,39 +83,12 @@ export function buildBudgetSetupPlansTableColumns(
       id: 'salaryBudgetPercent',
       accessorKey: 'salaryBudgetPercent',
       header: budgetSetupColumnHeader(t, 'budget-setup-table-col-salary-budget-percent', 'right'),
-      size: COL.salaryBonusPercent.size,
-      minSize: COL.salaryBonusPercent.minSize,
+      size: COL.salaryPercent.size,
+      minSize: COL.salaryPercent.minSize,
       meta: { align: 'right', type: 'number' },
       accessorFn: row => sortNumberOrFallback(row.salaryBudgetPercent),
       cell: ({ row }) => (
         <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
-      )
-    },
-    {
-      id: 'bonusBudgetAmount',
-      accessorKey: 'bonusBudgetAmount',
-      header: budgetSetupColumnHeader(t, 'budget-setup-table-col-bonus-budget-amount', 'right'),
-      size: COL.salaryBonusAmount.size,
-      minSize: COL.salaryBonusAmount.minSize,
-      meta: { align: 'right', type: 'currency' },
-      accessorFn: row => sortNumberOrFallback(row.bonusBudgetAmount),
-      cell: ({ row }) => {
-        const r = row.original
-        return (
-          <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.bonusBudgetAmount, r.displayCurrency)}</span>
-        )
-      }
-    },
-    {
-      id: 'bonusBudgetPercent',
-      accessorKey: 'bonusBudgetPercent',
-      header: budgetSetupColumnHeader(t, 'budget-setup-table-col-bonus-budget-percent', 'right'),
-      size: COL.salaryBonusPercent.size,
-      minSize: COL.salaryBonusPercent.minSize,
-      meta: { align: 'right', type: 'number' },
-      accessorFn: row => sortNumberOrFallback(row.bonusBudgetPercent),
-      cell: ({ row }) => (
-        <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.bonusBudgetPercent)}</span>
       )
     },
     {
@@ -139,7 +112,5 @@ export const BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS = [
   'companyBudgetStatus',
   'salaryBudgetAmount',
   'salaryBudgetPercent',
-  'bonusBudgetAmount',
-  'bonusBudgetPercent',
   'salaryBaseline'
 ] as const

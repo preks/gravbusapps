@@ -12,6 +12,7 @@ error-performance-scores = Nu s-au putut încărca scorurile de performanță pe
 error-salary-budget-title = Nu s-a putut încărca bugetul salarial al echipei
 error-title = A apărut o problemă
 table-section-title = Membri echipă
+manager-team-context-card-title = Compensații echipă
 budget-summary-total-available = Buget total disponibil
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Însumează bugetele salariale pentru unitățile organizaționale ale membrilor echipei în cel mai recent plan de buget al companiei, dacă există rânduri (altfel unitatea din poziția dvs. dacă membrii nu au UO).

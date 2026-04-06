@@ -10,8 +10,6 @@ export function buildCreateBudgetPlanFormSchema(translate: (key: string) => stri
     compensationBudgetPlanId: z.string().min(1, translate('budget-setup-create-plan-select-plan-required')),
     salaryBudgetAmount: preprocessNum(-1e12, 1e12),
     salaryBudgetPercent: preprocessNum(-100, 1000),
-    bonusBudgetAmount: preprocessNum(-1e12, 1e12),
-    bonusBudgetPercent: preprocessNum(-100, 1000),
     currencyRef: z.string().min(1, translate('budget-setup-create-plan-currency-required'))
   })
 }
@@ -41,8 +39,6 @@ export function getDefaultCreatePlanFormValues(
     compensationBudgetPlanId,
     salaryBudgetAmount: 0,
     salaryBudgetPercent: 0,
-    bonusBudgetAmount: 0,
-    bonusBudgetPercent: 0,
     currencyRef: initialCurrencyRef
   }
 }

@@ -58,8 +58,6 @@ export interface CreateBudgetPlanInput {
     companyId: string
     salaryBudgetAmount: number
     salaryBudgetPercent: number
-    bonusBudgetAmount: number
-    bonusBudgetPercent: number
     currentTotalSalaryCost: number
     currencyRef: string | null
   }
@@ -68,8 +66,6 @@ export interface CreateBudgetPlanInput {
 export interface SaveCompanyBudgetInput {
   salaryBudgetType: BudgetType
   salaryBudgetValue: number
-  bonusBudgetType: BudgetType
-  bonusBudgetValue: number
   headcount: number
   currentTotalSalaryCost: number
   currencyRef?: string | null
@@ -141,8 +137,6 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
   return {
     salaryBudgetAmount: input.salaryBudgetType === 'absolute' ? input.salaryBudgetValue : 0,
     salaryBudgetPercent: input.salaryBudgetType === 'percentage' ? input.salaryBudgetValue : 0,
-    bonusBudgetAmount: input.bonusBudgetType === 'absolute' ? input.bonusBudgetValue : 0,
-    bonusBudgetPercent: input.bonusBudgetType === 'percentage' ? input.bonusBudgetValue : 0,
     currentTotalSalaryCost: input.currentTotalSalaryCost,
     ...(input.currencyRef === undefined ? {} : { currencyRef: input.currencyRef })
   }
@@ -303,8 +297,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             company: c.companyId,
             salaryBudgetAmount: roundMoney2(c.salaryBudgetAmount),
             salaryBudgetPercent: roundMoney2(c.salaryBudgetPercent),
-            bonusBudgetAmount: roundMoney2(c.bonusBudgetAmount),
-            bonusBudgetPercent: roundMoney2(c.bonusBudgetPercent),
+            bonusBudgetAmount: 0,
+            bonusBudgetPercent: 0,
             budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
             currentTotalSalaryCost: c.currentTotalSalaryCost,
             currencyRef: c.currencyRef
@@ -342,8 +336,6 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         if (companyRow) {
           const salaryBudgetAmount = roundMoney2(changes.salaryBudgetAmount)
           const salaryBudgetPercent = roundMoney2(changes.salaryBudgetPercent)
-          const bonusBudgetAmount = roundMoney2(changes.bonusBudgetAmount)
-          const bonusBudgetPercent = roundMoney2(changes.bonusBudgetPercent)
           const currentTotalSalaryCost = roundMoney2(changes.currentTotalSalaryCost)
           const currencyRef = input.currencyRef === undefined ? companyRow.currencyRef : input.currencyRef
 
@@ -353,8 +345,6 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             companyId: companyRow.companyId,
             salaryBudgetAmount,
             salaryBudgetPercent,
-            bonusBudgetAmount,
-            bonusBudgetPercent,
             budgetPlanStatus: companyRow.budgetPlanStatus,
             currentTotalSalaryCost,
             currencyRef,
@@ -373,8 +363,8 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
               company: companyId,
               salaryBudgetAmount: roundMoney2(changes.salaryBudgetAmount),
               salaryBudgetPercent: roundMoney2(changes.salaryBudgetPercent),
-              bonusBudgetAmount: roundMoney2(changes.bonusBudgetAmount),
-              bonusBudgetPercent: roundMoney2(changes.bonusBudgetPercent),
+              bonusBudgetAmount: 0,
+              bonusBudgetPercent: 0,
               budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_DRAFT,
               currentTotalSalaryCost: roundMoney2(input.currentTotalSalaryCost),
               currencyRef: input.currencyRef ?? null,

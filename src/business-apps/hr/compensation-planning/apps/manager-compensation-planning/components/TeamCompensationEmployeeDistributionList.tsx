@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react'
 import { Alert, AlertDescription, Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import { BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS } from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
 import { BudgetDistributionCustomOrgUnitInputs } from '../../compensation-planning/components/views/BudgetDistributionCustomOrgUnitInputs'
 import { BudgetDistributionDepartmentsPagination } from '../../compensation-planning/components/views/BudgetDistributionDepartmentsPagination'
 import type {
@@ -14,6 +15,8 @@ import { formatPercentOfPool, formatPerformanceScoreValue, formatShareOfTotal } 
 type TranslateBudget = (id: string, args?: Record<string, string | number>) => string
 
 export interface TeamCompensationEmployeeDistributionListProps {
+  /** When true, omit outer Card (used inside split-panel layout next to method list). */
+  embedded?: boolean
   sortedMembers: TeamMemberCompensationData[]
   distributionPool: number | null
   allocationByEmployeeId: ReadonlyMap<string, number>
@@ -35,6 +38,7 @@ export interface TeamCompensationEmployeeDistributionListProps {
 }
 
 export function TeamCompensationEmployeeDistributionList({
+  embedded = false,
   sortedMembers,
   distributionPool,
   allocationByEmployeeId,
@@ -65,19 +69,12 @@ export function TeamCompensationEmployeeDistributionList({
     [sortedMembers, allocationByEmployeeId]
   )
 
-  const sequentialPoolRemainingByEmployeeId = useMemo(() => {
-    const map = new Map<string, number>()
-    const pool = distributionPool != null && distributionPool > 0 ? distributionPool : null
-    if (pool == null) {
-      return map
+  const customPoolUnallocatedGlobal = useMemo(() => {
+    if (poolForCustomContext == null) {
+      return null
     }
-    let cumulative = 0
-    for (const m of sortedMembers) {
-      cumulative += allocationByEmployeeId.get(m.employeeId) ?? 0
-      map.set(m.employeeId, pool - cumulative)
-    }
-    return map
-  }, [sortedMembers, allocationByEmployeeId, distributionPool])
+    return poolForCustomContext - totalCustomAllocated
+  }, [poolForCustomContext, totalCustomAllocated])
 
   const listItems = useMemo(() => sortedMembers.map(m => ({ id: m.employeeId })), [sortedMembers])
 
@@ -104,80 +101,83 @@ export function TeamCompensationEmployeeDistributionList({
     setPageIndex(p => Math.min(totalPages - 1, p + 1))
   }, [setPageIndex, totalPages])
 
-  return (
-    <Card className="gba:w-full" data-testid="manager-team-distribution-employee-list">
-      <CardHeader className="gba:flex gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-3 gba:space-y-0">
-        <CardTitle className="gba:text-base">{cardTitle}</CardTitle>
-      </CardHeader>
-      <CardContent className="gba:space-y-4">
-        {loading ? (
-          <div className="gba:flex gba:justify-center gba:py-6">
-            <Spinner />
-          </div>
-        ) : null}
+  const listBody = (
+    <div className="gba:space-y-4">
+      {loading ? (
+        <div className="gba:flex gba:justify-center gba:py-6">
+          <Spinner />
+        </div>
+      ) : null}
 
-        {error ? (
-          <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-distribution-list-error">
-            {error}
-          </p>
-        ) : null}
+      {error ? (
+        <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-distribution-list-error">
+          {error}
+        </p>
+      ) : null}
 
-        {loading === false && sortedMembers.length === 0 ? (
-          <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-team-distribution-list-empty">
-            {emptyMessage}
-          </p>
-        ) : null}
+      {loading === false && sortedMembers.length === 0 ? (
+        <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-team-distribution-list-empty">
+          {emptyMessage}
+        </p>
+      ) : null}
 
-        {performanceFallbackToEqual ? (
-          <Alert data-testid="manager-team-distribution-performance-fallback-equal-alert">
-            <AlertDescription>{tBudget('manager-team-distribution-performance-fallback-equal')}</AlertDescription>
-          </Alert>
-        ) : null}
+      {performanceFallbackToEqual ? (
+        <Alert data-testid="manager-team-distribution-performance-fallback-equal-alert">
+          <AlertDescription>{tBudget('manager-team-distribution-performance-fallback-equal')}</AlertDescription>
+        </Alert>
+      ) : null}
 
-        {performancePartialScores ? (
-          <Alert data-testid="manager-team-distribution-performance-partial-alert">
-            <AlertDescription>{tBudget('manager-team-distribution-performance-partial-scores')}</AlertDescription>
-          </Alert>
-        ) : null}
+      {performancePartialScores ? (
+        <Alert data-testid="manager-team-distribution-performance-partial-alert">
+          <AlertDescription>{tBudget('manager-team-distribution-performance-partial-scores')}</AlertDescription>
+        </Alert>
+      ) : null}
 
-        {isSalaryCostMethod && sortedMembers.length > 0 && loading === false ? (
-          <Alert data-testid="manager-team-distribution-salary-cost-basis-alert">
-            <AlertDescription>
-              {totalSalaryCostAcrossEmployees <= 0
-                ? tBudget('budget-distribution-salary-cost-zero-total')
-                : tBudget('budget-distribution-salary-cost-basis-alert', {
-                    total: formatCurrency(totalSalaryCostAcrossEmployees, currencyCode),
-                    pool:
-                      distributionPool != null && distributionPool > 0
-                        ? formatCurrency(distributionPool, currencyCode)
-                        : '—'
-                  })}
-            </AlertDescription>
-          </Alert>
-        ) : null}
+      {isSalaryCostMethod && sortedMembers.length > 0 && loading === false ? (
+        <Alert data-testid="manager-team-distribution-salary-cost-basis-alert">
+          <AlertDescription>
+            {totalSalaryCostAcrossEmployees <= 0
+              ? tBudget('budget-distribution-salary-cost-zero-total')
+              : tBudget('budget-distribution-salary-cost-basis-alert', {
+                  total: formatCurrency(totalSalaryCostAcrossEmployees, currencyCode)
+                })}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        {isPerformanceMethod &&
-        sortedMembers.length > 0 &&
-        loading === false &&
-        performanceFallbackToEqual === false ? (
-          <Alert data-testid="manager-team-distribution-performance-basis-alert">
-            <AlertDescription>
-              {grandTotalPositivePerformanceScores <= 0
-                ? tBudget('budget-distribution-performance-zero-total')
-                : tBudget('budget-distribution-performance-basis-alert', {
-                    total: formatPerformanceScoreValue(grandTotalPositivePerformanceScores),
-                    pool:
-                      distributionPool != null && distributionPool > 0
-                        ? formatCurrency(distributionPool, currencyCode)
-                        : '—'
-                  })}
-            </AlertDescription>
-          </Alert>
-        ) : null}
+      {isPerformanceMethod && sortedMembers.length > 0 && loading === false && performanceFallbackToEqual === false ? (
+        <Alert data-testid="manager-team-distribution-performance-basis-alert">
+          <AlertDescription>
+            {grandTotalPositivePerformanceScores <= 0
+              ? tBudget('budget-distribution-performance-zero-total')
+              : tBudget('budget-distribution-performance-basis-alert', {
+                  total: formatPerformanceScoreValue(grandTotalPositivePerformanceScores),
+                  pool:
+                    distributionPool != null && distributionPool > 0
+                      ? formatCurrency(distributionPool, currencyCode)
+                      : '—'
+                })}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        {sortedMembers.length > 0 && loading === false ? (
-          <>
-            <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border gba:min-w-0">
+      {sortedMembers.length > 0 && loading === false ? (
+        <>
+          <div
+            className="gba:min-w-0 gba:overflow-x-auto gba:rounded-md gba:border gba:border-border"
+            data-testid="manager-team-distribution-table-scroll"
+          >
+            <ul className="gba:min-w-[28rem] gba:divide-y gba:divide-border">
+              {!isCustom ? (
+                <li
+                  className={`${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
+                  data-testid="manager-team-distribution-standard-column-headers"
+                >
+                  <span>{tBudget('manager-team-distribution-col-employee')}</span>
+                  <span className="gba:text-right">{tBudget('budget-distribution-col-allocation')}</span>
+                  <span className="gba:text-right">{tBudget('budget-distribution-col-pool-share')}</span>
+                </li>
+              ) : null}
               {isCustom ? (
                 <li
                   className="gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-center gba:gap-x-4 gba:border-b gba:border-border gba:bg-muted/40 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground"
@@ -199,11 +199,11 @@ export function TeamCompensationEmployeeDistributionList({
                     className={
                       isCustom
                         ? 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
-                        : 'gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3'
+                        : `${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
                     }
                     data-testid={`manager-team-distribution-row-${member.employeeId}`}
                   >
-                    <div className={isCustom ? 'gba:min-w-0' : 'gba:min-w-0 gba:flex-1'}>
+                    <div className="gba:min-w-0">
                       <div className="gba:font-medium gba:text-foreground">{member.displayName}</div>
                       {member.jobPosition ? (
                         <div className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground">{member.jobPosition}</div>
@@ -237,7 +237,7 @@ export function TeamCompensationEmployeeDistributionList({
                         currencyCode={currencyCode}
                         amount={amount}
                         distributionPool={distributionPool}
-                        poolRemainingSequential={sequentialPoolRemainingByEmployeeId.get(member.employeeId) ?? null}
+                        customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
                         customBudget={customBudgetByEmployeeId[member.employeeId]}
                         onAmountRawChange={onCustomAmountRawChange}
                         onPercentRawChange={onCustomPercentRawChange}
@@ -245,54 +245,71 @@ export function TeamCompensationEmployeeDistributionList({
                         t={tBudget}
                       />
                     ) : (
-                      <span className="gba:flex gba:shrink-0 gba:flex-wrap gba:items-baseline gba:justify-end gba:gap-x-2 gba:text-right">
-                        <span
-                          className="gba:tabular-nums gba:text-foreground"
+                      <>
+                        <div
+                          className="gba:pt-0.5 gba:text-right gba:tabular-nums gba:font-medium gba:text-foreground"
                           data-testid={`manager-team-distribution-allocation-${member.employeeId}`}
                         >
                           {formatCurrency(amount, currencyCode)}
-                        </span>
-                        {poolPercentPoints === null ? null : (
-                          <span
-                            className="gba:text-sm gba:tabular-nums gba:text-muted-foreground"
-                            data-testid={`manager-team-distribution-pool-percent-${member.employeeId}`}
-                          >
-                            {tBudget('budget-distribution-allocation-pool-percent', {
-                              percent: poolPercentPoints
-                            })}
-                          </span>
-                        )}
-                      </span>
+                        </div>
+                        <div
+                          className="gba:pt-0.5 gba:text-right gba:tabular-nums gba:text-sm gba:text-muted-foreground"
+                          data-testid={`manager-team-distribution-pool-percent-${member.employeeId}`}
+                        >
+                          {poolPercentPoints == null
+                            ? '—'
+                            : tBudget('budget-distribution-allocation-pool-percent', {
+                                percent: poolPercentPoints
+                              })}
+                        </div>
+                      </>
                     )}
                   </li>
                 )
               })}
             </ul>
-            {showPagination ? (
-              <BudgetDistributionDepartmentsPagination
-                pageIndex={pageIndex}
-                totalPages={totalPages}
-                onPrev={goPrev}
-                onNext={goNext}
-                t={tBudget as (key: string, args?: Record<string, unknown>) => string}
-              />
-            ) : null}
-            {isCustom && poolForCustomContext != null && totalCustomAllocated > poolForCustomContext + 0.01 ? (
-              <div className="gba:pt-2" data-testid="manager-team-distribution-custom-exceeds">
-                <Alert data-testid="manager-team-distribution-custom-exceeds-pool-alert">
-                  <AlertDescription>
-                    {tBudget('budget-distribution-custom-exceeds-pool', {
-                      total: formatCurrency(totalCustomAllocated, currencyCode),
-                      pool: formatCurrency(poolForCustomContext, currencyCode),
-                      diff: formatCurrency(totalCustomAllocated - poolForCustomContext, currencyCode)
-                    })}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </CardContent>
+          </div>
+          {showPagination ? (
+            <BudgetDistributionDepartmentsPagination
+              pageIndex={pageIndex}
+              totalPages={totalPages}
+              onPrev={goPrev}
+              onNext={goNext}
+              t={tBudget as (key: string, args?: Record<string, unknown>) => string}
+            />
+          ) : null}
+          {isCustom && poolForCustomContext != null && totalCustomAllocated > poolForCustomContext + 0.01 ? (
+            <div className="gba:pt-2" data-testid="manager-team-distribution-custom-exceeds">
+              <Alert data-testid="manager-team-distribution-custom-exceeds-pool-alert">
+                <AlertDescription>
+                  {tBudget('budget-distribution-custom-exceeds-pool', {
+                    total: formatCurrency(totalCustomAllocated, currencyCode),
+                    pool: formatCurrency(poolForCustomContext, currencyCode),
+                    diff: formatCurrency(totalCustomAllocated - poolForCustomContext, currencyCode)
+                  })}
+                </AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
+
+  if (embedded) {
+    return (
+      <div className="gba:min-w-0" data-testid="manager-team-distribution-employee-list">
+        {listBody}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="gba:w-full" data-testid="manager-team-distribution-employee-list">
+      <CardHeader className="gba:flex gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-3 gba:space-y-0">
+        <CardTitle className="gba:text-base">{cardTitle}</CardTitle>
+      </CardHeader>
+      <CardContent className="gba:space-y-4">{listBody}</CardContent>
     </Card>
   )
 }

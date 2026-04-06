@@ -12,6 +12,7 @@ error-performance-scores = Leistungsbewertungen für Teammitglieder konnten nich
 error-salary-budget-title = Team-Gehaltsbudget konnte nicht geladen werden
 error-title = Etwas ist schiefgelaufen
 table-section-title = Teammitglieder
+manager-team-context-card-title = Teamvergütung
 budget-summary-total-available = Verfügbares Gesamtbudget
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Summiert Gehaltsbudgets für die OEs Ihrer Teammitglieder im neuesten Unternehmensbudgetplan, sofern Zeilen existieren (sonst OE Ihrer Position, falls Mitglieder keine OE haben).

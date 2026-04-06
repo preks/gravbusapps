@@ -23,8 +23,6 @@ export interface BudgetSetupPlanTableRow {
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
-  bonusBudgetAmount: number
-  bonusBudgetPercent: number
   companyBudgetStatus: string | null
   salaryBaseline: number | null
   currencyRef: string | null
@@ -50,8 +48,6 @@ export function buildBudgetSetupPlanTableRows(
         companyId: companyRow.companyId,
         salaryBudgetAmount: companyRow.salaryBudgetAmount,
         salaryBudgetPercent: companyRow.salaryBudgetPercent,
-        bonusBudgetAmount: companyRow.bonusBudgetAmount,
-        bonusBudgetPercent: companyRow.bonusBudgetPercent,
         companyBudgetStatus: companyRow.budgetPlanStatus || null,
         salaryBaseline: companyRow.currentTotalSalaryCost,
         currencyRef: companyRow.currencyRef,

@@ -13,15 +13,12 @@ import {
   type CompensationBudgetPlanCompanyRestPayload
 } from './createCompensationBudgetPlan'
 
-/** Row fields required to build a company-budget UPDATE payload (mirrors `CompensationBudgetPlanCompanyRow`). */
 export interface SaveCompensationBudgetPlanCompanyRowInput {
   id: string
   compensationBudgetPlanId: string
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
-  bonusBudgetAmount: number
-  bonusBudgetPercent: number
   budgetPlanStatus: string
   currentTotalSalaryCost: number
   currencyRef: string | null
@@ -30,23 +27,19 @@ export interface SaveCompensationBudgetPlanCompanyRowInput {
 
 export type CompensationBudgetPlanChangeMode = 'INSERT' | 'UPDATE'
 
-/** Insert/update a **compensation budget plan** (plan-level entity). */
 export interface SaveCompensationBudgetPlanRestBody {
   changeMode: CompensationBudgetPlanChangeMode
   compensationBudgetPlan: CompensationBudgetPlanCreatePayload
 }
 
 export interface CompensationBudgetPlanOrganizationalUnitRestPayload {
-  /** Present when {@link CompensationBudgetPlanChangeMode} is `UPDATE`. */
   id?: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: BudgetPlanStatusApi
-  /** `compensation_budget_plan_company.id` */
   compensationBudgetPlanCompany: string
-  /** Organizational unit UUID */
   organizationalUnit: string
 }
 
@@ -85,8 +78,8 @@ export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
       company: row.companyId,
       salaryBudgetAmount: row.salaryBudgetAmount,
       salaryBudgetPercent: row.salaryBudgetPercent,
-      bonusBudgetAmount: row.bonusBudgetAmount,
-      bonusBudgetPercent: row.bonusBudgetPercent,
+      bonusBudgetAmount: 0,
+      bonusBudgetPercent: 0,
       budgetPlanStatus: row.budgetPlanStatus as BudgetPlanStatusApi,
       currentTotalSalaryCost: row.currentTotalSalaryCost,
       currencyRef: row.currencyRef,
@@ -136,11 +129,8 @@ export interface CompensationBudgetPlanEmployeeRestPayload {
   budgetPlanStatus: BudgetPlanStatusApi
   submittedAt: string
   reviewNotes: string
-  /** `compensation_budget_plan_organizational_unit.id` */
   compensationBudgetPlanOrganizationalUnit: string
-  /** Employee UUID */
   employee: string
-  /** Submitting manager employee UUID */
   submittedByEmployee: string
 }
 

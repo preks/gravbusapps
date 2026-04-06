@@ -14,6 +14,32 @@ import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils
 import type { TranslateFn } from './budgetSetupDisplayUtils'
 import { buildBudgetSetupPlansFilterConfiguration } from './buildBudgetSetupPlansFilterConfiguration'
 
+function parseOptionalNumberRange(value: unknown): { min?: number; max?: number } | null {
+  if (value == null || typeof value !== 'object') {
+    return null
+  }
+  const o = value as { min?: unknown; max?: unknown }
+  const min = typeof o.min === 'number' && !Number.isNaN(o.min) ? o.min : undefined
+  const max = typeof o.max === 'number' && !Number.isNaN(o.max) ? o.max : undefined
+  if (min === undefined && max === undefined) {
+    return null
+  }
+  return { min, max }
+}
+
+function matchesNumberRange(value: number, range: { min?: number; max?: number } | null): boolean {
+  if (range == null) {
+    return true
+  }
+  if (range.min !== undefined && value < range.min) {
+    return false
+  }
+  if (range.max !== undefined && value > range.max) {
+    return false
+  }
+  return true
+}
+
 export function useBudgetSetupPlansTableModel(
   t: TranslateFn,
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
@@ -23,7 +49,10 @@ export function useBudgetSetupPlansTableModel(
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
+  const [selectedCompensationBudgetPlanIds, setSelectedCompensationBudgetPlanIds] = useState<string[]>([])
   const [selectedCompanyBudgetStatuses, setSelectedCompanyBudgetStatuses] = useState<string[]>([])
+  const [salaryAmountRange, setSalaryAmountRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [salaryPercentRange, setSalaryPercentRange] = useState<{ min?: number; max?: number } | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'companyBudgetStatus', desc: false }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS])
@@ -32,6 +61,16 @@ export function useBudgetSetupPlansTableModel(
     () => buildBudgetSetupPlanTableRows(companyBudgetPlanRows, selectedCompanyId, currencyCode, plans),
     [companyBudgetPlanRows, selectedCompanyId, currencyCode, plans]
   )
+
+  const budgetPlanOptions = useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const row of allRows) {
+      if (!byId.has(row.compensationBudgetPlanId)) {
+        byId.set(row.compensationBudgetPlanId, row.budgetPlanLabel)
+      }
+    }
+    return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => ({ id, label }))
+  }, [allRows])
 
   const companyBudgetStatusOptions = useMemo(() => {
     const ids = new Set<string>()
@@ -46,8 +85,8 @@ export function useBudgetSetupPlansTableModel(
   }, [allRows, t])
 
   const filterConfiguration = useMemo(
-    () => buildBudgetSetupPlansFilterConfiguration(t, companyBudgetStatusOptions),
-    [t, companyBudgetStatusOptions]
+    () => buildBudgetSetupPlansFilterConfiguration(t, budgetPlanOptions, companyBudgetStatusOptions),
+    [t, budgetPlanOptions, companyBudgetStatusOptions]
   )
 
   const filteredRows = useMemo(() => {
@@ -64,11 +103,14 @@ export function useBudgetSetupPlansTableModel(
           row.companyId.toLowerCase().includes(q) ||
           statusLabel.includes(q) ||
           String(row.salaryBudgetAmount).includes(q) ||
-          String(row.salaryBudgetPercent).includes(q) ||
-          String(row.bonusBudgetAmount).includes(q) ||
-          String(row.bonusBudgetPercent).includes(q)
+          String(row.salaryBudgetPercent).includes(q)
         )
       })
+    }
+
+    if (selectedCompensationBudgetPlanIds.length > 0) {
+      const planSet = new Set(selectedCompensationBudgetPlanIds)
+      list = list.filter(row => planSet.has(row.compensationBudgetPlanId))
     }
 
     if (selectedCompanyBudgetStatuses.length > 0) {
@@ -76,27 +118,69 @@ export function useBudgetSetupPlansTableModel(
       list = list.filter(row => row.companyBudgetStatus != null && set.has(row.companyBudgetStatus))
     }
 
+    if (salaryAmountRange != null) {
+      list = list.filter(row => matchesNumberRange(row.salaryBudgetAmount, salaryAmountRange))
+    }
+
+    if (salaryPercentRange != null) {
+      list = list.filter(row => matchesNumberRange(row.salaryBudgetPercent, salaryPercentRange))
+    }
+
     return list
-  }, [allRows, debouncedSearch, selectedCompanyBudgetStatuses, t])
+  }, [
+    allRows,
+    debouncedSearch,
+    selectedCompensationBudgetPlanIds,
+    selectedCompanyBudgetStatuses,
+    salaryAmountRange,
+    salaryPercentRange,
+    t
+  ])
 
   const hasActiveFilters = useMemo(
-    () => debouncedSearch.trim() !== '' || selectedCompanyBudgetStatuses.length > 0,
-    [debouncedSearch, selectedCompanyBudgetStatuses]
+    () =>
+      debouncedSearch.trim() !== '' ||
+      selectedCompensationBudgetPlanIds.length > 0 ||
+      selectedCompanyBudgetStatuses.length > 0 ||
+      salaryAmountRange != null ||
+      salaryPercentRange != null,
+    [
+      debouncedSearch,
+      selectedCompensationBudgetPlanIds,
+      selectedCompanyBudgetStatuses,
+      salaryAmountRange,
+      salaryPercentRange
+    ]
   )
 
   const emptyMessage = hasActiveFilters ? t('budget-setup-table-empty-filtered') : t('budget-setup-table-empty')
 
   const filtersObject = useMemo(() => {
     const obj: Record<string, unknown> = {}
+    if (selectedCompensationBudgetPlanIds.length > 0) {
+      obj.compensationBudgetPlanIds = selectedCompensationBudgetPlanIds
+    }
     if (selectedCompanyBudgetStatuses.length > 0) {
       obj.companyBudgetStatuses = selectedCompanyBudgetStatuses
     }
+    if (salaryAmountRange != null) {
+      obj.salaryBudgetAmount = { ...salaryAmountRange }
+    }
+    if (salaryPercentRange != null) {
+      obj.salaryBudgetPercent = { ...salaryPercentRange }
+    }
     return obj
-  }, [selectedCompanyBudgetStatuses])
+  }, [selectedCompensationBudgetPlanIds, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
+    const planIds = (filters.compensationBudgetPlanIds as string[] | undefined) ?? []
+    setSelectedCompensationBudgetPlanIds(planIds)
+
     const statuses = (filters.companyBudgetStatuses as string[] | undefined) ?? []
     setSelectedCompanyBudgetStatuses(statuses)
+
+    setSalaryAmountRange(parseOptionalNumberRange(filters.salaryBudgetAmount))
+    setSalaryPercentRange(parseOptionalNumberRange(filters.salaryBudgetPercent))
   }, [])
 
   const columns = useMemo(
@@ -118,8 +202,6 @@ export function useBudgetSetupPlansTableModel(
       { id: 'companyBudgetStatus', label: t('budget-setup-table-col-budget-plan-status') },
       { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
       { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') },
-      { id: 'bonusBudgetAmount', label: t('budget-setup-table-col-bonus-budget-amount') },
-      { id: 'bonusBudgetPercent', label: t('budget-setup-table-col-bonus-budget-percent') },
       { id: 'salaryBaseline', label: t('budget-setup-table-col-salary-baseline') }
     ],
     [t]
@@ -133,7 +215,14 @@ export function useBudgetSetupPlansTableModel(
 
   useEffect(() => {
     setPagination(p => ({ ...p, pageIndex: 0 }))
-  }, [debouncedSearch, selectedCompanyBudgetStatuses, sorting])
+  }, [
+    debouncedSearch,
+    selectedCompensationBudgetPlanIds,
+    selectedCompanyBudgetStatuses,
+    salaryAmountRange,
+    salaryPercentRange,
+    sorting
+  ])
 
   return {
     searchInput,

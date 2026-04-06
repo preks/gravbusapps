@@ -15,8 +15,6 @@ import {
 } from '@newwork/nw-design-system'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatCurrency } from '@/common/utils/numberFormatter'
-
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
@@ -29,8 +27,6 @@ import { useTeamMemberPerformanceScores } from './hooks/useTeamMemberPerformance
 
 import { useTeamMembersPipeline } from './hooks/useTeamMembersPipeline'
 import { useManagerTeamSalaryBudget } from './hooks/useManagerTeamSalaryBudget'
-
-import { TeamCompensationBudgetSummary } from './components/TeamCompensationBudgetSummary'
 
 import { TeamCompensationDistributionPanel } from './components/TeamCompensationDistributionPanel'
 
@@ -109,16 +105,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
   })
 
   const teamCurrencyCode = teamMembers[0]?.currency ?? 'EUR'
-
-  const totalBudgetDisplay = (() => {
-    if (salaryBudgetLoading || selectedCompanyId == null || employeeId == null) {
-      return undefined
-    }
-    if (totalSalaryBudget === null) {
-      return undefined
-    }
-    return formatCurrency(totalSalaryBudget, teamCurrencyCode)
-  })()
 
   const employeeIdsForPerformance = useMemo(() => [...new Set(teamMembers.map(m => m.employeeId))], [teamMembers])
 
@@ -233,7 +219,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
         data-testid="manager-compensation-data-body"
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
-          <TeamCompensationBudgetSummary totalBudgetDisplay={totalBudgetDisplay} />
           {salaryBudgetError ? (
             <Alert variant="destructive" data-testid="manager-compensation-salary-budget-error">
               <AlertTitle>{t('error-salary-budget-title')}</AlertTitle>

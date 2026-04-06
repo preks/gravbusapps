@@ -18,9 +18,9 @@ import {
   buildSaveCompensationBudgetPlanCompanyUpdateBody,
   saveCompensationBudgetPlanCompany,
   saveCompensationBudgetPlanOrganizationalUnit,
-  type CompensationBudgetPlanOrganizationalUnitRestPayload,
-  type SaveCompensationBudgetPlanCompanyRowInput
+  type CompensationBudgetPlanOrganizationalUnitRestPayload
 } from '../../../../api/saveCompensationBudgetPlan'
+import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
 import { mapDistributionMethodToApi } from '../../../../utils/mapDistributionMethodToApi'
 import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
 import type { CompensationBudgetPlanOrganizationalUnitRow } from '../../hooks/useBudgetDistributionOrgUnitBudget'
@@ -43,7 +43,7 @@ export interface BudgetDistributionDistributeDialogProps {
   allocationByOrgUnitId: ReadonlyMap<string, number>
   distributionPool: number | null
   currencyCode: string
-  companyBudgetRow: SaveCompensationBudgetPlanCompanyRowInput | null
+  companyBudgetRow: CompensationBudgetPlanCompanyRow | null
   selectedDistributionMethod: DistributionMethod
   onSaved: () => void | Promise<void>
 }

@@ -5,6 +5,7 @@ import type { CompanyOrganizationalUnit } from '@/common/data/orgchart/hooks/use
 import type { CustomBudgetInputMode, OrgUnitCustomBudgetInput } from './budgetDistributionCustomTypes'
 import { BudgetDistributionDepartmentsPagination } from './BudgetDistributionDepartmentsPagination'
 import { BudgetDistributionOrgUnitDepartmentRow } from './BudgetDistributionOrgUnitDepartmentRow'
+import { BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS } from './budgetDistributionDepartmentGrid'
 
 type BudgetDistributionTranslate = (key: string, args?: Record<string, string | number>) => string
 
@@ -23,7 +24,8 @@ export interface BudgetDistributionOrgUnitListPagedContentProps {
   distributionPool: number | null
   poolForCustomContext: number | null
   totalCustomAllocated: number
-  sequentialPoolRemainingByOrgUnitId: ReadonlyMap<string, number>
+  /** Custom mode: pool minus sum of all allocations (same for every row). */
+  customPoolUnallocatedGlobal: number | null
   customBudgetByOrgUnitId: Record<string, OrgUnitCustomBudgetInput>
   currencyCode: string
   onCustomAmountRawChange: (orgUnitId: string, value: string) => void
@@ -51,7 +53,7 @@ export function BudgetDistributionOrgUnitListPagedContent({
   distributionPool,
   poolForCustomContext,
   totalCustomAllocated,
-  sequentialPoolRemainingByOrgUnitId,
+  customPoolUnallocatedGlobal,
   customBudgetByOrgUnitId,
   currencyCode,
   onCustomAmountRawChange,
@@ -68,47 +70,62 @@ export function BudgetDistributionOrgUnitListPagedContent({
 
   return (
     <>
-      <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border gba:min-w-0">
-        {isCustom ? (
-          <li
-            className="gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-center gba:gap-x-4 gba:border-b gba:border-border gba:bg-muted/40 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground"
-            data-testid="budget-distribution-custom-column-headers"
-          >
-            <span>{t('budget-distribution-col-org-unit')}</span>
-            <span>{t('budget-distribution-custom-column-amount')}</span>
-            <span>{t('budget-distribution-custom-column-details')}</span>
-          </li>
-        ) : null}
-        {pagedDepartments.map(unit => {
-          const amount = allocationByOrgUnitId.get(unit.id) ?? 0
-          const headcount = headcountByOrgUnitId.get(unit.id) ?? 0
-          const unitSalaryCost = salaryCostByOrgUnitId.get(unit.id) ?? 0
-          const unitPerformanceSum = totalPerformanceScoreByOrgUnitId.get(unit.id) ?? 0
-          return (
-            <BudgetDistributionOrgUnitDepartmentRow
-              key={unit.id}
-              unit={unit}
-              isCustom={isCustom}
-              isSalaryCostMethod={isSalaryCostMethod}
-              isPerformanceMethod={isPerformanceMethod}
-              amount={amount}
-              distributionPool={distributionPool}
-              poolRemainingSequential={sequentialPoolRemainingByOrgUnitId.get(unit.id) ?? null}
-              headcount={headcount}
-              unitSalaryCost={unitSalaryCost}
-              unitPerformanceSum={unitPerformanceSum}
-              totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-              grandTotalPerformanceScore={grandTotalPerformanceScore}
-              currencyCode={currencyCode}
-              customBudget={customBudgetByOrgUnitId[unit.id]}
-              onCustomAmountRawChange={onCustomAmountRawChange}
-              onCustomPercentRawChange={onCustomPercentRawChange}
-              onCustomModeChange={onCustomModeChange}
-              t={t}
-            />
-          )
-        })}
-      </ul>
+      <div
+        className="gba:min-w-0 gba:overflow-x-auto gba:rounded-md gba:border gba:border-border"
+        data-testid="budget-distribution-departments-table-scroll"
+      >
+        <ul className="gba:min-w-[28rem] gba:divide-y gba:divide-border">
+          {!isCustom ? (
+            <li
+              className={`${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
+              data-testid="budget-distribution-standard-column-headers"
+            >
+              <span>{t('budget-distribution-col-org-unit')}</span>
+              <span className="gba:text-right">{t('budget-distribution-col-allocation')}</span>
+              <span className="gba:text-right">{t('budget-distribution-col-pool-share')}</span>
+            </li>
+          ) : null}
+          {isCustom ? (
+            <li
+              className="gba:sticky gba:top-0 gba:z-10 gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-center gba:gap-x-4 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground"
+              data-testid="budget-distribution-custom-column-headers"
+            >
+              <span>{t('budget-distribution-col-org-unit')}</span>
+              <span>{t('budget-distribution-custom-column-amount')}</span>
+              <span>{t('budget-distribution-custom-column-details')}</span>
+            </li>
+          ) : null}
+          {pagedDepartments.map(unit => {
+            const amount = allocationByOrgUnitId.get(unit.id) ?? 0
+            const headcount = headcountByOrgUnitId.get(unit.id) ?? 0
+            const unitSalaryCost = salaryCostByOrgUnitId.get(unit.id) ?? 0
+            const unitPerformanceSum = totalPerformanceScoreByOrgUnitId.get(unit.id) ?? 0
+            return (
+              <BudgetDistributionOrgUnitDepartmentRow
+                key={unit.id}
+                unit={unit}
+                isCustom={isCustom}
+                isSalaryCostMethod={isSalaryCostMethod}
+                isPerformanceMethod={isPerformanceMethod}
+                amount={amount}
+                distributionPool={distributionPool}
+                customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
+                headcount={headcount}
+                unitSalaryCost={unitSalaryCost}
+                unitPerformanceSum={unitPerformanceSum}
+                totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
+                grandTotalPerformanceScore={grandTotalPerformanceScore}
+                currencyCode={currencyCode}
+                customBudget={customBudgetByOrgUnitId[unit.id]}
+                onCustomAmountRawChange={onCustomAmountRawChange}
+                onCustomPercentRawChange={onCustomPercentRawChange}
+                onCustomModeChange={onCustomModeChange}
+                t={t}
+              />
+            )
+          })}
+        </ul>
+      </div>
       {showDepartmentPagination ? (
         <BudgetDistributionDepartmentsPagination
           pageIndex={departmentPageIndex}

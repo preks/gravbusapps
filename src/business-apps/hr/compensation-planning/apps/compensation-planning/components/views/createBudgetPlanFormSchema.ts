@@ -20,6 +20,13 @@ export interface ExistingBudgetPlanDateRange {
   endDate: string | null
 }
 
+/**
+ * Inclusive overlap on normalized ISO `YYYY-MM-DD` keys (lexicographic order matches calendar order).
+ */
+export function budgetPlanDateRangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart <= bEnd && bStart <= aEnd
+}
+
 export function buildCreateBudgetPlanFormSchema(
   t: (key: string) => string,
   options: { existingPlans: ReadonlyArray<ExistingBudgetPlanDateRange> }
@@ -42,10 +49,15 @@ export function buildCreateBudgetPlanFormSchema(
       if (start == null || end == null) {
         return
       }
-      const duplicate = existingPlans.some(
-        p => normalizeBudgetPlanDateKey(p.startDate) === start && normalizeBudgetPlanDateKey(p.endDate) === end
-      )
-      if (duplicate) {
+      const overlapsExisting = existingPlans.some(p => {
+        const pStart = normalizeBudgetPlanDateKey(p.startDate)
+        const pEnd = normalizeBudgetPlanDateKey(p.endDate)
+        if (pStart == null || pEnd == null) {
+          return false
+        }
+        return budgetPlanDateRangesOverlap(start, end, pStart, pEnd)
+      })
+      if (overlapsExisting) {
         ctx.addIssue({
           code: 'custom',
           message: t('budget-plan-form-duplicate-date-range'),

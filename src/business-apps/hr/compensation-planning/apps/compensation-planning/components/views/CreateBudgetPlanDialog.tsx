@@ -40,7 +40,7 @@ export interface CreateBudgetPlanDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   creating: boolean
-  /** Used to block a new plan with the same start/end dates as an existing plan. */
+  /** Used to block a new plan whose date range overlaps an existing plan (inclusive). */
   existingPlans: CompensationBudgetPlanRow[]
   onCreate: (input: InsertBudgetPlanInput) => Promise<string | null>
 }

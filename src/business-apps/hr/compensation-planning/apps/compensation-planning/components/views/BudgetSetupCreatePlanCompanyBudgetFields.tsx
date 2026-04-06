@@ -23,8 +23,8 @@ interface SyncedAmountPercentPairProps {
   control: Control<CreatePlanFormValues>
   setValue: UseFormSetValue<CreatePlanFormValues>
   baseline: number
-  amountName: 'salaryBudgetAmount' | 'bonusBudgetAmount'
-  percentName: 'salaryBudgetPercent' | 'bonusBudgetPercent'
+  amountName: 'salaryBudgetAmount'
+  percentName: 'salaryBudgetPercent'
   amountLabel: string
   percentLabel: string
   amountTestId: string
@@ -125,7 +125,7 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
         <span className="gba:font-medium gba:tabular-nums">{formatCurrency(annualSalaryCost, currencyCode)}</span>
       </div>
 
-      <p className="gba:text-sm gba:font-semibold">{t('budget-setup-create-plan-section-salary-bonus')}</p>
+      <p className="gba:text-sm gba:font-semibold">{t('budget-setup-create-plan-section-salary-budget')}</p>
 
       <SyncedAmountPercentPair
         control={control}
@@ -137,18 +137,6 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
         percentLabel={t('budget-setup-create-plan-salary-percent')}
         amountTestId="budget-setup-create-plan-salary-amount"
         percentTestId="budget-setup-create-plan-salary-percent"
-      />
-
-      <SyncedAmountPercentPair
-        control={control}
-        setValue={setValue}
-        baseline={annualSalaryCost}
-        amountName="bonusBudgetAmount"
-        percentName="bonusBudgetPercent"
-        amountLabel={t('budget-setup-create-plan-bonus-amount')}
-        percentLabel={t('budget-setup-create-plan-bonus-percent')}
-        amountTestId="budget-setup-create-plan-bonus-amount"
-        percentTestId="budget-setup-create-plan-bonus-percent"
       />
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">

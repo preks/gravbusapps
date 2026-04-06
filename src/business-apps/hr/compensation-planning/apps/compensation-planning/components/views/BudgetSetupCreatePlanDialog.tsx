@@ -106,8 +106,6 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
         companyId,
         salaryBudgetAmount: values.salaryBudgetAmount,
         salaryBudgetPercent: values.salaryBudgetPercent,
-        bonusBudgetAmount: values.bonusBudgetAmount,
-        bonusBudgetPercent: values.bonusBudgetPercent,
         currentTotalSalaryCost: annualSalaryCost,
         currencyRef: values.currencyRef.trim() === '' ? null : values.currencyRef.trim()
       }

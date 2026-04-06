@@ -20,10 +20,10 @@ export interface BudgetDistributionCustomOrgUnitInputsProps {
   amount: number
   distributionPool: number | null
   /**
-   * Remaining increase pool after cumulative allocations from the start of the department list through this row
-   * (inclusive). Null when there is no pool.
+   * Increase pool still unallocated after all departments’ custom amounts (order-independent).
+   * Null when there is no pool.
    */
-  poolRemainingSequential: number | null
+  customPoolUnallocatedGlobal: number | null
   customBudget: OrgUnitCustomBudgetInput | undefined
   onAmountRawChange: (orgUnitId: string, value: string) => void
   onPercentRawChange: (orgUnitId: string, value: string) => void
@@ -36,7 +36,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
   currencyCode,
   amount,
   distributionPool,
-  poolRemainingSequential,
+  customPoolUnallocatedGlobal,
   customBudget,
   onAmountRawChange,
   onPercentRawChange,
@@ -70,10 +70,10 @@ export function BudgetDistributionCustomOrgUnitInputs({
           })}
         </p>
       ) : null}
-      {poolRemainingSequential != null && Number.isFinite(poolRemainingSequential) ? (
+      {customPoolUnallocatedGlobal != null && Number.isFinite(customPoolUnallocatedGlobal) ? (
         <p data-testid={`budget-distribution-custom-pool-remaining-${orgUnitId}`}>
-          {t('budget-distribution-custom-pool-remaining-after-all', {
-            amount: formatCurrency(poolRemainingSequential, currencyCode)
+          {t('budget-distribution-custom-pool-unallocated-global', {
+            amount: formatCurrency(customPoolUnallocatedGlobal, currencyCode)
           })}
         </p>
       ) : null}
