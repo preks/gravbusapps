@@ -33,6 +33,7 @@ import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { formatTenureSinceHireDate } from '@/business-apps/hr/core/utils/formatTenureSinceHireDate'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -183,28 +184,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
-  const calculateTimeSince = () => {
-    if (!employee.workingCondition[0]?.hireDate) return ''
-
-    const hireDate = dayjs(employee.workingCondition[0].hireDate)
-    const now = dayjs()
-
-    const years = now.diff(hireDate, 'year')
-    const months = now.diff(hireDate, 'month') % 12
-
-    let result = ''
-
-    if (years > 0) {
-      result += `${years} ${years === 1 ? t('profile-header-year') : t('profile-header-years')}`
-    }
-
-    if (months > 0 || years === 0) {
-      if (years > 0) result += ' '
-      result += `${months} ${months === 1 ? t('profile-header-month') : t('profile-header-months')}`
-    }
-
-    return result
-  }
+  const calculateTimeSince = () =>
+    formatTenureSinceHireDate(employee.workingCondition[0]?.hireDate, {
+      year: t('profile-header-year'),
+      years: t('profile-header-years'),
+      month: t('profile-header-month'),
+      months: t('profile-header-months')
+    }) ?? ''
 
   const notAssigned = t('employee-record-not-assigned')
   const na = t('profile-header-na')
