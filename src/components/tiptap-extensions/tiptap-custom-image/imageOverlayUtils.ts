@@ -150,6 +150,38 @@ function resolveHorizontalAnchorStyle(
   }
 }
 
+function resolveParagraphAnchoredOverlayStyle(params: {
+  align: NonNullable<CustomImageAttributes['align']>
+  frameWidth: number
+  offsetX: number
+  offsetY: number
+  distanceLeft: number
+  distanceRight: number
+  mount: Pick<ImageOverlayMount, 'blockLeftInLayer' | 'blockTopInLayer' | 'blockWidth'>
+}): CSSProperties {
+  const { align, frameWidth, offsetX, offsetY, distanceLeft, distanceRight, mount } = params
+
+  if (align === 'center') {
+    return {
+      left: mount.blockLeftInLayer + mount.blockWidth / 2 + offsetX,
+      top: mount.blockTopInLayer + offsetY,
+      transform: 'translateX(-50%)'
+    }
+  }
+
+  if (align === 'right') {
+    return {
+      left: mount.blockLeftInLayer + mount.blockWidth - frameWidth - distanceRight + offsetX,
+      top: mount.blockTopInLayer + offsetY
+    }
+  }
+
+  return {
+    left: mount.blockLeftInLayer + distanceLeft + offsetX,
+    top: mount.blockTopInLayer + offsetY
+  }
+}
+
 export function resolveImageOverlayMount(params: {
   editorElement: HTMLElement
   anchorElement: HTMLElement
@@ -368,6 +400,7 @@ export function resolveImageOverlayFigureStyle(params: {
   const offsetY = params.attributes.offsetY ?? 0
   const distanceLeft = params.attributes.distanceLeft ?? 0
   const distanceRight = params.attributes.distanceRight ?? 0
+  const isParagraphAnchoredOverlay = params.layout.flowMode === 'overlay-anchor' && anchorMode !== 'fixed'
 
   return {
     margin: 0,
@@ -377,9 +410,21 @@ export function resolveImageOverlayFigureStyle(params: {
     maxWidth: '100%',
     textAlign: align,
     position: 'absolute',
-    top: anchorMode === 'fixed' ? offsetY : params.mount.anchorTop + offsetY,
     zIndex: resolveOverlayFigureZIndex(wrapMode, params.attributes.zIndex),
     pointerEvents: resolveOverlayFigurePointerEvents(wrapMode),
-    ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
+    ...(isParagraphAnchoredOverlay
+      ? resolveParagraphAnchoredOverlayStyle({
+          align,
+          frameWidth: params.layout.frameWidth,
+          offsetX,
+          offsetY,
+          distanceLeft,
+          distanceRight,
+          mount: params.mount
+        })
+      : {
+          top: anchorMode === 'fixed' ? offsetY : params.mount.anchorTop + offsetY,
+          ...resolveHorizontalAnchorStyle(align, offsetX, distanceLeft, distanceRight)
+        })
   }
 }

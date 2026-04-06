@@ -29,6 +29,10 @@ describe('imageOverlayUtils', () => {
         anchorTop: 80,
         anchorWidth: 120,
         anchorHeight: 90,
+        anchorLeftInLayer: 160,
+        anchorTopInLayer: 80,
+        blockLeftInLayer: 0,
+        blockTopInLayer: 0,
         blockTop: 0,
         blockLeft: 0,
         blockWidth: 0,
@@ -62,6 +66,10 @@ describe('imageOverlayUtils', () => {
         anchorTop: 40,
         anchorWidth: 0,
         anchorHeight: 0,
+        anchorLeftInLayer: 0,
+        anchorTopInLayer: 40,
+        blockLeftInLayer: 0,
+        blockTopInLayer: 0,
         blockTop: 0,
         blockLeft: 0,
         blockWidth: 0,
@@ -94,6 +102,10 @@ describe('imageOverlayUtils', () => {
         anchorTop: 40,
         anchorWidth: 0,
         anchorHeight: 0,
+        anchorLeftInLayer: 0,
+        anchorTopInLayer: 40,
+        blockLeftInLayer: 0,
+        blockTopInLayer: 0,
         blockTop: 0,
         blockLeft: 0,
         blockWidth: 0,
@@ -127,6 +139,10 @@ describe('imageOverlayUtils', () => {
         anchorTop: 92,
         anchorWidth: 0,
         anchorHeight: 0,
+        anchorLeftInLayer: 100,
+        anchorTopInLayer: 92,
+        blockLeftInLayer: 40,
+        blockTopInLayer: 24,
         blockTop: 24,
         blockLeft: 40,
         blockWidth: 280,
@@ -137,5 +153,90 @@ describe('imageOverlayUtils', () => {
 
     expect(style.left).toBe(110)
     expect(style.top).toBe(28)
+  })
+
+  it('anchors move-with-text behind-text images to the paragraph width instead of the page layer', () => {
+    const style = resolveImageOverlayFigureStyle({
+      layout: {
+        wrapMode: 'behind',
+        align: 'right',
+        anchorMode: 'move-with-text',
+        frameWidth: 120,
+        figureLeft: 0,
+        figureTop: 0,
+        flowMode: 'overlay-anchor',
+        layoutWidth: 120
+      },
+      attributes: {
+        align: 'right',
+        anchorMode: 'move-with-text',
+        offsetX: 8,
+        offsetY: 6,
+        distanceRight: 12
+      },
+      mount: {
+        layer: document.createElement('div'),
+        pageNumber: 1,
+        anchorLeft: 380,
+        anchorTop: 24,
+        anchorWidth: 600,
+        anchorHeight: 18,
+        anchorLeftInLayer: 380,
+        anchorTopInLayer: 24,
+        blockLeftInLayer: 380,
+        blockTopInLayer: 24,
+        blockTop: 24,
+        blockLeft: 380,
+        blockWidth: 600,
+        wrapperOffsetLeft: 0,
+        wrapperOffsetTop: 0
+      }
+    })
+
+    expect(style.left).toBe(856)
+    expect(style.top).toBe(30)
+    expect(style.right).toBeUndefined()
+  })
+
+  it('centers move-with-text front-text images within the paragraph anchor', () => {
+    const style = resolveImageOverlayFigureStyle({
+      layout: {
+        wrapMode: 'front',
+        align: 'center',
+        anchorMode: 'move-with-text',
+        frameWidth: 120,
+        figureLeft: 0,
+        figureTop: 0,
+        flowMode: 'overlay-anchor',
+        layoutWidth: 120
+      },
+      attributes: {
+        align: 'center',
+        anchorMode: 'move-with-text',
+        offsetX: -10,
+        offsetY: 4
+      },
+      mount: {
+        layer: document.createElement('div'),
+        pageNumber: 1,
+        anchorLeft: 200,
+        anchorTop: 32,
+        anchorWidth: 500,
+        anchorHeight: 18,
+        anchorLeftInLayer: 200,
+        anchorTopInLayer: 32,
+        blockLeftInLayer: 200,
+        blockTopInLayer: 32,
+        blockTop: 32,
+        blockLeft: 200,
+        blockWidth: 500,
+        wrapperOffsetLeft: 0,
+        wrapperOffsetTop: 0
+      }
+    })
+
+    expect(style.left).toBe(440)
+    expect(style.top).toBe(36)
+    expect(style.transform).toBe('translateX(-50%)')
   })
 })

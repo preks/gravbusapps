@@ -42,9 +42,12 @@ export {
   resolveLegacyImagePreset,
   resolveImageWrapPreset,
   resolveSquareWrapTextSideSelection,
+  resolveWordStyleWrapPreset,
+  resolveWordStyleWrapPresetUpdate,
   resolveWordWrapTextSide,
   type LegacyImageWrapPreset,
   type ImageFloatingSide,
+  type WordStyleWrapPreset,
   type WordWrapTextSide
 } from './wrapUtils'
 export {

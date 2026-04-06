@@ -43,13 +43,11 @@ import {
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import {
-  IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS,
-  IMAGE_WRAP_UI_OPTIONS,
-  resolveImageWrapPreset,
-  resolveSquareWrapTextSideSelection,
-  resolveWordWrapTextSide,
+  resolveWordStyleWrapPreset,
+  resolveWordStyleWrapPresetUpdate,
+  type CustomImageAttributes,
   type ImageAlignment,
-  type ImageWrapMode
+  type WordStyleWrapPreset
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import type { SetTableStyleOptions } from '@/components/tiptap-extensions/tiptap-custom-tables/types'
 import { isAllowedHref } from '../../utils/linkUtils'
@@ -78,6 +76,14 @@ const IMAGE_ALIGN_OPTIONS: ReadonlyArray<{
   { key: 'editor-toolbar-align-left', value: 'left', icon: <AlignLeft className={MENU_ICON_CLASS} /> },
   { key: 'editor-toolbar-align-center', value: 'center', icon: <AlignCenter className={MENU_ICON_CLASS} /> },
   { key: 'editor-toolbar-align-right', value: 'right', icon: <AlignRight className={MENU_ICON_CLASS} /> }
+]
+
+const WORD_WRAP_OPTIONS: ReadonlyArray<{ key: string; value: WordStyleWrapPreset }> = [
+  { key: 'image-wrap-inline', value: 'inline' },
+  { key: 'image-wrap-square-left', value: 'square-left' },
+  { key: 'image-wrap-square-right', value: 'square-right' },
+  { key: 'image-wrap-behind', value: 'behind-text' },
+  { key: 'image-wrap-in-front', value: 'in-front-of-text' }
 ]
 
 type TableCanCommands = ReturnType<TiptapEditor['can']> & {
@@ -339,13 +345,12 @@ export function DocumentContextMenu({
     contextMenuState.linkHref && isAllowedHref(contextMenuState.linkHref) ? contextMenuState.linkHref : null
   const canCommands = editor?.can() as TableCanCommands | undefined
   const tableLayoutEnabled = canCommands?.setTableStyleOptions({ styleHeaderRow: true }) ?? false
+  const currentImageWrapAttrs = (contextMenuState.imageSelection?.attrs ?? {}) as CustomImageAttributes
   const selectedImageAlign = contextMenuState.imageSelection?.attrs.align ?? 'left'
-  const selectedImageWrap = (contextMenuState.imageSelection?.attrs.wrapMode as ImageWrapMode | undefined) ?? 'inline'
-  const selectedImageWrapTextSide = resolveWordWrapTextSide({
-    wrapMode: selectedImageWrap,
+  const selectedImageWrap = resolveWordStyleWrapPreset({
+    wrapMode: currentImageWrapAttrs.wrapMode,
     align: selectedImageAlign as ImageAlignment,
-    wrapTextSide:
-      (contextMenuState.imageSelection?.attrs.wrapTextSide as 'bothSides' | 'left' | 'right' | undefined) ?? null
+    wrapTextSide: currentImageWrapAttrs.wrapTextSide
   })
   const tableStyleState = buildTableStyleState(
     (editor?.getAttributes('table') as Record<string, unknown> | undefined) ?? {}
@@ -456,14 +461,14 @@ export function DocumentContextMenu({
                 <MenuLabel icon={<Type className={MENU_ICON_CLASS} />}>{t('image-context-wrap-text')}</MenuLabel>
               </CompactContextMenuSubTrigger>
               <CompactContextMenuSubContent>
-                {IMAGE_WRAP_UI_OPTIONS.map(option => (
+                {WORD_WRAP_OPTIONS.map(option => (
                   <CompactContextMenuItem
                     key={option.value}
                     onSelect={() =>
                       updateContextMenuImageAttrs(
                         editor,
                         contextMenuState.imageSelection,
-                        resolveImageWrapPreset(option.value, contextMenuState.imageSelection?.attrs ?? {})
+                        resolveWordStyleWrapPresetUpdate(option.value, currentImageWrapAttrs)
                       )
                     }
                     data-testid={`${testId}-image-wrap-${option.value}`}
@@ -481,36 +486,6 @@ export function DocumentContextMenu({
                     </MenuLabel>
                   </CompactContextMenuItem>
                 ))}
-                {selectedImageWrap === 'square'
-                  ? IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS.map(option => (
-                      <CompactContextMenuItem
-                        key={`wrap-text-side-${option.value}`}
-                        onSelect={() =>
-                          updateContextMenuImageAttrs(
-                            editor,
-                            contextMenuState.imageSelection,
-                            resolveSquareWrapTextSideSelection(
-                              option.value,
-                              contextMenuState.imageSelection?.attrs ?? {}
-                            )
-                          )
-                        }
-                        data-testid={`${testId}-image-wrap-text-side-${option.value}`}
-                      >
-                        <MenuLabel
-                          icon={
-                            selectedImageWrapTextSide === option.value ? (
-                              <Check className={MENU_ICON_CLASS} />
-                            ) : (
-                              <Type className={MENU_ICON_CLASS} />
-                            )
-                          }
-                        >
-                          {t(option.key)}
-                        </MenuLabel>
-                      </CompactContextMenuItem>
-                    ))
-                  : null}
               </CompactContextMenuSubContent>
             </ContextMenuSub>
             <CompactContextMenuItem onSelect={onOpenImageSidebar} data-testid={`${testId}-image-format-picture`}>

@@ -722,6 +722,8 @@ image-context-spacing = Distanță față de text
 
 image-context-wrap-text = Înfășurare text
 image-wrap-inline = În linie cu textul
+image-wrap-square-left = Pătrat la stânga
+image-wrap-square-right = Pătrat la dreapta
 image-wrap-square = Pătrat
 image-wrap-tight = Strâns
 image-wrap-through = Prin

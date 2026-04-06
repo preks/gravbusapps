@@ -722,6 +722,8 @@ image-context-spacing = Abstand zum Text
 
 image-context-wrap-text = Textumbruch
 image-wrap-inline = Mit Text in Zeile
+image-wrap-square-left = Quadrat links
+image-wrap-square-right = Quadrat rechts
 image-wrap-square = Quadrat
 image-wrap-tight = Eng
 image-wrap-through = Durch

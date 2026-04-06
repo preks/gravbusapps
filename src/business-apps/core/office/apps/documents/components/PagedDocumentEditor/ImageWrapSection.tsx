@@ -5,19 +5,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   cn,
   useTranslation
 } from '@newwork/nw-design-system'
 import {
-  IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS,
-  IMAGE_WRAP_UI_OPTIONS,
-  resolveImageWrapPreset,
-  resolveSquareWrapTextSideSelection,
   type CustomImageAttributes,
   type ImageWrapMode,
-  type ImageWrapTextSide
+  type ImageWrapTextSide,
+  type WordStyleWrapPreset,
+  resolveWordStyleWrapPreset,
+  resolveWordStyleWrapPresetUpdate
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import translations from '../../_i18n'
 import { ImageSidebarSection } from './ImageSidebarSection'
@@ -34,25 +32,18 @@ interface ImageWrapSectionProps {
 }
 
 type WrapOptionConfig = {
-  value: ImageWrapMode
+  value: WordStyleWrapPreset
+  key: string
   icon: (props: WrapPreviewProps) => JSX.Element
 }
 
-const WRAP_OPTION_GROUPS: ReadonlyArray<ReadonlyArray<ImageWrapMode>> = [
-  ['inline'],
-  ['square', 'tight', 'through', 'top-bottom'],
-  ['behind', 'front']
+const WORD_WRAP_OPTIONS: ReadonlyArray<WrapOptionConfig> = [
+  { value: 'inline', key: 'image-wrap-inline', icon: InlineWrapPreview },
+  { value: 'square-left', key: 'image-wrap-square-left', icon: SquareLeftWrapPreview },
+  { value: 'square-right', key: 'image-wrap-square-right', icon: SquareRightWrapPreview },
+  { value: 'behind-text', key: 'image-wrap-behind', icon: BehindTextWrapPreview },
+  { value: 'in-front-of-text', key: 'image-wrap-in-front', icon: InFrontTextWrapPreview }
 ]
-
-const WRAP_OPTION_CONFIG: Readonly<Record<ImageWrapMode, WrapOptionConfig>> = {
-  inline: { value: 'inline', icon: InlineWrapPreview },
-  square: { value: 'square', icon: SquareWrapPreview },
-  tight: { value: 'tight', icon: TightWrapPreview },
-  through: { value: 'through', icon: ThroughWrapPreview },
-  'top-bottom': { value: 'top-bottom', icon: TopBottomWrapPreview },
-  behind: { value: 'behind', icon: BehindTextWrapPreview },
-  front: { value: 'front', icon: InFrontTextWrapPreview }
-}
 
 function InlineWrapPreview(props: WrapPreviewProps) {
   return (
@@ -66,71 +57,30 @@ function InlineWrapPreview(props: WrapPreviewProps) {
   )
 }
 
-function SquareWrapPreview(props: WrapPreviewProps) {
+function SquareLeftWrapPreview(props: WrapPreviewProps) {
   return (
     <svg viewBox="0 0 48 32" fill="none" aria-hidden {...props}>
       <path d="M4 8H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 14H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M34 14H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 20H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M34 20H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 14H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M24 14H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 20H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M24 20H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M4 26H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <rect x="16" y="10" width="16" height="12" rx="2" fill="currentColor" />
+      <rect x="10" y="10" width="12" height="12" rx="2" fill="currentColor" />
     </svg>
   )
 }
 
-function TightWrapPreview(props: WrapPreviewProps) {
+function SquareRightWrapPreview(props: WrapPreviewProps) {
   return (
     <svg viewBox="0 0 48 32" fill="none" aria-hidden {...props}>
       <path d="M4 8H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 14H24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M40 14H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M4 20H24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M40 20H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path d="M4 26H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 14C8 14 10 13 12 12C14 11 16 10 19 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M29 10C32 10 34 11 36 12C38 13 40 14 44 14"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path d="M4 20C8 20 10 21 12 22C14 23 16 24 19 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M29 24C32 24 34 23 36 22C38 21 40 20 44 20"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <rect x="19" y="10" width="10" height="14" rx="2" fill="currentColor" />
-    </svg>
-  )
-}
-
-function ThroughWrapPreview(props: WrapPreviewProps) {
-  return (
-    <svg viewBox="0 0 48 32" fill="none" aria-hidden {...props}>
-      <path d="M4 8H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 26H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 13C8 13 10 12 12 11C14 10 16 9 19 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M29 9C32 9 34 10 36 11C38 12 40 13 44 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 16H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M29 16H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 23C8 23 10 22 12 21C14 20 16 19 19 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M29 19C32 19 34 20 36 21C38 22 40 23 44 23"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <rect x="19" y="9" width="10" height="14" rx="2" fill="currentColor" />
-    </svg>
-  )
-}
-
-function TopBottomWrapPreview(props: WrapPreviewProps) {
-  return (
-    <svg viewBox="0 0 48 32" fill="none" aria-hidden {...props}>
-      <path d="M4 8H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M4 26H44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <rect x="16" y="10" width="16" height="12" rx="2" fill="currentColor" />
+      <rect x="26" y="10" width="12" height="12" rx="2" fill="currentColor" />
     </svg>
   )
 }
@@ -209,8 +159,12 @@ export function ImageWrapSection({
   testId
 }: Readonly<ImageWrapSectionProps>) {
   const { t } = useTranslation(translations)
-  const selectedOption = IMAGE_WRAP_UI_OPTIONS.find(option => option.value === wrapMode) ?? IMAGE_WRAP_UI_OPTIONS[0]
-  const selectedConfig = WRAP_OPTION_CONFIG[selectedOption.value]
+  const selectedPreset = resolveWordStyleWrapPreset({
+    wrapMode,
+    align: attrs.align,
+    wrapTextSide
+  })
+  const selectedOption = WORD_WRAP_OPTIONS.find(option => option.value === selectedPreset) ?? WORD_WRAP_OPTIONS[0]
 
   return (
     <ImageSidebarSection title={t('image-context-wrap-text')} data-testid={`${testId}-wrap-section`}>
@@ -225,7 +179,7 @@ export function ImageWrapSection({
           >
             <WrapChoiceContent
               active
-              icon={selectedConfig.icon}
+              icon={selectedOption.icon}
               label={t(selectedOption.key)}
               showSelectionIndicator={false}
             />
@@ -238,56 +192,18 @@ export function ImageWrapSection({
           className="gba:w-80 gba:max-w-full gba:p-2"
           data-document-image-sidebar-dropdown="true"
         >
-          {WRAP_OPTION_GROUPS.map((group, groupIndex) => (
-            <div key={group.join('-')}>
-              {group.map(value => {
-                const option = IMAGE_WRAP_UI_OPTIONS.find(candidate => candidate.value === value)
-
-                if (!option) {
-                  return null
-                }
-
-                const config = WRAP_OPTION_CONFIG[value]
-
-                return (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onSelect={() => updateImageAttrs(resolveImageWrapPreset(option.value, attrs))}
-                    className="gba:mb-1 gba:rounded-xl gba:border gba:border-border/60 gba:bg-background gba:p-3 focus:gba:bg-accent"
-                    data-testid={`${testId}-wrap-${option.value}`}
-                  >
-                    <WrapChoiceContent active={wrapMode === option.value} icon={config.icon} label={t(option.key)} />
-                  </DropdownMenuItem>
-                )
-              })}
-              {groupIndex < WRAP_OPTION_GROUPS.length - 1 ? <DropdownMenuSeparator className="gba:my-2" /> : null}
-            </div>
+          {WORD_WRAP_OPTIONS.map(option => (
+            <DropdownMenuItem
+              key={option.value}
+              onSelect={() => updateImageAttrs(resolveWordStyleWrapPresetUpdate(option.value, attrs))}
+              className="gba:mb-1 gba:rounded-xl gba:border gba:border-border/60 gba:bg-background gba:p-3 focus:gba:bg-accent"
+              data-testid={`${testId}-wrap-${option.value}`}
+            >
+              <WrapChoiceContent active={selectedPreset === option.value} icon={option.icon} label={t(option.key)} />
+            </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {wrapMode === 'square' ? (
-        <div className="gba:space-y-2 gba:rounded-xl gba:border gba:border-border/60 gba:bg-background gba:p-3">
-          <span className="gba:block gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground">
-            {t('image-wrap-text-side')}
-          </span>
-          <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
-            {IMAGE_WRAP_TEXT_SIDE_UI_OPTIONS.map(option => (
-              <Button
-                key={option.value}
-                variant={wrapTextSide === option.value ? 'secondary' : 'outline'}
-                size="sm"
-                className="gba:h-auto gba:min-h-10 gba:whitespace-normal gba:px-2.5 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:leading-snug"
-                onMouseDown={onChoiceMouseDown}
-                onClick={() => updateImageAttrs(resolveSquareWrapTextSideSelection(option.value, attrs))}
-                data-testid={`${testId}-wrap-text-side-${option.value}`}
-              >
-                {t(option.key)}
-              </Button>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </ImageSidebarSection>
   )
 }

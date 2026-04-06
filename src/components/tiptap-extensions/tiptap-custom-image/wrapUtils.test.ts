@@ -3,6 +3,8 @@ import {
   resolveFloatingSide,
   resolveImageWrapPreset,
   resolveSquareWrapTextSideSelection,
+  resolveWordStyleWrapPreset,
+  resolveWordStyleWrapPresetUpdate,
   resolveWordWrapTextSide
 } from './wrapUtils'
 
@@ -61,5 +63,28 @@ describe('wrapUtils', () => {
     expect(resolveWordWrapTextSide({ wrapMode: 'square', align: 'left', wrapTextSide: 'right' })).toBe('right')
     expect(resolveWordWrapTextSide({ wrapMode: 'square', align: 'right', wrapTextSide: null })).toBe('left')
     expect(resolveWordWrapTextSide({ wrapMode: 'tight', align: 'right' })).toBe('bothSides')
+  })
+
+  it('maps Word-style wrap presets to the current layout model', () => {
+    expect(resolveWordStyleWrapPreset({ wrapMode: 'inline', align: 'left', wrapTextSide: null })).toBe('inline')
+    expect(resolveWordStyleWrapPreset({ wrapMode: 'square', align: 'left', wrapTextSide: 'right' })).toBe('square-left')
+    expect(resolveWordStyleWrapPreset({ wrapMode: 'tight', align: 'right', wrapTextSide: 'bothSides' })).toBe(
+      'square-right'
+    )
+    expect(resolveWordStyleWrapPreset({ wrapMode: 'behind', align: 'center', wrapTextSide: null })).toBe('behind-text')
+
+    expect(resolveWordStyleWrapPresetUpdate('square-left', { align: 'right', anchorMode: 'inline' })).toMatchObject({
+      wrapMode: 'square',
+      wrapTextSide: 'right',
+      align: 'left',
+      anchorMode: 'move-with-text'
+    })
+    expect(
+      resolveWordStyleWrapPresetUpdate('in-front-of-text', { align: 'center', anchorMode: 'fixed' })
+    ).toMatchObject({
+      wrapMode: 'front',
+      allowOverlap: true,
+      anchorMode: 'fixed'
+    })
   })
 })

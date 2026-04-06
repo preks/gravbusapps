@@ -17,6 +17,7 @@ import type {
 export type ImageFloatingSide = 'left' | 'right'
 export type WordWrapTextSide = ImageWrapTextSide
 export type LegacyImageWrapPreset = 'inline' | 'floating-left' | 'floating-right' | 'behind-text' | 'in-front-of-text'
+export type WordStyleWrapPreset = 'inline' | 'square-left' | 'square-right' | 'behind-text' | 'in-front-of-text'
 
 function isLegacyImageWrapMode(value: unknown): value is LegacyImageWrapMode {
   return typeof value === 'string' && value in LEGACY_IMAGE_WRAP_MODE_TO_TEXT_SIDE
@@ -158,6 +159,42 @@ export function resolveLegacyImagePreset(
     case 'inline':
     default:
       return resolveImageWrapPreset('inline', currentAttributes)
+  }
+}
+
+export function resolveWordStyleWrapPreset(
+  attributes: Pick<CustomImageAttributes, 'wrapMode' | 'align' | 'wrapTextSide'>
+): WordStyleWrapPreset {
+  const wrapMode = normalizeImageWrapMode(attributes.wrapMode, 'inline')
+
+  switch (wrapMode) {
+    case 'inline':
+      return 'inline'
+    case 'behind':
+      return 'behind-text'
+    case 'front':
+      return 'in-front-of-text'
+    default:
+      return resolveFloatingSide(attributes) === 'right' ? 'square-right' : 'square-left'
+  }
+}
+
+export function resolveWordStyleWrapPresetUpdate(
+  preset: WordStyleWrapPreset,
+  currentAttributes: Pick<CustomImageAttributes, 'align' | 'anchorMode' | 'wrapMode' | 'wrapTextSide'> = {}
+): Partial<CustomImageAttributes> {
+  switch (preset) {
+    case 'square-left':
+      return resolveLegacyImagePreset('floating-left', currentAttributes)
+    case 'square-right':
+      return resolveLegacyImagePreset('floating-right', currentAttributes)
+    case 'behind-text':
+      return resolveLegacyImagePreset('behind-text', currentAttributes)
+    case 'in-front-of-text':
+      return resolveLegacyImagePreset('in-front-of-text', currentAttributes)
+    case 'inline':
+    default:
+      return resolveLegacyImagePreset('inline', currentAttributes)
   }
 }
 

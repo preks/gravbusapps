@@ -308,17 +308,17 @@ describe('CustomImageView', () => {
 
     const paragraph = screen.getByTestId('anchor-paragraph')
     const anchor = screen.getByTestId('document-editor-image-anchor')
-    setRect(paragraph, { top: 24, bottom: 120, left: 0, right: 320 })
-    setRect(anchor, { top: 92, bottom: 92, left: 0, right: 0 })
+    setRect(paragraph, { top: 24, bottom: 120, left: 40, right: 280 })
+    setRect(anchor, { top: 92, bottom: 92, left: 220, right: 220 })
     editorDom.style.setProperty('--overlay-refresh', '4')
 
     await waitFor(() => {
       expect(behindLayer.querySelector('[data-testid="document-editor-image-figure"]')).not.toBeNull()
     })
 
-    expect((behindLayer.querySelector('[data-testid="document-editor-image-figure"]') as HTMLElement).style.top).toBe(
-      '24px'
-    )
+    const behindFigure = behindLayer.querySelector('[data-testid="document-editor-image-figure"]') as HTMLElement
+    expect(behindFigure.style.top).toBe('24px')
+    expect(behindFigure.style.left).toBe('40px')
   })
 
   it('does not crash when overlay images render before the editor view mounts', () => {

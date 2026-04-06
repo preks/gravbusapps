@@ -725,6 +725,8 @@ image-context-spacing = Distance from text
 # Wrap text (Word-style)
 image-context-wrap-text = Wrap text
 image-wrap-inline = In line with text
+image-wrap-square-left = Square left
+image-wrap-square-right = Square right
 image-wrap-square = Square
 image-wrap-tight = Tight
 image-wrap-through = Through
