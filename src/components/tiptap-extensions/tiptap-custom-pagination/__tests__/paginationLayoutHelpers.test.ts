@@ -526,6 +526,49 @@ describe('getPageBodyBands', () => {
     ])
   })
 
+  it('splits a page body band around projected square images mounted inside the body layer', () => {
+    const editorDom = document.createElement('div')
+    const bodyLayer = document.createElement('div')
+    const projectedFigure = document.createElement('div')
+
+    bodyLayer.className = 'rm-page-body-layer'
+    bodyLayer.dataset.rmPageNumber = '1'
+    projectedFigure.dataset.imageExclusionMode = 'square'
+    projectedFigure.dataset.imageWrapTextSide = 'left'
+    projectedFigure.dataset.imageWrapMode = 'square'
+    projectedFigure.dataset.imagePageAnchor = 'true'
+
+    setRect(bodyLayer, { top: 80, bottom: 260, left: 20, right: 160 })
+    setRect(projectedFigure, { top: 120, bottom: 180, left: 110, right: 160 })
+
+    bodyLayer.appendChild(projectedFigure)
+    editorDom.appendChild(bodyLayer)
+
+    expect(getPageBodyBands(editorDom)).toEqual([
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 160,
+        top: 80,
+        bottom: 120
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 110,
+        top: 120,
+        bottom: 180
+      },
+      {
+        pageNumber: 1,
+        left: 20,
+        right: 160,
+        top: 180,
+        bottom: 260
+      }
+    ])
+  })
+
   it('splits a page body band into both-side text lanes for through exclusions', () => {
     const editorDom = document.createElement('div')
     const bodyLayer = document.createElement('div')

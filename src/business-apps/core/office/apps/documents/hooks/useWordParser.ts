@@ -44,6 +44,22 @@ const STYLE_MAP = [
   "p[style-name='List Paragraph'] => li:fresh"
 ].join('\n')
 
+function containsImgTag(html: string): boolean {
+  return /<img\b/i.test(html)
+}
+
+function containsCustomImageMarkup(html: string): boolean {
+  return /\bdata-node-type=(?:"|')custom-image(?:"|')/i.test(html)
+}
+
+async function readWordImageAsBase64(image: mammoth.Image): Promise<string> {
+  try {
+    return await image.readAsBase64String()
+  } catch {
+    return image.read('base64')
+  }
+}
+
 /**
  * Hook for parsing Word documents
  */
@@ -133,8 +149,12 @@ export function useWordParser(): UseWordParserResult {
               styleMap: STYLE_MAP,
               convertImage: mammoth.images.imgElement(async image => {
                 try {
-                  const imageBuffer = await image.read('base64')
+                  const imageBuffer = await readWordImageAsBase64(image)
                   const contentType = image.contentType || 'image/png'
+
+                  if (!imageBuffer) {
+                    throw new Error('Embedded DOCX image could not be encoded')
+                  }
 
                   collectedImages.push({
                     contentType,
@@ -148,7 +168,7 @@ export function useWordParser(): UseWordParserResult {
                   }
                 } catch (err) {
                   console.warn('[WordParser] Error converting image:', err)
-                  return { src: '' }
+                  throw new Error('Failed to extract an embedded image from the DOCX file')
                 }
               })
             }
@@ -170,6 +190,18 @@ export function useWordParser(): UseWordParserResult {
           .replace(/<table>/g, '<table class="document-table">')
           .replace(/<ul>/g, '<ul class="document-list">')
           .replace(/<ol>/g, '<ol class="document-list">')
+
+        console.info('[WordParser] DOCX import image diagnostics', {
+          collectedImageCount: collectedImages.length,
+          ooxmlLayoutCount: imageLayouts.length,
+          mammothHtmlHasImgTag: containsImgTag(result.value),
+          finalHtmlHasImgTag: containsImgTag(html),
+          finalHtmlHasCustomImageMarkup: containsCustomImageMarkup(html),
+          mammothMessages: result.messages.map(message => ({
+            type: message.type,
+            message: message.message
+          }))
+        })
 
         const parsedDocument: ParsedWordDocument = {
           fileName: file.name,
