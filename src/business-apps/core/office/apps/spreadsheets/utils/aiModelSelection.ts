@@ -2,7 +2,7 @@
  * Single place that chooses Prompt Manager AI for the spreadsheet app.
  *
  * Requirement: every spreadsheet feature that calls Prompt Manager `execute` must use
- * service **azure-openai** and model **gpt-oss-120b** (model `name` must match the Azure deployment name).
+ * service **azure-openai** and model **openai/gpt-oss-120b** (model `name` in Prompt Manager).
  *
  * Callers: AI analyse menu (analyze / review / chat / formula), analytics insights & summary,
  * `useSpreadsheetAI`, collection Excel summary, RunSummarizeWithAI — all use `selectPreferredModel`.
@@ -11,7 +11,7 @@ import type { PromptManagerClient, AIModelODM } from '@/common/network/ai/prompt
 import { getPromptManagerDocumentId } from './promptManagerModelId'
 
 const PREFERRED_SERVICE = 'azure-openai'
-const PREFERRED_MODEL = 'gpt-oss-120b'
+const PREFERRED_MODEL = 'openai/gpt-oss-120b'
 
 /**
  * Resolve the only allowed Prompt Manager model for spreadsheet AI flows.
@@ -55,7 +55,9 @@ export async function selectPreferredModel(promptClient: PromptManagerClient): P
     )
   }
 
-  const match = models.find(m => m.service.id === preferredServiceId && m.name.toLowerCase() === PREFERRED_MODEL)
+  const match = models.find(
+    m => m.service.id === preferredServiceId && m.name.toLowerCase() === PREFERRED_MODEL.toLowerCase()
+  )
 
   if (!match) {
     throw new Error(
