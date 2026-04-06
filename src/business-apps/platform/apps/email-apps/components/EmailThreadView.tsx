@@ -21,6 +21,7 @@ interface EmailThreadViewProps {
   accessToken?: string
   /** Reader’s selected message — used for AI suggestion “create” flows */
   primaryMessage?: EmailMessage | null
+  initiatorUserId?: string
   'data-testid'?: string
 }
 
@@ -125,6 +126,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
   messages,
   accessToken,
   primaryMessage,
+  initiatorUserId,
   'data-testid': testId = 'email-thread'
 }) => {
   const { t } = useTranslation(translations)
@@ -162,6 +164,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
           messageCount={sorted.length}
           accessToken={accessToken}
           primaryMessage={primaryMessage ?? undefined}
+          initiatorUserId={initiatorUserId}
           onJumpToMessageIndex={jumpToMessageIndex}
           data-testid={`${testId}-ai-summary`}
         />

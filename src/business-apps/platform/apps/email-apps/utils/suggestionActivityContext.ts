@@ -1,5 +1,12 @@
 /**
  * Build AppAction contextData for “create from AI suggestion” flows (manual CRM activity pattern).
+ *
+ * Optional backend / contract (summarizer output): for Blink and flow_engine quick tasks, prefer
+ * `metadata.assigneeUserId` (or `assignedUserId` / comma-separated `assigneeUserIds`) so the client
+ * does not rely on directory search from free-text `assignee`. For richer Blink inbox links, emit
+ * `metadata.entityType`, `entityId`, `entityName`, and a stable `entityDisplayUrl` (e.g. deep link
+ * to this message in the email app) — see `parseAssigneeUserIdsFromMetadata` and quick-task entity
+ * fields in `EmailSuggestionCreateAction`.
  */
 
 import type { EmailSummarizeSuggestion, EmailMessage } from '../types'

@@ -391,6 +391,21 @@ email-suggestion-create-dialog-title = Create activity from suggestion
 email-suggestion-create-dialog-description = Review the draft. Nothing is saved until you finish the flow.
 email-suggestion-create-confirm = Continue
 email-suggestion-create-cancel = Cancel
+email-suggestion-create-cta-quick-task = Create task
+email-suggestion-create-dialog-title-quick-task = Create task from suggestion
+email-suggestion-create-dialog-description-quick-task = Choose assignees. The task is created when you confirm.
+email-suggestion-create-assignee-label = Assign to
+email-suggestion-create-assignee-search-placeholder = Search employees…
+email-suggestion-create-assignee-loading = Searching…
+email-suggestion-create-assignee-empty = No matches. Try another name.
+email-suggestion-create-assignee-load-more = Load more
+email-suggestion-create-assignee-remove = Remove assignee
+email-suggestion-create-quick-task-success = Task created
+email-suggestion-create-quick-task-error = Could not create the task. Try again.
+email-suggestion-create-quick-task-missing-initiator = Your account could not be determined. Refresh or contact support.
+email-suggestion-create-quick-task-missing-assignee = Select at least one assignee.
+email-suggestion-create-quick-task-hint-no-initiator = Tasks need a signed-in user context. Try again after the app finishes loading.
+email-suggestion-create-quick-task-submitting = Creating…
 
 # Email thread view
 reader-thread-messages = { $count } message(s) in this conversation

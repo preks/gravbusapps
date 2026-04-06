@@ -397,6 +397,21 @@ email-suggestion-create-dialog-title = Aktivität aus Vorschlag anlegen
 email-suggestion-create-dialog-description = Prüfen Sie den Entwurf. Es wird nichts gespeichert, bis Sie den Vorgang abschließen.
 email-suggestion-create-confirm = Weiter
 email-suggestion-create-cancel = Abbrechen
+email-suggestion-create-cta-quick-task = Aufgabe anlegen
+email-suggestion-create-dialog-title-quick-task = Aufgabe aus Vorschlag anlegen
+email-suggestion-create-dialog-description-quick-task = Wählen Sie Beauftragte. Die Aufgabe wird nach Bestätigung erstellt.
+email-suggestion-create-assignee-label = Zuweisen an
+email-suggestion-create-assignee-search-placeholder = Mitarbeitende suchen…
+email-suggestion-create-assignee-loading = Suche…
+email-suggestion-create-assignee-empty = Keine Treffer. Anderen Namen versuchen.
+email-suggestion-create-assignee-load-more = Mehr laden
+email-suggestion-create-assignee-remove = Zuweisung entfernen
+email-suggestion-create-quick-task-success = Aufgabe erstellt
+email-suggestion-create-quick-task-error = Aufgabe konnte nicht erstellt werden. Bitte erneut versuchen.
+email-suggestion-create-quick-task-missing-initiator = Ihr Konto konnte nicht ermittelt werden. Bitte aktualisieren oder Support kontaktieren.
+email-suggestion-create-quick-task-missing-assignee = Bitte mindestens eine Person auswählen.
+email-suggestion-create-quick-task-hint-no-initiator = Aufgaben benötigen einen angemeldeten Benutzerkontext. Versuchen Sie es erneut, wenn die App geladen ist.
+email-suggestion-create-quick-task-submitting = Wird erstellt…
 
 # Pagination/Admin consent additions
 provider-admin-consent-help = Wenn Benutzer „Admin-Genehmigung erforderlich" sehen, kann ein Admin diesen Link öffnen, um die konfigurierten Bereiche im Mandanten zu genehmigen.

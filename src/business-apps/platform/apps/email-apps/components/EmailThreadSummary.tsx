@@ -23,6 +23,7 @@ interface EmailThreadSummaryProps {
   messageCount: number
   accessToken?: string
   primaryMessage?: EmailMessage
+  initiatorUserId?: string
   onJumpToMessageIndex?: (index: number) => void
   'data-testid'?: string
 }
@@ -32,6 +33,7 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
   messageCount,
   accessToken,
   primaryMessage,
+  initiatorUserId,
   onJumpToMessageIndex,
   'data-testid': testId = 'email-thread-summary'
 }) => {
@@ -206,7 +208,8 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
                     message: primaryMessage,
                     accessToken,
                     noSubjectLabel: t('reader-no-subject'),
-                    threadId
+                    threadId,
+                    initiatorUserId
                   }
                 : undefined
             }

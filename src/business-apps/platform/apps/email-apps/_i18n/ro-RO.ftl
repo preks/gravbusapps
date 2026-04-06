@@ -397,6 +397,21 @@ email-suggestion-create-dialog-title = Creează activitate din sugestie
 email-suggestion-create-dialog-description = Verificați schița. Nimic nu este salvat până finalizați fluxul.
 email-suggestion-create-confirm = Continuă
 email-suggestion-create-cancel = Anulează
+email-suggestion-create-cta-quick-task = Creează sarcină
+email-suggestion-create-dialog-title-quick-task = Creează sarcină din sugestie
+email-suggestion-create-dialog-description-quick-task = Alege responsabili. Sarcina se creează la confirmare.
+email-suggestion-create-assignee-label = Atribuie către
+email-suggestion-create-assignee-search-placeholder = Caută colegi…
+email-suggestion-create-assignee-loading = Se caută…
+email-suggestion-create-assignee-empty = Niciun rezultat. Încearcă alt nume.
+email-suggestion-create-assignee-load-more = Încarcă mai mult
+email-suggestion-create-assignee-remove = Elimină responsabil
+email-suggestion-create-quick-task-success = Sarcina a fost creată
+email-suggestion-create-quick-task-error = Nu s-a putut crea sarcina. Încearcă din nou.
+email-suggestion-create-quick-task-missing-initiator = Contul tău nu a putut fi determinat. Reîncarcă sau contactează suportul.
+email-suggestion-create-quick-task-missing-assignee = Selectează cel puțin un responsabil.
+email-suggestion-create-quick-task-hint-no-initiator = Sarcinile necesită un utilizator autentificat. Încearcă din nou după ce aplicația s-a încărcat.
+email-suggestion-create-quick-task-submitting = Se creează…
 
 # Pagination/Admin consent additions
 provider-admin-consent-help = Dacă utilizatorii văd „Aprobare admin necesară", un admin poate deschide acest link pentru consimțământ.

@@ -9,16 +9,20 @@ import type { EmailSummarizeSuggestion, EmailMessage } from '../types'
 import { stableEmailSuggestionKey } from '../utils/emailSummarizeSuggestionUtils'
 import { EmailSummarizeSuggestionItem } from './EmailSummarizeSuggestionItem'
 
+export interface EmailSummarizeSuggestionsCreateActionContext {
+  message: EmailMessage
+  accessToken: string
+  noSubjectLabel: string
+  threadId?: string
+  /** Platform user id (e.g. `userInfo.id`) for custom-flow-engine quick tasks */
+  initiatorUserId?: string
+}
+
 export interface EmailSummarizeSuggestionsProps {
   suggestions: EmailSummarizeSuggestion[]
   variant: 'thread' | 'crm' | 'reader'
   onJumpToMessageIndex?: (index: number) => void
-  createActionContext?: {
-    message: EmailMessage
-    accessToken: string
-    noSubjectLabel: string
-    threadId?: string
-  }
+  createActionContext?: EmailSummarizeSuggestionsCreateActionContext
   'data-testid'?: string
 }
 

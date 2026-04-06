@@ -5,7 +5,8 @@
 import React, { useState } from 'react'
 import { Badge, Button, Tooltip, TooltipContent, TooltipTrigger, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import type { EmailSummarizeSuggestion, EmailMessage } from '../types'
+import type { EmailSummarizeSuggestion } from '../types'
+import type { EmailSummarizeSuggestionsCreateActionContext } from './EmailSummarizeSuggestions'
 import { formatCompactDate } from '../utils/emailDisplayUtils'
 import { formatSuggestionConfidence, stableEmailSuggestionKey } from '../utils/emailSummarizeSuggestionUtils'
 import { isSuggestionConfidentEnough } from '../utils/suggestionActivityContext'
@@ -82,12 +83,7 @@ export interface EmailSummarizeSuggestionItemProps {
   evidenceClass: string
   showConfidence: boolean
   onJumpToMessageIndex?: (index: number) => void
-  createActionContext?: {
-    message: EmailMessage
-    accessToken: string
-    noSubjectLabel: string
-    threadId?: string
-  }
+  createActionContext?: EmailSummarizeSuggestionsCreateActionContext
 }
 
 export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItemProps> = ({
@@ -222,6 +218,7 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
             accessToken={createActionContext.accessToken}
             noSubjectLabel={createActionContext.noSubjectLabel}
             threadId={createActionContext.threadId}
+            initiatorUserId={createActionContext.initiatorUserId}
             variant={variant}
             data-testid={`${testId}-create`}
           />

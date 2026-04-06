@@ -15,12 +15,14 @@ import type { EmailMessage, EmailSummarizeSuggestion } from '../../types'
 interface EmailMessageAiInsightsProps {
   message: EmailMessage
   accessToken: string
+  initiatorUserId?: string
   'data-testid'?: string
 }
 
 export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
   message,
   accessToken,
+  initiatorUserId,
   'data-testid': testId = 'email-message-ai-insights'
 }) => {
   const messageId = message.id
@@ -129,7 +131,8 @@ export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
             createActionContext={{
               message,
               accessToken,
-              noSubjectLabel: t('reader-no-subject')
+              noSubjectLabel: t('reader-no-subject'),
+              initiatorUserId
             }}
             data-testid={`${testId}-suggestions`}
           />

@@ -34,6 +34,7 @@ interface EmailCrmBookingProps {
   accessToken: string
   activeAccount?: EmailAccount | null
   employeeId?: string
+  initiatorUserId?: string
   'data-testid'?: string
 }
 
@@ -59,6 +60,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   accessToken,
   activeAccount,
   employeeId,
+  initiatorUserId,
   'data-testid': testId = 'email-crm-booking'
 }) => {
   const { t } = useTranslation(translations)
@@ -187,6 +189,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                 message,
                 accessToken,
                 noSubjectLabel: t('reader-no-subject'),
+                initiatorUserId,
                 ...(isThread && threadId ? { threadId } : {})
               }}
               data-testid={`${testId}-suggestions`}

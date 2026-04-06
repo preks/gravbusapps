@@ -12,6 +12,7 @@ interface EmailReaderSingleMessageViewProps {
   downloadingAttId: string | null
   onDownloadAttachment: (messageId: string, attachmentId: string) => Promise<void>
   accessToken?: string
+  initiatorUserId?: string
   t: (key: string, vars?: Record<string, string | number>) => string
   testId: string
 }
@@ -22,6 +23,7 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
   downloadingAttId,
   onDownloadAttachment,
   accessToken,
+  initiatorUserId,
   t,
   testId
 }) => {
@@ -73,7 +75,12 @@ export const EmailReaderSingleMessageView: React.FC<EmailReaderSingleMessageView
       />
 
       {accessToken ? (
-        <EmailMessageAiInsights message={message} accessToken={accessToken} data-testid={`${testId}-ai-insights`} />
+        <EmailMessageAiInsights
+          message={message}
+          accessToken={accessToken}
+          initiatorUserId={initiatorUserId}
+          data-testid={`${testId}-ai-insights`}
+        />
       ) : null}
     </>
   )

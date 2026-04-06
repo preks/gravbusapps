@@ -30,6 +30,8 @@ interface EmailReaderProps {
   accessToken?: string
   activeAccount?: EmailAccount | null
   employeeId?: string
+  /** Platform user id for AI suggestion quick tasks (e.g. hub `userInfo.id`) */
+  initiatorUserId?: string
   /** Conversation / thread view toggle (controlled by parent) */
   threadEnabled?: boolean
   onToggleThreadView?: () => void
@@ -49,6 +51,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   accessToken,
   activeAccount,
   employeeId,
+  initiatorUserId,
   threadEnabled = false,
   onToggleThreadView,
   'data-testid': testId = 'email-reader'
@@ -231,6 +234,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             messages={threadMessages}
             accessToken={accessToken}
             primaryMessage={message ?? undefined}
+            initiatorUserId={initiatorUserId}
             data-testid={`${testId}-thread`}
           />
         ) : (
@@ -240,6 +244,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             downloadingAttId={downloadingAttId}
             onDownloadAttachment={handleDownloadAttachment}
             accessToken={accessToken}
+            initiatorUserId={initiatorUserId}
             t={t}
             testId={testId}
           />
@@ -254,6 +259,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
           accessToken={accessToken}
           activeAccount={activeAccount}
           employeeId={employeeId}
+          initiatorUserId={initiatorUserId}
           data-testid={`${testId}-crm-booking`}
         />
       )}
