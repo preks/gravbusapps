@@ -9,14 +9,7 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import {
-  CalendarBlankIcon,
-  ChartBarIcon,
-  GearIcon,
-  ListChecksIcon,
-  StackIcon,
-  TreeStructureIcon
-} from '@phosphor-icons/react'
+import { CalendarBlankIcon, ChartBarIcon, GearIcon, ListChecksIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
@@ -190,7 +183,6 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
   return (
     <PageLayout
-      headerIcon={StackIcon}
       headerTitle={t('dashboard-title')}
       headerDescription={t('dashboard-subtitle')}
       // PageHeader defaults onBack to history.back(); null hides the back control.

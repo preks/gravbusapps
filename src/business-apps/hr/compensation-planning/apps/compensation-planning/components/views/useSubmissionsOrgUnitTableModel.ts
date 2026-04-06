@@ -33,7 +33,9 @@ export function useSubmissionsOrgUnitTableModel(
         ids.add(row.budgetPlanStatus)
       }
     }
-    return [...ids].sort().map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
+    return [...ids]
+      .sort((a, b) => a.localeCompare(b))
+      .map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
   }, [sourceRows, t])
 
   const filterConfiguration = useMemo(

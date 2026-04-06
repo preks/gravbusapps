@@ -145,7 +145,7 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
     bonusBudgetAmount: input.bonusBudgetType === 'absolute' ? input.bonusBudgetValue : 0,
     bonusBudgetPercent: input.bonusBudgetType === 'percentage' ? input.bonusBudgetValue : 0,
     currentTotalSalaryCost: input.currentTotalSalaryCost,
-    ...(input.currencyRef !== undefined ? { currencyRef: input.currencyRef } : {})
+    ...(input.currencyRef === undefined ? {} : { currencyRef: input.currencyRef })
   }
 }
 

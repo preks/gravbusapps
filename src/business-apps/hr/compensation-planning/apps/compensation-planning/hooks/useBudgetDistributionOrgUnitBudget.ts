@@ -7,6 +7,7 @@ import {
   LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
+import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from '../../../utils/graphqlUnknownToString'
 import type { CompensationBudgetPlanCompanyRow, CompensationBudgetPlanListItem } from './useBudgetSetupForCompany'
 import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 
@@ -72,18 +73,18 @@ function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPl
 
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
   return {
-    id: String(raw.id ?? ''),
-    compensationBudgetPlanId: String(raw.compensationBudgetPlanId ?? ''),
-    companyId: String(raw.companyId ?? ''),
+    id: graphqlUnknownToString(raw.id),
+    compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
+    companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
-    budgetPlanStatus: String(raw.budgetPlanStatus ?? ''),
+    budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
     currentTotalSalaryCost: num(raw.currentTotalSalaryCost),
-    distributionMethod: String(raw.distributionMethod ?? ''),
+    distributionMethod: graphqlUnknownToString(raw.distributionMethod),
     headcount: num(raw.headcount),
-    currencyRef: raw.currencyRef == null ? null : String(raw.currencyRef)
+    currencyRef: graphqlUnknownToStringOrNull(raw.currencyRef)
   }
 }
 
@@ -131,22 +132,13 @@ function mapGraphqlOrgUnitRow(
   }
 }
 
-/** Stable client-only id for org units that have no `compensation_budget_plan_organizational_unit` row yet. */
-export const PENDING_ORG_UNIT_ROW_PREFIX = 'pending-org-unit:'
-
-export function isPendingCompensationBudgetPlanOrgUnitRowId(rowId: string): boolean {
-  return rowId.startsWith(PENDING_ORG_UNIT_ROW_PREFIX)
-}
-
 /**
- * Ensures every organizational unit of the company appears in the table: existing API rows keep their data;
- * missing units get zeroed placeholder rows so the list matches the company org chart.
+ * Orders API org-unit budget rows by company org chart and fills display names.
+ * Rows without a matching company OU are appended (e.g. stale structure data).
  */
 function mergeOrgUnitBudgetRowsWithCompanyOrgUnits(
   apiRows: CompensationBudgetPlanOrganizationalUnitRow[],
-  companyOrgUnits: CompanyOrganizationalUnit[],
-  companyBudgetRowId: string,
-  compensationBudgetPlanId: string
+  companyOrgUnits: CompanyOrganizationalUnit[]
 ): CompensationBudgetPlanOrganizationalUnitRow[] {
   if (companyOrgUnits.length === 0) {
     return apiRows
@@ -165,19 +157,6 @@ function mergeOrgUnitBudgetRowsWithCompanyOrgUnits(
       merged.push({
         ...existing,
         organizationalUnitName: existing.organizationalUnitName ?? u.name
-      })
-    } else {
-      merged.push({
-        id: `${PENDING_ORG_UNIT_ROW_PREFIX}${u.id}`,
-        compensationBudgetPlanId,
-        compensationBudgetPlanCompanyId: companyBudgetRowId,
-        organizationalUnitId: u.id,
-        salaryBudgetAmount: 0,
-        salaryBudgetPercent: 0,
-        bonusBudgetAmount: 0,
-        bonusBudgetPercent: 0,
-        budgetPlanStatus: '',
-        organizationalUnitName: u.name
       })
     }
   }
@@ -325,21 +304,11 @@ export function useBudgetDistributionOrgUnitBudget(
   )
 
   const rowsForDisplay = useMemo(() => {
-    const companyBudgetId = selectedDistributionCompanyBudgetId
-    if (!companyBudgetId || companyOrgUnits.length === 0) {
+    if (!selectedDistributionCompanyBudgetId || companyOrgUnits.length === 0) {
       return rowsWithOrgUnitNames
     }
-    const selectedOption = companyBudgetPlanOptions.find(o => o.id === companyBudgetId)
-    if (!selectedOption) {
-      return rowsWithOrgUnitNames
-    }
-    return mergeOrgUnitBudgetRowsWithCompanyOrgUnits(
-      rowsWithOrgUnitNames,
-      companyOrgUnits,
-      companyBudgetId,
-      selectedOption.compensationBudgetPlanId
-    )
-  }, [rowsWithOrgUnitNames, companyOrgUnits, selectedDistributionCompanyBudgetId, companyBudgetPlanOptions])
+    return mergeOrgUnitBudgetRowsWithCompanyOrgUnits(rowsWithOrgUnitNames, companyOrgUnits)
+  }, [rowsWithOrgUnitNames, companyOrgUnits, selectedDistributionCompanyBudgetId])
 
   const selectedCompanyBudgetRow = useMemo(
     () => companyBudgetRows.find(r => r.id === selectedDistributionCompanyBudgetId) ?? null,

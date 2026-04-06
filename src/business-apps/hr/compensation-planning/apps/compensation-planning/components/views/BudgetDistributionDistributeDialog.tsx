@@ -24,7 +24,6 @@ import {
 import { mapDistributionMethodToApi } from '../../../../utils/mapDistributionMethodToApi'
 import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
 import type { CompensationBudgetPlanOrganizationalUnitRow } from '../../hooks/useBudgetDistributionOrgUnitBudget'
-import { isPendingCompensationBudgetPlanOrgUnitRowId } from '../../hooks/useBudgetDistributionOrgUnitBudget'
 import translations from '../../_i18n'
 
 function percentOfPool(amount: number, pool: number): number {
@@ -62,7 +61,7 @@ export function BudgetDistributionDistributeDialog({
   companyBudgetRow,
   selectedDistributionMethod,
   onSaved
-}: BudgetDistributionDistributeDialogProps) {
+}: Readonly<BudgetDistributionDistributeDialogProps>) {
   const { t } = useTranslation(translations)
   const [selectedOuIds, setSelectedOuIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
@@ -135,7 +134,7 @@ export function BudgetDistributionDistributeDialog({
         const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
         const salaryBudgetAmount = roundMoney2(rawAmount)
         const salaryBudgetPercent = percentOfPool(salaryBudgetAmount, distributionPool)
-        const isInsert = row == null || isPendingCompensationBudgetPlanOrgUnitRowId(row.id)
+        const isInsert = row == null
 
         const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
           salaryBudgetAmount,
@@ -223,11 +222,11 @@ export function BudgetDistributionDistributeDialog({
           </Button>
         </div>
 
-        {!poolOk ? (
+        {poolOk ? null : (
           <p className="gba:text-sm gba:text-destructive" data-testid="budget-distribution-distribute-pool-warning">
             {t('budget-distribution-distribute-no-pool')}
           </p>
-        ) : null}
+        )}
 
         {errorMessage ? (
           <p className="gba:text-sm gba:text-destructive" data-testid="budget-distribution-distribute-error-message">
@@ -253,7 +252,9 @@ export function BudgetDistributionDistributeDialog({
                   <p className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">{ou.name}</p>
                   <p className="gba:text-xs gba:text-muted-foreground">
                     {formatCurrency(roundMoney2(amount), currencyCode)}
-                    {pct != null ? ` · ${t('budget-distribution-distribute-percent-of-pool', { percent: pct })}` : ''}
+                    {typeof pct === 'number'
+                      ? ` · ${t('budget-distribution-distribute-percent-of-pool', { percent: pct })}`
+                      : ''}
                   </p>
                 </div>
               </li>

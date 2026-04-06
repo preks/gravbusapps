@@ -189,7 +189,7 @@ function BudgetCategoryBlock({
   typeName,
   valueName,
   form
-}: BudgetCategoryBlockProps) {
+}: Readonly<BudgetCategoryBlockProps>) {
   const bType = form.watch(typeName) as BudgetType
   const bValue = form.watch(valueName) as number
   const resolved = resolveAbsoluteBudget(bType, bValue, baselineAmount)

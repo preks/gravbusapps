@@ -41,7 +41,7 @@ function SyncedAmountPercentPair({
   percentLabel,
   amountTestId,
   percentTestId
-}: SyncedAmountPercentPairProps) {
+}: Readonly<SyncedAmountPercentPairProps>) {
   return (
     <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">
       <FormField
@@ -109,7 +109,7 @@ export interface BudgetSetupCreatePlanCompanyBudgetFieldsProps {
   t: (key: string) => string
 }
 
-export const BudgetSetupCreatePlanCompanyBudgetFields: React.FC<BudgetSetupCreatePlanCompanyBudgetFieldsProps> = ({
+export const BudgetSetupCreatePlanCompanyBudgetFields = ({
   control,
   setValue,
   annualSalaryCost,
@@ -117,7 +117,7 @@ export const BudgetSetupCreatePlanCompanyBudgetFields: React.FC<BudgetSetupCreat
   currencyOptions = [],
   loadingCurrencies = false,
   t
-}) => {
+}: Readonly<BudgetSetupCreatePlanCompanyBudgetFieldsProps>) => {
   return (
     <div className="gba:space-y-4" data-testid="budget-setup-create-plan-company-budget-fields">
       <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:text-sm">

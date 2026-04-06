@@ -14,8 +14,6 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 
-import { UsersIcon } from '@phosphor-icons/react'
-
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 
@@ -280,7 +278,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   return (
     <PageLayout
-      headerIcon={UsersIcon}
       headerTitle={t('title')}
       headerDescription={t('subtitle')}
       onBack={null as unknown as (() => void) | undefined}

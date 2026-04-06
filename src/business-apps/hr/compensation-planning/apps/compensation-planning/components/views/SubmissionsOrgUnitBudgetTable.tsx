@@ -18,7 +18,7 @@ export function SubmissionsOrgUnitBudgetTable({
   error,
   hasCompanyBudgetRows,
   toolbarSecondary
-}: SubmissionsOrgUnitBudgetTableProps) {
+}: Readonly<SubmissionsOrgUnitBudgetTableProps>) {
   const { t } = useTranslation(translations)
   const {
     searchInput,

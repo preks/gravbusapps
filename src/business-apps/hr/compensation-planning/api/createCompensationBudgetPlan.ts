@@ -13,8 +13,6 @@ import {
   CREATE_COMPENSATION_BUDGET_PLAN_PATH
 } from './compensationBudgetRestConfig'
 
-export { CREATE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH, CREATE_COMPENSATION_BUDGET_PLAN_PATH }
-
 export interface CompensationBudgetPlanCreatePayload {
   name: string
   description: string
@@ -70,34 +68,35 @@ export interface CreateCompensationBudgetPlanCompanyRestBody {
   compensationBudgetPlanCompany: CompensationBudgetPlanCompanyRestPayload
 }
 
+function readStringId(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+
+/** Reads `id` or nested `compensationBudgetPlan.id` from a REST-shaped object. */
+function extractPlanIdFromRecord(rec: Record<string, unknown>): string | null {
+  const direct = readStringId(rec.id)
+  if (direct) {
+    return direct
+  }
+  const plan = rec.compensationBudgetPlan
+  if (plan && typeof plan === 'object') {
+    return readStringId((plan as Record<string, unknown>).id)
+  }
+  return null
+}
+
 export function extractCreatedCompensationBudgetPlanId(response: unknown): string | null {
   if (response == null || typeof response !== 'object') {
     return null
   }
   const r = response as Record<string, unknown>
-  if (typeof r.id === 'string') {
-    return r.id
-  }
-  const plan = r.compensationBudgetPlan
-  if (plan && typeof plan === 'object') {
-    const rid = (plan as Record<string, unknown>).id
-    if (typeof rid === 'string') {
-      return rid
-    }
+  const fromRoot = extractPlanIdFromRecord(r)
+  if (fromRoot) {
+    return fromRoot
   }
   const data = r.data
   if (data && typeof data === 'object') {
-    const d = data as Record<string, unknown>
-    if (typeof d.id === 'string') {
-      return d.id
-    }
-    const nested = d.compensationBudgetPlan
-    if (nested && typeof nested === 'object') {
-      const nid = (nested as Record<string, unknown>).id
-      if (typeof nid === 'string') {
-        return nid
-      }
-    }
+    return extractPlanIdFromRecord(data as Record<string, unknown>)
   }
   return null
 }

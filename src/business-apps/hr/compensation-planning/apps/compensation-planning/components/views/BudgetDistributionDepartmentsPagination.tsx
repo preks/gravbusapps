@@ -15,7 +15,7 @@ export function BudgetDistributionDepartmentsPagination({
   onPrev,
   onNext,
   t
-}: BudgetDistributionDepartmentsPaginationProps) {
+}: Readonly<BudgetDistributionDepartmentsPaginationProps>) {
   return (
     <div
       className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3"

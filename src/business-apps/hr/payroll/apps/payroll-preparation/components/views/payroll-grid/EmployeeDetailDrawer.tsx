@@ -5,7 +5,6 @@ import { XIcon, UserIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollCountry } from '../../../types/payrollTypes'
 import { ReadinessStatusBadge, SeverityBadge } from '../../shared/StatusBadge'
 import { Navigation, navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface EmployeeDetailDrawerProps {
   employee: PayrollEmployee | null

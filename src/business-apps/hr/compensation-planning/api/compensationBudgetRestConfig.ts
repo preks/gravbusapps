@@ -1,11 +1,9 @@
-import { EMPLOYEES_API_URL } from '@/common/utils/serviceResolver'
-
 /**
  * Compensation budget REST calls use the employee process service
- * (`NEXT_PUBLIC_EMPLOYEES_API_URL` → `/processes/employee`, same as {@link EMPLOYEES_API_URL}).
+ * (`NEXT_PUBLIC_EMPLOYEES_API_URL` → `/processes/employee`, same as {@link EMPLOYEES_API_URL} from service resolver).
  * Full URLs: `{COMPENSATION_BUDGET_REST_BASE_URL}{CREATE_COMPENSATION_BUDGET_PLAN_PATH}` etc.
  */
-export const COMPENSATION_BUDGET_REST_BASE_URL = EMPLOYEES_API_URL
+export { EMPLOYEES_API_URL as COMPENSATION_BUDGET_REST_BASE_URL } from '@/common/utils/serviceResolver'
 
 /** Path segment for creating a plan (appended to {@link COMPENSATION_BUDGET_REST_BASE_URL}). */
 export const CREATE_COMPENSATION_BUDGET_PLAN_PATH = '/createCompensationBudgetPlan'

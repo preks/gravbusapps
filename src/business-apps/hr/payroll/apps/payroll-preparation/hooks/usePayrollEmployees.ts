@@ -8,8 +8,6 @@ import {
   GET_PAYROLL_ABSENCES,
   GET_PAYROLL_BONUSES,
   GET_PAYROLL_ATTENDANCE,
-  GET_PREVIOUS_SALARIES,
-  GET_EMPLOYEES_BY_USER_IDS,
   GET_ACTIVE_STRUCTURE,
   GET_COMPANY_ADDRESSES
 } from '../queries/payrollQueries'
@@ -573,10 +571,7 @@ function buildPayrollEmployee(
   country: PayrollCountry,
   payrollMonth: number,
   payrollYear: number
-): PayrollChangeEvent[] {
-  const changes: PayrollChangeEvent[] = []
-  let changeId = 1
-  const nextId = () => changeId++
+): PayrollEmployee {
   const emp = pos.employee
   const wc = emp.workingCondition?.[0]
   const wh = emp.workingHours?.[0]
@@ -663,76 +658,6 @@ function buildPayrollEmployee(
     changedSinceLastPayroll: changes.length > 0,
     exportEligible: true
   }
-}
-
-type BuildPayrollEmployeeInput = Readonly<{
-  pos: RawEmployeePosition
-  salaryMap: Map<string, RawSalary>
-  absenceMap: Map<string, RawAbsence[]>
-  attendanceMap: Map<string, RawAttendance[]>
-  previousSalaryMap: Map<string, RawPreviousSalary>
-  country: PayrollCountry
-  payrollMonth: number
-  payrollYear: number
-  referenceDate: Date
-}>
-
-function buildPayrollEmployee(input: BuildPayrollEmployeeInput): PayrollEmployee {
-  const {
-    pos,
-    salaryMap,
-    absenceMap,
-    attendanceMap,
-    previousSalaryMap,
-    country,
-    payrollMonth,
-    payrollYear,
-    referenceDate
-  } = input
-  const emp = pos.employee
-  const wc = emp.workingCondition?.[0]
-  const wh = emp.workingHours?.[0]
-  const bank = emp.bankAccounts?.[0]
-  const tax = emp.taxDetails?.[0]
-  const salary = salaryMap.get(emp.id)
-  const absences = absenceMap.get(emp.id) || []
-  const attendance = attendanceMap.get(emp.id) || []
-
-  const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
-  const { paidLeave, sickLeave, unpaidLeave, otherLeave } = sumLeaveDaysByCategory(approvedAbsences)
-
-  const contractTypeLabel = wc?.contractType?.translations?.[0]?.value || wc?.contractType?.value || ''
-  const employmentTypeLabel = wc?.employmentType?.translations?.[0]?.value || wc?.employmentType?.value || ''
-  const payrollRelevant = resolvePayrollRelevantFlag(wc)
-
-  const rawExitDate = wc?.exitDate || pos.exitDate
-  const employmentStatus = resolveEmploymentStatus(rawExitDate, payrollMonth, payrollYear)
-
-  const workingHoursForCapacity = mapPositionWorkingHoursToCapacity(wh)
-  const timeBreakdown = computePayrollTimeBreakdown(payrollYear, payrollMonth, workingHoursForCapacity, attendance)
-
-  const payrollEmp = assemblePayrollEmployeeRecord({
-    pos,
-    emp,
-    wc,
-    wh,
-    bank,
-    tax,
-    salary,
-    country,
-    leave: { paidLeave, sickLeave, unpaidLeave, otherLeave },
-    time: timeBreakdown,
-    contractTypeLabel,
-    employmentTypeLabel,
-    payrollRelevant,
-    rawExitDate,
-    employmentStatus
-  })
-
-  const previousSalary = previousSalaryMap.get(emp.id)
-  const detectedChanges = detectChanges(pos, salary, previousSalary, absences, referenceDate, payrollMonth, payrollYear)
-  payrollEmp.changes = detectedChanges
-  payrollEmp.changedSinceLastPayroll = detectedChanges.length > 0
 
   applyReadinessAndEligibility(payrollEmp, country)
 

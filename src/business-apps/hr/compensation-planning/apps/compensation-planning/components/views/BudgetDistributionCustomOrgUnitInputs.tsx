@@ -42,7 +42,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
   onPercentRawChange,
   onModeChange,
   t
-}: BudgetDistributionCustomOrgUnitInputsProps) {
+}: Readonly<BudgetDistributionCustomOrgUnitInputsProps>) {
   const entry = customBudget ?? defaultOrgUnitCustomBudgetInput()
   const mode = entry.mode
   const poolForPercent = distributionPool != null && distributionPool > 0 ? distributionPool : null

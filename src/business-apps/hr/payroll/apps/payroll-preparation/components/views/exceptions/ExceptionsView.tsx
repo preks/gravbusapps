@@ -9,10 +9,10 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { WarningCircleIcon, ShieldWarningIcon, InfoIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
-import { Navigation, navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
@@ -33,40 +33,6 @@ const CATEGORY_KEYS: Record<IssueCategory, string> = {
   retroactive_changes: 'category-retroactive-changes',
   pending_final_payroll: 'category-pending-final-payroll',
   invalid_effective_dates: 'category-invalid-effective-dates'
-}
-
-/**
- * Maps issue categories to the appropriate employee-record tab and subView.
- * Uses the legacy tab shortcuts that employee-record supports.
- */
-const CATEGORY_TO_TAB: Record<IssueCategory, { tab: string; subView?: string }> = {
-  missing_personal_data: { tab: 'hrAdmin', subView: 'details' },
-  missing_bank_details: { tab: 'hrAdmin', subView: 'details' },
-  missing_contract_salary: { tab: 'compensation', subView: 'currentCompensation' },
-  missing_tax_social: { tab: 'hrAdmin', subView: 'details' },
-  missing_country_specific: { tab: 'hrAdmin', subView: 'details' },
-  missing_approvals: { tab: 'absences' },
-  missing_absence_data: { tab: 'absences' },
-  overlapping_absences: { tab: 'absences' },
-  retroactive_changes: { tab: 'hrAdmin', subView: 'changeLog' },
-  pending_final_payroll: { tab: 'compensation', subView: 'currentCompensation' },
-  invalid_effective_dates: { tab: 'hrAdmin', subView: 'employment' }
-}
-
-interface IssueWithEmployee extends PayrollIssue {
-  employeeName: string
-  employeeCode: string
-}
-
-function IssueSeverityIcon({ severity }: Readonly<{ severity: IssueSeverity }>) {
-  switch (severity) {
-    case 'blocker':
-      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
-    case 'warning':
-      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
-    case 'info':
-      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
-  }
 }
 
 interface IssueWithEmployee extends PayrollIssue {

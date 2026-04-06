@@ -36,7 +36,11 @@ const ORG_UNIT_LIST_LIMIT = 500
 /** Set to `true` to disable changing the distribution method (previous read-only behaviour). */
 const LOCK_DISTRIBUTION_METHOD_SELECTION = false
 
-export function BudgetDistributionView({ accessToken, companyId, companyToolbarGroup }: BudgetDistributionViewProps) {
+export function BudgetDistributionView({
+  accessToken,
+  companyId,
+  companyToolbarGroup
+}: Readonly<BudgetDistributionViewProps>) {
   const { t } = useTranslation(translations)
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
   const [distributeOpen, setDistributeOpen] = useState(false)
@@ -214,26 +218,35 @@ export function BudgetDistributionView({ accessToken, companyId, companyToolbarG
     </div>
   )
 
-  const distributionPreviewSummary =
-    selectedCompanyBudgetRow && activeDistributionPool != null && activeDistributionPool > 0 ? (
-      <div
-        className="gba:rounded-md gba:border gba:border-border gba:bg-muted/30 gba:px-4 gba:py-3"
-        data-testid="budget-distribution-preview-pool-summary"
-      >
-        <p className="gba:text-sm gba:text-foreground">
-          {t('budget-distribution-preview-pool-summary', {
-            amount: formatCurrency(activeDistributionPool, currencyCode),
-            method: t(budgetDistributionMethodTitleKey(selectedMethod))
-          })}
-        </p>
-      </div>
-    ) : hasSelectedCompanyBudget &&
+  const distributionPreviewSummary = useMemo(() => {
+    if (selectedCompanyBudgetRow && activeDistributionPool != null && activeDistributionPool > 0) {
+      return (
+        <div
+          className="gba:rounded-md gba:border gba:border-border gba:bg-muted/30 gba:px-4 gba:py-3"
+          data-testid="budget-distribution-preview-pool-summary"
+        >
+          <p className="gba:text-sm gba:text-foreground">
+            {t('budget-distribution-preview-pool-summary', {
+              amount: formatCurrency(activeDistributionPool, currencyCode),
+              method: t(budgetDistributionMethodTitleKey(selectedMethod))
+            })}
+          </p>
+        </div>
+      )
+    }
+    if (
+      hasSelectedCompanyBudget &&
       selectedCompanyBudgetRow &&
-      (activeDistributionPool == null || activeDistributionPool <= 0) ? (
-      <p className="gba:text-sm gba:text-muted-foreground" data-testid="budget-distribution-preview-pool-zero">
-        {t('budget-distribution-preview-pool-zero')}
-      </p>
-    ) : null
+      (activeDistributionPool == null || activeDistributionPool <= 0)
+    ) {
+      return (
+        <p className="gba:text-sm gba:text-muted-foreground" data-testid="budget-distribution-preview-pool-zero">
+          {t('budget-distribution-preview-pool-zero')}
+        </p>
+      )
+    }
+    return null
+  }, [activeDistributionPool, currencyCode, hasSelectedCompanyBudget, selectedCompanyBudgetRow, selectedMethod, t])
 
   return (
     <div className="gba:space-y-4" data-testid="budget-distribution-view">

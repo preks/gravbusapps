@@ -40,7 +40,9 @@ export function useBudgetSetupPlansTableModel(
         ids.add(row.companyBudgetStatus)
       }
     }
-    return [...ids].sort().map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
+    return [...ids]
+      .sort((a, b) => a.localeCompare(b))
+      .map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
   }, [allRows, t])
 
   const filterConfiguration = useMemo(

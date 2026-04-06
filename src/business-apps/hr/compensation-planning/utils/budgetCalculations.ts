@@ -229,9 +229,7 @@ export function distributeToEmployees(
       if (ratedPositive.length === 0) {
         return allocateProportionalToEmployeeWeights(totalBudget, employees, () => 1)
       }
-      return allocateProportionalToEmployeeWeights(totalBudget, employees, e =>
-        e.performanceScore > 0 ? e.performanceScore : 0
-      )
+      return allocateProportionalToEmployeeWeights(totalBudget, employees, e => Math.max(0, e.performanceScore))
     }
     case 'custom':
     default:
@@ -268,9 +266,7 @@ export function distributeToOrgUnits(
       if (ratedPositive.length === 0) {
         return distributeToOrgUnits(totalBudget, orgUnits, 'proportional_headcount')
       }
-      return allocateProportionalToWeights(totalBudget, orgUnits, ou =>
-        ou.totalPerformanceScore > 0 ? ou.totalPerformanceScore : 0
-      )
+      return allocateProportionalToWeights(totalBudget, orgUnits, ou => Math.max(0, ou.totalPerformanceScore))
     }
     case 'custom':
     default:
