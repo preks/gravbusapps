@@ -1,10 +1,10 @@
 import React from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import ExpensePlanDetails from './details/ExpensePlanDetails'
-import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
-import { PrintPreviewDialog, DetailsSheet } from '../../shared/TableSharedComponents'
-import { ExpensePlansTableDisplay } from './table/ExpensePlansTableDisplay'
-import { useExpensePlansTableModel } from './table/useExpensePlansTableModel'
+import ExpensePlanDetails from '../details/ExpensePlanDetails'
+import ExpenseRequestDetails from '../../expense-requests-tab/ExpenseRequestDetails'
+import { PrintPreviewDialog, DetailsSheet } from '../../../shared/TableSharedComponents'
+import { ExpensePlansTableDisplay } from './ExpensePlansTableDisplay'
+import { useExpensePlansTableModel } from './useExpensePlansTableModel'
 import type { ExpensePlansTableProps } from './expensePlansTable.types'
 
 export type { ExpensePlansTableProps }

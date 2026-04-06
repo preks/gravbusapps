@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import ExpensePlansTable from './ExpensePlansTable'
+import ExpensePlansTable from './table/ExpensePlansTable'
 import { useExpensePlansOverview } from '../../../hooks/useExpensePlansOverview'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
 import { getActiveWidgetFromFilters } from '../../../hooks/useExpensePlanWidgetFilters'

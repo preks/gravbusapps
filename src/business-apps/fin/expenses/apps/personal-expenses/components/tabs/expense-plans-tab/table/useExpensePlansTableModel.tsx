@@ -12,7 +12,7 @@ import { createExpensePlanColumns } from './expensePlanColumns'
 import { useExpensePlanRowActions } from './useExpensePlanRowActions'
 import type { ExpensePlansTableDisplayProps } from './ExpensePlansTableDisplay'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
-import type { ExpensePlansTableProps } from '../expensePlansTable.types'
+import type { ExpensePlansTableProps } from './expensePlansTable.types'
 import { useExpensePlansTableFilters } from './useExpensePlansTableFilters'
 import { ExpensePlansPrimaryAction, ExpensePlansSecondaryActions } from './ExpensePlansTableActions'
 

@@ -1,5 +1,5 @@
 import ExpensePlansTab from './ExpensePlansTab'
-import ExpensePlansTable from './ExpensePlansTable'
+import ExpensePlansTable from './table/ExpensePlansTable'
 import { DateRangeFilter } from './filters/DateRangeFilter'
 import { EndDateRangeFilter } from './filters/EndDateRangeFilter'
 import { ExpensePlansTableDisplay } from './table/ExpensePlansTableDisplay'

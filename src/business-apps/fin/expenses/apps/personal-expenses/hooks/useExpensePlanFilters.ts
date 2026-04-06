@@ -425,14 +425,13 @@ export const useExpensePlanFilters = () => {
     }
   }, [])
 
-  // Clear all filters including all date ranges
+  // Clear all filters including all date ranges (search is managed separately)
   const clearAllFilters = useCallback(() => {
     setSelectedFilters([])
     setPlanDateRange(null)
     setStartDateRange(null)
     setEndDateRange(null)
     setEffectiveDateRange(null)
-    setSearch('')
   }, [])
 
   return {
