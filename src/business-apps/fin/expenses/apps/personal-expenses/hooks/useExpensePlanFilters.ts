@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { ExpenseStatus } from '../utils'
-import { DateRangeFilter } from '../components/tabs/expense-plans-tab/DateRangeFilter'
-import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/EndDateRangeFilter'
-import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRangeFilter'
+import { DateRangeFilter } from '../components/tabs/expense-plans-tab/filters/DateRangeFilter'
+import { EndDateRangeFilter } from '../components/tabs/expense-plans-tab/filters/EndDateRangeFilter'
+import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/filters/PlanDateRangeFilter'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/EffectiveDateRangeFilter'
+import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/filters/EffectiveDateRangeFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
 
 export enum DataFilterType {

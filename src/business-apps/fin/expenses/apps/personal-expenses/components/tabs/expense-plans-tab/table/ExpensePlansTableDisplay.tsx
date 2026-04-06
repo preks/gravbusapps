@@ -1,11 +1,11 @@
-import React, { type ReactNode, useMemo } from 'react'
+import { type ReactNode, useMemo } from 'react'
 import { DataDisplay, DataTable, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
-import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from '../columns/expensePlanColumns'
+import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from './expensePlanColumns'
 
-export interface ExpensePlansDataBodyProps {
+export interface ExpensePlansTableDisplayProps {
   totalCount: number
   isLoading: boolean
   search: string
@@ -33,7 +33,7 @@ export interface ExpensePlansDataBodyProps {
   onRowClick: (item: ExpensePlan) => void
 }
 
-export function ExpensePlansDataBody({
+export function ExpensePlansTableDisplay({
   totalCount,
   isLoading,
   search,
@@ -59,7 +59,7 @@ export function ExpensePlansDataBody({
   emptyMessage,
   rowActions,
   onRowClick
-}: Readonly<ExpensePlansDataBodyProps>) {
+}: Readonly<ExpensePlansTableDisplayProps>) {
   const visibleColumns = useMemo(
     () =>
       allColumns.filter(col => visibleColumnIds.includes((col as ColumnDef<ExpensePlan> & { id?: string }).id ?? '')),

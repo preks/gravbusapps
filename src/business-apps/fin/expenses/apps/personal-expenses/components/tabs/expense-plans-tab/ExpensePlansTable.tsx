@@ -1,9 +1,9 @@
 import React from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import ExpensePlanDetails from './ExpensePlanDetails'
+import ExpensePlanDetails from './details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { PrintPreviewDialog, DetailsSheet } from '../../shared/TableSharedComponents'
-import { ExpensePlansDataBody } from './components/ExpensePlansDataBody'
+import { ExpensePlansTableDisplay } from './table/ExpensePlansTableDisplay'
 import { useExpensePlansTableModel } from './table/useExpensePlansTableModel'
 import type { ExpensePlansTableProps } from './expensePlansTable.types'
 
@@ -26,7 +26,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
 
   return (
     <div>
-      <ExpensePlansDataBody {...dataBodyProps} />
+      <ExpensePlansTableDisplay {...dataBodyProps} />
 
       <DetailsSheet
         open={!!selectedItem}

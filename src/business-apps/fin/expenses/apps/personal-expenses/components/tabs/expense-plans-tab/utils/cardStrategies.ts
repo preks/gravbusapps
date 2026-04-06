@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { ExpenseStatus } from '../../../utils'
+import { ExpenseStatus } from '../../../../utils'
 
 export type PlanCardContext = {
   setPlanDateRange: (range: [Date | null, Date | null] | null) => void

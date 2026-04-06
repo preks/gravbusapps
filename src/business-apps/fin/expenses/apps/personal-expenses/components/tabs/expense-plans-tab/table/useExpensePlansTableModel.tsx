@@ -1,28 +1,20 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { startProcess } from '@/common/utils/start-process'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import personalTranslations from '../../../../_i18n'
 import { useExpensePlanFileService } from '../../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import {
-  formatDateRangeForChip,
-  applyDateRangeFromFilter,
-  resolveSelectedCurrencyCode,
-  applyCurrencyChange,
-  buildFilteredEmptyMessage,
-  buildDefaultEmptyMessage
-} from '../../../../utils/tableUtils'
-import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
+import { buildFilteredEmptyMessage, buildDefaultEmptyMessage } from '../../../../utils/tableUtils'
 import { useVisibleColumns } from '../../../../../../common/hooks/useSharedTabState'
-import { createExpensePlanFilterConfig } from '../config/expensePlanFilterConfig'
 import { expensePlanAvailableColumns } from '../config/expensePlanAvailableColumns'
 import { expensePlanSortableColumns } from '../config/expensePlanSortableColumns'
-import { createExpensePlanColumns } from '../columns/expensePlanColumns'
-import { useExpensePlanRowActions } from '../components/ExpensePlanRowActions'
-import type { ExpensePlansDataBodyProps } from '../components/ExpensePlansDataBody'
+import { createExpensePlanColumns } from './expensePlanColumns'
+import { useExpensePlanRowActions } from './useExpensePlanRowActions'
+import type { ExpensePlansTableDisplayProps } from './ExpensePlansTableDisplay'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import type { ExpensePlansTableProps } from '../expensePlansTable.types'
+import { useExpensePlansTableFilters } from './useExpensePlansTableFilters'
+import { ExpensePlansPrimaryAction, ExpensePlansSecondaryActions } from './ExpensePlansTableActions'
 
 export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
   const {
@@ -51,65 +43,34 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
 
   const { t: tPersonal } = useTranslation(personalTranslations)
 
+  const {
+    filterConfiguration,
+    filtersObject,
+    handleFilterChangeFromDisplay,
+    selectedCurrencyCode,
+    handleCurrencyChange
+  } = useExpensePlansTableFilters({
+    selectedFilters: selectedFilters || [],
+    filterLabelMap: props.filterLabelMap ?? {},
+    availableStatuses,
+    planDateRange,
+    setPlanDateRange,
+    effectiveDateRange,
+    setEffectiveDateRange,
+    startDateRange,
+    setStartDateRange,
+    endDateRange,
+    setEndDateRange,
+    setFilters: props.setFilters,
+    onFiltersChange,
+    currencyStats: props.currencyStats || []
+  })
+
   const baseVisibleColumnIds = useMemo(() => expensePlanAvailableColumns.map(c => c.id), [])
   const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
   const visibleColumnIds = useVisibleColumns(
     rawVisibleColumns,
     baseVisibleColumnIds.map(id => ({ id }))
-  )
-
-  const expensePlansFilterConfig = useMemo(
-    () =>
-      createExpensePlanFilterConfig({
-        statusOptions: availableStatuses,
-        filterLabelMap: props.filterLabelMap ?? {}
-      }),
-    [availableStatuses, props.filterLabelMap]
-  )
-
-  const filtersObject = useMemo((): Record<string, unknown> => {
-    const statusIds = (selectedFilters || []).filter(f => availableStatuses.includes(f))
-    const planTypeIds = (selectedFilters || []).filter(f => f.startsWith('planType:'))
-    const obj: Record<string, unknown> = {}
-    if (statusIds.length > 0) obj.statusIds = statusIds
-    if (planTypeIds.length > 0) obj.planTypeIds = planTypeIds
-    const planDateStr = formatDateRangeForChip(planDateRange)
-    if (planDateStr) obj.planDateRange = planDateStr
-    const effectiveDateStr = formatDateRangeForChip(effectiveDateRange)
-    if (effectiveDateStr) obj.effectiveDateRange = effectiveDateStr
-    const startDateStr = formatDateRangeForChip(startDateRange)
-    if (startDateStr) obj.startDateRange = startDateStr
-    const endDateStr = formatDateRangeForChip(endDateRange)
-    if (endDateStr) obj.endDateRange = endDateStr
-    return obj
-  }, [selectedFilters, planDateRange, effectiveDateRange, startDateRange, endDateRange, availableStatuses])
-
-  const handleFilterChangeFromDisplay = useCallback(
-    (filters: Record<string, unknown>) => {
-      const statusIds = (filters.statusIds as string[] | undefined) || []
-      const planTypeIds = (filters.planTypeIds as string[] | undefined) || []
-      const dateRangeTokens: string[] = []
-      if (applyDateRangeFromFilter(filters.planDateRange, setPlanDateRange)) dateRangeTokens.push('planDateRange')
-      if (applyDateRangeFromFilter(filters.effectiveDateRange, setEffectiveDateRange)) {
-        dateRangeTokens.push('effectiveDateRange')
-      }
-      if (applyDateRangeFromFilter(filters.startDateRange, setStartDateRange)) dateRangeTokens.push('startDateRange')
-      if (applyDateRangeFromFilter(filters.endDateRange, setEndDateRange)) dateRangeTokens.push('endDateRange')
-      const preserved = (props.selectedFilters || []).filter(
-        f => f.startsWith('currency:') || f.startsWith('topDestination:')
-      )
-      props.setFilters([...preserved, ...statusIds, ...planTypeIds, ...dateRangeTokens])
-      onFiltersChange?.()
-    },
-    [
-      props.setFilters,
-      props.selectedFilters,
-      setPlanDateRange,
-      setEffectiveDateRange,
-      setStartDateRange,
-      setEndDateRange,
-      onFiltersChange
-    ]
   )
 
   const savedPageBeforeSearchRef = useRef<number | null>(null)
@@ -241,28 +202,19 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
         'No expense plans found. Create your first expense plan to get started.'
       )
 
-  const selectedCurrencyCode = useMemo(
-    () => resolveSelectedCurrencyCode(selectedFilters || [], props.currencyStats || []),
-    [selectedFilters, props.currencyStats]
-  )
-
-  const handleCurrencyChange = useCallback(
-    (code: string) => {
-      applyCurrencyChange(code, selectedFilters || [], props.currencyStats || [], props.setFilters)
-    },
-    [selectedFilters, props.currencyStats, props.setFilters]
+  const primaryAction = useMemo(
+    () => <ExpensePlansPrimaryAction onAddExpensePlan={handleAddExpensePlan} />,
+    [handleAddExpensePlan]
   )
 
   const secondaryActions = useMemo(
-    () =>
-      props.currencyStats?.length ? (
-        <CurrencyDropdown
-          currencyStats={props.currencyStats}
-          selectedCurrencyCode={selectedCurrencyCode}
-          onCurrencyChange={handleCurrencyChange}
-          testIdPrefix="expense-plans"
-        />
-      ) : undefined,
+    () => (
+      <ExpensePlansSecondaryActions
+        currencyStats={props.currencyStats || []}
+        selectedCurrencyCode={selectedCurrencyCode}
+        onCurrencyChange={handleCurrencyChange}
+      />
+    ),
     [props.currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
 
@@ -300,29 +252,13 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     prevSearchRef.current = props.search || ''
   }, [props.search, onTableChange, currentPage, pageSize, totalCount])
 
-  const primaryAction = useMemo(
-    () => (
-      <Button
-        onClick={handleAddExpensePlan}
-        data-testid="add-expense-plan-button"
-        className="gba:inline-flex gba:items-center gba:gap-2"
-      >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-          'Add'
-        )}
-      </Button>
-    ),
-    [handleAddExpensePlan]
-  )
-
-  const dataBodyProps: ExpensePlansDataBodyProps = {
+  const dataBodyProps: ExpensePlansTableDisplayProps = {
     totalCount,
     isLoading,
     search,
     onSearchChange: props.onSearchChange,
     filtersObject,
-    filterConfiguration: expensePlansFilterConfig,
+    filterConfiguration,
     onFilterChange: handleFilterChangeFromDisplay,
     sorting,
     onSortingChange: handleSortingChange,

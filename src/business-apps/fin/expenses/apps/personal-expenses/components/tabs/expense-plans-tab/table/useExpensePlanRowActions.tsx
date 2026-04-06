@@ -4,7 +4,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import { RowActionsIcon, RowActionsWrapper } from '../../../shared/TableSharedComponents'
-import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from '../columns/expensePlanColumns'
+import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from './expensePlanColumns'
 
 export interface UseExpensePlanRowActionsParams {
   employeeId: string | undefined
