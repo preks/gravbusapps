@@ -10,8 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { RestClient } from '@/common/network/rest/RestClient'
 import { saveCompensationBudgetPlanEmployee } from '../../../api/saveCompensationBudgetPlan'
-import type { DistributionMethod } from '../../../types/compensationPlanningTypes'
-import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import {
   buildSaveCompensationBudgetPlanEmployeeInsertBody,
@@ -50,7 +49,7 @@ export function TeamCompensationSaveAllocationsDialog({
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
   onSaved
-}: TeamCompensationSaveAllocationsDialogProps) {
+}: Readonly<TeamCompensationSaveAllocationsDialogProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set())
@@ -229,7 +228,7 @@ export function TeamCompensationSaveAllocationsDialog({
           </Button>
         </div>
 
-        {!poolOk ? (
+        {poolOk === false ? (
           <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-save-dialog-pool-warning">
             {t('manager-team-save-dialog-no-pool')}
           </p>

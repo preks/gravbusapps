@@ -53,7 +53,7 @@ export function TeamCompensationEmployeeDistributionList({
   cardTitle,
   tBudget,
   emptyMessage
-}: TeamCompensationEmployeeDistributionListProps) {
+}: Readonly<TeamCompensationEmployeeDistributionListProps>) {
   const isCustom = selectedMethod === 'custom'
   const isSalaryCostMethod = selectedMethod === 'proportional_salary_cost'
   const isPerformanceMethod = selectedMethod === 'performance_weighted'
@@ -122,7 +122,7 @@ export function TeamCompensationEmployeeDistributionList({
           </p>
         ) : null}
 
-        {!loading && sortedMembers.length === 0 ? (
+        {loading === false && sortedMembers.length === 0 ? (
           <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-team-distribution-list-empty">
             {emptyMessage}
           </p>
@@ -140,7 +140,7 @@ export function TeamCompensationEmployeeDistributionList({
           </Alert>
         ) : null}
 
-        {isSalaryCostMethod && sortedMembers.length > 0 && !loading ? (
+        {isSalaryCostMethod && sortedMembers.length > 0 && loading === false ? (
           <Alert data-testid="manager-team-distribution-salary-cost-basis-alert">
             <AlertDescription>
               {totalSalaryCostAcrossEmployees <= 0
@@ -156,7 +156,10 @@ export function TeamCompensationEmployeeDistributionList({
           </Alert>
         ) : null}
 
-        {isPerformanceMethod && sortedMembers.length > 0 && !loading && !performanceFallbackToEqual ? (
+        {isPerformanceMethod &&
+        sortedMembers.length > 0 &&
+        loading === false &&
+        performanceFallbackToEqual === false ? (
           <Alert data-testid="manager-team-distribution-performance-basis-alert">
             <AlertDescription>
               {grandTotalPositivePerformanceScores <= 0
@@ -172,7 +175,7 @@ export function TeamCompensationEmployeeDistributionList({
           </Alert>
         ) : null}
 
-        {sortedMembers.length > 0 && !loading ? (
+        {sortedMembers.length > 0 && loading === false ? (
           <>
             <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border gba:min-w-0">
               {isCustom ? (
@@ -249,7 +252,7 @@ export function TeamCompensationEmployeeDistributionList({
                         >
                           {formatCurrency(amount, currencyCode)}
                         </span>
-                        {poolPercentPoints != null ? (
+                        {poolPercentPoints === null ? null : (
                           <span
                             className="gba:text-sm gba:tabular-nums gba:text-muted-foreground"
                             data-testid={`manager-team-distribution-pool-percent-${member.employeeId}`}
@@ -258,7 +261,7 @@ export function TeamCompensationEmployeeDistributionList({
                               percent: poolPercentPoints
                             })}
                           </span>
-                        ) : null}
+                        )}
                       </span>
                     )}
                   </li>

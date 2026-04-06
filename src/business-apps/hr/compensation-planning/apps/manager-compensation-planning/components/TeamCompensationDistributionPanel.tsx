@@ -55,7 +55,7 @@ export function TeamCompensationDistributionPanel({
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
   onSaved
-}: TeamCompensationDistributionPanelProps) {
+}: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
   const { distributionMethod, setDistributionMethod } = useManagerPlanningStore()
@@ -140,9 +140,8 @@ export function TeamCompensationDistributionPanel({
 
   const [saveAllocationsDialogOpen, setSaveAllocationsDialogOpen] = useState(false)
 
-  const canShowSaveAction = Boolean(
-    accessToken && managerEmployeeId && teamMembers.length > 0 && !loading && !salaryBudgetLoading
-  )
+  const listsReady = loading === false && salaryBudgetLoading === false
+  const canShowSaveAction = Boolean(accessToken && managerEmployeeId && teamMembers.length > 0 && listsReady)
 
   const distributionPreviewSummary = salaryBudgetLoading ? null : activePool != null ? (
     <div

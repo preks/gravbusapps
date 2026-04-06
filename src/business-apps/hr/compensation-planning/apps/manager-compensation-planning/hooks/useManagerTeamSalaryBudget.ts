@@ -9,6 +9,7 @@ import {
   LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
+import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from '../../../utils/graphqlUnknownToString'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 
 interface CompanyBudgetPlanOption {
@@ -52,18 +53,18 @@ function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPl
 
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
   return {
-    id: String(raw.id ?? ''),
-    compensationBudgetPlanId: String(raw.compensationBudgetPlanId ?? ''),
-    companyId: String(raw.companyId ?? ''),
+    id: graphqlUnknownToString(raw.id),
+    compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
+    companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
-    budgetPlanStatus: String(raw.budgetPlanStatus ?? ''),
+    budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
     currentTotalSalaryCost: num(raw.currentTotalSalaryCost),
-    distributionMethod: String(raw.distributionMethod ?? ''),
+    distributionMethod: graphqlUnknownToString(raw.distributionMethod),
     headcount: num(raw.headcount),
-    currencyRef: raw.currencyRef == null ? null : String(raw.currencyRef)
+    currencyRef: graphqlUnknownToStringOrNull(raw.currencyRef)
   }
 }
 

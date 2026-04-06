@@ -345,7 +345,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           const bonusBudgetAmount = roundMoney2(changes.bonusBudgetAmount)
           const bonusBudgetPercent = roundMoney2(changes.bonusBudgetPercent)
           const currentTotalSalaryCost = roundMoney2(changes.currentTotalSalaryCost)
-          const currencyRef = input.currencyRef !== undefined ? input.currencyRef : companyRow.currencyRef
+          const currencyRef = input.currencyRef === undefined ? companyRow.currencyRef : input.currencyRef
 
           const rowInput: SaveCompensationBudgetPlanCompanyRowInput = {
             id: companyRow.id,

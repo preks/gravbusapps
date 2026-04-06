@@ -110,12 +110,15 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
   const teamCurrencyCode = teamMembers[0]?.currency ?? 'EUR'
 
-  const totalBudgetDisplay =
-    salaryBudgetLoading || !selectedCompanyId || !employeeId
-      ? undefined
-      : totalSalaryBudget !== null
-        ? formatCurrency(totalSalaryBudget, teamCurrencyCode)
-        : undefined
+  const totalBudgetDisplay = (() => {
+    if (salaryBudgetLoading || selectedCompanyId == null || employeeId == null) {
+      return undefined
+    }
+    if (totalSalaryBudget === null) {
+      return undefined
+    }
+    return formatCurrency(totalSalaryBudget, teamCurrencyCode)
+  })()
 
   const employeeIdsForPerformance = useMemo(() => [...new Set(teamMembers.map(m => m.employeeId))], [teamMembers])
 

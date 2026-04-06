@@ -32,7 +32,7 @@ export function TeamCompensationSaveAllocationsDialogRows({
   onToggle,
   t,
   tBudget
-}: TeamCompensationSaveAllocationsDialogRowsProps) {
+}: Readonly<TeamCompensationSaveAllocationsDialogRowsProps>) {
   return (
     <ul className="gba:divide-y gba:divide-border gba:rounded-md gba:border gba:border-border">
       {sortedMembers.map(m => {
@@ -56,7 +56,9 @@ export function TeamCompensationSaveAllocationsDialogRows({
               <p className="gba:truncate gba:text-sm gba:font-medium gba:text-foreground">{m.displayName}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {formatCurrency(roundMoney2(amount), currencyCode)}
-                {pct != null ? ` · ${tBudget('budget-distribution-distribute-percent-of-pool', { percent: pct })}` : ''}
+                {pct === null
+                  ? ''
+                  : ` · ${tBudget('budget-distribution-distribute-percent-of-pool', { percent: pct })}`}
               </p>
             </div>
           </li>

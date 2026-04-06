@@ -5,7 +5,7 @@ import {
   type BudgetDistributionMethodApi
 } from '../types/budgetPlanGraphqlEnums'
 
-const STORED_DISTRIBUTION_METHODS = new Set<string>([...BUDGET_DISTRIBUTION_METHOD_OPTIONS])
+const STORED_DISTRIBUTION_METHODS = new Set<string>(BUDGET_DISTRIBUTION_METHOD_OPTIONS)
 
 /**
  * Maps UI distribution method to REST/GraphQL enum values on `compensation_budget_plan_company`.

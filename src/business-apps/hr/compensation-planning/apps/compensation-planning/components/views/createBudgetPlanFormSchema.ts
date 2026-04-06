@@ -47,7 +47,7 @@ export function buildCreateBudgetPlanFormSchema(
       )
       if (duplicate) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: t('budget-plan-form-duplicate-date-range'),
           path: ['endDate']
         })
