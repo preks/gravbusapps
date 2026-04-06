@@ -17699,9 +17699,9 @@
     ]
   },
   "hr/core/apps/performance-evaluation": {
-    "bitbucketBuildNumber": 10465,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10465/",
-    "chunkJsBytes": 564582,
+    "bitbucketBuildNumber": 10499,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10499/",
+    "chunkJsBytes": 570408,
     "top": [
       {
         "kind": "bucket",
@@ -17712,8 +17712,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 129632,
-        "gzip": 34262
+        "rendered": 138222,
+        "gzip": 36704
       },
       {
         "kind": "bucket",
@@ -17754,8 +17754,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 2714,
-        "gzip": 1029
+        "rendered": 3234,
+        "gzip": 1372
       },
       {
         "kind": "bucket",
@@ -17820,9 +17820,9 @@
     ]
   },
   "hr/core/apps/performance-tracking": {
-    "bitbucketBuildNumber": 10481,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10481/",
-    "chunkJsBytes": 459814,
+    "bitbucketBuildNumber": 10499,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10499/",
+    "chunkJsBytes": 459944,
     "top": [
       {
         "kind": "bucket",
@@ -17833,8 +17833,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 57944,
-        "gzip": 17421
+        "rendered": 58147,
+        "gzip": 17512
       },
       {
         "kind": "bucket",
@@ -36071,15 +36071,15 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10497,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10497/",
+    "bitbucketBuildNumber": 10499,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10499/",
     "chunkJsBytes": 961065,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 587735,
-        "gzip": 32000
+        "rendered": 587736,
+        "gzip": 32020
       },
       {
         "kind": "bucket",
@@ -41000,7 +41000,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-06T06:44:58.121Z",
+    "generatedAt": "2026-04-06T07:06:29.019Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }

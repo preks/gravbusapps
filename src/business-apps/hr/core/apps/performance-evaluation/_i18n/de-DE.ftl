@@ -129,6 +129,17 @@ start-confirm-search-teams = Teams suchen...
 start-confirm-empty-teams = Keine Teams gefunden
 start-confirm-button = Bewertung starten
 
+start-button-tooltip = Start ist nur innerhalb des Überprüfungszeitraums aktiv
+
+# Bestätigungsdialog „Zyklus abschließen"
+complete-confirm-title = Leistungszyklus abschließen
+complete-confirm-description = Möchten Sie „{ $name }" wirklich als abgeschlossen markieren?
+complete-confirm-progress = Dieser Zyklus hat { $percent }% der Bewertungen abgeschlossen ({ $completed } von { $total }).
+complete-confirm-warning = Einige Bewertungen sind noch in Bearbeitung.
+complete-confirm-all-done = Alle Bewertungen in diesem Zyklus wurden abgeschlossen.
+complete-confirm-button = Zyklus abschließen
+complete-confirm-view-tracking = In Leistungsverfolgung anzeigen
+
 # Fehler
 values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden, solange er in einem aktiven Zyklus verwendet wird.
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
