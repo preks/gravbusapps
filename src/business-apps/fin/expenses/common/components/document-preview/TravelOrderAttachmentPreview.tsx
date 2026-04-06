@@ -17,34 +17,9 @@ import {
 import { FilePdfIcon } from '@phosphor-icons/react'
 import translations from '../../../apps/personal-expenses/_i18n'
 import { getFileNameFromEmployeeDocument } from '../../utils/fileNameUtils'
+import { truncateFileName } from '@/common/utils/fileUtils'
 
 type PrintResult = { success: boolean; pdfUrl?: string; error?: string }
-
-// Utility function to truncate file names (same behavior as item sidebar)
-const truncateFileName = (fileName: string, maxLength: number = 15): string => {
-  if (!fileName || fileName.length <= maxLength) {
-    return fileName || ''
-  }
-
-  const lastDotIndex = fileName.lastIndexOf('.')
-  if (lastDotIndex === -1) {
-    return fileName.substring(0, maxLength - 3) + '...'
-  }
-
-  const name = fileName.substring(0, lastDotIndex)
-  const extension = fileName.substring(lastDotIndex)
-
-  if (extension.length >= maxLength - 3) {
-    return '...' + extension
-  }
-
-  if (name.length <= 3) {
-    return fileName.substring(0, maxLength - 3) + '...'
-  }
-
-  const maxNameLength = maxLength - extension.length - 3
-  return name.substring(0, maxNameLength) + '...' + extension
-}
 
 export interface TravelOrderAttachmentPreviewProps {
   record: any

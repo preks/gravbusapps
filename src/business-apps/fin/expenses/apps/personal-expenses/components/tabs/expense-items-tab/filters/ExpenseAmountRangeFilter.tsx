@@ -7,7 +7,6 @@ interface ExpenseAmountRangeFilterProps {
   onAmountRangeChange: (range: { min?: number; max?: number } | null) => void
   className?: string
   placeholder?: [string, string]
-  label: string
   dataTestIdPrefix: string
 }
 
@@ -35,13 +34,13 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
       const value = e.target.value
       setMinValue(value)
 
-      const numValue = value ? parseFloat(value) : undefined
+      const numValue = value ? Number.parseFloat(value) : undefined
 
       // Only trigger change if we have a valid range or clearing
       if (numValue !== undefined || maxValue) {
         onAmountRangeChange({
           min: numValue,
-          max: maxValue ? parseFloat(maxValue) : undefined
+          max: maxValue ? Number.parseFloat(maxValue) : undefined
         })
       }
     },
@@ -53,12 +52,12 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
       const value = e.target.value
       setMaxValue(value)
 
-      const numValue = value ? parseFloat(value) : undefined
+      const numValue = value ? Number.parseFloat(value) : undefined
 
       // Only trigger change if we have a valid range or clearing
       if (minValue || numValue !== undefined) {
         onAmountRangeChange({
-          min: minValue ? parseFloat(minValue) : undefined,
+          min: minValue ? Number.parseFloat(minValue) : undefined,
           max: numValue
         })
       }

@@ -21,6 +21,7 @@ interface ExpenseDateRangeFilterProps {
 export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
   expenseDateRange,
   onDateRangeChange,
+  className = 'gba:w-full',
   placeholder = [
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
@@ -34,15 +35,13 @@ export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
 
   const handleDateRangeChange = useCallback(
     (dates: [Dayjs | null, Dayjs | null] | null) => {
-      if (!dates) {
-        // Clear the date range
-        onDateRangeChange(null)
-      } else {
-        // Convert to Date objects for the filter system
+      if (dates) {
         const startDate = dates[0] ? dates[0].toDate() : null
         const endDate = dates[1] ? dates[1].toDate() : null
         onDateRangeChange([startDate, endDate])
+        return
       }
+      onDateRangeChange(null)
     },
     [onDateRangeChange]
   )
@@ -55,7 +54,7 @@ export const ExpenseDateRangeFilter: React.FC<ExpenseDateRangeFilterProps> = ({
       format="MMM DD, YYYY"
       allowClear
       allowEmpty={[true, true]}
-      className="gba:w-full"
+      className={className}
       data-testid="expense-item-date-range-filter"
     />
   )

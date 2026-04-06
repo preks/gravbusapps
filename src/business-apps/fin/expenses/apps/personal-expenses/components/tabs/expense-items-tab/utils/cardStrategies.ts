@@ -17,12 +17,10 @@ export const getItemsCardStrategies = (ctx: ItemsCardContext): Record<string, Ca
       const end = dayjs().endOf('month').toDate()
       ctx.setExpenseDateRange([start, end])
       ctx.onStatusFilterChange('PAID', true)
-      ctx.onStatusFilterChange('CLOSED', true)
     },
     remove: () => {
       ctx.setExpenseDateRange(null)
       ctx.onStatusFilterChange('PAID', false)
-      ctx.onStatusFilterChange('CLOSED', false)
     }
   },
   'pending-reimbursement': {
