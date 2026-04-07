@@ -6,6 +6,7 @@ import { useGetCrmNotes } from '../queries/CrmNoteQueries'
 import { useGetSalesTasks } from '../queries/SalesTaskQueries'
 import { GET_LEAD_BY_ID, GetLeadByIdResponse } from '../queries/GetLeadByIdQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are a sales qualification assistant analyzing a sales prospect.
 
@@ -40,9 +41,7 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
 
     // get activity data
     const activityResult = await fetchSalesActivities({ leadId })
-    const sortedActivities = (activityResult.SalesActivity || []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const sortedActivities = sortActivitiesByOccurredAtDesc(activityResult.SalesActivity || [])
 
     // get notes data
     const notesResult = await fetchCrmNotes({ leadId })

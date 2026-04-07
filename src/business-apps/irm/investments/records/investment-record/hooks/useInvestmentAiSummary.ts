@@ -5,6 +5,7 @@ import { useGetInvestmentTasksByInvestmentId } from './useInvestmentTasksByInves
 import { useGetInvestmentNotesByInvestmentId } from './useInvestmentNotesByInvestmentId'
 import { GET_INVESTMENT_BY_ID } from '@/common/data/investment/queries/investmentQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are an investment portfolio assistant analyzing a specific investment asset.
 
@@ -54,9 +55,7 @@ export function useInvestmentAiSummary(investmentId: string, accessToken: string
 
       // Get activities data
       const activities = await fetchInvestmentActivitiesByInvestmentId(investmentId)
-      const sortedActivities = activities.sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      )
+      const sortedActivities = sortActivitiesByOccurredAtDesc(activities || [])
 
       // Get notes data
       const notes = await fetchInvestmentNotesByInvestmentId(investmentId)
@@ -87,7 +86,7 @@ export function useInvestmentAiSummary(investmentId: string, accessToken: string
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,
         tasksCount: sortedTasks.length,
-        lastActivityDate: sortedActivities[0]?.createdAt,
+        lastActivityDate: sortedActivities[0]?.occurredAt || sortedActivities[0]?.createdAt,
         lastNoteDate: sortedNotes[0]?.createdAt,
         lastTaskDate: sortedTasks[0]?.createdAt
       }

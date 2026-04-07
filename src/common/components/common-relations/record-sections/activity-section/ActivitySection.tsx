@@ -12,6 +12,7 @@ import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/d
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { compareActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 import { ActivityInput } from './ActivityInput'
 import { ActivityEmailBody } from './ActivityEmailBody'
 import { AppAction } from '@/components/app-action'
@@ -204,21 +205,23 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
   const processedActivities = useMemo(() => {
     if (!rawActivities || rawActivities.length === 0) return []
 
-    return rawActivities.map((activity: Activity) => ({
-      id: activity.id,
-      title: activity.title || 'Untitled Activity',
-      description: activity.description || '',
-      occurredAt: activity.occurredAt || activity.createdAt,
-      createdAt: activity.createdAt,
-      ownerEmployee: activity.ownerEmployee,
-      createdBy: activity.ownerEmployee
-        ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
-          activity.ownerEmployee.displayName
-        : undefined,
-      activityType: activity.activityType,
-      documents: activity.documents || [],
-      emailMessageId: activity.additionalProperties?.emailMessageId || null
-    }))
+    return rawActivities
+      .map((activity: Activity) => ({
+        id: activity.id,
+        title: activity.title || 'Untitled Activity',
+        description: activity.description || '',
+        occurredAt: activity.occurredAt || activity.createdAt,
+        createdAt: activity.createdAt,
+        ownerEmployee: activity.ownerEmployee,
+        createdBy: activity.ownerEmployee
+          ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+            activity.ownerEmployee.displayName
+          : undefined,
+        activityType: activity.activityType,
+        documents: activity.documents || [],
+        emailMessageId: activity.additionalProperties?.emailMessageId || null
+      }))
+      .sort(compareActivitiesByOccurredAtDesc)
   }, [rawActivities])
 
   // Handle document download
@@ -316,7 +319,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
 
           return {
             id: activity.id,
-            date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
+            date: `${t('activities-timelineOccurred')}: ${dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A')}`,
             actor: activity.ownerEmployee ? (
               <a
                 href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
