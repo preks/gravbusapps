@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { PaperPlaneRight, Paperclip, Stop, X } from '@phosphor-icons/react'
+import { PaperPlaneRight, Paperclip, Plug, Stop, X } from '@phosphor-icons/react'
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
+import type { ExternalConnection } from '../../hooks/useFabricConnectors'
+import { ActiveConnectorChips } from '../connectors/ActiveConnectorChips'
 
 export interface FabricInputProps {
   /** 'landing' = full centered card; 'workspace' = compact bottom bar */
@@ -19,12 +21,16 @@ export interface FabricInputProps {
   selectedAgent?: SpecialistAgent
   onClearAgent?: () => void
   autoFocus?: boolean
+  /** Connectors integration */
+  onConnectorsClick?: () => void
+  activeConnectors?: ExternalConnection[]
+  onRemoveConnector?: (connectionId: string) => void
 }
 
 const DEFAULT_CONFIG: SessionConfig = {
   mode: 'deep',
   enable_memory: true,
-  enable_reflection: true
+  enable_reflection: undefined
 }
 
 export const FabricInput: React.FC<FabricInputProps> = ({
@@ -39,7 +45,10 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   isDisabled = false,
   selectedAgent,
   onClearAgent,
-  autoFocus = false
+  autoFocus = false,
+  onConnectorsClick,
+  activeConnectors = [],
+  onRemoveConnector
 }) => {
   const [value, setValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -115,6 +124,11 @@ export const FabricInput: React.FC<FabricInputProps> = ({
             data-testid="fabric-input-textarea"
           />
 
+          {/* Active connector chips */}
+          {activeConnectors.length > 0 && onRemoveConnector && (
+            <ActiveConnectorChips connectors={activeConnectors} onRemove={onRemoveConnector} />
+          )}
+
           {/* Toolbar */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:border-t gba:border-border/60">
             {/* Left: action icons */}
@@ -125,6 +139,17 @@ export const FabricInput: React.FC<FabricInputProps> = ({
             >
               <Paperclip className="gba:h-3.5 gba:w-3.5" />
             </button>
+
+            {onConnectorsClick && (
+              <button
+                onClick={onConnectorsClick}
+                className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                title="Connectors"
+                data-testid="fabric-input-connectors"
+              >
+                <Plug className="gba:h-3.5 gba:w-3.5" />
+              </button>
+            )}
 
             {/* Selected agent chip */}
             {!isLanding && selectedAgent && (
@@ -172,6 +197,11 @@ export const FabricInput: React.FC<FabricInputProps> = ({
           data-testid="fabric-input-textarea"
         />
 
+        {/* Active connector chips */}
+        {activeConnectors.length > 0 && onRemoveConnector && (
+          <ActiveConnectorChips connectors={activeConnectors} onRemove={onRemoveConnector} />
+        )}
+
         {/* Toolbar */}
         <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2.5 gba:border-t gba:border-border/80">
           <button
@@ -181,6 +211,17 @@ export const FabricInput: React.FC<FabricInputProps> = ({
           >
             <Paperclip className="gba:h-3.5 gba:w-3.5" />
           </button>
+
+          {onConnectorsClick && (
+            <button
+              onClick={onConnectorsClick}
+              className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+              title="Connectors"
+              data-testid="fabric-input-connectors"
+            >
+              <Plug className="gba:h-3.5 gba:w-3.5" />
+            </button>
+          )}
 
           {selectedAgent && (
             <button

@@ -2,11 +2,17 @@ import { CaretDown, Check, ClockCounterClockwise, Sparkle } from '@phosphor-icon
 import { useEffect, useRef, useState } from 'react'
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import { useFabricConnectors } from '../../hooks/useFabricConnectors'
 import { FabricInput } from './FabricInput'
+import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
 
 interface LandingScreenProps {
   accessToken: string
-  onStartSession: (task: string, config: SessionConfig) => void | Promise<unknown>
+  onStartSession: (
+    task: string,
+    config: SessionConfig,
+    activeExternalConnectionIds?: string[]
+  ) => void | Promise<unknown>
   onOpenHistory: () => void
 }
 
@@ -33,9 +39,16 @@ const GlowStyle: React.FC = () => (
 
 export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession, onOpenHistory }) => {
   const client = useEnterpriseAgentClient(accessToken)
+  const {
+    availableConnectors,
+    activeConnectors,
+    toggleConnector,
+    isLoading: isLoadingConnectors
+  } = useFabricConnectors(accessToken)
   const [selectedAgent, setSelectedAgent] = useState<SpecialistAgent | undefined>(undefined)
   const [agents, setAgents] = useState<SpecialistAgent[]>([])
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false)
+  const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
   const agentMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -101,9 +114,15 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
             <div className="gba:relative gba:w-full gba:max-w-[46rem] gba:overflow-visible">
               <FabricInput
                 variant="landing"
-                onSubmit={onStartSession}
+                onSubmit={(task, config) => {
+                  const connectionIds = activeConnectors.map(c => c.connection_id)
+                  return onStartSession(task, config, connectionIds)
+                }}
                 selectedAgent={selectedAgent}
                 onClearAgent={() => setSelectedAgent(undefined)}
+                onConnectorsClick={() => setIsConnectorSheetOpen(true)}
+                activeConnectors={activeConnectors}
+                onRemoveConnector={toggleConnector}
                 autoFocus
               />
 
@@ -164,6 +183,15 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
           </div>
         </div>
       </div>
+
+      <ConnectorPickerSheet
+        isOpen={isConnectorSheetOpen}
+        onClose={() => setIsConnectorSheetOpen(false)}
+        connectors={availableConnectors}
+        activeConnectorIds={new Set(activeConnectors.map(c => c.connection_id))}
+        onToggle={toggleConnector}
+        isLoading={isLoadingConnectors}
+      />
     </div>
   )
 }

@@ -7,6 +7,8 @@ import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
 import { FabricInput } from '../landing/FabricInput'
+import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
+import { useFabricConnectors } from '../../hooks/useFabricConnectors'
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
@@ -50,10 +52,19 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
     newSession,
     setActiveArtifactId
   } = useFabric()
+
+  const {
+    availableConnectors,
+    activeConnectors,
+    toggleConnector,
+    isLoading: isLoadingConnectors
+  } = useFabricConnectors(accessToken)
+
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
   const [isDesktopPanel, setIsDesktopPanel] = useState(false)
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
+  const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -263,6 +274,9 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
                     activeInterrupt={interruptQuestion}
                     isRunning={isStreaming}
                     isDisabled={isStreaming && !isWaitingForInput}
+                    onConnectorsClick={() => setIsConnectorSheetOpen(true)}
+                    activeConnectors={activeConnectors}
+                    onRemoveConnector={toggleConnector}
                   />
                 </div>
               </div>
@@ -321,6 +335,15 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
         {activeArtifact && (
           <ArtifactViewer file={activeArtifact} accessToken={accessToken} onClose={() => setActiveArtifactId(null)} />
         )}
+
+        <ConnectorPickerSheet
+          isOpen={isConnectorSheetOpen}
+          onClose={() => setIsConnectorSheetOpen(false)}
+          connectors={availableConnectors}
+          activeConnectorIds={new Set(activeConnectors.map(c => c.connection_id))}
+          onToggle={toggleConnector}
+          isLoading={isLoadingConnectors}
+        />
       </div>
     </div>
   )
