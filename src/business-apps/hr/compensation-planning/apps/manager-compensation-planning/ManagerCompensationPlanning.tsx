@@ -186,13 +186,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     </div>
   )
 
-  const companyToolbarEnd = (
-    <>
-      {companySelect}
-      {companiesLoadErrorMessage}
-    </>
-  )
-
   const renderBody = () => {
     if (companiesLoading) {
       return (
@@ -245,7 +238,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             totalFiltered={pipeline.totalFiltered}
             loading={dataLoading || performanceScoresLoading}
             error={error}
-            companyToolbarEnd={companyToolbarEnd}
             totalSalaryBudget={totalSalaryBudget}
             salaryBudgetLoading={salaryBudgetLoading}
             salaryBudgetError={salaryBudgetError}

@@ -1,10 +1,14 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { cn } from '@/common/utils/cn'
 
 export interface BudgetDistributionContextCardProps {
-  title: string
-  planSelect: React.ReactNode
-  companyToolbar: React.ReactNode
+  /** Optional headline (omit on manager team metrics-only card). */
+  title?: string
+  /** Optional row under title (e.g. company budget + company). Omit when metrics live only in pool section. */
+  planSelect?: React.ReactNode
+  /** Optional company selector (e.g. budget distribution). Omit on manager team view. */
+  companyToolbar?: React.ReactNode
   poolSection: React.ReactNode
 }
 
@@ -14,17 +18,32 @@ export function BudgetDistributionContextCard({
   companyToolbar,
   poolSection
 }: Readonly<BudgetDistributionContextCardProps>) {
+  const showToolbarRow = Boolean(planSelect) || Boolean(companyToolbar)
+  const hasTitle = Boolean(title && title.trim().length > 0)
+  const hasHeader = hasTitle || showToolbarRow
+
   return (
     <Card className="gba:w-full" data-testid="budget-distribution-context-card">
-      <CardHeader className="gba:space-y-0 gba:pb-4">
-        <CardTitle className="gba:text-base">{title}</CardTitle>
-        <div className="gba:mt-4 gba:flex gba:min-w-0 gba:flex-row gba:flex-wrap gba:items-center gba:gap-x-6 gba:gap-y-3">
-          {planSelect}
-          {companyToolbar}
-        </div>
-      </CardHeader>
+      {hasHeader ? (
+        <CardHeader className="gba:space-y-0 gba:pb-4">
+          {hasTitle ? <CardTitle className="gba:text-base">{title}</CardTitle> : null}
+          {showToolbarRow ? (
+            <div
+              className={cn(
+                'gba:flex gba:min-w-0 gba:flex-row gba:flex-wrap gba:items-center gba:gap-x-6 gba:gap-y-3',
+                hasTitle && 'gba:mt-4'
+              )}
+            >
+              {planSelect}
+              {companyToolbar}
+            </div>
+          ) : null}
+        </CardHeader>
+      ) : null}
       {poolSection ? (
-        <CardContent className="gba:border-t gba:border-border gba:pt-4">{poolSection}</CardContent>
+        <CardContent className={cn(hasHeader && 'gba:border-t gba:border-border gba:pt-4', !hasHeader && 'gba:pt-6')}>
+          {poolSection}
+        </CardContent>
       ) : null}
     </Card>
   )
