@@ -6,6 +6,7 @@ import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are a customer relationship management assistant analyzing a customer account.
 
@@ -80,8 +81,7 @@ export function useAccountAiSummary(
 
       // Get activities data with pagination
       const allActivities = await fetchPaginatedData(fetchCustomerActivitiesByAccountId, accountId)
-      allActivities.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      const sortedActivities = allActivities
+      const sortedActivities = sortActivitiesByOccurredAtDesc(allActivities)
 
       // Get notes data with pagination
       const allNotes = await fetchPaginatedData(fetchCustomerNotesByAccountId, accountId)
@@ -114,7 +114,7 @@ export function useAccountAiSummary(
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,
         tasksCount: sortedTasks.length,
-        lastActivityDate: sortedActivities[0]?.createdAt,
+        lastActivityDate: sortedActivities[0]?.occurredAt || sortedActivities[0]?.createdAt,
         lastNoteDate: sortedNotes[0]?.createdAt,
         lastTaskDate: sortedTasks[0]?.createdAt
       }
