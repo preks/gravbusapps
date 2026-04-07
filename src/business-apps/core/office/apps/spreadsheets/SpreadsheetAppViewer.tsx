@@ -870,6 +870,23 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     failures: 0,
     fallbackLoads: 0
   })
+  const [snapshotDebugInfo, setSnapshotDebugInfo] = useState<{
+    lastSuccessAt: number | null
+    lastFailAt: number | null
+    successCount: number
+    failCount: number
+  }>({ lastSuccessAt: null, lastFailAt: null, successCount: 0, failCount: 0 })
+  const [socketDebugInfo, setSocketDebugInfo] = useState({
+    connectCount: 0,
+    disconnectCount: 0,
+    reconnectCount: 0,
+    lastConnectAt: null as number | null,
+    lastDisconnectAt: null as number | null,
+    lastDisconnectReason: '' as string,
+    transport: '' as string,
+    socketId: '' as string,
+    connectErrorCount: 0
+  })
   const operationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingClientRowUpdatesRef = useRef<Map<string, Record<string, unknown>>>(new Map())
   const pendingCellChangesRef = useRef<Array<{ rowId: string; columnName: string; value: unknown }>>([])
@@ -1781,6 +1798,62 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onOperationReceived: handleCollaborationOperation
   })
 
+  useEffect(() => {
+    const sock = collaboration.socket
+    if (!sock) return
+    const onConnect = () => {
+      setSocketDebugInfo(prev => ({
+        ...prev,
+        connectCount: prev.connectCount + 1,
+        lastConnectAt: Date.now(),
+        transport: (sock as any).io?.engine?.transport?.name ?? '',
+        socketId: sock.id ?? ''
+      }))
+    }
+    const onDisconnect = (reason: string) => {
+      setSocketDebugInfo(prev => ({
+        ...prev,
+        disconnectCount: prev.disconnectCount + 1,
+        lastDisconnectAt: Date.now(),
+        lastDisconnectReason: reason
+      }))
+    }
+    const onReconnect = () => {
+      setSocketDebugInfo(prev => ({
+        ...prev,
+        reconnectCount: prev.reconnectCount + 1,
+        lastConnectAt: Date.now(),
+        transport: (sock as any).io?.engine?.transport?.name ?? '',
+        socketId: sock.id ?? ''
+      }))
+    }
+    const onConnectError = () => {
+      setSocketDebugInfo(prev => ({
+        ...prev,
+        connectErrorCount: prev.connectErrorCount + 1
+      }))
+    }
+    sock.on('connect', onConnect)
+    sock.on('disconnect', onDisconnect)
+    sock.on('connect_error', onConnectError)
+    sock.io?.on('reconnect', onReconnect)
+    if (sock.connected) {
+      setSocketDebugInfo(prev => ({
+        ...prev,
+        connectCount: prev.connectCount > 0 ? prev.connectCount : 1,
+        lastConnectAt: prev.lastConnectAt ?? Date.now(),
+        transport: (sock as any).io?.engine?.transport?.name ?? '',
+        socketId: sock.id ?? ''
+      }))
+    }
+    return () => {
+      sock.off('connect', onConnect)
+      sock.off('disconnect', onDisconnect)
+      sock.off('connect_error', onConnectError)
+      sock.io?.off('reconnect', onReconnect)
+    }
+  }, [collaboration.socket])
+
   const fileLock = useFileLock({
     entityId: app.id,
     entityType: 'spreadsheet_app',
@@ -2178,6 +2251,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const snapshot = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
       if (!snapshot) {
         snapshotSaveMetricsRef.current.failures += 1
+        setSnapshotDebugInfo(prev => ({ ...prev, lastFailAt: Date.now(), failCount: prev.failCount + 1 }))
         debugLog('snapshot checkpoint skipped: snapshot unavailable', {
           appId: app.id,
           sheetId: activeSheetId
@@ -2188,6 +2262,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const snapshotSizeBytes = getSnapshotSizeBytes(snapshot)
       if (snapshotSizeBytes == null) {
         snapshotSaveMetricsRef.current.failures += 1
+        setSnapshotDebugInfo(prev => ({ ...prev, lastFailAt: Date.now(), failCount: prev.failCount + 1 }))
         debugLog('snapshot checkpoint skipped: serialization failed', {
           appId: app.id,
           sheetId: activeSheetId
@@ -2197,6 +2272,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       if (snapshotSizeBytes > 8_500_000) {
         snapshotSaveMetricsRef.current.failures += 1
+        setSnapshotDebugInfo(prev => ({ ...prev, lastFailAt: Date.now(), failCount: prev.failCount + 1 }))
         debugLog('snapshot checkpoint skipped: payload too large', {
           appId: app.id,
           sheetId: activeSheetId,
@@ -2300,6 +2376,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           metrics: snapshotSaveMetricsRef.current
         })
         lastSuccessfulSnapshotCheckpointAtRef.current = Date.now()
+        setSnapshotDebugInfo(prev => ({
+          ...prev,
+          lastSuccessAt: Date.now(),
+          successCount: prev.successCount + 1
+        }))
         const queueClear = pendingCellChangesRef.current.length === 0 && pendingCellPersistTimeoutRef.current == null
         sheetPersist.recordSuccess(queueClear)
         if (queueClear) {
@@ -2307,6 +2388,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Snapshot checkpoint failed:', error)
+        setSnapshotDebugInfo(prev => ({
+          ...prev,
+          lastFailAt: Date.now(),
+          failCount: prev.failCount + 1
+        }))
         sheetPersist.recordError(sheetT('persist-snapshot-failed'))
       } finally {
         sheetPersist.endPersist()
@@ -3646,6 +3732,114 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         getSheetDataFromGrid={viewType === 'table' && !entityEnabled ? getSheetDataFromGrid : undefined}
         data-testid={`${testId}-sheets-ai-panel`}
       />
+
+      {isSpreadsheetAppsDebugEnabled() && (
+        <div
+          className="gba:fixed gba:bottom-0 gba:left-0 gba:right-0 gba:z-50 gba:flex gba:flex-col gba:gap-0 gba:bg-zinc-900 gba:px-3 gba:py-1 gba:text-[11px] gba:font-mono gba:text-zinc-300"
+          data-testid={`${testId}-snapshot-debug-bar`}
+        >
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <span className="gba:font-semibold gba:text-amber-400">Snapshot</span>
+            <span>
+              OK: <span className="gba:text-emerald-400">{snapshotDebugInfo.successCount}</span>
+            </span>
+            <span>
+              FAIL:{' '}
+              <span className={snapshotDebugInfo.failCount > 0 ? 'gba:text-red-400' : 'gba:text-zinc-500'}>
+                {snapshotDebugInfo.failCount}
+              </span>
+            </span>
+            <span>
+              Last OK:{' '}
+              {snapshotDebugInfo.lastSuccessAt ? new Date(snapshotDebugInfo.lastSuccessAt).toLocaleTimeString() : '—'}
+            </span>
+            <span>
+              Last FAIL:{' '}
+              {snapshotDebugInfo.lastFailAt ? new Date(snapshotDebugInfo.lastFailAt).toLocaleTimeString() : '—'}
+            </span>
+            <span className="gba:text-zinc-600">|</span>
+            <span>Conflicts: {snapshotSaveMetricsRef.current.conflicts}</span>
+            <span>Attempts: {snapshotSaveMetricsRef.current.attempts}</span>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <span className="gba:font-semibold gba:text-blue-400">Socket.IO</span>
+            <span>
+              Status:{' '}
+              <span className={collaboration.isCollaborationConnected ? 'gba:text-emerald-400' : 'gba:text-red-400'}>
+                {collaboration.isCollaborationConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </span>
+            <span>Transport: {socketDebugInfo.transport || '—'}</span>
+            <span>ID: {socketDebugInfo.socketId || '—'}</span>
+            <span className="gba:text-zinc-600">|</span>
+            <span>
+              Connects: <span className="gba:text-emerald-400">{socketDebugInfo.connectCount}</span>
+            </span>
+            <span>
+              Disconnects:{' '}
+              <span className={socketDebugInfo.disconnectCount > 0 ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>
+                {socketDebugInfo.disconnectCount}
+              </span>
+            </span>
+            <span>
+              Reconnects:{' '}
+              <span className={socketDebugInfo.reconnectCount > 0 ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>
+                {socketDebugInfo.reconnectCount}
+              </span>
+            </span>
+            <span>
+              Errors:{' '}
+              <span className={socketDebugInfo.connectErrorCount > 0 ? 'gba:text-red-400' : 'gba:text-zinc-500'}>
+                {socketDebugInfo.connectErrorCount}
+              </span>
+            </span>
+            {socketDebugInfo.lastDisconnectReason && <span>Last DC: {socketDebugInfo.lastDisconnectReason}</span>}
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <span className="gba:font-semibold gba:text-purple-400">Persist</span>
+            <span>
+              Saving:{' '}
+              <span className={sheetPersist.isSaving ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>
+                {sheetPersist.isSaving ? 'Yes' : 'No'}
+              </span>
+            </span>
+            <span>
+              Dirty:{' '}
+              <span className={sheetPersist.hasLocalDirty ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>
+                {sheetPersist.hasLocalDirty ? 'Yes' : 'No'}
+              </span>
+            </span>
+            <span>
+              Last Save:{' '}
+              {sheetPersist.lastPersistedAt ? new Date(sheetPersist.lastPersistedAt).toLocaleTimeString() : '—'}
+            </span>
+            {sheetPersist.error && <span className="gba:text-red-400">Err: {sheetPersist.error}</span>}
+            <span className="gba:text-zinc-600">|</span>
+            <span className="gba:font-semibold gba:text-teal-400">Version</span>
+            <span>
+              Saving:{' '}
+              <span className={versioning.isSaving ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>
+                {versioning.isSaving ? 'Yes' : 'No'}
+              </span>
+            </span>
+            <span>
+              Unsaved:{' '}
+              <span className={versioning.hasUnsavedChanges ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>
+                {versioning.hasUnsavedChanges ? 'Yes' : 'No'}
+              </span>
+            </span>
+            <span className="gba:text-zinc-600">|</span>
+            <span className="gba:font-semibold gba:text-orange-400">Lock</span>
+            <span>
+              canEdit:{' '}
+              <span className={fileLock.canEdit ? 'gba:text-emerald-400' : 'gba:text-red-400'}>
+                {fileLock.canEdit ? 'Yes' : 'No'}
+              </span>
+            </span>
+            <span>Participants: {collaboration.headerParticipants.length}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
