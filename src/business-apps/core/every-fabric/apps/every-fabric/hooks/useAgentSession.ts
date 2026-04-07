@@ -212,8 +212,8 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   }, [streamMessages, mergedSession, optimisticMessages])
 
   const startSession = useCallback(
-    async (task: string, config?: SessionConfig) => {
-      const { session_id } = await client.startSession(task, config)
+    async (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[]) => {
+      const { session_id } = await client.startSession(task, config, activeExternalConnectionIds)
       return session_id
     },
     [client]
