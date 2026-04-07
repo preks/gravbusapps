@@ -69,7 +69,7 @@ export const ActionCenter: React.FC<ActionCenterProps> = ({ alerts, onEmployeeCl
   const highCount = alerts.filter(a => a.severity === 'high').length
 
   return (
-    <Card style={{ borderRadius: '12px' }} className="gba:overflow-hidden">
+    <Card className="gba:rounded-xl gba:overflow-hidden">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base gba:font-semibold">Action Center</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">

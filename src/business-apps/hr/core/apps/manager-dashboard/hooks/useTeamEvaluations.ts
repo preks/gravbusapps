@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   getEmployeePerformanceEvaluationsAnalysis,
@@ -109,6 +109,195 @@ function parseDimensionEntries(entries: Record<string, unknown>[] | null | undef
   })
 }
 
+interface EmployeeCycleData {
+  employeeId: string
+  cycleScores: CycleScore[]
+  bestEvalPerCycle: Map<string, string>
+  evaluationCount: number
+  pending: number
+  completed: number
+}
+
+interface CachedAnalysis {
+  employees: any[]
+  employeeCycleData: EmployeeCycleData[]
+  cycleMap: Map<string, { name: string; evalEndDate: string | null }>
+}
+
+function buildCycleData(employees: any[], analysisResults: PromiseSettledResult<{ employeeId: string; data: any }>[]) {
+  const cycleMap = new Map<string, { name: string; evalEndDate: string | null }>()
+
+  const employeeCycleData: EmployeeCycleData[] = employees.map((emp: any) => {
+    const matchingResult = analysisResults.find(r => r.status === 'fulfilled' && r.value.employeeId === emp.id)
+
+    const cycleScores: CycleScore[] = []
+    const bestEvalPerCycle = new Map<string, string>()
+    let pending = 0
+    let completed = 0
+    let evaluationCount = 0
+
+    if (matchingResult?.status === 'fulfilled') {
+      const cycles = matchingResult.value.data?.performanceCycles || []
+      evaluationCount = cycles.reduce((sum: number, c: any) => sum + (c.evaluations?.length || 0), 0)
+
+      for (const cycle of cycles) {
+        const cId = cycle.performanceCycleId
+        const cName = cycle.performanceCycleName || cId
+        if (!cycleMap.has(cId)) {
+          cycleMap.set(cId, { name: cName, evalEndDate: cycle.evaluationPeriodEndDate ?? null })
+        }
+
+        let bestScoreInCycle: number | null = null
+        let bestEvalIdInCycle: string | null = null
+        for (const evalItem of cycle.evaluations || []) {
+          const evalStatus = evalItem.statusRef
+          if (evalStatus?.toUpperCase().includes('COMPLETED') || evalStatus?.toUpperCase().includes('CLOSED')) {
+            completed++
+          } else {
+            pending++
+          }
+
+          const score = evalItem.overall?.averageNumeric ?? null
+          if (score != null && bestScoreInCycle === null) {
+            bestScoreInCycle = score
+            bestEvalIdInCycle = evalItem.evaluationId
+          }
+        }
+
+        if (bestEvalIdInCycle) {
+          bestEvalPerCycle.set(cId, bestEvalIdInCycle)
+        }
+
+        cycleScores.push({
+          cycleName: cName,
+          cycleId: cId,
+          overallScore: bestScoreInCycle,
+          companyValuesAvg: null,
+          skillsAvg: null,
+          evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
+          evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null
+        })
+      }
+    }
+
+    cycleScores.sort((a, b) => (b.evaluationPeriodEndDate ?? '').localeCompare(a.evaluationPeriodEndDate ?? ''))
+
+    return { employeeId: emp.id, cycleScores, bestEvalPerCycle, evaluationCount, pending, completed }
+  })
+
+  return { employeeCycleData, cycleMap }
+}
+
+function resolveForCycle(
+  cache: CachedAnalysis,
+  targetCycleId: string | null | undefined,
+  cycleDetailMap: Map<string, PerformanceEvaluationAnalysisDetailResponse>
+) {
+  let totalScore = 0
+  let scoreCount = 0
+  let totalCvAvg = 0
+  let cvCount = 0
+  let totalSkillsAvg = 0
+  let skillsCount = 0
+  let pendingTotal = 0
+  let completedTotal = 0
+
+  const memberData: TeamMemberEvaluation[] = cache.employees.map((emp: any, idx: number) => {
+    const empCycle = cache.employeeCycleData[idx]
+    const position = emp.employeePosition?.[0]
+    const jobPositionName = position?.jobPosition?.name || ''
+
+    pendingTotal += empCycle.pending
+    completedTotal += empCycle.completed
+
+    let latestScore: number | null = null
+    let latestCycleId: string | null = null
+    let cycleName: string | null = null
+    const status: string | null = null
+
+    for (const cs of empCycle.cycleScores) {
+      const isTarget = !targetCycleId || cs.cycleId === targetCycleId
+      if (isTarget && cs.overallScore != null && latestScore === null) {
+        latestScore = cs.overallScore
+        latestCycleId = cs.cycleId
+        cycleName = cs.cycleName
+      }
+    }
+
+    const latestKey = latestCycleId ? `${emp.id}:${latestCycleId}` : null
+    const detail = latestKey ? cycleDetailMap.get(latestKey) : undefined
+
+    const companyValues = parseDimensionEntries(detail?.companyValues as Record<string, unknown>[] | undefined)
+    const skills = parseDimensionEntries(detail?.skills as Record<string, unknown>[] | undefined)
+
+    const companyValuesAvg = detail?.averages?.companyValues ?? null
+    const skillsAvg = detail?.averages?.skills ?? null
+    const changeOverall = detail?.changesSinceLastReview?.overall ?? null
+    const changeCompanyValues = detail?.changesSinceLastReview?.companyValues ?? null
+    const changeSkills = detail?.changesSinceLastReview?.skills ?? null
+    const ratingScaleLimit = detail?.ratingScaleLimit ?? null
+
+    const cycleScoresWithDetails = empCycle.cycleScores.map(cs => {
+      const d = cycleDetailMap.get(`${emp.id}:${cs.cycleId}`)
+      return d
+        ? { ...cs, companyValuesAvg: d.averages?.companyValues ?? null, skillsAvg: d.averages?.skills ?? null }
+        : cs
+    })
+
+    if (latestScore != null) {
+      totalScore += latestScore
+      scoreCount++
+    }
+    if (companyValuesAvg != null) {
+      totalCvAvg += companyValuesAvg
+      cvCount++
+    }
+    if (skillsAvg != null) {
+      totalSkillsAvg += skillsAvg
+      skillsCount++
+    }
+
+    return {
+      employeeId: emp.id,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      pictureThumbnail: emp.pictureThumbnail,
+      jobPositionName,
+      latestScore,
+      companyValuesAvg,
+      skillsAvg,
+      changeOverall,
+      changeCompanyValues,
+      changeSkills,
+      ratingScaleLimit,
+      companyValues,
+      skills,
+      cycleScores: cycleScoresWithDetails,
+      cycleName,
+      status,
+      evaluationCount: empCycle.evaluationCount
+    }
+  })
+
+  const sortedCycles = Array.from(cache.cycleMap.entries())
+    .map(([id, info]) => ({ id, name: info.name }))
+    .sort((a, b) => {
+      const aEnd = cache.cycleMap.get(a.id)?.evalEndDate ?? ''
+      const bEnd = cache.cycleMap.get(b.id)?.evalEndDate ?? ''
+      return bEnd.localeCompare(aEnd)
+    })
+
+  return {
+    memberData,
+    teamAvgScore: scoreCount > 0 ? Math.round((totalScore / scoreCount) * 10) / 10 : null,
+    teamCompanyValuesAvg: cvCount > 0 ? Math.round((totalCvAvg / cvCount) * 10) / 10 : null,
+    teamSkillsAvg: skillsCount > 0 ? Math.round((totalSkillsAvg / skillsCount) * 10) / 10 : null,
+    pendingEvaluations: pendingTotal,
+    completedEvaluations: completedTotal,
+    availableCycles: sortedCycles
+  }
+}
+
 export const useTeamEvaluations = ({
   accessToken,
   managerId,
@@ -125,8 +314,10 @@ export const useTeamEvaluations = ({
   const [error, setError] = useState<Error | null>(null)
 
   const graphQLClient = useGraphqlClient(accessToken)
+  const cacheRef = useRef<CachedAnalysis | null>(null)
+  const detailCacheRef = useRef(new Map<string, PerformanceEvaluationAnalysisDetailResponse>())
 
-  const fetchTeamEvaluations = useCallback(async () => {
+  const fetchBaseAnalysis = useCallback(async () => {
     if (!managerId || !accessToken) {
       setLoading(false)
       return
@@ -161,6 +352,7 @@ export const useTeamEvaluations = ({
       const employees = drResponse?.Employee || []
 
       if (employees.length === 0) {
+        cacheRef.current = null
         setMembers([])
         setTeamAvgScore(null)
         setTeamCompanyValuesAvg(null)
@@ -181,199 +373,91 @@ export const useTeamEvaluations = ({
         )
       )
 
-      const cycleMap = new Map<string, { name: string; evalEndDate: string | null }>()
-      const selectedCycleEvalIds: Array<{ employeeId: string; evaluationId: string; cycleId: string }> = []
-      let pending = 0
-      let completed = 0
-
-      interface EmployeeCycleData {
-        employeeId: string
-        cycleScores: CycleScore[]
-        latestScore: number | null
-        latestCycleId: string | null
-        cycleName: string | null
-        status: string | null
-        evaluationCount: number
-      }
-
-      const employeeCycleData: EmployeeCycleData[] = employees.map((emp: any) => {
-        const matchingResult = analysisResults.find(r => r.status === 'fulfilled' && r.value.employeeId === emp.id)
-
-        const cycleScores: CycleScore[] = []
-        let latestScore: number | null = null
-        let latestCycleId: string | null = null
-        let cycleName: string | null = null
-        let status: string | null = null
-        let evaluationCount = 0
-
-        if (matchingResult?.status === 'fulfilled') {
-          const cycles = matchingResult.value.data?.performanceCycles || []
-          evaluationCount = cycles.reduce((sum: number, c: any) => sum + (c.evaluations?.length || 0), 0)
-
-          for (const cycle of cycles) {
-            const cId = cycle.performanceCycleId
-            const cName = cycle.performanceCycleName || cId
-            if (!cycleMap.has(cId)) {
-              cycleMap.set(cId, { name: cName, evalEndDate: cycle.evaluationPeriodEndDate ?? null })
-            }
-
-            let bestScoreInCycle: number | null = null
-            let bestEvalIdInCycle: string | null = null
-            for (const evalItem of cycle.evaluations || []) {
-              const evalStatus = evalItem.statusRef
-              if (evalStatus?.toUpperCase().includes('COMPLETED') || evalStatus?.toUpperCase().includes('CLOSED')) {
-                completed++
-              } else {
-                pending++
-              }
-
-              const score = evalItem.overall?.averageNumeric ?? null
-              if (score != null && bestScoreInCycle === null) {
-                bestScoreInCycle = score
-                bestEvalIdInCycle = evalItem.evaluationId
-              }
-
-              const isTargetCycle = !selectedCycleId || cId === selectedCycleId
-              if (isTargetCycle && score != null && latestScore === null) {
-                latestScore = score
-                latestCycleId = cId
-                cycleName = cName
-                status = evalStatus || null
-              }
-            }
-
-            cycleScores.push({
-              cycleName: cName,
-              cycleId: cId,
-              overallScore: bestScoreInCycle,
-              companyValuesAvg: null,
-              skillsAvg: null,
-              evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
-              evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null
-            })
-
-            const isTargetCycle = !selectedCycleId || cId === selectedCycleId
-            if (isTargetCycle && bestEvalIdInCycle) {
-              selectedCycleEvalIds.push({ employeeId: emp.id, evaluationId: bestEvalIdInCycle, cycleId: cId })
-            }
-          }
-        }
-
-        cycleScores.sort((a, b) => {
-          const aDate = a.evaluationPeriodEndDate ?? ''
-          const bDate = b.evaluationPeriodEndDate ?? ''
-          return bDate.localeCompare(aDate)
-        })
-
-        return { employeeId: emp.id, cycleScores, latestScore, latestCycleId, cycleName, status, evaluationCount }
-      })
-
-      const detailResults = await Promise.allSettled(
-        selectedCycleEvalIds.map(({ employeeId, evaluationId, cycleId }) =>
-          getPerformanceEvaluationAnalysisDetail(accessToken, evaluationId, {
-            employeeId,
-            includePeerReviewerIdentity: false
-          }).then(detail => ({ employeeId, cycleId, detail }))
-        )
-      )
-
-      const cycleDetailMap = new Map<string, PerformanceEvaluationAnalysisDetailResponse>()
-      for (const result of detailResults) {
-        if (result.status === 'fulfilled') {
-          cycleDetailMap.set(`${result.value.employeeId}:${result.value.cycleId}`, result.value.detail)
-        }
-      }
-
-      for (const empData of employeeCycleData) {
-        for (const cs of empData.cycleScores) {
-          const detail = cycleDetailMap.get(`${empData.employeeId}:${cs.cycleId}`)
-          if (detail) {
-            cs.companyValuesAvg = detail.averages?.companyValues ?? null
-            cs.skillsAvg = detail.averages?.skills ?? null
-          }
-        }
-      }
-
-      let totalScore = 0
-      let scoreCount = 0
-      let totalCvAvg = 0
-      let cvCount = 0
-      let totalSkillsAvg = 0
-      let skillsCount = 0
-
-      const memberData: TeamMemberEvaluation[] = employees.map((emp: any, idx: number) => {
-        const position = emp.employeePosition?.[0]
-        const jobPositionName = position?.jobPosition?.name || ''
-        const empCycleData = employeeCycleData[idx]
-        const latestKey = empCycleData.latestCycleId ? `${emp.id}:${empCycleData.latestCycleId}` : null
-        const detail = latestKey ? cycleDetailMap.get(latestKey) : undefined
-
-        const companyValues = parseDimensionEntries(detail?.companyValues as Record<string, unknown>[] | undefined)
-        const skills = parseDimensionEntries(detail?.skills as Record<string, unknown>[] | undefined)
-
-        const companyValuesAvg = detail?.averages?.companyValues ?? null
-        const skillsAvg = detail?.averages?.skills ?? null
-        const changeOverall = detail?.changesSinceLastReview?.overall ?? null
-        const changeCompanyValues = detail?.changesSinceLastReview?.companyValues ?? null
-        const changeSkills = detail?.changesSinceLastReview?.skills ?? null
-        const ratingScaleLimit = detail?.ratingScaleLimit ?? null
-
-        if (empCycleData.latestScore != null) {
-          totalScore += empCycleData.latestScore
-          scoreCount++
-        }
-        if (companyValuesAvg != null) {
-          totalCvAvg += companyValuesAvg
-          cvCount++
-        }
-        if (skillsAvg != null) {
-          totalSkillsAvg += skillsAvg
-          skillsCount++
-        }
-
-        return {
-          employeeId: emp.id,
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          pictureThumbnail: emp.pictureThumbnail,
-          jobPositionName,
-          latestScore: empCycleData.latestScore,
-          companyValuesAvg,
-          skillsAvg,
-          changeOverall,
-          changeCompanyValues,
-          changeSkills,
-          ratingScaleLimit,
-          companyValues,
-          skills,
-          cycleScores: empCycleData.cycleScores,
-          cycleName: empCycleData.cycleName,
-          status: empCycleData.status,
-          evaluationCount: empCycleData.evaluationCount
-        }
-      })
-
-      const sortedCycles = Array.from(cycleMap.entries())
-        .map(([id, info]) => ({ id, name: info.name, evalEndDate: info.evalEndDate }))
-        .sort((a, b) => (b.evalEndDate ?? '').localeCompare(a.evalEndDate ?? ''))
-
-      setMembers(memberData)
-      setTeamAvgScore(scoreCount > 0 ? Math.round((totalScore / scoreCount) * 10) / 10 : null)
-      setTeamCompanyValuesAvg(cvCount > 0 ? Math.round((totalCvAvg / cvCount) * 10) / 10 : null)
-      setTeamSkillsAvg(skillsCount > 0 ? Math.round((totalSkillsAvg / skillsCount) * 10) / 10 : null)
-      setPendingEvaluations(pending)
-      setCompletedEvaluations(completed)
-      setAvailableCycles(sortedCycles.map(c => ({ id: c.id, name: c.name })))
+      const { employeeCycleData, cycleMap } = buildCycleData(employees, analysisResults)
+      cacheRef.current = { employees, employeeCycleData, cycleMap }
+      detailCacheRef.current = new Map()
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team evaluations'))
+      setLoading(false)
+    }
+  }, [managerId, accessToken, graphQLClient])
+
+  const fetchDetailsForCycle = useCallback(async () => {
+    const cache = cacheRef.current
+    if (!cache || !accessToken) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const evalIdsToFetch: Array<{ employeeId: string; evaluationId: string; cycleId: string }> = []
+
+      for (const empCycle of cache.employeeCycleData) {
+        for (const cs of empCycle.cycleScores) {
+          const isTarget = !selectedCycleId || cs.cycleId === selectedCycleId
+          if (isTarget && cs.overallScore != null) {
+            const evalId = empCycle.bestEvalPerCycle.get(cs.cycleId)
+            const key = `${empCycle.employeeId}:${cs.cycleId}`
+            if (evalId && !detailCacheRef.current.has(key)) {
+              evalIdsToFetch.push({ employeeId: empCycle.employeeId, evaluationId: evalId, cycleId: cs.cycleId })
+            }
+            break
+          }
+        }
+      }
+
+      if (evalIdsToFetch.length > 0) {
+        const detailResults = await Promise.allSettled(
+          evalIdsToFetch.map(({ employeeId, evaluationId, cycleId }) =>
+            getPerformanceEvaluationAnalysisDetail(accessToken, evaluationId, {
+              employeeId,
+              includePeerReviewerIdentity: false
+            }).then(detail => ({ employeeId, cycleId, detail }))
+          )
+        )
+
+        for (const result of detailResults) {
+          if (result.status === 'fulfilled') {
+            detailCacheRef.current.set(`${result.value.employeeId}:${result.value.cycleId}`, result.value.detail)
+          }
+        }
+      }
+
+      const resolved = resolveForCycle(cache, selectedCycleId, detailCacheRef.current)
+
+      setMembers(resolved.memberData)
+      setTeamAvgScore(resolved.teamAvgScore)
+      setTeamCompanyValuesAvg(resolved.teamCompanyValuesAvg)
+      setTeamSkillsAvg(resolved.teamSkillsAvg)
+      setPendingEvaluations(resolved.pendingEvaluations)
+      setCompletedEvaluations(resolved.completedEvaluations)
+      setAvailableCycles(resolved.availableCycles)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to fetch evaluation details'))
     } finally {
       setLoading(false)
     }
-  }, [managerId, accessToken, graphQLClient, selectedCycleId])
+  }, [accessToken, selectedCycleId])
 
   useEffect(() => {
-    fetchTeamEvaluations()
-  }, [fetchTeamEvaluations])
+    let cancelled = false
+    fetchBaseAnalysis().then(() => {
+      if (!cancelled && cacheRef.current) {
+        fetchDetailsForCycle()
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchBaseAnalysis, fetchDetailsForCycle])
+
+  useEffect(() => {
+    if (cacheRef.current) {
+      fetchDetailsForCycle()
+    }
+  }, [selectedCycleId, fetchDetailsForCycle])
 
   return {
     members,

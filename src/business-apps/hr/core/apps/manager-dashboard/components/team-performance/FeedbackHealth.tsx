@@ -62,7 +62,7 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }}>
+      <Card className="gba:rounded-xl">
         <CardHeader className="gba:pb-2">
           <div className="gba:flex gba:items-center gba:gap-2">
             <div className="gba:h-5 gba:w-5 gba:rounded gba:bg-muted gba:animate-pulse" />
@@ -135,7 +135,7 @@ export const FeedbackHealth: React.FC<FeedbackHealthProps> = ({
       : []
 
   return (
-    <Card style={{ borderRadius: '12px' }}>
+    <Card className="gba:rounded-xl">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
           <MessageSquare className="gba:h-5 gba:w-5 gba:text-muted-foreground" aria-hidden />

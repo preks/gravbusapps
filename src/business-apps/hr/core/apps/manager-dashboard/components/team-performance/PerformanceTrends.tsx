@@ -55,9 +55,9 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
 }) => {
   if (loading) {
     return (
-      <div style={{ display: 'flex', gap: '1.5rem' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Card style={{ borderRadius: '12px' }}>
+      <div className="gba:flex gba:gap-6">
+        <div className="gba:flex-1 gba:min-w-0">
+          <Card className="gba:rounded-xl">
             <CardHeader className="gba:pb-2">
               <CardTitle className="gba:text-base">Performance Trends</CardTitle>
             </CardHeader>
@@ -66,8 +66,8 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
             </CardContent>
           </Card>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Card style={{ borderRadius: '12px' }}>
+        <div className="gba:flex-1 gba:min-w-0">
+          <Card className="gba:rounded-xl">
             <CardHeader className="gba:pb-2">
               <CardTitle className="gba:text-base">Score Distribution</CardTitle>
             </CardHeader>
@@ -81,9 +81,9 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', gap: '1.5rem' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <Card style={{ borderRadius: '12px' }}>
+    <div className="gba:flex gba:gap-6">
+      <div className="gba:flex-1 gba:min-w-0">
+        <Card className="gba:rounded-xl">
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-base">Performance Trends</CardTitle>
           </CardHeader>
@@ -134,8 +134,8 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
         </Card>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <Card style={{ borderRadius: '12px' }}>
+      <div className="gba:flex-1 gba:min-w-0">
+        <Card className="gba:rounded-xl">
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-base">Score Distribution</CardTitle>
           </CardHeader>

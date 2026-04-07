@@ -90,7 +90,7 @@ export const GoalsHealth: React.FC<GoalsHealthProps> = ({
 
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }}>
+      <Card className="gba:rounded-xl">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">Goals Health</CardTitle>
         </CardHeader>
@@ -102,7 +102,7 @@ export const GoalsHealth: React.FC<GoalsHealthProps> = ({
   }
 
   return (
-    <Card style={{ borderRadius: '12px' }}>
+    <Card className="gba:rounded-xl">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base">Goals Health</CardTitle>
       </CardHeader>

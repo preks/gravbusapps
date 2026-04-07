@@ -59,7 +59,7 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAn
 
   if (!data && !isAnalyzing && !error) {
     return (
-      <Card style={{ borderRadius: '12px' }} data-testid="team-insights-panel-empty">
+      <Card className="gba:rounded-xl" data-testid="team-insights-panel-empty">
         <CardContent className="gba:p-6 gba:text-center">
           <Sparkles size={40} className="gba:mx-auto gba:mb-3 gba:text-muted-foreground gba:opacity-50" />
           <h3 className="gba:text-sm gba:font-semibold gba:mb-1">AI Team Insights</h3>
@@ -77,7 +77,7 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAn
 
   if (isAnalyzing) {
     return (
-      <Card style={{ borderRadius: '12px' }} data-testid="team-insights-panel-loading">
+      <Card className="gba:rounded-xl" data-testid="team-insights-panel-loading">
         <CardContent className="gba:p-6">
           <div className="gba:flex gba:items-center gba:gap-3 gba:mb-4">
             <div className="gba:animate-spin">
@@ -106,7 +106,7 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAn
 
   if (error) {
     return (
-      <Card style={{ borderRadius: '12px' }} data-testid="team-insights-panel-error">
+      <Card className="gba:rounded-xl" data-testid="team-insights-panel-error">
         <CardContent className="gba:p-6 gba:text-center">
           <AlertTriangle size={32} className="gba:mx-auto gba:mb-2 gba:text-destructive" />
           <p className="gba:text-sm gba:text-destructive gba:mb-3">{error}</p>
@@ -122,7 +122,7 @@ export const TeamInsightsPanel: React.FC<TeamInsightsPanelProps> = ({ data, isAn
   if (!data) return null
 
   return (
-    <Card style={{ borderRadius: '12px' }} data-testid="team-insights-panel">
+    <Card className="gba:rounded-xl" data-testid="team-insights-panel">
       <CardHeader className="gba:pb-3">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2">

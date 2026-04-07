@@ -112,7 +112,7 @@ export const TalentSignals: React.FC<TalentSignalsProps> = ({
   }
 
   return (
-    <Card style={{ borderRadius: '12px' }} className="gba:overflow-hidden gba:h-full">
+    <Card className="gba:rounded-xl gba:overflow-hidden gba:h-full">
       <CardHeader className="gba:pb-2">
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">

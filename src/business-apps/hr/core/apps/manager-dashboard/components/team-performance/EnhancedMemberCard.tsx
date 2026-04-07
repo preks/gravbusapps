@@ -59,8 +59,7 @@ export const EnhancedMemberCard: React.FC<EnhancedMemberCardProps> = ({
 
   return (
     <Card
-      className="gba:p-4 hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
-      style={{ borderRadius: '12px' }}
+      className="gba:rounded-xl gba:p-4 hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
       data-testid={`enhanced-member-card-${employeeId}`}
       onClick={() => onViewDetails(employeeId)}
     >

@@ -63,7 +63,7 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }}>
+      <Card className="gba:rounded-xl">
         <CardContent className="gba:p-6">
           <div className="gba:animate-pulse gba:space-y-4">
             <div className="gba:h-8 gba:bg-muted gba:rounded gba:w-48" />
@@ -124,7 +124,7 @@ export const TeamScorecard: React.FC<TeamScorecardProps> = ({
   ]
 
   return (
-    <Card style={{ borderRadius: '12px' }} data-testid="team-scorecard">
+    <Card className="gba:rounded-xl" data-testid="team-scorecard">
       <CardContent className="gba:p-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div className="gba:flex gba:items-center gba:gap-3">

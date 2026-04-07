@@ -8,7 +8,6 @@ export interface ExecutiveSummaryProps {
   teamCompanyValuesAvg: number | null
   teamSkillsAvg: number | null
   goalsCompletionRate: number
-  feedbackCoverage: number
   skillGrowthRate: number
   needsAttentionCount: number
   changeOverall: number | null

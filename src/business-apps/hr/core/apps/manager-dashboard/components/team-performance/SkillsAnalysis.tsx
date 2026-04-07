@@ -1,19 +1,14 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { Brain } from 'lucide-react'
-import type { TeamMemberSkills, SkillGrowthEntry } from '../../hooks/useTeamSkills'
+import type { TeamMemberSkills } from '../../hooks/useTeamSkills'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
+import { employeeLabel, heatmapLevelCellClass, heatmapScoreCellClass } from '../../utils/heatmapHelpers'
 
 export interface SkillsAnalysisProps {
   skillsMembers: TeamMemberSkills[]
-  skillGrowth: SkillGrowthEntry[]
   evaluationMembers: TeamMemberEvaluation[]
   loading: boolean
-}
-
-const employeeLabel = (m: { firstName: string; lastName: string }): string => {
-  const initial = m.lastName?.trim()?.charAt(0)
-  return initial ? `${m.firstName} ${initial}.` : m.firstName
 }
 
 const topSkillsByFrequency = (members: TeamMemberSkills[]): string[] => {
@@ -39,29 +34,15 @@ const memberSkillMap = (m: TeamMemberSkills): Map<string, number> => {
   return map
 }
 
-const skillLevelCellClass = (level: number | undefined): string => {
-  if (level == null || level === 0) {
-    return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'
-  }
-  if (level <= 2) {
-    return 'gba:bg-red-100 gba:dark:bg-red-900/30 gba:text-red-900 gba:dark:text-red-100'
-  }
-  if (level === 3) {
-    return 'gba:bg-yellow-100 gba:dark:bg-yellow-900/30 gba:text-yellow-900 gba:dark:text-yellow-100'
-  }
-  if (level === 4) {
-    return 'gba:bg-green-100 gba:dark:bg-green-900/30 gba:text-green-900 gba:dark:text-green-100'
-  }
-  return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
-}
-
-const computeSkillAverages = (members: TeamMemberSkills[], skillNames: string[]): Map<string, number | null> => {
+const computeSkillAverages = (
+  scoreMaps: Map<string, Map<string, number>>,
+  skillNames: string[]
+): Map<string, number | null> => {
   const avgs = new Map<string, number | null>()
   for (const sn of skillNames) {
     let sum = 0
     let count = 0
-    for (const m of members) {
-      const sm = memberSkillMap(m)
+    for (const [, sm] of scoreMaps) {
       const level = sm.get(sn)
       if (level != null && level !== 0) {
         sum += level
@@ -124,25 +105,10 @@ function evalSkillRows(members: TeamMemberEvaluation[]): EvalSkillRow[] {
     })
 }
 
-const scoreCellClass = (score: number | undefined, limit: number): string => {
-  if (score == null) return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'
-  const pct = score / limit
-  if (pct < 0.4) return 'gba:bg-red-100 gba:dark:bg-red-900/30 gba:text-red-900 gba:dark:text-red-100'
-  if (pct < 0.6) return 'gba:bg-yellow-100 gba:dark:bg-yellow-900/30 gba:text-yellow-900 gba:dark:text-yellow-100'
-  if (pct < 0.8) return 'gba:bg-green-100 gba:dark:bg-green-900/30 gba:text-green-900 gba:dark:text-green-100'
-  return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
-}
-
-export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
-  skillsMembers,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  skillGrowth,
-  evaluationMembers,
-  loading
-}) => {
+export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ skillsMembers, evaluationMembers, loading }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }}>
+      <Card className="gba:rounded-xl">
         <CardHeader className="gba:pb-2">
           <div className="gba:flex gba:items-center gba:gap-2">
             <div className="gba:h-5 gba:w-5 gba:rounded gba:bg-muted gba:animate-pulse" />
@@ -167,10 +133,11 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
   const useEvalFallback = !hasStandaloneSkills && eSkillNames.length > 0
 
   const evalAvgs = computeEvalSkillAverages(eRows, eSkillNames)
-  const standaloneAvgs = computeSkillAverages(skillsMembers, topSkills)
+  const memberSkillMaps = new Map(skillsMembers.map(m => [m.employeeId, memberSkillMap(m)]))
+  const standaloneAvgs = computeSkillAverages(memberSkillMaps, topSkills)
 
   return (
-    <Card style={{ borderRadius: '12px' }}>
+    <Card className="gba:rounded-xl">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
           <Brain className="gba:h-5 gba:w-5 gba:text-muted-foreground" aria-hidden />
@@ -210,7 +177,7 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                         return (
                           <div
                             key={skill}
-                            className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:p-2 gba:text-xs gba:font-semibold gba:tabular-nums ${scoreCellClass(score, ratingLimit)}`}
+                            className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:p-2 gba:text-xs gba:font-semibold gba:tabular-nums ${heatmapScoreCellClass(score, ratingLimit)}`}
                           >
                             {display}
                           </div>
@@ -229,7 +196,7 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                     return (
                       <div
                         key={`avg-${skill}`}
-                        className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${scoreCellClass(avg ?? undefined, ratingLimit)}`}
+                        className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${heatmapScoreCellClass(avg ?? undefined, ratingLimit)}`}
                       >
                         {display}
                       </div>
@@ -258,7 +225,7 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                   </div>
                 ))}
                 {skillsMembers.map(m => {
-                  const sm = memberSkillMap(m)
+                  const sm = memberSkillMaps.get(m.employeeId) ?? new Map()
                   return (
                     <React.Fragment key={m.employeeId}>
                       <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium">
@@ -270,7 +237,7 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                         return (
                           <div
                             key={skill}
-                            className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:p-2 gba:text-xs gba:font-semibold gba:tabular-nums ${skillLevelCellClass(level)}`}
+                            className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:p-2 gba:text-xs gba:font-semibold gba:tabular-nums ${heatmapLevelCellClass(level)}`}
                           >
                             {display}
                           </div>
@@ -290,7 +257,7 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                   return (
                     <div
                       key={`avg-${skill}`}
-                      className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${skillLevelCellClass(avg != null ? Math.round(avg) : undefined)}`}
+                      className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${heatmapLevelCellClass(avg != null ? Math.round(avg) : undefined)}`}
                     >
                       {display}
                     </div>

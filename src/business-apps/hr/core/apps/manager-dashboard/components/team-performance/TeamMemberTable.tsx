@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Card,
   CardHeader,
@@ -22,7 +22,6 @@ import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 import type { TeamMemberPerformance } from '../../hooks/useTeamPerformance'
 import type { TeamMemberFeedback } from '../../hooks/useTeamFeedbackOverview'
 import type { TeamMemberSkills } from '../../hooks/useTeamSkills'
-import type { DashboardAlert, TalentSignal } from '../../utils/dashboardComputations'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 
 interface TeamMemberTableProps {
@@ -30,8 +29,6 @@ interface TeamMemberTableProps {
   goals: TeamMemberPerformance[]
   feedback: TeamMemberFeedback[]
   skills: TeamMemberSkills[]
-  alerts: DashboardAlert[]
-  signals: TalentSignal[]
   onEmployeeClick: (employeeId: string) => void
   loading: boolean
   accessToken: string
@@ -59,7 +56,7 @@ const initialsFromName = (first: string, last: string): string => {
 const avatarSrc = (pictureThumbnail?: string): string | undefined =>
   pictureThumbnail && !pictureThumbnail.startsWith('{') ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined
 
-const TASK_EXPERT_ID = '69d5579b7299ecfb570204dc'
+const TASK_EXPERT_NAME = 'employee_performance_summary'
 
 interface AiSummaryState {
   summaries: Map<string, string>
@@ -68,15 +65,28 @@ interface AiSummaryState {
   generated: boolean
 }
 
+const SortIndicator = ({
+  column,
+  sortColumn,
+  sortDirection
+}: {
+  column: SortColumn
+  sortColumn: SortColumn
+  sortDirection: SortDirection
+}) =>
+  sortColumn === column ? (
+    sortDirection === 'asc' ? (
+      <ChevronUp className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
+    ) : (
+      <ChevronDown className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
+    )
+  ) : null
+
 export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   evaluations,
   goals,
   feedback,
   skills,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  alerts,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  signals,
   onEmployeeClick,
   loading,
   accessToken
@@ -91,6 +101,8 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   })
 
   const promptClient = usePromptManagerClient(accessToken)
+  const promptClientRef = useRef(promptClient)
+  promptClientRef.current = promptClient
 
   const goalsMap = useMemo(() => new Map(goals.map(g => [g.employeeId, g])), [goals])
   const feedbackMap = useMemo(() => new Map(feedback.map(f => [f.employeeId, f])), [feedback])
@@ -166,6 +178,18 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
     setAiState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
+      const client = promptClientRef.current
+      const promptsPage = await client.getPrompts({ promptName: TASK_EXPERT_NAME, limit: 1 })
+      const taskExpertId = promptsPage?.data?.[0]?._id
+      if (!taskExpertId) {
+        setAiState(prev => ({
+          ...prev,
+          loading: false,
+          error: `Task expert "${TASK_EXPERT_NAME}" not found. Create it in Prompt Manager.`
+        }))
+        return
+      }
+
       const ratingScale = rows[0]?.evaluation.ratingScaleLimit ?? 5
       const employeesData = rows.map(r => {
         const ev = r.evaluation
@@ -187,7 +211,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
         }
       })
 
-      const response = await promptClient.executePromptWithOptions(TASK_EXPERT_ID, {
+      const response = await client.executePromptWithOptions(taskExpertId, {
         userParams: {
           employees_json: JSON.stringify(employeesData),
           rating_scale: String(ratingScale)
@@ -215,7 +239,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
       const message = err instanceof Error ? err.message : 'Failed to generate summaries'
       setAiState(prev => ({ ...prev, loading: false, error: message }))
     }
-  }, [rows, promptClient])
+  }, [rows])
 
   useEffect(() => {
     setAiState({ summaries: new Map(), loading: false, error: null, generated: false })
@@ -232,15 +256,6 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
 
   const sortHeadClass = 'gba:cursor-pointer gba:select-none gba:whitespace-nowrap'
 
-  const SortIndicator: React.FC<{ column: SortColumn }> = ({ column }) =>
-    sortColumn === column ? (
-      sortDirection === 'asc' ? (
-        <ChevronUp className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
-      ) : (
-        <ChevronDown className="gba:inline gba:h-4 gba:w-4 gba:shrink-0" />
-      )
-    ) : null
-
   const columns: { key: SortColumn; label: string }[] = [
     { key: 'employee', label: 'Employee' },
     { key: 'overall', label: 'Overall' },
@@ -254,7 +269,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
   const colSpan = columns.length + 1
 
   return (
-    <Card style={{ borderRadius: '12px' }} className="gba:overflow-hidden">
+    <Card className="gba:rounded-xl gba:overflow-hidden">
       <CardHeader className="gba:pb-2">
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
@@ -288,7 +303,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
                   <TableHead key={col.key} className={sortHeadClass} onClick={() => toggleSort(col.key)}>
                     <span className="gba:inline-flex gba:items-center gba:gap-1">
                       {col.label}
-                      <SortIndicator column={col.key} />
+                      <SortIndicator column={col.key} sortColumn={sortColumn} sortDirection={sortDirection} />
                     </span>
                   </TableHead>
                 ))}

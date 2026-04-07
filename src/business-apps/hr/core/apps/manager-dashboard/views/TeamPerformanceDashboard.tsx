@@ -2,20 +2,11 @@ import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ChevronLeft, LayoutDashboard, Sparkles } from 'lucide-react'
 import { TeamMemberPerformance } from '../hooks/useTeamPerformance'
-import { TeamMemberSkills, SkillGrowthEntry } from '../hooks/useTeamSkills'
+import { TeamMemberSkills } from '../hooks/useTeamSkills'
 import { TeamMemberFeedback } from '../hooks/useTeamFeedbackOverview'
 import { TeamMemberEvaluation } from '../hooks/useTeamEvaluations'
 import { TeamPerformanceInsightsResult } from '../hooks/useTeamPerformanceInsights'
-import type {
-  DashboardAlert,
-  TalentSignal,
-  EmployeeSignal,
-  TeamSignal,
-  ScoreDistributionBand,
-  TrendDataPoint,
-  DimensionAverage,
-  AlignmentGap
-} from '../utils/dashboardComputations'
+import type { ScoreDistributionBand, TrendDataPoint, AlignmentGap } from '../utils/dashboardComputations'
 import {
   ExecutiveSummary,
   PerformanceTrends,
@@ -30,22 +21,13 @@ import {
 
 export interface TeamPerformanceDashboardProps {
   teamPerformance: TeamMemberPerformance[]
-  totalGoals: number
   averageGoalProgress: number
-  goalsOnTrack: number
-  goalsAtRisk: number
-  goalsBehindTarget: number
   loadingGoals: boolean
 
   skillsMembers: TeamMemberSkills[]
-  skillGrowth: SkillGrowthEntry[]
   loadingSkills: boolean
 
   feedbackMembers: TeamMemberFeedback[]
-  feedbackCoverage: number
-  recognitionRatio: number | null
-  totalReceivedCount: number
-  totalGivenCount: number
   loadingFeedback: boolean
 
   evaluationMembers: TeamMemberEvaluation[]
@@ -58,14 +40,8 @@ export interface TeamPerformanceDashboardProps {
   selectedCycleId: string | null
   onCycleChange: (cycleId: string) => void
 
-  alerts: DashboardAlert[]
-  talentSignals: TalentSignal[]
-  employeeSignals: EmployeeSignal[]
-  teamSignals: TeamSignal[]
   scoreDistribution: ScoreDistributionBand[]
   trendSeries: TrendDataPoint[]
-  companyValuesDimensionAverages: DimensionAverage[]
-  skillsDimensionAverages: DimensionAverage[]
   alignmentGaps: AlignmentGap[]
 
   ratingScaleLimit: number
@@ -86,27 +62,11 @@ export interface TeamPerformanceDashboardProps {
 export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) => {
   const {
     teamPerformance,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    totalGoals,
     averageGoalProgress,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    goalsOnTrack,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    goalsAtRisk,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    goalsBehindTarget,
     loadingGoals,
     skillsMembers,
-    skillGrowth,
     loadingSkills,
     feedbackMembers,
-    feedbackCoverage,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    recognitionRatio,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    totalReceivedCount,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    totalGivenCount,
     loadingFeedback,
     evaluationMembers,
     teamAvgScore,
@@ -116,17 +76,8 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     availableCycles,
     selectedCycleId,
     onCycleChange,
-    alerts,
-    talentSignals,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    employeeSignals,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    teamSignals,
     scoreDistribution,
     trendSeries,
-    companyValuesDimensionAverages,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    skillsDimensionAverages,
     alignmentGaps,
     ratingScaleLimit,
     skillGrowthRate,
@@ -199,7 +150,6 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         teamCompanyValuesAvg={teamCompanyValuesAvg}
         teamSkillsAvg={teamSkillsAvg}
         goalsCompletionRate={averageGoalProgress}
-        feedbackCoverage={feedbackCoverage}
         skillGrowthRate={skillGrowthRate}
         needsAttentionCount={needsAttentionCount}
         changeOverall={changeOverall}
@@ -223,27 +173,23 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         goals={teamPerformance}
         feedback={feedbackMembers}
         skills={skillsMembers}
-        alerts={alerts}
-        signals={talentSignals}
         onEmployeeClick={handleEmployeeClick}
         loading={isLoading}
         accessToken={accessToken}
       />
 
       {/* Company Values + Skills & Development — side by side */}
-      <div style={{ display: 'flex', gap: '1.5rem' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="gba:flex gba:gap-6">
+        <div className="gba:flex-1 gba:min-w-0">
           <CompanyValuesAnalysis
             members={evaluationMembers}
-            dimensionAverages={companyValuesDimensionAverages}
             ratingScaleLimit={ratingScaleLimit}
             loading={loadingEvaluations}
           />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="gba:flex-1 gba:min-w-0">
           <SkillsAnalysis
             skillsMembers={skillsMembers}
-            skillGrowth={skillGrowth}
             evaluationMembers={evaluationMembers}
             loading={loadingSkills || loadingEvaluations}
           />

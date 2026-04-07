@@ -7,15 +7,18 @@ import {
   PerformanceEvaluationDetailQueryParams
 } from '../types/performanceEvaluation.types'
 
-const PERFORMANCE_EVALUATIONS_BASE_PATH = '/processes/employee/performance-evaluations'
+const PERFORMANCE_EVALUATIONS_BASE_PATH = '/performance-evaluations'
 const EMPLOYEE_PERFORMANCE_EVALUATIONS_ANALYSIS_PATH = `${PERFORMANCE_EVALUATIONS_BASE_PATH}/analysis/employees`
+
+function getEmployeesApiBaseUrl(): string {
+  return env('NEXT_PUBLIC_EMPLOYEES_API_URL') || `${env('NEXT_PUBLIC_BASE_URL') ?? ''}/processes/employee`
+}
 
 export const getEmployeePerformanceEvaluationsAnalysis = async (
   accessToken: string,
   employeeId: string
 ): Promise<EmployeePerformanceEvaluationsAnalysisResponse> => {
-  const baseUrl = env('NEXT_PUBLIC_EMPLOYEES_API_URL') ?? ''
-  const client = new RestClient(baseUrl, {
+  const client = new RestClient(getEmployeesApiBaseUrl(), {
     Authorization: setAccessTokenToAuthorizationHeader(accessToken)
   })
 
@@ -36,8 +39,7 @@ export const getPerformanceEvaluationAnalysisDetail = async (
     throw new Error('Exactly one of employeeId or employeeUserId must be provided')
   }
 
-  const baseUrl = env('NEXT_PUBLIC_EMPLOYEES_API_URL') ?? ''
-  const client = new RestClient(baseUrl, {
+  const client = new RestClient(getEmployeesApiBaseUrl(), {
     Authorization: setAccessTokenToAuthorizationHeader(accessToken)
   })
 

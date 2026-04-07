@@ -133,10 +133,16 @@ export function computeTrendSeries(members: TeamMemberEvaluation[]): TrendDataPo
 
   const cycleMap = new Map<
     string,
-    { overallSum: number; overallCount: number; cvSum: number; cvCount: number; skillsSum: number; skillsCount: number }
+    {
+      overallSum: number
+      overallCount: number
+      cvSum: number
+      cvCount: number
+      skillsSum: number
+      skillsCount: number
+      evalEndDate: string | null
+    }
   >()
-
-  const orderedCycleNames: string[] = []
 
   for (const m of members) {
     for (const cs of m.cycleScores) {
@@ -147,9 +153,9 @@ export function computeTrendSeries(members: TeamMemberEvaluation[]): TrendDataPo
           cvSum: 0,
           cvCount: 0,
           skillsSum: 0,
-          skillsCount: 0
+          skillsCount: 0,
+          evalEndDate: cs.evaluationPeriodEndDate
         })
-        orderedCycleNames.push(cs.cycleName)
       }
       const entry = cycleMap.get(cs.cycleName)!
       if (cs.overallScore != null) {
@@ -167,15 +173,14 @@ export function computeTrendSeries(members: TeamMemberEvaluation[]): TrendDataPo
     }
   }
 
-  return orderedCycleNames.map(name => {
-    const e = cycleMap.get(name)!
-    return {
+  return Array.from(cycleMap.entries())
+    .sort((a, b) => (a[1].evalEndDate ?? '').localeCompare(b[1].evalEndDate ?? ''))
+    .map(([name, e]) => ({
       cycleName: name,
       overall: e.overallCount > 0 ? Math.round((e.overallSum / e.overallCount) * 10) / 10 : null,
       companyValues: e.cvCount > 0 ? Math.round((e.cvSum / e.cvCount) * 10) / 10 : null,
       skills: e.skillsCount > 0 ? Math.round((e.skillsSum / e.skillsCount) * 10) / 10 : null
-    }
-  })
+    }))
 }
 
 export function generateAlerts(
