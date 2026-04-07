@@ -13,10 +13,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  TableHead,
-  Avatar,
-  AvatarImage,
-  AvatarFallback
+  TableHead
 } from '@newwork/nw-design-system'
 import { UserIcon, CaretUpIcon, CaretDownIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollGridFilters as FilterState, PayrollCountry } from '../../../types/payrollTypes'
@@ -24,7 +21,6 @@ import { useFilteredEmployees } from '../../../hooks/usePayrollEmployees'
 import { ReadinessStatusBadge, IssueCountBadge, ChangedBadge, FieldStatusBadge } from '../../shared/StatusBadge'
 import { PayrollGridFilters } from './PayrollGridFilters'
 import { EmployeeDetailDrawer } from './EmployeeDetailDrawer'
-import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface PayrollGridViewProps {
   employees: PayrollEmployee[]
@@ -118,7 +114,7 @@ const SortIcon: React.FC<{ field: SortField; activeField: SortField; order: Sort
   order
 }) => {
   if (activeField !== field) return <CaretUpIcon size={12} className="gba:text-muted-foreground/40" />
-  return sortOrder === 'asc' ? (
+  return order === 'asc' ? (
     <CaretUpIcon size={12} className="gba:text-foreground" weight="bold" />
   ) : (
     <CaretDownIcon size={12} className="gba:text-foreground" weight="bold" />
@@ -131,11 +127,20 @@ type PayrollGridSortableHeadProps = Readonly<{
   className?: string
   sticky?: boolean
   activeField: SortField
-  order: SortOrder
+  sortOrder: SortOrder
   onSort: (field: SortField) => void
-  className?: string
   testId?: string
-}> = ({ field, label, activeField, order, onSort, className, testId }) => (
+}>
+
+const PayrollGridSortableHead: React.FC<PayrollGridSortableHeadProps> = ({
+  field,
+  label,
+  activeField,
+  sortOrder,
+  onSort,
+  className,
+  testId
+}) => (
   <TableHead
     className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${className || ''}`}
     onClick={() => onSort(field)}
@@ -143,7 +148,7 @@ type PayrollGridSortableHeadProps = Readonly<{
   >
     <span className="gba:flex gba:items-center gba:gap-1">
       {label}
-      <SortIcon field={field} activeField={activeField} order={order} />
+      <SortIcon field={field} activeField={activeField} order={sortOrder} />
     </span>
   </TableHead>
 )
@@ -343,7 +348,6 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <PayrollGridSortableHead
                   field="displayName"
                   label={t('grid-employee')}
-                  className="gba:min-w-[220px]"
                   sticky
                   activeField={sortField}
                   sortOrder={sortOrder}
