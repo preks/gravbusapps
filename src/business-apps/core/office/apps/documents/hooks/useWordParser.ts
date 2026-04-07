@@ -12,6 +12,9 @@ import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
 import translations from '../_i18n'
 import { enhanceImportedHtmlWithImageLayouts, parseDocxImageLayouts } from '../utils/docxImportUtils'
 
+type MammothImage = Parameters<Parameters<typeof mammoth.images.imgElement>[0]>[0]
+type MammothMessage = Awaited<ReturnType<typeof mammoth.convertToHtml>>['messages'][number]
+
 interface UseWordParserState {
   isLoading: boolean
   progress: number
@@ -44,15 +47,7 @@ const STYLE_MAP = [
   "p[style-name='List Paragraph'] => li:fresh"
 ].join('\n')
 
-function containsImgTag(html: string): boolean {
-  return /<img\b/i.test(html)
-}
-
-function containsCustomImageMarkup(html: string): boolean {
-  return /\bdata-node-type=(?:"|')custom-image(?:"|')/i.test(html)
-}
-
-async function readWordImageAsBase64(image: mammoth.Image): Promise<string> {
+async function readWordImageAsBase64(image: MammothImage): Promise<string> {
   try {
     return await image.readAsBase64String()
   } catch {
@@ -75,20 +70,11 @@ export function useWordParser(): UseWordParserResult {
   /**
    * Convert mammoth messages to our format
    */
-  const convertMessages = useCallback((messages: mammoth.Message[]): WordParserMessage[] => {
+  const convertMessages = useCallback((messages: MammothMessage[]): WordParserMessage[] => {
     return messages.map(msg => ({
       type: msg.type as 'error' | 'warning' | 'info',
       message: msg.message
     }))
-  }, [])
-
-  /**
-   * Extract images from the document (reserved for future use)
-   * Mammoth handles image extraction via convertImage option during main conversion
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _extractImages = useCallback(async (_arrayBuffer: ArrayBuffer): Promise<WordImage[]> => {
-    return []
   }, [])
 
   /**
@@ -190,18 +176,6 @@ export function useWordParser(): UseWordParserResult {
           .replace(/<table>/g, '<table class="document-table">')
           .replace(/<ul>/g, '<ul class="document-list">')
           .replace(/<ol>/g, '<ol class="document-list">')
-
-        console.info('[WordParser] DOCX import image diagnostics', {
-          collectedImageCount: collectedImages.length,
-          ooxmlLayoutCount: imageLayouts.length,
-          mammothHtmlHasImgTag: containsImgTag(result.value),
-          finalHtmlHasImgTag: containsImgTag(html),
-          finalHtmlHasCustomImageMarkup: containsCustomImageMarkup(html),
-          mammothMessages: result.messages.map(message => ({
-            type: message.type,
-            message: message.message
-          }))
-        })
 
         const parsedDocument: ParsedWordDocument = {
           fileName: file.name,
