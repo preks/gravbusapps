@@ -377,6 +377,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         changeCompanyValues={db.changeCompanyValues}
         changeSkills={db.changeSkills}
         insights={tpo.insights}
+        accessToken={accessToken || ''}
         onNavigateBack={vm.handleNavigateBackToDashboard}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
       />

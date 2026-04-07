@@ -23,6 +23,8 @@ export interface CycleScore {
   overallScore: number | null
   companyValuesAvg: number | null
   skillsAvg: number | null
+  evaluationPeriodStartDate: string | null
+  evaluationPeriodEndDate: string | null
 }
 
 export interface TeamMemberEvaluation {
@@ -179,8 +181,8 @@ export const useTeamEvaluations = ({
         )
       )
 
-      const cycleMap = new Map<string, string>()
-      const allCycleEvalIds: Array<{ employeeId: string; evaluationId: string; cycleId: string }> = []
+      const cycleMap = new Map<string, { name: string; evalEndDate: string | null }>()
+      const selectedCycleEvalIds: Array<{ employeeId: string; evaluationId: string; cycleId: string }> = []
       let pending = 0
       let completed = 0
 
@@ -211,7 +213,9 @@ export const useTeamEvaluations = ({
           for (const cycle of cycles) {
             const cId = cycle.performanceCycleId
             const cName = cycle.performanceCycleName || cId
-            cycleMap.set(cId, cName)
+            if (!cycleMap.has(cId)) {
+              cycleMap.set(cId, { name: cName, evalEndDate: cycle.evaluationPeriodEndDate ?? null })
+            }
 
             let bestScoreInCycle: number | null = null
             let bestEvalIdInCycle: string | null = null
@@ -238,25 +242,34 @@ export const useTeamEvaluations = ({
               }
             }
 
-            if (bestEvalIdInCycle) {
-              allCycleEvalIds.push({ employeeId: emp.id, evaluationId: bestEvalIdInCycle, cycleId: cId })
-            }
-
             cycleScores.push({
               cycleName: cName,
               cycleId: cId,
               overallScore: bestScoreInCycle,
               companyValuesAvg: null,
-              skillsAvg: null
+              skillsAvg: null,
+              evaluationPeriodStartDate: cycle.evaluationPeriodStartDate ?? null,
+              evaluationPeriodEndDate: cycle.evaluationPeriodEndDate ?? null
             })
+
+            const isTargetCycle = !selectedCycleId || cId === selectedCycleId
+            if (isTargetCycle && bestEvalIdInCycle) {
+              selectedCycleEvalIds.push({ employeeId: emp.id, evaluationId: bestEvalIdInCycle, cycleId: cId })
+            }
           }
         }
+
+        cycleScores.sort((a, b) => {
+          const aDate = a.evaluationPeriodEndDate ?? ''
+          const bDate = b.evaluationPeriodEndDate ?? ''
+          return bDate.localeCompare(aDate)
+        })
 
         return { employeeId: emp.id, cycleScores, latestScore, latestCycleId, cycleName, status, evaluationCount }
       })
 
       const detailResults = await Promise.allSettled(
-        allCycleEvalIds.map(({ employeeId, evaluationId, cycleId }) =>
+        selectedCycleEvalIds.map(({ employeeId, evaluationId, cycleId }) =>
           getPerformanceEvaluationAnalysisDetail(accessToken, evaluationId, {
             employeeId,
             includePeerReviewerIdentity: false
@@ -340,7 +353,9 @@ export const useTeamEvaluations = ({
         }
       })
 
-      const sortedCycles = Array.from(cycleMap.entries()).map(([id, name]) => ({ id, name }))
+      const sortedCycles = Array.from(cycleMap.entries())
+        .map(([id, info]) => ({ id, name: info.name, evalEndDate: info.evalEndDate }))
+        .sort((a, b) => (b.evalEndDate ?? '').localeCompare(a.evalEndDate ?? ''))
 
       setMembers(memberData)
       setTeamAvgScore(scoreCount > 0 ? Math.round((totalScore / scoreCount) * 10) / 10 : null)
@@ -348,7 +363,7 @@ export const useTeamEvaluations = ({
       setTeamSkillsAvg(skillsCount > 0 ? Math.round((totalSkillsAvg / skillsCount) * 10) / 10 : null)
       setPendingEvaluations(pending)
       setCompletedEvaluations(completed)
-      setAvailableCycles(sortedCycles)
+      setAvailableCycles(sortedCycles.map(c => ({ id: c.id, name: c.name })))
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team evaluations'))
     } finally {

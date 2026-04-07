@@ -77,6 +77,8 @@ export interface TeamPerformanceDashboardProps {
 
   insights: TeamPerformanceInsightsResult
 
+  accessToken: string
+
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
 }
@@ -133,6 +135,7 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     changeCompanyValues,
     changeSkills,
     insights,
+    accessToken,
     onNavigateBack,
     onNavigateToEmployee
   } = props
@@ -214,6 +217,19 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         loading={loadingEvaluations}
       />
 
+      {/* Team Member Table — full width */}
+      <TeamMemberTable
+        evaluations={evaluationMembers}
+        goals={teamPerformance}
+        feedback={feedbackMembers}
+        skills={skillsMembers}
+        alerts={alerts}
+        signals={talentSignals}
+        onEmployeeClick={handleEmployeeClick}
+        loading={isLoading}
+        accessToken={accessToken}
+      />
+
       {/* Company Values + Skills & Development — side by side */}
       <div style={{ display: 'flex', gap: '1.5rem' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -234,22 +250,8 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         </div>
       </div>
 
-      {/* Goals Health + Feedback Health — removed */}
-
       {/* Alignment Comparison — full width */}
       <AlignmentComparison gaps={alignmentGaps} ratingScaleLimit={ratingScaleLimit} loading={loadingEvaluations} />
-
-      {/* Team Member Table — full width */}
-      <TeamMemberTable
-        evaluations={evaluationMembers}
-        goals={teamPerformance}
-        feedback={feedbackMembers}
-        skills={skillsMembers}
-        alerts={alerts}
-        signals={talentSignals}
-        onEmployeeClick={handleEmployeeClick}
-        loading={isLoading}
-      />
 
       {/* Deep Dive Sheet */}
       <MemberDeepDiveSheet
