@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, Alert, useTranslation } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, Alert, useTranslation } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, ArrowLeftIcon } from '@phosphor-icons/react'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
@@ -9,6 +9,7 @@ import { TimeEntriesTable } from '@/business-apps/hr/core/apps/employee-record/c
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { exportTimeHistoryPdf } from '../utils/exportTimeHistoryPdf'
+import { parseDurationToMinutes } from '../utils/duration'
 import timeTrackingTranslations from '../_i18n'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -59,6 +60,43 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   const { t } = useTranslation(timeTrackingTranslations)
   const [showCalendar, setShowCalendar] = React.useState(false)
   const graphqlClient = useGraphQLClient(accessToken)
+
+  const summary = React.useMemo(() => {
+    const all = entriesForReport ?? entries
+    let daysWorked = 0
+    let bankHolidays = 0
+    let vacationDays = 0
+    let totalPlannedMin = 0
+    let totalEffectiveMin = 0
+
+    for (const e of all) {
+      const effectiveMin = parseDurationToMinutes(e.effectiveTime)
+      const plannedMin = parseDurationToMinutes(e.plannedTime)
+      totalPlannedMin += plannedMin
+      totalEffectiveMin += effectiveMin
+
+      if (effectiveMin > 0 || e.startTimeISO || e.endTimeISO) daysWorked += 1
+      if (e.dayType === 'holiday') bankHolidays += 1
+      if (e.absenceLabel && /\b(vacation|urlaub|concediu)\b/i.test(e.absenceLabel)) vacationDays += 1
+    }
+
+    const fmt = (mins: number) => {
+      const sign = mins < 0 ? '-' : ''
+      const abs = Math.abs(mins)
+      const h = Math.floor(abs / 60)
+      const m = abs % 60
+      return m === 0 ? `${sign}${h}h` : `${sign}${h}h ${m}m`
+    }
+
+    return {
+      daysWorked,
+      bankHolidays,
+      vacationDays,
+      plannedHours: fmt(totalPlannedMin),
+      effectiveHours: fmt(totalEffectiveMin),
+      difference: fmt(totalPlannedMin - totalEffectiveMin)
+    }
+  }, [entriesForReport, entries])
 
   const handleGenerateReport = async () => {
     try {
@@ -223,9 +261,31 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     )
   }
 
+  const summaryCards = [
+    { label: t('time_tracking_summary_days_worked'), value: String(summary.daysWorked) },
+    { label: t('time_tracking_summary_bank_holidays'), value: String(summary.bankHolidays) },
+    { label: t('time_tracking_summary_vacation_days'), value: String(summary.vacationDays) },
+    { label: t('time_tracking_summary_planned_hours'), value: summary.plannedHours },
+    { label: t('time_tracking_summary_effective_hours'), value: summary.effectiveHours },
+    { label: t('time_tracking_summary_difference_hours'), value: summary.difference }
+  ]
+
   return (
     <div data-testid="time-tracking-history-container">
-      {/* Top-right actions */}
+      <div
+        className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-3 gba:mb-4"
+        data-testid="history-summary"
+      >
+        {summaryCards.map(item => (
+          <Card key={item.label}>
+            <CardContent className="gba:p-4 gba:gap-0">
+              <div className="gba:text-sm gba:text-muted-foreground">{item.label}</div>
+              <div className="gba:text-2xl gba:font-bold">{item.value}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <div className="gba:mb-3 gba:flex gba:items-center gba:justify-end gba:gap-2">
         <Button variant="outline" onClick={() => setShowCalendar(true)} data-testid="my-time-history-calendar-button">
           <CalendarBlankIcon className="gba:w-4 gba:h-4 gba:mr-2" />
