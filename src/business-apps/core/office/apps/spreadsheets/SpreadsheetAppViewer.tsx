@@ -2882,8 +2882,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     }
 
-    void chainOnOperationQueue(operationQueueRef, run).catch(() => undefined)
-  }, [entityEnabled])
+    void chainOnOperationQueue(operationQueueRef, run).catch(err => {
+      console.error('[SpreadsheetAppViewer] Flush on visibility/pagehide failed:', err)
+      sheetPersist.recordError(sheetT('persist-cell-failed'))
+    })
+  }, [entityEnabled, sheetPersist.recordError, sheetT])
 
   useEffect(() => {
     if (typeof globalThis === 'undefined' || typeof document === 'undefined') return
@@ -2914,11 +2917,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     }
 
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasPendingCells = pendingCellChangesRef.current.length > 0
+      const hasPendingDebounce = pendingCellPersistTimeoutRef.current != null
+      const hasPendingUniverChange = univerDataChangeTimeoutRef.current != null
+      if (hasPendingCells || hasPendingDebounce || hasPendingUniverChange) {
+        e.preventDefault()
+      }
+    }
+
     globalThis.addEventListener('pagehide', handlePageHide)
+    globalThis.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
       globalThis.removeEventListener('pagehide', handlePageHide)
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [flushPendingPersistenceNow])
