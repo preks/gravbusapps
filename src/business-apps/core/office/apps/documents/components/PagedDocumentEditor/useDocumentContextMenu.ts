@@ -43,6 +43,19 @@ function getContextMenuTargetElement(target: EventTarget | null): HTMLElement | 
   return target instanceof HTMLElement ? target : null
 }
 
+function resolveImageSelectionPosition(editor: TiptapEditor, element: HTMLElement): number | null {
+  const projectedPos = Number(element.dataset.imageNodePos ?? '')
+  if (Number.isInteger(projectedPos) && projectedPos >= 0) {
+    return projectedPos
+  }
+
+  try {
+    return editor.view.posAtDOM(element, 0)
+  } catch {
+    return null
+  }
+}
+
 export function resolveContextMenuKind(options: {
   hasTextSelection: boolean
   imageSelection: DocumentContextMenuImageSelection | null
@@ -71,10 +84,13 @@ export function syncContextMenuSelection(
   if (!target) return
 
   const imageElement = target.closest(
-    '[data-testid="document-editor-image-anchor"], [data-image-overlay-anchor="true"]'
+    '[data-testid="document-editor-image-anchor"], [data-image-overlay-anchor="true"], [data-image-page-anchor="true"]'
   )
   if (imageElement instanceof HTMLElement) {
-    const imagePos = editor.view.posAtDOM(imageElement, 0)
+    const imagePos = resolveImageSelectionPosition(editor, imageElement)
+    if (imagePos == null) {
+      return
+    }
     const imageNode = editor.state.doc.nodeAt(imagePos)
     if (imageNode?.type.name === 'image') {
       const tr = editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos))

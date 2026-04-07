@@ -1,7 +1,7 @@
 import { useCallback, useMemo, type MutableRefObject } from 'react'
 import { useEditor, type Editor as TiptapEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
+import { StarterKit } from '@tiptap/starter-kit'
+import { Collaboration } from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Underline } from '@tiptap/extension-underline'
@@ -40,6 +40,20 @@ const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
 
 type TranslateFn = (key: string) => string
 
+export function createDocumentImageExtension(accessToken: string) {
+  return DocumentImage.configure({
+    inline: true,
+    allowBase64: true,
+    getAccessToken: () => accessToken,
+    isProtectedSrc: isDocumentImageProtectedSrc,
+    resolveProtectedSrc: resolveProtectedDocumentImageSrc,
+    minSize: 40,
+    HTMLAttributes: {
+      class: 'editor-image'
+    }
+  })
+}
+
 function createSharedDocumentExtensions(accessToken: string): any[] {
   return [
     TextAlign.configure({
@@ -63,16 +77,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
       },
       isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
     }),
-    DocumentImage.configure({
-      inline: true,
-      getAccessToken: () => accessToken,
-      isProtectedSrc: isDocumentImageProtectedSrc,
-      resolveProtectedSrc: resolveProtectedDocumentImageSrc,
-      minSize: 40,
-      HTMLAttributes: {
-        class: 'editor-image'
-      }
-    }),
+    createDocumentImageExtension(accessToken),
     Signature,
     Table.configure({
       resizable: true,
