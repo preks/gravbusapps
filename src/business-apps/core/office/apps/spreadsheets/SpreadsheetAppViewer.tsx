@@ -2224,6 +2224,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           sheetId: activeSheetId,
           sizeBytes: snapshotSizeBytes
         })
+        sheetPersist.recordError(sheetT('persist-snapshot-too-large'))
         return
       }
 

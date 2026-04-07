@@ -1092,6 +1092,7 @@ persist-row-delete-failed = Zeile konnte nicht gelöscht werden.
 persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
 persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.
 persist-recovery-failed = Speicherkonflikt konnte nicht behoben werden. Bitte die Seite neu laden.
+persist-snapshot-too-large = Die Formatierung konnte nicht gespeichert werden, da die Tabelle zu groß ist. Zelldaten werden weiterhin gespeichert.
 
 # Share App Dialog
 share-dialog-title = „{ $name }" teilen
