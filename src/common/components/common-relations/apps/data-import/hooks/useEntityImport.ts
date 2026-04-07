@@ -18,7 +18,9 @@ import {
 } from '@/common/components/common-relations/apps/data-import/types'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { flowbotClient } from '@/common/network/flowbot'
+import { buildCustomerAccountPayload } from '@/common/data/customer/types/customerAccountTypes'
 import { buildInvestmentContactPayload } from '@/common/data/investment/types/investmentContactTypes'
 import { buildInvestmentOpportunityPayload } from '@/common/data/investment/types/investmentOpportunityTypes'
 
@@ -56,13 +58,6 @@ export interface UseEntityImportReturn<T> {
   reset: () => void
 }
 
-// Entity type configuration maps
-const INVESTMENT_TYPE_MAP = {
-  'real-estate-investment': 'realEstateInvestment',
-  'equity-investment': 'equityInvestment',
-  'liquid-fund-investment': 'liquidFundInvestment'
-} as const
-
 const STANDARD_ENTITY_ENDPOINTS = {
   lead: 'Leads',
   contact: 'Contacts',
@@ -71,6 +66,23 @@ const STANDARD_ENTITY_ENDPOINTS = {
 } as const
 
 type SupportedStandardEntityType = keyof typeof STANDARD_ENTITY_ENDPOINTS
+
+const GET_INVESTMENT_GROUP_BY_CODE_QUERY = `
+  query GetInvestmentGroupByCode($groupCode: String!) {
+    groups: CatalogEntry(
+      where: {
+        catalog: {identifier: {_eq: "InvestmentGroup"}, version: {_eq: "v1"}}
+        isDeleted: {_eq: false}
+        _or: [{code: {_eq: $groupCode}}, {value: {_eq: $groupCode}}]
+      }
+      limit: 1
+    ) {
+      id
+      code
+      value
+    }
+  }
+`
 
 function stripEmptyValues<T extends Record<string, any>>(entity: T): Partial<T> {
   return Object.fromEntries(
@@ -111,9 +123,8 @@ function normalizeEntityForImport<T extends Record<string, any>>(entity: T): T {
     }))
   }
 
-  const investmentSegments = ['investment', 'realEstateInvestment', 'equityInvestment', 'liquidFundInvestment'] as const
-  for (const segment of investmentSegments) {
-    const segmentValue = (normalized as any)[segment]
+  for (const [segment, segmentValue] of Object.entries(normalized as Record<string, unknown>)) {
+    if (segment !== 'investment' && !segment.endsWith('Investment')) continue
     if (!segmentValue || typeof segmentValue !== 'object' || Array.isArray(segmentValue)) continue
     ;(normalized as any)[segment] = {
       ...segmentValue,
@@ -132,21 +143,13 @@ type TargetFieldAdapters = {
   ambiguousBackendFields: Set<string>
 }
 
-function isInvestmentEntityType(entityType: string): boolean {
-  return entityType in INVESTMENT_TYPE_MAP
+function toBackendTargetField(uiField: string, stripRootSegment: boolean): string {
+  if (!stripRootSegment) return uiField
+  const separatorIndex = uiField.indexOf('.')
+  return separatorIndex > -1 ? uiField.slice(separatorIndex + 1) : uiField
 }
 
-function toInvestmentBackendField(uiField: string): string {
-  const prefixes = ['investment.', 'equityInvestment.', 'realEstateInvestment.', 'liquidFundInvestment.']
-  for (const prefix of prefixes) {
-    if (uiField.startsWith(prefix)) {
-      return uiField.slice(prefix.length)
-    }
-  }
-  return uiField
-}
-
-function buildTargetFieldAdapters(entityType: string, targetFields: string[]): TargetFieldAdapters {
+function buildTargetFieldAdapters(targetFields: string[], stripRootSegment: boolean): TargetFieldAdapters {
   const uiAllowedFields = new Set(targetFields)
   const backendAllowedFields = new Set<string>()
   const uiToBackend = new Map<string, string>()
@@ -154,7 +157,7 @@ function buildTargetFieldAdapters(entityType: string, targetFields: string[]): T
   const ambiguousBackendFields = new Set<string>()
 
   for (const uiField of targetFields) {
-    const backendField = isInvestmentEntityType(entityType) ? toInvestmentBackendField(uiField) : uiField
+    const backendField = toBackendTargetField(uiField, stripRootSegment)
     uiToBackend.set(uiField, backendField)
     backendAllowedFields.add(backendField)
 
@@ -275,17 +278,35 @@ function sanitizeCommunicationChannels(
   channels: unknown
 ): Array<{ communicationChannelRef: string; value: string; valueExtension?: string }> | undefined {
   if (!Array.isArray(channels)) return undefined
+  const normalizeCommunicationChannelRef = (ref: string): string => {
+    if (/^CommunicationChannel:v\d+:/i.test(ref)) return ref
+    if (ref.startsWith('CommunicationChannel:'))
+      return ref.replace(/^CommunicationChannel:/, 'CommunicationChannel:v1:')
+    return ref
+  }
+
   const valid = channels
     .filter(channel => channel && typeof channel === 'object')
     .map(channel => {
       const raw = channel as Record<string, unknown>
-      const communicationChannelRef = typeof raw.communicationChannelRef === 'string' ? raw.communicationChannelRef : ''
+      const communicationChannelRef =
+        typeof raw.communicationChannelRef === 'string'
+          ? normalizeCommunicationChannelRef(raw.communicationChannelRef)
+          : ''
       const value = typeof raw.value === 'string' ? raw.value.trim() : ''
       const valueExtension = typeof raw.valueExtension === 'string' ? raw.valueExtension : undefined
       return { communicationChannelRef, value, valueExtension }
     })
     .filter(channel => channel.value.length > 0 && channel.communicationChannelRef.startsWith('CommunicationChannel:'))
   return valid.length > 0 ? valid : undefined
+}
+
+function resolveContactValueByChannelCode(
+  channels: Array<{ communicationChannelRef: string; value: string }>,
+  channelCode: string
+): string | undefined {
+  const match = channels.find(channel => channel.communicationChannelRef === channelCode)
+  return match?.value
 }
 
 function resolveOwnerEmployeeId(entity: Record<string, any>, ownerEmployeeId?: string): string | undefined {
@@ -295,10 +316,33 @@ function resolveOwnerEmployeeId(entity: Record<string, any>, ownerEmployeeId?: s
   return undefined
 }
 
+type InvestmentGroupCatalogResponse = {
+  groups: Array<{ id: string; code?: string; value?: string }>
+}
+
+function toNormalizedInvestmentGroupCode(value: string): string {
+  const codeWithoutPrefix = value.replace(/^InvestmentGroup:v\d+:/i, '')
+  return codeWithoutPrefix.trim().replace(/-/g, '_').replace(/\s+/g, '_').toUpperCase()
+}
+
+function deriveInvestmentGroupCodeFromEntityType(entityType: string): string | undefined {
+  if (!entityType.endsWith('-investment')) return undefined
+  const codePart = entityType.replace(/-investment$/, '')
+  if (!codePart) return undefined
+  return codePart.replace(/-/g, '_').toUpperCase()
+}
+
+function deriveInvestmentPayloadKeyFromEntityType(entityType: string): string | undefined {
+  if (!entityType.endsWith('-investment')) return undefined
+  const words = entityType.split('-')
+  return words.map((word, index) => (index === 0 ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`)).join('')
+}
+
 function toInvestmentBatchPayload(
   entities: Record<string, any>[],
-  investmentType: 'realEstateInvestment' | 'equityInvestment' | 'liquidFundInvestment',
-  ownerEmployeeId: string | undefined
+  investmentType: string,
+  ownerEmployeeId: string | undefined,
+  defaultInvestmentGroupRef: string
 ): { investmentRequests: Record<string, any>[] } {
   const investmentRequests = entities.map(entity => {
     const normalized = normalizeEntityForImport(entity)
@@ -307,16 +351,10 @@ function toInvestmentBatchPayload(
     const resolvedOwnerEmployeeId =
       resolveOwnerEmployeeId(investmentData, ownerEmployeeId) ?? resolveOwnerEmployeeId(normalized, ownerEmployeeId)
 
-    const investmentGroupDefaults: Record<typeof investmentType, string> = {
-      realEstateInvestment: 'InvestmentGroup:v1:REAL_ESTATE',
-      equityInvestment: 'InvestmentGroup:v1:EQUITY',
-      liquidFundInvestment: 'InvestmentGroup:v1:LIQUID_FUND'
-    }
-
     return {
       investment: {
         ...investmentData,
-        investmentGroupRef: investmentData.investmentGroupRef || investmentGroupDefaults[investmentType],
+        investmentGroupRef: investmentData.investmentGroupRef || defaultInvestmentGroupRef,
         investmentStatusRef: investmentData.investmentStatusRef || 'InvestmentStatus:v1:ACTIVE',
         ownerEmployee: resolvedOwnerEmployeeId || investmentData.ownerEmployee
       },
@@ -331,15 +369,26 @@ function toInvestmentContactPayload(entity: Record<string, any>, ownerEmployeeId
   const normalized = normalizeEntityForImport(entity)
   const resolvedOwnerEmployeeId = resolveOwnerEmployeeId(normalized, ownerEmployeeId)
   const sanitizedChannels = sanitizeCommunicationChannels(normalized.communicationChannels)
+  const emailFromChannels = sanitizedChannels
+    ? resolveContactValueByChannelCode(sanitizedChannels, 'CommunicationChannel:v1:e-mail')
+    : undefined
+  const phoneFromChannels = sanitizedChannels
+    ? resolveContactValueByChannelCode(sanitizedChannels, 'CommunicationChannel:v1:Phone') ||
+      resolveContactValueByChannelCode(sanitizedChannels, 'CommunicationChannel:v1:Mobile')
+    : undefined
 
+  // Keep submit payload deterministic: only forward fields confirmed by successful Java process calls.
   const payloadInput = stripEmptyValues({
-    ...normalized,
+    firstName: typeof normalized.firstName === 'string' ? normalized.firstName : undefined,
+    lastName: typeof normalized.lastName === 'string' ? normalized.lastName : undefined,
+    jobPosition: typeof normalized.jobPosition === 'string' ? normalized.jobPosition : undefined,
+    description: typeof normalized.description === 'string' ? normalized.description : undefined,
+    email: typeof normalized.email === 'string' ? normalized.email : emailFromChannels,
+    phone: typeof normalized.phone === 'string' ? normalized.phone : phoneFromChannels,
+    userId: typeof normalized.userId === 'string' ? normalized.userId : undefined,
     ownerEmployeeId: resolvedOwnerEmployeeId,
     communicationChannels: sanitizedChannels
-  } as any)
-
-  delete (payloadInput as Record<string, unknown>).ownerEmployee
-  delete (payloadInput as Record<string, unknown>).additionalProperties
+  })
 
   return buildInvestmentContactPayload(payloadInput as any).investmentContact
 }
@@ -363,6 +412,24 @@ function toInvestmentOpportunityPayload(entity: Record<string, any>, ownerEmploy
   return built
 }
 
+function toCustomerAccountPayload(entity: Record<string, any>, ownerEmployeeId?: string): Record<string, any> {
+  const normalized = normalizeEntityForImport(entity)
+  const resolvedOwnerEmployeeId = resolveOwnerEmployeeId(normalized, ownerEmployeeId)
+  const sanitizedChannels = sanitizeCommunicationChannels(normalized.communicationChannels)
+  const additionalProperties = sanitizeAdditionalProperties(normalized.additionalProperties)
+
+  const payloadInput = stripEmptyValues({
+    ...normalized,
+    ownerEmployeeId: resolvedOwnerEmployeeId,
+    communicationChannels: sanitizedChannels,
+    additionalProperties
+  })
+
+  delete (payloadInput as Record<string, unknown>).ownerEmployee
+
+  return buildCustomerAccountPayload(payloadInput as any).account
+}
+
 function normalizeImportError(error: unknown, entityType: string): string {
   const base = extractErrorMessage(error)
   if (/createinvestmentsmodelinput\.investmentrequests/i.test(base)) {
@@ -371,10 +438,30 @@ function normalizeImportError(error: unknown, entityType: string): string {
   if (/error while marshalling process instance/i.test(base) && entityType === 'contact') {
     return 'Import failed: Java marshalling error for Investment Contact payload shape.'
   }
+  if (/error while marshalling process instance/i.test(base) && entityType === 'account') {
+    return 'Import failed: CRM Account payload shape is invalid for Java process.'
+  }
+  if (/createinvestmentcontactsmodelinput\.investmentcontacts/i.test(base)) {
+    return 'Import failed: Java endpoint expects `investmentContacts` as a non-empty array.'
+  }
+  if (/communicationchannel/i.test(base) && entityType === 'contact') {
+    return 'Import failed: invalid contact communication channel reference or value.'
+  }
+  if (/communicationchannel/i.test(base) && entityType === 'account') {
+    return 'Import failed: invalid account communication channel reference or value.'
+  }
   if (/no static resource createinvestmentopportunities/i.test(base)) {
     return 'Import failed: Java process endpoint `createInvestmentOpportunities` is missing.'
   }
   return base
+}
+
+function shouldFallbackToSingularInvestmentContactEndpoint(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase()
+  return (
+    /no static resource createinvestmentcontacts/i.test(message) ||
+    (message.includes('404') && message.includes('createinvestmentcontacts'))
+  )
 }
 
 // Helper function to process investment API response
@@ -516,6 +603,32 @@ export function useEntityImport<T = ConvertedEntity>(
 
   // Hooks
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+  const graphQLClient = useGraphQLClient(accessToken)
+  const investmentGroupRefCacheRef = useRef<Map<string, string>>(new Map())
+
+  const resolveDefaultInvestmentGroupRef = useCallback(async (): Promise<string | undefined> => {
+    if (config.domain !== 'investment') return undefined
+
+    const codeCandidate = config.investmentGroupCodeHint || deriveInvestmentGroupCodeFromEntityType(config.entityType)
+    if (!codeCandidate) return undefined
+
+    const normalizedCode = toNormalizedInvestmentGroupCode(codeCandidate)
+    const cached = investmentGroupRefCacheRef.current.get(normalizedCode)
+    if (cached) return cached
+
+    const response = await graphQLClient.request<InvestmentGroupCatalogResponse>(GET_INVESTMENT_GROUP_BY_CODE_QUERY, {
+      groupCode: normalizedCode
+    })
+    const found = response.groups?.[0]
+    if (!found?.id) return undefined
+
+    investmentGroupRefCacheRef.current.set(normalizedCode, found.id)
+    if (found.code) {
+      investmentGroupRefCacheRef.current.set(toNormalizedInvestmentGroupCode(found.code), found.id)
+    }
+
+    return found.id
+  }, [config.domain, config.entityType, config.investmentGroupCodeHint, graphQLClient])
 
   // Handle file change
   const handleFileChange = useCallback(async (selectedFile: File | null) => {
@@ -547,7 +660,7 @@ export function useEntityImport<T = ConvertedEntity>(
     try {
       const agentResult = await aiServiceRef.current.analyzeImport(file)
       const targetFieldValues = config.targetFields.map(f => f.value)
-      const adapters = buildTargetFieldAdapters(config.entityType, targetFieldValues)
+      const adapters = buildTargetFieldAdapters(targetFieldValues, config.domain === 'investment')
       const resolvedMappings = agentResult.fieldMappings.map(mapping => ({
         ...mapping,
         targetField: resolveInitialTargetField(mapping.targetField, adapters)
@@ -643,8 +756,8 @@ export function useEntityImport<T = ConvertedEntity>(
         const filteredMappings =
           enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(m.targetField)) : mappings
         const adapters = buildTargetFieldAdapters(
-          config.entityType,
-          config.targetFields.map(targetField => targetField.value)
+          config.targetFields.map(targetField => targetField.value),
+          config.domain === 'investment'
         )
         const backendMappings = toBackendMappings(filteredMappings, adapters)
         const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
@@ -662,7 +775,7 @@ export function useEntityImport<T = ConvertedEntity>(
             config.domain
           )
         } catch (error) {
-          if (isInvestmentEntityType(config.entityType) && shouldRetryWithUiMappings(error)) {
+          if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
             console.warn('[Import] extract-from-file targetField mismatch, retrying once with UI-prefixed mappings')
             response = await flowbotClient.extractFromFile(
               config.entityType,
@@ -736,13 +849,23 @@ export function useEntityImport<T = ConvertedEntity>(
 
       let result: ImportResult
 
-      // Handle investment imports (real-estate, equity, liquid-fund)
-      if (config.entityType in INVESTMENT_TYPE_MAP) {
-        const investmentType = INVESTMENT_TYPE_MAP[config.entityType as keyof typeof INVESTMENT_TYPE_MAP]
+      const investmentPayloadKey =
+        config.investmentPayloadKey ?? deriveInvestmentPayloadKeyFromEntityType(config.entityType)
+
+      // Handle investment imports with investment payload segment keys.
+      if (config.domain === 'investment' && investmentPayloadKey) {
+        const defaultInvestmentGroupRef = await resolveDefaultInvestmentGroupRef()
+        if (!defaultInvestmentGroupRef) {
+          const derivedCode =
+            config.investmentGroupCodeHint || deriveInvestmentGroupCodeFromEntityType(config.entityType)
+          throw new Error(`Import failed: InvestmentGroup not found for code ${derivedCode || config.entityType}.`)
+        }
+
         const payload = toInvestmentBatchPayload(
           entitiesWithOwner as Record<string, any>[],
-          investmentType,
-          ownerEmployeeId
+          investmentPayloadKey,
+          ownerEmployeeId,
+          defaultInvestmentGroupRef
         )
 
         const response = await restClient.post('/investment-relations/createInvestments', payload, {
@@ -768,7 +891,11 @@ export function useEntityImport<T = ConvertedEntity>(
               ? (entitiesWithOwner as Record<string, any>[]).map(entity =>
                   toInvestmentOpportunityPayload(entity, ownerEmployeeId)
                 )
-              : entitiesWithOwner
+              : config.domain === 'customer' && config.entityType === 'account'
+                ? (entitiesWithOwner as Record<string, any>[]).map(entity =>
+                    toCustomerAccountPayload(entity, ownerEmployeeId)
+                  )
+                : entitiesWithOwner
 
         let response: any
         try {
@@ -778,7 +905,11 @@ export function useEntityImport<T = ConvertedEntity>(
             { headers: { Authorization: `Bearer ${accessToken}` } }
           )
         } catch (error) {
-          if (config.domain === 'investment' && config.entityType === 'contact') {
+          if (
+            config.domain === 'investment' &&
+            config.entityType === 'contact' &&
+            shouldFallbackToSingularInvestmentContactEndpoint(error)
+          ) {
             result = await submitInvestmentContactsWithFallback(restClient, accessToken, requestEntities)
             if (result.success === false) {
               setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
@@ -815,7 +946,18 @@ export function useEntityImport<T = ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken, campaignId])
+  }, [
+    convertedEntities,
+    config.domain,
+    config.entityType,
+    config.investmentGroupCodeHint,
+    config.investmentPayloadKey,
+    props.userInfo,
+    restClient,
+    accessToken,
+    campaignId,
+    resolveDefaultInvestmentGroupRef
+  ])
 
   // Download JSON
   const downloadJSON = useCallback(() => {
