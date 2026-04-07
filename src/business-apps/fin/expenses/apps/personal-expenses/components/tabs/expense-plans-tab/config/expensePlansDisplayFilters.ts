@@ -1,6 +1,5 @@
 import { formatDateRangeForChip } from '../../../../utils/tableUtils'
-
-const TOP_DESTINATION_PREFIX = 'topDestination:'
+import { TOP_DESTINATION_FILTER_TOKEN_PREFIX } from './expensePlanFilterTokens'
 
 export function buildExpensePlansFiltersObject(
   selectedFilters: string[],
@@ -12,7 +11,7 @@ export function buildExpensePlansFiltersObject(
 ): Record<string, unknown> {
   const statusIds = selectedFilters.filter(f => availableStatuses.includes(f))
   const planTypeIds = selectedFilters.filter(f => f.startsWith('planType:'))
-  const topDestinationIds = selectedFilters.filter(f => f.startsWith(TOP_DESTINATION_PREFIX))
+  const topDestinationIds = selectedFilters.filter(f => f.startsWith(TOP_DESTINATION_FILTER_TOKEN_PREFIX))
   const obj: Record<string, unknown> = {}
   if (statusIds.length > 0) obj.statusIds = statusIds
   if (planTypeIds.length > 0) obj.planTypeIds = planTypeIds
