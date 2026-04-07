@@ -4,6 +4,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { createDeferredRepaginationScheduler } from './deferredRepaginationScheduler'
 import { createPaginationChromeDecorationSet, renderPaginationChromeWidget } from './paginationDecorationController'
+import { buildSquareWrapDecorations } from './squareWrapDecorationController'
 import {
   applyMeasuredPageHeightsToView,
   createSafePaginationSelection,
@@ -46,6 +47,7 @@ export function createPaginationExtensionPlugins(options: {
   defaultOptions: PagesOptions
   paginationKey: PluginKey<DecorationSet>
   hardBreakKey: PluginKey<DecorationSet>
+  squareWrapKey: PluginKey<DecorationSet>
   refreshMeta: string
   refreshAndStabilizeMeta: string
   paginationOwnedDocChangeMeta: string
@@ -490,6 +492,24 @@ export function createPaginationExtensionPlugins(options: {
       props: {
         decorations(state) {
           return options.hardBreakKey.getState(state) ?? DecorationSet.empty
+        }
+      }
+    }),
+    new Plugin({
+      key: options.squareWrapKey,
+      state: {
+        init: (_, state) => buildSquareWrapDecorations(state.doc),
+        apply(tr, oldValue) {
+          if (tr.getMeta(options.refreshMeta) || tr.docChanged) {
+            return buildSquareWrapDecorations(tr.doc)
+          }
+
+          return oldValue
+        }
+      },
+      props: {
+        decorations(state) {
+          return options.squareWrapKey.getState(state) ?? DecorationSet.empty
         }
       }
     })
