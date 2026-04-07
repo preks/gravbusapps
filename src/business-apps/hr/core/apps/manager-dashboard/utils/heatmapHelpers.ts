@@ -1,7 +1,14 @@
-export const employeeLabel = (m: { firstName: string; lastName: string }): string => {
-  const initial = m.lastName?.trim()?.charAt(0)
-  return initial ? `${m.firstName} ${initial}.` : m.firstName
+export const employeeLabel = (m: { firstName: string; lastName: string }): string =>
+  `${m.firstName} ${m.lastName}`.trim()
+
+export const employeeInitials = (firstName: string, lastName: string): string => {
+  const a = firstName.trim()[0] ?? ''
+  const b = lastName.trim()[0] ?? ''
+  return `${a}${b}`.toUpperCase() || '?'
 }
+
+export const avatarSrc = (pictureThumbnail?: string): string | undefined =>
+  pictureThumbnail && !pictureThumbnail.startsWith('{') ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined
 
 export const heatmapScoreCellClass = (score: number | null | undefined, limit: number): string => {
   if (score == null || limit <= 0) return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'

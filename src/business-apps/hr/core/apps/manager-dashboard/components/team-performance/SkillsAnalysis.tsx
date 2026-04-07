@@ -1,9 +1,23 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
 import { Brain } from 'lucide-react'
 import type { TeamMemberSkills } from '../../hooks/useTeamSkills'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
-import { employeeLabel, heatmapLevelCellClass, heatmapScoreCellClass } from '../../utils/heatmapHelpers'
+import {
+  employeeLabel,
+  employeeInitials,
+  avatarSrc,
+  heatmapLevelCellClass,
+  heatmapScoreCellClass
+} from '../../utils/heatmapHelpers'
 
 export interface SkillsAnalysisProps {
   skillsMembers: TeamMemberSkills[]
@@ -168,8 +182,14 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ skillsMembers, e
                   ))}
                   {eRows.map(m => (
                     <React.Fragment key={m.employeeId}>
-                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium">
-                        {employeeLabel(m)}
+                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1.5">
+                        <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
+                          <AvatarImage src={avatarSrc(m.pictureThumbnail)} alt={employeeLabel(m)} />
+                          <AvatarFallback className="gba:text-[9px]">
+                            {employeeInitials(m.firstName, m.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="gba:truncate">{employeeLabel(m)}</span>
                       </div>
                       {eSkillNames.map(skill => {
                         const score = m.scores.get(skill)
@@ -228,8 +248,14 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({ skillsMembers, e
                   const sm = memberSkillMaps.get(m.employeeId) ?? new Map()
                   return (
                     <React.Fragment key={m.employeeId}>
-                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium">
-                        {employeeLabel(m)}
+                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1.5">
+                        <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
+                          <AvatarImage src={avatarSrc(m.pictureThumbnail)} alt={employeeLabel(m)} />
+                          <AvatarFallback className="gba:text-[9px]">
+                            {employeeInitials(m.firstName, m.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="gba:truncate">{employeeLabel(m)}</span>
                       </div>
                       {topSkills.map(skill => {
                         const level = sm.get(skill)

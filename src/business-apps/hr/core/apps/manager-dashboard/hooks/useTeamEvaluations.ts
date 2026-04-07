@@ -396,14 +396,12 @@ export const useTeamEvaluations = ({
 
       for (const empCycle of cache.employeeCycleData) {
         for (const cs of empCycle.cycleScores) {
-          const isTarget = !selectedCycleId || cs.cycleId === selectedCycleId
-          if (isTarget && cs.overallScore != null) {
+          if (cs.overallScore != null) {
             const evalId = empCycle.bestEvalPerCycle.get(cs.cycleId)
             const key = `${empCycle.employeeId}:${cs.cycleId}`
             if (evalId && !detailCacheRef.current.has(key)) {
               evalIdsToFetch.push({ employeeId: empCycle.employeeId, evaluationId: evalId, cycleId: cs.cycleId })
             }
-            break
           }
         }
       }

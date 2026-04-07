@@ -1,8 +1,16 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
 import { Heart } from 'lucide-react'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
-import { employeeLabel, heatmapScoreCellClass } from '../../utils/heatmapHelpers'
+import { employeeLabel, employeeInitials, avatarSrc, heatmapScoreCellClass } from '../../utils/heatmapHelpers'
 
 export interface CompanyValuesAnalysisProps {
   members: TeamMemberEvaluation[]
@@ -120,8 +128,14 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({ me
                   const vm = memberScoreMaps.get(m.employeeId) ?? new Map()
                   return (
                     <React.Fragment key={m.employeeId}>
-                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium">
-                        {employeeLabel(m)}
+                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1.5">
+                        <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
+                          <AvatarImage src={avatarSrc(m.pictureThumbnail)} alt={employeeLabel(m)} />
+                          <AvatarFallback className="gba:text-[9px]">
+                            {employeeInitials(m.firstName, m.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="gba:truncate">{employeeLabel(m)}</span>
                       </div>
                       {valueNames.map(vn => {
                         const score = vm.get(vn) ?? null

@@ -27,8 +27,7 @@ import {
   detectEmployeeSignals,
   detectTeamSignals,
   detectTalentSignals,
-  computeTeamDimensionAverages,
-  computeAlignmentGaps
+  computeTeamDimensionAverages
 } from '../utils/dashboardComputations'
 import { computeContainedGoalRollup } from '../utils/managerPerformanceGoalMetrics'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -1036,8 +1035,6 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     [teamEvaluationMembers]
   )
 
-  const dashboardAlignmentGaps = useMemo(() => computeAlignmentGaps(teamEvaluationMembers), [teamEvaluationMembers])
-
   const dashboardRatingScaleLimit = useMemo(() => {
     for (const m of teamEvaluationMembers) {
       if (m.ratingScaleLimit != null) return m.ratingScaleLimit
@@ -1199,7 +1196,6 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         teamSignals: dashboardTeamSignals,
         companyValuesDimensionAverages: dashboardCompanyValuesDimensionAvgs,
         skillsDimensionAverages: dashboardSkillsDimensionAvgs,
-        alignmentGaps: dashboardAlignmentGaps,
         ratingScaleLimit: dashboardRatingScaleLimit,
         skillGrowthRate: dashboardSkillGrowthRate,
         changeOverall: dashboardChangeOverall,

@@ -6,7 +6,7 @@ import { TeamMemberSkills } from '../hooks/useTeamSkills'
 import { TeamMemberFeedback } from '../hooks/useTeamFeedbackOverview'
 import { TeamMemberEvaluation } from '../hooks/useTeamEvaluations'
 import { TeamPerformanceInsightsResult } from '../hooks/useTeamPerformanceInsights'
-import type { ScoreDistributionBand, TrendDataPoint, AlignmentGap } from '../utils/dashboardComputations'
+import type { ScoreDistributionBand, TrendDataPoint } from '../utils/dashboardComputations'
 import {
   ExecutiveSummary,
   PerformanceTrends,
@@ -42,7 +42,6 @@ export interface TeamPerformanceDashboardProps {
 
   scoreDistribution: ScoreDistributionBand[]
   trendSeries: TrendDataPoint[]
-  alignmentGaps: AlignmentGap[]
 
   ratingScaleLimit: number
   skillGrowthRate: number
@@ -78,7 +77,6 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     onCycleChange,
     scoreDistribution,
     trendSeries,
-    alignmentGaps,
     ratingScaleLimit,
     skillGrowthRate,
     needsAttentionCount,
@@ -197,7 +195,12 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
       </div>
 
       {/* Alignment Comparison — full width */}
-      <AlignmentComparison gaps={alignmentGaps} ratingScaleLimit={ratingScaleLimit} loading={loadingEvaluations} />
+      <AlignmentComparison
+        members={evaluationMembers}
+        ratingScaleLimit={ratingScaleLimit}
+        loading={loadingEvaluations}
+        onEmployeeClick={handleEmployeeClick}
+      />
 
       {/* Deep Dive Sheet */}
       <MemberDeepDiveSheet

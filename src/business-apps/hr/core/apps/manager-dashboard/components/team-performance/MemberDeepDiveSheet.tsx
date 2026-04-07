@@ -1,4 +1,3 @@
-/* eslint-disable newwork-local/no-hardcoded-colors */
 import React from 'react'
 import {
   Sheet,
@@ -27,7 +26,15 @@ import {
   ArrowUp,
   ArrowDown
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip
+} from 'recharts'
 import { TeamMemberPerformance } from '../../hooks/useTeamPerformance'
 import { TeamMemberSkills } from '../../hooks/useTeamSkills'
 import { TeamMemberFeedback } from '../../hooks/useTeamFeedbackOverview'
@@ -101,25 +108,33 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
     memberGoals?.pictureThumbnail ?? memberSkills?.pictureThumbnail ?? memberEval?.pictureThumbnail
   const jobPositionName = memberGoals?.jobPositionName ?? memberSkills?.jobPositionName ?? memberEval?.jobPositionName
 
-  const perspectiveData = memberEval
+  const radarData = memberEval
     ? (() => {
-        const allDims = [...memberEval.companyValues, ...memberEval.skills]
-        const selfScores = allDims.filter(d => d.selfScore != null).map(d => d.selfScore!)
-        const peerScores = allDims.filter(d => d.peerAvgScore != null).map(d => d.peerAvgScore!)
-        const mgrScores = allDims.filter(d => d.managerScore != null).map(d => d.managerScore!)
-        const avg = (arr: number[]) =>
-          arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null
-        return { selfAvg: avg(selfScores), peerAvg: avg(peerScores), managerAvg: avg(mgrScores) }
+        const dims = memberEval.companyValues.length > 0 ? memberEval.companyValues : memberEval.skills
+        return dims
+          .filter(d => d.selfScore != null || d.peerAvgScore != null || d.managerScore != null)
+          .map(d => ({
+            label: d.name,
+            self: d.selfScore ?? 0,
+            peer: d.peerAvgScore ?? 0,
+            manager: d.managerScore ?? 0
+          }))
       })()
-    : null
-
-  const perspectiveChartData = perspectiveData
-    ? [
-        { name: 'Self', score: perspectiveData.selfAvg ?? 0 },
-        { name: 'Peer', score: perspectiveData.peerAvg ?? 0 },
-        { name: 'Manager', score: perspectiveData.managerAvg ?? 0 }
-      ]
     : []
+
+  const radarSkillsData =
+    memberEval && memberEval.companyValues.length > 0 && memberEval.skills.length > 0
+      ? memberEval.skills
+          .filter(d => d.selfScore != null || d.peerAvgScore != null || d.managerScore != null)
+          .map(d => ({
+            label: d.name,
+            self: d.selfScore ?? 0,
+            peer: d.peerAvgScore ?? 0,
+            manager: d.managerScore ?? 0
+          }))
+      : []
+
+  const radarMax = memberEval?.ratingScaleLimit ?? 5
 
   return (
     <Sheet
@@ -200,25 +215,115 @@ export const MemberDeepDiveSheet: React.FC<MemberDeepDiveSheetProps> = ({
             </Card>
           )}
 
-          {/* Perspective Comparison */}
-          {perspectiveData &&
-            (perspectiveData.selfAvg != null ||
-              perspectiveData.peerAvg != null ||
-              perspectiveData.managerAvg != null) && (
-              <Card>
-                <CardContent className="gba:p-4">
-                  <h4 className="gba:text-sm gba:font-semibold gba:mb-3">Perspective Comparison</h4>
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={perspectiveChartData} layout="vertical">
-                      <XAxis type="number" domain={[0, memberEval?.ratingScaleLimit ?? 5]} tick={{ fontSize: 10 }} />
-                      <YAxis type="category" dataKey="name" width={60} tick={{ fontSize: 10 }} />
-                      <Tooltip />
-                      <Bar dataKey="score" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                    </BarChart>
+          {/* Perspective Comparison — Radar Charts */}
+          {radarData.length > 0 && (
+            <Card>
+              <CardContent className="gba:p-4">
+                <h4 className="gba:text-sm gba:font-semibold gba:mb-2">
+                  {memberEval!.companyValues.length > 0 ? 'Company Values' : 'Skills'} — Perspective
+                </h4>
+                <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2 gba:text-[10px] gba:text-muted-foreground">
+                  <span className="gba:flex gba:items-center gba:gap-1">
+                    <span
+                      className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
+                      style={{ backgroundColor: 'var(--nw-chart-1)' }}
+                    />
+                    Self
+                  </span>
+                  <span className="gba:flex gba:items-center gba:gap-1">
+                    <span
+                      className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
+                      style={{ backgroundColor: 'var(--nw-chart-2)' }}
+                    />
+                    Peer
+                  </span>
+                  <span className="gba:flex gba:items-center gba:gap-1">
+                    <span
+                      className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full"
+                      style={{ backgroundColor: 'var(--nw-chart-3)' }}
+                    />
+                    Manager
+                  </span>
+                </div>
+                <div className="gba:h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="label" tick={{ fontSize: 10 }} />
+                      <PolarRadiusAxis domain={[0, radarMax]} tick={{ fontSize: 9 }} />
+                      <RechartsTooltip />
+                      <Radar
+                        name="Self"
+                        dataKey="self"
+                        stroke="var(--nw-chart-1)"
+                        fill="var(--nw-chart-1)"
+                        fillOpacity={0.14}
+                        strokeWidth={2}
+                      />
+                      <Radar
+                        name="Peer"
+                        dataKey="peer"
+                        stroke="var(--nw-chart-2)"
+                        fill="var(--nw-chart-2)"
+                        fillOpacity={0.14}
+                        strokeWidth={2}
+                      />
+                      <Radar
+                        name="Manager"
+                        dataKey="manager"
+                        stroke="var(--nw-chart-3)"
+                        fill="var(--nw-chart-3)"
+                        fillOpacity={0.14}
+                        strokeWidth={2}
+                      />
+                    </RadarChart>
                   </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {radarSkillsData.length > 0 && (
+            <Card>
+              <CardContent className="gba:p-4">
+                <h4 className="gba:text-sm gba:font-semibold gba:mb-2">Skills — Perspective</h4>
+                <div className="gba:h-[240px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarSkillsData} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="label" tick={{ fontSize: 10 }} />
+                      <PolarRadiusAxis domain={[0, radarMax]} tick={{ fontSize: 9 }} />
+                      <RechartsTooltip />
+                      <Radar
+                        name="Self"
+                        dataKey="self"
+                        stroke="var(--nw-chart-1)"
+                        fill="var(--nw-chart-1)"
+                        fillOpacity={0.14}
+                        strokeWidth={2}
+                      />
+                      <Radar
+                        name="Peer"
+                        dataKey="peer"
+                        stroke="var(--nw-chart-2)"
+                        fill="var(--nw-chart-2)"
+                        fillOpacity={0.14}
+                        strokeWidth={2}
+                      />
+                      <Radar
+                        name="Manager"
+                        dataKey="manager"
+                        stroke="var(--nw-chart-3)"
+                        fill="var(--nw-chart-3)"
+                        fillOpacity={0.14}
+                        strokeWidth={2}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Company Values Breakdown */}
           {memberEval && memberEval.companyValues.length > 0 && (

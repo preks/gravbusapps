@@ -23,6 +23,7 @@ import type { TeamMemberPerformance } from '../../hooks/useTeamPerformance'
 import type { TeamMemberFeedback } from '../../hooks/useTeamFeedbackOverview'
 import type { TeamMemberSkills } from '../../hooks/useTeamSkills'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { employeeInitials, avatarSrc } from '../../utils/heatmapHelpers'
 
 interface TeamMemberTableProps {
   evaluations: TeamMemberEvaluation[]
@@ -45,16 +46,6 @@ interface RowModel {
   skillsRow: TeamMemberSkills | undefined
   feedbackPct: number
 }
-
-const initialsFromName = (first: string, last: string): string => {
-  const a = first.trim()[0] ?? ''
-  const b = last.trim()[0] ?? ''
-  const s = `${a}${b}`.toUpperCase()
-  return s || '?'
-}
-
-const avatarSrc = (pictureThumbnail?: string): string | undefined =>
-  pictureThumbnail && !pictureThumbnail.startsWith('{') ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined
 
 const TASK_EXPERT_NAME = 'employee_performance_summary'
 
@@ -300,7 +291,11 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
             <TableHeader>
               <TableRow>
                 {columns.map(col => (
-                  <TableHead key={col.key} className={sortHeadClass} onClick={() => toggleSort(col.key)}>
+                  <TableHead
+                    key={col.key}
+                    className={`${sortHeadClass}${col.key === 'employee' ? ' gba:w-px' : ''}`}
+                    onClick={() => toggleSort(col.key)}
+                  >
                     <span className="gba:inline-flex gba:items-center gba:gap-1">
                       {col.label}
                       <SortIndicator column={col.key} sortColumn={sortColumn} sortDirection={sortDirection} />
@@ -369,18 +364,16 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
                       className="gba:cursor-pointer gba:hover:bg-muted/50"
                       onClick={() => onEmployeeClick(ev.employeeId)}
                     >
-                      <TableCell>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Avatar className="gba:h-9 gba:w-9 gba:shrink-0">
+                      <TableCell className="gba:w-px">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+                          <Avatar className="gba:h-8 gba:w-8 gba:shrink-0">
                             <AvatarImage src={avatarSrc(ev.pictureThumbnail)} alt={fullName} />
-                            <AvatarFallback>{initialsFromName(ev.firstName, ev.lastName)}</AvatarFallback>
+                            <AvatarFallback>{employeeInitials(ev.firstName, ev.lastName)}</AvatarFallback>
                           </Avatar>
-                          <div className="gba:min-w-0">
-                            <div className="gba:text-sm gba:font-medium gba:truncate">{fullName}</div>
+                          <div>
+                            <div className="gba:text-sm gba:font-medium">{fullName}</div>
                             {ev.jobPositionName ? (
-                              <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                                {ev.jobPositionName}
-                              </div>
+                              <div className="gba:text-xs gba:text-muted-foreground">{ev.jobPositionName}</div>
                             ) : null}
                           </div>
                         </div>

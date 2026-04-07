@@ -354,7 +354,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         onCycleChange={db.setSelectedCycleId}
         scoreDistribution={db.scoreDistribution}
         trendSeries={db.trendSeries}
-        alignmentGaps={db.alignmentGaps}
         ratingScaleLimit={db.ratingScaleLimit}
         skillGrowthRate={db.skillGrowthRate}
         needsAttentionCount={db.alerts.filter(a => a.severity === 'high').length}
