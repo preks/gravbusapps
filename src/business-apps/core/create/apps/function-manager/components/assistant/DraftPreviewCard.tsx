@@ -43,7 +43,8 @@ export const DraftPreviewCard: React.FC<DraftPreviewCardProps> = ({
             ))}
           </div>
           <div className="gba:text-xs gba:text-muted-foreground">
-            After applying, set credential values in <strong>Settings</strong> before running tests.
+            After applying, add stored credentials under Function Manager’s <strong>Credentials</strong> tab, then bind values in{' '}
+            <strong>Settings</strong> before running tests.
           </div>
         </div>
       ) : null}

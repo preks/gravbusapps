@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import { summarizeColumn, isNumericColumn } from '../utils/analyticsEngine'
@@ -30,8 +30,8 @@ export interface UseSpreadsheetAnalyticsAIResult {
   generateSummary: () => Promise<void>
 }
 
-interface UseSpreadsheetAnalyticsAIParams {
-  accessToken: string
+export interface UseSpreadsheetAnalyticsAIParams {
+  promptClient: PromptManagerClient
   sheetName: string
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
@@ -247,12 +247,11 @@ const buildBusinessFallbackInsights = (
 }
 
 export function useSpreadsheetAnalyticsAI({
-  accessToken,
+  promptClient,
   sheetName,
   columns,
   sheetData
 }: UseSpreadsheetAnalyticsAIParams): UseSpreadsheetAnalyticsAIResult {
-  const promptClient = usePromptManagerClient(accessToken)
   const [insights, setInsights] = useState<string[]>([])
   const [summary, setSummary] = useState<SpreadsheetSummaryResult | null>(null)
   const [isLoadingInsights, setIsLoadingInsights] = useState(false)

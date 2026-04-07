@@ -7,6 +7,15 @@ import {
   BaseTaskTemplate,
   TaskTemplateFormData
 } from '@/common/components/common-relations/setting-pages/task-template/types'
+import {
+  formSchedulingTypeForInput,
+  mergeExtensionsIntoAdditionalProperties,
+  parseTaskTemplateExtensions
+} from '@/common/components/common-relations/setting-pages/task-template/taskTemplateExtensions'
+import {
+  toUtcEndOfDayInstantString,
+  toUtcStartOfDayInstantString
+} from '@/common/components/common-relations/setting-pages/task-template/taskTemplateDatePayload'
 
 // GraphQL queries and mutations
 const GET_SALES_TASK_TEMPLATES = `
@@ -55,6 +64,8 @@ const transformToBaseTaskTemplate = (template: any): BaseTaskTemplate => {
   // Extract catalog entry IDs from objects (use the full reference string as ID)
   const typeRefId = template.type?.id || template.typeRef || ''
   const priorityRefId = template.priority?.id || template.priorityRef || ''
+  const additionalProperties = template.additionalProperties || {}
+  const ext = parseTaskTemplateExtensions(additionalProperties)
 
   return {
     id: template.id,
@@ -89,18 +100,30 @@ const transformToBaseTaskTemplate = (template: any): BaseTaskTemplate => {
     // Use UUID from catalog entry objects (not code-based refs)
     typeRef: typeRefId,
     priorityRef: priorityRefId,
-    additionalProperties: template.additionalProperties || {}
+    additionalProperties,
+    schedulingType: formSchedulingTypeForInput(ext),
+    eventTriggerEnabled: ext.eventTriggerEnabled,
+    eventSourceEntityType: ext.eventSourceEntityType,
+    eventSourceEntityId: ext.eventSourceEntityId,
+    scopeLimited: ext.scopeLimited,
+    scopedEntityType: ext.scopedEntityType,
+    scopedEntityId: ext.scopedEntityId,
+    eventInvestmentGroupRef: ext.eventInvestmentGroupRef,
+    eventInvestmentTypeRef: ext.eventInvestmentTypeRef
   }
 }
 
 // Transform form data to process payload
-const transformFormDataToPayload = (data: TaskTemplateFormData) => ({
+const transformFormDataToPayload = (
+  data: TaskTemplateFormData,
+  existingAdditional?: Record<string, unknown> | null
+) => ({
   code: data.code,
   name: data.name,
   description: data.description,
   enabled: data.isActive,
-  activeFrom: data.activeFrom || null,
-  activeTo: data.activeTo || null,
+  activeFrom: toUtcStartOfDayInstantString(data.activeFrom),
+  activeTo: toUtcEndOfDayInstantString(data.activeTo),
   typeRef: data.typeRef,
   priorityRef: data.priorityRef,
   assigneeType: data.assigneeType,
@@ -109,10 +132,8 @@ const transformFormDataToPayload = (data: TaskTemplateFormData) => ({
   monthsOfYear: data.recurringSchedule?.monthsOfYear || {},
   intervalDays: data.recurringSchedule?.intervalDays || 0,
   holidayPolicy: data.recurringSchedule?.holidayPolicy || 'SKIP_TASK',
-  nextStartDate: data.nextStartDate || null,
-  additionalProperties: {
-    ...(data.schedulingType ? { schedulingType: data.schedulingType } : {})
-  }
+  nextStartDate: toUtcStartOfDayInstantString(data.nextStartDate),
+  additionalProperties: mergeExtensionsIntoAdditionalProperties(data, existingAdditional)
 })
 
 export const useSalesTaskTemplateSettings = (context: BusinessAppContextProps) => {
@@ -153,7 +174,7 @@ export const useSalesTaskTemplateSettings = (context: BusinessAppContextProps) =
       try {
         const payload = {
           changeMode: 'INSERT',
-          salesTaskTemplate: transformFormDataToPayload(data)
+          salesTaskTemplate: transformFormDataToPayload(data, null)
         }
 
         await restClient.post('/customer-relations/saveSalesTaskTemplate', payload, {
@@ -180,7 +201,7 @@ export const useSalesTaskTemplateSettings = (context: BusinessAppContextProps) =
           salesTaskTemplate: {
             id,
             version: template?.version || 0,
-            ...transformFormDataToPayload(data)
+            ...transformFormDataToPayload(data, template?.additionalProperties ?? null)
           }
         }
 

@@ -8,22 +8,19 @@ import {
   TableRow,
   Button,
   Badge,
-  Alert,
-  AlertDescription,
   Spinner,
   EmptyState
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { TaskTemplateTableProps, BaseTaskTemplate, DAYS_OF_WEEK, MONTHS_OF_YEAR } from '../types'
-import { Edit, Trash2 } from 'lucide-react'
+import { parseTaskTemplateExtensions } from '../taskTemplateExtensions'
+import { PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 
 export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
   templates,
   isLoading,
-  error,
   onEdit,
   onDelete,
-  onRetry,
   onSearchChange,
   dataTestId
 }) => {
@@ -33,15 +30,21 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
     const s = search.toLowerCase().trim()
     if (!s) return templates
 
-    return templates.filter(
-      template =>
+    return templates.filter(template => {
+      const ext = parseTaskTemplateExtensions(template.additionalProperties)
+      const scopeHay = `${ext.scopedEntityType} ${ext.scopedEntityId}`.toLowerCase()
+      const eventHay = `${ext.eventSourceEntityType} ${ext.eventSourceEntityId}`.toLowerCase()
+      return (
         template.code.toLowerCase().includes(s) ||
         template.name.toLowerCase().includes(s) ||
         template.description?.toLowerCase().includes(s) ||
         template.assigneeType?.toLowerCase().includes(s) ||
         template.typeRef?.toLowerCase().includes(s) ||
-        template.priorityRef?.toLowerCase().includes(s)
-    )
+        template.priorityRef?.toLowerCase().includes(s) ||
+        scopeHay.includes(s) ||
+        eventHay.includes(s)
+      )
+    })
   }, [templates, search])
 
   const handleSearchChange = (value: string) => {
@@ -52,6 +55,8 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
   // Generate schedule preview text
   const getSchedulePreview = (template: BaseTaskTemplate) => {
     const { daysOfWeek = {}, daysOfMonth = {}, monthsOfYear = {}, intervalDays = 1 } = template
+    const ext = parseTaskTemplateExtensions(template.additionalProperties)
+    const schedulingType = template.schedulingType || 'ONCE'
 
     const selectedDays = Object.entries(daysOfWeek)
       .filter(([, checked]) => checked)
@@ -63,22 +68,34 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
       .filter(([, checked]) => checked)
       .map(([key]) => key)
 
-    if (selectedDays.length > 0) {
+    let recurrence = ''
+    if (schedulingType === 'ONCE') {
+      recurrence = 'Once'
+    } else if (selectedDays.length > 0) {
       const dayLabels = selectedDays.map(day => DAYS_OF_WEEK.find(d => d.key === day)?.label || day)
-      return `Every ${intervalDays} week(s) on ${dayLabels.join(', ')}`
-    }
-
-    if (selectedDaysOfMonth.length > 0) {
-      const dayNumbers = selectedDaysOfMonth.map(day => Number.parseInt(day)).sort((a, b) => a - b)
-      return `Every ${intervalDays} month(s) on the ${dayNumbers.join(', ')}`
-    }
-
-    if (selectedMonths.length > 0) {
+      recurrence = `Every ${intervalDays} week(s) on ${dayLabels.join(', ')}`
+    } else if (selectedDaysOfMonth.length > 0) {
+      const dayNumbers = selectedDaysOfMonth.map(day => Number.parseInt(day, 10)).sort((a, b) => a - b)
+      recurrence = `Every ${intervalDays} month(s) on the ${dayNumbers.join(', ')}`
+    } else if (selectedMonths.length > 0) {
       const monthLabels = selectedMonths.map(month => MONTHS_OF_YEAR.find(m => m.key === month)?.label || month)
-      return `Every ${intervalDays} year(s) in ${monthLabels.join(', ')}`
+      recurrence = `Every ${intervalDays} year(s) in ${monthLabels.join(', ')}`
+    } else {
+      recurrence = `Every ${intervalDays} day(s)`
     }
 
-    return `Every ${intervalDays} day(s)`
+    const extras: string[] = []
+    if (ext.eventTriggerEnabled && ext.eventSourceEntityType) {
+      const idPart = ext.eventSourceEntityId ? ` (id …${ext.eventSourceEntityId.slice(-6)})` : ''
+      extras.push(`Events: ${ext.eventSourceEntityType}${idPart}`)
+    }
+    if (ext.scopeLimited && ext.scopedEntityType && ext.scopedEntityId) {
+      extras.push(`Scope: ${ext.scopedEntityType}`)
+    }
+    if (extras.length === 0) {
+      return recurrence
+    }
+    return `${recurrence} · ${extras.join(' · ')}`
   }
 
   // Format date range
@@ -89,24 +106,6 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
     const to = activeTo ? new Date(activeTo).toLocaleDateString() : 'No end'
 
     return `${from} - ${to}`
-  }
-
-  if (error) {
-    return (
-      <Alert
-        className="gba:border-destructive-secondary gba:bg-destructive-secondary"
-        data-testid={`${dataTestId}-error`}
-      >
-        <AlertDescription>
-          {error}
-          {onRetry && (
-            <Button variant="outline" size="sm" onClick={onRetry} className="gba:ml-2">
-              Retry
-            </Button>
-          )}
-        </AlertDescription>
-      </Alert>
-    )
   }
 
   if (isLoading) {
@@ -209,7 +208,7 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
                         onClick={() => onEdit(template)}
                         data-testid={`${dataTestId}-edit-button-${template.id}`}
                       >
-                        <Edit className="gba:w-4 gba:h-4" />
+                        <PencilSimpleIcon className="gba:w-4 gba:h-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -217,7 +216,7 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
                         onClick={() => onDelete(template.id)}
                         data-testid={`${dataTestId}-delete-button-${template.id}`}
                       >
-                        <Trash2 className="gba:w-4 gba:h-4" />
+                        <TrashIcon className="gba:w-4 gba:h-4" />
                       </Button>
                     </div>
                   </TableCell>
