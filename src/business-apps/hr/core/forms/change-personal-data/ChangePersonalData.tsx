@@ -113,6 +113,16 @@ function computeDisplayNameForEmployee(emp: any): string {
   return parts.filter(Boolean).join(' ').trim()
 }
 
+function normalizeAcademicTitleRefsFromEmployee(employee: any): string[] {
+  if (Array.isArray(employee?.academicTitleRef)) {
+    return employee.academicTitleRef.map(String)
+  }
+  if (employee?.academicTitleRef) {
+    return [String(employee.academicTitleRef)]
+  }
+  return []
+}
+
 function buildRawPersonalDataDefaults(employee: any): PersonalDataFormValues {
   return {
     salutationRef: employee?.salutation?.id ? String(employee.salutation.id) : (employee?.salutationRef ?? null),
@@ -134,11 +144,7 @@ function buildRawPersonalDataDefaults(employee: any): PersonalDataFormValues {
     schoolQualificationRef: employee?.schoolQualification?.id
       ? String(employee.schoolQualification.id)
       : (employee?.schoolQualificationRef ?? null),
-    academicTitleRefs: Array.isArray(employee?.academicTitleRef)
-      ? employee.academicTitleRef.map(String)
-      : employee?.academicTitleRef
-        ? [String(employee.academicTitleRef)]
-        : [],
+    academicTitleRefs: normalizeAcademicTitleRefsFromEmployee(employee),
     comment: employee?.notes ?? '',
     documentGroupId: employee?.personalDocument?.documentGroup ? String(employee.personalDocument.documentGroup) : null,
     documentTypeId: employee?.personalDocument?.type ? String(employee.personalDocument.type) : null
@@ -225,7 +231,8 @@ interface ChangePersonalDataPendingViewProps {
   t: (key: string) => string
 }
 
-function ChangePersonalDataPendingView({ title, employee, employeePosition, t }: ChangePersonalDataPendingViewProps) {
+function ChangePersonalDataPendingView(props: Readonly<ChangePersonalDataPendingViewProps>) {
+  const { title, employee, employeePosition, t } = props
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
@@ -393,7 +400,7 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
     }
     if (!initialRef.current) return true
     return (
-      JSON.stringify(normalizePersonalDataFormForCompare(watchedValues as PersonalDataFormValues)) ===
+      JSON.stringify(normalizePersonalDataFormForCompare(watchedValues)) ===
       JSON.stringify(normalizePersonalDataFormForCompare(initialRef.current))
     )
   }, [watchedValues, documentSync.hasPendingNewUpload, documentSync.hasRemovedInitialFiles])

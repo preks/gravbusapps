@@ -159,7 +159,7 @@ async function submitJobProfileAndCleanupFiles(ctx: {
     .map((skill: JobProfileSkill) => ({
       skillId: skill.skillId,
       skillName: skill.skillName || null,
-      requiredLevel: skill.level !== undefined && skill.level !== null ? skill.level : null
+      requiredLevel: skill.level ?? null
     }))
 
   const payload = {

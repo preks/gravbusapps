@@ -191,6 +191,67 @@ async function fetchBlobForEmployeeDocumentFile(
   return null
 }
 
+function parseExistingDocumentIdsList(signature: string): string[] {
+  if (!signature) {
+    return []
+  }
+  return signature.split('|').filter(isNonEmptyString)
+}
+
+function indexEmployeeDocumentsById(records: EmployeeDocumentRecord[]): Record<string, EmployeeDocumentRecord> {
+  return records.reduce(
+    (acc, record) => {
+      acc[record.id] = record
+      return acc
+    },
+    {} as Record<string, EmployeeDocumentRecord>
+  )
+}
+
+async function buildManagedFilesFromEmployeeDocumentRecords(
+  records: EmployeeDocumentRecord[],
+  fileClient: {
+    getFile: (
+      args: { accessScope: string; fileId: string },
+      opts: { appName: string; folderPath: string }
+    ) => Promise<Blob>
+    downloadFileByPath: (path: string, token: string) => Promise<Blob>
+  },
+  accessToken: string | undefined,
+  accessScope: string,
+  appName: string,
+  resolvedFolderPath: string,
+  objectUrlsRef: { current: string[] }
+): Promise<ManagedDocumentFile[]> {
+  const nextManaged: ManagedDocumentFile[] = []
+  for (const record of records) {
+    const fileBlob = await fetchBlobForEmployeeDocumentFile(
+      record,
+      fileClient,
+      accessToken,
+      accessScope,
+      appName,
+      resolvedFolderPath
+    )
+
+    const url = fileBlob && fileBlob.size > 0 ? URL.createObjectURL(fileBlob) : ''
+    if (url) {
+      objectUrlsRef.current.push(url)
+    }
+
+    nextManaged.push({
+      localId: record.id,
+      employeeDocumentId: record.id,
+      fileId: record.file,
+      name: record.name || 'file',
+      mimeType: record.mimeType || '',
+      size: Number(record.fileSize || 0),
+      url
+    })
+  }
+  return nextManaged
+}
+
 async function deleteRemovedDocumentsForSync(
   accessToken: string,
   removedDocumentIds: string[],
@@ -406,9 +467,7 @@ export function useEmployeeDocumentSync({
     const load = async () => {
       cleanupObjectUrls()
 
-      const normalizedIds = existingDocumentIdsSignature
-        ? existingDocumentIdsSignature.split('|').filter(isNonEmptyString)
-        : []
+      const normalizedIds = parseExistingDocumentIdsList(existingDocumentIdsSignature)
       if (!enabled || !accessToken || !normalizedIds.length) {
         if (isMounted) {
           setInitialFiles([])
@@ -439,40 +498,16 @@ export function useEmployeeDocumentSync({
           setIsLoadingInitialFiles(hasRecords)
         }
 
-        const nextById = records.reduce(
-          (acc, record) => {
-            acc[record.id] = record
-            return acc
-          },
-          {} as Record<string, EmployeeDocumentRecord>
+        const nextById = indexEmployeeDocumentsById(records)
+        const nextManaged = await buildManagedFilesFromEmployeeDocumentRecords(
+          records,
+          fileClient,
+          accessToken,
+          accessScope,
+          appName,
+          resolvedFolderPath,
+          objectUrlsRef
         )
-
-        const nextManaged: ManagedDocumentFile[] = []
-        for (const record of records) {
-          const fileBlob = await fetchBlobForEmployeeDocumentFile(
-            record,
-            fileClient,
-            accessToken,
-            accessScope,
-            appName,
-            resolvedFolderPath
-          )
-
-          const url = fileBlob && fileBlob.size > 0 ? URL.createObjectURL(fileBlob) : ''
-          if (url) {
-            objectUrlsRef.current.push(url)
-          }
-
-          nextManaged.push({
-            localId: record.id,
-            employeeDocumentId: record.id,
-            fileId: record.file,
-            name: record.name || 'file',
-            mimeType: record.mimeType || '',
-            size: Number(record.fileSize || 0),
-            url
-          })
-        }
 
         if (isMounted) {
           setDocumentRecordsById(nextById)
