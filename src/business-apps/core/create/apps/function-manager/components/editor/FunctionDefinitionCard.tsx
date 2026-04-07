@@ -17,11 +17,17 @@ import {
 import { Bot, Database, FileText, GitBranch, Plug } from 'lucide-react'
 import type { ConnectorKind } from '@/common/network/functions/FunctionsServiceClient'
 import { CodeEditor } from './CodeEditor'
-import { SettingsEditor, type ConfigRow } from './SettingsEditor'
+import { SettingsEditor, type ConfigRow, type StoredSecretOption } from './SettingsEditor'
 import { TestFunctionCard } from './TestFunctionCard'
 import type { FunctionExecutionLogEntry } from '@/common/network/functions/FunctionsServiceClient'
 
-export type FunctionDefinitionTab = 'general' | 'source' | 'inputSchema' | 'outputSchema' | 'settings' | 'test'
+export type FunctionDefinitionTab =
+  | 'general'
+  | 'source'
+  | 'inputSchema'
+  | 'outputSchema'
+  | 'settings'
+  | 'test'
 
 export interface FunctionDefinitionCardProps {
   mode: 'create' | 'edit'
@@ -49,6 +55,9 @@ export interface FunctionDefinitionCardProps {
   onInputSchemaChange: (v: string) => void
   onOutputSchemaChange: (v: string) => void
   onConfigKeysChange: (rows: ConfigRow[]) => void
+  storedSecrets?: StoredSecretOption[]
+  testOverrideRows: ConfigRow[]
+  onTestOverrideRowsChange: (rows: ConfigRow[]) => void
   testSchemaProperties: Record<string, unknown>
   testRequiredFields: string[]
   testPayload: Record<string, unknown>
@@ -93,6 +102,9 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   onInputSchemaChange,
   onOutputSchemaChange,
   onConfigKeysChange,
+  storedSecrets,
+  testOverrideRows,
+  onTestOverrideRowsChange,
   testSchemaProperties,
   testRequiredFields,
   testPayload,
@@ -342,6 +354,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
               selectedConnectionId={selectedConnectionId}
               onConnectionChange={onSelectedConnectionIdChange}
               isLoadingConnections={isLoadingConnections}
+              storedSecrets={storedSecrets}
               data-testid={`${testId}-settings`}
             />
           </TabsContent>
@@ -355,6 +368,8 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
               payload={testPayload}
               onPayloadChange={onTestPayloadChange}
               onPayloadFieldChange={onTestPayloadFieldChange}
+              testOverrideRows={testOverrideRows}
+              onTestOverrideRowsChange={onTestOverrideRowsChange}
               onTest={onTest}
               isTesting={isTesting}
               testError={testError}

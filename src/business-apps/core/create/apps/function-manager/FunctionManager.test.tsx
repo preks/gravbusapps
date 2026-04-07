@@ -29,7 +29,9 @@ jest.mock('@newwork/nw-design-system', () => ({
           'section-label': 'Functions',
           'search-placeholder': 'Search functions',
           edit: 'Edit',
-          'empty-message': 'No functions found'
+          'empty-message': 'No functions found',
+          'tab-functions': 'Functions',
+          'tab-credentials': 'Credentials'
         }) as Record<string, string>
       )[key] ?? key
   })
