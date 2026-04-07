@@ -2417,8 +2417,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
         updatesByBackendRowId = filtered
         cellsToPersist = flattenUpdatesToCells(filtered)
-      } catch {
-        /* keep local mapping if server rows cannot be loaded */
+      } catch (err) {
+        console.warn('[SpreadsheetAppViewer] getAllRows failed, deferring cell flush for sheet:', targetSheetId, err)
+        pendingCellChangesRef.current = [...sheetCells, ...pendingCellChangesRef.current]
+        if (!pendingCellPersistTimeoutRef.current) {
+          pendingCellPersistTimeoutRef.current = setTimeout(() => {
+            pendingCellPersistTimeoutRef.current = null
+            void chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
+          }, CELL_PERSIST_DEBOUNCE_MS * 2)
+        }
+        continue
       }
 
       if (cellsToPersist.length === 0) continue
