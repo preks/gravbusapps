@@ -7,7 +7,7 @@ import { ExpensePlansTableDisplay } from './ExpensePlansTableDisplay'
 import { useExpensePlansTableModel } from './useExpensePlansTableModel'
 import type { ExpensePlansTableProps } from './expensePlansTable.types'
 
-export type { ExpensePlansTableProps }
+export type { ExpensePlansTableProps } from './expensePlansTable.types'
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => {
   const {

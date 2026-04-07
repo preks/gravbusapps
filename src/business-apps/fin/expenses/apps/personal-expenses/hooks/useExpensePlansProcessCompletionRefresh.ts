@@ -62,12 +62,12 @@ export function useExpensePlansProcessCompletionRefresh({
     }
 
     PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion)
+      globalThis.addEventListener(eventName, handleProcessCompletion)
     })
 
     return () => {
       PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion)
+        globalThis.removeEventListener(eventName, handleProcessCompletion)
       })
     }
   }, [

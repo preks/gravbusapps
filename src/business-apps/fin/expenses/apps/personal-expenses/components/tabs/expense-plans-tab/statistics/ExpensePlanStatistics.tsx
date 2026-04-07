@@ -6,12 +6,11 @@ import { formatCurrencyDisplay } from '../../../../utils'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 
 interface ExpensePlanStatisticsProps {
-  plans: any[]
   currentMonthTotal: number
   previousMonthTotal: number
   totalEstimated: number
   pendingApproval: number
-  topDestination: string | any // Can be string or catalog entry object
+  topDestination: string | Record<string, unknown>
   statsLoading?: boolean
   destinationLoading?: boolean
   statsError?: Error | null

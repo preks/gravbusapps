@@ -5,7 +5,6 @@ import { ExpenseDateTupleRangeInput } from '@/business-apps/fin/expenses/common/
 interface DateRangeFilterProps {
   startDateRange?: [Date | null, Date | null] | null
   onDateRangeChange: (startDateRange: [Date | null, Date | null] | null) => void
-  className?: string
   placeholder?: [string, string]
 }
 

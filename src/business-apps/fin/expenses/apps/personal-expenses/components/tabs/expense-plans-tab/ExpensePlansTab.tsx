@@ -218,7 +218,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
     return (
       <ExpensePlanStatistics
-        plans={overview?.items || []}
         currentMonthTotal={hasStatistics ? statistics.currentMonthTotal : 0}
         previousMonthTotal={hasStatistics ? statistics.previousMonthTotal : 0}
         totalEstimated={hasStatistics ? statistics.totalEstimated : 0}
