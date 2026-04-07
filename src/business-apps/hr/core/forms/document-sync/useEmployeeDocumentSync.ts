@@ -11,6 +11,7 @@ const GET_EMPLOYEE_DOCUMENTS_BY_IDS = `
       employeeId
       documentGroup
       type
+      validTo
       name
       file
       mimeType
@@ -25,6 +26,7 @@ export interface EmployeeDocumentRecord {
   employeeId: string
   documentGroup?: string | null
   type: string
+  validTo?: string | null
   name: string
   file: string
   mimeType: string
@@ -404,7 +406,7 @@ export function useEmployeeDocumentSync({
       documentType = null,
       documentName = null,
       description = null,
-      validTo = null,
+      validTo,
       deleteFirst = true
     }: SyncSubmitOptions): Promise<SyncSubmitResult> => {
       if (!employeeId || !accessToken) {
@@ -460,9 +462,11 @@ export function useEmployeeDocumentSync({
 
         const nextDocumentGroup = isNonEmptyString(documentGroup) ? documentGroup : retainedRecord.documentGroup || null
         const nextDocumentType = isNonEmptyString(documentType) ? documentType : retainedRecord.type
+        const nextValidTo = validTo === undefined ? retainedRecord.validTo || null : validTo
         const shouldUpdateMetadata =
           nextDocumentType !== retainedRecord.type ||
-          (nextDocumentGroup || null) !== (retainedRecord.documentGroup || null)
+          (nextDocumentGroup || null) !== (retainedRecord.documentGroup || null) ||
+          (nextValidTo || null) !== (retainedRecord.validTo || null)
 
         if (!shouldUpdateMetadata) {
           continue
@@ -475,6 +479,7 @@ export function useEmployeeDocumentSync({
             employeeId: retainedRecord.employeeId,
             documentGroup: nextDocumentGroup,
             type: nextDocumentType,
+            validTo: nextValidTo,
             name: retainedRecord.name,
             file: retainedRecord.file,
             mimeType: retainedRecord.mimeType,
@@ -518,7 +523,7 @@ export function useEmployeeDocumentSync({
             mimeType: uploadResponse?.fileInfo?.fileMetadata?.mimeType || uploadedFile.type,
             fileSize: uploadedFile.size,
             validFrom: new Date().toISOString(),
-            validTo: validTo || null
+            validTo: validTo ?? null
           })
 
           if (created?.id) {

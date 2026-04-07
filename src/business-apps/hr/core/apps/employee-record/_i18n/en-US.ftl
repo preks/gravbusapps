@@ -558,6 +558,7 @@ add-skill-form-attach-verification-message-prefix = Upload a document to verify 
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Update level for skill 
 add-skill-form-attach-verification-upload-label = Upload document
+add-skill-form-loading-verification-document = Loading document...
 add-skill-form-document-group = Document Category
 add-skill-form-document-type = Document Type
 add-skill-form-select-document-group = Select Document Category

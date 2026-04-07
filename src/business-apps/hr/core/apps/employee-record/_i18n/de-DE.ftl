@@ -551,6 +551,7 @@ add-skill-form-attach-verification-message-prefix = Laden Sie ein Dokument hoch,
 add-skill-form-attach-verification-message-suffix = zu verifizieren.
 add-skill-form-update-level-for-prefix = Level aktualisieren für die Fähigkeit 
 add-skill-form-attach-verification-upload-label = Dokument hochladen
+add-skill-form-loading-verification-document = Dokument wird geladen...
 add-skill-form-document-group = Dokumentenkategorie
 add-skill-form-document-type = Dokumenttyp
 add-skill-form-select-document-group = Dokumentenkategorie wählen

@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { UseFormReturn } from 'react-hook-form'
 import { getSkillValidationError } from '../utils/addSkillUtils'
 import type { AddSkillFormValues, PendingSkill, SelectedSkill, SkillOption } from '../addSkill.types'
 
@@ -10,7 +9,6 @@ interface UseAddSkillFormControllerParams {
   searchSkills: (term: string) => Promise<any[]>
   createSkillAndFetchByNames: (name: string, existingNames: string[]) => Promise<Array<{ id: string; name: string }>>
   t: (key: string, args?: Record<string, unknown>) => string
-  form: UseFormReturn<AddSkillFormValues>
 }
 
 const clampLevel = (level: string | number | null | undefined) => {
@@ -25,8 +23,7 @@ export const useAddSkillFormController = ({
   changeLevelParams,
   searchSkills,
   createSkillAndFetchByNames,
-  t,
-  form
+  t
 }: UseAddSkillFormControllerParams) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [results, setResults] = useState<any[]>([])
@@ -38,7 +35,6 @@ export const useAddSkillFormController = ({
   const [addedNames, setAddedNames] = useState<string[]>([])
   const [addError, setAddError] = useState<string | null>(null)
   const [verificationFileList, setVerificationFileList] = useState<any[]>([])
-  const [documentTypeIdLocal, setDocumentTypeIdLocal] = useState<string | null>(null)
 
   const suppressOpenRef = useRef(false)
   const searchSeqRef = useRef(0)
@@ -103,8 +99,7 @@ export const useAddSkillFormController = ({
 
   const isSubmitDisabled = useMemo(() => {
     if (flowFormParams?.mode === 'attachVerification') {
-      if (verificationFileList.length === 0) return true
-      return !documentTypeIdLocal
+      return verificationFileList.length === 0
     }
     if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') return false
 
@@ -133,14 +128,7 @@ export const useAddSkillFormController = ({
     })
 
     return !(skillsChanged || levelsChanged)
-  }, [
-    existingSkillsList,
-    selectedSkills,
-    changeLevelParams?.skillId,
-    flowFormParams?.mode,
-    verificationFileList,
-    documentTypeIdLocal
-  ])
+  }, [existingSkillsList, selectedSkills, changeLevelParams?.skillId, flowFormParams?.mode, verificationFileList])
 
   const activeSelectedSkills = useMemo(
     () =>
@@ -304,22 +292,23 @@ export const useAddSkillFormController = ({
     []
   )
 
-  useEffect(() => {
-    if (verificationFileList.length > 0) return
-    setDocumentTypeIdLocal(null)
-    form.setValue('documentTypeId', null, { shouldValidate: true })
-  }, [verificationFileList.length, form])
-
-  const handleDesignSystemFilesChange = useCallback((files: Array<{ file: File | { name: string }; id: string }>) => {
+  const handleDesignSystemFilesChange = useCallback((files: any[]) => {
     const mapped = files
-      .filter(f => f.file instanceof File)
-      .map(f => ({
-        uid: f.id,
-        name: (f.file as File).name,
-        status: 'done',
-        originFileObj: f.file as File
-      }))
-    setTimeout(() => setVerificationFileList(mapped as any[]), 0)
+      .map((f: any) => {
+        const rawFile = f?.file instanceof File ? f.file : f?.originFileObj instanceof File ? f.originFileObj : null
+        if (!(rawFile instanceof File)) {
+          return null
+        }
+        return {
+          uid: String(f?.id ?? rawFile.name),
+          name: rawFile.name,
+          status: 'done',
+          originFileObj: rawFile
+        }
+      })
+      .filter(Boolean)
+      .map(item => item as any)
+    setTimeout(() => setVerificationFileList(mapped), 0)
   }, [])
 
   const handleRemoveSkill = useCallback((id: string) => {
@@ -363,8 +352,6 @@ export const useAddSkillFormController = ({
     inputKey,
     addError,
     verificationFileList,
-    documentTypeIdLocal,
-    setDocumentTypeIdLocal,
     dropdownRef,
     searchContainerRef,
     handleDesignSystemFilesChange,

@@ -150,7 +150,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-tax-details-health-insurance-label">
-              {L.healthInsurance} <span className="gba:text-destructive">*</span>
+              {L.healthInsurance} <span>*</span>
             </FormLabel>
             <FormControl>
               <Input
@@ -175,7 +175,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-tax-details-health-insurance-type-label">
-              {L.healthInsuranceType} <span className="gba:text-destructive">*</span>
+              {L.healthInsuranceType} <span>*</span>
             </FormLabel>
             <FormControl>
               <Select
@@ -237,7 +237,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                   <FormItem>
                     <FormLabel data-testid="change-tax-details-health-insurance-document-type-label">
                       {L.documentType}
-                      {healthInsuranceFileList.length > 0 && <span className="gba:text-destructive">*</span>}
+                      {healthInsuranceFileList.length > 0 && <span>*</span>}
                     </FormLabel>
                     <FormControl>
                       <Combobox
@@ -296,7 +296,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-tax-details-tax-id-label">
-              {L.taxIdNumber} <span className="gba:text-destructive">*</span>
+              {L.taxIdNumber} <span>*</span>
             </FormLabel>
             <FormControl>
               <Input
@@ -356,7 +356,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-tax-details-ssn-label">
-              {L.socialSecurityNumber} <span className="gba:text-destructive">*</span>
+              {L.socialSecurityNumber} <span>*</span>
             </FormLabel>
             <FormControl>
               <Input
