@@ -17,6 +17,7 @@ interface EmployeeDocumentUploadFieldProps {
   hasInitialDocumentCandidates?: boolean
   loadingMessage?: string
   initialFiles?: Array<{ id: string; name: string; size?: number; type?: string; url?: string }>
+  /** Called when the selected files change (wired to design-system FileUpload `onChange`). */
   onFilesChange: (files: any[]) => void
   accept: string
   maxFiles?: number
@@ -36,21 +37,22 @@ function normalizeInitialFiles(
   }))
 }
 
-export function EmployeeDocumentUploadField({
-  label,
-  name = 'employeeDocumentUpload',
-  isLoading = false,
-  isResolvingInitialDocuments = false,
-  hasExistingDocumentHint = false,
-  hasInitialDocumentCandidates = false,
-  loadingMessage = 'Loading document...',
-  initialFiles = [],
-  onFilesChange,
-  accept,
-  maxFiles = 1,
-  multiple = false,
-  dataTestId
-}: EmployeeDocumentUploadFieldProps) {
+export function EmployeeDocumentUploadField(props: Readonly<EmployeeDocumentUploadFieldProps>) {
+  const {
+    label,
+    name = 'employeeDocumentUpload',
+    isLoading = false,
+    isResolvingInitialDocuments = false,
+    hasExistingDocumentHint = false,
+    hasInitialDocumentCandidates = false,
+    loadingMessage = 'Loading document...',
+    initialFiles = [],
+    onFilesChange,
+    accept,
+    maxFiles = 1,
+    multiple = false,
+    dataTestId
+  } = props
   const shouldShowLoading =
     (hasExistingDocumentHint || hasInitialDocumentCandidates) && (isResolvingInitialDocuments || isLoading)
 
@@ -78,7 +80,7 @@ export function EmployeeDocumentUploadField({
                   layout="list"
                   preview="icon"
                   initialFiles={normalizeInitialFiles(initialFiles)}
-                  onFilesChange={onFilesChange as any}
+                  onChange={onFilesChange}
                   data-testid={dataTestId}
                 />
               </div>

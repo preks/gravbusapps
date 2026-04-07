@@ -113,8 +113,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
   }, [isLoading])
   // ensure submit disabled state recomputes on any value change
   const watchedValues = form.watch()
-  const addresses = (data?.address?.EmployeeAddress || []) as any[]
-  const selectedAddressId = (watchedValues as any)?.selectedAddressId
+  const addresses = data?.address?.EmployeeAddress ?? []
+  const selectedAddressId = watchedValues?.selectedAddressId
   const selectedAddress =
     selectedAddressId && selectedAddressId !== ADD_SENTINEL
       ? addresses.find((address: any) => String(address.id) === String(selectedAddressId))
@@ -304,7 +304,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             }
             handlePreSubmit={async values => {
               if (isDeleteMode) {
-                return values as any
+                return values
               }
               const shouldClearAddressDocument =
                 addressDocumentSync.hasRemovedInitialFiles && !addressDocumentSync.hasPendingNewUpload
@@ -315,7 +315,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               })
               const primaryDocument = shouldClearAddressDocument ? null : syncResult.primaryDocumentRecord
               return {
-                ...(values as any),
+                ...values,
                 employeeDocument: primaryDocument
                   ? {
                       id: primaryDocument.id,

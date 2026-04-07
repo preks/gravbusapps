@@ -295,7 +295,12 @@ export const useAddSkillFormController = ({
   const handleDesignSystemFilesChange = useCallback((files: any[]) => {
     const mapped = files
       .map((f: any) => {
-        const rawFile = f?.file instanceof File ? f.file : f?.originFileObj instanceof File ? f.originFileObj : null
+        let rawFile: File | null = null
+        if (f?.file instanceof File) {
+          rawFile = f.file
+        } else if (f?.originFileObj instanceof File) {
+          rawFile = f.originFileObj
+        }
         if (!(rawFile instanceof File)) {
           return null
         }

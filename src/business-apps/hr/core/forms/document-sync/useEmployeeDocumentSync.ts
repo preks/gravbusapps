@@ -99,29 +99,7 @@ function toInitialFile(entry: ManagedDocumentFile) {
   }
 }
 
-async function createEmployeeDocument(
-  accessToken: string,
-  payload: Record<string, unknown>
-): Promise<EmployeeDocumentRecord | null> {
-  const endpoint = `${PROCESSES_BASE_URL}/employee/employeeDocuments`
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`
-    },
-    body: JSON.stringify({ employeeDocument: payload })
-  })
-
-  if (!response.ok) {
-    return null
-  }
-
-  const json = (await response.json()) as EmployeeDocumentCreateResponse
-  return json?.employeeDocument ?? null
-}
-
-async function updateEmployeeDocument(
+async function saveEmployeeDocument(
   accessToken: string,
   payload: Record<string, unknown>
 ): Promise<EmployeeDocumentRecord | null> {
@@ -164,6 +142,206 @@ async function deleteEmployeeDocument(accessToken: string, record: EmployeeDocum
     })
   })
   return response.ok
+}
+
+function resolvePickedFileFromUpload(fileObj: any): File | null {
+  if (fileObj?.file instanceof File) {
+    return fileObj.file
+  }
+  if (fileObj?.originFileObj instanceof File) {
+    return fileObj.originFileObj
+  }
+  return null
+}
+
+async function fetchBlobForEmployeeDocumentFile(
+  record: EmployeeDocumentRecord,
+  fileClient: {
+    getFile: (
+      args: { accessScope: string; fileId: string },
+      opts: { appName: string; folderPath: string }
+    ) => Promise<Blob>
+    downloadFileByPath: (path: string, token: string) => Promise<Blob>
+  },
+  accessToken: string | undefined,
+  accessScope: string,
+  appName: string,
+  resolvedFolderPath: string
+): Promise<Blob | null> {
+  try {
+    return await fileClient.getFile(
+      {
+        accessScope,
+        fileId: record.file
+      },
+      {
+        appName,
+        folderPath: resolvedFolderPath
+      }
+    )
+  } catch {
+    try {
+      if (isNonEmptyString(accessToken)) {
+        return await fileClient.downloadFileByPath(record.file, accessToken)
+      }
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+async function deleteRemovedDocumentsForSync(
+  accessToken: string,
+  removedDocumentIds: string[],
+  documentRecordsById: Record<string, EmployeeDocumentRecord>
+): Promise<string[]> {
+  const deletedIds: string[] = []
+  for (const docId of removedDocumentIds) {
+    const record = documentRecordsById[docId]
+    if (!record) {
+      continue
+    }
+    try {
+      const deleted = await deleteEmployeeDocument(accessToken, record)
+      if (deleted) {
+        deletedIds.push(docId)
+      }
+    } catch {
+      // best effort delete to avoid blocking the main form submit flow
+    }
+  }
+  return deletedIds
+}
+
+async function applyMetadataUpdatesForRetainedDocuments(
+  accessToken: string,
+  retainedExistingIds: string[],
+  documentRecordsById: Record<string, EmployeeDocumentRecord>,
+  options: SyncSubmitOptions
+): Promise<EmployeeDocumentRecord[]> {
+  const { documentGroup = null, documentType = null, validTo } = options
+  const updatedDocumentRecords: EmployeeDocumentRecord[] = []
+  for (const retainedId of retainedExistingIds) {
+    const retainedRecord = documentRecordsById[retainedId]
+    if (!retainedRecord) {
+      continue
+    }
+
+    const nextDocumentGroup = isNonEmptyString(documentGroup) ? documentGroup : retainedRecord.documentGroup || null
+    const nextDocumentType = isNonEmptyString(documentType) ? documentType : retainedRecord.type
+    const nextValidTo = validTo === undefined ? retainedRecord.validTo || null : validTo
+    const shouldUpdateMetadata =
+      nextDocumentType !== retainedRecord.type ||
+      (nextDocumentGroup || null) !== (retainedRecord.documentGroup || null) ||
+      (nextValidTo || null) !== (retainedRecord.validTo || null)
+
+    if (!shouldUpdateMetadata) {
+      continue
+    }
+
+    try {
+      const updated = await saveEmployeeDocument(accessToken, {
+        id: retainedRecord.id,
+        version: retainedRecord.version,
+        employeeId: retainedRecord.employeeId,
+        documentGroup: nextDocumentGroup,
+        type: nextDocumentType,
+        validTo: nextValidTo,
+        name: retainedRecord.name,
+        file: retainedRecord.file,
+        mimeType: retainedRecord.mimeType,
+        fileSize: retainedRecord.fileSize ?? null
+      })
+
+      if (updated?.id) {
+        updatedDocumentRecords.push(updated)
+      }
+    } catch {
+      // keep submit resilient; do not block payload submission for metadata-only update failures
+    }
+  }
+  return updatedDocumentRecords
+}
+
+async function uploadNewDocumentsFromManagedFiles(
+  filesToUpload: ManagedDocumentFile[],
+  options: {
+    accessToken: string
+    employeeId: string
+    documentGroup: string | null
+    documentType: string | null
+    documentName: string | null
+    description: string | null
+    validTo: string | null | undefined
+    fileClient: {
+      uploadFile: (
+        file: File,
+        scope: { accessScope: string },
+        opts: { appName: string; folderPath: string; mimeType: string },
+        uploadFieldName: string
+      ) => Promise<{ fileInfo?: { fileId?: string; fileMetadata?: { originalFileName?: string; mimeType?: string } } }>
+    }
+    accessScope: string
+    appName: string
+    resolvedFolderPath: string
+    uploadFieldName: string
+  }
+): Promise<EmployeeDocumentRecord[]> {
+  const {
+    accessToken,
+    employeeId,
+    documentGroup,
+    documentType,
+    documentName,
+    description,
+    validTo,
+    fileClient,
+    accessScope,
+    appName,
+    resolvedFolderPath,
+    uploadFieldName
+  } = options
+  const uploadedDocumentRecords: EmployeeDocumentRecord[] = []
+  for (const fileEntry of filesToUpload) {
+    const uploadedFile = fileEntry.originFileObj
+    if (!uploadedFile) {
+      continue
+    }
+
+    try {
+      const uploadResponse = await fileClient.uploadFile(
+        uploadedFile,
+        { accessScope },
+        {
+          appName,
+          folderPath: resolvedFolderPath,
+          mimeType: uploadedFile.type || 'application/octet-stream'
+        },
+        uploadFieldName
+      )
+
+      const created = await saveEmployeeDocument(accessToken, {
+        employeeId,
+        documentGroup,
+        type: documentType,
+        description: description || '',
+        name: documentName || uploadResponse?.fileInfo?.fileMetadata?.originalFileName || uploadedFile.name,
+        file: uploadResponse?.fileInfo?.fileId,
+        mimeType: uploadResponse?.fileInfo?.fileMetadata?.mimeType || uploadedFile.type,
+        fileSize: uploadedFile.size,
+        validFrom: new Date().toISOString(),
+        validTo: validTo ?? null
+      })
+
+      if (created?.id) {
+        uploadedDocumentRecords.push(created)
+      }
+    } catch {
+      // keep submit resilient; payload can still proceed without a new document id
+    }
+  }
+  return uploadedDocumentRecords
 }
 
 export function useEmployeeDocumentSync({
@@ -271,27 +449,14 @@ export function useEmployeeDocumentSync({
 
         const nextManaged: ManagedDocumentFile[] = []
         for (const record of records) {
-          let fileBlob: Blob | null = null
-          try {
-            fileBlob = await fileClient.getFile(
-              {
-                accessScope,
-                fileId: record.file
-              },
-              {
-                appName,
-                folderPath: resolvedFolderPath
-              }
-            )
-          } catch {
-            try {
-              if (isNonEmptyString(accessToken)) {
-                fileBlob = await fileClient.downloadFileByPath(record.file, accessToken)
-              }
-            } catch {
-              fileBlob = null
-            }
-          }
+          const fileBlob = await fetchBlobForEmployeeDocumentFile(
+            record,
+            fileClient,
+            accessToken,
+            accessScope,
+            appName,
+            resolvedFolderPath
+          )
 
           const url = fileBlob && fileBlob.size > 0 ? URL.createObjectURL(fileBlob) : ''
           if (url) {
@@ -361,12 +526,7 @@ export function useEmployeeDocumentSync({
   const onFilesChange = useCallback(
     (files: any[]) => {
       const normalized: ManagedDocumentFile[] = (files || []).map((fileObj: any) => {
-        const uploadedFile =
-          fileObj?.file instanceof File
-            ? (fileObj.file as File)
-            : fileObj?.originFileObj instanceof File
-              ? (fileObj.originFileObj as File)
-              : null
+        const uploadedFile = resolvePickedFileFromUpload(fileObj)
 
         if (uploadedFile) {
           return {
@@ -430,112 +590,36 @@ export function useEmployeeDocumentSync({
       const removedDocumentIds = initialIds.filter(id => !currentIds.includes(id))
       const filesToUpload = managedFiles.filter(file => file.originFileObj instanceof File)
 
-      const deletedIds: string[] = []
-      const deleteRemovedDocuments = async () => {
-        for (const docId of removedDocumentIds) {
-          const record = documentRecordsById[docId]
-          if (!record) {
-            continue
-          }
-          try {
-            const deleted = await deleteEmployeeDocument(accessToken, record)
-            if (deleted) {
-              deletedIds.push(docId)
-            }
-          } catch {
-            // best effort delete to avoid blocking the main form submit flow
-          }
-        }
-      }
-
+      let deletedIds: string[] = []
       if (deleteFirst && removedDocumentIds.length > 0) {
-        await deleteRemovedDocuments()
+        deletedIds = await deleteRemovedDocumentsForSync(accessToken, removedDocumentIds, documentRecordsById)
       }
 
-      const updatedDocumentRecords: EmployeeDocumentRecord[] = []
       const retainedExistingIds = currentIds.filter(id => initialIds.includes(id))
-      for (const retainedId of retainedExistingIds) {
-        const retainedRecord = documentRecordsById[retainedId]
-        if (!retainedRecord) {
-          continue
-        }
+      const updatedDocumentRecords = await applyMetadataUpdatesForRetainedDocuments(
+        accessToken,
+        retainedExistingIds,
+        documentRecordsById,
+        { documentGroup, documentType, documentName, description, validTo, deleteFirst }
+      )
 
-        const nextDocumentGroup = isNonEmptyString(documentGroup) ? documentGroup : retainedRecord.documentGroup || null
-        const nextDocumentType = isNonEmptyString(documentType) ? documentType : retainedRecord.type
-        const nextValidTo = validTo === undefined ? retainedRecord.validTo || null : validTo
-        const shouldUpdateMetadata =
-          nextDocumentType !== retainedRecord.type ||
-          (nextDocumentGroup || null) !== (retainedRecord.documentGroup || null) ||
-          (nextValidTo || null) !== (retainedRecord.validTo || null)
-
-        if (!shouldUpdateMetadata) {
-          continue
-        }
-
-        try {
-          const updated = await updateEmployeeDocument(accessToken, {
-            id: retainedRecord.id,
-            version: retainedRecord.version,
-            employeeId: retainedRecord.employeeId,
-            documentGroup: nextDocumentGroup,
-            type: nextDocumentType,
-            validTo: nextValidTo,
-            name: retainedRecord.name,
-            file: retainedRecord.file,
-            mimeType: retainedRecord.mimeType,
-            fileSize: retainedRecord.fileSize ?? null
-          })
-
-          if (updated?.id) {
-            updatedDocumentRecords.push(updated)
-          }
-        } catch {
-          // keep submit resilient; do not block payload submission for metadata-only update failures
-        }
-      }
-
-      const uploadedDocumentRecords: EmployeeDocumentRecord[] = []
-      for (const fileEntry of filesToUpload) {
-        const uploadedFile = fileEntry.originFileObj
-        if (!uploadedFile) {
-          continue
-        }
-
-        try {
-          const uploadResponse = await fileClient.uploadFile(
-            uploadedFile,
-            { accessScope },
-            {
-              appName,
-              folderPath: resolvedFolderPath,
-              mimeType: uploadedFile.type || 'application/octet-stream'
-            },
-            uploadFieldName
-          )
-
-          const created = await createEmployeeDocument(accessToken, {
-            employeeId,
-            documentGroup,
-            type: documentType,
-            description: description || '',
-            name: documentName || uploadResponse?.fileInfo?.fileMetadata?.originalFileName || uploadedFile.name,
-            file: uploadResponse?.fileInfo?.fileId,
-            mimeType: uploadResponse?.fileInfo?.fileMetadata?.mimeType || uploadedFile.type,
-            fileSize: uploadedFile.size,
-            validFrom: new Date().toISOString(),
-            validTo: validTo ?? null
-          })
-
-          if (created?.id) {
-            uploadedDocumentRecords.push(created)
-          }
-        } catch {
-          // keep submit resilient; payload can still proceed without a new document id
-        }
-      }
+      const uploadedDocumentRecords = await uploadNewDocumentsFromManagedFiles(filesToUpload, {
+        accessToken,
+        employeeId,
+        documentGroup,
+        documentType,
+        documentName,
+        description,
+        validTo,
+        fileClient: fileClient as any,
+        accessScope,
+        appName,
+        resolvedFolderPath,
+        uploadFieldName
+      })
 
       if (!deleteFirst && removedDocumentIds.length > 0) {
-        await deleteRemovedDocuments()
+        deletedIds = await deleteRemovedDocumentsForSync(accessToken, removedDocumentIds, documentRecordsById)
       }
 
       const retainedIds = currentIds
@@ -602,7 +686,8 @@ export function useEmployeeDocumentSync({
     .filter(file => !file.originFileObj)
     .map(file => file.employeeDocumentId)
     .filter((id): id is string => isNonEmptyString(id))
-  const hasRemovedInitialFiles = initialDocumentIdsNormalized.some(id => !retainedDocumentIdsNormalized.includes(id))
+  const retainedIdSet = new Set(retainedDocumentIdsNormalized)
+  const hasRemovedInitialFiles = initialDocumentIdsNormalized.some(id => !retainedIdSet.has(id))
 
   return {
     managedFiles,

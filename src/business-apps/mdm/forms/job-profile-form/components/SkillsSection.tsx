@@ -448,12 +448,12 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
                       onChange={(files: any[]) => {
                         if (files && files.length > 0) {
                           const fileObj = files[0]
-                          const uploadedFile =
-                            fileObj?.file instanceof File
-                              ? fileObj.file
-                              : fileObj?.originFileObj instanceof File
-                                ? fileObj.originFileObj
-                                : null
+                          let uploadedFile: File | null = null
+                          if (fileObj?.file instanceof File) {
+                            uploadedFile = fileObj.file
+                          } else if (fileObj?.originFileObj instanceof File) {
+                            uploadedFile = fileObj.originFileObj
+                          }
 
                           if (uploadedFile) {
                             field.onChange({

@@ -39,6 +39,179 @@ interface JobDescriptionInitialFile {
   url: string
 }
 
+function normalizeJobDescriptionEntries(jobDescriptionValue: unknown): unknown[] {
+  if (Array.isArray(jobDescriptionValue)) {
+    return jobDescriptionValue.filter(Boolean)
+  }
+  if (jobDescriptionValue) {
+    return [jobDescriptionValue]
+  }
+  return []
+}
+
+function buildJobDescriptionFileIdPayload(
+  jobDescriptionFileId: string | null,
+  fileWasRemoved: boolean
+): { jobDescriptionFileId: string | null } | Record<string, never> {
+  if (jobDescriptionFileId) {
+    return { jobDescriptionFileId }
+  }
+  if (fileWasRemoved) {
+    return { jobDescriptionFileId: null }
+  }
+  return {}
+}
+
+function computeJobDescriptionFileIdsToDelete(params: {
+  jobProfileId: string | undefined
+  fileWasRemoved: boolean
+  uploadedNewJobDescriptionFile: boolean
+  previousFileIds: string[]
+  jobDescriptionFileId: string | null
+}): string[] {
+  const { jobProfileId, fileWasRemoved, uploadedNewJobDescriptionFile, previousFileIds, jobDescriptionFileId } = params
+  if (!jobProfileId) {
+    return []
+  }
+  if (fileWasRemoved) {
+    return previousFileIds
+  }
+  if (uploadedNewJobDescriptionFile) {
+    return previousFileIds.filter(fileId => fileId !== jobDescriptionFileId)
+  }
+  return []
+}
+
+async function resolveJobDescriptionFileIdFromFirstEntry(
+  firstEntry: any,
+  fileClient: {
+    uploadFile: (
+      file: File,
+      scope: { accessScope: string },
+      opts: { appName: string; folderPath: string; mimeType: string }
+    ) => Promise<{ fileInfo?: { fileId?: string } }>
+  },
+  jobProfileId: string | undefined
+): Promise<{ fileId: string | null; uploadedNew: boolean }> {
+  let jobDescriptionFileId: string | null = null
+  let uploadedNewJobDescriptionFile = false
+  const file = firstEntry?.originFileObj || firstEntry?.file
+  if (file instanceof File) {
+    const uploadResponse = await fileClient.uploadFile(
+      file,
+      { accessScope: 'tenant' },
+      {
+        appName: 'mdm',
+        folderPath: `/job-profiles/${jobProfileId || 'new'}/documents`,
+        mimeType: file.type || 'application/pdf'
+      }
+    )
+    jobDescriptionFileId = uploadResponse?.fileInfo?.fileId || null
+    uploadedNewJobDescriptionFile = Boolean(jobDescriptionFileId)
+  } else if (firstEntry?.fileId) {
+    jobDescriptionFileId = firstEntry.fileId
+  }
+  return { fileId: jobDescriptionFileId, uploadedNew: uploadedNewJobDescriptionFile }
+}
+
+async function submitJobProfileAndCleanupFiles(ctx: {
+  values: any
+  jobProfile?: JobProfile
+  previousJobDescriptionFileIds: string[]
+  fileClient: {
+    uploadFile: (
+      file: File,
+      scope: { accessScope: string },
+      opts: { appName: string; folderPath: string; mimeType: string }
+    ) => Promise<{ fileInfo?: { fileId?: string } }>
+    deleteFile: (
+      args: { accessScope: string; fileId: string },
+      opts: { appName: string; folderPath: string }
+    ) => Promise<unknown>
+  }
+  restClient: { post: (path: string, body: unknown, opts: { headers: Record<string, string> }) => Promise<unknown> }
+  accessToken: string | undefined
+  refetch: () => void
+}): Promise<void> {
+  const { values, jobProfile, previousJobDescriptionFileIds, fileClient, restClient, accessToken, refetch } = ctx
+
+  let jobDescriptionFileId: string | null = null
+  let uploadedNewJobDescriptionFile = false
+  const previousFileIds = previousJobDescriptionFileIds
+  const jobDescriptionValue = values.jobDescriptionFile
+  const currentJobDescriptionEntries = normalizeJobDescriptionEntries(jobDescriptionValue)
+  const fileWasRemoved =
+    Boolean(jobProfile?.id) && previousFileIds.length > 0 && currentJobDescriptionEntries.length === 0
+
+  if (currentJobDescriptionEntries.length > 0) {
+    try {
+      const firstEntry = currentJobDescriptionEntries[0]
+      const resolved = await resolveJobDescriptionFileIdFromFirstEntry(firstEntry, fileClient, jobProfile?.id)
+      jobDescriptionFileId = resolved.fileId
+      uploadedNewJobDescriptionFile = resolved.uploadedNew
+    } catch (fileError) {
+      console.error('Error uploading job description file:', fileError)
+    }
+  }
+
+  const skills = (values.skills || [])
+    .filter((skill: JobProfileSkill) => skill.skillId && skill.skillId.length > 0)
+    .map((skill: JobProfileSkill) => ({
+      skillId: skill.skillId,
+      skillName: skill.skillName || null,
+      requiredLevel: skill.level !== undefined && skill.level !== null ? skill.level : null
+    }))
+
+  const payload = {
+    changeMode: 'INSERT',
+    jobProfile: {
+      code: values.code,
+      name: values.name,
+      description: values.description,
+      contractTypeRef: values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
+      employmentTypeRef: values.employmentTypeRef?.length > 0 ? values.employmentTypeRef : null,
+      jobFunction: values.jobFunctionId,
+      jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
+      recordState: values.active,
+      ...(skills.length > 0 ? { skills } : {}),
+      ...buildJobDescriptionFileIdPayload(jobDescriptionFileId, fileWasRemoved),
+      ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
+    }
+  }
+
+  await restClient.post('/employee/saveJobProfile', payload, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+
+  const fileIdsToDelete = computeJobDescriptionFileIdsToDelete({
+    jobProfileId: jobProfile?.id,
+    fileWasRemoved,
+    uploadedNewJobDescriptionFile,
+    previousFileIds,
+    jobDescriptionFileId
+  })
+
+  if (fileIdsToDelete.length > 0 && jobProfile?.id) {
+    try {
+      await Promise.all(
+        fileIdsToDelete.map(fileId =>
+          fileClient.deleteFile(
+            { accessScope: 'tenant', fileId },
+            {
+              appName: 'mdm',
+              folderPath: `/job-profiles/${jobProfile.id}/documents`
+            }
+          )
+        )
+      )
+    } catch (deleteError) {
+      console.error('Failed to delete previous job description files:', deleteError)
+    }
+  }
+
+  refetch()
+}
+
 export interface JobProfileFormProps extends BusinessAppContextProps {
   jobProfile?: JobProfile
   prefixDataTestId?: string
@@ -205,102 +378,15 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true)
-
-      // Upload job description file if provided
-      let jobDescriptionFileId: string | null = null
-      let uploadedNewJobDescriptionFile = false
-      const previousFileIds = previousJobDescriptionFileIds
-      const jobDescriptionValue = values.jobDescriptionFile
-      const currentJobDescriptionEntries = Array.isArray(jobDescriptionValue)
-        ? jobDescriptionValue.filter(Boolean)
-        : jobDescriptionValue
-          ? [jobDescriptionValue]
-          : []
-      const fileWasRemoved =
-        Boolean(jobProfile?.id) && previousFileIds.length > 0 && currentJobDescriptionEntries.length === 0
-
-      if (currentJobDescriptionEntries.length > 0) {
-        try {
-          const firstEntry = currentJobDescriptionEntries[0]
-          const file = firstEntry?.originFileObj || firstEntry?.file
-          if (file instanceof File) {
-            const uploadResponse = await fileClient.uploadFile(
-              file,
-              { accessScope: 'tenant' },
-              {
-                appName: 'mdm',
-                folderPath: `/job-profiles/${jobProfile?.id || 'new'}/documents`,
-                mimeType: file.type || 'application/pdf'
-              }
-            )
-            jobDescriptionFileId = uploadResponse?.fileInfo?.fileId || null
-            uploadedNewJobDescriptionFile = Boolean(jobDescriptionFileId)
-          } else if (firstEntry?.fileId) {
-            // File already uploaded, use existing fileId
-            jobDescriptionFileId = firstEntry.fileId
-          }
-        } catch (fileError) {
-          console.error('Error uploading job description file:', fileError)
-          // Continue with form submission even if file upload fails
-        }
-      }
-
-      // Transform skills array to the format expected by the API
-      const skills = (values.skills || [])
-        .filter((skill: JobProfileSkill) => skill.skillId && skill.skillId.length > 0)
-        .map((skill: JobProfileSkill) => ({
-          skillId: skill.skillId,
-          skillName: skill.skillName || null,
-          requiredLevel: skill.level !== undefined && skill.level !== null ? skill.level : null
-        }))
-
-      const payload = {
-        changeMode: 'INSERT',
-        jobProfile: {
-          code: values.code,
-          name: values.name,
-          description: values.description,
-          contractTypeRef: values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
-          employmentTypeRef: values.employmentTypeRef?.length > 0 ? values.employmentTypeRef : null,
-          jobFunction: values.jobFunctionId,
-          jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
-          recordState: values.active,
-          ...(skills.length > 0 ? { skills } : {}),
-          ...(jobDescriptionFileId ? { jobDescriptionFileId } : fileWasRemoved ? { jobDescriptionFileId: null } : {}),
-          ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
-        }
-      }
-
-      await restClient.post('/employee/saveJobProfile', payload, {
-        headers: { Authorization: `Bearer ${accessToken}` }
+      await submitJobProfileAndCleanupFiles({
+        values,
+        jobProfile,
+        previousJobDescriptionFileIds,
+        fileClient,
+        restClient,
+        accessToken,
+        refetch
       })
-
-      const fileIdsToDelete =
-        Boolean(jobProfile?.id) && fileWasRemoved
-          ? previousFileIds
-          : Boolean(jobProfile?.id) && uploadedNewJobDescriptionFile
-            ? previousFileIds.filter(fileId => fileId !== jobDescriptionFileId)
-            : []
-
-      if (fileIdsToDelete.length > 0 && jobProfile?.id) {
-        try {
-          await Promise.all(
-            fileIdsToDelete.map(fileId =>
-              fileClient.deleteFile(
-                { accessScope: 'tenant', fileId },
-                {
-                  appName: 'mdm',
-                  folderPath: `/job-profiles/${jobProfile.id}/documents`
-                }
-              )
-            )
-          )
-        } catch (deleteError) {
-          console.error('Failed to delete previous job description files:', deleteError)
-        }
-      }
-
-      refetch()
     } catch (error) {
       console.error('Error saving Job Profile:', error)
     } finally {
