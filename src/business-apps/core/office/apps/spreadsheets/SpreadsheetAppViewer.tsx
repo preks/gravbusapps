@@ -1875,20 +1875,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         pendingDimensionChangesRef.current = []
         if (!columnsToPersist || changedColumns.length === 0) return
 
-        void (async () => {
+        void chainOnOperationQueue(operationQueueRef, async () => {
           try {
             const updated = await onSheetUpdate(app.id, activeSheetId, { columns: columnsToPersist })
             if (updated?.version != null) {
               sheetVersionRef.current = Math.max(sheetVersionRef.current, Number(updated.version))
             } else {
               scheduleSheetVersionRefreshFromApi()
-            }
-            // Width changes must also land in the durable Univer snapshot used on page reload.
-            // Otherwise bootstrap can still prefer an older snapshot even after columns.width
-            // metadata has been persisted successfully.
-            const enqueueSnapshotCheckpoint = enqueueSnapshotCheckpointRef.current
-            if (enqueueSnapshotCheckpoint) {
-              void enqueueSnapshotCheckpoint()
             }
             changedColumns.forEach(change => {
               recentLocalColumnResizeRef.current.set(`${activeSheetId}:${change.columnId}`, {
@@ -1915,7 +1908,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             })
             console.error('[SpreadsheetAppViewer] Failed to persist column widths from dimensions:', error)
           }
-        })()
+        }).catch(() => undefined)
+        // Width changes must also land in the durable Univer snapshot used on page reload.
+        // Enqueue separately so it runs after the dimension persist completes on the queue.
+        const enqueueSnapshotCheckpoint = enqueueSnapshotCheckpointRef.current
+        if (enqueueSnapshotCheckpoint) {
+          void enqueueSnapshotCheckpoint()
+        }
       }, 500)
     },
     [
