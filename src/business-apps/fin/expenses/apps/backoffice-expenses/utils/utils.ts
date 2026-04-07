@@ -2,7 +2,7 @@ import { ExpenseStatus } from '../../../common/utils/statusDisplayUtils'
 
 export type TranslateFn = (key: string, vars?: Record<string, unknown>) => string
 
-export { ExpenseStatus }
+export { ExpenseStatus } from '../../../common/utils/statusDisplayUtils'
 
 export interface StatusDisplayConfig {
   label: string

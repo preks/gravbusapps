@@ -66,6 +66,16 @@ function warnIfNewerCursorRulesAvailable() {
   }
 }
 
+function syncPlatformAssets() {
+  try {
+    execSync('node ./scripts/sync-platform-assets.mjs', { stdio: 'inherit' })
+  } catch {
+    console.warn(
+      'WARNING: sync-platform-assets failed. Default chat background may 404. Run: npm run sync:platform-assets'
+    )
+  }
+}
+
 function syncCursorRules() {
   if (!isCursorRulesDeclared()) {
     return
@@ -120,6 +130,7 @@ function startDevServer(port) {
   console.log(`\nStarting dev server on port ${port}...\n`)
 
   installDependencies()
+  syncPlatformAssets()
   syncCursorRules()
   warnIfNewerCursorRulesAvailable()
 

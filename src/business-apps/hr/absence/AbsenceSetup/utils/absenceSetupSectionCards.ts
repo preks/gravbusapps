@@ -6,7 +6,7 @@ import type { SetupSectionItem } from './absenceSetup'
 import type { GenericCatalogConfig } from '../hooks/useAbsenceSetupCatalogData'
 
 type TranslateFn = (key: string, values?: Record<string, string>) => string
-type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy' | 'AbsenceReason'
+type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy'
 
 export interface AbsenceSetupSectionCardConfig {
   icon: LucideIcon
@@ -21,6 +21,8 @@ export interface AbsenceSetupSectionCardConfig {
   onDelete: (id: string) => void
   addButtonTestId: string
   cardTestId: string
+  showAddAction?: boolean
+  showDeleteAction?: boolean
 }
 
 interface BuildAbsenceSetupSectionCardsArgs {
@@ -98,7 +100,9 @@ export const buildAbsenceSetupSectionCards = ({
       if (entry) onDeleteGenericCatalog('AbsenceGroup', entry)
     },
     addButtonTestId: genericCatalogConfigs.AbsenceGroup.addButtonTestId,
-    cardTestId: genericCatalogConfigs.AbsenceGroup.cardTestId
+    cardTestId: genericCatalogConfigs.AbsenceGroup.cardTestId,
+    showAddAction: false,
+    showDeleteAction: false
   },
   {
     icon: Calendar,
@@ -142,9 +146,9 @@ export const buildAbsenceSetupSectionCards = ({
   },
   {
     icon: Wallet,
-    title: t('absence-entitlements-title'),
+    title: t('entitlement-rules-title'),
     entityLabel: t('absence-entitlement-entity-label'),
-    description: t('absence-entitlements-description'),
+    description: t('entitlement-rules-description'),
     items: entitlementItems,
     isLoading: entitlementLoading,
     errorMessage: entitlementError,
@@ -160,7 +164,7 @@ export const buildAbsenceSetupSectionCards = ({
     addButtonTestId: 'absence-setup-add-entitlement-button',
     cardTestId: 'absence-setup-entitlements-card'
   },
-  ...(['AbsencePolicy', 'AbsenceReason'] as const).map(catalogKey => {
+  ...(['AbsencePolicy'] as const).map(catalogKey => {
     const config = genericCatalogConfigs[catalogKey]
 
     return {

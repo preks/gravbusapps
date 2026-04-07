@@ -1,5 +1,6 @@
 import { resolve } from 'path'
 import { defineConfig, loadEnv, type PluginOption } from 'vite'
+import { visualizer } from 'rollup-plugin-visualizer'
 import react from '@vitejs/plugin-react'
 import tailwindCSS from '@tailwindcss/vite'
 import browserEcho from '@browser-echo/vite'
@@ -9,6 +10,7 @@ import crypto from 'crypto'
 import path from 'path'
 import dotenv from '@dotenvx/dotenvx'
 import { execSync, spawn } from 'child_process'
+import { isRemoteBundleExternal } from './remoteBundleExternals'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -180,8 +182,9 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, projectRootDir, '')
 
   // --- Original logic for TARGET_ENTRY_KEY and TARGET_ENTRY_FILE ---
-  const targetEntryKey = env.TARGET_ENTRY_KEY // e.g., 'irm/detail-screens/LeadDetail'
-  const targetEntryFile = env.TARGET_ENTRY_FILE // e.g., 'src/business-apps/irm/detail-screens/LeadDetail/index.ts'
+  // Prefer process.env so CLI / cross-env works (loadEnv only reads .env files).
+  const targetEntryKey = process.env.TARGET_ENTRY_KEY || env.TARGET_ENTRY_KEY // e.g., 'irm/detail-screens/LeadDetail'
+  const targetEntryFile = process.env.TARGET_ENTRY_FILE || env.TARGET_ENTRY_FILE // e.g., 'src/business-apps/irm/detail-screens/LeadDetail/index.ts'
   // --- End of original logic ---
 
   let dynamicEntries = {}
@@ -192,6 +195,23 @@ export default defineConfig(({ command, mode }) => {
   const isSingleBuild = targetEntryKey && targetEntryFile
   const isBatchBuild = process.env.VITE_BATCH_MODE === 'true'
   const isHashOnlyBuild = process.env.VITE_HASH_ONLY_BUILD === 'true'
+
+  /**
+   * `public/platform/assets` is synced from @newwork/assets for Vite dev only. Vite copies all of `public/`
+   * into `dist/`; we delete this folder at build start so JPEGs never ship with remote screen bundles (they are
+   * served from gravity-platform in production).
+   */
+  const omitPublicPlatformAssetsPlugin: PluginOption = {
+    name: 'omit-public-platform-assets-for-remote-build',
+    buildStart() {
+      if (!isBuildCommand) return
+      const dir = path.join(projectRootDir, 'public', 'platform', 'assets')
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true })
+        console.log('[vite] Removed public/platform/assets before build (host-served; not copied to dist)')
+      }
+    }
+  }
 
   if (isBuildCommand && isSingleBuild) {
     console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`)
@@ -627,7 +647,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
           write: false,
           minify: false,
           logLevel: 'warning',
-          // Bundle all dependencies including @jitsi/rnnoise-wasm
+          // Keep `external: []`: the worklet runs in AudioWorkletGlobalScope — no `window`,
+          // no `window.require`, so host vendor / remote externals do not apply. Anything
+          // listed external here would break the inlined worklet string at runtime.
           external: []
         })
 
@@ -1046,6 +1068,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
     },
     plugins: [
       ...(command === 'serve' ? [spaHistoryFallbackPlugin] : []),
+      omitPublicPlatformAssetsPlugin,
       react(),
       tailwindCSS(),
       // Virtual module plugin for the wrapped entries
@@ -1097,6 +1120,27 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
       },
       cssCodeSplit: true,
       rollupOptions: {
+        plugins: [
+          ...(process.env.VITE_ANALYZE === 'true' && isBuildCommand
+            ? [
+                visualizer({
+                  filename: resolve(projectRootDir, 'dist/bundle-stats.html'),
+                  title: targetEntryKey ? `Bundle: ${targetEntryKey}` : 'gravity-business-apps bundle',
+                  open: false,
+                  gzipSize: true,
+                  brotliSize: true,
+                  template: 'treemap'
+                }),
+                visualizer({
+                  filename: resolve(projectRootDir, 'dist/bundle-stats.json'),
+                  open: false,
+                  gzipSize: true,
+                  brotliSize: true,
+                  template: 'raw-data'
+                })
+              ]
+            : [])
+        ],
         // For single screen builds, use the temporary index.css file created by publish-dev-screen.js
         // Otherwise, use the standard src/index.css file
         input: isSingleBuild
@@ -1113,46 +1157,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
               ...wrappedEntries
             },
 
-        external: [
-          'antd',
-          '@dnd-kit/core',
-          '@dnd-kit/utilities',
-          '@dnd-kit/sortable',
-          'zustand',
-          'clsx',
-          'tailwind-merge',
-          'react-i18next',
-          '@phosphor-icons/react',
-          '@newwork/gravity-ui-catalog',
-          'class-variance-authority',
-          'lucide-react',
-          'react',
-          'react-dom',
-          'react/jsx-runtime',
-          'react-router-dom',
-          '@univerjs/preset-sheets-core',
-          '@univerjs/presets'
-        ],
+        external: isRemoteBundleExternal,
         output: {
-          globals: {
-            react: 'React',
-            'react-dom': 'ReactDOM',
-            antd: 'antd',
-            'react-i18next': 'reactI18next',
-            '@phosphor-icons/react': 'PhosphorIconsReact',
-            clsx: 'clsx',
-            'tailwind-merge': 'tailwindMerge',
-            '@dnd-kit/core': 'DNDKitCore',
-            '@dnd-kit/sortable': 'DNDKitSortable',
-            '@dnd-kit/utilities': 'DNDKitUtilities',
-            zustand: 'zustand',
-            '@newwork/gravity-ui-catalog': 'GravityUICatalog',
-            'class-variance-authority': 'classVarianceAuthority',
-            'lucide-react': 'lucideReact',
-            'react-router-dom': 'reactRouterDom',
-            '@univerjs/preset-sheets-core': 'univerjsPresetSheetsCore',
-            '@univerjs/presets': 'univerjsPresets'
-          },
+          // CJS output: externals become `require("…")` resolved by the host; no `output.globals` needed (unlike IIFE/UMD).
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
           entryFileNames: chunkInfo => {

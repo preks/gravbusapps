@@ -19,6 +19,7 @@ const REFRESH_AND_STABILIZE_META = 'RM_PAGES_REFRESH_AND_STABILIZE'
 export const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
 const hardBreakKey = new PluginKey<DecorationSet>('rm-pages-hard-breaks')
+const squareWrapKey = new PluginKey<DecorationSet>('rm-pages-square-wrap')
 
 export { resolvePaginationWidgetTotalPages, resolveRunawayPageGrowth } from './paginationPageCountPolicy'
 export { markNextPaginationHydrationDocChange } from './paginationRuntimeBookkeeping'
@@ -137,6 +138,7 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       defaultOptions,
       paginationKey,
       hardBreakKey,
+      squareWrapKey,
       refreshMeta: REFRESH_META,
       refreshAndStabilizeMeta: REFRESH_AND_STABILIZE_META,
       paginationOwnedDocChangeMeta: PAGINATION_OWNED_DOC_CHANGE_META,

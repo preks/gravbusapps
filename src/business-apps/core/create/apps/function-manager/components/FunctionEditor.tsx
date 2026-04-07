@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import '@newwork/nw-design-system/style'
 import { Avatar, AvatarFallback, Button, Card } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
@@ -14,9 +15,7 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
   function?: LatestFunctionItem | null
   onSaved: () => void
   onBack?: () => void
-  /** When set with onBack, editor uses CreateLayout: hero + wizard left, canvas right. */
   heroTitle?: string
-  /** Hero subtitle (optional). */
   heroSubtitle?: string
   className?: string
   'data-testid'?: string
@@ -38,6 +37,8 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     'data-testid': testId = DATA_TEST_ID
   } = props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
+  const [isFixingWithAi, setIsFixingWithAi] = React.useState(false)
+  const [fixWithAiError, setFixWithAiError] = React.useState<string | null>(null)
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
   const [fixTestRequest, setFixTestRequest] = React.useState<null | {
     nonce: string
@@ -109,8 +110,16 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   const handleFixWithAi = React.useCallback(() => {
     // Open the assistant and let the chat run the "fix test" iteration flow.
     setAssistantOpen(true)
-    const snap = buildTestIterationSnapshot()
+    setFixWithAiError(null)
+    let snap: ReturnType<typeof buildTestIterationSnapshot> = null
+    try {
+      snap = buildTestIterationSnapshot()
+    } catch (e) {
+      setFixWithAiError(e instanceof Error ? e.message : 'Unable to start AI fix')
+      return
+    }
     if (!snap) return
+    setIsFixingWithAi(true)
     setFixTestRequest({ nonce: `${Date.now()}-${Math.random().toString(16).slice(2)}`, ...snap })
   }, [buildTestIterationSnapshot, setAssistantOpen])
 
@@ -135,6 +144,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     },
     [setAssistantOpen]
   )
+
   const usesCreateLayoutHero = heroTitle != null && onBack != null
 
   const mainContent = (
@@ -149,14 +159,19 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
         onBack={usesCreateLayoutHero ? undefined : onBack}
         data-testid="function-editor-header"
       />
+
       {error && (
         <div className="gba:text-destructive" data-testid="function-editor-error">
           {error}
         </div>
       )}
+
       <div className="gba:space-y-4 gba:mt-4">
         {canUndoAssistantApply ? (
-          <Card className="gba:p-3 gba:border gba:border-border gba:bg-muted" data-testid="function-editor-undo-banner">
+          <Card
+            className="gba:p-3 gba:border gba:border-border gba:bg-muted"
+            data-testid="function-editor-undo-banner"
+          >
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
               <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
                 <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
@@ -196,6 +211,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             </div>
           </Card>
         ) : null}
+
         <FunctionDefinitionCard
           mode={mode}
           name={name}
@@ -233,6 +249,8 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           testResult={testResult}
           testLogs={testLogs}
           onFixWithAi={handleFixWithAi}
+          isFixingWithAi={isFixingWithAi}
+          fixWithAiError={fixWithAiError}
           activeTab={definitionTab}
           onTabChange={setDefinitionTab}
           data-testid="function-editor-definition"
@@ -260,6 +278,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             onOpenDefinitionTab={openDefinitionTab}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
+            onFixTestStateChange={({ isFixing, error }) => {
+              setIsFixingWithAi(isFixing)
+              setFixWithAiError(error)
+            }}
             onClose={closeAssistant}
             data-testid="function-assistant"
           />
@@ -281,6 +303,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     >
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
         <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
+
         {assistantOpen ? (
           <FunctionAssistantSidebar
             accessToken={accessToken}
@@ -291,7 +314,11 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             onOpenDefinitionTab={openDefinitionTab}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
-            onClose={() => setAssistantOpen(false)}
+            onFixTestStateChange={({ isFixing, error }) => {
+              setIsFixingWithAi(isFixing)
+              setFixWithAiError(error)
+            }}
+            onClose={closeAssistant}
             data-testid="function-assistant"
           />
         ) : null}

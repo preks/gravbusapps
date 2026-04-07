@@ -158,9 +158,8 @@ function applyCustomImageLayoutForExport(html: string): string {
     figure.style.boxSizing = 'border-box'
 
     switch (attrs.wrapMode) {
-      case 'square-left':
-      case 'square-right':
-        figure.style.cssFloat = layout.floatingSide ?? (attrs.wrapMode === 'square-right' ? 'right' : 'left')
+      case 'square':
+        figure.style.cssFloat = layout.floatingSide ?? (attrs.align === 'right' ? 'right' : 'left')
         figure.style.display = 'block'
         figure.style.position = 'relative'
         figure.style.width = `${layout.layoutWidth}px`

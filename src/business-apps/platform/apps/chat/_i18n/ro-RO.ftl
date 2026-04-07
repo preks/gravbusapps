@@ -532,6 +532,16 @@ calendar-sidebar-personalColorSaveError = Nu s-a putut actualiza culoarea pentru
 calendar-sidebar-calendarColorSaveError = Nu s-a putut actualiza culoarea calendarului
 calendar-sidebar-resetToDefault = Folosește culoarea implicită
 calendar-sidebar-openColorPicker = Schimbă culoarea pentru {$name}
+calendar-sidebar-createManually = Creează manual
+calendar-sidebar-createByGroup = După grup
+calendar-sidebar-createCalendarByDimension = Creează calendar după organizație
+calendar-sidebar-dimensionDescription = Creează un calendar partajat pentru un grup organizațional și oferă membrilor săi acces de vizualizare.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 membru va primi acces de vizualizare
+ *[other] {$count} membri vor primi acces de vizualizare
+}
+calendar-sidebar-membersPreview = Membri
+calendar-sidebar-calendarExistsInfo = Există deja un calendar partajat pentru acest grup, așa că a fost selectat calendarul existent.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire

@@ -1,5 +1,5 @@
 import React from 'react'
-import { RotateCw } from 'lucide-react'
+import { ArrowClockwise } from '@phosphor-icons/react'
 import { appendClassName, CUSTOM_IMAGE_FIGURE_CLASS } from './styleUtils'
 import type { CustomImageAttributes } from './types'
 import type { WordLikeImageLayout } from './wrapLayoutEngine'
@@ -27,6 +27,45 @@ interface CustomImageFigureProps {
 }
 
 const HANDLE_DIRECTIONS: ReadonlyArray<ResizeDirection> = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+
+function ImageBorderOverlay({ layout }: Readonly<{ layout: WordLikeImageLayout }>) {
+  const { imageBorder } = layout
+
+  if (!imageBorder.visible) {
+    return null
+  }
+
+  const rectWidth = Math.max(0, layout.frameWidth - imageBorder.widthPx)
+  const rectHeight = Math.max(0, layout.frameHeight - imageBorder.widthPx)
+  const radius = Math.max(0, imageBorder.radius - imageBorder.inset)
+
+  return (
+    <span
+      className="gba:pointer-events-none gba:absolute gba:inset-0"
+      aria-hidden
+      data-testid="document-editor-image-border"
+    >
+      <svg
+        className="gba:h-full gba:w-full"
+        viewBox={`0 0 ${layout.frameWidth} ${layout.frameHeight}`}
+        preserveAspectRatio="none"
+      >
+        <rect
+          x={imageBorder.inset}
+          y={imageBorder.inset}
+          width={rectWidth}
+          height={rectHeight}
+          rx={radius}
+          ry={radius}
+          fill="none"
+          stroke={imageBorder.color}
+          strokeWidth={imageBorder.widthPx}
+          strokeDasharray={imageBorder.dashArray ?? undefined}
+        />
+      </svg>
+    </span>
+  )
+}
 
 export function CustomImageFigure({
   layout,
@@ -80,6 +119,7 @@ export function CustomImageFigure({
               >
                 {error ? 'Image' : 'Loading image...'}
               </span>
+              <ImageBorderOverlay layout={layout} />
             </span>
           </span>
         ) : (
@@ -106,6 +146,7 @@ export function CustomImageFigure({
                 onLoad={onImageLoad}
                 data-testid="document-editor-image"
               />
+              <ImageBorderOverlay layout={layout} />
               {isCropMode ? (
                 <>
                   <span
@@ -174,7 +215,7 @@ export function CustomImageFigure({
                   data-image-handle="true"
                   data-testid="document-editor-image-rotate-handle"
                 >
-                  <RotateCw className="gba:h-3.5 gba:w-3.5" />
+                  <ArrowClockwise className="gba:h-3.5 gba:w-3.5" />
                 </button>
                 <span className="gba:h-4 gba:w-px gba:bg-primary/70 gba:pointer-events-none" />
               </span>

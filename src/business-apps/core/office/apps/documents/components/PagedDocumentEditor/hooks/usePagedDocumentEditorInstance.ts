@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useMemo, type MutableRefObject } from 'react'
 import { useEditor, type Editor as TiptapEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -40,6 +40,40 @@ const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
 
 type TranslateFn = (key: string) => string
 
+function containsImgTag(html: string): boolean {
+  return /<img\b/i.test(html)
+}
+
+function containsCustomImageMarkup(html: string): boolean {
+  return /\bdata-node-type=(?:"|')custom-image(?:"|')/i.test(html)
+}
+
+function countImageNodes(editor: TiptapEditor): number {
+  let count = 0
+
+  editor.state.doc.descendants(node => {
+    if (node.type.name === 'image') {
+      count += 1
+    }
+  })
+
+  return count
+}
+
+export function createDocumentImageExtension(accessToken: string) {
+  return DocumentImage.configure({
+    inline: true,
+    allowBase64: true,
+    getAccessToken: () => accessToken,
+    isProtectedSrc: isDocumentImageProtectedSrc,
+    resolveProtectedSrc: resolveProtectedDocumentImageSrc,
+    minSize: 40,
+    HTMLAttributes: {
+      class: 'editor-image'
+    }
+  })
+}
+
 function createSharedDocumentExtensions(accessToken: string): any[] {
   return [
     TextAlign.configure({
@@ -63,16 +97,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
       },
       isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
     }),
-    DocumentImage.configure({
-      inline: true,
-      getAccessToken: () => accessToken,
-      isProtectedSrc: isDocumentImageProtectedSrc,
-      resolveProtectedSrc: resolveProtectedDocumentImageSrc,
-      minSize: 40,
-      HTMLAttributes: {
-        class: 'editor-image'
-      }
-    }),
+    createDocumentImageExtension(accessToken),
     Signature,
     Table.configure({
       resizable: true,
@@ -277,7 +302,7 @@ export function usePagedDocumentEditorInstance({
     ]
   )
 
-  return useEditor(
+  const editor = useEditor(
     {
       extensions,
       content: tiptapInitialContent,
@@ -348,4 +373,33 @@ export function usePagedDocumentEditorInstance({
           scheduleAutocompleteRef
         ]
   )
+
+  useEffect(() => {
+    if (!editor || isCollaborationMode) {
+      return
+    }
+
+    const initialContentHasImgTag = containsImgTag(editorContent)
+    const initialContentHasCustomImageMarkup = containsCustomImageMarkup(editorContent)
+
+    if (!initialContentHasImgTag && !initialContentHasCustomImageMarkup) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      const editorHtml = editor.getHTML()
+
+      console.info('[PagedDocumentEditor] DOCX import image diagnostics', {
+        initialContentHasImgTag,
+        initialContentHasCustomImageMarkup,
+        editorHtmlHasImgTag: containsImgTag(editorHtml),
+        editorHtmlHasCustomImageMarkup: containsCustomImageMarkup(editorHtml),
+        imageNodeCount: countImageNodes(editor)
+      })
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [editor, editorContent, isCollaborationMode])
+
+  return editor
 }
