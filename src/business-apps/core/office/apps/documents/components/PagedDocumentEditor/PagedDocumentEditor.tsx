@@ -78,10 +78,6 @@ import {
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
-
-function countMatches(input: string, pattern: RegExp): number {
-  return input.match(pattern)?.length ?? 0
-}
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
@@ -839,18 +835,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      const sanitizedContent = sanitizeDocumentHtmlForEditor(rawContent)
-
-      if (/\bdata-node-type=(?:"|')custom-image(?:"|')/i.test(sanitizedContent) || /<img\b/i.test(sanitizedContent)) {
-        console.info('[PagedDocumentEditor] sanitized content image diagnostics', {
-          customImageWrapperCount: countMatches(sanitizedContent, /\bdata-node-type=(?:"|')custom-image(?:"|')/gi),
-          imgTagCount: countMatches(sanitizedContent, /<img\b/gi),
-          imgSrcAttrCount: countMatches(sanitizedContent, /<img\b[^>]*\ssrc=(?:"|')/gi),
-          dataImageSrcCount: countMatches(sanitizedContent, /src=(?:"|')data:image\//gi)
-        })
-      }
-
-      return sanitizedContent
+      return sanitizeDocumentHtmlForEditor(rawContent)
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
