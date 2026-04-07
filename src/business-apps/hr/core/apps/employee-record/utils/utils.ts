@@ -49,14 +49,14 @@ export const transformEntitlementsData = (employeeAbsenceEntitlement: EmployeeAb
   const lastDayOfYear = dayjs(`${currentYear}-12-31`).endOf('day')
 
   const currentYearEntitlements = employeeAbsenceEntitlement.filter(ent => {
-    if (!ent.validFrom || !ent.validTo) {
+    if (!ent.validFrom) {
       return false
     }
 
     const validFrom = dayjs(ent.validFrom)
-    const validTo = dayjs(ent.validTo)
+    const validTo = ent.validTo ? dayjs(ent.validTo) : null
 
-    return validFrom.isSameOrBefore(lastDayOfYear) && validTo.isSameOrAfter(firstDayOfYear)
+    return validFrom.isSameOrBefore(lastDayOfYear) && (validTo === null || validTo.isSameOrAfter(firstDayOfYear))
   })
 
   return currentYearEntitlements.map(ent => ({

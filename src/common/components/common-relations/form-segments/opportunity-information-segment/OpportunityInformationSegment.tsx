@@ -208,7 +208,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
         name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t('opportunity-name-label')}</FormLabel>
+            <FormLabel className="gba:text-foreground">{t('opportunity-name-label')}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t('opportunity-name-placeholder')}
