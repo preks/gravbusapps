@@ -4,7 +4,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext'
-import { useForm } from 'react-hook-form'
+import { useForm, useFormState } from 'react-hook-form'
 import { Button, FormField, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -71,6 +71,8 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
     mode: 'onChange',
     shouldUnregister: true
   })
+
+  const { isSubmitting } = useFormState({ control: form.control })
 
   const title = useMemo(
     () =>
@@ -518,6 +520,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={isSubmitting}
                   onClick={() => {
                     if (isDeleteMode) {
                       setIsDeleteMode(false)
@@ -565,13 +568,16 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                   <Button
                     type="submit"
                     variant="destructive"
-                    disabled={Boolean(
-                      (data?.address?.EmployeeBankAccount || []).some(
-                        (b: any) =>
-                          String(b.employeeAddressId) ===
-                          String(deletePayload?.address?.id || form.getValues('selectedAddressId'))
+                    disabled={
+                      isSubmitting ||
+                      Boolean(
+                        (data?.address?.EmployeeBankAccount || []).some(
+                          (b: any) =>
+                            String(b.employeeAddressId) ===
+                            String(deletePayload?.address?.id || form.getValues('selectedAddressId'))
+                        )
                       )
-                    )}
+                    }
                     data-testid="flw_changeEmployeeAddressList_deleteButton"
                   >
                     {getTranslationFromI18nKeyAndLabel(
@@ -583,7 +589,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                   <Button
                     type="submit"
                     variant="default"
-                    disabled={isSubmitDisabled || isUnchangedExisting}
+                    disabled={isSubmitDisabled || isUnchangedExisting || isSubmitting}
                     data-testid="flw_changeEmployeeAddressList_submitButton"
                   >
                     {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
