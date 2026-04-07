@@ -47,7 +47,6 @@ export interface EvalsDashboardQueryParams {
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
-  domain?: 'crm' | 'irm'
   llm_model?: string
 }
 
@@ -65,9 +64,9 @@ export interface MapFromFileResponse {
 
 export interface ExtractFromFileRequest {
   entity_type: string
+  domain?: 'crm' | 'irm'
   import_file: File
   mapping_json: string
-  domain?: 'crm' | 'irm'
   offset?: number
   max_rows?: number
 }
@@ -85,6 +84,12 @@ export interface ExtractFromFileResponse {
   }>
   sourceFields: string[]
   unmappedSourceFields: string[]
+}
+
+function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
+  if (domain === 'customer' || domain === 'crm') return 'crm'
+  if (domain === 'investment' || domain === 'irm') return 'irm'
+  return undefined
 }
 
 export interface DocumentAutocompleteRequest {
@@ -170,16 +175,17 @@ export class FlowbotClient extends RestClient {
   public async mapFromFile(
     entityType: string,
     importFile: File,
-    domain?: 'crm' | 'irm',
     llmModel?: string,
+    domain?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
-    formData.append('import_file', importFile)
-    if (domain) {
-      formData.append('domain', domain)
+    const flowbotDomain = toFlowbotImportDomain(domain)
+    if (flowbotDomain) {
+      formData.append('domain', flowbotDomain)
     }
+    formData.append('import_file', importFile)
     if (llmModel) {
       formData.append('llm_model', llmModel)
     }
@@ -192,20 +198,21 @@ export class FlowbotClient extends RestClient {
     importFile: File,
     mappingJson: string,
     enforcedFieldsJson?: string,
-    domain?: 'crm' | 'irm',
+    domain?: string,
     offset: number = 0,
     maxRows: number = 5000,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
+    const flowbotDomain = toFlowbotImportDomain(domain)
+    if (flowbotDomain) {
+      formData.append('domain', flowbotDomain)
+    }
     formData.append('import_file', importFile)
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {
       formData.append('enforced_fields_json', enforcedFieldsJson)
-    }
-    if (domain) {
-      formData.append('domain', domain)
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())
