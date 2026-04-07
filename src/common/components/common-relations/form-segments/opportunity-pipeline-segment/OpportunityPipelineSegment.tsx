@@ -54,7 +54,8 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
       previousPipelineValueRef.current = currentValue
 
       if (!currentValue || (typeof currentValue === 'string' && currentValue.trim() === '')) {
-        form.setValue(stageFieldName, '', { shouldValidate: true, shouldDirty: true })
+        form.setValue(stageFieldName, '', { shouldValidate: false, shouldDirty: true })
+        form.clearErrors(stageFieldName)
       }
     }
   }, [pipelineValue, stageFieldName, form])
@@ -69,7 +70,7 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={pipelineFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('opportunity-pipeline-label')}</FormLabel>
+              <FormLabel className="gba:text-foreground">{t('opportunity-pipeline-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={pipelineCatalogIdentifier}
@@ -91,7 +92,7 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={stageFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
+              <FormLabel className="gba:text-foreground">
                 {t('opportunity-stage-label')}
                 {showDynamicStageRequired && isStageRequired && <span className="gba:text-destructive"> *</span>}
               </FormLabel>
