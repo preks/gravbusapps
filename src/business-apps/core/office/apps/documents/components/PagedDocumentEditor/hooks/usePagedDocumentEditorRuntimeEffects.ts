@@ -11,7 +11,6 @@ import {
 import type { PagedDocumentAutocompleteController } from './usePagedDocumentAutocompleteController'
 
 const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')
-const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHighlight')
 
 function getSpaceIdFromWindow(): string | null {
   if (globalThis.window === undefined) return null
@@ -35,19 +34,6 @@ export function mapSelectionRangeThroughTransaction(
 
   const from = Math.max(0, Math.min(mappedFrom.pos, docSize))
   const to = Math.max(from, Math.min(mappedTo.pos, docSize))
-  return to > from ? { from, to } : null
-}
-
-function resolveCurrentSelectionHighlightRange(
-  selection: Pick<TiptapEditor['state']['selection'], 'empty' | 'from' | 'to'>,
-  docSize: number
-): { from: number; to: number } | null {
-  if (selection.empty) {
-    return null
-  }
-
-  const from = Math.max(0, Math.min(selection.from, docSize))
-  const to = Math.max(from, Math.min(selection.to, docSize))
   return to > from ? { from, to } : null
 }
 
@@ -335,40 +321,6 @@ export function usePagedDocumentEditorRuntimeEffects({
       editor.off('selectionUpdate', handleSelectionUpdate)
     }
   }, [editor, autocomplete])
-
-  useEffect(() => {
-    if (!editor) return
-
-    const existing = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
-    if (!existing) {
-      editor.registerPlugin(
-        new Plugin({
-          key: CURRENT_SELECTION_PLUGIN_KEY,
-          props: {
-            decorations(state) {
-              const selectionRange = resolveCurrentSelectionHighlightRange(state.selection, state.doc.content.size)
-              if (!selectionRange) {
-                return DecorationSet.empty
-              }
-
-              return DecorationSet.create(state.doc, [
-                Decoration.inline(selectionRange.from, selectionRange.to, {
-                  class: 'current-selection-highlight'
-                })
-              ])
-            }
-          }
-        })
-      )
-    }
-
-    return () => {
-      const active = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
-      if (active) {
-        editor.unregisterPlugin(CURRENT_SELECTION_PLUGIN_KEY)
-      }
-    }
-  }, [editor])
 
   useEffect(() => {
     if (!editor) return

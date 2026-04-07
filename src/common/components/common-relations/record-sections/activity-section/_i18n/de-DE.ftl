@@ -7,6 +7,7 @@ activities-owner = Verantwortlich
 activities-selectOwner = Auswählen...
 activities-type = Typ
 activities-occurredAt = Datum & Uhrzeit
+activities-timelineOccurred = Zeitpunkt
 activities-details = Aktivitätsdetails
 activities-documents = Dokumente
 activities-titlePlaceholder = Aktivitätstitel...

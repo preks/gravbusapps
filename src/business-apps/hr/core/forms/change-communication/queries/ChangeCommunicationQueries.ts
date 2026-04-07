@@ -25,7 +25,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
       jobPosition { name }
       organizationalUnit { id name }
     }
-    commType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationType" } } }) {
+    commType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationType" } }, isDeleted: { _eq: false } }) {
       id
       value
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
@@ -34,7 +34,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
       }
       catalog { defaultLocale }
     }
-    commChannel: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationChannel" } } }) {
+    commChannel: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationChannel" } }, isDeleted: { _eq: false } }) {
       id
       value
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
@@ -43,12 +43,12 @@ export const GET_COMMUNICATION_LOOKUPS = `
       }
       catalog { defaultLocale }
     }
-    documentGroup: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } } }) {
+    documentGroup: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } }, isDeleted: { _eq: false } }) {
       id
       value
       code
     }
-    documentType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } } }) {
+    documentType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } }, isDeleted: { _eq: false } }) {
       id
       value
       code

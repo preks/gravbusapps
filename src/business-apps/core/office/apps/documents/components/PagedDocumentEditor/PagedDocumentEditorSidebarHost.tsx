@@ -50,6 +50,10 @@ export interface PagedDocumentEditorSidebarHostProps {
   onQuickPageNumberPlacement: HeaderFooterSettingsSidebarProps['onQuickPageNumberPlacement']
   onRemovePageNumber: HeaderFooterSettingsSidebarProps['onRemovePageNumber']
   onCloseHeaderFooterSidebar: () => void
+  /** Keeps the settings panel mounted while the inline overlay is briefly torn down (layout toggles, margins). */
+  headerFooterSettingsSessionOpen: boolean
+  resolvedHeaderFooterType: 'header' | 'footer'
+  resolvedHeaderFooterPageNumber: number
   selectedTableSidebar: SelectedTableSidebarState
   tableContextSubtitle?: string
   onCloseTableSidebar: () => void
@@ -109,6 +113,9 @@ export function PagedDocumentEditorSidebarHost({
   onQuickPageNumberPlacement,
   onRemovePageNumber,
   onCloseHeaderFooterSidebar,
+  headerFooterSettingsSessionOpen,
+  resolvedHeaderFooterType,
+  resolvedHeaderFooterPageNumber,
   selectedTableSidebar,
   tableContextSubtitle,
   onCloseTableSidebar,
@@ -194,29 +201,31 @@ export function PagedDocumentEditorSidebarHost({
         />
       )}
 
-      {showHeaderFooterSidebar && editor && pagesEditorState.activeEditor && pagesEditorState.activeEditorType && (
-        <HeaderFooterSettingsSidebar
-          editor={editor}
-          overlayEditor={pagesEditorState.activeEditor}
-          type={pagesEditorState.activeEditorType}
-          pageNumber={pagesEditorState.activePageNumber ?? 1}
-          differentFirstPage={differentFirstPage}
-          differentOddEven={differentOddEven}
-          headerTopMarginPx={headerTopMarginPx}
-          footerBottomMarginPx={footerBottomMarginPx}
-          marginUnit={marginUnit}
-          showDocumentBody={showDocumentBody}
-          onShowDocumentBodyChange={onShowDocumentBodyChange}
-          onPersistPagesFromEditor={onPersistPagesFromEditor}
-          onOpenPageNumbers={onOpenPageNumbers}
-          onQuickPageNumberPlacement={onQuickPageNumberPlacement}
-          onRemovePageNumber={onRemovePageNumber}
-          headerHeight={headerHeight}
-          rightOffset={documentRightPanelOffset}
-          onClose={onCloseHeaderFooterSidebar}
-          data-testid="document-header-footer-settings-sidebar"
-        />
-      )}
+      {showHeaderFooterSidebar &&
+        editor &&
+        (pagesEditorState.activeEditor != null || headerFooterSettingsSessionOpen) && (
+          <HeaderFooterSettingsSidebar
+            editor={editor}
+            overlayEditor={pagesEditorState.activeEditor}
+            type={resolvedHeaderFooterType}
+            pageNumber={resolvedHeaderFooterPageNumber}
+            differentFirstPage={differentFirstPage}
+            differentOddEven={differentOddEven}
+            headerTopMarginPx={headerTopMarginPx}
+            footerBottomMarginPx={footerBottomMarginPx}
+            marginUnit={marginUnit}
+            showDocumentBody={showDocumentBody}
+            onShowDocumentBodyChange={onShowDocumentBodyChange}
+            onPersistPagesFromEditor={onPersistPagesFromEditor}
+            onOpenPageNumbers={onOpenPageNumbers}
+            onQuickPageNumberPlacement={onQuickPageNumberPlacement}
+            onRemovePageNumber={onRemovePageNumber}
+            headerHeight={headerHeight}
+            rightOffset={documentRightPanelOffset}
+            onClose={onCloseHeaderFooterSidebar}
+            data-testid="document-header-footer-settings-sidebar"
+          />
+        )}
 
       {selectedTableSidebar.open &&
         selectedTableSidebar.tablePos != null &&

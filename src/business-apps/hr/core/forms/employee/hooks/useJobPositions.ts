@@ -81,6 +81,8 @@ export const useJobPositions = ({
       setTotal(0)
       setError(null)
       setInitialLoadDone(false)
+      setJobPositions([])
+      setAllJobPositions([])
     }
   }, [search, currentSearch, organizationalUnitId, currentOrgUnitId])
 

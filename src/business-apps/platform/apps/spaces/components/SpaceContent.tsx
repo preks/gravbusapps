@@ -22,6 +22,7 @@ import {
   Table2,
   StickyNote,
   Presentation,
+  PenTool,
   FolderOpen,
   ArrowUpDown,
   ArrowUp,
@@ -43,7 +44,7 @@ export interface SpaceContentProps {
   'data-testid'?: string
 }
 
-type ContentTab = 'all' | 'document' | 'spreadsheet' | 'note' | 'slide'
+type ContentTab = 'all' | 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
 type SortField = 'title' | 'updatedAt' | 'createdAt' | 'type'
 type SortDirection = 'asc' | 'desc'
 
@@ -52,14 +53,16 @@ const tabConfig: Record<ContentTab, { icon: typeof FileText; label: string }> = 
   document: { icon: FileText, label: 'Documents' },
   spreadsheet: { icon: Table2, label: 'Spreadsheets' },
   note: { icon: StickyNote, label: 'Notes' },
-  slide: { icon: Presentation, label: 'Slides' }
+  slide: { icon: Presentation, label: 'Slides' },
+  whiteboard: { icon: PenTool, label: 'Whiteboards' }
 }
 
 const contentTypeConfig: Record<string, { icon: typeof FileText; label: string }> = {
   document: { icon: FileText, label: 'Document' },
   spreadsheet: { icon: Table2, label: 'Spreadsheet' },
   note: { icon: StickyNote, label: 'Note' },
-  slide: { icon: Presentation, label: 'Presentation' }
+  slide: { icon: Presentation, label: 'Presentation' },
+  whiteboard: { icon: PenTool, label: 'Whiteboard' }
 }
 
 export const SpaceContent: React.FC<SpaceContentProps> = ({

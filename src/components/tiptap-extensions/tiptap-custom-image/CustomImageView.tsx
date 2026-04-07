@@ -9,7 +9,13 @@ import { resolveImageOverlayFigureStyle, resolveImageOverlayMount } from './imag
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
 import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
 import { getFigureDataAttributes, normalizeNullableNumber } from './styleUtils'
-import type { CustomImageAttributes, CustomImageOptions } from './types'
+import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type CustomImageAttributes,
+  type CustomImageOptions
+} from './types'
 import { analyzeImageWrapContour, type ImageWrapContour } from './wrapContourUtils'
 import {
   getImageFlowShimAttributes,
@@ -149,6 +155,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       cropBottom: node.attrs.cropBottom ?? 0,
       cropLeft: node.attrs.cropLeft ?? 0,
       wrapMode: node.attrs.wrapMode ?? options.defaultWrapMode,
+      wrapTextSide: node.attrs.wrapTextSide ?? null,
       anchorMode: node.attrs.anchorMode ?? options.defaultAnchorMode,
       display: node.attrs.display ?? options.defaultDisplay,
       lockAspectRatio: node.attrs.lockAspectRatio ?? true,
@@ -159,7 +166,11 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       offsetX: node.attrs.offsetX ?? 0,
       offsetY: node.attrs.offsetY ?? 0,
       allowOverlap: node.attrs.allowOverlap ?? false,
-      zIndex: node.attrs.zIndex ?? 1
+      zIndex: node.attrs.zIndex ?? 1,
+      borderVisible: node.attrs.borderVisible ?? false,
+      borderColor: node.attrs.borderColor ?? DEFAULT_IMAGE_BORDER_COLOR,
+      borderWidthPt: node.attrs.borderWidthPt ?? DEFAULT_IMAGE_BORDER_WIDTH_PT,
+      borderDash: node.attrs.borderDash ?? DEFAULT_IMAGE_BORDER_DASH
     }),
     [
       node.attrs,
@@ -188,24 +199,35 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const lockAspectRatio = interactiveAttributes.lockAspectRatio ?? true
   const isFloatingImage = isFloatingWrapMode(interactiveAttributes.wrapMode)
   const usesPageOverlayVisual = layout.renderMode === 'overlay'
-  const usesFlowShim = usesPageOverlayVisual && layout.exclusionMode !== 'none'
+  const usesSquareDecorationExclusion =
+    layout.wrapMode === 'square' && layout.exclusionMode === 'square' && layout.anchorMode !== 'fixed'
+  const usesFlowShim =
+    layout.exclusionMode !== 'none' &&
+    (usesPageOverlayVisual || layout.flowMode === 'float') &&
+    !usesSquareDecorationExclusion
+  const usesLocalFlowShimFigure = usesFlowShim && !usesPageOverlayVisual
   const displayWidth = layout.frameWidth
   const displayHeight = layout.frameHeight
   const shouldRenderOverlayPortal = usesPageOverlayVisual && overlayMount !== null
+  const imageNodePos = getPos()
   const flowShimStyle = useMemo(() => resolveImageFlowShimStyle(layout, wrapContour), [layout, wrapContour])
   const anchorRuntimeAttributes = useMemo(
     () =>
-      usesFlowShim
+      usesFlowShim || usesSquareDecorationExclusion
         ? {
             ...layout.runtimeAttributes,
             'data-image-exclusion-mode': 'none',
             'data-image-layout-height': '0',
             'data-image-layout-width': '0',
             'data-image-visual-bottom': '0',
-            'data-image-measurement-mode': 'overlay'
+            'data-image-measurement-mode': 'overlay',
+            ...(imageNodePos !== undefined ? { 'data-image-node-pos': String(imageNodePos) } : {})
           }
-        : layout.runtimeAttributes,
-    [layout.runtimeAttributes, usesFlowShim]
+        : {
+            ...layout.runtimeAttributes,
+            ...(imageNodePos !== undefined ? { 'data-image-node-pos': String(imageNodePos) } : {})
+          },
+    [imageNodePos, layout.runtimeAttributes, usesFlowShim, usesSquareDecorationExclusion]
   )
   const overlayFigureStyle = useMemo(
     () =>
@@ -735,9 +757,10 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   const refreshOverlayMount = useCallback(() => {
     const wrapper = wrapperRef.current
     const editorElement = getEditorDomSafely(editor)
-    const anchorElement =
-      flowShimElementRef.current ??
-      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
+    // Never use the flow shim rect for overlay placement. Move-with-text overlays resolve their
+    // geometry from the containing paragraph, while fixed/page-anchored overlays fall back to the
+    // node-view wrapper.
+    const anchorElement = wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null
 
     if (!usesPageOverlayVisual || !(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
       setOverlayMount(null)
@@ -748,6 +771,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       resolveImageOverlayMount({
         editorElement,
         anchorElement,
+        wrapperElement: wrapper,
         layout
       })
     )
@@ -773,9 +797,11 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     interactiveAttributes.anchorMode,
     interactiveAttributes.offsetX,
     interactiveAttributes.offsetY,
+    interactiveAttributes.wrapTextSide,
     layout.figureLeft,
     layout.figureTop,
     layout.overlayLayer,
+    layout.floatingSide,
     usesPageOverlayVisual,
     refreshOverlayMount,
     selected
@@ -788,10 +814,12 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
 
     const wrapper = wrapperRef.current
     const editorElement = getEditorDomSafely(editor)
-    const anchorElement =
-      flowShimElementRef.current ??
-      (wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null)
-    if (!(anchorElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+    const geometryAnchor = wrapper instanceof HTMLElement ? resolveImageAnchorGeometryElement(wrapper, layout) : null
+    if (
+      !(geometryAnchor instanceof HTMLElement) ||
+      !(editorElement instanceof HTMLElement) ||
+      !(wrapper instanceof HTMLElement)
+    ) {
       return
     }
 
@@ -802,7 +830,10 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     }
 
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleRefresh)
-    resizeObserver?.observe(anchorElement)
+    resizeObserver?.observe(geometryAnchor)
+    if (wrapper !== geometryAnchor) {
+      resizeObserver?.observe(wrapper)
+    }
     resizeObserver?.observe(editorElement)
 
     const mutationObserver = new MutationObserver(scheduleRefresh)
@@ -858,7 +889,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
     ]
   )
 
-  const shouldRenderLocalFigure = !usesPageOverlayVisual || overlayMount === null
+  const shouldRenderLocalFigure = usesPageOverlayVisual ? overlayMount === null : !usesFlowShim
 
   return (
     <NodeViewWrapper
@@ -878,16 +909,39 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
               }}
               data-testid="document-editor-image-flow-shim"
               contentEditable={false}
-              style={flowShimStyle}
+              style={
+                usesLocalFlowShimFigure
+                  ? {
+                      ...flowShimStyle,
+                      visibility: 'visible' as const,
+                      position: 'relative' as const,
+                      overflow: 'visible' as const,
+                      pointerEvents: 'auto' as const,
+                      userSelect: undefined
+                    }
+                  : flowShimStyle
+              }
               {...getImageFlowShimAttributes(layout, wrapContour)}
-            />,
+              {...(usesLocalFlowShimFigure && imageNodePos !== undefined
+                ? { 'data-image-node-pos': String(imageNodePos) }
+                : {})}
+            >
+              {usesLocalFlowShimFigure ? (
+                <span className="gba:max-w-full" data-testid="document-editor-image-anchor">
+                  {renderImageFigure()}
+                </span>
+              ) : null}
+            </span>,
             flowShimMount
           )
         : null}
       {shouldRenderLocalFigure ? <span className="gba:max-w-full">{renderImageFigure()}</span> : null}
       {shouldRenderOverlayPortal && overlayMount && overlayFigureStyle
         ? createPortal(
-            renderImageFigure(overlayFigureStyle, { 'data-image-overlay-anchor': 'true' }),
+            renderImageFigure(overlayFigureStyle, {
+              'data-image-overlay-anchor': 'true',
+              ...(imageNodePos !== undefined ? { 'data-image-node-pos': String(imageNodePos) } : {})
+            }),
             overlayMount.layer
           )
         : null}

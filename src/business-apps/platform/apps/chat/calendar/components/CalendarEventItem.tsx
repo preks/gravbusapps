@@ -8,12 +8,14 @@ import {
   useLocale,
   Button
 } from '@newwork/nw-design-system'
-import { Video, MapPin, Users, Clock, Check, X, HelpCircle, Phone, Globe } from 'lucide-react'
-import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import { Video, MapPin, Users, User, Clock, Check, X, HelpCircle, Phone, Globe } from 'lucide-react'
+import type { CalendarEvent, InvitationStatus } from '../types'
 
 interface CalendarEventItemProps {
   event: CalendarEvent
   compact?: boolean
+  /** When true (calendar list rows), secondary line shows organizer instead of location / generic video label */
+  listLayout?: boolean
   height?: number // Available height in pixels
   onClick?: () => void
   t: (key: string, params?: Record<string, any>) => string
@@ -40,19 +42,6 @@ const formatTime = (date: Date, locale?: string): string => {
   }
 }
 
-const getStatusColor = (status: MeetingStatus): string => {
-  switch (status) {
-    case 'in_progress':
-      return 'gba:bg-success gba:text-success-foreground'
-    case 'completed':
-      return 'gba:bg-muted gba:text-muted-foreground'
-    case 'cancelled':
-      return 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:line-through'
-    default:
-      return ''
-  }
-}
-
 const getInvitationStatusIcon = (status?: InvitationStatus) => {
   switch (status) {
     case 'accepted':
@@ -71,6 +60,7 @@ const getInvitationStatusIcon = (status?: InvitationStatus) => {
 export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
   event,
   compact = false,
+  listLayout = false,
   height,
   onClick,
   t,
@@ -78,11 +68,12 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
   onJoinCall
 }) => {
   const { locale } = useLocale()
-  const statusClass = getStatusColor(event.status)
   const organizerName =
     event.organizer.displayName ||
     `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() ||
     event.organizer.email
+  const organizerNameTrimmed = organizerName.trim()
+  const displayTitle = event.isBusyBlock ? t('calendar-sidebar-busy') : event.title
 
   // Check if there's an active call for this meeting
   // Use conversation ID if linked, otherwise use meeting ID
@@ -124,12 +115,13 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
   const pendingClasses = getPendingClasses()
 
   // Determine what to show based on available height
-  // Height thresholds: <25px = just color bar, 25-40px = title only, 40-60px = title + time, >60px = full
-  const showTitle = !height || height >= 20
+  // Height thresholds: <18px = color bar only, 18-39px = one-line title card, 40-54px = title + time, 55-74px = add organizer/location, >=75px = full meta
+  const showTitle = !height || height >= 18
   const showTime = !height || height >= 40
   const showLocation = !height || height >= 55
   const showParticipants = !height || height >= 75
-  const isMinimal = height && height < 25
+  const isMinimal = Boolean(height && height < 18)
+  const isCompactSingleLine = Boolean(compact && height && height < 40)
 
   // Minimal view - just a colored bar with tooltip
   if (isMinimal) {
@@ -146,12 +138,12 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
           </TooltipTrigger>
           <TooltipContent side="right" className="gba:max-w-xs gba:z-50">
             <div className="gba:space-y-1">
-              <p className="gba:font-semibold">{event.title}</p>
+              <p className="gba:font-semibold">{displayTitle}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
               </p>
-              {event.description && <p className="gba:text-xs">{event.description}</p>}
-              {event.location && (
+              {!event.isBusyBlock && event.description && <p className="gba:text-xs">{event.description}</p>}
+              {!event.isBusyBlock && event.location && (
                 <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                   <MapPin className="gba:h-3 gba:w-3" />
                   {event.location}
@@ -164,48 +156,123 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
     )
   }
 
-  // Compact view for small events in week/day views
+  // Compact view for week/day grid: calendar-color left bar + card body (not full-bleed fill)
   if (compact) {
+    const compactShowOrganizer =
+      !isCompactSingleLine &&
+      showLocation &&
+      !event.isBusyBlock &&
+      (event.isOrganizer || organizerNameTrimmed.length > 0)
+
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               onClick={onClick}
-              className={`gba:w-full gba:h-full gba:text-left gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[10px] gba:font-medium gba:overflow-hidden gba:transition-opacity gba:hover:opacity-80 ${statusClass} ${pendingClasses}`}
-              style={{
-                backgroundColor: event.status === 'scheduled' ? event.color : undefined,
-                ...participantStyle
-              }}
+              className={`gba:w-full gba:h-full gba:text-left gba:rounded-md gba:overflow-hidden gba:flex gba:flex-row gba:items-stretch gba:border gba:border-border/50 gba:transition-opacity hover:gba:opacity-95 ${pendingClasses}`}
+              style={participantStyle}
               data-testid={`calendar-event-${event.id}`}
             >
-              <div className="gba:text-white gba:drop-shadow-sm gba:truncate gba:leading-tight">
-                {showTitle && event.title}
+              <span
+                className="gba:block gba:w-2 gba:flex-shrink-0 sm:gba:w-2.5"
+                style={{ backgroundColor: event.color }}
+                aria-hidden
+              />
+              <div
+                className={`gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:justify-center gba:bg-card ${
+                  isCompactSingleLine ? 'gba:px-1.5 gba:py-0 sm:gba:px-2' : 'gba:px-1.5 gba:py-1 sm:gba:px-2'
+                }`}
+              >
+                {showTitle && (
+                  <div
+                    className={`gba:flex gba:min-w-0 gba:gap-1 ${isCompactSingleLine ? 'gba:items-center' : 'gba:items-start gba:justify-between gba:mb-0.5'}`}
+                  >
+                    <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-0.5 gba:flex-1">
+                      {!isCompactSingleLine && event.source && event.source !== 'internal' && (
+                        <Globe className="gba:h-2.5 gba:w-2.5 gba:text-info gba:flex-shrink-0" />
+                      )}
+                      <span
+                        className={`gba:font-semibold gba:text-foreground gba:truncate ${
+                          isCompactSingleLine
+                            ? 'gba:text-[9px] sm:gba:text-[10px] gba:leading-none'
+                            : 'gba:text-[10px] sm:gba:text-xs gba:leading-tight'
+                        } ${event.status === 'cancelled' ? 'gba:line-through gba:text-muted-foreground' : ''}`}
+                      >
+                        {displayTitle}
+                      </span>
+                    </div>
+                    {!isCompactSingleLine && (
+                      <div className="gba:flex gba:flex-shrink-0 gba:items-center gba:gap-0.5">
+                        {isLive && (
+                          <Badge
+                            variant="default"
+                            className="gba:bg-success gba:text-success-foreground gba:text-[8px] gba:px-1 gba:py-0"
+                          >
+                            Live
+                          </Badge>
+                        )}
+                        {event.source && event.source !== 'internal' && (
+                          <Badge variant="secondary" className="gba:text-[8px] gba:px-1 gba:py-0">
+                            {event.source === 'microsoft' ? 'MS' : 'G'}
+                          </Badge>
+                        )}
+                        {!event.isOrganizer && event.participantStatus && (
+                          <span>{getInvitationStatusIcon(event.participantStatus)}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {showTime && (
+                  <p className="gba:text-[9px] sm:gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:leading-tight">
+                    <Clock className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                    {event.allDay
+                      ? t('calendar-allDay')
+                      : `${formatTime(event.start, locale)} - ${formatTime(event.end, locale)}`}
+                  </p>
+                )}
+                {compactShowOrganizer && (
+                  <p className="gba:text-[9px] sm:gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
+                    <User className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                    <span className="gba:truncate">
+                      {event.isOrganizer ? t('calendar-youOrganizer') : organizerName}
+                    </span>
+                  </p>
+                )}
+                {showParticipants && !event.isBusyBlock && (
+                  <p className="gba:text-[9px] sm:gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:mt-0.5">
+                    <Users className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                    <span className="gba:truncate">
+                      {event.acceptedCount}/{event.participantCount}
+                    </span>
+                  </p>
+                )}
               </div>
-              {showTime && (
-                <div className="gba:text-white/80 gba:text-[9px] gba:truncate gba:leading-tight">
-                  {formatTime(event.start, locale)}
-                </div>
-              )}
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" className="gba:max-w-xs gba:z-50">
             <div className="gba:space-y-1">
-              <p className="gba:font-semibold">{event.title}</p>
+              <p className="gba:font-semibold">{displayTitle}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {formatTime(event.start, locale)} - {formatTime(event.end, locale)}
               </p>
-              {event.description && <p className="gba:text-xs">{event.description}</p>}
-              {event.location && (
+              {!event.isBusyBlock && event.description && <p className="gba:text-xs">{event.description}</p>}
+              {!event.isBusyBlock && event.location && (
                 <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                   <MapPin className="gba:h-3 gba:w-3" />
                   {event.location}
                 </p>
               )}
-              <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
-                <Users className="gba:h-3 gba:w-3" />
-                {t('calendar-participantsAttending', { accepted: event.acceptedCount, total: event.participantCount })}
-              </p>
+              {!event.isBusyBlock && (
+                <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
+                  <Users className="gba:h-3 gba:w-3" />
+                  {t('calendar-participantsAttending', {
+                    accepted: event.acceptedCount,
+                    total: event.participantCount
+                  })}
+                </p>
+              )}
             </div>
           </TooltipContent>
         </Tooltip>
@@ -213,123 +280,178 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
     )
   }
 
-  // Full view for larger events
+  const fullViewGridOrganizer =
+    !listLayout && showLocation && !event.isBusyBlock && (event.isOrganizer || organizerNameTrimmed.length > 0)
+
+  // Full view: list rows + tall day-view blocks — calendar color as left strip, neutral card body
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className={`gba:w-full gba:h-full gba:rounded gba:border gba:border-border/50 gba:transition-all gba:hover:shadow-md gba:overflow-hidden gba:relative ${statusClass} ${pendingClasses}`}
-            style={{
-              borderLeftWidth: '3px',
-              borderLeftColor: event.color,
-              ...participantStyle
-            }}
+            className={`gba:w-full gba:h-full gba:rounded-md gba:border gba:border-border/50 gba:transition-all gba:hover:shadow-md gba:overflow-hidden gba:relative gba:flex gba:flex-row gba:items-stretch ${pendingClasses}`}
+            style={participantStyle}
             data-testid={`calendar-event-${event.id}`}
           >
-            {/* Main clickable area */}
-            <button
-              onClick={onClick}
-              className="gba:w-full gba:h-full gba:text-left gba:p-2 gba:cursor-pointer gba:block"
-            >
-              <div className="gba:flex gba:flex-col gba:h-full gba:min-w-0">
-                {/* Title and status */}
-                {showTitle && (
-                  <div className="gba:flex gba:items-center gba:gap-1 gba:mb-0.5">
-                    {event.source && event.source !== 'internal' && (
-                      <Globe className="gba:h-3 gba:w-3 gba:text-info gba:flex-shrink-0" />
-                    )}
-                    <h4 className="gba:font-semibold gba:text-xs gba:text-foreground gba:truncate gba:flex-1">
-                      {event.title}
-                    </h4>
-                    {isLive && (
-                      <Badge
-                        variant="default"
-                        className="gba:bg-success gba:text-success-foreground gba:text-[8px] gba:px-1 gba:py-0 gba:flex-shrink-0"
+            <span
+              className="gba:block gba:w-2 gba:flex-shrink-0 sm:gba:w-2.5"
+              style={{ backgroundColor: event.color }}
+              aria-hidden
+            />
+            <div className="gba:flex-1 gba:min-w-0 gba:relative gba:bg-card">
+              {/* Main clickable area */}
+              <button
+                onClick={onClick}
+                className="gba:w-full gba:h-full gba:text-left gba:p-2 gba:cursor-pointer gba:block"
+              >
+                <div className="gba:flex gba:flex-col gba:h-full gba:min-w-0">
+                  {/* Title and status */}
+                  {showTitle && (
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:mb-0.5">
+                      {event.source && event.source !== 'internal' && (
+                        <Globe className="gba:h-3 gba:w-3 gba:text-info gba:flex-shrink-0" />
+                      )}
+                      <h4
+                        className={`gba:font-semibold gba:text-xs gba:text-foreground gba:truncate gba:flex-1 ${
+                          event.status === 'cancelled' ? 'gba:line-through gba:text-muted-foreground' : ''
+                        }`}
                       >
-                        Live
-                      </Badge>
-                    )}
-                    {event.source && event.source !== 'internal' && (
-                      <Badge variant="secondary" className="gba:text-[8px] gba:px-1 gba:py-0 gba:flex-shrink-0">
-                        {event.source === 'microsoft' ? 'MS' : 'G'}
-                      </Badge>
-                    )}
-                    {!event.isOrganizer && event.participantStatus && (
-                      <span className="gba:flex-shrink-0">{getInvitationStatusIcon(event.participantStatus)}</span>
-                    )}
-                  </div>
-                )}
+                        {displayTitle}
+                      </h4>
+                      {isLive && (
+                        <Badge
+                          variant="default"
+                          className="gba:bg-success gba:text-success-foreground gba:text-[8px] gba:px-1 gba:py-0 gba:flex-shrink-0"
+                        >
+                          Live
+                        </Badge>
+                      )}
+                      {event.source && event.source !== 'internal' && (
+                        <Badge variant="secondary" className="gba:text-[8px] gba:px-1 gba:py-0 gba:flex-shrink-0">
+                          {event.source === 'microsoft' ? 'MS' : 'G'}
+                        </Badge>
+                      )}
+                      {!event.isOrganizer && event.participantStatus && (
+                        <span className="gba:flex-shrink-0">{getInvitationStatusIcon(event.participantStatus)}</span>
+                      )}
+                    </div>
+                  )}
 
-                {/* Time */}
-                {showTime && (
-                  <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate">
-                    <Clock className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
-                    {event.allDay
-                      ? t('calendar-allDay')
-                      : `${formatTime(event.start, locale)} - ${formatTime(event.end, locale)}`}
-                  </p>
-                )}
+                  {/* Time */}
+                  {showTime && (
+                    <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate">
+                      <Clock className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                      {event.allDay
+                        ? t('calendar-allDay')
+                        : `${formatTime(event.start, locale)} - ${formatTime(event.end, locale)}`}
+                    </p>
+                  )}
 
-                {/* Location or meeting link */}
-                {showLocation && (event.location || event.meetingLink) && (
-                  <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
-                    {event.meetingLink ? (
-                      <>
-                        <Video className="gba:h-2.5 gba:w-2.5 gba:text-primary gba:flex-shrink-0" />
-                        <span className="gba:text-primary gba:truncate">Video call</span>
-                      </>
-                    ) : (
-                      <>
-                        <MapPin className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
-                        <span className="gba:truncate">{event.location}</span>
-                      </>
+                  {/* Organizer (list + grid full) or location fallback */}
+                  {showLocation &&
+                    !event.isBusyBlock &&
+                    listLayout &&
+                    (event.isOrganizer || organizerNameTrimmed.length > 0) && (
+                      <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
+                        <User className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                        <span className="gba:truncate">
+                          {event.isOrganizer ? t('calendar-youOrganizer') : organizerName}
+                        </span>
+                      </p>
                     )}
-                  </p>
-                )}
+                  {showLocation &&
+                    !event.isBusyBlock &&
+                    listLayout &&
+                    !event.isOrganizer &&
+                    organizerNameTrimmed.length === 0 &&
+                    (event.location || event.meetingLink) && (
+                      <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
+                        {event.meetingLink ? (
+                          <>
+                            <Video className="gba:h-2.5 gba:w-2.5 gba:text-primary gba:flex-shrink-0" />
+                            <span className="gba:text-primary gba:truncate">Video call</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                            <span className="gba:truncate">{event.location}</span>
+                          </>
+                        )}
+                      </p>
+                    )}
+                  {fullViewGridOrganizer && (
+                    <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
+                      <User className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                      <span className="gba:truncate">
+                        {event.isOrganizer ? t('calendar-youOrganizer') : organizerName}
+                      </span>
+                    </p>
+                  )}
+                  {showLocation &&
+                    !event.isBusyBlock &&
+                    !listLayout &&
+                    !fullViewGridOrganizer &&
+                    (event.location || event.meetingLink) && (
+                      <p className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate gba:mt-0.5">
+                        {event.meetingLink ? (
+                          <>
+                            <Video className="gba:h-2.5 gba:w-2.5 gba:text-primary gba:flex-shrink-0" />
+                            <span className="gba:text-primary gba:truncate">Video call</span>
+                          </>
+                        ) : (
+                          <>
+                            <MapPin className="gba:h-2.5 gba:w-2.5 gba:flex-shrink-0" />
+                            <span className="gba:truncate">{event.location}</span>
+                          </>
+                        )}
+                      </p>
+                    )}
 
-                {/* Organizer and participants - only if there's space */}
-                {showParticipants && (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mt-auto gba:text-[10px] gba:text-muted-foreground">
-                    {!event.isOrganizer && <span className="gba:truncate">by {organizerName}</span>}
-                    <span className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0">
-                      <Users className="gba:h-2.5 gba:w-2.5" />
-                      {event.acceptedCount}/{event.participantCount}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </button>
+                  {/* Participants count — grid full view uses organizer line above instead of "by …" */}
+                  {showParticipants && !event.isBusyBlock && (
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mt-auto gba:text-[10px] gba:text-muted-foreground">
+                      {!event.isOrganizer && !listLayout && !fullViewGridOrganizer && (
+                        <span className="gba:truncate">by {organizerName}</span>
+                      )}
+                      <span className="gba:flex gba:items-center gba:gap-0.5 gba:flex-shrink-0">
+                        <Users className="gba:h-2.5 gba:w-2.5" />
+                        {event.acceptedCount}/{event.participantCount}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </button>
 
-            {/* Join button overlay - only show if live */}
-            {isLive && onJoinCall && (
-              <div className="gba:absolute gba:bottom-1 gba:right-1">
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="gba:h-6 gba:px-2 gba:bg-success gba:hover:bg-success/90 gba:text-success-foreground gba:text-[9px]"
-                  onClick={e => {
-                    e.stopPropagation()
-                    onJoinCall(event)
-                  }}
-                >
-                  <Phone className="gba:h-3 gba:w-3 gba:mr-0.5" />
-                  {t('calendar-joinMeeting')}
-                </Button>
-              </div>
-            )}
+              {/* Join button overlay - only show if live */}
+              {isLive && onJoinCall && (
+                <div className="gba:absolute gba:bottom-1 gba:right-1">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="gba:h-6 gba:px-2 gba:bg-success gba:hover:bg-success/90 gba:text-success-foreground gba:text-[9px]"
+                    onClick={e => {
+                      e.stopPropagation()
+                      onJoinCall(event)
+                    }}
+                  >
+                    <Phone className="gba:h-3 gba:w-3 gba:mr-0.5" />
+                    {t('calendar-joinMeeting')}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </TooltipTrigger>
         <TooltipContent side="right" className="gba:max-w-xs gba:z-50">
           <div className="gba:space-y-1">
-            <p className="gba:font-semibold">{event.title}</p>
+            <p className="gba:font-semibold">{displayTitle}</p>
             <p className="gba:text-xs gba:text-muted-foreground">
               {event.allDay
                 ? t('calendar-allDay')
                 : `${formatTime(event.start, locale)} - ${formatTime(event.end, locale)}`}
             </p>
-            {event.description && <p className="gba:text-xs">{event.description}</p>}
-            {event.location && (
+            {!event.isBusyBlock && event.description && <p className="gba:text-xs">{event.description}</p>}
+            {!event.isBusyBlock && event.location && (
               <p className="gba:text-xs gba:flex gba:items-center gba:gap-1">
                 <MapPin className="gba:h-3 gba:w-3" />
                 {event.location}

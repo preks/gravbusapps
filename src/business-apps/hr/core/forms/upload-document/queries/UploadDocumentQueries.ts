@@ -20,7 +20,7 @@ export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
     }
     documentGroup: CatalogEntry(
       where: {
-        catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } }
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } }, isDeleted: { _eq: false }
         additionalValue1: { _eq: "HRM" }
       }
     ) {
@@ -30,7 +30,7 @@ export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
       catalog { defaultLocale }
     }
     documentType: CatalogEntry(
-      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } } }
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } }, isDeleted: { _eq: false } }
     ) {
       id
       value

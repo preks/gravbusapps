@@ -144,6 +144,7 @@ export class ChatWebSocketClient {
   private socket: Socket | null = null
   private accessToken = ''
   private reconnectAttempts = 0
+  private reconnectBlockedUntilTokenRefresh = false
   private readonly url: string
   private readonly options: Required<ChatWebSocketOptions>
   private readonly maxReconnectAttempts: number
@@ -160,6 +161,7 @@ export class ChatWebSocketClient {
     }
 
     this.accessToken = accessToken
+    this.reconnectBlockedUntilTokenRefresh = false
 
     if (!this.socket) {
       return
@@ -181,6 +183,9 @@ export class ChatWebSocketClient {
     }
 
     this.accessToken = resolvedAccessToken
+    if (accessTokenChanged) {
+      this.reconnectBlockedUntilTokenRefresh = false
+    }
 
     if (this.socket) {
       this.socket.auth = toSocketAuth(this.accessToken)
@@ -189,6 +194,8 @@ export class ChatWebSocketClient {
         if (accessTokenChanged) {
           this.forceReconnect()
         }
+      } else if (this.reconnectBlockedUntilTokenRefresh && !accessTokenChanged) {
+        return this.socket
       } else {
         this.socket.connect()
       }
@@ -221,11 +228,20 @@ export class ChatWebSocketClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0
+      this.reconnectBlockedUntilTokenRefresh = false
     })
 
     this.socket.on('disconnect', reason => {
-      if (reason === 'io server disconnect') {
+      if (reason === 'io server disconnect' && !this.reconnectBlockedUntilTokenRefresh) {
         this.socket?.connect()
+      }
+    })
+
+    this.socket.on('error', payload => {
+      const errorMessage = toRecord(payload)?.message
+
+      if (errorMessage === 'Invalid authentication token' || errorMessage === 'No authentication token provided') {
+        this.reconnectBlockedUntilTokenRefresh = true
       }
     })
 
@@ -243,6 +259,7 @@ export class ChatWebSocketClient {
     }
 
     this.reconnectAttempts = 0
+    this.reconnectBlockedUntilTokenRefresh = false
   }
 
   isConnected() {

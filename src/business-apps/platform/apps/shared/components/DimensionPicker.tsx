@@ -23,9 +23,9 @@ import {
   Check,
   CaretRight,
   Bank,
-  Lightning
+  Lightning,
+  User
 } from '@phosphor-icons/react'
-import { UserIcon } from 'lucide-react'
 import type { OrgUserBasic } from '@/common/network/org-directory/OrgDirectoryClient'
 import type { DimensionType, DimensionOption, DimensionPickerTranslations } from '../types/dimensions'
 import { DEFAULT_DIMENSION_TRANSLATIONS } from '../types/dimensions'
@@ -197,45 +197,47 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
   // Render step 1: Select dimension type
   const renderTypeSelection = () => (
-    <div className="gba:space-y-4" data-testid={`${testId}-type-selection`}>
-      <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t.selectTypePrompt}</div>
+    <div className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-col gba:gap-4" data-testid={`${testId}-type-selection`}>
+      <div className="gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">{t.selectTypePrompt}</div>
 
-      <RadioGroup
-        value={selectedType || ''}
-        onValueChange={value => handleTypeSelect(value as DimensionType)}
-        className="gba:space-y-3"
-      >
-        {DIMENSION_TYPES.map(({ type, labelKey, icon: Icon }) => {
-          const count = getCount(type)
-          return (
-            <label
-              key={type}
-              className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-border/50 gba:rounded-lg gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/50"
-              data-testid={`${testId}-type-${type}`}
-            >
-              <RadioGroupItem value={type} id={type} />
-              <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
-                <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                  <Icon className="gba:w-5 gba:h-5 gba:text-primary" />
-                </div>
-                <div className="gba:flex-1">
-                  <div className="gba:font-medium gba:text-foreground">{t[labelKey]}</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">
-                    {count} {t.available}
+      <ScrollArea className="gba:flex-1 gba:min-h-0">
+        {isLoadingDimensions ? (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+            <Spinner size="sm" />
+          </div>
+        ) : (
+          <RadioGroup
+            value={selectedType || ''}
+            onValueChange={value => handleTypeSelect(value as DimensionType)}
+            className="gba:space-y-3 gba:pr-1"
+          >
+            {DIMENSION_TYPES.map(({ type, labelKey, icon: Icon }) => {
+              const count = getCount(type)
+              return (
+                <label
+                  key={type}
+                  className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-border/50 gba:rounded-lg gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/50"
+                  data-testid={`${testId}-type-${type}`}
+                >
+                  <RadioGroupItem value={type} id={type} />
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+                    <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                      <Icon className="gba:w-5 gba:h-5 gba:text-primary" />
+                    </div>
+                    <div className="gba:flex-1">
+                      <div className="gba:font-medium gba:text-foreground">{t[labelKey]}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground">
+                        {count} {t.available}
+                      </div>
+                    </div>
+                    <CaretRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
                   </div>
-                </div>
-                <CaretRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-              </div>
-            </label>
-          )
-        })}
-      </RadioGroup>
-
-      {isLoadingDimensions && (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-          <Spinner size="sm" />
-        </div>
-      )}
+                </label>
+              )
+            })}
+          </RadioGroup>
+        )}
+      </ScrollArea>
     </div>
   )
 
@@ -243,14 +245,17 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
   const renderDimensionSelection = () => {
     const DimensionIcon = getDimensionIcon()
     return (
-      <div className="gba:space-y-4" data-testid={`${testId}-dimension-selection`}>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
+      <div
+        className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-col gba:gap-4"
+        data-testid={`${testId}-dimension-selection`}
+      >
+        <div className="gba:flex-shrink-0 gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
           <span>{t.selectFrom}</span>
           <span className="gba:font-medium gba:text-foreground">{getTypeName(selectedType!)}</span>
         </div>
 
         {/* Search input */}
-        <div className="gba:relative">
+        <div className="gba:relative gba:flex-shrink-0">
           <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
             placeholder={t.searchPlaceholder}
@@ -262,7 +267,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
         </div>
 
         {/* Dimension list */}
-        <ScrollArea className="gba:h-64 gba:border gba:border-border/50 gba:rounded-lg">
+        <ScrollArea className="gba:flex-1 gba:min-h-0 gba:border gba:border-border/50 gba:rounded-lg">
           {isLoadingDimensions ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
               <Spinner size="sm" />
@@ -299,8 +304,11 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
   // Render step 3: Confirm members
   const renderMemberConfirmation = () => (
-    <div className="gba:space-y-4" data-testid={`${testId}-member-confirmation`}>
-      <div className="gba:p-3 gba:bg-primary/5 gba:rounded-lg gba:border gba:border-primary/20">
+    <div
+      className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-col gba:gap-4"
+      data-testid={`${testId}-member-confirmation`}
+    >
+      <div className="gba:flex-shrink-0 gba:p-3 gba:bg-primary/5 gba:rounded-lg gba:border gba:border-primary/20">
         <div className="gba:flex gba:items-center gba:gap-2">
           <Check className="gba:w-4 gba:h-4 gba:text-primary" />
           <span className="gba:font-medium gba:text-sm gba:text-foreground">{selectedDimension?.name}</span>
@@ -308,7 +316,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
         <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{getTypeName(selectedType!)}</div>
       </div>
 
-      <div>
+      <div className="gba:flex-shrink-0">
         <Label className="gba:text-sm gba:text-muted-foreground">
           {t.membersToAdd}
           <span className="gba:ml-1 gba:text-foreground gba:font-medium">({filteredMembers.length})</span>
@@ -316,7 +324,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
       </div>
 
       {/* Members list */}
-      <ScrollArea className="gba:h-48 gba:border gba:border-border/50 gba:rounded-lg">
+      <ScrollArea className="gba:flex-1 gba:min-h-0 gba:border gba:border-border/50 gba:rounded-lg">
         {isLoadingMembers ? (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
             <Spinner size="sm" />
@@ -340,7 +348,7 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
                     />
                   </Avatar>
                 ) : (
-                  <IconAvatar className="gba:w-8 gba:h-8 gba:flex-shrink-0" label={member.name} icon={UserIcon} />
+                  <IconAvatar className="gba:w-8 gba:h-8 gba:flex-shrink-0" label={member.name} icon={User} />
                 )}
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground">{member.name}</div>
@@ -363,9 +371,9 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
   )
 
   return (
-    <div className="gba:space-y-4" data-testid={testId}>
+    <div className="gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:gap-4" data-testid={testId}>
       {/* Step indicator */}
-      <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+      <div className="gba:flex gba:flex-shrink-0 gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
         <span className={step === 'select_type' ? 'gba:text-primary gba:font-medium' : ''}>{t.stepSelectType}</span>
         <span>→</span>
         <span className={step === 'select_dimension' ? 'gba:text-primary gba:font-medium' : ''}>
@@ -376,12 +384,14 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
       </div>
 
       {/* Step content */}
-      {step === 'select_type' && renderTypeSelection()}
-      {step === 'select_dimension' && renderDimensionSelection()}
-      {step === 'confirm_members' && renderMemberConfirmation()}
+      <div className="gba:flex-1 gba:min-h-0">
+        {step === 'select_type' && renderTypeSelection()}
+        {step === 'select_dimension' && renderDimensionSelection()}
+        {step === 'confirm_members' && renderMemberConfirmation()}
+      </div>
 
       {/* Navigation buttons */}
-      <div className="gba:flex gba:justify-between gba:pt-4 gba:border-t gba:border-border/50">
+      <div className="gba:flex gba:flex-shrink-0 gba:justify-between gba:pt-4 gba:border-t gba:border-border/50">
         <Button variant="ghost" onClick={step === 'select_type' ? onCancel : handleBack} data-testid={`${testId}-back`}>
           {step === 'select_type' ? t.cancel : t.back}
         </Button>

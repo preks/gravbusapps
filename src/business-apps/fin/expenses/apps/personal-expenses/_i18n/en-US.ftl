@@ -16,3 +16,7 @@ filter-expense-items-description = Apply filters to narrow down the expense item
 
 # Expense Requests Tab
 personal-expenses-update-request-action = Update Request
+
+# Expense Items Tab
+expense-items-date-label = Date
+delete-selection-discard-error-draft = You can only discard items with status "Draft" or "Assigned".

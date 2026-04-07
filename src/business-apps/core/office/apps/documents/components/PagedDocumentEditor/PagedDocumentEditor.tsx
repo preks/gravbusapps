@@ -7,7 +7,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
@@ -285,12 +284,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const nextTitle = latest.title || title
           setTitle(nextTitle)
 
-          const latestHtml =
-            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(latest.content || '<p></p>'), {
-              USE_PROFILES: { html: true },
-              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-              ALLOW_DATA_ATTR: true
-            }) || '<p></p>'
+          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
           const currentHtml = editorRef.current.getHTML?.() || ''
           if (!isYjsSyncedRef.current && latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
@@ -314,6 +308,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, officeClient, title])
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
+
+    const [headerFooterSettingsSessionOpen, setHeaderFooterSettingsSessionOpen] = useState(false)
+    const [headerFooterPanelFallback, setHeaderFooterPanelFallback] = useState<{
+      type: 'header' | 'footer'
+      pageNumber: number
+    } | null>(null)
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
     const targetDocumentTableDebugEnabled = useMemo(
       () => isTargetDocumentTableDebugEnabled(document?.id),
@@ -334,6 +334,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         activeEditorType: null,
         activePageNumber: null
       })
+      setHeaderFooterSettingsSessionOpen(false)
+      setHeaderFooterPanelFallback(null)
     }, [document?.id])
 
     const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
@@ -537,12 +539,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
             await officeClient.documents.update(id, {
               title: snapshot.title as string,
-              content:
-                DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
-                  USE_PROFILES: { html: true },
-                  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-                  ALLOW_DATA_ATTR: true
-                }) || '',
+              content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
               description: snapshot.description as string | undefined,
               tags: snapshot.tags as string[] | undefined,
               category: snapshot.category as string | undefined,
@@ -838,13 +835,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      return (
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(rawContent), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
-      )
+      return sanitizeDocumentHtmlForEditor(rawContent)
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
@@ -933,7 +924,28 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setPagesEditorState
     })
 
+    const handleCloseHeaderFooterSidebar = useCallback(() => {
+      setHeaderFooterSettingsSessionOpen(false)
+      setHeaderFooterPanelFallback(null)
+      closeHeaderFooterEditorsAndSidebar()
+    }, [closeHeaderFooterEditorsAndSidebar])
+
     const activeHeaderFooterEditor = pagesEditorState.activeEditor
+
+    useEffect(() => {
+      if (isHeaderFooterEditing && activeHeaderFooterEditor) {
+        setHeaderFooterSettingsSessionOpen(true)
+      }
+    }, [isHeaderFooterEditing, activeHeaderFooterEditor])
+
+    useEffect(() => {
+      if (pagesEditorState.activeEditorType && pagesEditorState.activePageNumber != null) {
+        setHeaderFooterPanelFallback({
+          type: pagesEditorState.activeEditorType,
+          pageNumber: pagesEditorState.activePageNumber
+        })
+      }
+    }, [pagesEditorState.activeEditorType, pagesEditorState.activePageNumber])
     const activeEditor = activeHeaderFooterEditor ?? editor
     const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, isInitialLayoutSettled } =
       usePagedDocumentLayoutState({
@@ -1062,8 +1074,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       activeHeaderFooterEditor,
       activeHeaderFooterType: pagesEditorState.activeEditorType,
       isHeaderFooterEditing,
+      headerFooterSettingsSessionOpen,
       rightSidebar
     })
+
+    const resolvedHeaderFooterType = pagesEditorState.activeEditorType ?? headerFooterPanelFallback?.type ?? 'header'
+    const resolvedHeaderFooterPageNumber =
+      pagesEditorState.activePageNumber ?? headerFooterPanelFallback?.pageNumber ?? 1
 
     const handleOpenReplaceSignatureDialog = useCallback(() => {
       const pos = selectedSignatureSidebar.pos
@@ -1292,8 +1309,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       persistPagesFromEditor
     } = usePagedDocumentPageNumberActions({
       editor,
-      editorRef,
       layoutFormattingRef,
+      getPersistedPagesFormatting,
       buildPersistedFormatting,
       persistFormatting,
       markUnsavedChanges: () => setHasUnsavedChanges(true)
@@ -1664,6 +1681,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           pageNumbersDialogOpen={pageNumbersDialogOpen}
           setPageNumbersDialogOpen={setPageNumbersDialogOpen}
           onApplyPageNumbers={handlePageNumbersApply}
+          pageNumbersLockedPosition={
+            pagesEditorState.activeEditorType === 'header' || pagesEditorState.activeEditorType === 'footer'
+              ? pagesEditorState.activeEditorType
+              : undefined
+          }
           showLinkDialog={showLinkDialog}
           setShowLinkDialog={setShowLinkDialog}
           linkDialogMode={linkDialogMode}
@@ -1696,6 +1718,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onUnhighlightComment={handleUnhighlightComment}
           onScrollToHighlight={handleScrollToHighlight}
           showHeaderFooterSidebar={showHeaderFooterSidebar}
+          headerFooterSettingsSessionOpen={headerFooterSettingsSessionOpen}
+          resolvedHeaderFooterType={resolvedHeaderFooterType}
+          resolvedHeaderFooterPageNumber={resolvedHeaderFooterPageNumber}
           pagesEditorState={pagesEditorState}
           differentFirstPage={pagesFormattingConfig.differentFirstPage}
           differentOddEven={pagesFormattingConfig.differentOddEven}
@@ -1708,7 +1733,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onOpenPageNumbers={handleOpenPageNumbersDialog}
           onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
           onRemovePageNumber={handlePageNumbersRemove}
-          onCloseHeaderFooterSidebar={closeHeaderFooterEditorsAndSidebar}
+          onCloseHeaderFooterSidebar={handleCloseHeaderFooterSidebar}
           selectedTableSidebar={selectedTableSidebar}
           tableContextSubtitle={tableSidebarContextSubtitleKey ? t(tableSidebarContextSubtitleKey) : undefined}
           onCloseTableSidebar={closeTableSettingsSidebar}

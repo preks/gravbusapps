@@ -12,7 +12,10 @@ import {
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   CUSTOM_IMAGE_TAG,
-  getImageFigureAttributesFromElement
+  getImageFigureAttributesFromElement,
+  normalizeImageBorderColor,
+  normalizeImageBorderDash,
+  normalizeImageBorderWidthPt
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
 import {
   convertCropRatioToWordValue,
@@ -20,6 +23,12 @@ import {
   normalizeImageCrop
 } from '@/components/tiptap-extensions/tiptap-custom-image/cropUtils'
 import { resolveImageDimensions } from '@/components/tiptap-extensions/tiptap-custom-image/sizeUtils'
+import {
+  DEFAULT_IMAGE_BORDER_COLOR,
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type ImageBorderDash
+} from '@/components/tiptap-extensions/tiptap-custom-image/types'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -46,6 +55,7 @@ function newContext(): DocxBuildContext {
 }
 
 const PX_TO_EMU = 9525
+const POINT_TO_OOXML_LINE_WIDTH = 12700
 const DEFAULT_IMG_WIDTH = 400
 const DEFAULT_IMG_HEIGHT = 300
 const WRAP_POLYGON_COORDINATE_SPACE = 21600
@@ -96,6 +106,46 @@ function pxToEmu(px: number): number {
   return Math.round(px * PX_TO_EMU)
 }
 
+function ptToOoxmlLineWidth(points: number): number {
+  return Math.round(points * POINT_TO_OOXML_LINE_WIDTH)
+}
+
+function mapImageBorderDashToOoxml(dash: ImageBorderDash): string | null {
+  switch (dash) {
+    case 'dash':
+      return 'dash'
+    case 'dot':
+      return 'dot'
+    case 'dash-dot':
+      return 'dashDot'
+    case 'dash-dot-dot':
+      return 'dashDotDot'
+    case 'solid':
+    default:
+      return null
+  }
+}
+
+function getPictureBorderXml(layout?: ReturnType<typeof getImageFigureAttributesFromElement>): string {
+  if (!layout || !layout.borderVisible) {
+    return ''
+  }
+
+  const borderColor =
+    normalizeImageBorderColor(layout.borderColor, DEFAULT_IMAGE_BORDER_COLOR) ?? DEFAULT_IMAGE_BORDER_COLOR
+  const borderWidthPt =
+    normalizeImageBorderWidthPt(layout.borderWidthPt, DEFAULT_IMAGE_BORDER_WIDTH_PT) ?? DEFAULT_IMAGE_BORDER_WIDTH_PT
+  const borderDash = normalizeImageBorderDash(layout.borderDash, DEFAULT_IMAGE_BORDER_DASH)
+  const ooxmlDash = mapImageBorderDashToOoxml(borderDash)
+
+  return [
+    `<a:ln w="${ptToOoxmlLineWidth(borderWidthPt)}">`,
+    `<a:solidFill><a:srgbClr val="${borderColor.slice(1)}"/></a:solidFill>`,
+    ...(ooxmlDash ? [`<a:prstDash val="${ooxmlDash}"/>`] : []),
+    '</a:ln>'
+  ].join('')
+}
+
 function getWordRotationValue(rotation: number): string {
   return String(Math.round(rotation * 60000))
 }
@@ -139,10 +189,20 @@ function getWrapXml(layout: ReturnType<typeof resolveWordLikeImageLayout>): stri
 function getHorizontalAlignmentXml(
   layout: ReturnType<typeof getImageFigureAttributesFromElement>,
   horizontalRef: string,
-  offsetX: number
+  offsetX: number,
+  wordLayout?: ReturnType<typeof resolveWordLikeImageLayout>
 ): string {
   if (offsetX !== 0) {
     return `<wp:positionH relativeFrom="${horizontalRef}"><wp:posOffset>${offsetX}</wp:posOffset></wp:positionH>`
+  }
+
+  if (
+    wordLayout &&
+    wordLayout.wrapMode === 'square' &&
+    (wordLayout.wrapTextSide === 'left' || wordLayout.wrapTextSide === 'right') &&
+    wordLayout.floatingSide
+  ) {
+    return `<wp:positionH relativeFrom="${horizontalRef}"><wp:align>${wordLayout.floatingSide}</wp:align></wp:positionH>`
   }
 
   let align = 'left'
@@ -205,6 +265,8 @@ function imageInlineDrawingXml(
   rotation: number,
   layout?: ReturnType<typeof getImageFigureAttributesFromElement>
 ): string {
+  const pictureBorderXml = getPictureBorderXml(layout)
+
   return (
     `<w:drawing>` +
     `<wp:inline distT="0" distB="0" distL="0" distR="0">` +
@@ -216,7 +278,7 @@ function imageInlineDrawingXml(
     `<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(img.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip r:embed="${img.rId}"/>${getCropXml(layout)}<a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm rot="${getWordRotationValue(rotation)}"><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
-    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${pictureBorderXml}</pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`
   )
 }
@@ -240,8 +302,9 @@ function imageAnchorDrawingXml(
   const horizontalRef = layout.anchorMode === 'fixed' ? 'page' : 'margin'
   const verticalRef = layout.anchorMode === 'fixed' ? 'page' : 'paragraph'
   const wrapXml = getWrapXml(wordLayout)
-  const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX)
+  const positionH = getHorizontalAlignmentXml(layout, horizontalRef, offsetX, wordLayout)
   const positionV = `<wp:positionV relativeFrom="${verticalRef}"><wp:posOffset>${offsetY}</wp:posOffset></wp:positionV>`
+  const pictureBorderXml = getPictureBorderXml(layout)
 
   return (
     `<w:drawing>` +
@@ -262,7 +325,7 @@ function imageAnchorDrawingXml(
     `<pic:nvPicPr><pic:cNvPr id="0" name="${escapeXml(img.fileName)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
     `<pic:blipFill><a:blip r:embed="${img.rId}"/>${getCropXml(layout)}<a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr><a:xfrm rot="${getWordRotationValue(rotation)}"><a:off x="0" y="0"/><a:ext cx="${img.widthEmu}" cy="${img.heightEmu}"/></a:xfrm>` +
-    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${pictureBorderXml}</pic:spPr>` +
     `</pic:pic></a:graphicData></a:graphic>` +
     `</wp:anchor></w:drawing>`
   )

@@ -27,7 +27,8 @@ describe('resolveSidebarPresentationState', () => {
         },
         selectedSignatureSidebar: CLOSED_SIGNATURE_SIDEBAR,
         activeHeaderFooterEditor: sharedEditor,
-        isHeaderFooterEditing: true
+        isHeaderFooterEditing: true,
+        headerFooterSettingsSessionOpen: true
       })
     ).toEqual({
       documentRightPanelOffset: 412,
@@ -55,7 +56,8 @@ describe('resolveSidebarPresentationState', () => {
         },
         selectedSignatureSidebar: CLOSED_SIGNATURE_SIDEBAR,
         activeHeaderFooterEditor: {} as never,
-        isHeaderFooterEditing: true
+        isHeaderFooterEditing: true,
+        headerFooterSettingsSessionOpen: true
       })
     ).toEqual({
       documentRightPanelOffset: 16,
@@ -91,12 +93,42 @@ describe('resolveSidebarPresentationState', () => {
           attrs: { snapshotSvg: 'x' } as never
         },
         activeHeaderFooterEditor: sharedEditor,
-        isHeaderFooterEditing: true
+        isHeaderFooterEditing: true,
+        headerFooterSettingsSessionOpen: true
       })
     ).toEqual({
       documentRightPanelOffset: 16,
       showTableSidebar: false,
       showHeaderFooterSidebar: false,
+      documentEditorRightReservePx: 376
+    })
+  })
+
+  it('keeps the header/footer settings panel visible when the session is open but the overlay is temporarily torn down', () => {
+    expect(
+      resolveSidebarPresentationState({
+        rightSidebar: 'closed',
+        selectedImageSidebar: {
+          open: false,
+          editor: null,
+          pos: null,
+          nodeSize: null,
+          attrs: null
+        },
+        selectedTableSidebar: {
+          open: false,
+          editor: null,
+          tablePos: null
+        },
+        selectedSignatureSidebar: CLOSED_SIGNATURE_SIDEBAR,
+        activeHeaderFooterEditor: null,
+        isHeaderFooterEditing: false,
+        headerFooterSettingsSessionOpen: true
+      })
+    ).toEqual({
+      documentRightPanelOffset: 16,
+      showTableSidebar: false,
+      showHeaderFooterSidebar: true,
       documentEditorRightReservePx: 376
     })
   })

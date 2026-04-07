@@ -359,7 +359,7 @@ export const getUserProjects = `query MyQuery($structureIdArray: [uuid!]) {
 `
 export const getCurrencyForUser = `query MyQuery($activeUserLocale: String!)
 {
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}) {
+  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}) {
     id
     value
     code
@@ -372,7 +372,8 @@ export const getCurrencyForUser = `query MyQuery($activeUserLocale: String!)
 export const getExpenseRequestTypeConfig = `query GetExpenseRequestTypeConfig($requestTypeRef: String!) {
   CatalogEntry(where: {
     catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}},
-    id: {_eq: $requestTypeRef}
+    id: {_eq: $requestTypeRef},
+    isDeleted: { _eq: false }
   }) {
     id
     code

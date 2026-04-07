@@ -25,6 +25,8 @@ function collapseWhitespaceLinear(input: string): string {
 const CUSTOM_DOCUMENT_TAG_PATTERN =
   /<(?:heading|paragraph|orderedlist|bulletlist|listitem|horizontalrule|tablerow|tableheader|tablecell|inlinecomment|textstyle|bold|italic|underline|strikethrough|subscript|superscript)\b/i
 const CUSTOM_IMAGE_HTML_PATTERN = /\bdata-node-type=(?:"|')custom-image(?:"|')/i
+const DOCUMENT_EDITOR_PRESERVED_DATA_URI_ATTR = 'data-document-editor-preserved-src'
+const DATA_IMAGE_URI_PATTERN = /^data:image\//i
 
 const PRESERVED_HTML_TAGS = new Set([
   'a',
@@ -68,6 +70,10 @@ const PAGINATION_RUNTIME_ATTRIBUTE_PATTERN =
   /\b(?:paginationSplitId|data-pagination-split-id|paginationChainId|data-pagination-chain-id|paginationRowGroups|data-pagination-row-groups)=/i
 const TABLE_SECTION_TAG_NAMES = new Set(['tbody', 'thead', 'tfoot', 'tr', 'tablerow'])
 const DOCUMENT_EDITOR_FORBIDDEN_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea']
+const DOCUMENT_EDITOR_ALLOWED_NATIVE_ATTRIBUTES = new Map<string, Set<string>>([
+  ['a', new Set(['href', 'target', 'rel', 'title'])],
+  ['img', new Set(['src', 'alt', 'title', 'width', 'height'])]
+])
 
 export function containsPaginationRuntimeTableMarkup(html: string): boolean {
   return PAGINATION_RUNTIME_ATTRIBUTE_PATTERN.test(html)
@@ -187,12 +193,55 @@ function appendConvertedChildren(source: Element, target: Element | DocumentFrag
 }
 
 function applyCommonAttributes(source: Element, target: Element) {
+  const allowedAttributes = DOCUMENT_EDITOR_ALLOWED_NATIVE_ATTRIBUTES.get(source.tagName.toLowerCase())
+
   Array.from(source.attributes).forEach(attribute => {
     const name = attribute.name.toLowerCase()
-    if (name === 'class' || name === 'style' || name.startsWith('data-')) {
+    if (name === 'class' || name === 'style' || name.startsWith('data-') || allowedAttributes?.has(name)) {
       target.setAttribute(name, attribute.value)
     }
   })
+}
+
+function preserveDataUriImageSources(html: string): string {
+  if (globalThis.DOMParser === undefined) {
+    return html
+  }
+
+  const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
+
+  Array.from(doc.body.querySelectorAll('img[src]')).forEach(image => {
+    const src = image.getAttribute('src')?.trim()
+
+    if (!src || !DATA_IMAGE_URI_PATTERN.test(src)) {
+      return
+    }
+
+    image.setAttribute(DOCUMENT_EDITOR_PRESERVED_DATA_URI_ATTR, src)
+    image.setAttribute('src', 'about:blank')
+  })
+
+  return doc.body.innerHTML
+}
+
+function restoreDataUriImageSources(html: string): string {
+  if (globalThis.DOMParser === undefined) {
+    return html
+  }
+
+  const doc = new globalThis.DOMParser().parseFromString(html, 'text/html')
+
+  Array.from(doc.body.querySelectorAll(`img[${DOCUMENT_EDITOR_PRESERVED_DATA_URI_ATTR}]`)).forEach(image => {
+    const preservedSrc = image.getAttribute(DOCUMENT_EDITOR_PRESERVED_DATA_URI_ATTR)?.trim()
+
+    if (preservedSrc && DATA_IMAGE_URI_PATTERN.test(preservedSrc)) {
+      image.setAttribute('src', preservedSrc)
+    }
+
+    image.removeAttribute(DOCUMENT_EDITOR_PRESERVED_DATA_URI_ATTR)
+  })
+
+  return doc.body.innerHTML
 }
 
 function applyTextAlignStyle(source: Element, target: HTMLElement) {
@@ -502,13 +551,13 @@ export function sanitizeDocumentHtmlForEditor(html: string): string {
   }
 
   try {
-    const sanitized = DOMPurify.sanitize(normalizedHtml, {
+    const sanitized = DOMPurify.sanitize(preserveDataUriImageSources(normalizedHtml), {
       USE_PROFILES: { html: true },
       FORBID_TAGS: DOCUMENT_EDITOR_FORBIDDEN_TAGS,
       ALLOW_DATA_ATTR: true
     })
 
-    return sanitized.trim() || '<p></p>'
+    return restoreDataUriImageSources(sanitized).trim() || '<p></p>'
   } catch {
     return normalizedHtml
   }

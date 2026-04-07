@@ -119,6 +119,7 @@ menu-add-column = Adaugă coloană
 menu-manage-columns = Gestionează coloanele
 menu-ai-analytics = Analiză AI
 menu-automations = Automatizări
+menu-check-collection-responses = Verifică răspunsurile colectării
 menu-settings = Setări
 
 # AI Capability Menu
@@ -337,6 +338,9 @@ automation-toolbar-pending = { $count } în așteptare
 automation-toolbar-completed = { $count } finalizate
 automation-toolbar-failed = { $count } eșuate
 automation-toolbar-refresh-tooltip = Actualizează statusurile fluxurilor
+automation-toolbar-check-responses = Verifică răspunsurile
+automation-toolbar-check-responses-tooltip = Preia trimiterile finalizate și actualizează foaia acum
+automation-toolbar-check-responses-error = Nu s-au putut verifica răspunsurile
 automation-toolbar-manage = Gestionează automatizările
 automation-toolbar-create-new = Creează automatizare nouă
 
@@ -412,7 +416,7 @@ excel-file-size-exceeds = Dimensiunea fișierului depășește limita de { $maxM
 shared-error-create-comment = Crearea comentariului a eșuat
 shared-error-resolve-comment = Rezolvarea comentariului a eșuat
 shared-error-restore-version = Versiunea nu a putut fi restaurată. Nu au fost aplicate modificări.
-shared-error-restore-version-owner-only = Poți restaura versiuni doar pentru foi de calcul pe care le deții. Cere proprietarului să restaureze această versiune.
+shared-error-restore-version-owner-only = Poți restaura această versiune doar dacă ești proprietarul aplicației sau utilizatorul care a creat-o.
 shared-comment-panel-title = Comentarii
 shared-comment-unresolved = nerezolvate
 shared-comment-all-caught-up = Totul este în regulă!
@@ -460,6 +464,9 @@ sa-started = Început
 sa-status-completed = Finalizat
 sa-status-sent = Trimis
 sa-stat-collections = Colecții de foi
+sa-stat-collection-breakdown = Colectări de date
+sa-stat-form-collections = Formular (rânduri)
+sa-stat-template-collections = Șablon (copie foaie)
 sa-stat-total-runs = Execuții totale
 sa-filter-all = Toate
 sa-filter-collection = Colecție foi de calcul
@@ -478,6 +485,8 @@ persist-row-update-failed = Modificările rândului nu au putut fi salvate.
 persist-row-delete-failed = Rândul nu a putut fi șters.
 persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
 persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.
+persist-recovery-failed = Conflictul de salvare nu a putut fi rezolvat. Te rugăm să reîncarci pagina.
+persist-snapshot-too-large = Formatarea nu a putut fi salvată deoarece foaia este prea mare. Datele celulelor sunt în continuare salvate.
 
 # Share App Dialog
 share-dialog-title = Partajează „{ $name }"

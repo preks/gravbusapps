@@ -4,6 +4,7 @@ export type { DateRange, DateRangeSetter } from '../../../common/utils/dateRange
 export {
   resolveSelectedCurrencyCode,
   applyCurrencyChange,
-  buildEmptyMessage
+  buildFilteredEmptyMessage,
+  buildDefaultEmptyMessage
 } from '../../../common/utils/tableFilterUtils'
 export type { CurrencyStat } from '../../../common/utils/tableFilterUtils'

@@ -10,6 +10,9 @@ interface AssetTableFiltersProps {
   /** When provided, shows the filter toggle button (Category/Location/Status sidebar) inline with search */
   showDataFilter?: boolean
   onToggleDataFilter?: () => void
+  /** Override search field placeholder and aria (defaults: Assets copy) */
+  searchPlaceholder?: string
+  searchAriaLabel?: string
 }
 
 export const AssetTableFilters: React.FC<AssetTableFiltersProps> = ({
@@ -17,8 +20,14 @@ export const AssetTableFilters: React.FC<AssetTableFiltersProps> = ({
   onSearchChange,
   onPageChange,
   showDataFilter = false,
-  onToggleDataFilter
+  onToggleDataFilter,
+  searchPlaceholder,
+  searchAriaLabel
 }) => {
+  const searchPlaceholderResolved =
+    searchPlaceholder || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')
+  const searchAriaResolved =
+    searchAriaLabel || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')
   const [localSearch, setLocalSearch] = useState(searchQueryProp)
   const [showSearchInput, setShowSearchInput] = useState(!!searchQueryProp)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -78,7 +87,7 @@ export const AssetTableFilters: React.FC<AssetTableFiltersProps> = ({
         <button
           type="button"
           className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:p-0 gba:w-8 gba:h-8 gba:rounded gba:!bg-black/[0.04] gba:text-black gba:flex-none gba:shrink-0"
-          aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+          aria-label={searchAriaResolved}
           onClick={() => setShowSearchInput(true)}
           data-testid="asset-table-search-toggle-button"
         >
@@ -99,9 +108,9 @@ export const AssetTableFilters: React.FC<AssetTableFiltersProps> = ({
             type="text"
             value={localSearch}
             onChange={handleInputChange}
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+            placeholder={searchPlaceholderResolved}
             className="gba:flex-1 gba:min-w-0 gba:bg-transparent gba:border-0 gba:outline-none gba:ring-0 gba:text-sm gba:placeholder:text-gray-400"
-            aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+            aria-label={searchAriaResolved}
             data-testid="asset-search-input"
           />
         </div>
