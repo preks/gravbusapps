@@ -6,11 +6,12 @@ import {
   DownloadSimple,
   File,
   Globe,
-  NotePencil,
-  Code,
   FileText,
-  Presentation,
-  Note
+  FileCss,
+  FileJs,
+  FileHtml,
+  FilePy,
+  FileCode
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
@@ -33,6 +34,52 @@ export interface FinalAnswerRendererProps {
   workspaceDocuments?: WorkspaceDocument[]
   onViewArtifact?: (artifactName: string) => void
 }
+
+const getArtifactIcon = (rendererType: string) => {
+  const iconClass = 'gba:h-4 gba:w-4 gba:shrink-0'
+  switch (rendererType) {
+    case 'html':
+      return <FileHtml className={`${iconClass} gba:text-orange-500`} />
+    case 'markdown':
+    case 'document':
+      return <FileText className={`${iconClass} gba:text-blue-500`} />
+    case 'css':
+      return <FileCss className={`${iconClass} gba:text-blue-400`} />
+    case 'javascript':
+    case 'typescript':
+      return <FileJs className={`${iconClass} gba:text-yellow-500`} />
+    case 'python':
+      return <FilePy className={`${iconClass} gba:text-blue-600`} />
+    case 'code':
+      return <FileCode className={`${iconClass} gba:text-purple-500`} />
+    default:
+      return <File className={`${iconClass} gba:text-muted-foreground`} />
+  }
+}
+
+const workspaceDocIcon = (type: WorkspaceDocument['type']) => {
+  const iconClass = 'gba:h-4 gba:w-4 gba:shrink-0'
+  if (type === 'slides') return <FileText className={`${iconClass} gba:text-violet-500`} />
+  if (type === 'note') return <FileText className={`${iconClass} gba:text-amber-500`} />
+  return <FileText className={`${iconClass} gba:text-blue-500`} />
+}
+
+const WorkspaceDocCard = ({ doc }: { doc: WorkspaceDocument }) => (
+  <a
+    href={doc.url}
+    target="_self"
+    rel="noopener noreferrer"
+    className="gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2.5 gba:hover:bg-muted/40 gba:transition-colors gba:no-underline"
+    data-testid={`workspace-doc-${doc.id}`}
+  >
+    {workspaceDocIcon(doc.type)}
+    <div className="gba:min-w-0 gba:flex-1">
+      <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
+      <p className="gba:text-xs gba:text-muted-foreground gba:capitalize">{doc.type}</p>
+    </div>
+    <Globe className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
+  </a>
+)
 
 export const FinalAnswerRenderer = ({
   output,
@@ -72,44 +119,32 @@ export const FinalAnswerRenderer = ({
       </div>
 
       {artifacts && artifacts.length > 0 && (
-        <div className="gba:pt-4">
-          <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
-            Artifacts
-          </p>
-          <div className="gba:grid gba:gap-2 sm:gba:grid-cols-2">
-            {artifacts.map(artifact => (
-              <button
-                key={artifact.path || artifact.name}
-                onClick={() => onViewArtifact?.(artifact.path || artifact.name)}
-                className="gba:flex gba:flex-col gba:items-stretch gba:gap-0 gba:overflow-hidden gba:rounded-xl gba:border gba:border-border gba:bg-background gba:text-left gba:hover:bg-muted/25 gba:transition-colors"
-                data-testid={`enterprise-agent-final-artifact-${artifact.name}`}
-              >
-                <ArtifactCardPreview artifact={artifact} />
-                <div className="gba:flex gba:items-start gba:gap-3 gba:px-3 gba:py-3">
-                  <File className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
-                  <div className="gba:min-w-0 gba:flex-1">
-                    <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{artifact.name}</p>
-                    <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                      {artifact.rendererType} · {(artifact.size / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
+        <div className="gba:pt-4 gba:space-y-2">
+          {artifacts.map(artifact => (
+            <button
+              key={artifact.path || artifact.name}
+              onClick={() => onViewArtifact?.(artifact.path || artifact.name)}
+              className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2.5 gba:text-left gba:hover:bg-muted/40 gba:transition-colors"
+              data-testid={`enterprise-agent-final-artifact-${artifact.name}`}
+            >
+              {getArtifactIcon(artifact.rendererType)}
+              <div className="gba:min-w-0 gba:flex-1">
+                <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{artifact.name}</p>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {artifact.rendererType} · {(artifact.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <CaretRight className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
+            </button>
+          ))}
         </div>
       )}
 
       {workspaceDocuments && workspaceDocuments.length > 0 && (
-        <div className="gba:pt-4">
-          <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
-            Workspace Documents
-          </p>
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            {workspaceDocuments.map(doc => (
-              <WorkspaceDocCard key={doc.id} doc={doc} />
-            ))}
-          </div>
+        <div className="gba:pt-4 gba:space-y-2">
+          {workspaceDocuments.map(doc => (
+            <WorkspaceDocCard key={doc.id} doc={doc} />
+          ))}
         </div>
       )}
 
@@ -137,10 +172,10 @@ export const FinalAnswerRenderer = ({
                   key={`${action.step}-${action.tool ?? 'none'}`}
                   className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
                 >
-                  <span className="gba:text-muted-foreground/50 gba:flex-shrink-0">{index + 1}.</span>
+                  <span className="gba:text-muted-foreground/50 gba:shrink-0">{index + 1}.</span>
                   <span className="gba:flex-1">{action.step}</span>
                   {action.tool && (
-                    <span className="gba:text-xs gba:font-mono gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded gba:text-muted-foreground gba:flex-shrink-0">
+                    <span className="gba:text-xs gba:font-mono gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded gba:text-muted-foreground gba:shrink-0">
                       {action.tool}
                     </span>
                   )}
@@ -168,81 +203,6 @@ export const FinalAnswerRenderer = ({
           <DownloadSimple className="gba:h-3.5 gba:w-3.5" />
           Export
         </Button>
-      </div>
-    </div>
-  )
-}
-
-const workspaceDocIcon = (type: WorkspaceDocument['type']) => {
-  if (type === 'slides') return <Presentation className="gba:h-4 gba:w-4 gba:text-violet-500 gba:shrink-0" />
-  if (type === 'note') return <Note className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" />
-  return <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
-}
-
-const WorkspaceDocCard = ({ doc }: { doc: WorkspaceDocument }) => (
-  <a
-    href={doc.url}
-    target="_self"
-    rel="noopener noreferrer"
-    className="gba:flex gba:items-center gba:gap-3 gba:rounded-xl gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2.5 gba:hover:bg-muted/25 gba:transition-colors gba:no-underline"
-    data-testid={`workspace-doc-${doc.id}`}
-  >
-    {workspaceDocIcon(doc.type)}
-    <div className="gba:min-w-0 gba:flex-1">
-      <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
-      <p className="gba:text-xs gba:text-muted-foreground gba:capitalize">{doc.type}</p>
-    </div>
-    <Globe className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
-  </a>
-)
-
-const ArtifactCardPreview = ({ artifact }: { artifact: FinalAnswerArtifact }) => {
-  if (artifact.rendererType === 'html') {
-    return (
-      <div className="gba:h-24 gba:border-b gba:border-border gba:bg-[linear-gradient(135deg,#f8fafc_0%,#eef2ff_100%)] gba:px-3 gba:py-3">
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-          <Globe className="gba:h-4 gba:w-4 gba:text-sky-600" />
-          <span className="gba:text-xs gba:font-semibold gba:text-slate-700">HTML Preview</span>
-        </div>
-        <div className="gba:rounded-lg gba:border gba:border-slate-200 gba:bg-white gba:px-3 gba:py-2 gba:shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
-          <div className="gba:h-2 gba:w-24 gba:rounded-full gba:bg-slate-200" />
-          <div className="gba:mt-2 gba:space-y-1.5">
-            <div className="gba:h-2 gba:w-full gba:rounded-full gba:bg-slate-100" />
-            <div className="gba:h-2 gba:w-4/5 gba:rounded-full gba:bg-slate-100" />
-            <div className="gba:h-2 gba:w-2/3 gba:rounded-full gba:bg-slate-100" />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (artifact.rendererType === 'markdown' || artifact.rendererType === 'document') {
-    return (
-      <div className="gba:h-24 gba:border-b gba:border-border gba:bg-[linear-gradient(135deg,#fafaf9_0%,#f8fafc_100%)] gba:px-3 gba:py-3">
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-          <NotePencil className="gba:h-4 gba:w-4 gba:text-blue-600" />
-          <span className="gba:text-xs gba:font-semibold gba:text-slate-700">Document Preview</span>
-        </div>
-        <div className="gba:space-y-1.5">
-          <div className="gba:h-2.5 gba:w-3/4 gba:rounded-full gba:bg-slate-300" />
-          <div className="gba:h-2 gba:w-full gba:rounded-full gba:bg-slate-200" />
-          <div className="gba:h-2 gba:w-5/6 gba:rounded-full gba:bg-slate-200" />
-          <div className="gba:h-2 gba:w-2/3 gba:rounded-full gba:bg-slate-200" />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="gba:h-24 gba:border-b gba:border-border gba:bg-[linear-gradient(135deg,#f8fafc_0%,#f1f5f9_100%)] gba:px-3 gba:py-3">
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-        <Code className="gba:h-4 gba:w-4 gba:text-emerald-600" />
-        <span className="gba:text-xs gba:font-semibold gba:text-slate-700">Generated File</span>
-      </div>
-      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-        <div className="gba:h-8 gba:rounded-lg gba:bg-white/85 gba:border gba:border-slate-200" />
-        <div className="gba:h-8 gba:rounded-lg gba:bg-white/85 gba:border gba:border-slate-200" />
-        <div className="gba:col-span-2 gba:h-8 gba:rounded-lg gba:bg-white/85 gba:border gba:border-slate-200" />
       </div>
     </div>
   )

@@ -49,7 +49,7 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
 
   return (
     <div className="gba:flex gba:flex-col gba:items-end gba:py-2" data-testid={`msg-${message.id}`}>
-      <div className="gba:w-full gba:max-w-full gba:rounded-[1.15rem] gba:border gba:border-border/80 gba:bg-background gba:px-4 gba:py-2.5 gba:text-[14px] gba:leading-6 gba:font-normal gba:text-foreground gba:shadow-[0_3px_10px_rgba(15,23,42,0.035)]">
+      <div className="gba:max-w-[85%] gba:rounded-[1.15rem] gba:bg-muted/40 gba:px-4 gba:py-2.5 gba:text-[14px] gba:leading-6 gba:font-normal gba:text-foreground">
         {visibleContent}
       </div>
       <div className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:px-1">
