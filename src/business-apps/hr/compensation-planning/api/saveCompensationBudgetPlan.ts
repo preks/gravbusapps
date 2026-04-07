@@ -1,5 +1,5 @@
 import type { RestClient } from '@/common/network/rest/RestClient'
-import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
+import type { BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 import {
   SAVE_COMPENSATION_BUDGET_PLAN_PATH,
   SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH,
@@ -10,26 +10,28 @@ import {
   extractCreatedCompensationBudgetPlanId,
   extractCreatedCompensationBudgetPlanCompanyId,
   type CompensationBudgetPlanCreatePayload,
-  type CompensationBudgetPlanCompanyRestPayload
+  type CompensationBudgetPlanCompanyRestPayload,
+  type CompensationBudgetPlanCompanyUpdatePayload,
+  type CompensationBudgetPlanUpdatePayload
 } from './createCompensationBudgetPlan'
 
+/** Values needed to build `saveCompensationBudgetPlanCompany` UPDATE (includes `version`). */
 export interface SaveCompensationBudgetPlanCompanyRowInput {
   id: string
+  version: number
   compensationBudgetPlanId: string
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
-  budgetPlanStatus: string
   currentTotalSalaryCost: number
   currencyRef: string | null
-  headcount: number
 }
 
 export type CompensationBudgetPlanChangeMode = 'INSERT' | 'UPDATE'
 
 export interface SaveCompensationBudgetPlanRestBody {
   changeMode: CompensationBudgetPlanChangeMode
-  compensationBudgetPlan: CompensationBudgetPlanCreatePayload
+  compensationBudgetPlan: CompensationBudgetPlanCreatePayload | CompensationBudgetPlanUpdatePayload
 }
 
 export interface CompensationBudgetPlanOrganizationalUnitRestPayload {
@@ -55,11 +57,7 @@ export interface SaveCompensationBudgetPlanCompanyInsertBody {
 
 export interface SaveCompensationBudgetPlanCompanyUpdateBody {
   changeMode: 'UPDATE'
-  compensationBudgetPlanCompany: CompensationBudgetPlanCompanyRestPayload & {
-    id: string
-    distributionMethod: BudgetDistributionMethodApi
-    headcount: number
-  }
+  compensationBudgetPlanCompany: CompensationBudgetPlanCompanyUpdatePayload
 }
 
 export type SaveCompensationBudgetPlanCompanyRestBody =
@@ -67,24 +65,19 @@ export type SaveCompensationBudgetPlanCompanyRestBody =
   | SaveCompensationBudgetPlanCompanyUpdateBody
 
 export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
-  row: SaveCompensationBudgetPlanCompanyRowInput,
-  distributionMethod: BudgetDistributionMethodApi
+  row: SaveCompensationBudgetPlanCompanyRowInput
 ): SaveCompensationBudgetPlanCompanyUpdateBody {
   return {
     changeMode: 'UPDATE',
     compensationBudgetPlanCompany: {
       id: row.id,
-      compensationBudgetPlan: row.compensationBudgetPlanId,
-      company: row.companyId,
+      version: row.version,
       salaryBudgetAmount: row.salaryBudgetAmount,
       salaryBudgetPercent: row.salaryBudgetPercent,
-      bonusBudgetAmount: 0,
-      bonusBudgetPercent: 0,
-      budgetPlanStatus: row.budgetPlanStatus as BudgetPlanStatusApi,
-      currentTotalSalaryCost: row.currentTotalSalaryCost,
       currencyRef: row.currencyRef,
-      distributionMethod,
-      headcount: row.headcount
+      currentTotalSalaryCost: row.currentTotalSalaryCost,
+      compensationBudgetPlan: row.compensationBudgetPlanId,
+      company: row.companyId
     }
   }
 }
@@ -124,6 +117,8 @@ export async function saveCompensationBudgetPlanCompany(
 export interface CompensationBudgetPlanEmployeeRestPayload {
   /** Set for UPDATE (changeMode UPDATE). */
   id?: string
+  /** Required for UPDATE — optimistic locking (from GraphQL `version`). */
+  version?: number
   proposedSalaryIncreaseAmount: number
   proposedSalaryIncreasePercent: number
   proposedNewSalary: number

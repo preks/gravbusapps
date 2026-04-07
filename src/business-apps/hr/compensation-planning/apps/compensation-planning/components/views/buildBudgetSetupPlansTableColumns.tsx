@@ -1,4 +1,13 @@
+import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
@@ -45,7 +54,8 @@ const COL = {
 
 export function buildBudgetSetupPlansTableColumns(
   t: TranslateFn,
-  formatBudgetPlanStatus: (value: string | null | undefined) => string
+  formatBudgetPlanStatus: (value: string | null | undefined) => string,
+  onEditRow: (row: BudgetSetupPlanTableRow) => void
 ): ColumnDef<BudgetSetupPlanTableRow>[] {
   return [
     {
@@ -120,6 +130,40 @@ export function buildBudgetSetupPlansTableColumns(
         const r = row.original
         return <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrencyCell(r.salaryBaseline, r.displayCurrency)}</span>
       }
+    },
+    {
+      id: 'actions',
+      header: () => null,
+      meta: { align: 'right' as const, type: 'text' as const },
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="gba:flex gba:w-full gba:justify-end gba:pr-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                data-testid={`budget-setup-row-actions-${row.original.id}`}
+                aria-label={t('compensation-planning-row-menu-aria-label')}
+              >
+                <DotsThreeVerticalIcon className="gba:size-4" weight="bold" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  onEditRow(row.original)
+                }}
+                data-testid={`budget-setup-row-edit-${row.original.id}`}
+              >
+                {t('compensation-planning-action-edit')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )
     }
   ]
 }
@@ -129,5 +173,6 @@ export const BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS = [
   'companyBudgetStatus',
   'salaryBudgetAmount',
   'salaryBudgetPercent',
-  'salaryBaseline'
+  'salaryBaseline',
+  'actions'
 ] as const

@@ -45,17 +45,30 @@ export function effectiveDateMatchesFilter(
   filterFrom: string | null,
   filterTo: string | null
 ): boolean {
+  return planDateFieldMatchesInclusiveRange(row, 'effectiveDate', filterFrom, filterTo)
+}
+
+/**
+ * Inclusive range on a single `YYYY-MM-DD` date field (start, end, or effective).
+ * Rows with a null date do not match when any filter bound is set.
+ */
+export function planDateFieldMatchesInclusiveRange(
+  row: CompensationBudgetPlanRow,
+  field: 'startDate' | 'endDate' | 'effectiveDate',
+  filterFrom: string | null,
+  filterTo: string | null
+): boolean {
   if (filterFrom == null && filterTo == null) {
     return true
   }
-  const eff = sliceBudgetPlanDateKey(row.effectiveDate)
-  if (eff == null) {
+  const d = sliceBudgetPlanDateKey(row[field])
+  if (d == null) {
     return false
   }
-  if (filterFrom != null && eff < filterFrom) {
+  if (filterFrom != null && d < filterFrom) {
     return false
   }
-  if (filterTo != null && eff > filterTo) {
+  if (filterTo != null && d > filterTo) {
     return false
   }
   return true

@@ -21,8 +21,6 @@ import {
   type CompensationBudgetPlanOrganizationalUnitRestPayload
 } from '../../../../api/saveCompensationBudgetPlan'
 import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
-import { mapDistributionMethodToApi } from '../../../../utils/mapDistributionMethodToApi'
-import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
 import type { CompensationBudgetPlanOrganizationalUnitRow } from '../../hooks/useBudgetDistributionOrgUnitBudget'
 import translations from '../../_i18n'
 
@@ -44,7 +42,6 @@ export interface BudgetDistributionDistributeDialogProps {
   distributionPool: number | null
   currencyCode: string
   companyBudgetRow: CompensationBudgetPlanCompanyRow | null
-  selectedDistributionMethod: DistributionMethod
   onSaved: () => void | Promise<void>
 }
 
@@ -59,7 +56,6 @@ export function BudgetDistributionDistributeDialog({
   distributionPool,
   currencyCode,
   companyBudgetRow,
-  selectedDistributionMethod,
   onSaved
 }: Readonly<BudgetDistributionDistributeDialogProps>) {
   const { t } = useTranslation(translations)
@@ -127,8 +123,6 @@ export function BudgetDistributionDistributeDialog({
     setErrorMessage(null)
 
     try {
-      const apiMethod = mapDistributionMethodToApi(selectedDistributionMethod)
-
       for (const ouId of ids) {
         const row = rowByOuId.get(ouId)
         const rawAmount = allocationByOrgUnitId.get(ouId) ?? 0
@@ -156,7 +150,16 @@ export function BudgetDistributionDistributeDialog({
         })
       }
 
-      const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody(companyBudgetRow, apiMethod)
+      const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody({
+        id: companyBudgetRow.id,
+        version: companyBudgetRow.version,
+        compensationBudgetPlanId: companyBudgetRow.compensationBudgetPlanId,
+        companyId: companyBudgetRow.companyId,
+        salaryBudgetAmount: companyBudgetRow.salaryBudgetAmount,
+        salaryBudgetPercent: companyBudgetRow.salaryBudgetPercent,
+        currentTotalSalaryCost: companyBudgetRow.currentTotalSalaryCost,
+        currencyRef: companyBudgetRow.currencyRef
+      })
       await saveCompensationBudgetPlanCompany(restClient, accessToken, companyBody)
 
       await onSaved()
@@ -176,7 +179,6 @@ export function BudgetDistributionDistributeDialog({
     onSaved,
     restClient,
     rowByOuId,
-    selectedDistributionMethod,
     selectedOuIds,
     t
   ])

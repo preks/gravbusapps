@@ -6,6 +6,7 @@ import type { CompensationEmployeeProposal } from '../../../types/compensationPl
  */
 export function buildSubmitEmployeeProposalUpdateBody(
   proposal: CompensationEmployeeProposal,
+  rowVersion: number,
   planOrganizationalUnitRowId: string,
   submittedByEmployeeId: string,
   submittedAtIso: string
@@ -14,6 +15,7 @@ export function buildSubmitEmployeeProposalUpdateBody(
     changeMode: 'UPDATE',
     compensationBudgetPlanEmployee: {
       id: proposal.id,
+      version: rowVersion,
       proposedSalaryIncreaseAmount: proposal.proposedSalaryIncrease ?? 0,
       proposedSalaryIncreasePercent: proposal.proposedSalaryIncreasePercent ?? 0,
       proposedNewSalary: proposal.proposedNewSalary ?? 0,
@@ -32,6 +34,7 @@ export function buildSubmitEmployeeProposalUpdateBody(
 export function buildSubmitEmployeeProposalUpdateBodyFromRow(
   employeeId: string,
   employeeBudgetRowId: string,
+  rowVersion: number,
   planOrganizationalUnitRowId: string,
   submittedByEmployeeId: string,
   submittedAtIso: string,
@@ -43,6 +46,7 @@ export function buildSubmitEmployeeProposalUpdateBodyFromRow(
     changeMode: 'UPDATE',
     compensationBudgetPlanEmployee: {
       id: employeeBudgetRowId,
+      version: rowVersion,
       proposedSalaryIncreaseAmount,
       proposedSalaryIncreasePercent,
       proposedNewSalary,

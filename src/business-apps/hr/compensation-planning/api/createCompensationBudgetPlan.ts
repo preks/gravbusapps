@@ -1,8 +1,7 @@
 import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 
+/** Sent with `changeMode: INSERT` on `saveCompensationBudgetPlan`. */
 export interface CompensationBudgetPlanCreatePayload {
-  /** Present for `changeMode: UPDATE` on `saveCompensationBudgetPlan`. */
-  id?: string
   name: string
   description: string
   fiscalYear: number
@@ -10,6 +9,20 @@ export interface CompensationBudgetPlanCreatePayload {
   endDate: string | null
   effectiveDate: string | null
   budgetPlanStatus: BudgetPlanStatusApi
+}
+
+/** Sent with `changeMode: UPDATE` — includes `version` for optimistic locking. */
+export interface CompensationBudgetPlanUpdatePayload {
+  id: string
+  version: number
+  name: string
+  description: string
+  fiscalYear: number
+  startDate: string | null
+  endDate: string | null
+  effectiveDate: string | null
+  /** Omit for field-only edits; set when changing plan status (e.g. execute cycle). */
+  budgetPlanStatus?: BudgetPlanStatusApi
 }
 
 export interface CreateCompensationBudgetPlanRestBody {
@@ -38,6 +51,31 @@ export function buildCreateCompensationBudgetPlanRestBody(input: {
   }
 }
 
+/** Payload for `saveCompensationBudgetPlan` with `changeMode: UPDATE`. */
+export function buildUpdateCompensationBudgetPlanRestBody(input: {
+  id: string
+  version: number
+  name: string
+  description: string | null
+  fiscalYear: number
+  startDate: string | null
+  endDate: string | null
+  effectiveDate: string | null
+}): { compensationBudgetPlan: CompensationBudgetPlanUpdatePayload } {
+  return {
+    compensationBudgetPlan: {
+      id: input.id,
+      version: input.version,
+      name: input.name.trim(),
+      description: input.description?.trim() ?? '',
+      fiscalYear: input.fiscalYear,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      effectiveDate: input.effectiveDate
+    }
+  }
+}
+
 export interface CompensationBudgetPlanCompanyRestPayload {
   compensationBudgetPlan: string
   company: string
@@ -51,6 +89,18 @@ export interface CompensationBudgetPlanCompanyRestPayload {
   /** Optional — omitted from payloads until the product sends them again. */
   distributionMethod?: BudgetDistributionMethodApi
   headcount?: number
+}
+
+/** Sent with `changeMode: UPDATE` on `saveCompensationBudgetPlanCompany`. */
+export interface CompensationBudgetPlanCompanyUpdatePayload {
+  id: string
+  version: number
+  salaryBudgetAmount: number
+  salaryBudgetPercent: number
+  currencyRef: string | null
+  currentTotalSalaryCost: number
+  compensationBudgetPlan: string
+  company: string
 }
 
 function readStringId(value: unknown): string | null {

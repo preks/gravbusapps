@@ -119,6 +119,7 @@ manager-team-submit-proposals = Vorschläge einreichen
 manager-team-submitting = Wird eingereicht…
 manager-team-submit-no-drafts = Speichern Sie mindestens eine Zuweisung im Budgetplan, bevor Sie einreichen. Verteilen und im Dialog speichern.
 manager-team-submit-error = Vorschläge konnten nicht eingereicht werden. {$message}
+manager-team-submit-missing-row-version = Budgetzeilen-Version für die Einreichung konnte nicht geladen werden. Seite aktualisieren und erneut versuchen.
 manager-team-proposals-readonly-hint = Die Vorschläge wurden zur Prüfung eingereicht. Bearbeitung ist deaktiviert.
 
 supervisor-review-no-auth = Sie müssen angemeldet sein, um Vorschläge zu genehmigen oder zurückzusenden.

@@ -9,14 +9,18 @@ export interface BudgetDistributionContextCardProps {
   planSelect?: React.ReactNode
   /** Company selector — second when both are set. */
   companyToolbar?: React.ReactNode
-  poolSection: React.ReactNode
+  /**
+   * Optional body below the header (e.g. KPI widgets).
+   * Omit to show only the title + selectors — use standalone cards outside this card instead.
+   */
+  poolSection?: React.ReactNode
 }
 
 export function BudgetDistributionContextCard({
   title,
   planSelect,
   companyToolbar,
-  poolSection
+  poolSection = null
 }: Readonly<BudgetDistributionContextCardProps>) {
   const showToolbarRow = Boolean(planSelect) || Boolean(companyToolbar)
   const hasTitle = Boolean(title && title.trim().length > 0)

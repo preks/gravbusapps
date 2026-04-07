@@ -7,28 +7,12 @@ const SALARY_BUDGET_PERCENT_FILTER_MAX = 100
 
 export function buildBudgetSetupPlansFilterConfiguration(
   t: TranslateFn,
-  budgetPlanOptions: { id: string; label: string }[],
   companyBudgetStatusOptions: { id: string; label: string }[]
 ): FilterConfiguration {
   return {
     id: 'budget-setup-plans-filters',
     name: t('budget-setup-table-filter-sheet-title'),
     groups: [
-      {
-        id: 'budget-plan-group',
-        label: t('budget-setup-table-filter-budget-plan-group'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'compensationBudgetPlanIds',
-            field: 'compensationBudgetPlanIds',
-            label: t('budget-setup-table-filter-budget-plan-label'),
-            type: 'multi-select',
-            config: { options: budgetPlanOptions }
-          }
-        ]
-      },
       {
         id: 'company-budget-status-group',
         label: t('budget-setup-table-filter-company-budget-status-group'),

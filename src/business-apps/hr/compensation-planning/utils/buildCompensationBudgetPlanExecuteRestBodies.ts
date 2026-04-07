@@ -2,6 +2,7 @@ import type { SaveCompensationBudgetPlanRestBody } from '../api/saveCompensation
 
 export interface CompensationBudgetPlanRowSnapshot {
   id: string
+  version: number
   name: string
   description: string | null
   fiscalYear: number
@@ -17,6 +18,7 @@ export function buildCompensationBudgetPlanUpdateExecutedBody(
     changeMode: 'UPDATE',
     compensationBudgetPlan: {
       id: plan.id,
+      version: plan.version,
       name: plan.name.trim(),
       description: plan.description?.trim() ?? '',
       fiscalYear: plan.fiscalYear,

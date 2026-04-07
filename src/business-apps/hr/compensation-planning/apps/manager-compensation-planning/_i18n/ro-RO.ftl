@@ -119,6 +119,7 @@ manager-team-submit-proposals = Trimite propunerile
 manager-team-submitting = Se trimite…
 manager-team-submit-no-drafts = Salvați cel puțin o alocare în planul de buget înainte de trimitere. Folosiți Distribuie, apoi salvați în dialog.
 manager-team-submit-error = Nu s-au putut trimite propunerile. {$message}
+manager-team-submit-missing-row-version = Nu s-a putut încărca versiunea rândului de buget pentru trimitere. Reîmprospătați pagina și încercați din nou.
 manager-team-proposals-readonly-hint = Propunerile au fost trimise spre revizuire. Editarea este dezactivată.
 
 supervisor-review-no-auth = Trebuie să fiți autentificat pentru a aproba sau a trimite înapoi propunerile.

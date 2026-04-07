@@ -48,6 +48,7 @@ function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPl
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
   return {
     id: graphqlUnknownToString(raw.id),
+    version: num(raw.version),
     compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
@@ -81,7 +82,9 @@ export function useSubmissionsOrgUnitBudgetTable(
   accessToken: string,
   companyId: string | null,
   defaultCurrencyCode: string,
-  teamMembers: TeamMemberCompensationData[]
+  teamMembers: TeamMemberCompensationData[],
+  /** When set, only org-unit rows under this compensation cycle’s company budget are shown. */
+  selectedCompensationPlanId: string | null
 ) {
   const graphqlClient = useGraphQLClient(accessToken)
   const companyIdRef = useRef(companyId)
@@ -163,7 +166,11 @@ export function useSubmissionsOrgUnitBudgetTable(
       }
 
       const nextPlans = sortPlans((plansResult.CompensationBudgetPlan ?? []).map(fillPlanListItem))
-      const companyRows = (companyRowsResult.CompensationBudgetPlanCompany ?? []).map(mapCompanyRow)
+      const companyRowsAll = (companyRowsResult.CompensationBudgetPlanCompany ?? []).map(mapCompanyRow)
+      const companyRows =
+        selectedCompensationPlanId != null
+          ? companyRowsAll.filter(r => r.compensationBudgetPlanId === selectedCompensationPlanId)
+          : companyRowsAll
       const nextCompanyRowById = new Map(companyRows.map(r => [r.id, r]))
       const companyBudgetIds = companyRows.map(r => r.id)
 
@@ -193,7 +200,7 @@ export function useSubmissionsOrgUnitBudgetTable(
     } finally {
       setLoadingGraphql(false)
     }
-  }, [accessToken, companyId, graphqlClient])
+  }, [accessToken, companyId, graphqlClient, selectedCompensationPlanId])
 
   useEffect(() => {
     void fetchData()

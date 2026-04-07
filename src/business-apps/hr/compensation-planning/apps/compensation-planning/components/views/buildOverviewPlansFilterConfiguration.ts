@@ -39,6 +39,69 @@ export function buildOverviewPlansFilterConfiguration(
             config: { options: fiscalYearOptions }
           }
         ]
+      },
+      {
+        id: 'overview-start-date-group',
+        label: t('overview-plans-table-filter-start-date-group'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'startDateRange',
+            field: 'startDateRange',
+            label: t('overview-plans-table-filter-start-date-label'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: t('overview-plans-table-filter-date-from-placeholder'),
+              placeholderEnd: t('overview-plans-table-filter-date-to-placeholder'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'overview-end-date-group',
+        label: t('overview-plans-table-filter-end-date-group'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'endDateRange',
+            field: 'endDateRange',
+            label: t('overview-plans-table-filter-end-date-label'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: t('overview-plans-table-filter-date-from-placeholder'),
+              placeholderEnd: t('overview-plans-table-filter-date-to-placeholder'),
+              showClearButton: true
+            }
+          }
+        ]
+      },
+      {
+        id: 'overview-effective-date-group',
+        label: t('overview-plans-table-filter-effective-date-group'),
+        collapsible: true,
+        defaultExpanded: true,
+        filters: [
+          {
+            id: 'effectiveDateRange',
+            field: 'effectiveDateRange',
+            label: t('overview-plans-table-filter-effective-date-label'),
+            type: 'date',
+            config: {
+              dateType: 'date',
+              mode: 'range',
+              placeholder: t('overview-plans-table-filter-date-from-placeholder'),
+              placeholderEnd: t('overview-plans-table-filter-date-to-placeholder'),
+              showClearButton: true
+            }
+          }
+        ]
       }
     ]
   }

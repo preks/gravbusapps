@@ -57,3 +57,21 @@ export function getDefaultCreatePlanFormValues(
     currencyRef: initialCurrencyRef
   }
 }
+
+/** Prefill company budget dialog from an existing `compensation_budget_plan_company` row. */
+export function getEditCompanyBudgetFormValuesFromRow(
+  row: {
+    compensationBudgetPlanId: string
+    salaryBudgetAmount: number
+    salaryBudgetPercent: number
+    currencyRef: string | null
+  },
+  fallbackCurrencyRef: string
+): CreatePlanFormValues {
+  return {
+    compensationBudgetPlanId: row.compensationBudgetPlanId,
+    salaryBudgetAmount: row.salaryBudgetAmount,
+    salaryBudgetPercent: row.salaryBudgetPercent,
+    currencyRef: row.currencyRef?.trim() ? row.currencyRef.trim() : fallbackCurrencyRef
+  }
+}

@@ -54,6 +54,7 @@ function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPl
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
   return {
     id: graphqlUnknownToString(raw.id),
+    version: num(raw.version),
     compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
@@ -152,6 +153,7 @@ export function useManagerTeamSalaryBudget(params: {
     ReadonlyMap<string, string>
   >(() => new Map())
   const [managerOrganizationalUnitId, setManagerOrganizationalUnitId] = useState<string | null>(null)
+  const [activeCompensationBudgetPlanId, setActiveCompensationBudgetPlanId] = useState<string | null>(null)
 
   const fetchBudgetTotal = useCallback(async () => {
     if (!accessToken || !companyId || !managerEmployeeId) {
@@ -159,6 +161,7 @@ export function useManagerTeamSalaryBudget(params: {
       setError(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setManagerOrganizationalUnitId(null)
+      setActiveCompensationBudgetPlanId(null)
       return
     }
 
@@ -182,6 +185,7 @@ export function useManagerTeamSalaryBudget(params: {
       if (relevantOuIds.size === 0) {
         setTotalSalaryBudget(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setActiveCompensationBudgetPlanId(null)
         return
       }
 
@@ -194,8 +198,12 @@ export function useManagerTeamSalaryBudget(params: {
       if (!companyBudgetId) {
         setTotalSalaryBudget(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setActiveCompensationBudgetPlanId(null)
         return
       }
+
+      const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
+      setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
 
       const ouResult = await graphqlClient.request<{
         CompensationBudgetPlanOrganizationalUnit: Array<{
@@ -231,6 +239,7 @@ export function useManagerTeamSalaryBudget(params: {
       setError(message)
       setTotalSalaryBudget(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
+      setActiveCompensationBudgetPlanId(null)
     } finally {
       setLoadingBudget(false)
     }
@@ -246,6 +255,7 @@ export function useManagerTeamSalaryBudget(params: {
     error,
     refetch: fetchBudgetTotal,
     planOuRowIdByOrganizationalUnitId,
-    managerOrganizationalUnitId
+    managerOrganizationalUnitId,
+    activeCompensationBudgetPlanId
   }
 }

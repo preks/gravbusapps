@@ -158,7 +158,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     error: salaryBudgetError,
     refetch: refetchSalaryBudget,
     planOuRowIdByOrganizationalUnitId,
-    managerOrganizationalUnitId
+    managerOrganizationalUnitId,
+    activeCompensationBudgetPlanId
   } = useManagerTeamSalaryBudget({
     accessToken,
     companyId: effectiveCompanyId,
@@ -366,6 +367,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             salaryBudgetLoading={salaryBudgetLoading}
             salaryBudgetError={salaryBudgetError}
             selectedCompanyId={effectiveCompanyId}
+            activeCompensationBudgetPlanId={activeCompensationBudgetPlanId}
             currencyCode={teamCurrencyCode}
             accessToken={accessToken}
             managerEmployeeId={employeeId}

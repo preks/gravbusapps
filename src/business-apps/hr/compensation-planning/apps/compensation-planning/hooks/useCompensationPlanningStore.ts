@@ -5,7 +5,7 @@ import { create } from 'zustand'
  * - Persistent selector row: Company + Budget Plan
  * - Changing company clears selectedBudgetPlanId by default (see `selectCompany` options)
  * - Changing plan clears downstream derived state
- * - Active tab tracked with deep-link support via ?view=
+ * - Active tab tracked with deep-link support via ?view= ; Budget setup sub-view via ?budgetSetupSection=departments
  */
 
 export type CompensationPlanningTab = 'overview' | 'budget-setup' | 'budget-distribution' | 'submissions'
@@ -20,10 +20,30 @@ function readTabFromUrl(): CompensationPlanningTab {
   return 'overview'
 }
 
-function writeTabToUrl(tab: CompensationPlanningTab) {
+function readBudgetSetupSectionFromUrl(): 'main' | 'departments' {
+  if (typeof window === 'undefined') return 'main'
+  const params = new URLSearchParams(window.location.search)
+  return params.get('budgetSetupSection') === 'departments' ? 'departments' : 'main'
+}
+
+function readInitialStateFromUrl(): {
+  activeTab: CompensationPlanningTab
+  budgetSetupSection: 'main' | 'departments'
+} {
+  const activeTab = readTabFromUrl()
+  const budgetSetupSection = activeTab === 'budget-setup' ? readBudgetSetupSectionFromUrl() : 'main'
+  return { activeTab, budgetSetupSection }
+}
+
+function writeCompensationPlanningUrl(tab: CompensationPlanningTab, budgetSetupSection: 'main' | 'departments') {
   if (typeof window === 'undefined') return
   const url = new URL(window.location.href)
   url.searchParams.set('view', tab)
+  if (tab === 'budget-setup' && budgetSetupSection === 'departments') {
+    url.searchParams.set('budgetSetupSection', 'departments')
+  } else {
+    url.searchParams.delete('budgetSetupSection')
+  }
   window.history.replaceState(null, '', url.toString())
 }
 
@@ -31,12 +51,10 @@ interface CompensationPlanningState {
   selectedCompanyId: string | null
   selectedBudgetPlanId: string | null
   activeTab: CompensationPlanningTab
-
   /**
-   * After "Go to compensation cycles" from plan detail: show only the cycles list/empty state (not workforce KPIs).
-   * Cleared when selecting a plan, switching company, or leaving the Overview tab.
+   * Sub-view within Budget setup (`?budgetSetupSection=departments`). Synced to URL when `activeTab` is `budget-setup`.
    */
-  overviewCyclesOnly: boolean
+  budgetSetupSection: 'main' | 'departments'
 
   /**
    * Selected `compensation_budget_plan_company` row for Budget distribution.
@@ -49,42 +67,68 @@ interface CompensationPlanningState {
    * Pass `{ clearBudgetPlan: false }` when switching company while staying on the same cycle (e.g. Overview plan dashboard).
    */
   selectCompany: (companyId: string | null, options?: { clearBudgetPlan?: boolean }) => void
-  selectBudgetPlan: (planId: string | null, options?: { overviewCyclesOnly?: boolean }) => void
+  selectBudgetPlan: (planId: string | null) => void
   setActiveTab: (tab: string) => void
+  setBudgetSetupSection: (section: 'main' | 'departments') => void
   setSelectedDistributionCompanyBudgetId: (id: string | null) => void
 }
+
+const initialFromUrl = readInitialStateFromUrl()
 
 export const useCompensationPlanningStore = create<CompensationPlanningState>(set => ({
   selectedCompanyId: null,
   selectedBudgetPlanId: null,
-  activeTab: readTabFromUrl(),
-  overviewCyclesOnly: false,
+  activeTab: initialFromUrl.activeTab,
+  budgetSetupSection: initialFromUrl.budgetSetupSection,
   selectedDistributionCompanyBudgetId: null,
 
   selectCompany: (companyId, options) =>
-    set(state => ({
-      selectedCompanyId: companyId,
-      selectedBudgetPlanId:
-        companyId === null || options?.clearBudgetPlan !== false ? null : state.selectedBudgetPlanId,
-      selectedDistributionCompanyBudgetId: null,
-      overviewCyclesOnly: false
-    })),
+    set(state => {
+      const base = {
+        selectedCompanyId: companyId,
+        selectedBudgetPlanId:
+          companyId === null || options?.clearBudgetPlan !== false ? null : state.selectedBudgetPlanId,
+        selectedDistributionCompanyBudgetId: null
+      }
 
-  selectBudgetPlan: (planId, options) =>
+      if (state.activeTab !== 'budget-setup') {
+        return base
+      }
+
+      if (companyId === null) {
+        writeCompensationPlanningUrl('budget-setup', 'main')
+        return { ...base, budgetSetupSection: 'main' as const }
+      }
+
+      writeCompensationPlanningUrl('budget-setup', state.budgetSetupSection)
+      return { ...base, budgetSetupSection: state.budgetSetupSection }
+    }),
+
+  selectBudgetPlan: planId =>
     set({
       selectedBudgetPlanId: planId,
-      selectedDistributionCompanyBudgetId: null,
-      overviewCyclesOnly: planId != null ? false : options?.overviewCyclesOnly === true
+      selectedDistributionCompanyBudgetId: null
     }),
 
   setActiveTab: tab => {
     const validated = VALID_TABS.has(tab) ? (tab as CompensationPlanningTab) : 'overview'
-    writeTabToUrl(validated)
-    set(state => ({
-      activeTab: validated,
-      overviewCyclesOnly: validated !== 'overview' ? false : state.overviewCyclesOnly
-    }))
+    writeCompensationPlanningUrl(validated, 'main')
+    set({ activeTab: validated, budgetSetupSection: 'main' })
   },
+
+  setBudgetSetupSection: section =>
+    set(state => {
+      if (state.activeTab !== 'budget-setup') {
+        return state
+      }
+      writeCompensationPlanningUrl('budget-setup', section)
+      return { budgetSetupSection: section }
+    }),
 
   setSelectedDistributionCompanyBudgetId: id => set({ selectedDistributionCompanyBudgetId: id })
 }))
+
+export function syncCompensationPlanningFromUrl(): void {
+  const { activeTab, budgetSetupSection } = readInitialStateFromUrl()
+  useCompensationPlanningStore.setState({ activeTab, budgetSetupSection })
+}

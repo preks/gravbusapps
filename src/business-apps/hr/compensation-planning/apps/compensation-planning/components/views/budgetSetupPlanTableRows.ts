@@ -33,10 +33,16 @@ export function buildBudgetSetupPlanTableRows(
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
   selectedCompanyId: string,
   defaultCurrencyCode: string,
-  plans: CompensationBudgetPlanListItem[]
+  plans: CompensationBudgetPlanListItem[],
+  /** When set, only rows for this compensation cycle are shown. */
+  selectedCompensationPlanId: string | null
 ): BudgetSetupPlanTableRow[] {
   return companyBudgetPlanRows
     .filter(companyRow => companyRow.companyId === selectedCompanyId)
+    .filter(
+      companyRow =>
+        selectedCompensationPlanId == null || companyRow.compensationBudgetPlanId === selectedCompensationPlanId
+    )
     .map(companyRow => {
       const displayCurrency = formatCurrencyRefForDisplay(companyRow.currencyRef?.trim()) || defaultCurrencyCode
       const budgetPlanLabel = formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)

@@ -44,6 +44,7 @@ export const LIST_COMPENSATION_BUDGET_PLANS = `
       limit: 100
     ) {
       id
+      version
       name
       description
       fiscalYear
@@ -99,6 +100,7 @@ export const GET_MANAGER_COMPENSATION_BUDGET_CONTEXT = `
       limit: 500
     ) {
       id
+      version
       compensationBudgetPlanId
       companyId
       salaryBudgetAmount
@@ -123,6 +125,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY = `
       limit: 500
     ) {
       id
+      version
       compensationBudgetPlanId
       companyId
       salaryBudgetAmount
@@ -207,6 +210,7 @@ export const LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS = `
       limit: 5000
     ) {
       id
+      version
       budgetPlanStatus
       employeeId
       proposedSalaryIncreaseAmount
@@ -232,6 +236,7 @@ export const GET_COMPENSATION_BUDGET_PLAN_COMPANY = `
       limit: 1
     ) {
       id
+      version
       compensationBudgetPlanId
       companyId
       salaryBudgetAmount

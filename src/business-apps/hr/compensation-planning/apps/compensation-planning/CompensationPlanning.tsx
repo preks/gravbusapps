@@ -4,10 +4,10 @@ import { ChartBarIcon, GearIcon, ListChecksIcon, TreeStructureIcon } from '@phos
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
-import { useCompensationPlanningStore } from './hooks/useCompensationPlanningStore'
+import { syncCompensationPlanningFromUrl, useCompensationPlanningStore } from './hooks/useCompensationPlanningStore'
 import { BudgetPlanSelector } from './components/shared/BudgetPlanSelector'
 import { CreateBudgetPlanDialog } from './components/views/CreateBudgetPlanDialog'
-import { useBudgetPlansTable } from './hooks/useBudgetPlansTable'
+import { useBudgetPlansTable, type CompensationBudgetPlanRow } from './hooks/useBudgetPlansTable'
 import { OverviewView } from './components/views/OverviewView'
 import { BudgetSetupView } from './components/views/BudgetSetupView'
 import { SubmissionsView } from './components/views/SubmissionsView'
@@ -26,15 +26,8 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> }
   ]
 
-  const {
-    selectedCompanyId,
-    selectedBudgetPlanId,
-    activeTab,
-    overviewCyclesOnly,
-    selectCompany,
-    selectBudgetPlan,
-    setActiveTab
-  } = useCompensationPlanningStore()
+  const { selectedCompanyId, activeTab, selectCompany, selectBudgetPlan, setActiveTab, selectedBudgetPlanId } =
+    useCompensationPlanningStore()
 
   const { companies, loading: companiesLoading, error: companiesLoadError } = useActiveStructureCompanies(accessToken)
 
@@ -61,55 +54,49 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
   useEffect(() => {
     const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search)
-      const view = params.get('view')
-      if (view) setActiveTab(view)
+      syncCompensationPlanningFromUrl()
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [setActiveTab])
+  }, [])
 
   const [createPlanDialogOpen, setCreatePlanDialogOpen] = useState(false)
+  const [editingBudgetPlan, setEditingBudgetPlan] = useState<CompensationBudgetPlanRow | null>(null)
   const {
     rows: existingPlans,
     loading: plansLoading,
     creating: creatingPlan,
     insertPlan,
-    refetch: refetchBudgetPlans
+    updatePlan
   } = useBudgetPlansTable(accessToken)
 
-  const selectedPlanForOverview =
-    selectedBudgetPlanId != null ? (existingPlans.find(p => p.id === selectedBudgetPlanId) ?? null) : null
+  const handleCreatePlanDialogOpenChange = useCallback((open: boolean) => {
+    setCreatePlanDialogOpen(open)
+    if (!open) {
+      setEditingBudgetPlan(null)
+    }
+  }, [])
 
   const handleCreatePlan = useCallback(
     async (input: Parameters<typeof insertPlan>[0]) => {
       const newId = await insertPlan(input)
       if (newId) {
-        selectBudgetPlan(null, { overviewCyclesOnly: true })
+        selectBudgetPlan(null)
       }
       return newId
     },
     [insertPlan, selectBudgetPlan]
   )
 
-  const handleSelectPlan = useCallback(
-    (planId: string) => {
-      selectBudgetPlan(planId)
-    },
-    [selectBudgetPlan]
-  )
+  const openCreateCompensationCycleDialog = useCallback(() => {
+    setEditingBudgetPlan(null)
+    setCreatePlanDialogOpen(true)
+  }, [])
 
-  const handleDeselectPlan = useCallback(() => {
-    selectBudgetPlan(null, { overviewCyclesOnly: true })
-  }, [selectBudgetPlan])
-
-  const handleOpenCompensationCyclesList = useCallback(() => {
-    selectBudgetPlan(null, { overviewCyclesOnly: true })
-  }, [selectBudgetPlan])
-
-  const handleBackToOverviewDashboard = useCallback(() => {
-    selectBudgetPlan(null)
-  }, [selectBudgetPlan])
+  const openEditCompensationCycleDialog = useCallback((plan: CompensationBudgetPlanRow) => {
+    setEditingBudgetPlan(plan)
+    setCreatePlanDialogOpen(true)
+  }, [])
 
   const companySelectorToolbar = (
     <BudgetPlanSelector
@@ -153,20 +140,10 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       case 'overview':
         return (
           <OverviewView
-            accessToken={accessToken}
-            companyId={selectedCompanyId}
-            budgetPlanId={selectedBudgetPlanId}
-            selectedPlan={selectedPlanForOverview}
             plans={existingPlans}
             plansLoading={plansLoading}
-            overviewCyclesOnly={overviewCyclesOnly}
-            overviewCompanyToolbar={companySelectorOverviewToolbar}
-            onOpenCompensationCyclesList={handleOpenCompensationCyclesList}
-            onBackToOverviewDashboard={handleBackToOverviewDashboard}
-            onSelectPlan={handleSelectPlan}
-            onDeselectPlan={handleDeselectPlan}
-            onCreatePlan={() => setCreatePlanDialogOpen(true)}
-            onPlansRefetch={() => void refetchBudgetPlans()}
+            onCreatePlan={openCreateCompensationCycleDialog}
+            onEditCompensationPlan={openEditCompensationCycleDialog}
           />
         )
       case 'budget-setup':
@@ -191,26 +168,20 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
           <SubmissionsView
             accessToken={accessToken}
             companyId={selectedCompanyId}
+            compensationPlans={existingPlans}
+            plansLoading={plansLoading}
+            selectedCompensationPlanId={selectedBudgetPlanId}
+            onCompensationPlanChange={selectBudgetPlan}
             companyToolbar={companySelectorOverviewToolbar}
           />
         )
       default:
         return (
           <OverviewView
-            accessToken={accessToken}
-            companyId={selectedCompanyId}
-            budgetPlanId={selectedBudgetPlanId}
-            selectedPlan={selectedPlanForOverview}
             plans={existingPlans}
             plansLoading={plansLoading}
-            overviewCyclesOnly={overviewCyclesOnly}
-            overviewCompanyToolbar={companySelectorOverviewToolbar}
-            onOpenCompensationCyclesList={handleOpenCompensationCyclesList}
-            onBackToOverviewDashboard={handleBackToOverviewDashboard}
-            onSelectPlan={handleSelectPlan}
-            onDeselectPlan={handleDeselectPlan}
-            onCreatePlan={() => setCreatePlanDialogOpen(true)}
-            onPlansRefetch={() => void refetchBudgetPlans()}
+            onCreatePlan={openCreateCompensationCycleDialog}
+            onEditCompensationPlan={openEditCompensationCycleDialog}
           />
         )
     }
@@ -270,10 +241,12 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
         <CreateBudgetPlanDialog
           open={createPlanDialogOpen}
-          onOpenChange={setCreatePlanDialogOpen}
+          onOpenChange={handleCreatePlanDialogOpenChange}
           creating={creatingPlan}
           existingPlans={existingPlans}
           onCreate={handleCreatePlan}
+          editingPlan={editingBudgetPlan}
+          onUpdatePlan={updatePlan}
         />
       </div>
     </PageLayout>

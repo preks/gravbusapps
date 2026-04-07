@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React from 'react'
 import { Button, DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
@@ -8,15 +8,15 @@ import { useOverviewPlansTableModel } from './useOverviewPlansTableModel'
 export interface OverviewPlansTableProps {
   plans: CompensationBudgetPlanRow[]
   plansLoading: boolean
-  onSelectPlan: (planId: string) => void
   onCreatePlan: () => void
+  onEditPlan: (plan: CompensationBudgetPlanRow) => void
 }
 
 export function OverviewPlansTable({
   plans,
   plansLoading,
-  onSelectPlan,
-  onCreatePlan
+  onCreatePlan,
+  onEditPlan
 }: Readonly<OverviewPlansTableProps>) {
   const { t } = useTranslation(translations)
   const {
@@ -36,14 +36,7 @@ export function OverviewPlansTable({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useOverviewPlansTableModel(t, plans)
-
-  const handleRowClick = useCallback(
-    (plan: CompensationBudgetPlanRow) => {
-      onSelectPlan(plan.id)
-    },
-    [onSelectPlan]
-  )
+  } = useOverviewPlansTableModel(t, plans, onEditPlan)
 
   return (
     <div className="gba:space-y-4" data-testid="overview-plans-table-section">
@@ -106,7 +99,6 @@ export function OverviewPlansTable({
             showPageNumbers
             maxVisiblePages={7}
             emptyMessage={emptyMessage}
-            onRowClick={handleRowClick}
             data-testid="overview-plans-table"
           />
         </TooltipProvider>

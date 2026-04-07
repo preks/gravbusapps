@@ -19,7 +19,6 @@ import {
   DEFAULT_BUDGET_DISTRIBUTION_METHOD,
   DEFAULT_BUDGET_PLAN_STATUS_APPROVED
 } from '../../../types/budgetPlanGraphqlEnums'
-import { coerceStoredDistributionMethodToApi } from '../../../utils/mapDistributionMethodToApi'
 import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 
 /** Mirrors GraphQL `CompensationBudgetPlan` (DB: fiscal_year, start_date, …). */
@@ -37,6 +36,8 @@ export interface CompensationBudgetPlanListItem {
 /** Mirrors `compensation_budget_plan_company`: amount + percent per pool, not legacy type/value. */
 export interface CompensationBudgetPlanCompanyRow {
   id: string
+  /** Optimistic locking — required for REST `saveCompensationBudgetPlanCompany` UPDATE. */
+  version: number
   compensationBudgetPlanId: string
   companyId: string
   salaryBudgetAmount: number
@@ -103,6 +104,7 @@ function num(v: unknown): number {
 /** GraphQL row shape for `CompensationBudgetPlanCompany` selections in this module. */
 export interface CompensationBudgetPlanCompanyGraphqlRow {
   id: string
+  version?: unknown
   compensationBudgetPlanId: string
   companyId: string
   salaryBudgetAmount: unknown
@@ -119,6 +121,7 @@ export interface CompensationBudgetPlanCompanyGraphqlRow {
 function mapGraphqlCompanyRow(raw: CompensationBudgetPlanCompanyGraphqlRow): CompensationBudgetPlanCompanyRow {
   return {
     id: raw.id,
+    version: num(raw.version),
     compensationBudgetPlanId: raw.compensationBudgetPlanId,
     companyId: raw.companyId,
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
@@ -324,6 +327,46 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     [accessToken, fetchCompanyRowsForCompany, fetchPlans, restClient, selectBudgetPlan]
   )
 
+  /** Table / dialog edit: REST `saveCompensationBudgetPlanCompany` with `changeMode: UPDATE`. */
+  const updateCompanyBudgetRow = useCallback(
+    async (
+      row: CompensationBudgetPlanCompanyRow,
+      input: {
+        salaryBudgetAmount: number
+        salaryBudgetPercent: number
+        currencyRef: string | null
+      }
+    ): Promise<boolean> => {
+      if (!accessToken) return false
+      setCreatingPlan(true)
+      setError(null)
+      try {
+        const rowInput: SaveCompensationBudgetPlanCompanyRowInput = {
+          id: row.id,
+          version: row.version,
+          compensationBudgetPlanId: row.compensationBudgetPlanId,
+          companyId: row.companyId,
+          salaryBudgetAmount: roundMoney2(input.salaryBudgetAmount),
+          salaryBudgetPercent: roundMoney2(input.salaryBudgetPercent),
+          currentTotalSalaryCost: roundMoney2(row.currentTotalSalaryCost),
+          currencyRef: input.currencyRef
+        }
+        const body = buildSaveCompensationBudgetPlanCompanyUpdateBody(rowInput)
+        await saveCompensationBudgetPlanCompany(restClient, accessToken, body)
+        await fetchCompanyRowsForCompany()
+        return true
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update company budget row'
+        console.error('Failed to update compensation budget plan company:', err)
+        setError(message)
+        return false
+      } finally {
+        setCreatingPlan(false)
+      }
+    },
+    [accessToken, fetchCompanyRowsForCompany, restClient]
+  )
+
   const saveCompanyBudget = useCallback(
     async (input: SaveCompanyBudgetInput) => {
       if (!accessToken || !companyId || !selectedBudgetPlanId) return false
@@ -338,26 +381,17 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           const currentTotalSalaryCost = roundMoney2(changes.currentTotalSalaryCost)
           const currencyRef = input.currencyRef === undefined ? companyRow.currencyRef : input.currencyRef
 
-          const nextStatus =
-            companyRow.budgetPlanStatus === 'BUDGET_PLAN_EXECUTED'
-              ? companyRow.budgetPlanStatus
-              : 'BUDGET_PLAN_APPROVED'
-
           const rowInput: SaveCompensationBudgetPlanCompanyRowInput = {
             id: companyRow.id,
+            version: companyRow.version,
             compensationBudgetPlanId: companyRow.compensationBudgetPlanId,
             companyId: companyRow.companyId,
             salaryBudgetAmount,
             salaryBudgetPercent,
-            budgetPlanStatus: nextStatus,
             currentTotalSalaryCost,
-            currencyRef,
-            headcount: input.headcount
+            currencyRef
           }
-          const body = buildSaveCompensationBudgetPlanCompanyUpdateBody(
-            rowInput,
-            coerceStoredDistributionMethodToApi(companyRow.distributionMethod)
-          )
+          const body = buildSaveCompensationBudgetPlanCompanyUpdateBody(rowInput)
           await saveCompensationBudgetPlanCompany(restClient, accessToken, body)
         } else {
           const { id, raw } = await saveCompensationBudgetPlanCompany(restClient, accessToken, {
@@ -413,6 +447,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     refetchCompanyRow: fetchCompanyRow,
     refetchCompanyRowsForCompany: fetchCompanyRowsForCompany,
     createPlan,
+    updateCompanyBudgetRow,
     saveCompanyBudget
   }
 }

@@ -16,10 +16,13 @@ export interface BudgetSetupPlansTableProps {
   plans: CompensationBudgetPlanListItem[]
   loading: boolean
   error: string | null
-  /** Company selector in the DataDisplay toolbar (same row as search/filters), matching Overview. */
-  companyToolbar?: React.ReactNode
-  /** Primary button(s) after the company selector (e.g. create plan). */
+  /** Compensation cycle selector — use `CompensationCycleSelector` with `variant="toolbar"` (same layout as `BudgetPlanSelector`). */
+  cycleToolbar?: React.ReactNode
+  /** Primary button in the DataDisplay toolbar (e.g. create plan). */
   toolbarEnd?: React.ReactNode
+  onEditRow: (row: BudgetSetupPlanTableRow) => void
+  /** Filters rows to this compensation cycle (toolbar selector). */
+  selectedCompensationPlanId: string | null
 }
 
 export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
@@ -29,8 +32,10 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   plans,
   loading,
   error,
-  companyToolbar,
-  toolbarEnd
+  cycleToolbar,
+  toolbarEnd,
+  onEditRow,
+  selectedCompensationPlanId
 }) => {
   const { t } = useTranslation(translations)
   const {
@@ -50,7 +55,15 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useBudgetSetupPlansTableModel(t, companyBudgetPlanRows, companyId, currencyCode, plans)
+  } = useBudgetSetupPlansTableModel(
+    t,
+    companyBudgetPlanRows,
+    companyId,
+    currencyCode,
+    plans,
+    onEditRow,
+    selectedCompensationPlanId
+  )
 
   return (
     <DataDisplay
@@ -80,8 +93,8 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={setVisibleColumns}
       primaryAction={
-        <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-3 gba:pl-2 gba:md:pl-3">
-          {companyToolbar}
+        <div className="gba:inline-flex gba:shrink-0 gba:items-center gba:gap-2">
+          {cycleToolbar}
           {toolbarEnd}
         </div>
       }

@@ -119,6 +119,7 @@ manager-team-submit-proposals = Submit proposals
 manager-team-submitting = Submitting…
 manager-team-submit-no-drafts = Save at least one allocation to the budget plan before submitting. Use Distribute, then save in the dialog.
 manager-team-submit-error = Could not submit proposals. {$message}
+manager-team-submit-missing-row-version = Could not load budget row version for submission. Refresh the page and try again.
 manager-team-proposals-readonly-hint = Proposals have been submitted for review. Editing is disabled.
 
 supervisor-review-no-auth = You must be signed in to approve or send back proposals.

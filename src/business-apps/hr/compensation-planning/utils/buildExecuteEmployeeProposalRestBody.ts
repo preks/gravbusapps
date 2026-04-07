@@ -20,6 +20,7 @@ export function buildExecuteEmployeeProposalBody(
     changeMode: 'UPDATE',
     compensationBudgetPlanEmployee: {
       id: row.id,
+      version: row.version,
       proposedSalaryIncreaseAmount: row.proposedSalaryIncreaseAmount,
       proposedSalaryIncreasePercent: row.proposedSalaryIncreasePercent,
       proposedNewSalary: row.proposedNewSalary,

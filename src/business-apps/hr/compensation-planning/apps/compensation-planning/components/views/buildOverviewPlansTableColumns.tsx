@@ -1,5 +1,13 @@
 import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
@@ -36,7 +44,10 @@ function sortTimestamp(iso: string | null | undefined): number {
   return Number.isNaN(ms) ? 0 : ms
 }
 
-export function buildOverviewPlansTableColumns(t: TranslateFn): ColumnDef<CompensationBudgetPlanRow>[] {
+export function buildOverviewPlansTableColumns(
+  t: TranslateFn,
+  onEditPlan: (plan: CompensationBudgetPlanRow) => void
+): ColumnDef<CompensationBudgetPlanRow>[] {
   return [
     {
       id: 'name',
@@ -88,6 +99,40 @@ export function buildOverviewPlansTableColumns(t: TranslateFn): ColumnDef<Compen
       header: columnHeader(t, 'overview-plans-col-effective'),
       meta: LEFT_TEXT_COLUMN_META,
       cell: ({ row }) => <span className={TABLE_BODY_NUM_CELL}>{formatPlanDate(row.original.effectiveDate)}</span>
+    },
+    {
+      id: 'actions',
+      header: () => null,
+      meta: { align: 'right' as const, type: 'text' as const },
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="gba:flex gba:w-full gba:justify-end gba:pr-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gba:h-8 gba:w-8 gba:p-0"
+                data-testid={`overview-plans-row-actions-${row.original.id}`}
+                aria-label={t('compensation-planning-row-menu-aria-label')}
+              >
+                <DotsThreeVerticalIcon className="gba:size-4" weight="bold" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  onEditPlan(row.original)
+                }}
+                data-testid={`overview-plans-row-edit-${row.original.id}`}
+              >
+                {t('compensation-planning-action-edit')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )
     }
   ]
 }
@@ -98,5 +143,6 @@ export const OVERVIEW_PLANS_VISIBLE_COLUMN_IDS = [
   'fiscalYear',
   'startDate',
   'endDate',
-  'effectiveDate'
+  'effectiveDate',
+  'actions'
 ] as const

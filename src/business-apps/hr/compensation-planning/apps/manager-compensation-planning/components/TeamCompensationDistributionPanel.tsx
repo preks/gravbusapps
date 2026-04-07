@@ -37,6 +37,7 @@ export interface TeamCompensationDistributionPanelProps {
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
+  activeCompensationBudgetPlanId: string | null
   currencyCode: string
   accessToken: string | undefined
   managerEmployeeId: string | undefined
@@ -62,6 +63,7 @@ export function TeamCompensationDistributionPanel({
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
+  activeCompensationBudgetPlanId,
   currencyCode,
   accessToken,
   managerEmployeeId,
@@ -175,6 +177,8 @@ export function TeamCompensationDistributionPanel({
     accessToken,
     managerEmployeeId,
     restClient,
+    companyId: selectedCompanyId,
+    activeCompensationBudgetPlanId,
     teamMembers,
     allocationByEmployeeId: allocationFullTeam,
     planOuRowIdByOrganizationalUnitId,

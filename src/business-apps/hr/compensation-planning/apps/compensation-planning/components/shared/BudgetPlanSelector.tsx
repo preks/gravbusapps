@@ -17,7 +17,7 @@ interface BudgetPlanSelectorProps {
   variant?: 'default' | 'toolbar'
   /**
    * With `toolbar`, lets the select shrink inside flex rows (e.g. Overview plan detail header) so it is not clipped.
-   * Uses full width up to `max-w-sm` instead of a fixed `w-52`.
+   * Uses full width up to `max-w-sm` instead of a fixed `w-72`.
    */
   fluidToolbarWidth?: boolean
   /** Stronger label weight (e.g. Budget distribution next to company budget). */
@@ -36,6 +36,8 @@ export const BudgetPlanSelector: React.FC<BudgetPlanSelectorProps> = ({
 }) => {
   const companySelectValue =
     selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
+
+  const selectedCompanyName = companies.find(c => c.id === selectedCompanyId)?.name?.trim()
 
   const isToolbar = variant === 'toolbar'
 
@@ -69,8 +71,8 @@ export const BudgetPlanSelector: React.FC<BudgetPlanSelectorProps> = ({
             isToolbar
               ? fluidToolbarWidth
                 ? 'gba:min-w-0 gba:flex-1'
-                : 'gba:w-52 gba:min-w-0 gba:max-w-full'
-              : 'gba:w-64 gba:min-w-0'
+                : 'gba:inline-flex gba:min-w-0 gba:max-w-lg gba:shrink-0'
+              : 'gba:inline-flex gba:min-w-0 gba:max-w-lg'
           )}
         >
           <Select
@@ -79,7 +81,14 @@ export const BudgetPlanSelector: React.FC<BudgetPlanSelectorProps> = ({
             disabled={companiesLoading || companies.length === 0}
           >
             <SelectTrigger
-              className={cn(isToolbar && fluidToolbarWidth && 'gba:min-w-0 gba:w-full')}
+              className={cn(
+                isToolbar && fluidToolbarWidth && 'gba:!w-full gba:min-w-0 gba:max-w-full',
+                isToolbar && !fluidToolbarWidth && 'gba:!w-max gba:min-w-72 gba:max-w-lg',
+                !isToolbar && 'gba:!w-max gba:min-w-64 gba:max-w-lg'
+              )}
+              title={
+                selectedCompanyName !== undefined && selectedCompanyName.length > 0 ? selectedCompanyName : undefined
+              }
               data-testid="budget-plan-selector-company"
             >
               <SelectValue placeholder={companiesLoading ? t('selector-loading') : t('selector-company-placeholder')} />

@@ -45,11 +45,12 @@ export function useBudgetSetupPlansTableModel(
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
   selectedCompanyId: string,
   currencyCode: string,
-  plans: CompensationBudgetPlanListItem[]
+  plans: CompensationBudgetPlanListItem[],
+  onEditRow: (row: BudgetSetupPlanTableRow) => void,
+  selectedCompensationPlanId: string | null
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
-  const [selectedCompensationBudgetPlanIds, setSelectedCompensationBudgetPlanIds] = useState<string[]>([])
   const [selectedCompanyBudgetStatuses, setSelectedCompanyBudgetStatuses] = useState<string[]>([])
   const [salaryAmountRange, setSalaryAmountRange] = useState<{ min?: number; max?: number } | null>(null)
   const [salaryPercentRange, setSalaryPercentRange] = useState<{ min?: number; max?: number } | null>(null)
@@ -58,19 +59,16 @@ export function useBudgetSetupPlansTableModel(
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS])
 
   const allRows = useMemo(
-    () => buildBudgetSetupPlanTableRows(companyBudgetPlanRows, selectedCompanyId, currencyCode, plans),
-    [companyBudgetPlanRows, selectedCompanyId, currencyCode, plans]
+    () =>
+      buildBudgetSetupPlanTableRows(
+        companyBudgetPlanRows,
+        selectedCompanyId,
+        currencyCode,
+        plans,
+        selectedCompensationPlanId
+      ),
+    [companyBudgetPlanRows, selectedCompanyId, currencyCode, plans, selectedCompensationPlanId]
   )
-
-  const budgetPlanOptions = useMemo(() => {
-    const byId = new Map<string, string>()
-    for (const row of allRows) {
-      if (!byId.has(row.compensationBudgetPlanId)) {
-        byId.set(row.compensationBudgetPlanId, row.budgetPlanLabel)
-      }
-    }
-    return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, label]) => ({ id, label }))
-  }, [allRows])
 
   const companyBudgetStatusOptions = useMemo(() => {
     const ids = new Set<string>()
@@ -85,8 +83,8 @@ export function useBudgetSetupPlansTableModel(
   }, [allRows, t])
 
   const filterConfiguration = useMemo(
-    () => buildBudgetSetupPlansFilterConfiguration(t, budgetPlanOptions, companyBudgetStatusOptions),
-    [t, budgetPlanOptions, companyBudgetStatusOptions]
+    () => buildBudgetSetupPlansFilterConfiguration(t, companyBudgetStatusOptions),
+    [t, companyBudgetStatusOptions]
   )
 
   const filteredRows = useMemo(() => {
@@ -108,11 +106,6 @@ export function useBudgetSetupPlansTableModel(
       })
     }
 
-    if (selectedCompensationBudgetPlanIds.length > 0) {
-      const planSet = new Set(selectedCompensationBudgetPlanIds)
-      list = list.filter(row => planSet.has(row.compensationBudgetPlanId))
-    }
-
     if (selectedCompanyBudgetStatuses.length > 0) {
       const set = new Set(selectedCompanyBudgetStatuses)
       list = list.filter(row => row.companyBudgetStatus != null && set.has(row.companyBudgetStatus))
@@ -127,39 +120,21 @@ export function useBudgetSetupPlansTableModel(
     }
 
     return list
-  }, [
-    allRows,
-    debouncedSearch,
-    selectedCompensationBudgetPlanIds,
-    selectedCompanyBudgetStatuses,
-    salaryAmountRange,
-    salaryPercentRange,
-    t
-  ])
+  }, [allRows, debouncedSearch, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange, t])
 
   const hasActiveFilters = useMemo(
     () =>
       debouncedSearch.trim() !== '' ||
-      selectedCompensationBudgetPlanIds.length > 0 ||
       selectedCompanyBudgetStatuses.length > 0 ||
       salaryAmountRange != null ||
       salaryPercentRange != null,
-    [
-      debouncedSearch,
-      selectedCompensationBudgetPlanIds,
-      selectedCompanyBudgetStatuses,
-      salaryAmountRange,
-      salaryPercentRange
-    ]
+    [debouncedSearch, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange]
   )
 
   const emptyMessage = hasActiveFilters ? t('budget-setup-table-empty-filtered') : t('budget-setup-table-empty')
 
   const filtersObject = useMemo(() => {
     const obj: Record<string, unknown> = {}
-    if (selectedCompensationBudgetPlanIds.length > 0) {
-      obj.compensationBudgetPlanIds = selectedCompensationBudgetPlanIds
-    }
     if (selectedCompanyBudgetStatuses.length > 0) {
       obj.companyBudgetStatuses = selectedCompanyBudgetStatuses
     }
@@ -170,12 +145,9 @@ export function useBudgetSetupPlansTableModel(
       obj.salaryBudgetPercent = { ...salaryPercentRange }
     }
     return obj
-  }, [selectedCompensationBudgetPlanIds, selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange])
+  }, [selectedCompanyBudgetStatuses, salaryAmountRange, salaryPercentRange])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
-    const planIds = (filters.compensationBudgetPlanIds as string[] | undefined) ?? []
-    setSelectedCompensationBudgetPlanIds(planIds)
-
     const statuses = (filters.companyBudgetStatuses as string[] | undefined) ?? []
     setSelectedCompanyBudgetStatuses(statuses)
 
@@ -184,8 +156,8 @@ export function useBudgetSetupPlansTableModel(
   }, [])
 
   const columns = useMemo(
-    () => buildBudgetSetupPlansTableColumns(t, v => formatBudgetPlanStatusLabelForDisplay(v, t)),
-    [t]
+    () => buildBudgetSetupPlansTableColumns(t, v => formatBudgetPlanStatusLabelForDisplay(v, t), onEditRow),
+    [t, onEditRow]
   )
 
   const visibleTableColumns = useMemo(
@@ -202,7 +174,8 @@ export function useBudgetSetupPlansTableModel(
       { id: 'companyBudgetStatus', label: t('budget-setup-table-col-budget-plan-status') },
       { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
       { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') },
-      { id: 'salaryBaseline', label: t('budget-setup-table-col-salary-baseline') }
+      { id: 'salaryBaseline', label: t('budget-setup-table-col-salary-baseline') },
+      { id: 'actions', label: '' }
     ],
     [t]
   )
@@ -217,11 +190,11 @@ export function useBudgetSetupPlansTableModel(
     setPagination(p => ({ ...p, pageIndex: 0 }))
   }, [
     debouncedSearch,
-    selectedCompensationBudgetPlanIds,
     selectedCompanyBudgetStatuses,
     salaryAmountRange,
     salaryPercentRange,
-    sorting
+    sorting,
+    selectedCompensationPlanId
   ])
 
   return {

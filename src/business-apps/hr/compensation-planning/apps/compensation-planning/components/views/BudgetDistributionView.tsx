@@ -12,8 +12,8 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
+import { WidgetGroup } from '@/components/widget-group'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-import { formatCurrency } from '@/common/utils/numberFormatter'
 import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import { useTeamMemberPerformanceScores } from '../../../manager-compensation-planning/hooks/useTeamMemberPerformanceScores'
@@ -21,7 +21,7 @@ import { distributeToOrgUnits, resolveCompanySalaryIncreasePool } from '../../..
 import { buildOrgUnitDistributionInputsFromTeamMembers } from '../../../../utils/buildOrgUnitDistributionInputs'
 import translations from '../../_i18n'
 import { BudgetDistributionOrgUnitList } from './BudgetDistributionOrgUnitList'
-import { BudgetDistributionMethodSelector, budgetDistributionMethodTitleKey } from './BudgetDistributionMethodSelector'
+import { BudgetDistributionMethodSelector } from './BudgetDistributionMethodSelector'
 import { useBudgetDistributionOrgUnitBudget } from '../../hooks/useBudgetDistributionOrgUnitBudget'
 import { useCompensationPlanningStore } from '../../hooks/useCompensationPlanningStore'
 import { useBudgetDistributionViewStore } from '../../hooks/budgetDistributionViewStore'
@@ -29,6 +29,7 @@ import { useBudgetDistributionCustomBudgetMaps } from '../../hooks/useBudgetDist
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../../api/compensationBudgetRestConfig'
 import { BudgetDistributionDistributeDialog } from './BudgetDistributionDistributeDialog'
 import { BudgetDistributionContextCard } from './BudgetDistributionContextCard'
+import { BudgetDistributionPoolKpiCards } from './BudgetDistributionPoolKpiCards'
 
 export interface BudgetDistributionViewProps {
   accessToken: string
@@ -227,37 +228,51 @@ export function BudgetDistributionView({
     </div>
   )
 
-  const contextPoolSection = useMemo(() => {
-    if (selectedCompanyBudgetRow && activeDistributionPool != null && activeDistributionPool > 0) {
-      return (
-        <div className="gba:space-y-1" data-testid="budget-distribution-preview-pool-summary">
-          <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-            {t('budget-distribution-pool-primary-label')}
-          </p>
-          <p className="gba:text-2xl gba:font-semibold gba:tabular-nums gba:text-foreground">
-            {formatCurrency(activeDistributionPool, currencyCode)}
-          </p>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {t('budget-distribution-using-method', {
-              method: t(budgetDistributionMethodTitleKey(selectedMethod))
-            })}
-          </p>
-        </div>
-      )
+  const standalonePoolKpiSection = useMemo(() => {
+    if (!hasSelectedCompanyBudget) {
+      return null
     }
-    if (
-      hasSelectedCompanyBudget &&
-      selectedCompanyBudgetRow &&
-      (activeDistributionPool == null || activeDistributionPool <= 0)
-    ) {
+    if (!selectedCompanyBudgetRow) {
+      if (listLoading) {
+        return (
+          <WidgetGroup
+            isLoading
+            widgets={[]}
+            skeletonCount={2}
+            cardsClassName="gba:sm:grid-cols-2"
+            data-testid="budget-distribution-kpi-cards-loading"
+          />
+        )
+      }
+      return null
+    }
+    if (activeDistributionPool == null || activeDistributionPool <= 0) {
       return (
         <p className="gba:text-sm gba:text-muted-foreground" data-testid="budget-distribution-preview-pool-zero">
           {t('budget-distribution-preview-pool-zero')}
         </p>
       )
     }
-    return null
-  }, [activeDistributionPool, currencyCode, hasSelectedCompanyBudget, selectedCompanyBudgetRow, selectedMethod, t])
+    return (
+      <BudgetDistributionPoolKpiCards
+        pool={activeDistributionPool}
+        allocationByOrgUnitId={previewAllocationByOrgUnit}
+        currencyCode={currencyCode}
+        selectedMethod={selectedMethod}
+        loading={listLoading}
+        t={t}
+      />
+    )
+  }, [
+    activeDistributionPool,
+    currencyCode,
+    hasSelectedCompanyBudget,
+    listLoading,
+    previewAllocationByOrgUnit,
+    selectedCompanyBudgetRow,
+    selectedMethod,
+    t
+  ])
 
   return (
     <div className="gba:space-y-4" data-testid="budget-distribution-view">
@@ -265,8 +280,13 @@ export function BudgetDistributionView({
         title={t('budget-distribution-context-card-title')}
         planSelect={planSelect}
         companyToolbar={companyToolbar}
-        poolSection={contextPoolSection}
       />
+
+      {standalonePoolKpiSection ? (
+        <div className="gba:w-full" data-testid="budget-distribution-pool-kpi-standalone">
+          {standalonePoolKpiSection}
+        </div>
+      ) : null}
 
       <BudgetDistributionDistributeDialog
         open={distributeOpen}
@@ -279,7 +299,6 @@ export function BudgetDistributionView({
         distributionPool={activeDistributionPool}
         currencyCode={currencyCode}
         companyBudgetRow={selectedCompanyBudgetRow}
-        selectedDistributionMethod={selectedMethod}
         onSaved={handleDistributeSaved}
       />
 

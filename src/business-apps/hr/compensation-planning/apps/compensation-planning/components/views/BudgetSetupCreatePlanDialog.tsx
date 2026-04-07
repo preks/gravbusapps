@@ -22,12 +22,17 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import type { CompensationBudgetPlanListItem, CreateBudgetPlanInput } from '../../hooks/useBudgetSetupForCompany'
+import type {
+  CompensationBudgetPlanCompanyRow,
+  CompensationBudgetPlanListItem,
+  CreateBudgetPlanInput
+} from '../../hooks/useBudgetSetupForCompany'
 import { useCurrencyCatalogOptions } from '../../hooks/useCurrencyCatalogOptions'
 import translations from '../../_i18n'
 import {
   buildCreateBudgetPlanFormSchema,
   getDefaultCreatePlanFormValues,
+  getEditCompanyBudgetFormValuesFromRow,
   pickDefaultCompensationBudgetPlanId,
   type CreatePlanFormValues
 } from './budgetSetupCreatePlanSchema'
@@ -49,6 +54,9 @@ export interface BudgetSetupCreatePlanDialogProps {
   loadingPlans: boolean
   /** Pre-select when it matches a listed plan (e.g. toolbar selection). */
   defaultCompensationBudgetPlanId: string | null
+  /** Edit existing company budget row (REST UPDATE). */
+  editRow?: CompensationBudgetPlanCompanyRow | null
+  onUpdateRow?: (row: CompensationBudgetPlanCompanyRow, values: CreatePlanFormValues) => Promise<boolean | null>
 }
 
 export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogProps> = ({
@@ -63,9 +71,12 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
   companyName,
   plans,
   loadingPlans,
-  defaultCompensationBudgetPlanId
+  defaultCompensationBudgetPlanId,
+  editRow = null,
+  onUpdateRow
 }) => {
   const { t } = useTranslation(translations)
+  const isEdit = editRow != null
   const { options: currencyOptions, loading: loadingCurrencies } = useCurrencyCatalogOptions(accessToken)
   const plansSafe = plans ?? []
   const currencyOptionsSafe = currencyOptions ?? []
@@ -85,24 +96,41 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
 
   useEffect(() => {
     if (!open) return
+    if (editRow != null) {
+      const fallbackCurrency =
+        currencyOptionsSafe.find(o => o.id === editRow.currencyRef)?.id ??
+        currencyOptionsSafe.find(o => o.label === currencyCode)?.id ??
+        currencyOptionsSafe[0]?.id ??
+        ''
+      form.reset(getEditCompanyBudgetFormValuesFromRow(editRow, fallbackCurrency))
+      return
+    }
     const planId = pickDefaultCompensationBudgetPlanId(plansSafe, defaultCompensationBudgetPlanId)
     form.reset(getDefaultCreatePlanFormValues(planId, ''))
-  }, [form, open, plansSafe, defaultCompensationBudgetPlanId])
+  }, [form, open, plansSafe, defaultCompensationBudgetPlanId, editRow, currencyOptionsSafe, currencyCode])
 
   useEffect(() => {
-    if (!open || currencyOptionsSafe.length === 0) return
+    if (!open || currencyOptionsSafe.length === 0 || isEdit) return
     const current = form.getValues('currencyRef')
     if (current) return
     const match = currencyOptionsSafe.find(o => o.label === currencyCode) ?? currencyOptionsSafe[0]
     if (match) {
       form.setValue('currencyRef', match.id, { shouldValidate: true })
     }
-  }, [open, currencyOptionsSafe, currencyCode, form])
+  }, [open, currencyOptionsSafe, currencyCode, form, isEdit])
 
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [pendingSubmitValues, setPendingSubmitValues] = useState<CreatePlanFormValues | null>(null)
 
   const onSubmit = form.handleSubmit(values => {
+    if (isEdit && editRow != null && onUpdateRow) {
+      void onUpdateRow(editRow, values).then(ok => {
+        if (ok) {
+          onOpenChange(false)
+        }
+      })
+      return
+    }
     setPendingSubmitValues(values)
     setConfirmSaveOpen(true)
   })
@@ -134,7 +162,10 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
   }
 
   const watchedPlanId = useWatch({ control: form.control, name: 'compensationBudgetPlanId' })
-  const selectedPlanMeta = useMemo(() => plansSafe.find(p => p.id === watchedPlanId), [plansSafe, watchedPlanId])
+  const selectedPlanMeta = useMemo(() => {
+    const id = editRow != null ? editRow.compensationBudgetPlanId : watchedPlanId
+    return plansSafe.find(p => p.id === id) ?? null
+  }, [plansSafe, watchedPlanId, editRow])
 
   return (
     <>
@@ -144,7 +175,9 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
           data-testid="budget-setup-create-plan-dialog"
         >
           <DialogHeader>
-            <DialogTitle>{t('budget-setup-create-plan-title')}</DialogTitle>
+            <DialogTitle>
+              {isEdit ? t('budget-setup-update-company-budget-title') : t('budget-setup-create-plan-title')}
+            </DialogTitle>
             {companyName ? (
               <p className="gba:text-sm gba:text-muted-foreground">
                 {t('budget-setup-company-context', { company: companyName })}
@@ -163,7 +196,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                       {loadingPlans ? <Spinner className="gba:h-4 gba:w-4" /> : null}
                     </div>
                     <Select
-                      disabled={loadingPlans || plansSafe.length === 0}
+                      disabled={isEdit || loadingPlans || plansSafe.length === 0}
                       onValueChange={field.onChange}
                       value={field.value || undefined}
                     >
@@ -239,14 +272,13 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                   type="submit"
                   disabled={
                     creating ||
-                    loadingPlans ||
-                    plansSafe.length === 0 ||
                     loadingCurrencies ||
-                    currencyOptionsSafe.length === 0
+                    currencyOptionsSafe.length === 0 ||
+                    (!isEdit && (loadingPlans || plansSafe.length === 0))
                   }
                   data-testid="budget-setup-create-plan-submit"
                 >
-                  {t('budget-setup-create-plan-submit')}
+                  {isEdit ? t('budget-setup-update-company-budget-submit') : t('budget-setup-create-plan-submit')}
                 </Button>
               </DialogFooter>
             </form>

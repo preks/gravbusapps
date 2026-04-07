@@ -4,13 +4,24 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import { buildOverviewPlansTableColumns, OVERVIEW_PLANS_VISIBLE_COLUMN_IDS } from './buildOverviewPlansTableColumns'
 import { buildOverviewPlansFilterConfiguration } from './buildOverviewPlansFilterConfiguration'
+import { parseDateRangeFilterValue, planDateFieldMatchesInclusiveRange } from './budgetPlanTableFilterHelpers'
 import { formatBudgetPlanStatusLabelForDisplay, type TranslateFn } from './budgetSetupDisplayUtils'
 
-export function useOverviewPlansTableModel(t: TranslateFn, plans: CompensationBudgetPlanRow[]) {
+export function useOverviewPlansTableModel(
+  t: TranslateFn,
+  plans: CompensationBudgetPlanRow[],
+  onEditPlan: (plan: CompensationBudgetPlanRow) => void
+) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedFiscalYearIds, setSelectedFiscalYearIds] = useState<string[]>([])
+  const [startDateFrom, setStartDateFrom] = useState<string | null>(null)
+  const [startDateTo, setStartDateTo] = useState<string | null>(null)
+  const [endDateFrom, setEndDateFrom] = useState<string | null>(null)
+  const [endDateTo, setEndDateTo] = useState<string | null>(null)
+  const [effectiveDateFrom, setEffectiveDateFrom] = useState<string | null>(null)
+  const [effectiveDateTo, setEffectiveDateTo] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...OVERVIEW_PLANS_VISIBLE_COLUMN_IDS])
@@ -70,12 +81,57 @@ export function useOverviewPlansTableModel(t: TranslateFn, plans: CompensationBu
       list = list.filter(plan => yearSet.has(plan.fiscalYear))
     }
 
+    if (startDateFrom != null || startDateTo != null) {
+      list = list.filter(plan => planDateFieldMatchesInclusiveRange(plan, 'startDate', startDateFrom, startDateTo))
+    }
+
+    if (endDateFrom != null || endDateTo != null) {
+      list = list.filter(plan => planDateFieldMatchesInclusiveRange(plan, 'endDate', endDateFrom, endDateTo))
+    }
+
+    if (effectiveDateFrom != null || effectiveDateTo != null) {
+      list = list.filter(plan =>
+        planDateFieldMatchesInclusiveRange(plan, 'effectiveDate', effectiveDateFrom, effectiveDateTo)
+      )
+    }
+
     return list
-  }, [plans, debouncedSearch, selectedStatuses, selectedFiscalYearIds, t])
+  }, [
+    plans,
+    debouncedSearch,
+    selectedStatuses,
+    selectedFiscalYearIds,
+    startDateFrom,
+    startDateTo,
+    endDateFrom,
+    endDateTo,
+    effectiveDateFrom,
+    effectiveDateTo,
+    t
+  ])
 
   const hasActiveFilters = useMemo(
-    () => debouncedSearch.trim() !== '' || selectedStatuses.length > 0 || selectedFiscalYearIds.length > 0,
-    [debouncedSearch, selectedStatuses, selectedFiscalYearIds]
+    () =>
+      debouncedSearch.trim() !== '' ||
+      selectedStatuses.length > 0 ||
+      selectedFiscalYearIds.length > 0 ||
+      startDateFrom != null ||
+      startDateTo != null ||
+      endDateFrom != null ||
+      endDateTo != null ||
+      effectiveDateFrom != null ||
+      effectiveDateTo != null,
+    [
+      debouncedSearch,
+      selectedStatuses,
+      selectedFiscalYearIds,
+      startDateFrom,
+      startDateTo,
+      endDateFrom,
+      endDateTo,
+      effectiveDateFrom,
+      effectiveDateTo
+    ]
   )
 
   const emptyMessage = hasActiveFilters ? t('overview-plans-table-empty-filtered') : t('overview-plans-empty-hint')
@@ -88,17 +144,62 @@ export function useOverviewPlansTableModel(t: TranslateFn, plans: CompensationBu
     if (selectedFiscalYearIds.length > 0) {
       obj.fiscalYears = selectedFiscalYearIds
     }
+    if (startDateFrom != null || startDateTo != null) {
+      obj.startDateRange = [startDateFrom, startDateTo]
+    }
+    if (endDateFrom != null || endDateTo != null) {
+      obj.endDateRange = [endDateFrom, endDateTo]
+    }
+    if (effectiveDateFrom != null || effectiveDateTo != null) {
+      obj.effectiveDateRange = [effectiveDateFrom, effectiveDateTo]
+    }
     return obj
-  }, [selectedStatuses, selectedFiscalYearIds])
+  }, [
+    selectedStatuses,
+    selectedFiscalYearIds,
+    startDateFrom,
+    startDateTo,
+    endDateFrom,
+    endDateTo,
+    effectiveDateFrom,
+    effectiveDateTo
+  ])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statuses = (filters.budgetPlanStatuses as string[] | undefined) ?? []
     setSelectedStatuses(statuses)
     const years = (filters.fiscalYears as string[] | undefined) ?? []
     setSelectedFiscalYearIds(years)
+
+    const startParsed = parseDateRangeFilterValue(filters.startDateRange as [unknown, unknown] | null)
+    if (startParsed == null) {
+      setStartDateFrom(null)
+      setStartDateTo(null)
+    } else {
+      setStartDateFrom(startParsed.from)
+      setStartDateTo(startParsed.to)
+    }
+
+    const endParsed = parseDateRangeFilterValue(filters.endDateRange as [unknown, unknown] | null)
+    if (endParsed == null) {
+      setEndDateFrom(null)
+      setEndDateTo(null)
+    } else {
+      setEndDateFrom(endParsed.from)
+      setEndDateTo(endParsed.to)
+    }
+
+    const effParsed = parseDateRangeFilterValue(filters.effectiveDateRange as [unknown, unknown] | null)
+    if (effParsed == null) {
+      setEffectiveDateFrom(null)
+      setEffectiveDateTo(null)
+    } else {
+      setEffectiveDateFrom(effParsed.from)
+      setEffectiveDateTo(effParsed.to)
+    }
   }, [])
 
-  const columns = useMemo(() => buildOverviewPlansTableColumns(t), [t])
+  const columns = useMemo(() => buildOverviewPlansTableColumns(t, onEditPlan), [t, onEditPlan])
 
   const visibleTableColumns = useMemo(
     () =>
@@ -115,7 +216,8 @@ export function useOverviewPlansTableModel(t: TranslateFn, plans: CompensationBu
       { id: 'fiscalYear', label: t('overview-plans-col-fiscal-year') },
       { id: 'startDate', label: t('overview-plans-col-start') },
       { id: 'endDate', label: t('overview-plans-col-end') },
-      { id: 'effectiveDate', label: t('overview-plans-col-effective') }
+      { id: 'effectiveDate', label: t('overview-plans-col-effective') },
+      { id: 'actions', label: '' }
     ],
     [t]
   )
@@ -128,7 +230,18 @@ export function useOverviewPlansTableModel(t: TranslateFn, plans: CompensationBu
 
   useEffect(() => {
     setPagination(p => ({ ...p, pageIndex: 0 }))
-  }, [debouncedSearch, selectedStatuses, selectedFiscalYearIds, sorting])
+  }, [
+    debouncedSearch,
+    selectedStatuses,
+    selectedFiscalYearIds,
+    startDateFrom,
+    startDateTo,
+    endDateFrom,
+    endDateTo,
+    effectiveDateFrom,
+    effectiveDateTo,
+    sorting
+  ])
 
   return {
     searchInput,
