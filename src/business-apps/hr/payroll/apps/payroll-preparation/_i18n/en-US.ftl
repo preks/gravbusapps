@@ -47,7 +47,8 @@ summary-warning = Warnings
 summary-blocked = Blocked
 summary-excluded = Excluded
 summary-blockers = Open Blockers
-summary-changed = Changed
+summary-open-warnings = Open Warnings
+summary-changed = Changes
 
 label-company = Company:
 label-month = Month:

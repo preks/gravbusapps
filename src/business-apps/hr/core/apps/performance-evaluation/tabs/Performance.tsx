@@ -12,6 +12,10 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   useTranslation,
   Spinner
 } from '@newwork/nw-design-system'
@@ -31,7 +35,7 @@ export interface PerformanceProps {
   cyclesError: string | null
   ratingScales: RatingScale[]
   valuesStore: ValueItemStored[]
-  onCompleteCycle: (cycleId: string) => Promise<void>
+  onCompleteCycle: (cycleId: string) => void
   onStartCycle: (cycleId: string) => void
   onManualRun: () => void
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
@@ -211,16 +215,27 @@ export const Performance: React.FC<PerformanceProps> = ({
                               </Button>
                             )}
                             {displayStatus !== 'In Progress' && displayStatus !== 'Completed' && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => onStartCycle(c.id)}
-                                disabled={!canStartCycle(c)}
-                                data-testid={`perf-start-${c.id}`}
-                              >
-                                <Play weight="fill" className="gba:mr-1" size={16} />
-                                {t('button-start')}
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="gba:inline-flex">
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => onStartCycle(c.id)}
+                                        disabled={!canStartCycle(c)}
+                                        data-testid={`perf-start-${c.id}`}
+                                      >
+                                        <Play weight="fill" className="gba:mr-1" size={16} />
+                                        {t('button-start')}
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t('start-button-tooltip')}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                           </div>
                         </TableCell>

@@ -1,0 +1,213 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
+import {
+  LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY,
+  LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET_IDS,
+  LIST_COMPENSATION_BUDGET_PLANS
+} from '../../../queries/budgetPlanQueries'
+import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
+import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from '../../../utils/graphqlUnknownToString'
+import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import type { CompensationBudgetPlanCompanyRow, CompensationBudgetPlanListItem } from './useBudgetSetupForCompany'
+import {
+  buildSubmissionsOrgUnitTableRows,
+  type SubmissionsOrgUnitGraphqlRow,
+  type SubmissionsOrgUnitTableRow
+} from '../components/views/submissionsOrgUnitTableRows'
+
+function num(v: unknown): number {
+  if (typeof v === 'number' && !Number.isNaN(v)) return v
+  const n = Number(v)
+  return Number.isNaN(n) ? 0 : n
+}
+
+function fillPlanListItem(
+  p: Partial<CompensationBudgetPlanListItem> & { id: string; name?: string }
+): CompensationBudgetPlanListItem {
+  return {
+    id: p.id,
+    name: p.name ?? '',
+    description: p.description ?? null,
+    fiscalYear: typeof p.fiscalYear === 'number' && !Number.isNaN(p.fiscalYear) ? p.fiscalYear : 0,
+    startDate: p.startDate ?? null,
+    endDate: p.endDate ?? null,
+    effectiveDate: p.effectiveDate ?? null,
+    budgetPlanStatus: p.budgetPlanStatus ?? ''
+  }
+}
+
+function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPlanListItem[] {
+  return [...list].sort((a, b) => {
+    const fy = (b.fiscalYear ?? 0) - (a.fiscalYear ?? 0)
+    if (fy !== 0) return fy
+    return a.name.localeCompare(b.name)
+  })
+}
+
+function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
+  return {
+    id: graphqlUnknownToString(raw.id),
+    compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
+    companyId: graphqlUnknownToString(raw.companyId),
+    salaryBudgetAmount: num(raw.salaryBudgetAmount),
+    salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    bonusBudgetAmount: num(raw.bonusBudgetAmount),
+    bonusBudgetPercent: num(raw.bonusBudgetPercent),
+    budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
+    currentTotalSalaryCost: num(raw.currentTotalSalaryCost),
+    distributionMethod: graphqlUnknownToString(raw.distributionMethod),
+    headcount: num(raw.headcount),
+    currencyRef: graphqlUnknownToStringOrNull(raw.currencyRef)
+  }
+}
+
+function mapOrgUnitRow(raw: Record<string, unknown>): SubmissionsOrgUnitGraphqlRow {
+  return {
+    id: graphqlUnknownToString(raw.id),
+    compensationBudgetPlanCompanyId: graphqlUnknownToString(raw.compensationBudgetPlanCompanyId),
+    organizationalUnitId: graphqlUnknownToString(raw.organizationalUnitId),
+    salaryBudgetAmount: num(raw.salaryBudgetAmount),
+    salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    bonusBudgetAmount: num(raw.bonusBudgetAmount),
+    bonusBudgetPercent: num(raw.bonusBudgetPercent),
+    budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus)
+  }
+}
+
+const ORG_UNIT_LIMIT = 500
+
+export function useSubmissionsOrgUnitBudgetTable(
+  accessToken: string,
+  companyId: string | null,
+  defaultCurrencyCode: string,
+  teamMembers: TeamMemberCompensationData[]
+) {
+  const graphqlClient = useGraphQLClient(accessToken)
+  const companyIdRef = useRef(companyId)
+  const { units: companyOrgUnits, loading: loadingOrgUnits } = useCompanyOrganizationalUnits(
+    accessToken,
+    companyId ?? '',
+    ORG_UNIT_LIMIT
+  )
+
+  const [orgRows, setOrgRows] = useState<SubmissionsOrgUnitGraphqlRow[]>([])
+  const [companyRowById, setCompanyRowById] = useState<Map<string, CompensationBudgetPlanCompanyRow>>(() => new Map())
+  const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
+  const [loadingGraphql, setLoadingGraphql] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    companyIdRef.current = companyId
+  }, [companyId])
+
+  const orgUnitNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const u of companyOrgUnits) {
+      map.set(u.id, u.name)
+    }
+    return map
+  }, [companyOrgUnits])
+
+  const teamOrgUnitNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const m of teamMembers) {
+      const ouId = m.organizationalUnitId
+      if (ouId == null || ouId === '') {
+        continue
+      }
+      const label = m.orgUnitName?.trim()
+      if (label) {
+        map.set(ouId, label)
+      }
+    }
+    return map
+  }, [teamMembers])
+
+  const tableRows: SubmissionsOrgUnitTableRow[] = useMemo(
+    () =>
+      buildSubmissionsOrgUnitTableRows(
+        orgRows,
+        companyRowById,
+        plans,
+        orgUnitNameById,
+        teamOrgUnitNameById,
+        defaultCurrencyCode
+      ),
+    [companyRowById, defaultCurrencyCode, orgRows, orgUnitNameById, plans, teamOrgUnitNameById]
+  )
+
+  const fetchData = useCallback(async () => {
+    if (!accessToken || !companyId) {
+      setOrgRows([])
+      setCompanyRowById(new Map())
+      setPlans([])
+      setError(null)
+      return
+    }
+    const companyIdForRequest = companyId
+    setLoadingGraphql(true)
+    setError(null)
+    try {
+      const [plansResult, companyRowsResult] = await Promise.all([
+        graphqlClient.request<{ CompensationBudgetPlan: CompensationBudgetPlanListItem[] }>(
+          LIST_COMPENSATION_BUDGET_PLANS
+        ),
+        graphqlClient.request<{ CompensationBudgetPlanCompany: Record<string, unknown>[] }>(
+          LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY,
+          { companyId: companyIdForRequest }
+        )
+      ])
+      if (companyIdRef.current !== companyIdForRequest) {
+        return
+      }
+
+      const nextPlans = sortPlans((plansResult.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+      const companyRows = (companyRowsResult.CompensationBudgetPlanCompany ?? []).map(mapCompanyRow)
+      const nextCompanyRowById = new Map(companyRows.map(r => [r.id, r]))
+      const companyBudgetIds = companyRows.map(r => r.id)
+
+      let orgRaw: Record<string, unknown>[] = []
+      if (companyBudgetIds.length > 0) {
+        const orgResult = await graphqlClient.request<{
+          CompensationBudgetPlanOrganizationalUnit: Record<string, unknown>[]
+        }>(LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET_IDS, {
+          compensationBudgetPlanCompanyIds: companyBudgetIds
+        })
+        if (companyIdRef.current !== companyIdForRequest) {
+          return
+        }
+        orgRaw = orgResult.CompensationBudgetPlanOrganizationalUnit ?? []
+      }
+
+      setPlans(nextPlans)
+      setCompanyRowById(nextCompanyRowById)
+      setOrgRows(orgRaw.map(mapOrgUnitRow))
+    } catch (err) {
+      logBudgetGraphqlFailure('SubmissionsOrgUnitBudgetTable', err)
+      const message = err instanceof Error ? err.message : 'Failed to load submissions data'
+      setError(message)
+      setOrgRows([])
+      setCompanyRowById(new Map())
+      setPlans([])
+    } finally {
+      setLoadingGraphql(false)
+    }
+  }, [accessToken, companyId, graphqlClient])
+
+  useEffect(() => {
+    void fetchData()
+  }, [fetchData])
+
+  const refetch = useCallback(() => {
+    void fetchData()
+  }, [fetchData])
+
+  return {
+    rows: tableRows,
+    loading: loadingGraphql || loadingOrgUnits,
+    error,
+    refetch,
+    hasCompanyBudgetRows: companyRowById.size > 0
+  }
+}

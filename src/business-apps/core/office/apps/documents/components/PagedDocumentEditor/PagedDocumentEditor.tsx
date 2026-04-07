@@ -7,7 +7,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
@@ -79,6 +78,10 @@ import {
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
+
+function countMatches(input: string, pattern: RegExp): number {
+  return input.match(pattern)?.length ?? 0
+}
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
@@ -285,12 +288,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const nextTitle = latest.title || title
           setTitle(nextTitle)
 
-          const latestHtml =
-            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(latest.content || '<p></p>'), {
-              USE_PROFILES: { html: true },
-              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-              ALLOW_DATA_ATTR: true
-            }) || '<p></p>'
+          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
           const currentHtml = editorRef.current.getHTML?.() || ''
           if (!isYjsSyncedRef.current && latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
@@ -545,12 +543,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
             await officeClient.documents.update(id, {
               title: snapshot.title as string,
-              content:
-                DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
-                  USE_PROFILES: { html: true },
-                  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-                  ALLOW_DATA_ATTR: true
-                }) || '',
+              content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
               description: snapshot.description as string | undefined,
               tags: snapshot.tags as string[] | undefined,
               category: snapshot.category as string | undefined,
@@ -846,13 +839,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      return (
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(rawContent), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
-      )
+      const sanitizedContent = sanitizeDocumentHtmlForEditor(rawContent)
+
+      if (/\bdata-node-type=(?:"|')custom-image(?:"|')/i.test(sanitizedContent) || /<img\b/i.test(sanitizedContent)) {
+        console.info('[PagedDocumentEditor] sanitized content image diagnostics', {
+          customImageWrapperCount: countMatches(sanitizedContent, /\bdata-node-type=(?:"|')custom-image(?:"|')/gi),
+          imgTagCount: countMatches(sanitizedContent, /<img\b/gi),
+          imgSrcAttrCount: countMatches(sanitizedContent, /<img\b[^>]*\ssrc=(?:"|')/gi),
+          dataImageSrcCount: countMatches(sanitizedContent, /src=(?:"|')data:image\//gi)
+        })
+      }
+
+      return sanitizedContent
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),

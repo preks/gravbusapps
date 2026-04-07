@@ -143,12 +143,13 @@ function buildKpiWidgets(
 
 interface CycleTrackingTabProps {
   accessToken: string | undefined
+  initialCycleId?: string | null
 }
 
-export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken }) => {
+export const CycleTrackingTab: React.FC<CycleTrackingTabProps> = ({ accessToken, initialCycleId }) => {
   const { t } = useTranslation(translations)
   const { cycles, loading, error, refetch } = usePerformanceTracking(accessToken)
-  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(initialCycleId ?? null)
   const [showManagerTable, setShowManagerTable] = useState(false)
   const [showSelfTable, setShowSelfTable] = useState(false)
   const kpiContainerRef = useRef<HTMLDivElement>(null)

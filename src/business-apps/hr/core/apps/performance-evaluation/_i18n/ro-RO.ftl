@@ -129,6 +129,17 @@ start-confirm-search-teams = Caută echipe...
 start-confirm-empty-teams = Nu s-au găsit echipe
 start-confirm-button = Pornește evaluarea
 
+start-button-tooltip = Pornirea este activă doar în perioada datelor de evaluare
+
+# Dialog confirmare finalizare ciclu
+complete-confirm-title = Finalizare ciclu de performanță
+complete-confirm-description = Sigur doriți să marcați „{ $name }" ca finalizat?
+complete-confirm-progress = Acest ciclu are { $percent }% din evaluări finalizate ({ $completed } din { $total }).
+complete-confirm-warning = Unele evaluări sunt încă în desfășurare.
+complete-confirm-all-done = Toate evaluările din acest ciclu au fost finalizate.
+complete-confirm-button = Finalizează ciclul
+complete-confirm-view-tracking = Vizualizare în Urmărire performanță
+
 # Erori
 values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
