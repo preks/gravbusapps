@@ -2555,12 +2555,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         clearTimeout(pendingCellPersistTimeoutRef.current)
         pendingCellPersistTimeoutRef.current = null
       }
-      let flushFailed = false
       try {
         await chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
       } catch (error) {
-        flushFailed = true
-        console.warn('[SpreadsheetAppViewer] Checkpoint flush failed; continuing with live snapshot', error)
+        console.error('[SpreadsheetAppViewer] Checkpoint flush failed; aborting checkpoint', error)
+        toast.error(sheetT('toast-checkpoint-flush-warning'))
+        return null
       }
 
       // Step 2: grab the live Univer snapshot and pass it directly to createVersion.
@@ -2570,11 +2570,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         [activeSheetId]: liveSnapshot
       }
 
-      const checkpoint = await versioning.createCheckpoint(description, { univerSnapshots })
-      if (checkpoint && flushFailed) {
-        toast.error(sheetT('toast-checkpoint-flush-warning'))
-      }
-      return checkpoint
+      return versioning.createCheckpoint(description, { univerSnapshots })
     },
     [activeSheetId, versioning]
   )
