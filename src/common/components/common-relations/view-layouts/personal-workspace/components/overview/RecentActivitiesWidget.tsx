@@ -6,7 +6,8 @@ import {
   CardContent,
   TimelineLayout,
   Spinner,
-  EmptyState
+  EmptyState,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { ActivityBadge } from '../activities/ActivityBadge'
 import type { GenericActivity, PersonalWorkspaceConfig } from '../../types'
@@ -15,6 +16,8 @@ import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
+import activitySectionTranslations from '@/common/components/common-relations/record-sections/activity-section/_i18n'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 export interface RecentActivitiesWidgetProps {
   activities: GenericActivity[]
@@ -48,6 +51,8 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
   config,
   accessToken
 }) => {
+  const { t } = useTranslation(activitySectionTranslations)
+
   const getOwnerName = (ownerEmployee: any) => {
     if (!ownerEmployee) return 'Unknown'
     const fullName = `${ownerEmployee.firstName || ''} ${ownerEmployee.lastName || ''}`.trim()
@@ -93,13 +98,16 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
   )
 
   const timelineItems = useMemo(() => {
-    return activities.map(activity => {
+    const ordered = sortActivitiesByOccurredAtDesc(activities)
+
+    return ordered.map(activity => {
       const activityTypeLabel = activity.activityType?.value || 'Activity'
       const ownerName = getOwnerName(activity.ownerEmployee)
+      const effectiveAt = activity.occurredAt || activity.createdAt
 
       return {
         id: activity.id,
-        date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
+        date: `${t('activities-timelineOccurred')}: ${dayjs(effectiveAt).format('MMM D, YYYY h:mm A')}`,
         actor: activity.ownerEmployee ? (
           <a
             href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
@@ -130,7 +138,7 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
         icon: getActivityIcon(activityTypeLabel)
       } as any
     })
-  }, [activities, config, handleEmployeeClick, renderActivityDocuments])
+  }, [activities, config, handleEmployeeClick, renderActivityDocuments, t])
 
   // Render content based on loading/data state
   const renderContent = () => {
