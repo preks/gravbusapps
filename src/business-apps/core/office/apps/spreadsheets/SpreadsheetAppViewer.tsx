@@ -734,7 +734,7 @@ const saveSnapshotWithRetry = async ({
     failures: number
     fallbackLoads: number
   }>
-  recoverFromVersionConflict: () => Promise<void>
+  recoverFromVersionConflict: () => Promise<boolean>
   spreadsheetGridRef: React.MutableRefObject<UniverSheetGridHandle | null>
   collaboration: {
     isCollaborationConnected: boolean
@@ -747,16 +747,12 @@ const saveSnapshotWithRetry = async ({
     try {
       const snapshotToSave =
         attempt === 0 ? baseSnapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? baseSnapshot)
-      const cacheResult = writeUniverSnapshotCache(
-        appId,
-        activeSheetId,
-        Number(sheetVersionRef.current || 0),
-        snapshotToSave
-      )
+      const versionForSave = sheetVersionRef.current
       await SpreadsheetApiService.saveUniverSnapshot(appId, activeSheetId, {
-        version: sheetVersionRef.current,
+        version: versionForSave,
         snapshot: snapshotToSave
       })
+      const cacheResult = writeUniverSnapshotCache(appId, activeSheetId, Number(versionForSave || 0), snapshotToSave)
       if (collaboration.isCollaborationConnected) {
         const dimensionPayload = buildDimensionPayloadFromSnapshot(snapshotToSave, activeSheetId)
         if (dimensionPayload) {
@@ -772,7 +768,11 @@ const saveSnapshotWithRetry = async ({
       lastError = error
       if (error instanceof SpreadsheetApiRequestError && error.status === 409 && attempt < maxSnapshotRetries - 1) {
         snapshotSaveMetricsRef.current.conflicts += 1
-        await recoverFromVersionConflict()
+        const recovered = await recoverFromVersionConflict()
+        if (!recovered) {
+          snapshotSaveMetricsRef.current.failures += 1
+          throw error
+        }
         continue
       }
       snapshotSaveMetricsRef.current.failures += 1
@@ -856,7 +856,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sheetVersionRef = useRef<number>(0)
-  const recoverFromVersionConflictRef = useRef<() => Promise<void>>(async () => {})
+  const recoverFromVersionConflictRef = useRef<() => Promise<boolean>>(async () => false)
   const remoteStructuralResyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const remoteVersionRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingDimensionColumnsRef = useRef<SpreadsheetColumn[] | null>(null)
@@ -1996,7 +1996,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }, 5000)
   }, [entityEnabled])
 
-  const recoverFromVersionConflict = useCallback(async () => {
+  const recoverFromVersionConflict = useCallback(async (): Promise<boolean> => {
     try {
       const sinceVersion = sheetVersionRef.current
       const delta = await SpreadsheetApiService.getSheetChangesSince(app.id, activeSheetId, sinceVersion)
@@ -2006,7 +2006,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         commitLocalSheetData(next, { persisted: true })
         sheetPersist.recordSuccess(true)
         versioning.markAsSaved()
-        return
+        return true
       }
 
       snapshotSaveMetricsRef.current.fallbackLoads += 1
@@ -2024,6 +2024,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       }
 
+      clearUniverSnapshotCache(app.id, activeSheetId)
+      let restoredUniverSnapshot: Record<string, unknown> | null = null
+      try {
+        const univerData = await SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId)
+        if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+          restoredUniverSnapshot = univerData.snapshot
+          writeUniverSnapshotCache(app.id, activeSheetId, univerData.version, univerData.snapshot)
+        }
+      } catch (e) {
+        console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during conflict recovery:', e)
+      }
+      setBootstrapSnapshot(restoredUniverSnapshot)
+      setBootstrapSnapshotSeed(`conflict-recovery-${Date.now()}`)
+
       debugLog('version conflict fallback snapshot loaded', {
         appId: app.id,
         sheetId: activeSheetId,
@@ -2031,8 +2045,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
       sheetPersist.recordSuccess(true)
       versioning.markAsSaved()
+      return true
     } catch (error) {
       console.error('[SpreadsheetAppViewer] Failed to recover from version conflict:', error)
+      sheetPersist.recordError(sheetT('persist-recovery-failed'))
+      scheduleSheetVersionRefreshFromApi()
+      return false
     }
   }, [
     activeSheetId,
@@ -2040,8 +2058,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     localSheetDataRef,
     onDataChange,
     onSheetUpdate,
+    scheduleSheetVersionRefreshFromApi,
     setLocalSheetData,
+    sheetPersist.recordError,
     sheetPersist.recordSuccess,
+    sheetT,
     versioning.markAsSaved
   ])
 
@@ -2089,7 +2110,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           if (isActiveTarget()) {
             snapshotSaveMetricsRef.current.conflicts += 1
-            await recoverFromVersionConflict()
+            const recovered = await recoverFromVersionConflict()
+            if (!recovered) throw error
             const retry = await SpreadsheetApiService.applyOperationBatch(app.id, targetSheetId, {
               baseVersion: sheetVersionRef.current,
               operations,
@@ -2153,7 +2175,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       } catch (error) {
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           snapshotSaveMetricsRef.current.conflicts += 1
-          await recoverFromVersionConflict()
+          const recovered = await recoverFromVersionConflict()
+          if (!recovered) throw error
           const retry = await SpreadsheetApiService.applyOperationBatch(app.id, activeSheetId, {
             baseVersion: sheetVersionRef.current,
             operations,
@@ -2201,6 +2224,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           sheetId: activeSheetId,
           sizeBytes: snapshotSizeBytes
         })
+        sheetPersist.recordError(sheetT('persist-snapshot-too-large'))
         return
       }
 
@@ -2394,8 +2418,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
         updatesByBackendRowId = filtered
         cellsToPersist = flattenUpdatesToCells(filtered)
-      } catch {
-        /* keep local mapping if server rows cannot be loaded */
+      } catch (err) {
+        console.warn('[SpreadsheetAppViewer] getAllRows failed, deferring cell flush for sheet:', targetSheetId, err)
+        pendingCellChangesRef.current = [...sheetCells, ...pendingCellChangesRef.current]
+        if (!pendingCellPersistTimeoutRef.current) {
+          pendingCellPersistTimeoutRef.current = setTimeout(() => {
+            pendingCellPersistTimeoutRef.current = null
+            void chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
+          }, CELL_PERSIST_DEBOUNCE_MS * 2)
+        }
+        continue
       }
 
       if (cellsToPersist.length === 0) continue
@@ -2523,12 +2555,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         clearTimeout(pendingCellPersistTimeoutRef.current)
         pendingCellPersistTimeoutRef.current = null
       }
-      let flushFailed = false
       try {
         await chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
       } catch (error) {
-        flushFailed = true
-        console.warn('[SpreadsheetAppViewer] Checkpoint flush failed; continuing with live snapshot', error)
+        console.error('[SpreadsheetAppViewer] Checkpoint flush failed; aborting checkpoint', error)
+        toast.error(sheetT('toast-checkpoint-flush-warning'))
+        return null
       }
 
       // Step 2: grab the live Univer snapshot and pass it directly to createVersion.
@@ -2538,11 +2570,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         [activeSheetId]: liveSnapshot
       }
 
-      const checkpoint = await versioning.createCheckpoint(description, { univerSnapshots })
-      if (checkpoint && flushFailed) {
-        toast.error(sheetT('toast-checkpoint-flush-warning'))
-      }
-      return checkpoint
+      return versioning.createCheckpoint(description, { univerSnapshots })
     },
     [activeSheetId, versioning]
   )
@@ -2859,8 +2887,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     }
 
-    void chainOnOperationQueue(operationQueueRef, run).catch(() => undefined)
-  }, [entityEnabled])
+    void chainOnOperationQueue(operationQueueRef, run).catch(err => {
+      console.error('[SpreadsheetAppViewer] Flush on visibility/pagehide failed:', err)
+      sheetPersist.recordError(sheetT('persist-cell-failed'))
+    })
+  }, [entityEnabled, sheetPersist.recordError, sheetT])
 
   useEffect(() => {
     if (typeof globalThis === 'undefined' || typeof document === 'undefined') return
@@ -2891,11 +2922,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     }
 
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasPendingCells = pendingCellChangesRef.current.length > 0
+      const hasPendingDebounce = pendingCellPersistTimeoutRef.current != null
+      const hasPendingUniverChange = univerDataChangeTimeoutRef.current != null
+      if (hasPendingCells || hasPendingDebounce || hasPendingUniverChange) {
+        e.preventDefault()
+      }
+    }
+
     globalThis.addEventListener('pagehide', handlePageHide)
+    globalThis.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
       globalThis.removeEventListener('pagehide', handlePageHide)
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [flushPendingPersistenceNow])
