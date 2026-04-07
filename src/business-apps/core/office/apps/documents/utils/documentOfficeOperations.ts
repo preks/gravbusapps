@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify'
 import type { OfficeClient } from '@/common/network/office/OfficeClient'
 import type {
   Comment,
@@ -32,13 +31,7 @@ export interface PaginatedResponse<T> {
 type RecordData = Record<string, unknown>
 
 function sanitizeDocumentHtml(html: string): string {
-  return (
-    DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(html || ''), {
-      USE_PROFILES: { html: true },
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-      ALLOW_DATA_ATTR: true
-    }) || ''
-  )
+  return sanitizeDocumentHtmlForEditor(html || '')
 }
 
 export function mapApiDocumentToDocument(apiDoc: RecordData): Document {

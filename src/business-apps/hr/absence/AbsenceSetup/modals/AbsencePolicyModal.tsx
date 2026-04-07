@@ -21,6 +21,10 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { JSONObject } from '@/common/types/i18nTypes'
+import {
+  type CatalogTranslationValues,
+  getCatalogTranslationValues
+} from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import translations from '../_i18n'
 import {
   buildAbsencePolicyObjectValue,
@@ -33,7 +37,7 @@ import {
 
 export interface AbsencePolicyModalValues {
   code: string
-  name: string
+  translations: CatalogTranslationValues
   objectValue: AbsencePolicyObjectValue
 }
 
@@ -60,7 +64,11 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const [code, setCode] = useState('')
-  const [name, setName] = useState('')
+  const [translationValues, setTranslationValues] = useState<CatalogTranslationValues>({
+    enUS: '',
+    deDE: '',
+    roRO: ''
+  })
   const [details, setDetails] = useState<AbsencePolicyEditorDetail[]>([])
   const [draftDetail, setDraftDetail] = useState<AbsencePolicyDetailSettings>(defaultAbsencePolicyDetailSettings)
   const [expandedDetailIds, setExpandedDetailIds] = useState<number[]>([])
@@ -72,7 +80,7 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
 
     const nextState = getAbsencePolicyEditorState(policy?.objectValue as AbsencePolicyObjectValue | undefined)
     setCode(policy?.code || '')
-    setName(policy?.value || '')
+    setTranslationValues(getCatalogTranslationValues(policy))
     setDetails(nextState.details)
     setDraftDetail(defaultAbsencePolicyDetailSettings)
     setExpandedDetailIds([])
@@ -111,7 +119,7 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
     { value: 'HOURS', label: t('policy-time-unit-hours') }
   ]
 
-  const isSaveDisabled = isSaving || !code.trim() || !name.trim()
+  const isSaveDisabled = isSaving || !code.trim() || !translationValues.enUS.trim()
 
   useEffect(() => {
     const detailIds = new Set(details.map(detail => detail.id))
@@ -220,7 +228,11 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
       setIsSaving(true)
       await onSave({
         code: code.trim(),
-        name: name.trim(),
+        translations: {
+          enUS: translationValues.enUS.trim(),
+          deDE: translationValues.deDE.trim(),
+          roRO: translationValues.roRO.trim()
+        },
         objectValue: buildAbsencePolicyObjectValue(details, extraObjectValue)
       })
     } catch (saveError) {
@@ -267,15 +279,33 @@ export const AbsencePolicyModal: React.FC<AbsencePolicyModalProps> = ({
                   />
                 </div>
                 <div className="gba:space-y-2">
-                  <Label htmlFor="absence-policy-name">
-                    {t('field-name-label')}
+                  <Label htmlFor="absence-policy-name-en">
+                    {t('field-name-en-label')}
                     <span className="gba:text-destructive"> *</span>
                   </Label>
                   <Input
-                    id="absence-policy-name"
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                    data-testid="absence-policy-name-input"
+                    id="absence-policy-name-en"
+                    value={translationValues.enUS}
+                    onChange={event => setTranslationValues(current => ({ ...current, enUS: event.target.value }))}
+                    data-testid="absence-policy-name-en-input"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-policy-name-de">{t('field-name-de-label')}</Label>
+                  <Input
+                    id="absence-policy-name-de"
+                    value={translationValues.deDE}
+                    onChange={event => setTranslationValues(current => ({ ...current, deDE: event.target.value }))}
+                    data-testid="absence-policy-name-de-input"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label htmlFor="absence-policy-name-ro">{t('field-name-ro-label')}</Label>
+                  <Input
+                    id="absence-policy-name-ro"
+                    value={translationValues.roRO}
+                    onChange={event => setTranslationValues(current => ({ ...current, roRO: event.target.value }))}
+                    data-testid="absence-policy-name-ro-input"
                   />
                 </div>
               </CardContent>

@@ -568,8 +568,14 @@ export class ChatClient extends RestClient {
     return this.get<T>('/meetings/invitations/pending', options)
   }
 
-  getCalendars<T = any>(options: RequestOptions = {}) {
-    return this.get<T>('/calendars', options)
+  getCalendars<T = any>(
+    filters?: {
+      contextEntity?: string
+      contextEntityId?: string
+    },
+    options: RequestOptions = {}
+  ) {
+    return this.get<T>('/calendars', mergeRequestOptions(createQueryParams(filters ?? {}), options))
   }
 
   createCalendar<T = any>(body: unknown, options: RequestOptions = {}) {

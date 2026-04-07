@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { ChartBar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -13,6 +13,10 @@ enum TrackingTab {
 }
 
 export const PerformanceTracking: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const initialCycleId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('cycleId')
+  }, [])
   const [activeTab, setActiveTab] = useState<TrackingTab>(TrackingTab.CycleTracking)
   const { t } = useTranslation(translations)
 
@@ -33,7 +37,9 @@ export const PerformanceTracking: React.FC<BusinessAppContextProps> = ({ accessT
       className="gba:min-h-screen gba:space-y-6"
       data-testid="performance-tracking-page"
     >
-      {activeTab === TrackingTab.CycleTracking && <CycleTrackingTab accessToken={accessToken} />}
+      {activeTab === TrackingTab.CycleTracking && (
+        <CycleTrackingTab accessToken={accessToken} initialCycleId={initialCycleId} />
+      )}
       {activeTab === TrackingTab.ReviewerTracking && <ReviewerTrackingTab accessToken={accessToken} />}
     </PageLayout>
   )

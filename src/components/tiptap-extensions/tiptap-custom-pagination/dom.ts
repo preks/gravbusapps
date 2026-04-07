@@ -534,6 +534,16 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-break {
       position: relative;
     }
+    .rm-pages-root :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, pre):has([data-image-flow-mode="float"]) {
+      display: flow-root;
+    }
+    .rm-pages-root :where(p, h1, h2, h3, h4, h5, h6, li, blockquote):has([data-image-flow-mode="float"]) {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .ProseMirror-widget:has(> .rm-square-wrap-decoration) {
+      display: contents;
+    }
     .rm-pages-root .rm-page-spacer {
       position: relative;
       float: left;
@@ -569,6 +579,9 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       background: transparent;
       z-index: 1;
+    }
+    .rm-pages-root .rm-page-body-layer > * {
+      pointer-events: auto;
     }
     .rm-pages-root .rm-page-image-overlay-layer {
       position: absolute;
@@ -1335,6 +1348,7 @@ export function createPageBreakElement(params: {
   const bodyLayer = document.createElement('div')
   bodyLayer.className = 'rm-page-body-layer'
   bodyLayer.dataset.rmPageBody = 'true'
+  bodyLayer.dataset.rmPageBodyPresentation = 'visible'
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`

@@ -1,5 +1,6 @@
 import type { WordWrapTextSide } from './wrapUtils'
 import { deserializeImageWrapContour, resolveContourSlicesForWrapMode } from './wrapContourUtils'
+import { IMAGE_WRAP_MODES, type ImageWrapMode } from './types'
 
 export interface PageWrapBand {
   pageNumber: number
@@ -44,23 +45,12 @@ function readWrapTextSide(element: HTMLElement): WordWrapTextSide | null {
   return null
 }
 
-function readWrapMode(
-  element: HTMLElement
-): 'inline' | 'square-left' | 'square-right' | 'tight' | 'through' | 'top-bottom' | 'behind' | 'front' | null {
+function readWrapMode(element: HTMLElement): ImageWrapMode | null {
   const value = element.dataset.imageWrapMode
-  switch (value) {
-    case 'inline':
-    case 'square-left':
-    case 'square-right':
-    case 'tight':
-    case 'through':
-    case 'top-bottom':
-    case 'behind':
-    case 'front':
-      return value
-    default:
-      return null
-  }
+
+  return typeof value === 'string' && IMAGE_WRAP_MODES.includes(value as ImageWrapMode)
+    ? (value as ImageWrapMode)
+    : null
 }
 
 function resolveBestContainingBand(bodyBands: PageWrapBand[], rect: WrapExclusionRectLike): PageWrapBand | null {

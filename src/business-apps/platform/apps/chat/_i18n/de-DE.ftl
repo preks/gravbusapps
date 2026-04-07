@@ -545,6 +545,16 @@ calendar-sidebar-personalColorSaveError = Die Farbe von Mein Kalender konnte nic
 calendar-sidebar-calendarColorSaveError = Die Kalenderfarbe konnte nicht aktualisiert werden
 calendar-sidebar-resetToDefault = Standardfarbe verwenden
 calendar-sidebar-openColorPicker = Farbe für {$name} ändern
+calendar-sidebar-createManually = Manuell erstellen
+calendar-sidebar-createByGroup = Nach Gruppe
+calendar-sidebar-createCalendarByDimension = Kalender nach Organisation erstellen
+calendar-sidebar-dimensionDescription = Erstellen Sie einen gemeinsamen Kalender für eine Organisationsgruppe und geben Sie deren Mitgliedern Leserechte.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 Mitglied erhält Leserechte
+ *[other] {$count} Mitglieder erhalten Leserechte
+}
+calendar-sidebar-membersPreview = Mitglieder
+calendar-sidebar-calendarExistsInfo = Für diese Gruppe existiert bereits ein gemeinsamer Kalender. Der vorhandene Kalender wurde ausgewählt.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen

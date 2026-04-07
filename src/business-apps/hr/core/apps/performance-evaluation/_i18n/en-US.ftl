@@ -128,6 +128,17 @@ start-confirm-search-teams = Search teams...
 start-confirm-empty-teams = No teams found
 start-confirm-button = Start Evaluation
 
+start-button-tooltip = Start is only active within the Review Dates period
+
+# Complete cycle confirm dialog
+complete-confirm-title = Complete Performance Cycle
+complete-confirm-description = Are you sure you want to mark "{ $name }" as completed?
+complete-confirm-progress = This cycle has { $percent }% of evaluations completed ({ $completed } of { $total }).
+complete-confirm-warning = Some evaluations are still in progress.
+complete-confirm-all-done = All evaluations in this cycle have been completed.
+complete-confirm-button = Complete Cycle
+complete-confirm-view-tracking = View in Performance Tracking
+
 # Errors
 values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it is used in an active cycle.
 cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.
