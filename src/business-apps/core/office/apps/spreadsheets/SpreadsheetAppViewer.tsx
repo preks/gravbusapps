@@ -747,16 +747,12 @@ const saveSnapshotWithRetry = async ({
     try {
       const snapshotToSave =
         attempt === 0 ? baseSnapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? baseSnapshot)
-      const cacheResult = writeUniverSnapshotCache(
-        appId,
-        activeSheetId,
-        Number(sheetVersionRef.current || 0),
-        snapshotToSave
-      )
+      const versionForSave = sheetVersionRef.current
       await SpreadsheetApiService.saveUniverSnapshot(appId, activeSheetId, {
-        version: sheetVersionRef.current,
+        version: versionForSave,
         snapshot: snapshotToSave
       })
+      const cacheResult = writeUniverSnapshotCache(appId, activeSheetId, Number(versionForSave || 0), snapshotToSave)
       if (collaboration.isCollaborationConnected) {
         const dimensionPayload = buildDimensionPayloadFromSnapshot(snapshotToSave, activeSheetId)
         if (dimensionPayload) {
