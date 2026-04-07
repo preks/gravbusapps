@@ -824,17 +824,26 @@ const CalendarInner: React.FC<CalendarProps> = ({
       setIsCreatingSharedCalendar(true)
 
       try {
-        const response = await apiClient.createCalendar<{ calendar: InternalCalendarSummary }>({
+        const response = await apiClient.createCalendar<{ calendar: InternalCalendarSummary; created: boolean }>({
           name: data.name,
           description: data.description,
           color: data.color,
-          type: 'shared'
+          type: 'shared',
+          shares: data.shares,
+          contextEntity: data.dimension?.type,
+          contextEntityId: data.dimension?.id,
+          contextEntityName: data.dimension?.name
         })
 
         await refreshCalendars()
         setSelectedInternalCalendarIds(prev => Array.from(new Set([...prev, response.calendar.id])))
         setIsCreateSharedCalendarDialogOpen(false)
-        toast.success(t('calendar-sidebar-calendarCreatedSuccess'))
+
+        if (response.created) {
+          toast.success(t('calendar-sidebar-calendarCreatedSuccess'))
+        } else {
+          toast.info(t('calendar-sidebar-calendarExistsInfo'))
+        }
       } catch (error) {
         console.error('Error creating shared calendar:', error)
         toast.error(t('calendar-sidebar-calendarCreatedError'))
@@ -1158,6 +1167,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
         isSubmitting={isCreatingSharedCalendar}
         onClose={() => setIsCreateSharedCalendarDialogOpen(false)}
         onSubmit={handleCreateSharedCalendar}
+        accessToken={accessToken}
+        currentUserId={userInfo?.id}
       />
 
       <EditSharedCalendarDialog

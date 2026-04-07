@@ -6,7 +6,6 @@
  * Used by PagedDocumentEditor when editing an existing document with collaboration.
  */
 
-import DOMPurify from 'dompurify'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Socket } from 'socket.io-client'
 import * as Y from 'yjs'
@@ -303,12 +302,7 @@ export function useYjsDocumentSync({
         throw new Error('Editor not ready for content apply')
       }
 
-      const normalizedHtml =
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(html || '<p></p>'), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
+      const normalizedHtml = sanitizeDocumentHtmlForEditor(html || '<p></p>')
 
       if (debugTablesEnabled) {
         logDocumentTableDebug(debugTablesEnabled, documentId, 'apply-normalized-content:before-set', {
