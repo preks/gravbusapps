@@ -7,7 +7,7 @@ export interface ExecutiveSummaryProps {
   teamOverallScore: number | null
   teamCompanyValuesAvg: number | null
   teamSkillsAvg: number | null
-  goalsOnTrackRate: number
+  goalsCompletionRate: number
   feedbackCoverage: number
   skillGrowthRate: number
   needsAttentionCount: number
@@ -56,7 +56,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   teamOverallScore,
   teamCompanyValuesAvg,
   teamSkillsAvg,
-  goalsOnTrackRate,
+  goalsCompletionRate,
   skillGrowthRate,
   changeOverall,
   changeCompanyValues,
@@ -100,12 +100,12 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         progress: scoreProgress(teamSkillsAvg, ratingScaleLimit)
       },
       {
-        id: 'goals-on-track',
-        title: 'Goals On Track',
-        value: `${Math.round(goalsOnTrackRate)}%`,
+        id: 'goals-completion',
+        title: 'Goals Completion',
+        value: `${Math.round(goalsCompletionRate)}%`,
         icon: <Target className="nw:size-4" />,
         trend: buildTrend(null, 'percent'),
-        progress: pctProgress(goalsOnTrackRate)
+        progress: pctProgress(goalsCompletionRate)
       },
       {
         id: 'skill-growth',
@@ -120,7 +120,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       teamOverallScore,
       teamCompanyValuesAvg,
       teamSkillsAvg,
-      goalsOnTrackRate,
+      goalsCompletionRate,
       skillGrowthRate,
       changeOverall,
       changeCompanyValues,
@@ -136,7 +136,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
           { id: 'loading-1', title: 'Team Overall Score', value: '—' },
           { id: 'loading-2', title: 'Company Values Score', value: '—' },
           { id: 'loading-3', title: 'Skills Score', value: '—' },
-          { id: 'loading-4', title: 'Goals On Track', value: '—' },
+          { id: 'loading-4', title: 'Goals Completion', value: '—' },
           { id: 'loading-5', title: 'Skill Growth', value: '—' }
         ]}
         className="gba:w-full gba:md:grid-cols-5 nw:md:grid-cols-5"

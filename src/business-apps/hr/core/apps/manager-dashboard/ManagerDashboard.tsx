@@ -339,6 +339,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       <TeamPerformanceDashboard
         teamPerformance={tpo.goals.teamPerformance}
         totalGoals={tpo.goals.totalGoals}
+        averageGoalProgress={tpo.goals.averageProgress}
         goalsOnTrack={tpo.goals.goalsOnTrack}
         goalsAtRisk={tpo.goals.goalsAtRisk}
         goalsBehindTarget={tpo.goals.goalsBehindTarget}

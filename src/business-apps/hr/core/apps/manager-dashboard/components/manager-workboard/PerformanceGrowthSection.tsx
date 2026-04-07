@@ -46,8 +46,6 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
     )
   }
 
-  const hasGoals = totalGoals > 0
-
   const metrics = [
     { label: 'On track', value: onTrack, colorClass: 'gba:text-success' },
     { label: 'At risk', value: atRisk, colorClass: 'gba:text-warning' },
@@ -62,86 +60,71 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
         <p className="gba:text-xs gba:text-muted-foreground">Active cycle goal progress</p>
       </CardHeader>
       <CardContent className="gba:space-y-3">
-        {hasGoals ? (
-          <>
-            {/* 4 metrics side by side */}
-            <style>{`
-              [data-layout="perf-metrics"] {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                gap: 0.5rem;
-              }
-              [data-layout="perf-metrics"] > div {
-                flex: 1 1 0 !important;
-                min-width: 0 !important;
-              }
-              [data-layout="perf-buttons"] {
-                display: flex !important;
-                flex-direction: row !important;
-                flex-wrap: nowrap !important;
-                gap: 0.5rem;
-              }
-              [data-layout="perf-buttons"] > button {
-                flex: 1 1 0 !important;
-                min-width: 0 !important;
-              }
-            `}</style>
-            <div data-layout="perf-metrics">
-              {metrics.map(m => (
-                <div
-                  key={m.label}
-                  style={{
-                    textAlign: 'center',
-                    padding: '0.5rem 0.25rem',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--gba-surface, #f8f9fa)'
-                  }}
-                >
-                  <p className={m.colorClass} style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.2 }}>
-                    {m.value ?? 0}
-                  </p>
-                  <p
-                    className="gba:text-muted-foreground"
-                    style={{ fontSize: '0.65rem', marginTop: '2px', lineHeight: 1.2 }}
-                  >
-                    {m.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Progress bar */}
-            <div>
-              <Progress value={averageProgress} className="gba:h-1.5 gba:mb-1" />
-              <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-                {averageProgress}% avg. progress · {totalGoals} total goals
+        <style>{`
+          [data-layout="perf-metrics"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 0.5rem;
+          }
+          [data-layout="perf-metrics"] > div {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+          }
+          [data-layout="perf-buttons"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 0.5rem;
+          }
+          [data-layout="perf-buttons"] > button {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+          }
+        `}</style>
+        <div data-layout="perf-metrics">
+          {metrics.map(m => (
+            <div
+              key={m.label}
+              style={{
+                textAlign: 'center',
+                padding: '0.5rem 0.25rem',
+                borderRadius: '8px',
+                backgroundColor: 'var(--gba-surface, #f8f9fa)'
+              }}
+            >
+              <p className={m.colorClass} style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.2 }}>
+                {m.value ?? 0}
+              </p>
+              <p
+                className="gba:text-muted-foreground"
+                style={{ fontSize: '0.65rem', marginTop: '2px', lineHeight: 1.2 }}
+              >
+                {m.label}
               </p>
             </div>
+          ))}
+        </div>
 
-            {/* 2 buttons side by side */}
-            <div data-layout="perf-buttons">
-              <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:h-8">
-                <Users size={14} className="gba:mr-1" />
-                Team goals
-              </Button>
-              {onNavigateToTeamPerformanceOverview && (
-                <Button onClick={onNavigateToTeamPerformanceOverview} variant="outline" size="sm" className="gba:h-8">
-                  <BarChart3 size={14} className="gba:mr-1" />
-                  Trends
-                </Button>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
-            <p className="gba:text-sm gba:font-medium">No performance goals set</p>
-            <p className="gba:text-xs gba:mb-3">Set goals to track team progress</p>
-            <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm">
-              Set goals
+        <div>
+          <Progress value={averageProgress} className="gba:h-1.5 gba:mb-1" />
+          <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+            {averageProgress}% avg. progress · {totalGoals} total goals
+          </p>
+        </div>
+
+        <div data-layout="perf-buttons">
+          <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:h-8">
+            <Users size={14} className="gba:mr-1" />
+            Team goals
+          </Button>
+          {onNavigateToTeamPerformanceOverview && (
+            <Button onClick={onNavigateToTeamPerformanceOverview} variant="outline" size="sm" className="gba:h-8">
+              <BarChart3 size={14} className="gba:mr-1" />
+              Trends
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   )

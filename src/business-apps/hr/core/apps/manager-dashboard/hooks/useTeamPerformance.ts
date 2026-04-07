@@ -235,8 +235,8 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
       })
       const allGoals = goalsResponse?.EmployeePerformanceGoal || []
 
-      const cycleStart = currentCycle?.startDate || currentCycle?.evaluationPeriodStartDate || ''
-      const cycleEnd = currentCycle?.endDate || currentCycle?.evaluationPeriodEndDate || ''
+      const cycleStart = currentCycle?.evaluationPeriodStartDate || currentCycle?.startDate || ''
+      const cycleEnd = currentCycle?.evaluationPeriodEndDate || currentCycle?.endDate || ''
 
       // Step 3: Group raw goals by employee, then apply same containment + track rules as employee-record
       const goalsByEmployee = new Map<string, typeof allGoals>()

@@ -1,8 +1,6 @@
-/* eslint-disable newwork-local/no-hardcoded-colors -- Recharts bar fills require fixed hex values per spec */
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
-import { Brain, Plus, RefreshCw, X } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Brain } from 'lucide-react'
 import type { TeamMemberSkills, SkillGrowthEntry } from '../../hooks/useTeamSkills'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 
@@ -57,24 +55,39 @@ const skillLevelCellClass = (level: number | undefined): string => {
   return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
 }
 
-const skillBarData = (members: TeamMemberSkills[]) => {
-  const levelSum = new Map<string, { sum: number; count: number }>()
-  for (const m of members) {
-    for (const s of m.topSkills) {
-      const name = s.name?.trim()
-      if (!name) continue
-      const cur = levelSum.get(name) ?? { sum: 0, count: 0 }
-      cur.sum += s.level
-      cur.count += 1
-      levelSum.set(name, cur)
+const computeSkillAverages = (members: TeamMemberSkills[], skillNames: string[]): Map<string, number | null> => {
+  const avgs = new Map<string, number | null>()
+  for (const sn of skillNames) {
+    let sum = 0
+    let count = 0
+    for (const m of members) {
+      const sm = memberSkillMap(m)
+      const level = sm.get(sn)
+      if (level != null && level !== 0) {
+        sum += level
+        count++
+      }
     }
+    avgs.set(sn, count > 0 ? Math.round((sum / count) * 10) / 10 : null)
   }
-  return [...levelSum.entries()]
-    .map(([name, { sum, count }]) => ({
-      name,
-      avg: Math.round((sum / count) * 10) / 10
-    }))
-    .sort((a, b) => b.avg - a.avg)
+  return avgs
+}
+
+const computeEvalSkillAverages = (rows: EvalSkillRow[], skillNames: string[]): Map<string, number | null> => {
+  const avgs = new Map<string, number | null>()
+  for (const sn of skillNames) {
+    let sum = 0
+    let count = 0
+    for (const m of rows) {
+      const score = m.scores.get(sn)
+      if (score != null) {
+        sum += score
+        count++
+      }
+    }
+    avgs.set(sn, count > 0 ? Math.round((sum / count) * 10) / 10 : null)
+  }
+  return avgs
 }
 
 interface EvalSkillRow {
@@ -111,27 +124,6 @@ function evalSkillRows(members: TeamMemberEvaluation[]): EvalSkillRow[] {
     })
 }
 
-function evalSkillBarData(members: TeamMemberEvaluation[], ratingScaleLimit: number) {
-  const sums = new Map<string, { sum: number; count: number }>()
-  for (const m of members) {
-    for (const s of m.skills) {
-      const name = s.name?.trim()
-      if (!name || name === 'Unknown' || s.overallAvg == null) continue
-      const cur = sums.get(name) ?? { sum: 0, count: 0 }
-      cur.sum += s.overallAvg
-      cur.count += 1
-      sums.set(name, cur)
-    }
-  }
-  return [...sums.entries()]
-    .map(([name, { sum, count }]) => ({
-      name,
-      avg: Math.round((sum / count) * 10) / 10,
-      max: ratingScaleLimit
-    }))
-    .sort((a, b) => b.avg - a.avg)
-}
-
 const scoreCellClass = (score: number | undefined, limit: number): string => {
   if (score == null) return 'gba:bg-gray-100 gba:dark:bg-gray-800 gba:text-muted-foreground'
   const pct = score / limit
@@ -141,25 +133,9 @@ const scoreCellClass = (score: number | undefined, limit: number): string => {
   return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
 }
 
-const changeIcon = (type: 'added' | 'updated' | 'removed') => {
-  if (type === 'added') return <Plus className="gba:h-3.5 gba:w-3.5" aria-hidden />
-  if (type === 'updated') return <RefreshCw className="gba:h-3.5 gba:w-3.5" aria-hidden />
-  return <X className="gba:h-3.5 gba:w-3.5" aria-hidden />
-}
-
-const changeBadgeClass = (type: 'added' | 'updated' | 'removed') => {
-  if (type === 'added') return 'gba:text-green-600 gba:border-green-200 gba:dark:text-green-400'
-  if (type === 'updated') return 'gba:text-blue-600 gba:border-blue-200 gba:dark:text-blue-400'
-  return 'gba:text-red-600 gba:border-red-200 gba:dark:text-red-400'
-}
-
-const formatDate = (iso: string) => {
-  const d = new Date(iso)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
 export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
   skillsMembers,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   skillGrowth,
   evaluationMembers,
   loading
@@ -173,19 +149,8 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
             <div className="gba:h-5 gba:w-40 gba:rounded gba:bg-muted gba:animate-pulse" />
           </div>
         </CardHeader>
-        <CardContent className="gba:space-y-8">
-          <div className="gba:space-y-2">
-            <div className="gba:h-4 gba:w-32 gba:rounded gba:bg-muted gba:animate-pulse" />
-            <div className="gba:h-48 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
-          </div>
-          <div className="gba:space-y-2">
-            <div className="gba:h-4 gba:w-48 gba:rounded gba:bg-muted gba:animate-pulse" />
-            <div className="gba:h-56 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
-          </div>
-          <div className="gba:space-y-2">
-            <div className="gba:h-4 gba:w-36 gba:rounded gba:bg-muted gba:animate-pulse" />
-            <div className="gba:h-24 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
-          </div>
+        <CardContent>
+          <div className="gba:h-48 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
         </CardContent>
       </Card>
     )
@@ -194,17 +159,15 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
   const hasStandaloneSkills = skillsMembers.some(m => m.topSkills.length > 0)
 
   const topSkills = topSkillsByFrequency(skillsMembers)
-  const barRows = skillBarData(skillsMembers)
 
   const eSkillNames = evalSkillNames(evaluationMembers)
   const eRows = evalSkillRows(evaluationMembers)
   const ratingLimit = evaluationMembers.find(m => m.ratingScaleLimit != null)?.ratingScaleLimit ?? 5
-  const eBarRows = evalSkillBarData(evaluationMembers, ratingLimit)
-  const eBarHeight = Math.max(160, eBarRows.length * 30 + 48)
-
-  const barHeight = Math.max(160, barRows.length * 30 + 48)
 
   const useEvalFallback = !hasStandaloneSkills && eSkillNames.length > 0
+
+  const evalAvgs = computeEvalSkillAverages(eRows, eSkillNames)
+  const standaloneAvgs = computeSkillAverages(skillsMembers, topSkills)
 
   return (
     <Card style={{ borderRadius: '12px' }}>
@@ -214,11 +177,8 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
           Skills Analysis
         </CardTitle>
       </CardHeader>
-      <CardContent className="gba:space-y-8">
-        <section className="gba:space-y-3">
-          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-            {useEvalFallback ? 'Skills scores (from evaluations)' : 'Skills heatmap'}
-          </h3>
+      <CardContent>
+        <section>
           {useEvalFallback ? (
             eRows.length === 0 ? (
               <p className="gba:text-sm gba:text-muted-foreground">No skill data to display.</p>
@@ -258,6 +218,23 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                       })}
                     </React.Fragment>
                   ))}
+
+                  {/* Average row */}
+                  <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-muted/60 gba:border-border gba:border-t-2 gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-bold">
+                    Average
+                  </div>
+                  {eSkillNames.map(skill => {
+                    const avg = evalAvgs.get(skill) ?? null
+                    const display = avg != null ? avg.toFixed(1) : '—'
+                    return (
+                      <div
+                        key={`avg-${skill}`}
+                        className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${scoreCellClass(avg ?? undefined, ratingLimit)}`}
+                      >
+                        {display}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -302,94 +279,24 @@ export const SkillsAnalysis: React.FC<SkillsAnalysisProps> = ({
                     </React.Fragment>
                   )
                 })}
-              </div>
-            </div>
-          )}
-        </section>
 
-        <section className="gba:space-y-3">
-          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Team average by skill</h3>
-          {useEvalFallback ? (
-            eBarRows.length === 0 ? (
-              <p className="gba:text-sm gba:text-muted-foreground">No averages to chart.</p>
-            ) : (
-              <div style={{ width: '100%', height: eBarHeight }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart layout="vertical" data={eBarRows} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                    <XAxis type="number" domain={[0, ratingLimit]} tick={{ fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} interval={0} />
-                    <Bar dataKey="avg" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={22} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )
-          ) : barRows.length === 0 ? (
-            <p className="gba:text-sm gba:text-muted-foreground">No averages to chart.</p>
-          ) : (
-            <div style={{ width: '100%', height: barHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart layout="vertical" data={barRows} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                  <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} interval={0} />
-                  <Bar dataKey="avg" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={22} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </section>
-
-        <section className="gba:space-y-3">
-          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Skill growth (last 6 months)</h3>
-          {skillGrowth.length === 0 ? (
-            <p className="gba:text-sm gba:text-muted-foreground">No skill changes detected in the last 6 months</p>
-          ) : (
-            <div className="gba:space-y-4">
-              {skillGrowth.map(entry => (
-                <div key={entry.employeeId} className="gba:space-y-1.5">
-                  <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:text-sm">
-                    <span className="gba:font-medium">{employeeLabel(entry)}</span>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {entry.newSkillsCount > 0 && (
-                        <Badge
-                          variant="outline"
-                          className="gba:gap-1 gba:text-green-600 gba:border-green-200 gba:dark:text-green-400"
-                        >
-                          <Plus className="gba:h-3 gba:w-3" aria-hidden />
-                          {entry.newSkillsCount} added
-                        </Badge>
-                      )}
-                      {entry.updatedSkillsCount > 0 && (
-                        <Badge
-                          variant="outline"
-                          className="gba:gap-1 gba:text-blue-600 gba:border-blue-200 gba:dark:text-blue-400"
-                        >
-                          <RefreshCw className="gba:h-3 gba:w-3" aria-hidden />
-                          {entry.updatedSkillsCount} updated
-                        </Badge>
-                      )}
-                      {entry.removedSkillsCount > 0 && (
-                        <Badge
-                          variant="outline"
-                          className="gba:gap-1 gba:text-red-600 gba:border-red-200 gba:dark:text-red-400"
-                        >
-                          <X className="gba:h-3 gba:w-3" aria-hidden />
-                          {entry.removedSkillsCount} removed
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <ul className="gba:pl-4 gba:space-y-0.5">
-                    {entry.recentChanges.slice(0, 5).map((c, i) => (
-                      <li key={i} className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                        <span className={changeBadgeClass(c.changeType)}>{changeIcon(c.changeType)}</span>
-                        <span>{c.skillName}</span>
-                        {c.changeType !== 'removed' && <span className="gba:tabular-nums">Lv. {c.level}</span>}
-                        <span className="gba:ml-auto gba:tabular-nums">{formatDate(c.changedAt)}</span>
-                      </li>
-                    ))}
-                  </ul>
+                {/* Average row */}
+                <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-muted/60 gba:border-border gba:border-t-2 gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-bold">
+                  Average
                 </div>
-              ))}
+                {topSkills.map(skill => {
+                  const avg = standaloneAvgs.get(skill) ?? null
+                  const display = avg != null ? (avg % 1 === 0 ? String(avg) : avg.toFixed(1)) : '—'
+                  return (
+                    <div
+                      key={`avg-${skill}`}
+                      className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${skillLevelCellClass(avg != null ? Math.round(avg) : undefined)}`}
+                    >
+                      {display}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </section>

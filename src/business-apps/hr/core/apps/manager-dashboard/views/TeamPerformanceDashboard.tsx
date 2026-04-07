@@ -19,10 +19,8 @@ import type {
 import {
   ExecutiveSummary,
   PerformanceTrends,
-  GoalsHealth,
   SkillsAnalysis,
   CompanyValuesAnalysis,
-  FeedbackHealth,
   AlignmentComparison,
   TeamMemberTable,
   DashboardFilters,
@@ -33,6 +31,7 @@ import {
 export interface TeamPerformanceDashboardProps {
   teamPerformance: TeamMemberPerformance[]
   totalGoals: number
+  averageGoalProgress: number
   goalsOnTrack: number
   goalsAtRisk: number
   goalsBehindTarget: number
@@ -85,9 +84,14 @@ export interface TeamPerformanceDashboardProps {
 export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) => {
   const {
     teamPerformance,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     totalGoals,
+    averageGoalProgress,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     goalsOnTrack,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     goalsAtRisk,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     goalsBehindTarget,
     loadingGoals,
     skillsMembers,
@@ -95,8 +99,11 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
     loadingSkills,
     feedbackMembers,
     feedbackCoverage,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     recognitionRatio,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     totalReceivedCount,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     totalGivenCount,
     loadingFeedback,
     evaluationMembers,
@@ -134,7 +141,6 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
   const [showInsights, setShowInsights] = useState(false)
 
   const isLoading = loadingGoals || loadingSkills || loadingFeedback || loadingEvaluations
-  const goalsOnTrackRate = totalGoals > 0 ? Math.round((goalsOnTrack / totalGoals) * 100) : 0
 
   const handleEmployeeClick = (employeeId: string) => {
     setDeepDiveEmployeeId(employeeId)
@@ -189,7 +195,7 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         teamOverallScore={teamAvgScore}
         teamCompanyValuesAvg={teamCompanyValuesAvg}
         teamSkillsAvg={teamSkillsAvg}
-        goalsOnTrackRate={goalsOnTrackRate}
+        goalsCompletionRate={averageGoalProgress}
         feedbackCoverage={feedbackCoverage}
         skillGrowthRate={skillGrowthRate}
         needsAttentionCount={needsAttentionCount}
@@ -208,16 +214,8 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
         loading={loadingEvaluations}
       />
 
-      {/* Skills & Development + Company Values Alignment — side by side */}
+      {/* Company Values + Skills & Development — side by side */}
       <div style={{ display: 'flex', gap: '1.5rem' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <SkillsAnalysis
-            skillsMembers={skillsMembers}
-            skillGrowth={skillGrowth}
-            evaluationMembers={evaluationMembers}
-            loading={loadingSkills || loadingEvaluations}
-          />
-        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <CompanyValuesAnalysis
             members={evaluationMembers}
@@ -226,27 +224,17 @@ export const TeamPerformanceDashboard = (props: TeamPerformanceDashboardProps) =
             loading={loadingEvaluations}
           />
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SkillsAnalysis
+            skillsMembers={skillsMembers}
+            skillGrowth={skillGrowth}
+            evaluationMembers={evaluationMembers}
+            loading={loadingSkills || loadingEvaluations}
+          />
+        </div>
       </div>
 
-      {/* Goals Health + Feedback Health — side by side */}
-      <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
-        <GoalsHealth
-          members={teamPerformance}
-          totalGoals={totalGoals}
-          goalsOnTrack={goalsOnTrack}
-          goalsAtRisk={goalsAtRisk}
-          goalsBehindTarget={goalsBehindTarget}
-          loading={loadingGoals}
-        />
-        <FeedbackHealth
-          members={feedbackMembers}
-          feedbackCoverage={feedbackCoverage}
-          recognitionRatio={recognitionRatio}
-          totalReceivedCount={totalReceivedCount}
-          totalGivenCount={totalGivenCount}
-          loading={loadingFeedback}
-        />
-      </div>
+      {/* Goals Health + Feedback Health — removed */}
 
       {/* Alignment Comparison — full width */}
       <AlignmentComparison gaps={alignmentGaps} ratingScaleLimit={ratingScaleLimit} loading={loadingEvaluations} />

@@ -1,7 +1,5 @@
-/* eslint-disable newwork-local/no-hardcoded-colors -- Recharts bar fills require fixed hex values per spec */
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, XAxis, YAxis } from 'recharts'
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { Heart } from 'lucide-react'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
 import type { DimensionAverage } from '../../utils/dashboardComputations'
@@ -57,16 +55,27 @@ const companyValueCellClass = (score: number | null, limit: number): string => {
   return 'gba:bg-green-200 gba:dark:bg-green-800/30 gba:text-green-900 gba:dark:text-green-100'
 }
 
-const perspectiveChartData = (dimensionAverages: DimensionAverage[]) =>
-  dimensionAverages.map(d => ({
-    name: d.name,
-    self: d.selfAvg,
-    peer: d.peerAvg,
-    manager: d.managerAvg
-  }))
+const computeValueAverages = (members: TeamMemberEvaluation[], valueNames: string[]): Map<string, number | null> => {
+  const avgs = new Map<string, number | null>()
+  for (const vn of valueNames) {
+    let sum = 0
+    let count = 0
+    for (const m of members) {
+      const vm = valueScoreMap(m)
+      const score = vm.get(vn)
+      if (score != null && score !== 0) {
+        sum += score
+        count++
+      }
+    }
+    avgs.set(vn, count > 0 ? Math.round((sum / count) * 10) / 10 : null)
+  }
+  return avgs
+}
 
 export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({
   members,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   dimensionAverages,
   ratingScaleLimit,
   loading
@@ -80,19 +89,8 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({
             <div className="gba:h-5 gba:w-44 gba:rounded gba:bg-muted gba:animate-pulse" />
           </div>
         </CardHeader>
-        <CardContent className="gba:space-y-8">
-          <div className="gba:space-y-2">
-            <div className="gba:h-4 gba:w-36 gba:rounded gba:bg-muted gba:animate-pulse" />
-            <div className="gba:h-48 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
-          </div>
-          <div className="gba:space-y-2">
-            <div className="gba:h-4 gba:w-52 gba:rounded gba:bg-muted gba:animate-pulse" />
-            <div className="gba:h-56 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
-          </div>
-          <div className="gba:space-y-2">
-            <div className="gba:h-4 gba:w-40 gba:rounded gba:bg-muted gba:animate-pulse" />
-            <div className="gba:h-64 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
-          </div>
+        <CardContent>
+          <div className="gba:h-48 gba:w-full gba:rounded-lg gba:bg-muted gba:animate-pulse" />
         </CardContent>
       </Card>
     )
@@ -100,14 +98,7 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({
 
   const hasNoValues = members.length === 0 || members.every(m => m.companyValues.length === 0)
   const valueNames = collectValueNames(members)
-  const barRows = dimensionAverages
-    .filter(d => d.teamAvg != null)
-    .map(d => ({ name: d.name, teamAvg: d.teamAvg as number }))
-    .sort((a, b) => b.teamAvg - a.teamAvg)
-  const horizontalHeight = Math.max(160, barRows.length * 30 + 48)
-
-  const perspectiveData = perspectiveChartData(dimensionAverages)
-  const perspectiveHeight = Math.max(280, Math.min(480, perspectiveData.length * 40 + 120))
+  const valueAverages = computeValueAverages(members, valueNames)
 
   if (hasNoValues) {
     return (
@@ -133,9 +124,8 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({
           Company Values
         </CardTitle>
       </CardHeader>
-      <CardContent className="gba:space-y-8">
-        <section className="gba:space-y-3">
-          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Values heatmap</h3>
+      <CardContent>
+        <section>
           {valueNames.length === 0 ? (
             <p className="gba:text-sm gba:text-muted-foreground">No company values data available for this cycle.</p>
           ) : (
@@ -184,52 +174,24 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({
                     </React.Fragment>
                   )
                 })}
+
+                {/* Average row */}
+                <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-muted/60 gba:border-border gba:border-t-2 gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-bold">
+                  Average
+                </div>
+                {valueNames.map(vn => {
+                  const avg = valueAverages.get(vn) ?? null
+                  const display = avg != null ? (avg % 1 === 0 ? String(avg) : avg.toFixed(1)) : '—'
+                  return (
+                    <div
+                      key={`avg-${vn}`}
+                      className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${companyValueCellClass(avg, ratingScaleLimit)}`}
+                    >
+                      {display}
+                    </div>
+                  )
+                })}
               </div>
-            </div>
-          )}
-        </section>
-
-        <section className="gba:space-y-3">
-          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Average score by value</h3>
-          {barRows.length === 0 ? (
-            <p className="gba:text-sm gba:text-muted-foreground">No team averages to chart.</p>
-          ) : (
-            <div style={{ width: '100%', height: horizontalHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart layout="vertical" data={barRows} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-                  <XAxis type="number" domain={[0, ratingScaleLimit]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} interval={0} />
-                  <Bar dataKey="teamAvg" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={22} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </section>
-
-        <section className="gba:space-y-3">
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-            <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-              Perspective gap (self vs peer vs manager)
-            </h3>
-            <Badge variant="secondary" className="gba:text-xs">
-              By dimension
-            </Badge>
-          </div>
-          {perspectiveData.length === 0 ? (
-            <p className="gba:text-sm gba:text-muted-foreground">No perspective data to chart.</p>
-          ) : (
-            <div style={{ width: '100%', height: perspectiveHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={perspectiveData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="gba:stroke-border" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={72} />
-                  <YAxis domain={[0, ratingScaleLimit]} tick={{ fontSize: 11 }} />
-                  <Legend />
-                  <Bar dataKey="self" name="Self" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="peer" name="Peer" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="manager" name="Manager" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
             </div>
           )}
         </section>
