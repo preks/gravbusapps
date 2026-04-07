@@ -53,6 +53,8 @@ export interface WidgetItem {
     description?: string
     /** When true, hides the trend badge (e.g. for no-trend cards with value + empty row + footer). */
     hideBadge?: boolean
+    /** Override the badge status color. 'offline' = gray dot (gray-500). */
+    badgeVariant?: 'success' | 'destructive' | 'warning' | 'info' | 'default' | 'offline' | 'pending'
   }
   customContent?: ReactNode
   /**
@@ -258,7 +260,7 @@ const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
     decimalPlaces: widget.precision,
     footer: widget.footer ?? widget.description,
     icon: iconNode,
-    trend: widget.trend ? { ...widget.trend, value: widget.trend.value ?? '' } : undefined
+    trend: widget.trend ? ({ ...widget.trend, value: widget.trend.value ?? '' } as KpiCardData['trend']) : undefined
     // Note: SectionKpiCards doesn't support onClick directly,
     // but we'll handle it in the component if needed
   }

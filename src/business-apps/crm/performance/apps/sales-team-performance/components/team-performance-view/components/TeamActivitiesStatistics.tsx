@@ -3,6 +3,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SalesTeamMember } from '../../sales-members-list/types'
 import { UsersIcon, ChartLineIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
+import { calculateTrend } from '@/common/utils/trendUtils'
 
 const DATA_TEST_ID_PREFIX = 'TeamActivitiesStatistics'
 
@@ -35,24 +36,6 @@ export const TeamActivitiesStatistics: React.FC<TeamActivitiesStatisticsProps> =
   retry
 }) => {
   // Data is passed from parent component (TeamPerformanceView)
-
-  // Calculate trends (percentage change vs last 30 days)
-  const calculateTrend = (current: number, previous: number): { value: string; positive: boolean } => {
-    if (previous === 0) {
-      return {
-        value: current > 0 ? '+100%' : '0%',
-        positive: current > 0
-      }
-    }
-
-    const change = ((current - previous) / previous) * 100
-    const positive = change >= 0
-
-    return {
-      value: `${positive ? '+' : ''}${change.toFixed(1)}%`,
-      positive
-    }
-  }
 
   // Calculate team statistics using aggregates
   const teamStats = useMemo(() => {
