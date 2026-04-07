@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Button, PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { CalendarIcon } from '@phosphor-icons/react'
-import { Plus } from 'lucide-react'
+import { CalendarIcon, PlusIcon } from '@phosphor-icons/react'
 import { TaskTemplateTable, TaskTemplateForm } from './components'
 import { TaskTemplateSettingsProps, BaseTaskTemplate, TaskTemplateFormData } from './types'
 
@@ -23,7 +22,7 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
   businessAppContext,
   taskTypeCatalogId,
   taskPriorityCatalogId,
-  hasEventConfig = false,
+  templateEntityConfig,
   assigneeTypes = [],
   holidayPolicies = []
 }) => {
@@ -94,7 +93,7 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
       {/* Add Button */}
       <div className="gba:flex gba:justify-end gba:mb-6">
         <Button onClick={handleAdd} data-testid={`${prefixDataTestId}-add-button`}>
-          <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+          <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
           Add Template
         </Button>
       </div>
@@ -103,10 +102,8 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
       <TaskTemplateTable
         templates={templates}
         isLoading={isLoading}
-        error={error}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onRetry={onRetry}
         onSearchChange={handleSearchChange}
         dataTestId={`${prefixDataTestId}-table`}
       />
@@ -124,7 +121,7 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
         businessAppContext={businessAppContext}
         taskTypeCatalogId={taskTypeCatalogId}
         taskPriorityCatalogId={taskPriorityCatalogId}
-        hasEventConfig={hasEventConfig}
+        templateEntityConfig={templateEntityConfig}
         assigneeTypes={assigneeTypes}
         holidayPolicies={holidayPolicies}
       />
