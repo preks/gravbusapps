@@ -32,6 +32,7 @@ import {
 } from '../utils/analyticsEngine'
 import { indexToExcelCol, parseChartRange } from '../utils/chartRangeUtils'
 import { useSpreadsheetAnalyticsAI } from '../hooks/useSpreadsheetAnalyticsAI'
+import { useSpreadsheetPromptManagerClient } from '../hooks/useSpreadsheetPromptManagerClient'
 import { SendToSlidesDialog } from './SendToSlidesDialog'
 import translations from '../_i18n'
 
@@ -456,6 +457,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   'data-testid': testId = 'analytics-panel'
 }) {
   const { t } = useTranslation(translations)
+  const spreadsheetPromptClient = useSpreadsheetPromptManagerClient(accessToken)
   const memoizedEngineRef = useRef(createAnalyticsMemo())
   const [activeTab, setActiveTab] = useState('charts')
   const panelTitle = useMemo(() => {
@@ -758,7 +760,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     generateInsights,
     generateSummary
   } = useSpreadsheetAnalyticsAI({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: columnsForAnalytics,
     sheetData: analyticsRows
