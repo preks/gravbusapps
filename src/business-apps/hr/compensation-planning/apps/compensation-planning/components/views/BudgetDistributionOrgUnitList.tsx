@@ -1,5 +1,14 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Input, Spinner, useTranslation } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  DataDisplay,
+  Input,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import type { CompanyOrganizationalUnit } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
 import type { DistributionMethod } from '../../../../types/compensationPlanningTypes'
@@ -218,13 +227,28 @@ export function BudgetDistributionOrgUnitList({
 
   if (embedded) {
     return (
-      <div
-        className="gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:gap-4"
-        data-testid="budget-distribution-departments-list"
+      <DataDisplay
+        data-testid="budget-distribution-departments-display"
+        titleSections={[
+          {
+            id: 'departments',
+            label: t('budget-distribution-departments-toolbar-title'),
+            metadata: { count: departmentTotal, isLoading: loading }
+          }
+        ]}
+        currentSection="departments"
+        toolbarDensity="default"
+        searchValue={departmentSearch}
+        searchPlaceholder={t('budget-distribution-departments-search-placeholder')}
+        onSearchChange={setDepartmentSearch}
       >
-        {headerBlock}
-        {bodyBlock}
-      </div>
+        <div
+          className="gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:gap-4"
+          data-testid="budget-distribution-departments-list"
+        >
+          {bodyBlock}
+        </div>
+      </DataDisplay>
     )
   }
 

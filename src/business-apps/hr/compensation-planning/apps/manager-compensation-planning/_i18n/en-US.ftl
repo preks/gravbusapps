@@ -13,6 +13,7 @@ error-salary-budget-title = Could not load team salary budget
 error-title = Something went wrong
 table-section-title = Team members
 manager-team-context-card-title = Team compensation
+manager-team-budget-allocation-card-title = Remaining budget
 budget-summary-total-available = Total budget available
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Sums salary budgets for your team members’ org units on the latest company budget plan when rows exist (or your position’s unit if members have no OU).

@@ -6,16 +6,17 @@ import {
   CardHeader,
   CardTitle,
   DataDisplay,
-  Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { formatCurrency } from '@/common/utils/numberFormatter'
+import { ChartPieSliceIcon, CoinsIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
+import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
+import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/numberFormatter'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { distributeToEmployees } from '../../../utils/budgetCalculations'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
-import { BudgetDistributionContextCard } from '../../compensation-planning/components/views/BudgetDistributionContextCard'
+import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
 import {
   BudgetDistributionMethodSelector,
   budgetDistributionMethodTitleKey
@@ -29,13 +30,18 @@ import { TeamCompensationSaveAllocationsDialog } from './TeamCompensationSaveAll
 
 const EXCLUDED_DISTRIBUTION_METHODS = ['proportional_headcount'] as const
 
+const TEAM_BUDGET_KPI_COLORS = {
+  totalBudget: 'var(--nw-color-primary-500)',
+  pool: 'var(--nw-color-success-500)',
+  allocation: 'var(--nw-color-info-500)'
+} as const
+
 export interface TeamCompensationDistributionPanelProps {
   teamMembers: TeamMemberCompensationData[]
   filteredRows: TeamMemberCompensationData[]
   totalFiltered: number
   loading: boolean
   error: string | null
-  companyToolbarEnd: React.ReactNode
   totalSalaryBudget: number | null
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
@@ -54,7 +60,6 @@ export function TeamCompensationDistributionPanel({
   totalFiltered,
   loading,
   error,
-  companyToolbarEnd,
   totalSalaryBudget,
   salaryBudgetLoading,
   salaryBudgetError,
@@ -71,7 +76,7 @@ export function TeamCompensationDistributionPanel({
   const { distributionMethod, setDistributionMethod } = useManagerPlanningStore()
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
 
-  const dataDisplay = useManagerTeamCompensationDataDisplay(teamMembers)
+  const dataDisplay = useManagerTeamCompensationDataDisplay()
 
   useEffect(() => {
     if (distributionMethod === 'proportional_headcount') {
@@ -118,6 +123,10 @@ export function TeamCompensationDistributionPanel({
     return distributeToEmployees(pool, employeeInputsFull, distributionMethod)
   }, [distributionMethod, previewCustomAllocationByEmployeeId, activePool, employeeInputsFull])
 
+  const totalPreviewAllocated = useMemo(() => {
+    return teamMembers.reduce((sum, m) => sum + (allocationFullTeam.get(m.employeeId) ?? 0), 0)
+  }, [teamMembers, allocationFullTeam])
+
   const allocationByEmployeeId = useMemo(() => {
     const map = new Map<string, number>()
     for (const m of filteredRows) {
@@ -153,40 +162,66 @@ export function TeamCompensationDistributionPanel({
   const listsReady = loading === false && salaryBudgetLoading === false
   const canShowSaveAction = Boolean(accessToken && managerEmployeeId && teamMembers.length > 0 && listsReady)
 
-  const teamBudgetRow = (
-    <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
-      <span className="gba:shrink-0 gba:text-sm gba:text-muted-foreground">{t('budget-summary-total-available')}</span>
-      {salaryBudgetLoading ? (
-        <Spinner className="gba:size-4" data-testid="manager-team-budget-loading" />
-      ) : (
-        <span className="gba:text-sm gba:font-medium gba:tabular-nums gba:text-foreground">
-          {totalSalaryBudget != null
-            ? formatCurrency(totalSalaryBudget, currencyCode)
-            : t('budget-summary-placeholder-value')}
-        </span>
-      )}
-    </div>
-  )
+  const teamBudgetKpiWidgets = useMemo((): WidgetItem[] | null => {
+    if (activePool == null) {
+      return null
+    }
+    const unallocatedRounded = roundMoney2(Math.max(0, activePool - totalPreviewAllocated))
+    const kpiMoney = {
+      currency: extractCurrencyCode(currencyCode),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+    return [
+      {
+        key: 'manager-team-total-budget',
+        title: t('budget-summary-total-available'),
+        value:
+          totalSalaryBudget != null
+            ? formatCurrencyString(totalSalaryBudget, kpiMoney)
+            : t('budget-summary-placeholder-value'),
+        valueIsString: true,
+        prefix: <CurrencyCircleDollarIcon size={24} />,
+        color: TEAM_BUDGET_KPI_COLORS.totalBudget,
+        span: { xs: 24, sm: 8, lg: 8 }
+      },
+      {
+        key: 'manager-team-distribution-pool-summary',
+        title: tBudget('budget-distribution-pool-primary-label'),
+        value: formatCurrencyString(activePool, kpiMoney),
+        valueIsString: true,
+        prefix: <CoinsIcon size={24} />,
+        color: TEAM_BUDGET_KPI_COLORS.pool,
+        span: { xs: 24, sm: 8, lg: 8 },
+        description: tBudget('budget-distribution-using-method', {
+          method: tBudget(budgetDistributionMethodTitleKey(distributionMethod))
+        })
+      },
+      {
+        key: 'manager-team-budget-allocation',
+        title: t('manager-team-budget-allocation-card-title'),
+        value: formatCurrencyString(unallocatedRounded, kpiMoney),
+        valueIsString: true,
+        prefix: <ChartPieSliceIcon size={24} />,
+        color: TEAM_BUDGET_KPI_COLORS.allocation,
+        span: { xs: 24, sm: 8, lg: 8 }
+      }
+    ]
+  }, [activePool, currencyCode, distributionMethod, t, tBudget, totalPreviewAllocated, totalSalaryBudget])
 
   const contextPoolSection = useMemo(() => {
     if (salaryBudgetLoading) {
       return null
     }
-    if (activePool != null) {
+    if (teamBudgetKpiWidgets != null) {
       return (
-        <div className="gba:space-y-1" data-testid="manager-team-distribution-pool-summary">
-          <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-            {tBudget('budget-distribution-pool-primary-label')}
-          </p>
-          <p className="gba:text-2xl gba:font-semibold gba:tabular-nums gba:text-foreground">
-            {formatCurrency(activePool, currencyCode)}
-          </p>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {tBudget('budget-distribution-using-method', {
-              method: tBudget(budgetDistributionMethodTitleKey(distributionMethod))
-            })}
-          </p>
-        </div>
+        <WidgetGroup
+          className="gba:py-0"
+          widgets={teamBudgetKpiWidgets}
+          skeletonCount={3}
+          cardsClassName="gba:sm:grid-cols-3"
+          data-testid="manager-team-budget-kpi-cards"
+        />
       )
     }
     if (
@@ -202,16 +237,7 @@ export function TeamCompensationDistributionPanel({
       )
     }
     return null
-  }, [
-    activePool,
-    currencyCode,
-    distributionMethod,
-    salaryBudgetError,
-    salaryBudgetLoading,
-    selectedCompanyId,
-    tBudget,
-    totalSalaryBudget
-  ])
+  }, [salaryBudgetError, salaryBudgetLoading, selectedCompanyId, teamBudgetKpiWidgets, tBudget, totalSalaryBudget])
 
   const cardTitle = t('team-summary', { count: totalFiltered })
 
@@ -233,14 +259,7 @@ export function TeamCompensationDistributionPanel({
         onSaved={onSaved}
       />
       <div className="gba:flex gba:flex-col gba:gap-4" data-testid="manager-team-distribution-layout">
-        <div data-testid="manager-team-compensation-context">
-          <BudgetDistributionContextCard
-            title={t('manager-team-context-card-title')}
-            planSelect={teamBudgetRow}
-            companyToolbar={companyToolbarEnd}
-            poolSection={contextPoolSection}
-          />
-        </div>
+        <div data-testid="manager-team-compensation-context">{contextPoolSection}</div>
 
         <Card className="gba:w-full" data-testid="manager-team-distribution-preview-panel">
           <CardHeader className="gba:flex gba:flex-row gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:border-b gba:border-border gba:pb-4">
@@ -294,15 +313,6 @@ export function TeamCompensationDistributionPanel({
                   searchValue={dataDisplay.searchQuery}
                   searchPlaceholder={t('search-placeholder')}
                   onSearchChange={dataDisplay.setSearchQuery}
-                  filters={dataDisplay.filtersObject}
-                  filterConfiguration={dataDisplay.filterConfiguration}
-                  onFilterChange={dataDisplay.handleFilterChangeFromDisplay}
-                  enableLiveFiltering
-                  filterSheetTitle={t('filter-sheet-title')}
-                  filterSheetDescription={t('filter-sheet-description')}
-                  sorting={dataDisplay.sorting}
-                  sortableColumns={dataDisplay.sortableColumns}
-                  onSortingChange={dataDisplay.handleSortingChange}
                 >
                   <TeamCompensationEmployeeDistributionList
                     embedded
