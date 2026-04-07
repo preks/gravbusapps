@@ -18,7 +18,7 @@ interface ChatInputProps {
 const DEFAULT_CONFIG: SessionConfig = {
   mode: 'deep',
   enable_memory: true,
-  enable_reflection: true
+  enable_reflection: undefined
 }
 
 export const ChatInput = ({

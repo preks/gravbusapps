@@ -234,7 +234,7 @@ export interface SessionConfig {
   mode: 'deep' | 'autonomous'
   model?: string
   enable_memory: boolean
-  enable_reflection: boolean
+  enable_reflection: boolean | undefined
   max_iterations?: number
   selectedAgent?: SpecialistAgent
 }
@@ -261,6 +261,9 @@ export interface ChatMessage {
   isCollapsed?: boolean
 }
 
+/** Present on `subagent_spawn` rows: lifecycle of the delegated expert/sub-agent. */
+export type ActivityDelegationStatus = 'running' | 'done' | 'failed'
+
 export interface ActivityEvent {
   id: string
   timestamp: string
@@ -269,6 +272,8 @@ export interface ActivityEvent {
   toolName?: string
   summary: string
   durationMs?: number
+  /** When `type === 'subagent_spawn'`, whether the delegated step has finished (from SSE completions). */
+  delegationStatus?: ActivityDelegationStatus
 }
 
 export type TraceEvent = AgentStreamEvent

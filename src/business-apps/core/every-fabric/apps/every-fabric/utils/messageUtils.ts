@@ -345,13 +345,20 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
       if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
         const completed = stepCompletions.get(e.step_id)
         const agentName = resolveDelegatedAgentName(e, completed)
+        const delegationStatus =
+          completed && (completed.type === 'subagent_completed' || completed.type === 'expert_completed')
+            ? completed.status === 'failed'
+              ? ('failed' as const)
+              : ('done' as const)
+            : ('running' as const)
         return {
           id: e.event_id,
           timestamp: e.timestamp,
           type: 'subagent_spawn' as const,
           agent: agentName,
           summary: e.task_summary ?? agentName,
-          durationMs: completed?.duration_ms
+          durationMs: completed?.duration_ms,
+          delegationStatus
         }
       }
       const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')

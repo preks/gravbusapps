@@ -344,7 +344,32 @@ const isMeaningfulExpertLabel = (value?: string) => {
   return !!normalized && normalized !== 'sub-agent' && normalized !== 'enterprise expert'
 }
 
-const EnterpriseExpertsCard: React.FC<{ nodes: FabricTaskNode[]; events: ActivityEvent[] }> = ({ nodes, events }) => {
+const DELEGATION_STATUS_RANK: Record<FabricSubAgent['status'], number> = {
+  done: 3,
+  failed: 2,
+  running: 1
+}
+
+const pickRicherDelegationStatus = (
+  a: FabricSubAgent['status'],
+  b: FabricSubAgent['status']
+): FabricSubAgent['status'] => (DELEGATION_STATUS_RANK[a] >= DELEGATION_STATUS_RANK[b] ? a : b)
+
+/** Map activity row + stream state to FabricSubAgent status (matches deriveActivityFromEvents / SSE). */
+const resolveActivityDelegationStatus = (event: ActivityEvent, isStreaming: boolean): FabricSubAgent['status'] => {
+  if (event.type !== 'subagent_spawn') return 'running'
+  if (event.delegationStatus === 'failed') return 'failed'
+  if (event.delegationStatus === 'done') return 'done'
+  if (event.durationMs !== undefined) return 'done'
+  if (!isStreaming) return 'done'
+  return 'running'
+}
+
+const EnterpriseExpertsCard: React.FC<{
+  nodes: FabricTaskNode[]
+  events: ActivityEvent[]
+  isStreaming: boolean
+}> = ({ nodes, events, isStreaming }) => {
   const experts = useMemo(() => {
     const seen = new Map<string, FabricSubAgent>()
 
@@ -357,9 +382,9 @@ const EnterpriseExpertsCard: React.FC<{ nodes: FabricTaskNode[]; events: Activit
             : inferExpertLabelFromSummary(expert.summary)
         const key = `${displayName.toLowerCase()}::${(expert.summary ?? '').trim().toLowerCase()}`
         const existing = seen.get(key)
-        if (!existing || (existing.status !== 'running' && expert.status === 'running')) {
-          seen.set(key, { ...expert, name: displayName })
-        }
+        const mergedStatus = pickRicherDelegationStatus(existing?.status ?? 'running', expert.status)
+        const chosen = !existing || mergedStatus === expert.status ? expert : existing
+        seen.set(key, { ...chosen, name: displayName, status: mergedStatus })
       }
     }
 
@@ -369,19 +394,25 @@ const EnterpriseExpertsCard: React.FC<{ nodes: FabricTaskNode[]; events: Activit
         ? normalizeExpertName(event.agent!)
         : inferExpertLabelFromSummary(event.summary)
       const key = `${displayName.toLowerCase()}::${(event.summary ?? '').trim().toLowerCase()}`
+      const status = resolveActivityDelegationStatus(event, isStreaming)
+      const incoming: FabricSubAgent = {
+        id: event.id,
+        name: displayName,
+        summary: event.summary,
+        status
+      }
       const existing = seen.get(key)
       if (!existing) {
-        seen.set(key, {
-          id: event.id,
-          name: displayName,
-          summary: event.summary,
-          status: 'running'
-        })
+        seen.set(key, incoming)
+        continue
       }
+      const mergedStatus = pickRicherDelegationStatus(existing.status, incoming.status)
+      const chosen = mergedStatus === incoming.status ? incoming : existing
+      seen.set(key, { ...chosen, name: displayName, status: mergedStatus })
     }
 
     return [...seen.values()]
-  }, [nodes, events])
+  }, [nodes, events, isStreaming])
 
   if (experts.length === 0) return null
 
@@ -390,7 +421,7 @@ const EnterpriseExpertsCard: React.FC<{ nodes: FabricTaskNode[]; events: Activit
       <div className="gba:py-1 gba:space-y-1">
         {experts.map(expert => (
           <div
-            key={expert.id}
+            key={`${expert.id}::${(expert.summary ?? '').slice(0, 64)}`}
             className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/20 gba:transition-colors"
             data-testid={`fabric-expert-${expert.id}`}
           >
@@ -534,7 +565,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
       isStreaming={isStreaming}
     />
 
-    <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} />
+    <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
 
     {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
 
