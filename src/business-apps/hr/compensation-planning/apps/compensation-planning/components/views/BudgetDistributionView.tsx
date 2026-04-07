@@ -33,7 +33,6 @@ import { BudgetDistributionContextCard } from './BudgetDistributionContextCard'
 export interface BudgetDistributionViewProps {
   accessToken: string
   companyId: string
-  companyToolbarGroup: React.ReactNode
 }
 
 const ORG_UNIT_LIST_LIMIT = 500
@@ -41,11 +40,7 @@ const ORG_UNIT_LIST_LIMIT = 500
 /** Set to `true` to disable changing the distribution method (previous read-only behaviour). */
 const LOCK_DISTRIBUTION_METHOD_SELECTION = false
 
-export function BudgetDistributionView({
-  accessToken,
-  companyId,
-  companyToolbarGroup
-}: Readonly<BudgetDistributionViewProps>) {
+export function BudgetDistributionView({ accessToken, companyId }: Readonly<BudgetDistributionViewProps>) {
   const { t } = useTranslation(translations)
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
   const [distributeOpen, setDistributeOpen] = useState(false)
@@ -263,7 +258,7 @@ export function BudgetDistributionView({
       <BudgetDistributionContextCard
         title={t('budget-distribution-context-card-title')}
         planSelect={planSelect}
-        companyToolbar={companyToolbarGroup}
+        companyToolbar={null}
         poolSection={contextPoolSection}
       />
 

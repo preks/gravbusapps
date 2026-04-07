@@ -145,7 +145,7 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
 export function useBudgetSetupForCompany(accessToken: string, companyId: string | null) {
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
-  const { selectedBudgetPlanId, setSelectedBudgetPlanId } = useCompensationPlanningStore()
+  const { selectedBudgetPlanId, selectBudgetPlan } = useCompensationPlanningStore()
   /** Avoid applying company budget list responses after the user switched company in the dropdown. */
   const companyIdRef = useRef(companyId)
   const previousCompanyIdRef = useRef<string | null>(null)
@@ -185,8 +185,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       }>(LIST_COMPENSATION_BUDGET_PLANS)
       const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
       setPlans(list)
-      const { selectedBudgetPlanId: currentId, setSelectedBudgetPlanId: pickPlan } =
-        useCompensationPlanningStore.getState()
+      const { selectedBudgetPlanId: currentId, selectBudgetPlan: pickPlan } = useCompensationPlanningStore.getState()
       if (list.length === 0) {
         pickPlan(null)
       } else if (!currentId || !list.some(p => p.id === currentId)) {
@@ -309,7 +308,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           setError('Failed to create company budget row: unexpected response from server')
           return null
         }
-        setSelectedBudgetPlanId(input.companyBudget.compensationBudgetPlanId)
+        selectBudgetPlan(input.companyBudget.compensationBudgetPlanId)
         await fetchPlans()
         await fetchCompanyRowsForCompany()
         return id
@@ -322,7 +321,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         setCreatingPlan(false)
       }
     },
-    [accessToken, fetchCompanyRowsForCompany, fetchPlans, restClient, setSelectedBudgetPlanId]
+    [accessToken, fetchCompanyRowsForCompany, fetchPlans, restClient, selectBudgetPlan]
   )
 
   const saveCompanyBudget = useCallback(
@@ -396,7 +395,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
   return {
     plans,
     selectedBudgetPlanId,
-    setSelectedBudgetPlanId,
+    selectBudgetPlan,
     companyRow,
     companyBudgetPlanRows,
     loadingPlans,

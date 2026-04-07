@@ -1,24 +1,17 @@
-import React, { useEffect } from 'react'
-import {
-  PageLayout,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Spinner,
-  useTranslation
-} from '@newwork/nw-design-system'
-import { CalendarBlankIcon, ChartBarIcon, GearIcon, ListChecksIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import React, { useCallback, useEffect, useState } from 'react'
+import { PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { ChartBarIcon, GearIcon, ListChecksIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 import { useDefaultCompanyForCurrentUser } from '../../hooks/useDefaultCompanyForCurrentUser'
 import { useCompensationPlanningStore } from './hooks/useCompensationPlanningStore'
+import { BudgetPlanSelector } from './components/shared/BudgetPlanSelector'
+import { CreateBudgetPlanDialog } from './components/views/CreateBudgetPlanDialog'
+import { useBudgetPlansTable } from './hooks/useBudgetPlansTable'
 import { OverviewView } from './components/views/OverviewView'
 import { BudgetSetupView } from './components/views/BudgetSetupView'
 import { SubmissionsView } from './components/views/SubmissionsView'
 import { BudgetDistributionView } from './components/views/BudgetDistributionView'
-import { BudgetPlanView } from './components/views/BudgetPlanView'
 import translations from './_i18n'
 
 export const CompensationPlanning: React.FC<BusinessAppContextProps> = context => {
@@ -28,13 +21,14 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
 
   const viewOptions = [
     { value: 'overview', label: t('tab-overview'), icon: <ChartBarIcon /> },
-    { value: 'budget-plan', label: t('tab-budget-plan'), icon: <CalendarBlankIcon /> },
-    { value: 'budget', label: t('tab-budget-setup'), icon: <GearIcon /> },
+    { value: 'budget-setup', label: t('tab-budget-setup'), icon: <GearIcon /> },
     { value: 'budget-distribution', label: t('tab-budget-distribution'), icon: <TreeStructureIcon /> },
     { value: 'submissions', label: t('tab-submissions'), icon: <ListChecksIcon /> }
   ]
 
-  const { selectedCompanyId, activeTab, selectCompany, setActiveTab } = useCompensationPlanningStore()
+  const { selectedCompanyId, selectedBudgetPlanId, activeTab, selectCompany, selectBudgetPlan, setActiveTab } =
+    useCompensationPlanningStore()
+
   const { companies, loading: companiesLoading, error: companiesLoadError } = useActiveStructureCompanies(accessToken)
 
   useEffect(() => {
@@ -58,104 +52,84 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     selectCompany
   )
 
-  const isBudgetPlanTab = activeTab === 'budget-plan'
-  /** Company + primary actions live in the DataDisplay toolbar (like Currency + Add). */
-  const showCompanyInPageToolbar =
-    activeTab !== 'budget-plan' &&
-    activeTab !== 'budget' &&
-    activeTab !== 'budget-distribution' &&
-    activeTab !== 'submissions'
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search)
+      const view = params.get('view')
+      if (view) setActiveTab(view)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [setActiveTab])
 
-  const companySelectValue =
-    selectedCompanyId != null && companies.some(c => c.id === selectedCompanyId) ? selectedCompanyId : undefined
+  const [createPlanDialogOpen, setCreatePlanDialogOpen] = useState(false)
+  const {
+    rows: existingPlans,
+    loading: plansLoading,
+    creating: creatingPlan,
+    insertPlan
+  } = useBudgetPlansTable(accessToken)
 
-  const companySelect = (
-    <Select
-      value={companySelectValue}
-      onValueChange={val => selectCompany(val || null)}
-      disabled={!companiesLoading && companies.length === 0}
-    >
-      <SelectTrigger className="gba:w-[300px]" data-testid="compensation-planning-company-select">
-        <SelectValue placeholder={t('select-company-placeholder')} />
-      </SelectTrigger>
-      <SelectContent>
-        {companies.map(company => (
-          <SelectItem key={company.id} value={company.id}>
-            {company.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+  const handleCreatePlan = useCallback(
+    async (input: Parameters<typeof insertPlan>[0]) => {
+      const newId = await insertPlan(input)
+      if (newId) {
+        selectBudgetPlan(newId)
+      }
+      return newId
+    },
+    [insertPlan, selectBudgetPlan]
   )
 
-  const companyToolbarGroup = (
-    <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
-      <span className="gba:shrink-0 gba:text-sm gba:text-muted-foreground">{t('toolbar-company-label')}</span>
-      {companySelect}
-    </div>
+  const handleSelectPlan = useCallback(
+    (planId: string) => {
+      selectBudgetPlan(planId)
+    },
+    [selectBudgetPlan]
   )
 
-  const toolbarRow = (
-    <div
-      className="gba:flex gba:w-full gba:flex-row gba:flex-wrap gba:items-start gba:justify-between gba:gap-4"
-      data-testid="compensation-planning-toolbar"
-    >
-      <div className="gba:min-w-0 gba:flex-1">
-        {!isBudgetPlanTab && !selectedCompanyId ? (
-          <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-        ) : null}
-      </div>
-      <div className="gba:flex gba:flex-col gba:items-end gba:gap-2 gba:shrink-0">
-        {showCompanyInPageToolbar ? companySelect : null}
-        {!companiesLoading && companies.length === 0 && companiesLoadError ? (
-          <p
-            className="gba:max-w-sm gba:text-right gba:text-sm gba:text-destructive"
-            data-testid="compensation-planning-companies-error"
-          >
-            {t('error-companies-load', { message: companiesLoadError })}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  )
+  const handleDeselectPlan = useCallback(() => {
+    selectBudgetPlan(null)
+  }, [selectBudgetPlan])
 
   const renderTabContent = () => {
-    if (isBudgetPlanTab) {
-      return <BudgetPlanView accessToken={accessToken} companyToolbarGroup={companyToolbarGroup} />
-    }
-    if (!selectedCompanyId) {
-      return null
-    }
+    if (!selectedCompanyId) return null
+
+    const companyName = companies.find(c => c.id === selectedCompanyId)?.name
+
     switch (activeTab) {
       case 'overview':
-        return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
-      case 'budget':
         return (
-          <BudgetSetupView
+          <OverviewView
             accessToken={accessToken}
             companyId={selectedCompanyId}
-            companyName={companies.find(c => c.id === selectedCompanyId)?.name}
-            companyToolbarGroup={companyToolbarGroup}
+            budgetPlanId={selectedBudgetPlanId}
+            plans={existingPlans}
+            plansLoading={plansLoading}
+            onSelectPlan={handleSelectPlan}
+            onDeselectPlan={handleDeselectPlan}
+            onCreatePlan={() => setCreatePlanDialogOpen(true)}
           />
         )
+      case 'budget-setup':
+        return <BudgetSetupView accessToken={accessToken} companyId={selectedCompanyId} companyName={companyName} />
       case 'budget-distribution':
-        return (
-          <BudgetDistributionView
-            accessToken={accessToken}
-            companyId={selectedCompanyId}
-            companyToolbarGroup={companyToolbarGroup}
-          />
-        )
+        return <BudgetDistributionView accessToken={accessToken} companyId={selectedCompanyId} />
       case 'submissions':
+        return <SubmissionsView accessToken={accessToken} companyId={selectedCompanyId} />
+      default:
         return (
-          <SubmissionsView
+          <OverviewView
             accessToken={accessToken}
             companyId={selectedCompanyId}
-            companyToolbarGroup={companyToolbarGroup}
+            budgetPlanId={selectedBudgetPlanId}
+            plans={existingPlans}
+            plansLoading={plansLoading}
+            onSelectPlan={handleSelectPlan}
+            onDeselectPlan={handleDeselectPlan}
+            onCreatePlan={() => setCreatePlanDialogOpen(true)}
           />
         )
-      default:
-        return <OverviewView accessToken={accessToken} companyId={selectedCompanyId} />
     }
   }
 
@@ -174,8 +148,25 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
         data-testid="compensation-planning-data-body"
       >
         <div className="gba:space-y-4">
-          {toolbarRow}
-          {isBudgetPlanTab || selectedCompanyId ? <div className="gba:space-y-4">{renderTabContent()}</div> : null}
+          <BudgetPlanSelector
+            companies={companies}
+            companiesLoading={companiesLoading}
+            selectedCompanyId={selectedCompanyId}
+            onCompanyChange={selectCompany}
+            t={t}
+          />
+
+          {!companiesLoading && companies.length === 0 && companiesLoadError ? (
+            <p className="gba:text-sm gba:text-destructive" data-testid="compensation-planning-companies-error">
+              {t('error-companies-load', { message: companiesLoadError })}
+            </p>
+          ) : null}
+
+          {!selectedCompanyId ? (
+            <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+          ) : (
+            <div className="gba:space-y-4">{renderTabContent()}</div>
+          )}
         </div>
       </div>
     )
@@ -185,7 +176,6 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     <PageLayout
       headerTitle={t('dashboard-title')}
       headerDescription={t('dashboard-subtitle')}
-      // PageHeader defaults onBack to history.back(); null hides the back control.
       onBack={null as unknown as (() => void) | undefined}
       headerSubViews={{
         value: activeTab,
@@ -198,7 +188,17 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       }}
       className="gba:min-h-screen"
     >
-      <div className="gba:space-y-6">{renderBody()}</div>
+      <div className="gba:space-y-6">
+        {renderBody()}
+
+        <CreateBudgetPlanDialog
+          open={createPlanDialogOpen}
+          onOpenChange={setCreatePlanDialogOpen}
+          creating={creatingPlan}
+          existingPlans={existingPlans}
+          onCreate={handleCreatePlan}
+        />
+      </div>
     </PageLayout>
   )
 }

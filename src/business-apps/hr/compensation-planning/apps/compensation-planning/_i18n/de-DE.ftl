@@ -1,21 +1,17 @@
 dashboard-title = Vergütungsplanung
 dashboard-subtitle = Vergütungszyklen einrichten, Budgets definieren und Gehaltsüberprüfungen verwalten
 
-create-cycle = Neuer Zyklus
-no-cycles = Keine Vergütungsplanungszyklen gefunden. Erstellen Sie einen neuen Zyklus, um zu beginnen.
-
-col-name = Zyklusname
-col-fiscal-year = Geschäftsjahr
-col-status = Status
-col-planning-window = Planungsfenster
-col-effective-date = Wirksamkeitsdatum
-col-companies = Unternehmen
-
 tab-overview = Übersicht
-tab-budget-plan = Budgetplan
 tab-budget-setup = Budgeteinrichtung
 tab-budget-distribution = Budgetverteilung
 tab-submissions = Manager-Einreichungen
+
+selector-company-label = Unternehmen
+selector-plan-label = Vergütungszyklus
+selector-company-placeholder = Unternehmen auswählen…
+selector-plan-placeholder = Vergütungszyklus auswählen…
+selector-loading = Wird geladen…
+selector-create-plan = Neuer Plan
 
 submissions-table-section-title = Abteilungsbudget-Einreichungen
 submissions-table-search-placeholder = OE-Budgets durchsuchen…
@@ -29,18 +25,18 @@ submissions-table-empty-filtered = Keine OE-Budgets entsprechen Suche oder Filte
 submissions-table-col-org-unit = Organisationseinheit
 submissions-table-col-company-budget-plan = Unternehmensbudget / Plan
 
-budget-plan-error-title = Budgetpläne konnten nicht geladen werden
-budget-plan-create-new = Planbudget hinzufügen
-budget-plan-create-dialog-title = Neuer Budgetplan
-budget-plan-form-name = Planname
-budget-plan-form-name-required = Bitte einen Plannamen eingeben.
+budget-plan-error-title = Vergütungszyklen konnten nicht geladen werden
+budget-plan-create-new = Vergütungszyklus hinzufügen
+budget-plan-create-dialog-title = Neuer Vergütungszyklus
+budget-plan-form-name = Zyklusname
+budget-plan-form-name-required = Bitte einen Zyklusnamen eingeben.
 budget-plan-form-description = Beschreibung
 budget-plan-form-fiscal-year = Geschäftsjahr
 budget-plan-form-status = Planstatus
 budget-plan-form-start-date = Startdatum
 budget-plan-form-end-date = Enddatum
 budget-plan-form-effective-date = Wirksamkeitsdatum
-budget-plan-form-duplicate-date-range = Dieser Zeitraum überschneidet sich mit einem vorhandenen Budgetplan. Bitte die Daten anpassen oder den vorhandenen Plan nutzen.
+budget-plan-form-duplicate-date-range = Dieser Zeitraum überschneidet sich mit einem vorhandenen Vergütungszyklus. Bitte die Daten anpassen oder den vorhandenen Zyklus nutzen.
 budget-plan-create-cancel = Abbrechen
 budget-plan-create-submit = Erstellen
 budget-plan-status-unknown = Unbekannt
@@ -50,9 +46,9 @@ budget-plan-status-approved = Genehmigt
 budget-plan-status-rejected = Abgelehnt
 budget-plan-status-sent-back = Zurückgesendet
 budget-plan-status-executed = Ausgeführt
-budget-plan-table-section-title = Vergütungsbudgetpläne
-budget-plan-table-search-placeholder = Budgetpläne durchsuchen…
-budget-plan-filter-sheet-title = Budgetpläne filtern
+budget-plan-table-section-title = Vergütungszyklen
+budget-plan-table-search-placeholder = Vergütungszyklen durchsuchen…
+budget-plan-filter-sheet-title = Vergütungszyklen filtern
 budget-plan-filter-sheet-description = Nach Planungszeitraum, Status, Wirksamkeitsdatum oder Geschäftsjahrbereich filtern. Die Suche durchsucht Name, Beschreibung, Status und Geschäftsjahr. Spaltensichtbarkeit über die Tabellen-Symbolleiste.
 budget-plan-filter-plan-period-group = Planungszeitraum
 budget-plan-filter-plan-period-label = Start- und Enddatum (Überlappung)
@@ -72,8 +68,8 @@ budget-plan-table-col-start-date = Startdatum
 budget-plan-table-col-end-date = Enddatum
 budget-plan-table-col-effective-date = Wirksamkeitsdatum
 budget-plan-table-col-description = Beschreibung
-budget-plan-table-empty = Keine Vergütungsbudgetpläne gefunden.
-budget-plan-table-empty-filtered = Keine Budgetpläne entsprechen Ihrer Suche oder Filter.
+budget-plan-table-empty = Keine Vergütungszyklen gefunden.
+budget-plan-table-empty-filtered = Keine Vergütungszyklen entsprechen Ihrer Suche oder Filter.
 
 select-company-placeholder = Unternehmen wählen…
 toolbar-company-label = Unternehmen:
@@ -192,6 +188,28 @@ budget-distribution-table-empty = Keine OE-Budgetzeilen für diesen Plan und die
 budget-distribution-table-empty-filtered = Keine OE-Budgets entsprechen Suche oder Filtern.
 budget-distribution-table-empty-no-plan = Legen Sie zuerst ein Unternehmensbudget in der Budgeteinrichtung an und wählen Sie es dann in der Unternehmenszeile oben.
 
+overview-plans-title = Vergütungszyklen
+overview-plans-description = Vorhandene Vergütungszyklen anzeigen oder einen neuen erstellen
+overview-plans-new-button = Neuer Vergütungszyklus
+overview-plans-empty-title = Noch keine Vergütungszyklen
+overview-plans-empty-hint = Erstellen Sie Ihren ersten Vergütungszyklus.
+overview-back-to-cycles = Zurück zu Vergütungszyklen
+overview-plans-col-name = Name
+overview-plans-col-status = Status
+overview-plans-col-fiscal-year = Geschäftsjahr
+overview-plans-col-start = Startdatum
+overview-plans-col-end = Enddatum
+overview-plans-col-effective = Wirksamkeitsdatum
+
+overview-plan-fiscal-year = Geschäftsjahr
+overview-plan-start = Planungsbeginn
+overview-plan-end = Planungsende
+overview-plan-effective = Wirksamkeitsdatum
+overview-plan-salary-budget = Gehaltserhöhungspool
+overview-plan-headcount = Geplante Mitarbeiterzahl
+overview-plan-distribution = Verteilungsmethode
+overview-plan-status = Planstatus
+
 overview-kpi-employees-title = Mitarbeitende
 overview-kpi-employees-desc = Aktive Positionen in diesem Unternehmen
 
@@ -281,11 +299,11 @@ budget-setup-readonly-row-headcount = Geplante Kopfzahl
 budget-setup-readonly-pools-heading = Zugewiesene Budgets
 budget-setup-readonly-percent-of-baseline = { $value } % der Gehaltsbasis
 budget-setup-readonly-no-company-row = Für diesen Plan ist noch kein Unternehmensbudget hinterlegt.
-budget-setup-plan-section-title = Vergütungsbudgetplan
+budget-setup-plan-section-title = Vergütungszyklus
 budget-setup-company-context = Budget für { $company }
 budget-setup-new-plan = Neuer Plan
 budget-setup-loading-plans = Pläne werden geladen…
-budget-setup-no-plans = Für dieses Unternehmen sind keine Vergütungsbudgetpläne verfügbar.
+budget-setup-no-plans = Für dieses Unternehmen sind keine Vergütungszyklen verfügbar.
 budget-setup-select-plan-label = Aktiver Plan
 budget-setup-select-plan-placeholder = Plan wählen…
 budget-setup-plan-details-title = Plandetails

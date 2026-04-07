@@ -6,10 +6,9 @@ import { SubmissionsOrgUnitBudgetTable } from './SubmissionsOrgUnitBudgetTable'
 export interface SubmissionsViewProps {
   accessToken: string
   companyId: string
-  companyToolbarGroup: React.ReactNode
 }
 
-export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ accessToken, companyId, companyToolbarGroup }) => {
+export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ accessToken, companyId }) => {
   const {
     teamMembers,
     loading: loadingTeam,
@@ -40,7 +39,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ accessToken, c
         loading={listLoading}
         error={listError}
         hasCompanyBudgetRows={hasCompanyBudgetRows}
-        toolbarSecondary={companyToolbarGroup}
+        toolbarSecondary={null}
       />
     </div>
   )

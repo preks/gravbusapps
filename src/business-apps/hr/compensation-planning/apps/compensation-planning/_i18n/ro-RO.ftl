@@ -1,21 +1,17 @@
 dashboard-title = Planificarea Compensațiilor
 dashboard-subtitle = Configurează cicluri de compensare, definește bugete și gestionează revizuirile salariale
 
-create-cycle = Ciclu Nou
-no-cycles = Nu s-au găsit cicluri de planificare a compensațiilor. Creați un ciclu nou pentru a începe.
-
-col-name = Numele ciclului
-col-fiscal-year = An fiscal
-col-status = Status
-col-planning-window = Fereastra de planificare
-col-effective-date = Data efectivă
-col-companies = Companii
-
 tab-overview = Prezentare generală
-tab-budget-plan = Plan buget
 tab-budget-setup = Configurare buget
 tab-budget-distribution = Distribuire buget
 tab-submissions = Trimiteri manageri
+
+selector-company-label = Companie
+selector-plan-label = Ciclu de compensare
+selector-company-placeholder = Selectează compania…
+selector-plan-placeholder = Selectează ciclul de compensare…
+selector-loading = Se încarcă…
+selector-create-plan = Plan nou
 
 submissions-table-section-title = Trimiteri buget pe departamente
 submissions-table-search-placeholder = Căutați bugete pe unitate organizațională…
@@ -29,18 +25,18 @@ submissions-table-empty-filtered = Niciun buget pe unitate organizațională nu 
 submissions-table-col-org-unit = Unitate organizațională
 submissions-table-col-company-budget-plan = Buget companie / plan
 
-budget-plan-error-title = Nu s-au putut încărca planurile de buget
-budget-plan-create-new = Adaugă plan buget
-budget-plan-create-dialog-title = Plan buget nou
-budget-plan-form-name = Nume plan
-budget-plan-form-name-required = Introduceți un nume de plan.
+budget-plan-error-title = Nu s-au putut încărca ciclurile de compensare
+budget-plan-create-new = Adaugă ciclu de compensare
+budget-plan-create-dialog-title = Ciclu de compensare nou
+budget-plan-form-name = Nume ciclu
+budget-plan-form-name-required = Introduceți un nume de ciclu.
 budget-plan-form-description = Descriere
 budget-plan-form-fiscal-year = An fiscal
 budget-plan-form-status = Status plan
 budget-plan-form-start-date = Data de început
 budget-plan-form-end-date = Data de sfârșit
 budget-plan-form-effective-date = Dată efectivă
-budget-plan-form-duplicate-date-range = Intervalul de date se suprapune cu un plan de buget existent. Ajustați datele sau folosiți planul existent.
+budget-plan-form-duplicate-date-range = Intervalul de date se suprapune cu un ciclu de compensare existent. Ajustați datele sau folosiți ciclul existent.
 budget-plan-create-cancel = Anulare
 budget-plan-create-submit = Creează
 budget-plan-status-unknown = Necunoscut
@@ -50,9 +46,9 @@ budget-plan-status-approved = Aprobat
 budget-plan-status-rejected = Respins
 budget-plan-status-sent-back = Returnat
 budget-plan-status-executed = Executat
-budget-plan-table-section-title = Planuri buget compensare
-budget-plan-table-search-placeholder = Căutați planuri de buget…
-budget-plan-filter-sheet-title = Filtrați planurile de buget
+budget-plan-table-section-title = Cicluri de compensare
+budget-plan-table-search-placeholder = Căutați cicluri de compensare…
+budget-plan-filter-sheet-title = Filtrați ciclurile de compensare
 budget-plan-filter-sheet-description = Restrângeți după perioada de planificare, status, dată efectivă sau interval de ani fiscali. Căutarea caută în nume, descriere, status și an fiscal. Vizibilitatea coloanelor este în bara tabelului.
 budget-plan-filter-plan-period-group = Perioadă planificare
 budget-plan-filter-plan-period-label = Data început și sfârșit (suprapunere)
@@ -72,8 +68,8 @@ budget-plan-table-col-start-date = Data de început
 budget-plan-table-col-end-date = Data de sfârșit
 budget-plan-table-col-effective-date = Dată efectivă
 budget-plan-table-col-description = Descriere
-budget-plan-table-empty = Nu există planuri de buget compensare.
-budget-plan-table-empty-filtered = Niciun plan de buget nu corespunde căutării sau filtrelor.
+budget-plan-table-empty = Nu există cicluri de compensare.
+budget-plan-table-empty-filtered = Niciun ciclu de compensare nu corespunde căutării sau filtrelor.
 
 select-company-placeholder = Selectați compania…
 toolbar-company-label = Companie:
@@ -192,6 +188,28 @@ budget-distribution-table-empty = Nu există rânduri de buget pe unitate organi
 budget-distribution-table-empty-filtered = Niciun buget pe unitate organizațională nu corespunde căutării sau filtrelor.
 budget-distribution-table-empty-no-plan = Adăugați mai întâi un buget de companie în Configurare buget, apoi alegeți-l în rândul companiei de mai sus.
 
+overview-plans-title = Cicluri de compensare
+overview-plans-description = Vizualizați ciclurile existente sau creați unul nou
+overview-plans-new-button = Ciclu de compensare nou
+overview-plans-empty-title = Nu există încă cicluri de compensare
+overview-plans-empty-hint = Creați primul ciclu de compensare pentru a începe.
+overview-back-to-cycles = Înapoi la cicluri de compensare
+overview-plans-col-name = Nume
+overview-plans-col-status = Status
+overview-plans-col-fiscal-year = An fiscal
+overview-plans-col-start = Data de început
+overview-plans-col-end = Data de sfârșit
+overview-plans-col-effective = Dată efectivă
+
+overview-plan-fiscal-year = An fiscal
+overview-plan-start = Începutul planificării
+overview-plan-end = Sfârșitul planificării
+overview-plan-effective = Data efectivă
+overview-plan-salary-budget = Pool creștere salarială
+overview-plan-headcount = Număr planificat de angajați
+overview-plan-distribution = Metoda de distribuire
+overview-plan-status = Status plan
+
 overview-kpi-employees-title = Angajați
 overview-kpi-employees-desc = Poziții active în această companie
 
@@ -281,11 +299,11 @@ budget-setup-readonly-row-headcount = Efectiv planificat
 budget-setup-readonly-pools-heading = Alocări buget
 budget-setup-readonly-percent-of-baseline = { $value }% din baza salarială
 budget-setup-readonly-no-company-row = Nu există încă un buget de companie înregistrat pentru acest plan.
-budget-setup-plan-section-title = Plan buget compensare
+budget-setup-plan-section-title = Ciclu de compensare
 budget-setup-company-context = Buget pentru { $company }
 budget-setup-new-plan = Plan nou
 budget-setup-loading-plans = Se încarcă planurile…
-budget-setup-no-plans = Nu există planuri de buget compensare disponibile pentru această companie.
+budget-setup-no-plans = Nu există cicluri de compensare disponibile pentru această companie.
 budget-setup-select-plan-label = Plan activ
 budget-setup-select-plan-placeholder = Alegeți un plan…
 budget-setup-plan-details-title = Detalii plan
