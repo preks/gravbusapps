@@ -92,6 +92,53 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     selectBudgetPlan(null)
   }, [selectBudgetPlan])
 
+  const companySelectorToolbar = (
+    <BudgetPlanSelector
+      companies={companies}
+      companiesLoading={companiesLoading}
+      selectedCompanyId={selectedCompanyId}
+      onCompanyChange={selectCompany}
+      t={t}
+    />
+  )
+
+  const companySelectorOverviewToolbar = (
+    <BudgetPlanSelector
+      companies={companies}
+      companiesLoading={companiesLoading}
+      selectedCompanyId={selectedCompanyId}
+      onCompanyChange={id => selectCompany(id)}
+      t={t}
+      variant="toolbar"
+    />
+  )
+
+  /** Same as toolbar selector but keeps the open compensation cycle when switching company (plan dashboard). */
+  const companySelectorOverviewPlanDetailToolbar = (
+    <BudgetPlanSelector
+      companies={companies}
+      companiesLoading={companiesLoading}
+      selectedCompanyId={selectedCompanyId}
+      onCompanyChange={id => selectCompany(id, { clearBudgetPlan: false })}
+      t={t}
+      variant="toolbar"
+      fluidToolbarWidth
+      labelBold
+    />
+  )
+
+  const companySelectorBudgetDistributionToolbar = (
+    <BudgetPlanSelector
+      companies={companies}
+      companiesLoading={companiesLoading}
+      selectedCompanyId={selectedCompanyId}
+      onCompanyChange={id => selectCompany(id)}
+      t={t}
+      variant="toolbar"
+      labelBold
+    />
+  )
+
   const renderTabContent = () => {
     if (!selectedCompanyId) return null
 
@@ -109,14 +156,34 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             onSelectPlan={handleSelectPlan}
             onDeselectPlan={handleDeselectPlan}
             onCreatePlan={() => setCreatePlanDialogOpen(true)}
+            planDetailCompanyToolbar={companySelectorOverviewPlanDetailToolbar}
           />
         )
       case 'budget-setup':
-        return <BudgetSetupView accessToken={accessToken} companyId={selectedCompanyId} companyName={companyName} />
+        return (
+          <BudgetSetupView
+            accessToken={accessToken}
+            companyId={selectedCompanyId}
+            companyName={companyName}
+            companyToolbar={companySelectorOverviewToolbar}
+          />
+        )
       case 'budget-distribution':
-        return <BudgetDistributionView accessToken={accessToken} companyId={selectedCompanyId} />
+        return (
+          <BudgetDistributionView
+            accessToken={accessToken}
+            companyId={selectedCompanyId}
+            companyToolbar={companySelectorBudgetDistributionToolbar}
+          />
+        )
       case 'submissions':
-        return <SubmissionsView accessToken={accessToken} companyId={selectedCompanyId} />
+        return (
+          <SubmissionsView
+            accessToken={accessToken}
+            companyId={selectedCompanyId}
+            companyToolbar={companySelectorOverviewToolbar}
+          />
+        )
       default:
         return (
           <OverviewView
@@ -128,6 +195,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             onSelectPlan={handleSelectPlan}
             onDeselectPlan={handleDeselectPlan}
             onCreatePlan={() => setCreatePlanDialogOpen(true)}
+            planDetailCompanyToolbar={companySelectorOverviewPlanDetailToolbar}
           />
         )
     }
@@ -148,13 +216,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
         data-testid="compensation-planning-data-body"
       >
         <div className="gba:space-y-4">
-          <BudgetPlanSelector
-            companies={companies}
-            companiesLoading={companiesLoading}
-            selectedCompanyId={selectedCompanyId}
-            onCompanyChange={selectCompany}
-            t={t}
-          />
+          {selectedCompanyId == null ? companySelectorToolbar : null}
 
           {!companiesLoading && companies.length === 0 && companiesLoadError ? (
             <p className="gba:text-sm gba:text-destructive" data-testid="compensation-planning-companies-error">

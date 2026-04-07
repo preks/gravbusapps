@@ -3,7 +3,7 @@ import { create } from 'zustand'
 /**
  * Mirrors the payroll-preparation pattern (`usePayrollRunStore`):
  * - Persistent selector row: Company + Budget Plan
- * - Changing company clears selectedBudgetPlanId and all downstream state
+ * - Changing company clears selectedBudgetPlanId by default (see `selectCompany` options)
  * - Changing plan clears downstream derived state
  * - Active tab tracked with deep-link support via ?view=
  */
@@ -38,7 +38,11 @@ interface CompensationPlanningState {
    */
   selectedDistributionCompanyBudgetId: string | null
 
-  selectCompany: (companyId: string | null) => void
+  /**
+   * Changing company clears `selectedBudgetPlanId` by default so list/setup stay consistent.
+   * Pass `{ clearBudgetPlan: false }` when switching company while staying on the same cycle (e.g. Overview plan dashboard).
+   */
+  selectCompany: (companyId: string | null, options?: { clearBudgetPlan?: boolean }) => void
   selectBudgetPlan: (planId: string | null) => void
   setActiveTab: (tab: string) => void
   setSelectedDistributionCompanyBudgetId: (id: string | null) => void
@@ -50,12 +54,13 @@ export const useCompensationPlanningStore = create<CompensationPlanningState>(se
   activeTab: readTabFromUrl(),
   selectedDistributionCompanyBudgetId: null,
 
-  selectCompany: companyId =>
-    set({
+  selectCompany: (companyId, options) =>
+    set(state => ({
       selectedCompanyId: companyId,
-      selectedBudgetPlanId: null,
+      selectedBudgetPlanId:
+        companyId === null || options?.clearBudgetPlan !== false ? null : state.selectedBudgetPlanId,
       selectedDistributionCompanyBudgetId: null
-    }),
+    })),
 
   selectBudgetPlan: planId =>
     set({

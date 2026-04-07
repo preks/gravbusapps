@@ -1,6 +1,7 @@
-import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
+import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
+import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
 import type { SubmissionsOrgUnitTableRow } from './submissionsOrgUnitTableRows'
 import { formatCurrencyCell, sortNumberOrFallback } from './budgetSetupPlanTableRows'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
@@ -24,6 +25,8 @@ function formatPercentCell(value: number): string {
   }
   return `${formatNumberFunction(String(value), '0.00[,]00')}%`
 }
+
+const STATUS_META = { align: 'left' as const, type: 'text' as const }
 
 const COL = {
   orgUnit: { size: 220, minSize: 180 },
@@ -62,10 +65,22 @@ export function buildSubmissionsOrgUnitTableColumns(
       header: submissionsColumnHeader(t, 'budget-setup-table-col-budget-plan-status'),
       size: COL.status.size,
       minSize: COL.status.minSize,
-      meta: { type: 'text' },
+      meta: STATUS_META,
+      sortingFn: (a, b) => {
+        const la = formatBudgetPlanStatus(a.original.budgetPlanStatus) || ''
+        const lb = formatBudgetPlanStatus(b.original.budgetPlanStatus) || ''
+        return la.localeCompare(lb)
+      },
       cell: ({ row }) => {
         const v = row.original.budgetPlanStatus
-        return <span className={TABLE_BODY}>{v ? formatBudgetPlanStatus(v) : '—'}</span>
+        if (!v) {
+          return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
+        }
+        return (
+          <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
+            <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+          </div>
+        )
       }
     },
     {

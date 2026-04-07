@@ -5,9 +5,9 @@ import { cn } from '@/common/utils/cn'
 export interface BudgetDistributionContextCardProps {
   /** Optional headline (omit on manager team metrics-only card). */
   title?: string
-  /** Optional row under title (e.g. company budget + company). Omit when metrics live only in pool section. */
+  /** Company budget / plan select — first when both are set. */
   planSelect?: React.ReactNode
-  /** Optional company selector (e.g. budget distribution). Omit on manager team view. */
+  /** Company selector — second when both are set. */
   companyToolbar?: React.ReactNode
   poolSection: React.ReactNode
 }

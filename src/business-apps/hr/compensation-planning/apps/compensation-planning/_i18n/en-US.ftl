@@ -191,17 +191,25 @@ budget-distribution-table-empty-filtered = No org unit budgets match your search
 budget-distribution-table-empty-no-plan = Add a company budget in Budget setup first, then choose it in the company row above.
 
 overview-plans-title = Compensation Cycles
-overview-plans-description = View existing compensation cycles or create a new one
 overview-plans-new-button = New Compensation Cycle
 overview-plans-empty-title = No compensation cycles yet
 overview-plans-empty-hint = Create your first compensation cycle to get started.
-overview-back-to-cycles = Back to compensation cycles
+overview-back-to-cycles = Go to compensation cycles
 overview-plans-col-name = Name
 overview-plans-col-status = Status
 overview-plans-col-fiscal-year = Fiscal Year
 overview-plans-col-start = Start Date
 overview-plans-col-end = End Date
 overview-plans-col-effective = Effective Date
+
+overview-plans-table-search-placeholder = Search compensation cycles…
+overview-plans-table-empty-filtered = No compensation cycles match your search and filters.
+overview-plans-table-filter-sheet-title = Filter compensation cycles
+overview-plans-table-filter-sheet-description = Narrow by plan status and fiscal year.
+overview-plans-table-filter-status-group = Plan status
+overview-plans-table-filter-status-label = Status
+overview-plans-table-filter-fiscal-year-group = Fiscal year
+overview-plans-table-filter-fiscal-year-label = Fiscal year
 
 overview-plan-fiscal-year = Fiscal year
 overview-plan-start = Planning start
@@ -238,7 +246,6 @@ overview-row-with-band = With pay band
 overview-row-compa = Average compa-ratio
 
 overview-section-org-unit-salary-title = Salary and bonuses by departments
-overview-org-unit-salary-total-row = Total across org units
 overview-org-unit-salary-empty = No rows to show.
 overview-org-unit-salary-no-employees = No positions found for this company.
 overview-org-unit-unassigned = Unassigned
@@ -246,6 +253,8 @@ overview-org-unit-salary-share-line = { $share } of total salary
 overview-org-unit-bonus-share-line = { $share } of total bonuses (YTD)
 overview-org-unit-block-annual-salary-label = Annual salary
 overview-org-unit-block-bonuses-ytd-label = Bonuses (YTD)
+overview-departments-col-group-annual-salary = Annual salary
+overview-departments-col-bonuses = Bonuses
 
 budget-setup-error-title = Could not load budget data
 budget-setup-team-error-title = Could not load salary baseline for this company

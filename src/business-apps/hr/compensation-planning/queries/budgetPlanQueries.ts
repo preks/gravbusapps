@@ -55,22 +55,6 @@ export const LIST_COMPENSATION_BUDGET_PLANS = `
   }
 `
 
-/** Same field set as the list query; use for targeted refresh by id (optional). */
-export const GET_COMPENSATION_BUDGET_PLAN_BY_PK = `
-  query GetCompensationBudgetPlanByPk($id: uuid!) {
-    CompensationBudgetPlan_by_pk(id: $id) {
-      id
-      name
-      description
-      fiscalYear
-      startDate
-      endDate
-      effectiveDate
-      budgetPlanStatus
-    }
-  }
-`
-
 /** Manager team view: org unit for the user’s position in the selected company (salary budget row key). */
 export const GET_EMPLOYEE_POSITION_ORG_UNIT_IN_COMPANY = `
   query GetEmployeePositionOrgUnitInCompany($employeeId: uuid!, $companyId: uuid!) {

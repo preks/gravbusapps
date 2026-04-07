@@ -9,14 +9,16 @@ import { useBudgetSetupPlansTableModel } from './useBudgetSetupPlansTableModel'
 import translations from '../../_i18n'
 
 export interface BudgetSetupPlansTableProps {
-  /** Legal entity selected in the app toolbar — table shows `compensation_budget_plan_company` for this id only. */
+  /** Legal entity selected in the app — table shows `compensation_budget_plan_company` for this id only. */
   companyId: string
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[]
   currencyCode: string
   plans: CompensationBudgetPlanListItem[]
   loading: boolean
   error: string | null
-  toolbarCompany?: React.ReactNode
+  /** Company selector in the DataDisplay toolbar (same row as search/filters), matching Overview. */
+  companyToolbar?: React.ReactNode
+  /** Primary button(s) after the company selector (e.g. create plan). */
   toolbarEnd?: React.ReactNode
 }
 
@@ -27,7 +29,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   plans,
   loading,
   error,
-  toolbarCompany,
+  companyToolbar,
   toolbarEnd
 }) => {
   const { t } = useTranslation(translations)
@@ -77,9 +79,9 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
       availableColumns={availableColumnsForDisplay}
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={setVisibleColumns}
-      secondaryActions={
-        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-          {toolbarCompany}
+      primaryAction={
+        <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-3 gba:pl-2 gba:md:pl-3">
+          {companyToolbar}
           {toolbarEnd}
         </div>
       }

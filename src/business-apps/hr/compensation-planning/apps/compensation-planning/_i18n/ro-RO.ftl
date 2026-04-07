@@ -191,17 +191,25 @@ budget-distribution-table-empty-filtered = Niciun buget pe unitate organizațion
 budget-distribution-table-empty-no-plan = Adăugați mai întâi un buget de companie în Configurare buget, apoi alegeți-l în rândul companiei de mai sus.
 
 overview-plans-title = Cicluri de compensare
-overview-plans-description = Vizualizați ciclurile existente sau creați unul nou
 overview-plans-new-button = Ciclu de compensare nou
 overview-plans-empty-title = Nu există încă cicluri de compensare
 overview-plans-empty-hint = Creați primul ciclu de compensare pentru a începe.
-overview-back-to-cycles = Înapoi la cicluri de compensare
+overview-back-to-cycles = Mergi la ciclurile de compensare
 overview-plans-col-name = Nume
 overview-plans-col-status = Status
 overview-plans-col-fiscal-year = An fiscal
 overview-plans-col-start = Data de început
 overview-plans-col-end = Data de sfârșit
 overview-plans-col-effective = Dată efectivă
+
+overview-plans-table-search-placeholder = Căutați cicluri de compensare…
+overview-plans-table-empty-filtered = Niciun ciclu de compensare nu corespunde căutării sau filtrelor.
+overview-plans-table-filter-sheet-title = Filtrare cicluri de compensare
+overview-plans-table-filter-sheet-description = Restrângeți după statusul planului și anul fiscal.
+overview-plans-table-filter-status-group = Status plan
+overview-plans-table-filter-status-label = Status
+overview-plans-table-filter-fiscal-year-group = An fiscal
+overview-plans-table-filter-fiscal-year-label = An fiscal
 
 overview-plan-fiscal-year = An fiscal
 overview-plan-start = Începutul planificării
@@ -238,7 +246,6 @@ overview-row-with-band = Cu bandă salarială
 overview-row-compa = Compa-ratio mediu
 
 overview-section-org-unit-salary-title = Salariu și bonusuri pe departamente
-overview-org-unit-salary-total-row = Total pe unități
 overview-org-unit-salary-empty = Nu există date de afișat.
 overview-org-unit-salary-no-employees = Nu există poziții pentru această companie.
 overview-org-unit-unassigned = Nealocat
@@ -246,6 +253,8 @@ overview-org-unit-salary-share-line = { $share } din salariul total
 overview-org-unit-bonus-share-line = { $share } din totalul bonusurilor (an în curs)
 overview-org-unit-block-annual-salary-label = Salariu anual
 overview-org-unit-block-bonuses-ytd-label = Bonusuri (an în curs)
+overview-departments-col-group-annual-salary = Salariu anual
+overview-departments-col-bonuses = Bonusuri
 
 budget-setup-error-title = Nu s-au putut încărca datele bugetului
 budget-setup-team-error-title = Nu s-a putut încărca baza salarială pentru această companie

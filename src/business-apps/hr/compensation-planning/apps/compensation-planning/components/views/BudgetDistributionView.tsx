@@ -33,6 +33,8 @@ import { BudgetDistributionContextCard } from './BudgetDistributionContextCard'
 export interface BudgetDistributionViewProps {
   accessToken: string
   companyId: string
+  /** Company selector in the context card row, before the company budget dropdown. */
+  companyToolbar?: React.ReactNode
 }
 
 const ORG_UNIT_LIST_LIMIT = 500
@@ -40,7 +42,11 @@ const ORG_UNIT_LIST_LIMIT = 500
 /** Set to `true` to disable changing the distribution method (previous read-only behaviour). */
 const LOCK_DISTRIBUTION_METHOD_SELECTION = false
 
-export function BudgetDistributionView({ accessToken, companyId }: Readonly<BudgetDistributionViewProps>) {
+export function BudgetDistributionView({
+  accessToken,
+  companyId,
+  companyToolbar
+}: Readonly<BudgetDistributionViewProps>) {
   const { t } = useTranslation(translations)
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
   const [distributeOpen, setDistributeOpen] = useState(false)
@@ -196,7 +202,7 @@ export function BudgetDistributionView({ accessToken, companyId }: Readonly<Budg
 
   const planSelect = (
     <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
-      <span className="gba:shrink-0 gba:text-sm gba:text-muted-foreground">
+      <span className="gba:shrink-0 gba:text-sm gba:font-semibold gba:text-foreground">
         {t('budget-distribution-company-plan-label')}
       </span>
       <Select
@@ -258,7 +264,7 @@ export function BudgetDistributionView({ accessToken, companyId }: Readonly<Budg
       <BudgetDistributionContextCard
         title={t('budget-distribution-context-card-title')}
         planSelect={planSelect}
-        companyToolbar={null}
+        companyToolbar={companyToolbar}
         poolSection={contextPoolSection}
       />
 

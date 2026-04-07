@@ -191,17 +191,25 @@ budget-distribution-table-empty-filtered = Keine OE-Budgets entsprechen Suche od
 budget-distribution-table-empty-no-plan = Legen Sie zuerst ein Unternehmensbudget in der Budgeteinrichtung an und wählen Sie es dann in der Unternehmenszeile oben.
 
 overview-plans-title = Vergütungszyklen
-overview-plans-description = Vorhandene Vergütungszyklen anzeigen oder einen neuen erstellen
 overview-plans-new-button = Neuer Vergütungszyklus
 overview-plans-empty-title = Noch keine Vergütungszyklen
 overview-plans-empty-hint = Erstellen Sie Ihren ersten Vergütungszyklus.
-overview-back-to-cycles = Zurück zu Vergütungszyklen
+overview-back-to-cycles = Zu Vergütungszyklen wechseln
 overview-plans-col-name = Name
 overview-plans-col-status = Status
 overview-plans-col-fiscal-year = Geschäftsjahr
 overview-plans-col-start = Startdatum
 overview-plans-col-end = Enddatum
 overview-plans-col-effective = Wirksamkeitsdatum
+
+overview-plans-table-search-placeholder = Vergütungszyklen durchsuchen…
+overview-plans-table-empty-filtered = Keine Vergütungszyklen entsprechen Suche oder Filtern.
+overview-plans-table-filter-sheet-title = Vergütungszyklen filtern
+overview-plans-table-filter-sheet-description = Nach Planstatus und Geschäftsjahr eingrenzen.
+overview-plans-table-filter-status-group = Planstatus
+overview-plans-table-filter-status-label = Status
+overview-plans-table-filter-fiscal-year-group = Geschäftsjahr
+overview-plans-table-filter-fiscal-year-label = Geschäftsjahr
 
 overview-plan-fiscal-year = Geschäftsjahr
 overview-plan-start = Planungsbeginn
@@ -238,7 +246,6 @@ overview-row-with-band = Mit Gehaltsband
 overview-row-compa = Durchschnittliches Compa-Ratio
 
 overview-section-org-unit-salary-title = Gehalt und Boni nach Abteilungen
-overview-org-unit-salary-total-row = Summe über OE
 overview-org-unit-salary-empty = Keine Daten.
 overview-org-unit-salary-no-employees = Keine Positionen für dieses Unternehmen.
 overview-org-unit-unassigned = Nicht zugeordnet
@@ -246,6 +253,8 @@ overview-org-unit-salary-share-line = { $share } vom Gesamtgehalt
 overview-org-unit-bonus-share-line = { $share } der Gesamtboni (laufendes Jahr)
 overview-org-unit-block-annual-salary-label = Jahresgehalt
 overview-org-unit-block-bonuses-ytd-label = Boni (laufendes Jahr)
+overview-departments-col-group-annual-salary = Jahresgehalt
+overview-departments-col-bonuses = Boni
 
 budget-setup-error-title = Budgetdaten konnten nicht geladen werden
 budget-setup-team-error-title = Gehaltsbasis für dieses Unternehmen konnte nicht geladen werden

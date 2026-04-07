@@ -1,6 +1,7 @@
-import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
+import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
+import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
 import type { BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
 import { formatCurrencyCell, sortNumberOrFallback } from './budgetSetupPlanTableRows'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
@@ -10,7 +11,9 @@ const TABLE_HEADER_CLASS = 'gba:text-sm gba:font-medium gba:text-muted-foregroun
 const TABLE_HEADER_RIGHT = `${TABLE_HEADER_CLASS} gba:block gba:w-full gba:text-right`
 const TABLE_BODY = 'gba:text-sm gba:font-normal gba:text-foreground gba:leading-normal'
 const TABLE_BODY_NUM = `${TABLE_BODY} gba:tabular-nums`
-const TABLE_BODY_NUM_RIGHT = `${TABLE_BODY_NUM} gba:block gba:w-full gba:text-right`
+/** Mirrors SortingHeader inner padding so body aligns with sortable headers (see overview plans table columns). */
+const TABLE_BODY_LEFT = `${TABLE_BODY} gba:block gba:w-full gba:text-left gba:pl-2`
+const TABLE_BODY_NUM_RIGHT = `${TABLE_BODY_NUM} gba:block gba:w-full gba:text-right gba:pr-2`
 
 function budgetSetupColumnHeader(t: TranslateFn, messageKey: string, align: 'left' | 'right' = 'left') {
   return function BudgetSetupColumnHeaderLabel() {
@@ -30,6 +33,8 @@ function formatPercentCell(value: number): string {
  * Column size hints for TanStack Table (sorting, resizing). With `tableLayout="auto"` on the DataTable,
  * columns grow to content; these still set sensible minimums if the layout is fixed elsewhere.
  */
+const STATUS_META = { align: 'left' as const, type: 'text' as const }
+
 const COL = {
   chosenPlan: { size: 260, minSize: 220 },
   status: { size: 180, minSize: 160 },
@@ -50,7 +55,7 @@ export function buildBudgetSetupPlansTableColumns(
       size: COL.chosenPlan.size,
       minSize: COL.chosenPlan.minSize,
       meta: { type: 'text' },
-      cell: ({ row }) => <span className={TABLE_BODY}>{row.original.budgetPlanLabel}</span>
+      cell: ({ row }) => <span className={TABLE_BODY_LEFT}>{row.original.budgetPlanLabel}</span>
     },
     {
       id: 'companyBudgetStatus',
@@ -58,10 +63,22 @@ export function buildBudgetSetupPlansTableColumns(
       header: budgetSetupColumnHeader(t, 'budget-setup-table-col-budget-plan-status'),
       size: COL.status.size,
       minSize: COL.status.minSize,
-      meta: { type: 'text' },
+      meta: STATUS_META,
+      sortingFn: (a, b) => {
+        const la = formatBudgetPlanStatus(a.original.companyBudgetStatus) || ''
+        const lb = formatBudgetPlanStatus(b.original.companyBudgetStatus) || ''
+        return la.localeCompare(lb)
+      },
       cell: ({ row }) => {
         const v = row.original.companyBudgetStatus
-        return <span className={TABLE_BODY}>{v ? formatBudgetPlanStatus(v) : '—'}</span>
+        if (!v) {
+          return <span className={TABLE_BODY_LEFT}>—</span>
+        }
+        return (
+          <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
+            <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+          </div>
+        )
       }
     },
     {
