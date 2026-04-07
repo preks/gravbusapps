@@ -734,7 +734,7 @@ const saveSnapshotWithRetry = async ({
     failures: number
     fallbackLoads: number
   }>
-  recoverFromVersionConflict: () => Promise<void>
+  recoverFromVersionConflict: () => Promise<boolean>
   spreadsheetGridRef: React.MutableRefObject<UniverSheetGridHandle | null>
   collaboration: {
     isCollaborationConnected: boolean
@@ -772,7 +772,11 @@ const saveSnapshotWithRetry = async ({
       lastError = error
       if (error instanceof SpreadsheetApiRequestError && error.status === 409 && attempt < maxSnapshotRetries - 1) {
         snapshotSaveMetricsRef.current.conflicts += 1
-        await recoverFromVersionConflict()
+        const recovered = await recoverFromVersionConflict()
+        if (!recovered) {
+          snapshotSaveMetricsRef.current.failures += 1
+          throw error
+        }
         continue
       }
       snapshotSaveMetricsRef.current.failures += 1
@@ -856,7 +860,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sheetVersionRef = useRef<number>(0)
-  const recoverFromVersionConflictRef = useRef<() => Promise<void>>(async () => {})
+  const recoverFromVersionConflictRef = useRef<() => Promise<boolean>>(async () => false)
   const remoteStructuralResyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const remoteVersionRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingDimensionColumnsRef = useRef<SpreadsheetColumn[] | null>(null)
@@ -1996,7 +2000,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }, 5000)
   }, [entityEnabled])
 
-  const recoverFromVersionConflict = useCallback(async () => {
+  const recoverFromVersionConflict = useCallback(async (): Promise<boolean> => {
     try {
       const sinceVersion = sheetVersionRef.current
       const delta = await SpreadsheetApiService.getSheetChangesSince(app.id, activeSheetId, sinceVersion)
@@ -2006,7 +2010,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         commitLocalSheetData(next, { persisted: true })
         sheetPersist.recordSuccess(true)
         versioning.markAsSaved()
-        return
+        return true
       }
 
       snapshotSaveMetricsRef.current.fallbackLoads += 1
@@ -2024,6 +2028,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       }
 
+      clearUniverSnapshotCache(app.id, activeSheetId)
+      let restoredUniverSnapshot: Record<string, unknown> | null = null
+      try {
+        const univerData = await SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId)
+        if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+          restoredUniverSnapshot = univerData.snapshot
+          writeUniverSnapshotCache(app.id, activeSheetId, univerData.version, univerData.snapshot)
+        }
+      } catch (e) {
+        console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during conflict recovery:', e)
+      }
+      setBootstrapSnapshot(restoredUniverSnapshot)
+      setBootstrapSnapshotSeed(`conflict-recovery-${Date.now()}`)
+
       debugLog('version conflict fallback snapshot loaded', {
         appId: app.id,
         sheetId: activeSheetId,
@@ -2031,8 +2049,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
       sheetPersist.recordSuccess(true)
       versioning.markAsSaved()
+      return true
     } catch (error) {
       console.error('[SpreadsheetAppViewer] Failed to recover from version conflict:', error)
+      sheetPersist.recordError(sheetT('persist-recovery-failed'))
+      scheduleSheetVersionRefreshFromApi()
+      return false
     }
   }, [
     activeSheetId,
@@ -2040,8 +2062,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     localSheetDataRef,
     onDataChange,
     onSheetUpdate,
+    scheduleSheetVersionRefreshFromApi,
     setLocalSheetData,
+    sheetPersist.recordError,
     sheetPersist.recordSuccess,
+    sheetT,
     versioning.markAsSaved
   ])
 
@@ -2089,7 +2114,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           if (isActiveTarget()) {
             snapshotSaveMetricsRef.current.conflicts += 1
-            await recoverFromVersionConflict()
+            const recovered = await recoverFromVersionConflict()
+            if (!recovered) throw error
             const retry = await SpreadsheetApiService.applyOperationBatch(app.id, targetSheetId, {
               baseVersion: sheetVersionRef.current,
               operations,
@@ -2153,7 +2179,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       } catch (error) {
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           snapshotSaveMetricsRef.current.conflicts += 1
-          await recoverFromVersionConflict()
+          const recovered = await recoverFromVersionConflict()
+          if (!recovered) throw error
           const retry = await SpreadsheetApiService.applyOperationBatch(app.id, activeSheetId, {
             baseVersion: sheetVersionRef.current,
             operations,

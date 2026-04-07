@@ -1091,6 +1091,7 @@ persist-row-update-failed = Could not save row changes.
 persist-row-delete-failed = Could not delete the row.
 persist-rows-add-failed = Could not save new rows.
 persist-snapshot-failed = Could not save sheet layout to the server.
+persist-recovery-failed = Could not recover from a save conflict. Please refresh the page.
 
 # Share App Dialog
 share-dialog-title = Share "{ $name }"

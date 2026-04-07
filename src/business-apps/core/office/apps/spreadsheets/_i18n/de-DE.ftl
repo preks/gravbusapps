@@ -1091,6 +1091,7 @@ persist-row-update-failed = Zeilenänderungen konnten nicht gespeichert werden.
 persist-row-delete-failed = Zeile konnte nicht gelöscht werden.
 persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
 persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.
+persist-recovery-failed = Speicherkonflikt konnte nicht behoben werden. Bitte die Seite neu laden.
 
 # Share App Dialog
 share-dialog-title = „{ $name }" teilen
