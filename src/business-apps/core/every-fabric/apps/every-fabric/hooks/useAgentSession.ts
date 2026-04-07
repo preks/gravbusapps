@@ -16,10 +16,10 @@ const extractSeq = (messageId: string): number | null => {
 }
 
 const messageSignature = (message: ChatMessage): string => {
-  if (message.type === 'final_answer') return 'final_answer'
-  if (message.type === 'human_interrupt') return 'human_interrupt'
-  if (message.type === 'structured_input_request') return 'structured_input_request'
-  if (message.type === 'error') return `error:${message.type}`
+  if (message.type === 'final_answer') return `final_answer:${message.id}`
+  if (message.type === 'human_interrupt') return `human_interrupt:${message.id}`
+  if (message.type === 'structured_input_request') return `structured_input_request:${message.id}`
+  if (message.type === 'error') return `error:${message.id}`
 
   if (message.type === 'user_input') {
     const content = typeof message.content === 'string' ? message.content.trim() : String(message.content)

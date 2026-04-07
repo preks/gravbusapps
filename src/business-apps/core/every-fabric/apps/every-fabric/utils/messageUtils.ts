@@ -108,8 +108,6 @@ const toArtifactRefsFromMeta = (
     rendererType: resolveRendererType(artifact.mime_type, artifact.name)
   }))
 
-const toArtifactRefs = (session: DeepAgentSession) => toArtifactRefsFromMeta(session.artifacts)
-
 const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
   if (chunk.role === 'human') {
     return {
@@ -395,10 +393,11 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
 }
 
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
-  const traceMessages = deriveMessagesFromEvents(session.trace ?? [])
-    // Only filter out final_answer and error (not human_interrupt/structured_input_request - those should come from trace)
-    .filter(message => !['final_answer', 'error'].includes(message.type))
-    .filter(message => !(message.type === 'user_input' && message.content === session.input))
+  // Just return trace messages - they already have everything from SSE stream
+  // No need to create synthetic terminal messages from session.status
+  const traceMessages = deriveMessagesFromEvents(session.trace ?? []).filter(
+    message => !(message.type === 'user_input' && message.content === session.input)
+  )
 
   const initialUserMessage = session.input
     ? ({
@@ -409,93 +408,7 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
       } satisfies ChatMessage)
     : null
 
-  const terminalMessages: ChatMessage[] = []
-
-  if (session.status === 'completed') {
-    const qualityScore = session.reflection ? (session.reflection.complete ? 1.0 : 0.5) : undefined
-    const durationMs = (() => {
-      const end = session.completed_at ?? session.updated_at
-      const start = session.started_at ?? session.created_at
-      if (!end || !start) return undefined
-      const diff = Date.parse(end) - Date.parse(start)
-      return Number.isNaN(diff) ? undefined : diff
-    })()
-    const actionsPerformed = (session.trace ?? [])
-      .filter((e): e is AgentStepCompletedEvent => e.type === 'step_completed')
-      .map(e => ({
-        step: e.name ?? 'Tool call',
-        tool: e.name,
-        outcome: e.status ?? 'done'
-      }))
-    terminalMessages.push({
-      id: `terminal-${session.session_id}-${session.updated_at}`,
-      type: 'final_answer',
-      timestamp: session.updated_at,
-      content: {
-        output: session.output ?? '',
-        todos: session.todos,
-        recommendations: session.reflection?.missing_steps?.join('\n'),
-        qualityScore,
-        durationMs,
-        actionsPerformed: actionsPerformed.length > 0 ? actionsPerformed : undefined,
-        costSummary: session.cost_summary,
-        artifacts: toArtifactRefs(session),
-        workspaceDocuments: session.workspace_documents
-      }
-    })
-  }
-
-  if (session.status === 'failed') {
-    terminalMessages.push({
-      id: `terminal-${session.session_id}-${session.updated_at}`,
-      type: 'error',
-      timestamp: session.updated_at,
-      content: { message: session.output ?? 'Session failed' }
-    })
-  }
-
-  if (session.status === 'cancelled') {
-    terminalMessages.push({
-      id: `terminal-${session.session_id}-${session.updated_at}`,
-      type: 'error',
-      timestamp: session.updated_at,
-      content: { message: 'Session was cancelled.' }
-    })
-  }
-
-  if (session.status === 'waiting_for_human') {
-    // Check if we already have a waiting message from trace events
-    const alreadyHasWaitingMessage = traceMessages.some(
-      m => m.type === 'human_interrupt' || m.type === 'structured_input_request'
-    )
-
-    if (!alreadyHasWaitingMessage) {
-      console.log('[sessionToMessages] No waiting message in trace, adding from session state')
-      // Check if there's a structured input request
-      if (session.structured_input_request) {
-        console.log('[sessionToMessages] Creating structured_input_request message from session')
-        terminalMessages.push({
-          id: `terminal-${session.session_id}-${session.updated_at}`,
-          type: 'structured_input_request',
-          timestamp: session.updated_at,
-          content: session.structured_input_request
-        })
-      } else {
-        // Fall back to plain text interrupt
-        console.log('[sessionToMessages] Creating human_interrupt message from session')
-        terminalMessages.push({
-          id: `terminal-${session.session_id}-${session.updated_at}`,
-          type: 'human_interrupt',
-          timestamp: session.updated_at,
-          content: { question: terminalQuestion(session.output, session.human_question) }
-        })
-      }
-    } else {
-      console.log('[sessionToMessages] Skipping - already have waiting message from trace')
-    }
-  }
-
-  return [...(initialUserMessage ? [initialUserMessage] : []), ...traceMessages, ...terminalMessages]
+  return [...(initialUserMessage ? [initialUserMessage] : []), ...traceMessages]
 }
 
 export function messageTypeLabel(type: ChatMessageType): string {

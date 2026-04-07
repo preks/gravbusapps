@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Button } from '@newwork/nw-design-system'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { SessionHistoryDrawer } from './components/history/SessionHistoryDrawer'
@@ -21,6 +22,27 @@ const EveryFabricInner: React.FC = () => {
   const handleSelectSession = (id: string) => {
     selectSession(id)
     setIsHistoryOpen(false)
+  }
+
+  const isLoadingSession = activeSessionId && !session
+  const sessionNotFound =
+    activeSessionId && sessions.length > 0 && !sessions.find(s => s.session_id === activeSessionId)
+
+  if (isLoadingSession && !sessionNotFound) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+        <p className="gba:text-sm gba:text-muted-foreground">Loading session...</p>
+      </div>
+    )
+  }
+
+  if (sessionNotFound) {
+    return (
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4">
+        <p className="gba:text-sm gba:text-foreground">Session not found</p>
+        <Button onClick={() => selectSession(null)}>Back to landing</Button>
+      </div>
+    )
   }
 
   if (!session) {

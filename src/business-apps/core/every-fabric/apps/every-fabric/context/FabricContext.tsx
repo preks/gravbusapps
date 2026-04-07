@@ -7,6 +7,7 @@ import { useAgentSession } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'
 import { useFabricArtifacts } from '../hooks/useFabricArtifacts'
 import { useFabricProgress } from '../hooks/useFabricProgress'
+import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 
 // ─── Context shape ─────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ interface FabricContextValue {
 
   // Actions
   startSession: (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[]) => Promise<string>
-  selectSession: (id: string) => void
+  selectSession: (id: string | null) => void
   newSession: () => void
   deleteSession: (id: string) => void
   reply: (message?: string, structuredInput?: Record<string, any>) => Promise<void>
@@ -66,7 +67,20 @@ export interface FabricProviderProps extends BusinessAppContextProps {
 }
 
 export const FabricProvider: React.FC<FabricProviderProps> = ({ children, accessToken }) => {
+  const { urlSessionId, updateUrl } = useSessionUrlState()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+
+  // Sync activeSessionId with URL on mount
+  useEffect(() => {
+    if (urlSessionId && urlSessionId !== activeSessionId) {
+      setActiveSessionId(urlSessionId)
+    }
+  }, [urlSessionId])
+
+  // Update URL when activeSessionId changes
+  useEffect(() => {
+    updateUrl(activeSessionId)
+  }, [activeSessionId, updateUrl])
 
   // Session list management
   const { sessions, addSession, updateSession, removeSession } = useAgentSessions(accessToken)
@@ -117,7 +131,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     [_startSession, addSession]
   )
 
-  const selectSession = useCallback((id: string) => {
+  const selectSession = useCallback((id: string | null) => {
     setActiveSessionId(id)
   }, [])
 
