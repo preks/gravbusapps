@@ -31,7 +31,7 @@ type PersonalAbsenceEntitlement = {
   total: number
   available?: number
   validFrom: string
-  validTo: string
+  validTo?: string | null
 }
 
 export function usePersonalAbsencesData(accessToken: string | undefined, employeeId: string | undefined) {
@@ -64,7 +64,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
           ...ent,
           type: mapped?.label || ent.type,
           color: mapped?.color || ent.color,
-          display: mapped?.display === true
+          display: mapped?.display ?? true
         }
       }),
     [rawSnapshotEntitlements, mapType]
@@ -96,13 +96,14 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
     >()
 
     ;(absenceEntitlements as PersonalAbsenceEntitlement[]).forEach(entitlement => {
-      if (!entitlement?.type?.id || !entitlement.validFrom || !entitlement.validTo) {
+      if (!entitlement?.type?.id || !entitlement.validFrom) {
         return
       }
 
       const validFrom = dayjs(entitlement.validFrom)
-      const validTo = dayjs(entitlement.validTo)
-      const overlapsCurrentYear = validFrom.isSameOrBefore(yearEnd) && validTo.isSameOrAfter(yearStart)
+      const validTo = entitlement.validTo ? dayjs(entitlement.validTo) : null
+      const overlapsCurrentYear =
+        validFrom.isSameOrBefore(yearEnd) && (validTo === null || validTo.isSameOrAfter(yearStart))
 
       if (!overlapsCurrentYear) {
         return
@@ -132,7 +133,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
         total,
         pending,
         available,
-        display: mapped?.display === true
+        display: mapped?.display ?? entitlement.type.objectValue?.display ?? true
       })
     })
 
