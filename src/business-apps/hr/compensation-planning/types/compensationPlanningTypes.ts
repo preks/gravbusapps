@@ -1,5 +1,25 @@
 import type { BudgetPlanStatusApi } from './budgetPlanGraphqlEnums'
 
+/** High-level compensation cycle phase (UI), distinct from per-row `BudgetPlanStatusApi`. */
+export type CycleStatus =
+  | 'draft'
+  | 'budget_setup'
+  | 'distribution'
+  | 'manager_planning'
+  | 'under_review'
+  | 'approved'
+  | 'executed'
+
+export const CYCLE_STATUS_LABELS: Record<CycleStatus, string> = {
+  draft: 'Draft',
+  budget_setup: 'Budget setup',
+  distribution: 'Distribution',
+  manager_planning: 'Manager planning',
+  under_review: 'Under review',
+  approved: 'Approved',
+  executed: 'Executed'
+}
+
 export type BudgetType = 'absolute' | 'percentage'
 
 export type DistributionMethod =

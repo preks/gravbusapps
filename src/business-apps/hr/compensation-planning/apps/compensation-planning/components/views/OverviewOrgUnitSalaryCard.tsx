@@ -76,7 +76,7 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
   const showTable = rows.length > 0 && !showSearchEmpty
 
   return (
-    <Card className="gba:w-full" data-testid="compensation-overview-org-unit-salary-card">
+    <Card className="gba:w-full gba:pt-0" data-testid="compensation-overview-org-unit-salary-card">
       {rows.length === 0 ? (
         <CardContent>
           <p
@@ -87,7 +87,7 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
           </p>
         </CardContent>
       ) : (
-        <CardContent className="gba:space-y-4 gba:pt-6">
+        <CardContent className="gba:space-y-4 gba:pt-0">
           <DataDisplay
             data-testid="compensation-overview-departments-display"
             titleSections={[

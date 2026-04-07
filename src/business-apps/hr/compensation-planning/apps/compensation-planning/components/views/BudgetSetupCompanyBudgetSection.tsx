@@ -218,6 +218,13 @@ function BudgetCategoryBlock({
                   type="number"
                   step="0.01"
                   min={0}
+                  onFocus={e => {
+                    field.onFocus?.(e)
+                    const n = typeof field.value === 'number' ? field.value : Number(field.value)
+                    if (n === 0 && !Number.isNaN(n)) {
+                      e.currentTarget.select()
+                    }
+                  }}
                   data-testid={`budget-setup-input-${String(valueName)}`}
                 />
               </FormControl>

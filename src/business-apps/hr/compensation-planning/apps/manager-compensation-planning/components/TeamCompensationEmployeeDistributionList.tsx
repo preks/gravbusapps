@@ -35,6 +35,8 @@ export interface TeamCompensationEmployeeDistributionListProps {
   cardTitle: string
   tBudget: TranslateBudget
   emptyMessage: string
+  /** When true, custom allocation inputs are read-only (e.g. after proposals are submitted). */
+  inputsDisabled?: boolean
 }
 
 export function TeamCompensationEmployeeDistributionList({
@@ -56,7 +58,8 @@ export function TeamCompensationEmployeeDistributionList({
   grandTotalPositivePerformanceScores,
   cardTitle,
   tBudget,
-  emptyMessage
+  emptyMessage,
+  inputsDisabled = false
 }: Readonly<TeamCompensationEmployeeDistributionListProps>) {
   const isCustom = selectedMethod === 'custom'
   const isSalaryCostMethod = selectedMethod === 'proportional_salary_cost'
@@ -243,6 +246,7 @@ export function TeamCompensationEmployeeDistributionList({
                         onPercentRawChange={onCustomPercentRawChange}
                         onModeChange={onCustomModeChange}
                         t={tBudget}
+                        disabled={inputsDisabled}
                       />
                     ) : (
                       <>

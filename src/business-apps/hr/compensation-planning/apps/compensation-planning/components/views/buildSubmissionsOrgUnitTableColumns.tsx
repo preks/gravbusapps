@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { Button } from '@newwork/nw-design-system'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
@@ -33,13 +34,37 @@ const COL = {
   plan: { size: 260, minSize: 220 },
   status: { size: 180, minSize: 160 },
   money: { size: 200, minSize: 180 },
-  percent: { size: 160, minSize: 140 }
+  percent: { size: 160, minSize: 140 },
+  review: { size: 140, minSize: 120 }
 } as const
 
 export function buildSubmissionsOrgUnitTableColumns(
   t: TranslateFn,
-  formatBudgetPlanStatus: (value: string | null | undefined) => string
+  formatBudgetPlanStatus: (value: string | null | undefined) => string,
+  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
 ): ColumnDef<SubmissionsOrgUnitTableRow>[] {
+  const reviewColumn: ColumnDef<SubmissionsOrgUnitTableRow> | null =
+    onReviewTeam != null
+      ? {
+          id: 'reviewTeam',
+          header: submissionsColumnHeader(t, 'submissions-table-col-review'),
+          size: COL.review.size,
+          minSize: COL.review.minSize,
+          meta: { align: 'left', type: 'text' },
+          cell: ({ row }) => (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid={`submissions-review-team-${row.original.id}`}
+              onClick={() => onReviewTeam(row.original)}
+            >
+              {t('submissions-table-review-team')}
+            </Button>
+          )
+        }
+      : null
+
   return [
     {
       id: 'organizationalUnitName',
@@ -109,7 +134,8 @@ export function buildSubmissionsOrgUnitTableColumns(
       cell: ({ row }) => (
         <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
       )
-    }
+    },
+    ...(reviewColumn != null ? [reviewColumn] : [])
   ]
 }
 
@@ -118,5 +144,6 @@ export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [
   'budgetPlanLabel',
   'budgetPlanStatus',
   'salaryBudgetAmount',
-  'salaryBudgetPercent'
+  'salaryBudgetPercent',
+  'reviewTeam'
 ] as const

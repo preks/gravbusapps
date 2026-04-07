@@ -55,12 +55,20 @@ function SyncedAmountPercentPair({
                 {...field}
                 type="number"
                 step="0.01"
+                value={field.value === '' ? '' : field.value}
                 onChange={e => {
                   const raw = e.target.value
-                  const amt = raw === '' || raw === '-' ? 0 : Number(raw)
-                  const v = Number.isNaN(amt) ? 0 : amt
-                  field.onChange(v)
-                  setValue(percentName, percentFromAmount(v, baseline), { shouldValidate: true })
+                  if (raw === '') {
+                    field.onChange('')
+                    setValue(percentName, '', { shouldValidate: true })
+                    return
+                  }
+                  const amt = Number(raw)
+                  if (Number.isNaN(amt)) {
+                    return
+                  }
+                  field.onChange(amt)
+                  setValue(percentName, percentFromAmount(amt, baseline), { shouldValidate: true })
                 }}
                 data-testid={amountTestId}
               />
@@ -80,12 +88,20 @@ function SyncedAmountPercentPair({
                 {...field}
                 type="number"
                 step="0.01"
+                value={field.value === '' ? '' : field.value}
                 onChange={e => {
                   const raw = e.target.value
-                  const pct = raw === '' || raw === '-' ? 0 : Number(raw)
-                  const v = Number.isNaN(pct) ? 0 : pct
-                  field.onChange(v)
-                  setValue(amountName, amountFromPercent(v, baseline), { shouldValidate: true })
+                  if (raw === '') {
+                    field.onChange('')
+                    setValue(amountName, '', { shouldValidate: true })
+                    return
+                  }
+                  const pct = Number(raw)
+                  if (Number.isNaN(pct)) {
+                    return
+                  }
+                  field.onChange(pct)
+                  setValue(amountName, amountFromPercent(pct, baseline), { shouldValidate: true })
                 }}
                 data-testid={percentTestId}
               />

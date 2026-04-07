@@ -1,6 +1,8 @@
 import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 
 export interface CompensationBudgetPlanCreatePayload {
+  /** Present for `changeMode: UPDATE` on `saveCompensationBudgetPlan`. */
+  id?: string
   name: string
   description: string
   fiscalYear: number
@@ -80,6 +82,32 @@ export function extractCreatedCompensationBudgetPlanId(response: unknown): strin
   const data = r.data
   if (data && typeof data === 'object') {
     return extractPlanIdFromRecord(data as Record<string, unknown>)
+  }
+  return null
+}
+
+/** Reads employee budget row id from `saveCompensationBudgetPlanEmployee` REST response. */
+export function extractCreatedCompensationBudgetPlanEmployeeId(response: unknown): string | null {
+  if (response == null || typeof response !== 'object') {
+    return null
+  }
+  const r = response as Record<string, unknown>
+  if (typeof r.id === 'string') {
+    return r.id
+  }
+  const row = r.compensationBudgetPlanEmployee
+  if (row && typeof row === 'object') {
+    const rid = (row as Record<string, unknown>).id
+    if (typeof rid === 'string') {
+      return rid
+    }
+  }
+  const data = r.data
+  if (data && typeof data === 'object') {
+    const did = (data as Record<string, unknown>).id
+    if (typeof did === 'string') {
+      return did
+    }
   }
   return null
 }

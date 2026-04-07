@@ -11,6 +11,8 @@ export interface SubmissionsOrgUnitBudgetTableProps {
   hasCompanyBudgetRows: boolean
   /** Company selector aligned with the DataDisplay toolbar (search / filters / sort). */
   companyToolbar?: React.ReactNode
+  /** Opens manager-compensation-planning for supervisor review (submitted proposals). */
+  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
 }
 
 export function SubmissionsOrgUnitBudgetTable({
@@ -18,7 +20,8 @@ export function SubmissionsOrgUnitBudgetTable({
   loading,
   error,
   hasCompanyBudgetRows,
-  companyToolbar
+  companyToolbar,
+  onReviewTeam
 }: Readonly<SubmissionsOrgUnitBudgetTableProps>) {
   const { t } = useTranslation(translations)
   const {
@@ -38,7 +41,7 @@ export function SubmissionsOrgUnitBudgetTable({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useSubmissionsOrgUnitTableModel(t, rows, hasCompanyBudgetRows)
+  } = useSubmissionsOrgUnitTableModel(t, rows, hasCompanyBudgetRows, onReviewTeam)
 
   return (
     <DataDisplay

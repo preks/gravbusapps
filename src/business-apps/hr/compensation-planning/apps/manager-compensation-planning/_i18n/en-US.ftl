@@ -115,3 +115,27 @@ manager-team-save-missing-plan-ou = No salary budget row for this plan on {$name
 manager-team-save-custom-exceeds-pool = Total custom allocations exceed the increase pool. Adjust amounts before saving.
 manager-team-save-error = Could not save allocations. {$message}
 manager-team-save-error-generic = Something went wrong while saving.
+manager-team-submit-proposals = Submit proposals
+manager-team-submitting = Submitting…
+manager-team-submit-no-drafts = Save at least one allocation to the budget plan before submitting. Use Distribute, then save in the dialog.
+manager-team-submit-error = Could not submit proposals. {$message}
+manager-team-proposals-readonly-hint = Proposals have been submitted for review. Editing is disabled.
+
+supervisor-review-no-auth = You must be signed in to approve or send back proposals.
+supervisor-review-no-submitted = There are no submitted proposals to act on.
+supervisor-review-error-generic = Something went wrong. Try again.
+supervisor-review-card-title = Supervisor review
+supervisor-review-submitted-count = { $count ->
+  [zero] No submitted proposals to review.
+  [one] 1 submitted proposal to review.
+  *[other] {$count} submitted proposals to review.
+}
+supervisor-review-busy = Working…
+supervisor-review-approve-all = Approve all
+supervisor-review-send-back = Send back
+supervisor-review-send-back-notes-required = Add notes for the team before sending back.
+supervisor-review-send-back-title = Send back to team
+supervisor-review-send-back-placeholder = Explain what the team should change…
+supervisor-review-send-back-cancel = Cancel
+supervisor-review-send-back-confirm = Send back
+supervisor-review-back-to-team = Back to team compensation

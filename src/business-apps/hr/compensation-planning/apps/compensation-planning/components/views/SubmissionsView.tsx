@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { useCallback } from 'react'
+import { buildPlatformUrl, navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import { useSubmissionsOrgUnitBudgetTable } from '../../hooks/useSubmissionsOrgUnitBudgetTable'
 import { SubmissionsOrgUnitBudgetTable } from './SubmissionsOrgUnitBudgetTable'
+import type { SubmissionsOrgUnitTableRow } from './submissionsOrgUnitTableRows'
 
 export interface SubmissionsViewProps {
   accessToken: string
@@ -34,6 +36,20 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ accessToken, c
   const listLoading = loading || loadingTeam
   const listError = error ?? teamError ?? null
 
+  const handleReviewTeam = useCallback(
+    (row: SubmissionsOrgUnitTableRow) => {
+      const url = buildPlatformUrl(Navigation.HR_COMPENSATION_MANAGER_PLANNING, {
+        companyId,
+        orgUnitId: row.organizationalUnitId,
+        planOuRowId: row.id,
+        supervisorReview: '1',
+        teamLabel: row.organizationalUnitName
+      })
+      navigateTo(url)
+    },
+    [companyId]
+  )
+
   return (
     <div className="gba:space-y-6" data-testid="submissions-view">
       <SubmissionsOrgUnitBudgetTable
@@ -42,6 +58,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ accessToken, c
         error={listError}
         hasCompanyBudgetRows={hasCompanyBudgetRows}
         companyToolbar={companyToolbar}
+        onReviewTeam={handleReviewTeam}
       />
     </div>
   )

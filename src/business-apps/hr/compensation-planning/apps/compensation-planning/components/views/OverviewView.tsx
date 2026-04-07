@@ -1,29 +1,49 @@
-import React, { useMemo } from 'react'
-import { Button, Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
-import { PlusIcon, FolderOpenIcon, ArrowLeftIcon } from '@phosphor-icons/react'
-import { useCompanyOrganizationalUnits } from '@/common/data/orgchart/hooks/useCompanyOrganizationalUnits'
-import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
-import { buildOrgUnitDistributionInputsFromTeamMembers } from '../../../../utils/buildOrgUnitDistributionInputs'
-import { formatNumberFunction } from '@/common/utils/windowUtils'
-import { CompensationOverviewStatistics } from '../CompensationOverviewStatistics'
-import { OverviewOrgUnitSalaryCard } from './OverviewOrgUnitSalaryCard'
+import React, { useCallback, useMemo, useState } from 'react'
+import {
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { PlusIcon, FolderOpenIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../../api/compensationBudgetRestConfig'
+import { executeCompensationCycleForPlan } from '../../../../api/executeCompensationCycleRest'
+import { fetchCompensationBudgetPlanEmployeesForPlanAndCompany } from '../../../../api/fetchCompensationBudgetPlanEmployeesForPlanAndCompany'
+import type { CompensationBudgetPlanRowSnapshot } from '../../../../utils/buildCompensationBudgetPlanExecuteRestBodies'
+import { OverviewCompanyStatisticsSection } from './OverviewCompanyStatisticsSection'
 import { OverviewPlansTable } from './OverviewPlansTable'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 
-const OVERVIEW_ORG_UNIT_LIMIT = 500
+/** Text + arrow; idle is flat, hover lifts with light fill + shadow. */
+const OVERVIEW_NAV_LINK_BUTTON_CLASSNAME =
+  'gba:shrink-0 gba:inline-flex gba:h-auto gba:items-center gba:gap-2 gba:rounded-md gba:px-3 gba:py-2 gba:font-normal gba:text-foreground gba:shadow-none gba:transition-shadow gba:transition-colors gba:duration-150 gba:hover:bg-muted gba:hover:shadow-sm gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2'
 
 export interface OverviewViewProps {
   accessToken: string
   companyId: string
   budgetPlanId: string | null
+  /** Resolved plan row for the open cycle (execute cycle / validation). */
+  selectedPlan: CompensationBudgetPlanRow | null
   plans: CompensationBudgetPlanRow[]
   plansLoading: boolean
+  /** When true, show only the compensation cycles list (table or empty state). */
+  overviewCyclesOnly?: boolean
+  /** Company selector (toolbar variant); shown on Overview so KPIs follow the selected company. */
+  overviewCompanyToolbar?: React.ReactNode
+  onOpenCompensationCyclesList: () => void
+  onBackToOverviewDashboard: () => void
   onSelectPlan: (planId: string) => void
   onDeselectPlan: () => void
   onCreatePlan: () => void
-  /** Company selector on the plan dashboard header; keeps the selected cycle when switching company. */
-  planDetailCompanyToolbar?: React.ReactNode
+  /** Refetch compensation cycles after REST execution. */
+  onPlansRefetch?: () => void
 }
 
 function PlansListView({
@@ -74,134 +94,138 @@ function PlansListView({
 function PlanDetailView({
   accessToken,
   companyId,
+  budgetPlanId,
+  selectedPlan,
   onBack,
-  planDetailCompanyToolbar,
+  onPlansRefetch,
   t
 }: Readonly<{
   accessToken: string
   companyId: string
+  budgetPlanId: string
+  selectedPlan: CompensationBudgetPlanRow | null
   onBack: () => void
-  planDetailCompanyToolbar?: React.ReactNode
+  onPlansRefetch?: () => void
   t: (key: string, args?: Record<string, string | number>) => string
 }>) {
-  const { units: companyOrgUnits } = useCompanyOrganizationalUnits(accessToken, companyId, OVERVIEW_ORG_UNIT_LIMIT)
-  const { teamMembers, loading, error, refetch } = useTeamCompensationData({
-    accessToken,
-    companyId,
-    requirePayrollRelevantContractType: true
-  })
+  const graphqlClient = useGraphQLClient(accessToken)
+  const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
 
-  const orgUnitSalaryRows = useMemo(() => {
-    return buildOrgUnitDistributionInputsFromTeamMembers(teamMembers, {
-      unassignedLabel: t('overview-org-unit-unassigned'),
-      companyOrgUnits
-    }).map(o => ({
-      orgUnitId: o.orgUnitId,
-      orgUnitName: o.orgUnitName,
-      headcount: o.headcount,
-      salaryCost: o.currentTotalSalaryCost,
-      bonusCostYtd: o.currentTotalBonusYtd
-    }))
-  }, [companyOrgUnits, teamMembers, t])
+  const [executeDialogOpen, setExecuteDialogOpen] = useState(false)
+  const [executeBusy, setExecuteBusy] = useState(false)
+  const [executeError, setExecuteError] = useState<string | null>(null)
 
-  const totalSalaryAcrossOrgUnits = useMemo(
-    () => orgUnitSalaryRows.reduce((sum, r) => sum + r.salaryCost, 0),
-    [orgUnitSalaryRows]
-  )
+  const planSnapshot: CompensationBudgetPlanRowSnapshot | null = useMemo(() => {
+    if (selectedPlan == null) {
+      return null
+    }
+    return {
+      id: selectedPlan.id,
+      name: selectedPlan.name,
+      description: selectedPlan.description,
+      fiscalYear: selectedPlan.fiscalYear,
+      startDate: selectedPlan.startDate,
+      endDate: selectedPlan.endDate,
+      effectiveDate: selectedPlan.effectiveDate
+    }
+  }, [selectedPlan])
 
-  const totalBonusAcrossOrgUnits = useMemo(
-    () => orgUnitSalaryRows.reduce((sum, r) => sum + r.bonusCostYtd, 0),
-    [orgUnitSalaryRows]
-  )
+  const executeDialogPlanLabel = selectedPlan?.name?.trim() ? selectedPlan.name.trim() : budgetPlanId
 
-  const totalHeadcount = teamMembers.length
-  const totalSalaryCost = teamMembers.reduce((sum, m) => sum + (m.currentAnnualSalary ?? 0), 0)
-  const totalBonuses = teamMembers.reduce((sum, m) => sum + (m.currentBonusTotal ?? 0), 0)
-  const currency = teamMembers[0]?.currency ?? 'EUR'
-  const avgSalary = totalHeadcount > 0 ? totalSalaryCost / totalHeadcount : 0
+  const handleConfirmExecute = useCallback(async () => {
+    if (!accessToken || !planSnapshot) {
+      return
+    }
+    setExecuteBusy(true)
+    setExecuteError(null)
+    try {
+      const employees = await fetchCompensationBudgetPlanEmployeesForPlanAndCompany(
+        graphqlClient,
+        companyId,
+        budgetPlanId
+      )
+      await executeCompensationCycleForPlan(restClient, accessToken, employees, planSnapshot)
+      setExecuteDialogOpen(false)
+      onPlansRefetch?.()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Execute failed'
+      setExecuteError(msg)
+    } finally {
+      setExecuteBusy(false)
+    }
+  }, [accessToken, budgetPlanId, companyId, graphqlClient, onPlansRefetch, planSnapshot, restClient])
 
   return (
     <div className="gba:space-y-6">
-      <div className="gba:flex gba:w-full gba:min-w-0 gba:flex-nowrap gba:items-center gba:justify-between gba:gap-4">
+      <div className="gba:flex gba:w-full gba:min-w-0 gba:flex-wrap gba:items-center gba:justify-between gba:gap-4">
         <Button
+          type="button"
           variant="ghost"
-          size="sm"
           onClick={onBack}
-          className="gba:shrink-0 gba:gap-1"
+          className={OVERVIEW_NAV_LINK_BUTTON_CLASSNAME}
           data-testid="overview-back-to-cycles"
         >
-          <ArrowLeftIcon size={16} />
+          <ArrowLeftIcon size={18} weight="regular" aria-hidden />
           {t('overview-back-to-cycles')}
         </Button>
-        {planDetailCompanyToolbar ? (
-          <div
-            className="gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:justify-end"
-            data-testid="overview-plan-detail-company-toolbar"
+        <div className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-wrap gba:items-center gba:justify-end gba:gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            className="gba:shrink-0"
+            data-testid="overview-execute-cycle"
+            disabled={!planSnapshot}
+            onClick={() => setExecuteDialogOpen(true)}
           >
-            {planDetailCompanyToolbar}
-          </div>
-        ) : null}
+            {t('overview-execute-cycle')}
+          </Button>
+        </div>
       </div>
 
-      <CompensationOverviewStatistics
-        employeeCount={totalHeadcount}
-        annualSalaryCost={totalSalaryCost}
-        averageSalary={avgSalary}
-        bonusesYtd={totalBonuses}
-        currency={currency}
-        isLoading={loading}
-        error={error}
-        onRetry={refetch}
-      />
+      <Dialog
+        open={executeDialogOpen}
+        onOpenChange={open => {
+          setExecuteDialogOpen(open)
+          if (open) {
+            setExecuteError(null)
+          }
+        }}
+      >
+        <DialogContent className="gba:max-w-md" data-testid="overview-execute-cycle-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('overview-execute-cycle-title')}</DialogTitle>
+          </DialogHeader>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('overview-execute-cycle-description')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground" data-testid="overview-execute-cycle-plan-context">
+            {t('overview-execute-cycle-plan-context', { planName: executeDialogPlanLabel })}
+          </p>
+          {executeError ? (
+            <p className="gba:text-sm gba:text-destructive" data-testid="overview-execute-cycle-error">
+              {executeError}
+            </p>
+          ) : null}
+          <DialogFooter className="gba:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="overview-execute-cycle-cancel"
+              onClick={() => setExecuteDialogOpen(false)}
+            >
+              {t('overview-execute-cycle-cancel')}
+            </Button>
+            <Button
+              type="button"
+              data-testid="overview-execute-cycle-confirm"
+              disabled={executeBusy || !planSnapshot}
+              onClick={() => void handleConfirmExecute()}
+            >
+              {executeBusy ? t('overview-execute-cycle-running') : t('overview-execute-cycle-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {!loading && !error && (
-        <Card className="gba:w-full" data-testid="compensation-overview-workforce-card">
-          <CardHeader>
-            <CardTitle>{t('overview-section-workforce-title')}</CardTitle>
-          </CardHeader>
-          <CardContent className="gba:space-y-3">
-            <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-              <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-employees')}</span>
-              <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                {formatNumberFunction(String(totalHeadcount), '0,0')}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-              <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-with-salary')}</span>
-              <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                {formatNumberFunction(String(teamMembers.filter(m => m.currentAnnualSalary != null).length), '0,0')}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-              <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-with-band')}</span>
-              <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                {formatNumberFunction(String(teamMembers.filter(m => m.compensationBand != null).length), '0,0')}
-              </span>
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-              <span className="gba:text-sm gba:text-muted-foreground">{t('overview-row-compa')}</span>
-              <span className="gba:text-sm gba:font-medium gba:tabular-nums">
-                {(() => {
-                  const withRatio = teamMembers.filter(m => m.compaRatio != null)
-                  if (withRatio.length === 0) return '—'
-                  const avg = withRatio.reduce((s, m) => s + (m.compaRatio ?? 0), 0) / withRatio.length
-                  return formatNumberFunction(String(avg), '0.00[,]00')
-                })()}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {!loading && !error && (
-        <OverviewOrgUnitSalaryCard
-          rows={orgUnitSalaryRows}
-          totalSalaryAcrossUnits={totalSalaryAcrossOrgUnits}
-          totalBonusAcrossUnits={totalBonusAcrossOrgUnits}
-          currency={currency}
-          teamMemberCount={teamMembers.length}
-        />
-      )}
+      <OverviewCompanyStatisticsSection accessToken={accessToken} companyId={companyId} t={t} />
     </div>
   )
 }
@@ -210,12 +234,17 @@ export function OverviewView({
   accessToken,
   companyId,
   budgetPlanId,
+  selectedPlan,
   plans,
   plansLoading,
+  overviewCyclesOnly = false,
+  overviewCompanyToolbar,
+  onOpenCompensationCyclesList,
+  onBackToOverviewDashboard,
   onSelectPlan,
   onDeselectPlan,
   onCreatePlan,
-  planDetailCompanyToolbar
+  onPlansRefetch
 }: Readonly<OverviewViewProps>) {
   const { t } = useTranslation(translations)
 
@@ -224,22 +253,69 @@ export function OverviewView({
       <PlanDetailView
         accessToken={accessToken}
         companyId={companyId}
+        budgetPlanId={budgetPlanId}
+        selectedPlan={selectedPlan}
         onBack={onDeselectPlan}
-        planDetailCompanyToolbar={planDetailCompanyToolbar}
+        onPlansRefetch={onPlansRefetch}
         t={t}
       />
     )
   }
 
+  if (overviewCyclesOnly) {
+    return (
+      <div className="gba:space-y-6">
+        <div
+          className="gba:flex gba:w-full gba:flex-wrap gba:items-center gba:justify-start gba:gap-4"
+          data-testid="overview-cycles-list-toolbar"
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            className={OVERVIEW_NAV_LINK_BUTTON_CLASSNAME}
+            data-testid="overview-back-to-overview-dashboard"
+            onClick={onBackToOverviewDashboard}
+          >
+            <ArrowLeftIcon size={18} weight="regular" aria-hidden />
+            {t('overview-back-to-overview')}
+          </Button>
+        </div>
+        <div className="gba:space-y-3" data-testid="overview-compensation-cycles-section">
+          <PlansListView
+            plans={plans}
+            plansLoading={plansLoading}
+            onSelectPlan={onSelectPlan}
+            onCreatePlan={onCreatePlan}
+            t={t}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:space-y-6">
-      <PlansListView
-        plans={plans}
-        plansLoading={plansLoading}
-        onSelectPlan={onSelectPlan}
-        onCreatePlan={onCreatePlan}
-        t={t}
-      />
+      <div
+        className="gba:flex gba:w-full gba:flex-wrap gba:items-center gba:justify-between gba:gap-4"
+        data-testid="overview-main-toolbar-row"
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          className={OVERVIEW_NAV_LINK_BUTTON_CLASSNAME}
+          data-testid="overview-open-compensation-cycles-link"
+          onClick={onOpenCompensationCyclesList}
+        >
+          {t('overview-back-to-cycles')}
+          <ArrowRightIcon size={18} weight="regular" aria-hidden />
+        </Button>
+        {overviewCompanyToolbar ? (
+          <div className="gba:flex gba:min-w-0 gba:flex-1 gba:justify-end" data-testid="overview-main-company-toolbar">
+            {overviewCompanyToolbar}
+          </div>
+        ) : null}
+      </div>
+      <OverviewCompanyStatisticsSection accessToken={accessToken} companyId={companyId} t={t} />
     </div>
   )
 }

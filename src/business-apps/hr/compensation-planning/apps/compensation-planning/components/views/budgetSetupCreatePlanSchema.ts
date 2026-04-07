@@ -1,17 +1,32 @@
 import { z } from 'zod'
 
-function preprocessNum(min: number, max: number) {
-  return z.preprocess(v => (typeof v === 'string' && v.trim() === '' ? 0 : v), z.coerce.number().min(min).max(max))
+/** Empty string = user has not entered a value yet (no default 0 in the field). */
+function preprocessEmptyOrNumber(min: number, max: number) {
+  return z.preprocess(
+    (v: unknown) => {
+      if (v === '' || v === null || v === undefined) return ''
+      if (typeof v === 'string' && v.trim() === '') return ''
+      const n = typeof v === 'number' ? v : Number(v)
+      if (Number.isNaN(n)) return v
+      return n
+    },
+    z.union([z.literal(''), z.number().min(min).max(max)])
+  )
 }
 
 export function buildCreateBudgetPlanFormSchema(translate: (key: string) => string) {
-  return z.object({
-    /** Links the company budget row to an existing compensation budget plan (dropdown). */
-    compensationBudgetPlanId: z.string().min(1, translate('budget-setup-create-plan-select-plan-required')),
-    salaryBudgetAmount: preprocessNum(-1e12, 1e12),
-    salaryBudgetPercent: preprocessNum(-100, 1000),
-    currencyRef: z.string().min(1, translate('budget-setup-create-plan-currency-required'))
-  })
+  return z
+    .object({
+      /** Links the company budget row to an existing compensation budget plan (dropdown). */
+      compensationBudgetPlanId: z.string().min(1, translate('budget-setup-create-plan-select-plan-required')),
+      salaryBudgetAmount: preprocessEmptyOrNumber(-1e12, 1e12),
+      salaryBudgetPercent: preprocessEmptyOrNumber(-100, 1000),
+      currencyRef: z.string().min(1, translate('budget-setup-create-plan-currency-required'))
+    })
+    .refine(data => data.salaryBudgetAmount !== '' && data.salaryBudgetPercent !== '', {
+      message: translate('budget-setup-create-plan-salary-budget-required'),
+      path: ['salaryBudgetAmount']
+    })
 }
 
 export type CreatePlanFormValues = z.infer<ReturnType<typeof buildCreateBudgetPlanFormSchema>>
@@ -37,8 +52,8 @@ export function getDefaultCreatePlanFormValues(
 ): CreatePlanFormValues {
   return {
     compensationBudgetPlanId,
-    salaryBudgetAmount: 0,
-    salaryBudgetPercent: 0,
+    salaryBudgetAmount: '',
+    salaryBudgetPercent: '',
     currencyRef: initialCurrencyRef
   }
 }

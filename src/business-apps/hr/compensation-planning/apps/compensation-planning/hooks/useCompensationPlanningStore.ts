@@ -33,6 +33,12 @@ interface CompensationPlanningState {
   activeTab: CompensationPlanningTab
 
   /**
+   * After "Go to compensation cycles" from plan detail: show only the cycles list/empty state (not workforce KPIs).
+   * Cleared when selecting a plan, switching company, or leaving the Overview tab.
+   */
+  overviewCyclesOnly: boolean
+
+  /**
    * Selected `compensation_budget_plan_company` row for Budget distribution.
    * Derived from (planId, companyId) — cleared when either changes.
    */
@@ -43,7 +49,7 @@ interface CompensationPlanningState {
    * Pass `{ clearBudgetPlan: false }` when switching company while staying on the same cycle (e.g. Overview plan dashboard).
    */
   selectCompany: (companyId: string | null, options?: { clearBudgetPlan?: boolean }) => void
-  selectBudgetPlan: (planId: string | null) => void
+  selectBudgetPlan: (planId: string | null, options?: { overviewCyclesOnly?: boolean }) => void
   setActiveTab: (tab: string) => void
   setSelectedDistributionCompanyBudgetId: (id: string | null) => void
 }
@@ -52,6 +58,7 @@ export const useCompensationPlanningStore = create<CompensationPlanningState>(se
   selectedCompanyId: null,
   selectedBudgetPlanId: null,
   activeTab: readTabFromUrl(),
+  overviewCyclesOnly: false,
   selectedDistributionCompanyBudgetId: null,
 
   selectCompany: (companyId, options) =>
@@ -59,19 +66,24 @@ export const useCompensationPlanningStore = create<CompensationPlanningState>(se
       selectedCompanyId: companyId,
       selectedBudgetPlanId:
         companyId === null || options?.clearBudgetPlan !== false ? null : state.selectedBudgetPlanId,
-      selectedDistributionCompanyBudgetId: null
+      selectedDistributionCompanyBudgetId: null,
+      overviewCyclesOnly: false
     })),
 
-  selectBudgetPlan: planId =>
+  selectBudgetPlan: (planId, options) =>
     set({
       selectedBudgetPlanId: planId,
-      selectedDistributionCompanyBudgetId: null
+      selectedDistributionCompanyBudgetId: null,
+      overviewCyclesOnly: planId != null ? false : options?.overviewCyclesOnly === true
     }),
 
   setActiveTab: tab => {
     const validated = VALID_TABS.has(tab) ? (tab as CompensationPlanningTab) : 'overview'
     writeTabToUrl(validated)
-    set({ activeTab: validated })
+    set(state => ({
+      activeTab: validated,
+      overviewCyclesOnly: validated !== 'overview' ? false : state.overviewCyclesOnly
+    }))
   },
 
   setSelectedDistributionCompanyBudgetId: id => set({ selectedDistributionCompanyBudgetId: id })

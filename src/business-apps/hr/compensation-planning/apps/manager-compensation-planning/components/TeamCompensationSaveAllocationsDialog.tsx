@@ -9,6 +9,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { RestClient } from '@/common/network/rest/RestClient'
+import { extractCreatedCompensationBudgetPlanEmployeeId } from '../../../api/createCompensationBudgetPlan'
 import { saveCompensationBudgetPlanEmployee } from '../../../api/saveCompensationBudgetPlan'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
@@ -32,7 +33,8 @@ export interface TeamCompensationSaveAllocationsDialogProps {
   currencyCode: string
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-  onSaved?: () => void | Promise<void>
+  /** Called after successful saves; includes REST row ids keyed by employee id when returned by the API. */
+  onSaved?: (createdIdsByEmployeeId?: Record<string, string>) => void | Promise<void>
 }
 
 export function TeamCompensationSaveAllocationsDialog({
@@ -147,10 +149,9 @@ export function TeamCompensationSaveAllocationsDialog({
       }
     }
 
-    const submittedAt = new Date().toISOString()
-
     setSaving(true)
     try {
+      const createdIdsByEmployeeId: Record<string, string> = {}
       for (const id of ids) {
         const m = memberById.get(id)
         if (!m) {
@@ -165,12 +166,14 @@ export function TeamCompensationSaveAllocationsDialog({
           continue
         }
         const rawAmount = allocationByEmployeeId.get(id) ?? 0
-        const body = buildSaveCompensationBudgetPlanEmployeeInsertBody(m, rawAmount, planOuId, managerEmployeeId, {
-          submittedAt
-        })
-        await saveCompensationBudgetPlanEmployee(restClient, accessToken, body)
+        const body = buildSaveCompensationBudgetPlanEmployeeInsertBody(m, rawAmount, planOuId, managerEmployeeId)
+        const raw = await saveCompensationBudgetPlanEmployee(restClient, accessToken, body)
+        const rowId = extractCreatedCompensationBudgetPlanEmployeeId(raw)
+        if (rowId) {
+          createdIdsByEmployeeId[m.employeeId] = rowId
+        }
       }
-      await onSaved?.()
+      await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : t('manager-team-save-error-generic')

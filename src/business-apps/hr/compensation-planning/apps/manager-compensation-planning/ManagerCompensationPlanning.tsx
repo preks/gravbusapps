@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
 import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Button,
   PageLayout,
   Spinner,
   Select,
@@ -15,6 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentUrlWithUpdatedSearchParams, navigateTo } from '@/common/utils/navigationUtils'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
@@ -29,8 +31,35 @@ import { useTeamMembersPipeline } from './hooks/useTeamMembersPipeline'
 import { useManagerTeamSalaryBudget } from './hooks/useManagerTeamSalaryBudget'
 
 import { TeamCompensationDistributionPanel } from './components/TeamCompensationDistributionPanel'
+import { SupervisorOrgUnitProposalReview } from './components/SupervisorOrgUnitProposalReview'
+import type { ManagerEmployeeBudgetRowEntry } from './hooks/useManagerTeamProposalSubmit'
 
 import translations from './_i18n'
+
+interface SupervisorReviewUrl {
+  companyId: string
+  orgUnitId: string
+  planOuRowId: string
+  teamLabel: string
+}
+
+function parseSupervisorReviewUrl(): SupervisorReviewUrl | null {
+  if (typeof globalThis.window === 'undefined') {
+    return null
+  }
+  const p = new URLSearchParams(globalThis.window.location.search)
+  if (p.get('supervisorReview') !== '1') {
+    return null
+  }
+  const companyId = p.get('companyId') ?? ''
+  const orgUnitId = p.get('orgUnitId') ?? ''
+  const planOuRowId = p.get('planOuRowId') ?? ''
+  const teamLabel = p.get('teamLabel') ?? ''
+  if (!companyId || !orgUnitId || !planOuRowId) {
+    return null
+  }
+  return { companyId, orgUnitId, planOuRowId, teamLabel }
+}
 
 export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = context => {
   const { accessToken, userInfo } = context
@@ -68,6 +97,35 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     }
   }, [companiesLoading, companies, selectedCompanyId, setSelectedCompanyId])
 
+  const [supervisorReview, setSupervisorReview] = useState<SupervisorReviewUrl | null>(() => parseSupervisorReviewUrl())
+
+  useLayoutEffect(() => {
+    const parsed = parseSupervisorReviewUrl()
+    if (parsed) {
+      setSupervisorReview(parsed)
+      setSelectedCompanyId(parsed.companyId)
+    }
+  }, [setSelectedCompanyId])
+
+  useEffect(() => {
+    const syncSupervisorFromUrl = () => {
+      setSupervisorReview(parseSupervisorReviewUrl())
+    }
+    window.addEventListener('popstate', syncSupervisorFromUrl)
+    return () => window.removeEventListener('popstate', syncSupervisorFromUrl)
+  }, [])
+
+  const exitSupervisorReviewMode = useCallback(() => {
+    setSupervisorReview(null)
+    const next = getCurrentUrlWithUpdatedSearchParams({
+      supervisorReview: null,
+      orgUnitId: null,
+      planOuRowId: null,
+      teamLabel: null
+    })
+    navigateTo(next)
+  }, [])
+
   useDefaultCompanyForCurrentUser(
     accessToken,
     employeeId,
@@ -77,15 +135,19 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     setSelectedCompanyId
   )
 
+  const effectiveCompanyId = supervisorReview?.companyId ?? selectedCompanyId
+
   const {
     teamMembers,
     loading: dataLoading,
-    error
+    error,
+    refetch: refetchTeam
   } = useTeamCompensationData({
     accessToken,
-    companyId: selectedCompanyId,
-    supervisorEmployeeId: employeeId ?? undefined,
-    supervisorOnly: true,
+    companyId: effectiveCompanyId,
+    orgUnitId: supervisorReview?.orgUnitId ?? undefined,
+    supervisorEmployeeId: supervisorReview ? undefined : (employeeId ?? undefined),
+    supervisorOnly: supervisorReview == null,
     /** Aligns with company compensation planning: contract type catalog `payroll_relevant`. */
     requirePayrollRelevantContractType: true
   })
@@ -99,7 +161,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     managerOrganizationalUnitId
   } = useManagerTeamSalaryBudget({
     accessToken,
-    companyId: selectedCompanyId,
+    companyId: effectiveCompanyId,
     managerEmployeeId: employeeId,
     teamMembers
   })
@@ -124,6 +186,41 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       })),
     [teamMembers, scoreByEmployeeId]
   )
+
+  const [employeeBudgetRows, setEmployeeBudgetRows] = useState<Record<string, ManagerEmployeeBudgetRowEntry>>({})
+  const [proposalsLocked, setProposalsLocked] = useState(false)
+
+  useEffect(() => {
+    setEmployeeBudgetRows({})
+    setProposalsLocked(false)
+  }, [selectedCompanyId])
+
+  const mergeSavedRowIds = useCallback((ids?: Record<string, string>) => {
+    if (!ids) {
+      return
+    }
+    setEmployeeBudgetRows(prev => {
+      const next = { ...prev }
+      for (const [employeeId, rowId] of Object.entries(ids)) {
+        next[employeeId] = { rowId, status: 'draft' }
+      }
+      return next
+    })
+  }, [])
+
+  const onDraftProposalsSubmitted = useCallback(() => {
+    setEmployeeBudgetRows(prev => {
+      const next = { ...prev }
+      for (const key of Object.keys(next)) {
+        const entry = next[key]
+        if (entry.status === 'draft') {
+          next[key] = { rowId: entry.rowId, status: 'submitted' }
+        }
+      }
+      return next
+    })
+    setProposalsLocked(true)
+  }, [])
 
   const pipeline = useTeamMembersPipeline({
     members: teamMembersWithPerformance,
@@ -195,13 +292,40 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       )
     }
 
-    if (!selectedCompanyId) {
+    if (!effectiveCompanyId) {
       return (
         <div
           className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
           data-testid="manager-compensation-data-body"
         >
           <div className="gba:p-4">{emptyCompanySelectionRow}</div>
+        </div>
+      )
+    }
+
+    if (supervisorReview) {
+      return (
+        <div
+          className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
+          data-testid="manager-compensation-data-body"
+        >
+          <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="gba:self-start"
+              data-testid="manager-compensation-exit-supervisor-review"
+              onClick={exitSupervisorReviewMode}
+            >
+              {t('supervisor-review-back-to-team')}
+            </Button>
+            <SupervisorOrgUnitProposalReview
+              accessToken={accessToken}
+              supervisorEmployeeId={employeeId}
+              planOuRowId={supervisorReview.planOuRowId}
+              organizationalUnitLabel={supervisorReview.teamLabel || supervisorReview.orgUnitId}
+            />
+          </div>
         </div>
       )
     }
@@ -241,14 +365,19 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             totalSalaryBudget={totalSalaryBudget}
             salaryBudgetLoading={salaryBudgetLoading}
             salaryBudgetError={salaryBudgetError}
-            selectedCompanyId={selectedCompanyId}
+            selectedCompanyId={effectiveCompanyId}
             currencyCode={teamCurrencyCode}
             accessToken={accessToken}
             managerEmployeeId={employeeId}
             planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
             managerOrganizationalUnitId={managerOrganizationalUnitId}
+            employeeBudgetRowState={employeeBudgetRows}
+            onMergeSavedRowIds={mergeSavedRowIds}
+            proposalsLockedAfterSubmit={proposalsLocked}
+            onDraftProposalsSubmitted={onDraftProposalsSubmitted}
             onSaved={() => {
               void refetchSalaryBudget()
+              void refetchTeam()
             }}
           />
         </div>

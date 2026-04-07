@@ -115,3 +115,27 @@ manager-team-save-missing-plan-ou = Nu există rând de buget salarial în acest
 manager-team-save-custom-exceeds-pool = Alocările personalizate depășesc fondul de creștere. Ajustați sumele înainte de salvare.
 manager-team-save-error = Nu s-au putut salva alocările. {$message}
 manager-team-save-error-generic = A apărut o problemă la salvare.
+manager-team-submit-proposals = Trimite propunerile
+manager-team-submitting = Se trimite…
+manager-team-submit-no-drafts = Salvați cel puțin o alocare în planul de buget înainte de trimitere. Folosiți Distribuie, apoi salvați în dialog.
+manager-team-submit-error = Nu s-au putut trimite propunerile. {$message}
+manager-team-proposals-readonly-hint = Propunerile au fost trimise spre revizuire. Editarea este dezactivată.
+
+supervisor-review-no-auth = Trebuie să fiți autentificat pentru a aproba sau a trimite înapoi propunerile.
+supervisor-review-no-submitted = Nu există propuneri trimise pentru această acțiune.
+supervisor-review-error-generic = A apărut o problemă. Încercați din nou.
+supervisor-review-card-title = Revizuire supervizor
+supervisor-review-submitted-count = { $count ->
+  [zero] Nicio propunere trimisă de revizuit.
+  [one] 1 propunere trimisă de revizuit.
+  *[other] {$count} propuneri trimise de revizuit.
+}
+supervisor-review-busy = Se procesează…
+supervisor-review-approve-all = Aprobă toate
+supervisor-review-send-back = Trimite înapoi
+supervisor-review-send-back-notes-required = Adăugați note pentru echipă înainte de trimiterea înapoi.
+supervisor-review-send-back-title = Trimite înapoi către echipă
+supervisor-review-send-back-placeholder = Explicați ce ar trebui să schimbe echipa…
+supervisor-review-send-back-cancel = Anulează
+supervisor-review-send-back-confirm = Trimite înapoi
+supervisor-review-back-to-team = Înapoi la compensarea echipei

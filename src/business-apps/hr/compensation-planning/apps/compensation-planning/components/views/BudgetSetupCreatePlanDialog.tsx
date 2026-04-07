@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -99,140 +99,187 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
     }
   }, [open, currencyOptionsSafe, currencyCode, form])
 
-  const onSubmit = form.handleSubmit(async values => {
+  const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
+  const [pendingSubmitValues, setPendingSubmitValues] = useState<CreatePlanFormValues | null>(null)
+
+  const onSubmit = form.handleSubmit(values => {
+    setPendingSubmitValues(values)
+    setConfirmSaveOpen(true)
+  })
+
+  const runCreateCompanyBudget = async () => {
+    if (!pendingSubmitValues) {
+      return
+    }
+    const values = pendingSubmitValues
+    const { salaryBudgetAmount, salaryBudgetPercent } = values
+    if (typeof salaryBudgetAmount !== 'number' || typeof salaryBudgetPercent !== 'number') {
+      return
+    }
     const id = await onCreate({
       companyBudget: {
         compensationBudgetPlanId: values.compensationBudgetPlanId,
         companyId,
-        salaryBudgetAmount: values.salaryBudgetAmount,
-        salaryBudgetPercent: values.salaryBudgetPercent,
+        salaryBudgetAmount,
+        salaryBudgetPercent,
         currentTotalSalaryCost: annualSalaryCost,
         currencyRef: values.currencyRef.trim() === '' ? null : values.currencyRef.trim()
       }
     })
     if (id) {
+      setConfirmSaveOpen(false)
+      setPendingSubmitValues(null)
       onOpenChange(false)
     }
-  })
+  }
 
   const watchedPlanId = useWatch({ control: form.control, name: 'compensationBudgetPlanId' })
   const selectedPlanMeta = useMemo(() => plansSafe.find(p => p.id === watchedPlanId), [plansSafe, watchedPlanId])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="gba:max-w-xl gba:max-h-[90vh] gba:overflow-y-auto"
-        data-testid="budget-setup-create-plan-dialog"
-      >
-        <DialogHeader>
-          <DialogTitle>{t('budget-setup-create-plan-title')}</DialogTitle>
-          {companyName ? (
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {t('budget-setup-company-context', { company: companyName })}
-            </p>
-          ) : null}
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={onSubmit} className="gba:space-y-4">
-            <FormField
-              control={form.control}
-              name="compensationBudgetPlanId"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                    <FormLabel className="gba:flex-1">{t('budget-setup-choose-budget-plan-label')} : </FormLabel>
-                    {loadingPlans ? <Spinner className="gba:h-4 gba:w-4" /> : null}
-                  </div>
-                  <Select
-                    disabled={loadingPlans || plansSafe.length === 0}
-                    onValueChange={field.onChange}
-                    value={field.value || undefined}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-compensation-plan">
-                        <SelectValue placeholder={t('budget-setup-create-plan-select-plan-placeholder')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {plansSafe.map(plan => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name} ({String(plan.fiscalYear)})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedPlanMeta ? (
-                    <div
-                      className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:text-sm"
-                      data-testid="budget-setup-create-plan-selected-plan-details"
-                    >
-                      <p className="gba:font-medium gba:text-foreground">{t('budget-setup-plan-details-title')}</p>
-                      <dl className="gba:mt-2 gba:grid gba:grid-cols-1 gba:gap-1 sm:gba:grid-cols-2">
-                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-fiscal-year')} : </dt>
-                          <dd className="gba:tabular-nums">{String(selectedPlanMeta.fiscalYear)}</dd>
-                        </div>
-                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-start')} : </dt>
-                          <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.startDate)}</dd>
-                        </div>
-                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-end')} : </dt>
-                          <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.endDate)}</dd>
-                        </div>
-                        <div className="gba:flex gba:flex-wrap gba:gap-x-2">
-                          <dt className="gba:text-muted-foreground">{t('budget-setup-field-effective-date')} : </dt>
-                          <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.effectiveDate)}</dd>
-                        </div>
-                      </dl>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="gba:max-w-xl gba:max-h-[90vh] gba:overflow-y-auto"
+          data-testid="budget-setup-create-plan-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>{t('budget-setup-create-plan-title')}</DialogTitle>
+            {companyName ? (
+              <p className="gba:text-sm gba:text-muted-foreground">
+                {t('budget-setup-company-context', { company: companyName })}
+              </p>
+            ) : null}
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={onSubmit} className="gba:space-y-4">
+              <FormField
+                control={form.control}
+                name="compensationBudgetPlanId"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                      <FormLabel className="gba:flex-1">{t('budget-setup-choose-budget-plan-label')} : </FormLabel>
+                      {loadingPlans ? <Spinner className="gba:h-4 gba:w-4" /> : null}
                     </div>
-                  ) : null}
-                  {plansSafe.length === 0 && !loadingPlans ? (
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {t('budget-setup-create-plan-no-plans-hint')}
-                    </p>
-                  ) : null}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <Select
+                      disabled={loadingPlans || plansSafe.length === 0}
+                      onValueChange={field.onChange}
+                      value={field.value || undefined}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-compensation-plan">
+                          <SelectValue placeholder={t('budget-setup-create-plan-select-plan-placeholder')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {plansSafe.map(plan => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            {plan.name} ({String(plan.fiscalYear)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedPlanMeta ? (
+                      <div
+                        className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:text-sm"
+                        data-testid="budget-setup-create-plan-selected-plan-details"
+                      >
+                        <p className="gba:font-medium gba:text-foreground">{t('budget-setup-plan-details-title')}</p>
+                        <dl className="gba:mt-2 gba:grid gba:grid-cols-1 gba:gap-1 sm:gba:grid-cols-2">
+                          <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                            <dt className="gba:text-muted-foreground">{t('budget-setup-field-fiscal-year')} : </dt>
+                            <dd className="gba:tabular-nums">{String(selectedPlanMeta.fiscalYear)}</dd>
+                          </div>
+                          <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                            <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-start')} : </dt>
+                            <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.startDate)}</dd>
+                          </div>
+                          <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                            <dt className="gba:text-muted-foreground">{t('budget-setup-field-planning-end')} : </dt>
+                            <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.endDate)}</dd>
+                          </div>
+                          <div className="gba:flex gba:flex-wrap gba:gap-x-2">
+                            <dt className="gba:text-muted-foreground">{t('budget-setup-field-effective-date')} : </dt>
+                            <dd className="gba:tabular-nums">{formatDateOrDash(selectedPlanMeta.effectiveDate)}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    ) : null}
+                    {plansSafe.length === 0 && !loadingPlans ? (
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        {t('budget-setup-create-plan-no-plans-hint')}
+                      </p>
+                    ) : null}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <BudgetSetupCreatePlanCompanyBudgetFields
-              control={form.control}
-              setValue={setValue}
-              annualSalaryCost={annualSalaryCost}
-              currencyCode={currencyCode}
-              currencyOptions={currencyOptionsSafe}
-              loadingCurrencies={loadingCurrencies}
-              t={t}
-            />
+              <BudgetSetupCreatePlanCompanyBudgetFields
+                control={form.control}
+                setValue={setValue}
+                annualSalaryCost={annualSalaryCost}
+                currencyCode={currencyCode}
+                currencyOptions={currencyOptionsSafe}
+                loadingCurrencies={loadingCurrencies}
+                t={t}
+              />
 
-            <DialogFooter className="gba:gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                data-testid="budget-setup-create-plan-cancel"
-              >
-                {t('budget-setup-cancel')}
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  creating ||
-                  loadingPlans ||
-                  plansSafe.length === 0 ||
-                  loadingCurrencies ||
-                  currencyOptionsSafe.length === 0
-                }
-                data-testid="budget-setup-create-plan-submit"
-              >
-                {t('budget-setup-create-plan-submit')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              <DialogFooter className="gba:gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  data-testid="budget-setup-create-plan-cancel"
+                >
+                  {t('budget-setup-cancel')}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    creating ||
+                    loadingPlans ||
+                    plansSafe.length === 0 ||
+                    loadingCurrencies ||
+                    currencyOptionsSafe.length === 0
+                  }
+                  data-testid="budget-setup-create-plan-submit"
+                >
+                  {t('budget-setup-create-plan-submit')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmSaveOpen} onOpenChange={setConfirmSaveOpen}>
+        <DialogContent className="gba:max-w-md" data-testid="budget-setup-company-save-confirm-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('budget-setup-company-save-confirm-title')}</DialogTitle>
+          </DialogHeader>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('budget-setup-company-save-confirm-description')}</p>
+          <DialogFooter className="gba:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmSaveOpen(false)}
+              data-testid="budget-setup-company-save-confirm-cancel"
+            >
+              {t('budget-setup-company-save-confirm-cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={creating}
+              onClick={() => void runCreateCompanyBudget()}
+              data-testid="budget-setup-company-save-confirm-confirm"
+            >
+              {creating ? t('budget-setup-create-plan-saving') : t('budget-setup-company-save-confirm-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

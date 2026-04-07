@@ -17,7 +17,7 @@ import type { BudgetType } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import {
   DEFAULT_BUDGET_DISTRIBUTION_METHOD,
-  DEFAULT_BUDGET_PLAN_STATUS_DRAFT
+  DEFAULT_BUDGET_PLAN_STATUS_APPROVED
 } from '../../../types/budgetPlanGraphqlEnums'
 import { coerceStoredDistributionMethodToApi } from '../../../utils/mapDistributionMethodToApi'
 import { useCompensationPlanningStore } from './useCompensationPlanningStore'
@@ -338,13 +338,18 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           const currentTotalSalaryCost = roundMoney2(changes.currentTotalSalaryCost)
           const currencyRef = input.currencyRef === undefined ? companyRow.currencyRef : input.currencyRef
 
+          const nextStatus =
+            companyRow.budgetPlanStatus === 'BUDGET_PLAN_EXECUTED'
+              ? companyRow.budgetPlanStatus
+              : 'BUDGET_PLAN_APPROVED'
+
           const rowInput: SaveCompensationBudgetPlanCompanyRowInput = {
             id: companyRow.id,
             compensationBudgetPlanId: companyRow.compensationBudgetPlanId,
             companyId: companyRow.companyId,
             salaryBudgetAmount,
             salaryBudgetPercent,
-            budgetPlanStatus: companyRow.budgetPlanStatus,
+            budgetPlanStatus: nextStatus,
             currentTotalSalaryCost,
             currencyRef,
             headcount: input.headcount
@@ -364,7 +369,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
               salaryBudgetPercent: roundMoney2(changes.salaryBudgetPercent),
               bonusBudgetAmount: 0,
               bonusBudgetPercent: 0,
-              budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_DRAFT,
+              budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
               currentTotalSalaryCost: roundMoney2(input.currentTotalSalaryCost),
               currencyRef: input.currencyRef ?? null,
               headcount: input.headcount,

@@ -1,0 +1,58 @@
+import type { SaveCompensationBudgetPlanEmployeeRestBody } from '../../../api/saveCompensationBudgetPlan'
+import type { CompensationEmployeeProposal } from '../../../types/compensationPlanningTypes'
+
+/**
+ * Batch-submit: move employee proposal from DRAFT → SUBMITTED (manager flow).
+ */
+export function buildSubmitEmployeeProposalUpdateBody(
+  proposal: CompensationEmployeeProposal,
+  planOrganizationalUnitRowId: string,
+  submittedByEmployeeId: string,
+  submittedAtIso: string
+): SaveCompensationBudgetPlanEmployeeRestBody {
+  return {
+    changeMode: 'UPDATE',
+    compensationBudgetPlanEmployee: {
+      id: proposal.id,
+      proposedSalaryIncreaseAmount: proposal.proposedSalaryIncrease ?? 0,
+      proposedSalaryIncreasePercent: proposal.proposedSalaryIncreasePercent ?? 0,
+      proposedNewSalary: proposal.proposedNewSalary ?? 0,
+      justification: proposal.justification ?? '',
+      budgetPlanStatus: 'BUDGET_PLAN_SUBMITTED',
+      submittedAt: submittedAtIso,
+      reviewNotes: proposal.reviewNotes ?? '',
+      compensationBudgetPlanOrganizationalUnit: planOrganizationalUnitRowId,
+      employee: proposal.employeeId,
+      submittedByEmployee: submittedByEmployeeId
+    }
+  }
+}
+
+/** Same as {@link buildSubmitEmployeeProposalUpdateBody} when only row id + numeric fields are known (post-save). */
+export function buildSubmitEmployeeProposalUpdateBodyFromRow(
+  employeeId: string,
+  employeeBudgetRowId: string,
+  planOrganizationalUnitRowId: string,
+  submittedByEmployeeId: string,
+  submittedAtIso: string,
+  proposedSalaryIncreaseAmount: number,
+  proposedSalaryIncreasePercent: number,
+  proposedNewSalary: number
+): SaveCompensationBudgetPlanEmployeeRestBody {
+  return {
+    changeMode: 'UPDATE',
+    compensationBudgetPlanEmployee: {
+      id: employeeBudgetRowId,
+      proposedSalaryIncreaseAmount,
+      proposedSalaryIncreasePercent,
+      proposedNewSalary,
+      justification: '',
+      budgetPlanStatus: 'BUDGET_PLAN_SUBMITTED',
+      submittedAt: submittedAtIso,
+      reviewNotes: '',
+      compensationBudgetPlanOrganizationalUnit: planOrganizationalUnitRowId,
+      employee: employeeId,
+      submittedByEmployee: submittedByEmployeeId
+    }
+  }
+}

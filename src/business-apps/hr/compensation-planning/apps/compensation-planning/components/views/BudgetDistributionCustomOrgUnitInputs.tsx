@@ -29,6 +29,7 @@ export interface BudgetDistributionCustomOrgUnitInputsProps {
   onPercentRawChange: (orgUnitId: string, value: string) => void
   onModeChange: (orgUnitId: string, mode: CustomBudgetInputMode) => void
   t: Translate
+  disabled?: boolean
 }
 
 export function BudgetDistributionCustomOrgUnitInputs({
@@ -41,7 +42,8 @@ export function BudgetDistributionCustomOrgUnitInputs({
   onAmountRawChange,
   onPercentRawChange,
   onModeChange,
-  t
+  t,
+  disabled = false
 }: Readonly<BudgetDistributionCustomOrgUnitInputsProps>) {
   const entry = customBudget ?? defaultOrgUnitCustomBudgetInput()
   const mode = entry.mode
@@ -99,6 +101,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
               value="amount"
               id={`${groupName}-amount`}
               data-testid={`budget-distribution-custom-mode-amount-${orgUnitId}`}
+              disabled={disabled}
             />
             <Label
               htmlFor={`${groupName}-amount`}
@@ -112,6 +115,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
               value="percent"
               id={`${groupName}-percent`}
               data-testid={`budget-distribution-custom-mode-percent-${orgUnitId}`}
+              disabled={disabled}
             />
             <Label
               htmlFor={`${groupName}-percent`}
@@ -138,6 +142,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
               onChange={e => onAmountRawChange(orgUnitId, e.target.value)}
               placeholder="0"
               data-testid={`budget-distribution-custom-input-${orgUnitId}`}
+              disabled={disabled}
             />
           </div>
         ) : (
@@ -156,6 +161,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
               onChange={e => onPercentRawChange(orgUnitId, e.target.value)}
               placeholder="0"
               data-testid={`budget-distribution-custom-percent-input-${orgUnitId}`}
+              disabled={disabled}
             />
             {poolForPercent == null ? (
               <p

@@ -141,7 +141,7 @@ export function BudgetDistributionDistributeDialog({
           salaryBudgetPercent,
           bonusBudgetAmount: 0,
           bonusBudgetPercent: 0,
-          budgetPlanStatus: 'BUDGET_PLAN_SUBMITTED',
+          budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
           compensationBudgetPlanCompany: companyBudgetRow.id,
           organizationalUnit: ouId
         }

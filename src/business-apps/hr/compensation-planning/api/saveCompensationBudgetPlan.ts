@@ -122,16 +122,23 @@ export async function saveCompensationBudgetPlanCompany(
 }
 
 export interface CompensationBudgetPlanEmployeeRestPayload {
+  /** Set for UPDATE (changeMode UPDATE). */
+  id?: string
   proposedSalaryIncreaseAmount: number
   proposedSalaryIncreasePercent: number
   proposedNewSalary: number
   justification: string
   budgetPlanStatus: BudgetPlanStatusApi
+  /** Empty string when proposal is still in draft (not yet submitted). */
   submittedAt: string
   reviewNotes: string
   compensationBudgetPlanOrganizationalUnit: string
   employee: string
   submittedByEmployee: string
+  /** Supervisor review (optional; set when approving or sending back). */
+  reviewedByEmployee?: string
+  /** ISO-8601 timestamp when supervisor reviewed (optional). */
+  reviewedAt?: string
 }
 
 export interface SaveCompensationBudgetPlanEmployeeRestBody {

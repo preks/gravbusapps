@@ -194,6 +194,33 @@ export const LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
   }
 `
 
+/** Employee-level budget proposals for org-unit budget rows (supervisor / execution). */
+export const LIST_COMPENSATION_BUDGET_PLAN_EMPLOYEES_BY_ORG_UNIT_IDS = `
+  query ListCompensationBudgetPlanEmployeesByOrgUnitIds($orgUnitBudgetIds: [uuid!]!) {
+    CompensationBudgetPlanEmployee(
+      where: {
+        _and: [
+          { compensationBudgetPlanOrganizationalUnitId: { _in: $orgUnitBudgetIds } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      limit: 5000
+    ) {
+      id
+      budgetPlanStatus
+      employeeId
+      proposedSalaryIncreaseAmount
+      proposedSalaryIncreasePercent
+      proposedNewSalary
+      justification
+      submittedAt
+      reviewNotes
+      compensationBudgetPlanOrganizationalUnitId
+      submittedByEmployeeId
+    }
+  }
+`
+
 export const GET_COMPENSATION_BUDGET_PLAN_COMPANY = `
   query GetCompensationBudgetPlanCompany($planId: uuid!, $companyId: uuid!) {
     CompensationBudgetPlanCompany(

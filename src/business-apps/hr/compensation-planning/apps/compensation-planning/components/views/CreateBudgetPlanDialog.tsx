@@ -23,7 +23,10 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { DEFAULT_BUDGET_PLAN_STATUS_DRAFT, BUDGET_PLAN_STATUS_OPTIONS } from '../../../../types/budgetPlanGraphqlEnums'
+import {
+  DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
+  BUDGET_PLAN_STATUS_OPTIONS
+} from '../../../../types/budgetPlanGraphqlEnums'
 import type { CompensationBudgetPlanRow, InsertBudgetPlanInput } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
@@ -64,7 +67,7 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
       name: '',
       description: '',
       fiscalYear: new Date().getFullYear(),
-      budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_DRAFT,
+      budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
       startDate: '',
       endDate: '',
       effectiveDate: ''
@@ -77,7 +80,7 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
       name: '',
       description: '',
       fiscalYear: new Date().getFullYear(),
-      budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_DRAFT,
+      budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
       startDate: '',
       endDate: '',
       effectiveDate: ''
