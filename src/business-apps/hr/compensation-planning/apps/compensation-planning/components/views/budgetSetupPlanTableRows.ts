@@ -23,8 +23,6 @@ export interface BudgetSetupPlanTableRow {
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
-  bonusBudgetAmount: number
-  bonusBudgetPercent: number
   companyBudgetStatus: string | null
   salaryBaseline: number | null
   currencyRef: string | null
@@ -35,10 +33,16 @@ export function buildBudgetSetupPlanTableRows(
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
   selectedCompanyId: string,
   defaultCurrencyCode: string,
-  plans: CompensationBudgetPlanListItem[]
+  plans: CompensationBudgetPlanListItem[],
+  /** When set, only rows for this compensation cycle are shown. */
+  selectedCompensationPlanId: string | null
 ): BudgetSetupPlanTableRow[] {
   return companyBudgetPlanRows
     .filter(companyRow => companyRow.companyId === selectedCompanyId)
+    .filter(
+      companyRow =>
+        selectedCompensationPlanId == null || companyRow.compensationBudgetPlanId === selectedCompensationPlanId
+    )
     .map(companyRow => {
       const displayCurrency = formatCurrencyRefForDisplay(companyRow.currencyRef?.trim()) || defaultCurrencyCode
       const budgetPlanLabel = formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)
@@ -50,8 +54,6 @@ export function buildBudgetSetupPlanTableRows(
         companyId: companyRow.companyId,
         salaryBudgetAmount: companyRow.salaryBudgetAmount,
         salaryBudgetPercent: companyRow.salaryBudgetPercent,
-        bonusBudgetAmount: companyRow.bonusBudgetAmount,
-        bonusBudgetPercent: companyRow.bonusBudgetPercent,
         companyBudgetStatus: companyRow.budgetPlanStatus || null,
         salaryBaseline: companyRow.currentTotalSalaryCost,
         currencyRef: companyRow.currencyRef,
