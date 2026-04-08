@@ -109,6 +109,8 @@ export function BudgetDistributionOrgUnitDepartmentRow({
           onPercentRawChange={onCustomPercentRawChange}
           onModeChange={onCustomModeChange}
           t={t}
+          showGlobalPoolRemainingInDetails={false}
+          useRemainingPoolForPercentSemantics
         />
       ) : (
         <>

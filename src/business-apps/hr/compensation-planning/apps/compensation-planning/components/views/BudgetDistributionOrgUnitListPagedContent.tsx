@@ -24,7 +24,7 @@ export interface BudgetDistributionOrgUnitListPagedContentProps {
   distributionPool: number | null
   poolForCustomContext: number | null
   totalCustomAllocated: number
-  /** Custom mode: pool minus sum of all allocations (same for every row). */
+  /** Custom mode: pool minus sum of preview allocations (same on each row; matches KPI). */
   customPoolUnallocatedGlobal: number | null
   customBudgetByOrgUnitId: Record<string, OrgUnitCustomBudgetInput>
   currencyCode: string

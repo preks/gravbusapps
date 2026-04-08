@@ -96,7 +96,7 @@ export function BudgetDistributionOrgUnitList({
 
   const poolForCustomContext = distributionPool != null && distributionPool > 0 ? distributionPool : null
 
-  /** Custom mode: pool minus all entered allocations (order-independent; same value shown on every row). */
+  /** Custom mode: pool minus sum of preview allocations (same value on every row; KPI also shows this above). */
   const customPoolUnallocatedGlobal = useMemo(() => {
     if (poolForCustomContext == null) {
       return null
