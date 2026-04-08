@@ -1,11 +1,8 @@
-import React, { useCallback } from 'react'
-import { DatePicker } from 'antd'
+import React from 'react'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@newwork/nw-design-system'
 import { InfoIcon } from '@phosphor-icons/react'
-import dayjs, { Dayjs } from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
-const { RangePicker } = DatePicker
+import { ExpenseDateTupleRangeInput } from '@/business-apps/fin/expenses/common/components/filters/ExpenseDateTupleRangeInput'
 
 interface EffectiveDateRangeFilterProps {
   effectiveDateRange?: [Date | null, Date | null] | null
@@ -20,35 +17,13 @@ const EffectiveDateRangeFilter: React.FC<EffectiveDateRangeFilterProps> = ({
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
     getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
   ]
-}) => {
-  const handleDateChange = useCallback(
-    (dates: [Dayjs | null, Dayjs | null] | null) => {
-      if (!dates) {
-        onDateRangeChange(null)
-      } else {
-        onDateRangeChange([dates[0]?.toDate() || null, dates[1]?.toDate() || null])
-      }
-    },
-    [onDateRangeChange]
-  )
-
-  const value =
-    effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1])
-      ? [
-          effectiveDateRange[0] ? dayjs(effectiveDateRange[0]) : null,
-          effectiveDateRange[1] ? dayjs(effectiveDateRange[1]) : null
-        ]
-      : null
-
-  return (
-    <div>
-      <RangePicker
-        value={value as [Dayjs | null, Dayjs | null] | null}
-        onChange={handleDateChange}
-        placeholder={placeholder}
-        className="gba:w-full"
-        data-testid="effective-date-range-filter"
-      />
+}) => (
+  <ExpenseDateTupleRangeInput
+    value={effectiveDateRange}
+    onChange={onDateRangeChange}
+    placeholder={placeholder}
+    dataTestId="effective-date-range-filter"
+    footer={
       <div className="gba:mt-2 gba:flex gba:items-center gba:gap-1" data-testid="effective-date-hint">
         <HoverCard openDelay={200} closeDelay={100}>
           <HoverCardTrigger asChild>
@@ -79,8 +54,8 @@ const EffectiveDateRangeFilter: React.FC<EffectiveDateRangeFilterProps> = ({
           </HoverCardContent>
         </HoverCard>
       </div>
-    </div>
-  )
-}
+    }
+  />
+)
 
 export default EffectiveDateRangeFilter

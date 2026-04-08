@@ -1,15 +1,15 @@
 import React, { useMemo } from 'react'
 import { Separator, Button, Badge } from '@newwork/nw-design-system'
-import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ArrowRightIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
-import { generateExpensePlanActions } from '../../../utils/expensePlanActions'
-import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
-import TravelOrderAttachmentPreview from '../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
-import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
+import { generateExpensePlanActions } from '../../../../utils/expensePlanActions'
+import { useExpensePlanFileService } from '../../../../utils/expensePlanFileService'
+import TravelOrderAttachmentPreview from '../../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
+import { ExpenseDetailsPanelContent } from '../../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: any

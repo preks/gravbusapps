@@ -5,10 +5,12 @@ export interface AssetDialogState {
   isAllocateOpen: boolean
   isReturnOpen: boolean
   isRetireOpen: boolean
+  isDeleteOpen: boolean
   editingAssetId: string | null
   allocatingAssetId: string | null
   returningAssetId: string | null
   retiringAssetId: string | null
+  deletingAssetId: string | null
 }
 
 export const useAssetDialogs = () => {
@@ -17,10 +19,12 @@ export const useAssetDialogs = () => {
     isAllocateOpen: false,
     isReturnOpen: false,
     isRetireOpen: false,
+    isDeleteOpen: false,
     editingAssetId: null,
     allocatingAssetId: null,
     returningAssetId: null,
-    retiringAssetId: null
+    retiringAssetId: null,
+    deletingAssetId: null
   })
 
   const openRegister = useCallback((assetId?: string) => {
@@ -79,11 +83,27 @@ export const useAssetDialogs = () => {
     }))
   }, [])
 
+  const openDelete = useCallback((assetId: string) => {
+    setState(prev => ({
+      ...prev,
+      isDeleteOpen: true,
+      deletingAssetId: assetId
+    }))
+  }, [])
+
   const closeRetire = useCallback(() => {
     setState(prev => ({
       ...prev,
       isRetireOpen: false,
       retiringAssetId: null
+    }))
+  }, [])
+
+  const closeDelete = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      isDeleteOpen: false,
+      deletingAssetId: null
     }))
   }, [])
 
@@ -93,10 +113,12 @@ export const useAssetDialogs = () => {
       isAllocateOpen: false,
       isReturnOpen: false,
       isRetireOpen: false,
+      isDeleteOpen: false,
       editingAssetId: null,
       allocatingAssetId: null,
       returningAssetId: null,
-      retiringAssetId: null
+      retiringAssetId: null,
+      deletingAssetId: null
     })
   }, [])
 
@@ -106,10 +128,12 @@ export const useAssetDialogs = () => {
     openAllocate,
     openReturn,
     openRetire,
+    openDelete,
     closeRegister,
     closeAllocate,
     closeReturn,
     closeRetire,
+    closeDelete,
     closeAll
   }
 }
