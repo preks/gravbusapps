@@ -1,16 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { RestClient } from '@/common/network/rest/RestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { fetchCompensationBudgetPlanEmployeesForPlanAndCompany } from '../../../api/fetchCompensationBudgetPlanEmployeesForPlanAndCompany'
-import { saveCompensationBudgetPlanEmployee } from '../../../api/saveCompensationBudgetPlan'
 import type { CompensationBudgetPlanEmployeeRestRow } from '../../../types/compensationBudgetPlanEmployeeRestRow'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
-import {
-  computeManagerProposalAmountsFromIncrease,
-  resolvePlanOrganizationalUnitRowIdForTeamMember
-} from '../utils/buildManagerEmployeeBudgetSaveBody'
-import { resolveDraftEmployeeRowsForSubmit } from '../utils/resolveDraftEmployeeRowsForSubmit'
-import { buildSubmitEmployeeProposalUpdateBodyFromRow } from '../utils/buildSubmitEmployeeProposalUpdateBody'
+import { loadDraftRowsForProposalSubmit, submitOneDraftProposal } from '../utils/managerTeamProposalSubmitWorkflow'
+import type { DraftEmployeeRowForSubmit } from '../utils/resolveDraftEmployeeRowsForSubmit'
 
 export type ManagerEmployeeBudgetRowEntry = { rowId: string; status: 'draft' | 'submitted' }
 
@@ -84,33 +78,20 @@ export function useManagerTeamProposalSubmit({
     try {
       let fetchedEmployeeRows: CompensationBudgetPlanEmployeeRestRow[] = []
       let serverDraftRowsByEmployeeId = new Map<string, DraftEmployeeRowForSubmit>()
+
       if (companyId && activeCompensationBudgetPlanId) {
-        try {
-          const rows = await fetchCompensationBudgetPlanEmployeesForPlanAndCompany(
-            graphqlClient,
-            companyId,
-            activeCompensationBudgetPlanId
-          )
-          fetchedEmployeeRows = rows
-          const preferredRowIdByEmployeeId = new Map<string, string>()
-          for (const id of draftEmployeeIds) {
-            const rowId = employeeBudgetRowState[id]?.rowId
-            if (rowId) {
-              preferredRowIdByEmployeeId.set(id, rowId)
-            }
-          }
-          serverDraftRowsByEmployeeId = resolveDraftEmployeeRowsForSubmit(
-            rows,
-            teamMembers,
-            planOuRowIdByOrganizationalUnitId,
-            managerOrganizationalUnitId,
-            draftEmployeeIds,
-            preferredRowIdByEmployeeId
-          )
-        } catch {
-          fetchedEmployeeRows = []
-          serverDraftRowsByEmployeeId = new Map()
-        }
+        const loaded = await loadDraftRowsForProposalSubmit(
+          graphqlClient,
+          companyId,
+          activeCompensationBudgetPlanId,
+          draftEmployeeIds,
+          employeeBudgetRowState,
+          teamMembers,
+          planOuRowIdByOrganizationalUnitId,
+          managerOrganizationalUnitId
+        )
+        fetchedEmployeeRows = loaded.fetchedEmployeeRows
+        serverDraftRowsByEmployeeId = loaded.serverDraftRowsByEmployeeId
       }
 
       for (const employeeId of draftEmployeeIds) {
@@ -119,37 +100,28 @@ export function useManagerTeamProposalSubmit({
         if (!entry || !member) {
           continue
         }
-        const planOuId = resolvePlanOrganizationalUnitRowIdForTeamMember(
+        const result = await submitOneDraftProposal({
+          employeeId,
+          entry,
           member,
+          serverDraftRowsByEmployeeId,
+          fetchedEmployeeRows,
+          allocationByEmployeeId,
           planOuRowIdByOrganizationalUnitId,
-          managerOrganizationalUnitId
-        )
-        if (!planOuId) {
-          setErrorMessage(tError('manager-team-save-missing-plan-ou', { name: member.displayName }))
-          return
-        }
-        const resolved = serverDraftRowsByEmployeeId.get(employeeId)
-        const rowIdForUpdate = resolved?.id ?? entry.rowId
-        const rawAmount = allocationByEmployeeId.get(employeeId) ?? 0
-        const { proposedSalaryIncreaseAmount, proposedSalaryIncreasePercent, proposedNewSalary } =
-          computeManagerProposalAmountsFromIncrease(member, rawAmount)
-        const versionForUpdate = resolved?.version ?? fetchedEmployeeRows.find(r => r.id === rowIdForUpdate)?.version
-        if (versionForUpdate === undefined) {
+          managerOrganizationalUnitId,
+          managerEmployeeId,
+          submittedAtIso,
+          restClient,
+          accessToken
+        })
+        if (!result.ok) {
+          if (result.reason === 'missing-plan-ou') {
+            setErrorMessage(tError('manager-team-save-missing-plan-ou', { name: result.displayName }))
+            return
+          }
           setErrorMessage(tError('manager-team-submit-missing-row-version'))
           return
         }
-        const body = buildSubmitEmployeeProposalUpdateBodyFromRow(
-          employeeId,
-          rowIdForUpdate,
-          versionForUpdate,
-          planOuId,
-          managerEmployeeId,
-          submittedAtIso,
-          proposedSalaryIncreaseAmount,
-          proposedSalaryIncreasePercent,
-          proposedNewSalary
-        )
-        await saveCompensationBudgetPlanEmployee(restClient, accessToken, body)
       }
       onDraftsSubmitted()
     } catch (e: unknown) {

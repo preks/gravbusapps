@@ -56,8 +56,8 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     const handlePopState = () => {
       syncCompensationPlanningFromUrl()
     }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
   const [createPlanDialogOpen, setCreatePlanDialogOpen] = useState(false)
@@ -137,15 +137,6 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     const companyName = companies.find(c => c.id === selectedCompanyId)?.name
 
     switch (activeTab) {
-      case 'overview':
-        return (
-          <OverviewView
-            plans={existingPlans}
-            plansLoading={plansLoading}
-            onCreatePlan={openCreateCompensationCycleDialog}
-            onEditCompensationPlan={openEditCompensationCycleDialog}
-          />
-        )
       case 'budget-setup':
         return (
           <BudgetSetupView
@@ -175,6 +166,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             companyToolbar={companySelectorOverviewToolbar}
           />
         )
+      case 'overview':
       default:
         return (
           <OverviewView
@@ -210,10 +202,10 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             </p>
           ) : null}
 
-          {!selectedCompanyId ? (
-            <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
-          ) : (
+          {selectedCompanyId ? (
             <div className="gba:space-y-4">{renderTabContent()}</div>
+          ) : (
+            <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
           )}
         </div>
       </div>

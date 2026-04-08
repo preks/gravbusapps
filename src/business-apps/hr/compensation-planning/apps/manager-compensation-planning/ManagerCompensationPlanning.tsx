@@ -46,7 +46,7 @@ interface SupervisorReviewUrl {
 }
 
 function parseSupervisorReviewUrl(): SupervisorReviewUrl | null {
-  if (typeof globalThis.window === 'undefined') {
+  if (globalThis.window === undefined) {
     return null
   }
   const p = new URLSearchParams(globalThis.window.location.search)
@@ -113,8 +113,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     const syncSupervisorFromUrl = () => {
       setSupervisorReview(parseSupervisorReviewUrl())
     }
-    window.addEventListener('popstate', syncSupervisorFromUrl)
-    return () => window.removeEventListener('popstate', syncSupervisorFromUrl)
+    globalThis.addEventListener('popstate', syncSupervisorFromUrl)
+    return () => globalThis.removeEventListener('popstate', syncSupervisorFromUrl)
   }, [])
 
   const exitSupervisorReviewMode = useCallback(() => {

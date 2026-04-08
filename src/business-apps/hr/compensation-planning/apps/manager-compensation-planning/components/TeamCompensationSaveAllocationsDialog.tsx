@@ -9,14 +9,13 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { RestClient } from '@/common/network/rest/RestClient'
-import { extractCreatedCompensationBudgetPlanEmployeeId } from '../../../api/createCompensationBudgetPlan'
-import { saveCompensationBudgetPlanEmployee } from '../../../api/saveCompensationBudgetPlan'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import {
-  buildSaveCompensationBudgetPlanEmployeeInsertBody,
-  resolvePlanOrganizationalUnitRowIdForTeamMember
-} from '../utils/buildManagerEmployeeBudgetSaveBody'
+  persistAllocationsForSelectedEmployees,
+  validateCustomPoolForSelected,
+  validatePlanOuForAllSelected
+} from '../utils/teamCompensationSaveAllocationsWorkflow'
 import translations from '../_i18n'
 import { TeamCompensationSaveAllocationsDialogRows } from './TeamCompensationSaveAllocationsDialogRows'
 
@@ -122,57 +121,34 @@ export function TeamCompensationSaveAllocationsDialog({
       return
     }
 
-    if (distributionMethod === 'custom' && distributionPool != null) {
-      let sumSelected = 0
-      for (const id of ids) {
-        sumSelected += allocationByEmployeeId.get(id) ?? 0
-      }
-      if (sumSelected > distributionPool + 0.01) {
-        setErrorMessage(t('manager-team-save-dialog-custom-exceeds-pool-selected'))
-        return
-      }
+    if (!validateCustomPoolForSelected(distributionMethod, distributionPool, ids, allocationByEmployeeId)) {
+      setErrorMessage(t('manager-team-save-dialog-custom-exceeds-pool-selected'))
+      return
     }
 
-    for (const id of ids) {
-      const m = memberById.get(id)
-      if (!m) {
-        continue
-      }
-      const planOuId = resolvePlanOrganizationalUnitRowIdForTeamMember(
-        m,
-        planOuRowIdByOrganizationalUnitId,
-        managerOrganizationalUnitId
-      )
-      if (!planOuId) {
-        setErrorMessage(t('manager-team-save-missing-plan-ou', { name: m.displayName }))
-        return
-      }
+    const planOuCheck = validatePlanOuForAllSelected(
+      ids,
+      memberById,
+      planOuRowIdByOrganizationalUnitId,
+      managerOrganizationalUnitId
+    )
+    if (!planOuCheck.ok) {
+      setErrorMessage(t('manager-team-save-missing-plan-ou', { name: planOuCheck.displayName }))
+      return
     }
 
     setSaving(true)
     try {
-      const createdIdsByEmployeeId: Record<string, string> = {}
-      for (const id of ids) {
-        const m = memberById.get(id)
-        if (!m) {
-          continue
-        }
-        const planOuId = resolvePlanOrganizationalUnitRowIdForTeamMember(
-          m,
-          planOuRowIdByOrganizationalUnitId,
-          managerOrganizationalUnitId
-        )
-        if (!planOuId) {
-          continue
-        }
-        const rawAmount = allocationByEmployeeId.get(id) ?? 0
-        const body = buildSaveCompensationBudgetPlanEmployeeInsertBody(m, rawAmount, planOuId, managerEmployeeId)
-        const raw = await saveCompensationBudgetPlanEmployee(restClient, accessToken, body)
-        const rowId = extractCreatedCompensationBudgetPlanEmployeeId(raw)
-        if (rowId) {
-          createdIdsByEmployeeId[m.employeeId] = rowId
-        }
-      }
+      const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees(
+        restClient,
+        accessToken,
+        ids,
+        memberById,
+        allocationByEmployeeId,
+        planOuRowIdByOrganizationalUnitId,
+        managerOrganizationalUnitId,
+        managerEmployeeId
+      )
       await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
     } catch (e: unknown) {
@@ -268,7 +244,9 @@ export function TeamCompensationSaveAllocationsDialog({
           </Button>
           <Button
             type="button"
-            onClick={() => void handleConfirmSave()}
+            onClick={() => {
+              handleConfirmSave().catch(() => {})
+            }}
             disabled={saving || !poolOk || selectedEmployeeIds.size === 0}
             data-testid="manager-team-save-dialog-confirm"
           >

@@ -163,7 +163,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
 
   const watchedPlanId = useWatch({ control: form.control, name: 'compensationBudgetPlanId' })
   const selectedPlanMeta = useMemo(() => {
-    const id = editRow != null ? editRow.compensationBudgetPlanId : watchedPlanId
+    const id = editRow == null ? watchedPlanId : editRow.compensationBudgetPlanId
     return plansSafe.find(p => p.id === id) ?? null
   }, [plansSafe, watchedPlanId, editRow])
 

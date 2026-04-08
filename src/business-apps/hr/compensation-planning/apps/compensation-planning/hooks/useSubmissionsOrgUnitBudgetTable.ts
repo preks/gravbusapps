@@ -168,9 +168,9 @@ export function useSubmissionsOrgUnitBudgetTable(
       const nextPlans = sortPlans((plansResult.CompensationBudgetPlan ?? []).map(fillPlanListItem))
       const companyRowsAll = (companyRowsResult.CompensationBudgetPlanCompany ?? []).map(mapCompanyRow)
       const companyRows =
-        selectedCompensationPlanId != null
-          ? companyRowsAll.filter(r => r.compensationBudgetPlanId === selectedCompensationPlanId)
-          : companyRowsAll
+        selectedCompensationPlanId == null
+          ? companyRowsAll
+          : companyRowsAll.filter(r => r.compensationBudgetPlanId === selectedCompensationPlanId)
       const nextCompanyRowById = new Map(companyRows.map(r => [r.id, r]))
       const companyBudgetIds = companyRows.map(r => r.id)
 

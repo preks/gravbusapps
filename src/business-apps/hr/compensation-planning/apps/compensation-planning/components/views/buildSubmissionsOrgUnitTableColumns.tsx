@@ -44,8 +44,9 @@ export function buildSubmissionsOrgUnitTableColumns(
   onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
 ): ColumnDef<SubmissionsOrgUnitTableRow>[] {
   const reviewColumn: ColumnDef<SubmissionsOrgUnitTableRow> | null =
-    onReviewTeam != null
-      ? {
+    onReviewTeam == null
+      ? null
+      : {
           id: 'reviewTeam',
           header: submissionsColumnHeader(t, 'submissions-table-col-review'),
           size: COL.review.size,
@@ -63,7 +64,6 @@ export function buildSubmissionsOrgUnitTableColumns(
             </Button>
           )
         }
-      : null
 
   return [
     {
@@ -98,14 +98,14 @@ export function buildSubmissionsOrgUnitTableColumns(
       },
       cell: ({ row }) => {
         const v = row.original.budgetPlanStatus
-        if (!v) {
-          return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
+        if (v) {
+          return (
+            <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
+              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+            </div>
+          )
         }
-        return (
-          <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-            <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
-          </div>
-        )
+        return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
       }
     },
     {
@@ -135,7 +135,7 @@ export function buildSubmissionsOrgUnitTableColumns(
         <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
       )
     },
-    ...(reviewColumn != null ? [reviewColumn] : [])
+    ...(reviewColumn == null ? [] : [reviewColumn])
   ]
 }
 

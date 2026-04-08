@@ -30,18 +30,34 @@ export function buildSubmitEmployeeProposalUpdateBody(
   }
 }
 
+export interface BuildSubmitEmployeeProposalUpdateBodyFromRowInput {
+  employeeId: string
+  employeeBudgetRowId: string
+  rowVersion: number
+  planOrganizationalUnitRowId: string
+  submittedByEmployeeId: string
+  submittedAtIso: string
+  proposedSalaryIncreaseAmount: number
+  proposedSalaryIncreasePercent: number
+  proposedNewSalary: number
+}
+
 /** Same as {@link buildSubmitEmployeeProposalUpdateBody} when only row id + numeric fields are known (post-save). */
 export function buildSubmitEmployeeProposalUpdateBodyFromRow(
-  employeeId: string,
-  employeeBudgetRowId: string,
-  rowVersion: number,
-  planOrganizationalUnitRowId: string,
-  submittedByEmployeeId: string,
-  submittedAtIso: string,
-  proposedSalaryIncreaseAmount: number,
-  proposedSalaryIncreasePercent: number,
-  proposedNewSalary: number
+  input: BuildSubmitEmployeeProposalUpdateBodyFromRowInput
 ): SaveCompensationBudgetPlanEmployeeRestBody {
+  const {
+    employeeId,
+    employeeBudgetRowId,
+    rowVersion,
+    planOrganizationalUnitRowId,
+    submittedByEmployeeId,
+    submittedAtIso,
+    proposedSalaryIncreaseAmount,
+    proposedSalaryIncreasePercent,
+    proposedNewSalary
+  } = input
+
   return {
     changeMode: 'UPDATE',
     compensationBudgetPlanEmployee: {

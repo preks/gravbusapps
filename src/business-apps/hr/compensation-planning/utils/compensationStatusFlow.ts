@@ -13,7 +13,7 @@ export const LEVEL4_EMPLOYEE_PROPOSAL_TRANSITIONS: Readonly<
   BUDGET_PLAN_EXECUTED: []
 }
 
-export function canTransitionLevel4(from: BudgetPlanStatusApi | string, to: BudgetPlanStatusApi): boolean {
+export function canTransitionLevel4(from: string, to: BudgetPlanStatusApi): boolean {
   const allowed = LEVEL4_EMPLOYEE_PROPOSAL_TRANSITIONS[from as BudgetPlanStatusApi]
   if (!allowed) {
     return false

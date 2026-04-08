@@ -2,6 +2,36 @@ import React from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { cn } from '@/common/utils/cn'
 
+function budgetPlanSelectorRootClass(isToolbar: boolean, fluidToolbarWidth: boolean): string {
+  if (!isToolbar) {
+    return 'gba:flex gba:flex-wrap gba:items-center gba:gap-3'
+  }
+  if (fluidToolbarWidth) {
+    return 'gba:flex gba:w-full gba:min-w-0 gba:max-w-full gba:flex-1 gba:flex-wrap gba:items-center gba:justify-end gba:gap-2'
+  }
+  return 'gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-2'
+}
+
+function budgetPlanSelectorSelectWrapClass(isToolbar: boolean, fluidToolbarWidth: boolean): string {
+  if (!isToolbar) {
+    return 'gba:inline-flex gba:min-w-0 gba:max-w-lg'
+  }
+  if (fluidToolbarWidth) {
+    return 'gba:min-w-0 gba:flex-1'
+  }
+  return 'gba:inline-flex gba:min-w-0 gba:max-w-lg gba:shrink-0'
+}
+
+function budgetPlanSelectorTriggerClass(isToolbar: boolean, fluidToolbarWidth: boolean): string {
+  if (isToolbar && fluidToolbarWidth) {
+    return 'gba:!w-full gba:min-w-0 gba:max-w-full'
+  }
+  if (isToolbar && !fluidToolbarWidth) {
+    return 'gba:!w-max gba:min-w-72 gba:max-w-lg'
+  }
+  return 'gba:!w-max gba:min-w-64 gba:max-w-lg'
+}
+
 export interface BudgetPlanSelectorCompany {
   id: string
   name: string
@@ -42,16 +72,7 @@ export const BudgetPlanSelector: React.FC<BudgetPlanSelectorProps> = ({
   const isToolbar = variant === 'toolbar'
 
   return (
-    <div
-      className={cn(
-        isToolbar
-          ? fluidToolbarWidth
-            ? 'gba:flex gba:w-full gba:min-w-0 gba:max-w-full gba:flex-1 gba:flex-wrap gba:items-center gba:justify-end gba:gap-2'
-            : 'gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-2'
-          : 'gba:flex gba:flex-wrap gba:items-center gba:gap-3'
-      )}
-      data-testid="budget-plan-selector"
-    >
+    <div className={cn(budgetPlanSelectorRootClass(isToolbar, fluidToolbarWidth))} data-testid="budget-plan-selector">
       <div
         className={cn(
           'gba:flex gba:min-w-0 gba:items-center gba:gap-2',
@@ -66,26 +87,14 @@ export const BudgetPlanSelector: React.FC<BudgetPlanSelectorProps> = ({
         >
           {t('selector-company-label')}
         </span>
-        <div
-          className={cn(
-            isToolbar
-              ? fluidToolbarWidth
-                ? 'gba:min-w-0 gba:flex-1'
-                : 'gba:inline-flex gba:min-w-0 gba:max-w-lg gba:shrink-0'
-              : 'gba:inline-flex gba:min-w-0 gba:max-w-lg'
-          )}
-        >
+        <div className={cn(budgetPlanSelectorSelectWrapClass(isToolbar, fluidToolbarWidth))}>
           <Select
             value={companySelectValue}
             onValueChange={val => onCompanyChange(val || null)}
             disabled={companiesLoading || companies.length === 0}
           >
             <SelectTrigger
-              className={cn(
-                isToolbar && fluidToolbarWidth && 'gba:!w-full gba:min-w-0 gba:max-w-full',
-                isToolbar && !fluidToolbarWidth && 'gba:!w-max gba:min-w-72 gba:max-w-lg',
-                !isToolbar && 'gba:!w-max gba:min-w-64 gba:max-w-lg'
-              )}
+              className={cn(budgetPlanSelectorTriggerClass(isToolbar, fluidToolbarWidth))}
               title={
                 selectedCompanyName !== undefined && selectedCompanyName.length > 0 ? selectedCompanyName : undefined
               }

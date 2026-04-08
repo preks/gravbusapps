@@ -207,9 +207,9 @@ export function TeamCompensationDistributionPanel({
         key: 'manager-team-total-budget',
         title: t('budget-summary-total-available'),
         value:
-          totalSalaryBudget != null
-            ? formatCurrencyString(totalSalaryBudget, kpiMoney)
-            : t('budget-summary-placeholder-value'),
+          totalSalaryBudget == null
+            ? t('budget-summary-placeholder-value')
+            : formatCurrencyString(totalSalaryBudget, kpiMoney),
         valueIsString: true,
         prefix: <CurrencyCircleDollarIcon size={24} />,
         color: TEAM_BUDGET_KPI_COLORS.totalBudget,
@@ -286,7 +286,7 @@ export function TeamCompensationDistributionPanel({
         managerOrganizationalUnitId={managerOrganizationalUnitId}
         onSaved={createdIds => {
           onMergeSavedRowIds(createdIds)
-          void onSaved?.()
+          onSaved?.()
         }}
       />
       <div className="gba:flex gba:flex-col gba:gap-4" data-testid="manager-team-distribution-layout">

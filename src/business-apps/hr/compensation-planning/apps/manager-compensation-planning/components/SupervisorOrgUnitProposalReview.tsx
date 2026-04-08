@@ -20,8 +20,10 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import { saveCompensationBudgetPlanEmployee } from '../../../api/saveCompensationBudgetPlan'
 import { useCompensationBudgetPlanEmployeesByOrgUnitIds } from '../../../hooks/useCompensationBudgetPlanEmployeesByOrgUnitIds'
-import { buildSupervisorApproveEmployeeProposalBody } from '../../../utils/buildSupervisorEmployeeProposalRestBodies'
-import { buildSupervisorSendBackEmployeeProposalBody } from '../../../utils/buildSupervisorEmployeeProposalRestBodies'
+import {
+  buildSupervisorApproveEmployeeProposalBody,
+  buildSupervisorSendBackEmployeeProposalBody
+} from '../../../utils/buildSupervisorEmployeeProposalRestBodies'
 import translations from '../_i18n'
 
 export interface SupervisorOrgUnitProposalReviewProps {

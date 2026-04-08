@@ -23,7 +23,7 @@ const STATUS_LABELS: Record<BudgetPlanStatusApi, string> = {
 }
 
 interface BudgetPlanStatusBadgeProps {
-  status: BudgetPlanStatusApi | string
+  status: string
 }
 
 export const BudgetPlanStatusBadge: React.FC<BudgetPlanStatusBadgeProps> = ({ status }) => {

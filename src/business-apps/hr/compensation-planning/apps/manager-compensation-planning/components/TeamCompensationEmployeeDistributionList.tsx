@@ -3,14 +3,14 @@ import { Alert, AlertDescription, Card, CardContent, CardHeader, CardTitle, Spin
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import type { DistributionMethod, TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS } from '../../compensation-planning/components/views/budgetDistributionDepartmentGrid'
-import { BudgetDistributionCustomOrgUnitInputs } from '../../compensation-planning/components/views/BudgetDistributionCustomOrgUnitInputs'
-import { BudgetDistributionDepartmentsPagination } from '../../compensation-planning/components/views/BudgetDistributionDepartmentsPagination'
 import type {
   CustomBudgetInputMode,
   OrgUnitCustomBudgetInput
 } from '../../compensation-planning/components/views/budgetDistributionCustomTypes'
+import { BudgetDistributionDepartmentsPagination } from '../../compensation-planning/components/views/BudgetDistributionDepartmentsPagination'
 import { useDepartmentPagination } from '../../compensation-planning/components/views/useDepartmentPagination'
-import { formatPercentOfPool, formatPerformanceScoreValue, formatShareOfTotal } from './managerTeamDistributionFormat'
+import { formatPerformanceScoreValue } from './managerTeamDistributionFormat'
+import { TeamCompensationEmployeeDistributionMemberRow } from './TeamCompensationEmployeeDistributionMemberRow'
 
 type TranslateBudget = (id: string, args?: Record<string, string | number>) => string
 
@@ -171,7 +171,7 @@ export function TeamCompensationEmployeeDistributionList({
             data-testid="manager-team-distribution-table-scroll"
           >
             <ul className="gba:min-w-[28rem] gba:divide-y gba:divide-border">
-              {!isCustom ? (
+              {isCustom ? null : (
                 <li
                   className={`${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
                   data-testid="manager-team-distribution-standard-column-headers"
@@ -180,7 +180,7 @@ export function TeamCompensationEmployeeDistributionList({
                   <span className="gba:text-right">{tBudget('budget-distribution-col-allocation')}</span>
                   <span className="gba:text-right">{tBudget('budget-distribution-col-pool-share')}</span>
                 </li>
-              ) : null}
+              )}
               {isCustom ? (
                 <li
                   className="gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-center gba:gap-x-4 gba:border-b gba:border-border gba:bg-muted/40 gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground"
@@ -191,86 +191,28 @@ export function TeamCompensationEmployeeDistributionList({
                   <span>{tBudget('budget-distribution-custom-column-details')}</span>
                 </li>
               ) : null}
-              {pagedMembers.map(member => {
-                const amount = allocationByEmployeeId.get(member.employeeId) ?? 0
-                const poolPercentPoints = formatPercentOfPool(amount, distributionPool)
-                const annual = member.currentAnnualSalary ?? 0
-                const score = member.performanceOverallScore ?? 0
-                return (
-                  <li
-                    key={member.employeeId}
-                    className={
-                      isCustom
-                        ? 'gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-2 gba:px-4 gba:py-3'
-                        : `${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:px-4 gba:py-3`
-                    }
-                    data-testid={`manager-team-distribution-row-${member.employeeId}`}
-                  >
-                    <div className="gba:min-w-0">
-                      <div className="gba:font-medium gba:text-foreground">{member.displayName}</div>
-                      {member.jobPosition ? (
-                        <div className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground">{member.jobPosition}</div>
-                      ) : null}
-                      {isSalaryCostMethod && !isCustom ? (
-                        <div
-                          className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground"
-                          data-testid={`manager-team-distribution-salary-${member.employeeId}`}
-                        >
-                          {tBudget('budget-distribution-salary-cost-row-detail', {
-                            salary: formatCurrency(annual, currencyCode),
-                            share: formatShareOfTotal(annual, totalSalaryCostAcrossEmployees)
-                          })}
-                        </div>
-                      ) : null}
-                      {isPerformanceMethod && !isCustom && !performanceFallbackToEqual ? (
-                        <div
-                          className="gba:mt-0.5 gba:text-sm gba:text-muted-foreground"
-                          data-testid={`manager-team-distribution-performance-${member.employeeId}`}
-                        >
-                          {tBudget('budget-distribution-performance-row-detail', {
-                            sum: formatPerformanceScoreValue(score),
-                            share: formatShareOfTotal(score, grandTotalPositivePerformanceScores)
-                          })}
-                        </div>
-                      ) : null}
-                    </div>
-                    {isCustom ? (
-                      <BudgetDistributionCustomOrgUnitInputs
-                        orgUnitId={member.employeeId}
-                        currencyCode={currencyCode}
-                        amount={amount}
-                        distributionPool={distributionPool}
-                        customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
-                        customBudget={customBudgetByEmployeeId[member.employeeId]}
-                        onAmountRawChange={onCustomAmountRawChange}
-                        onPercentRawChange={onCustomPercentRawChange}
-                        onModeChange={onCustomModeChange}
-                        t={tBudget}
-                        disabled={inputsDisabled}
-                      />
-                    ) : (
-                      <>
-                        <div
-                          className="gba:pt-0.5 gba:text-right gba:tabular-nums gba:font-medium gba:text-foreground"
-                          data-testid={`manager-team-distribution-allocation-${member.employeeId}`}
-                        >
-                          {formatCurrency(amount, currencyCode)}
-                        </div>
-                        <div
-                          className="gba:pt-0.5 gba:text-right gba:tabular-nums gba:text-sm gba:text-muted-foreground"
-                          data-testid={`manager-team-distribution-pool-percent-${member.employeeId}`}
-                        >
-                          {poolPercentPoints == null
-                            ? '—'
-                            : tBudget('budget-distribution-allocation-pool-percent', {
-                                percent: poolPercentPoints
-                              })}
-                        </div>
-                      </>
-                    )}
-                  </li>
-                )
-              })}
+              {pagedMembers.map(member => (
+                <TeamCompensationEmployeeDistributionMemberRow
+                  key={member.employeeId}
+                  member={member}
+                  isCustom={isCustom}
+                  isSalaryCostMethod={isSalaryCostMethod}
+                  isPerformanceMethod={isPerformanceMethod}
+                  performanceFallbackToEqual={performanceFallbackToEqual}
+                  currencyCode={currencyCode}
+                  amount={allocationByEmployeeId.get(member.employeeId) ?? 0}
+                  distributionPool={distributionPool}
+                  totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
+                  grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
+                  customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
+                  customBudgetByEmployeeId={customBudgetByEmployeeId}
+                  onCustomAmountRawChange={onCustomAmountRawChange}
+                  onCustomPercentRawChange={onCustomPercentRawChange}
+                  onCustomModeChange={onCustomModeChange}
+                  tBudget={tBudget}
+                  inputsDisabled={inputsDisabled}
+                />
+              ))}
             </ul>
           </div>
           {showPagination ? (

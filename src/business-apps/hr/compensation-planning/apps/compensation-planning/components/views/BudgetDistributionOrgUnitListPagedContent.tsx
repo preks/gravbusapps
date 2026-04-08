@@ -75,7 +75,7 @@ export function BudgetDistributionOrgUnitListPagedContent({
         data-testid="budget-distribution-departments-table-scroll"
       >
         <ul className="gba:min-w-[28rem] gba:divide-y gba:divide-border">
-          {!isCustom ? (
+          {isCustom ? null : (
             <li
               className={`${BUDGET_DISTRIBUTION_STANDARD_ROW_GRID_CLASS} gba:sticky gba:top-0 gba:z-10 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground`}
               data-testid="budget-distribution-standard-column-headers"
@@ -84,7 +84,7 @@ export function BudgetDistributionOrgUnitListPagedContent({
               <span className="gba:text-right">{t('budget-distribution-col-allocation')}</span>
               <span className="gba:text-right">{t('budget-distribution-col-pool-share')}</span>
             </li>
-          ) : null}
+          )}
           {isCustom ? (
             <li
               className="gba:sticky gba:top-0 gba:z-10 gba:grid gba:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gba:items-center gba:gap-x-4 gba:border-b gba:border-border gba:bg-background/95 gba:px-4 gba:py-2 gba:backdrop-blur-sm gba:text-xs gba:font-medium gba:text-muted-foreground"

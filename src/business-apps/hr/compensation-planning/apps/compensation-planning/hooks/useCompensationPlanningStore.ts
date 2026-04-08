@@ -13,16 +13,16 @@ export type CompensationPlanningTab = 'overview' | 'budget-setup' | 'budget-dist
 const VALID_TABS = new Set<string>(['overview', 'budget-setup', 'budget-distribution', 'submissions'])
 
 function readTabFromUrl(): CompensationPlanningTab {
-  if (typeof window === 'undefined') return 'overview'
-  const params = new URLSearchParams(window.location.search)
+  if (globalThis.window === undefined) return 'overview'
+  const params = new URLSearchParams(globalThis.window.location.search)
   const view = params.get('view')
   if (view && VALID_TABS.has(view)) return view as CompensationPlanningTab
   return 'overview'
 }
 
 function readBudgetSetupSectionFromUrl(): 'main' | 'departments' {
-  if (typeof window === 'undefined') return 'main'
-  const params = new URLSearchParams(window.location.search)
+  if (globalThis.window === undefined) return 'main'
+  const params = new URLSearchParams(globalThis.window.location.search)
   return params.get('budgetSetupSection') === 'departments' ? 'departments' : 'main'
 }
 
@@ -36,15 +36,15 @@ function readInitialStateFromUrl(): {
 }
 
 function writeCompensationPlanningUrl(tab: CompensationPlanningTab, budgetSetupSection: 'main' | 'departments') {
-  if (typeof window === 'undefined') return
-  const url = new URL(window.location.href)
+  if (globalThis.window === undefined) return
+  const url = new URL(globalThis.window.location.href)
   url.searchParams.set('view', tab)
   if (tab === 'budget-setup' && budgetSetupSection === 'departments') {
     url.searchParams.set('budgetSetupSection', 'departments')
   } else {
     url.searchParams.delete('budgetSetupSection')
   }
-  window.history.replaceState(null, '', url.toString())
+  globalThis.history.replaceState(null, '', url.toString())
 }
 
 interface CompensationPlanningState {

@@ -1,10 +1,8 @@
-import type { BudgetPlanStatusApi } from './budgetPlanGraphqlEnums'
-
 /** Fields needed to build `saveCompensationBudgetPlanEmployee` UPDATE bodies (GraphQL → REST). */
 export interface CompensationBudgetPlanEmployeeRestRow {
   id: string
   version: number
-  budgetPlanStatus: BudgetPlanStatusApi | string
+  budgetPlanStatus: string
   employeeId: string
   proposedSalaryIncreaseAmount: number
   proposedSalaryIncreasePercent: number
