@@ -553,12 +553,13 @@ export function templateToStudioGraph(template: FlowTemplate): {
               ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
             }
           : undefined,
-        agentConfig: step.agentConfig
-          ? {
-              ...step.agentConfig,
-              ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
-            }
-          : undefined,
+        agentConfig:
+          step.agentConfig || step.aiAgentConfig?.resultSchema
+            ? {
+                ...(step.agentConfig ?? {}),
+                ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
+              }
+            : undefined,
         eventSubscriptions: step.eventSubscriptions,
         reworkConfig: step.reworkConfig,
         permissionContext: step.permissionContext,
