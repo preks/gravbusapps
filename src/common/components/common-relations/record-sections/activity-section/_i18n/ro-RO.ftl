@@ -7,6 +7,7 @@ activities-owner = Responsabil
 activities-selectOwner = Selectați...
 activities-type = Tip
 activities-occurredAt = Dată și oră
+activities-timelineOccurred = Data evenimentului
 activities-details = Detalii activitate
 activities-documents = Documente
 activities-titlePlaceholder = Titlu activitate...

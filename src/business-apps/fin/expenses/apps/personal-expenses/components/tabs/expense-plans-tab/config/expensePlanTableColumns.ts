@@ -1,0 +1,51 @@
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ColumnConfig } from '../../../../../../common/types/columnTypes'
+
+const expensePlanAllColumns: ColumnConfig[] = [
+  {
+    id: 'code',
+    label: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
+      'Plan Number'
+    )
+  },
+  { id: 'title', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title') },
+  {
+    id: 'planDate',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')
+  },
+  {
+    id: 'startDate',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
+  },
+  {
+    id: 'endDate',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+  },
+  {
+    id: 'status',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+  },
+  {
+    id: 'reimbursableAmount',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
+  },
+  {
+    id: 'advancePaymentPaidAmount',
+    label: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:expense_plan_list.expense_plan_table.paid_advance',
+      'Paid Advance'
+    )
+  }
+]
+
+/** Columns that appear in the table but are not server-sortable. */
+const EXPENSE_PLAN_NON_SORTABLE_IDS = new Set<string>(['advancePaymentPaidAmount'])
+
+export const expensePlanAvailableColumns: ColumnConfig[] = expensePlanAllColumns
+
+export const expensePlanSortableColumns: ColumnConfig[] = expensePlanAllColumns.filter(
+  c => !EXPENSE_PLAN_NON_SORTABLE_IDS.has(c.id)
+)
+
+export type { ColumnConfig as AvailableColumn } from '../../../../../../common/types/columnTypes'

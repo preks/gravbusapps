@@ -3,12 +3,30 @@ import { toast } from '@newwork/nw-design-system'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
+import { isCatalogEntryDeleted } from '../utils/catalogEntryHelpers'
 
 const ABSENCE_TYPE_CATALOG = 'AbsenceType'
 const ABSENCE_TYPE_VERSION = 'v1'
 
+const buildSoftDeletePutPayload = (entry: CatalogEntry): Record<string, unknown> => ({
+  id: entry.id,
+  code: entry.code,
+  alternativeCode: entry.alternativeCode,
+  type: entry.type,
+  displayOrder: entry.displayOrder,
+  localeCode: entry.localeCode,
+  value: entry.value,
+  additionalValue1: entry.additionalValue1,
+  additionalValue2: entry.additionalValue2,
+  additionalValue3: entry.additionalValue3,
+  objectValue: entry.objectValue,
+  parentEntryId: entry.parentEntryId,
+  translations: entry.translations || [],
+  isDeleted: true
+})
+
 const mapCatalogEntryToAbsenceType = (entry: CatalogEntry): AbsenceType => ({
-  id: `${ABSENCE_TYPE_CATALOG}:${ABSENCE_TYPE_VERSION}:${entry.code}`,
+  id: entry.id,
   code: entry.code,
   value: entry.value,
   type: entry.type,
@@ -23,8 +41,21 @@ const mapCatalogEntryToAbsenceType = (entry: CatalogEntry): AbsenceType => ({
   }))
 })
 
-const resolveCatalogEntryId = (absenceTypes: AbsenceType[], id: string): string =>
-  absenceTypes.find(item => item.id === id)?.catalogEntryLocalId || id
+const resolveCatalogEntryId = (absenceTypes: AbsenceType[], id: string): string => {
+  const matchedEntry = absenceTypes.find(item => item.id === id)
+  if (matchedEntry?.catalogEntryLocalId) {
+    return matchedEntry.catalogEntryLocalId
+  }
+
+  const matchedByLegacyKey = absenceTypes.find(
+    item => `${ABSENCE_TYPE_CATALOG}:${ABSENCE_TYPE_VERSION}:${item.code}` === id
+  )
+  if (matchedByLegacyKey?.catalogEntryLocalId) {
+    return matchedByLegacyKey.catalogEntryLocalId
+  }
+
+  throw new Error('Catalog entry identifier could not be resolved for absence type')
+}
 
 const useAbsenceTypes = (accessToken: string) => {
   const client = useCatalogManagerClient(accessToken)
@@ -56,7 +87,7 @@ const useAbsenceTypes = (accessToken: string) => {
       }
 
       const response = await client.getCatalogEntriesList(pathParams, queryParams)
-      const entries = (response?.data || []) as CatalogEntry[]
+      const entries = ((response?.data || []) as CatalogEntry[]).filter(entry => !isCatalogEntryDeleted(entry))
       setAbsenceTypes(entries.map(mapCatalogEntryToAbsenceType))
     } catch (err) {
       const resolvedError = err instanceof Error ? err : new Error('Failed to fetch absence types')
@@ -127,16 +158,24 @@ const useAbsenceTypes = (accessToken: string) => {
     [absenceTypes, client]
   )
 
-  const deleteAbsenceType = useCallback(
+  const softDeleteAbsenceType = useCallback(
     async (id: string) => {
       if (!client) {
         throw new Error('Catalog manager client not available')
       }
 
-      await client.deleteCatalogEntry(
+      const existingType = absenceTypes.find(item => item.id === id)
+      if (!existingType) {
+        throw new Error('Absence type not found')
+      }
+      const entryId = resolveCatalogEntryId(absenceTypes, id)
+      const freshEntry = await client.getCatalogEntryById(entryId)
+
+      await client.updateCatalogEntry(
         ABSENCE_TYPE_CATALOG,
         ABSENCE_TYPE_VERSION,
-        resolveCatalogEntryId(absenceTypes, id)
+        entryId,
+        buildSoftDeletePutPayload(freshEntry as CatalogEntry) as any
       )
       setAbsenceTypes(prev => prev.filter(item => item.id !== id))
     },
@@ -149,7 +188,7 @@ const useAbsenceTypes = (accessToken: string) => {
     error,
     createAbsenceType,
     updateAbsenceType,
-    deleteAbsenceType,
+    deleteAbsenceType: softDeleteAbsenceType,
     refetch: loadAbsenceTypes
   }
 }

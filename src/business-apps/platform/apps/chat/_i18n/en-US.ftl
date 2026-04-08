@@ -545,6 +545,16 @@ calendar-sidebar-personalColorSaveError = Could not update My calendar color
 calendar-sidebar-calendarColorSaveError = Could not update calendar color
 calendar-sidebar-resetToDefault = Use default color
 calendar-sidebar-openColorPicker = Change {$name} color
+calendar-sidebar-createManually = Create manually
+calendar-sidebar-createByGroup = By group
+calendar-sidebar-createCalendarByDimension = Create calendar by organization
+calendar-sidebar-dimensionDescription = Create a shared calendar for an organizational group and grant viewer access to its members.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 member will get viewer access
+ *[other] {$count} members will get viewer access
+}
+calendar-sidebar-membersPreview = Members
+calendar-sidebar-calendarExistsInfo = A shared calendar for this group already exists, so the existing calendar was selected.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting

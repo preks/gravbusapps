@@ -15,6 +15,8 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
   function?: LatestFunctionItem | null
   onSaved: () => void
   onBack?: () => void
+  /** Opens Function Manager → Credentials (tenant scope) and leaves the editor. */
+  onOpenTenantCredentials?: () => void
   heroTitle?: string
   heroSubtitle?: string
 }
@@ -22,7 +24,8 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
 const DATA_TEST_ID = 'function-editor'
 
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
-  const { mode, function: func, onSaved, accessToken, onBack, userInfo, heroTitle, heroSubtitle } = props
+  const { mode, function: func, onSaved, accessToken, onBack, onOpenTenantCredentials, userInfo, heroTitle, heroSubtitle } =
+    props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
   const [isFixingWithAi, setIsFixingWithAi] = React.useState(false)
   const [fixWithAiError, setFixWithAiError] = React.useState<string | null>(null)
@@ -88,7 +91,13 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     isTesting,
     testError,
     onTest,
-    buildTestIterationSnapshot
+    buildTestIterationSnapshot,
+
+    storedSecrets,
+    refreshSecrets,
+    onCreateStoredSecret,
+    testOverrideRows,
+    setTestOverrideRows
   } = useFunctionEditorState({ accessToken, mode, func })
 
   const handleSave = React.useCallback(() => onSave(onSaved), [onSave, onSaved])
@@ -225,6 +234,9 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           onInputSchemaChange={setInputSchema}
           onOutputSchemaChange={setOutputSchema}
           onConfigKeysChange={setConfigKeys}
+          storedSecrets={storedSecrets}
+          testOverrideRows={testOverrideRows}
+          onTestOverrideRowsChange={setTestOverrideRows}
           testSchemaProperties={schemaProperties}
           testRequiredFields={requiredFields}
           testPayload={testPayloadObj}
@@ -263,6 +275,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             existing={existingSnapshot}
             onApply={applyDraft}
             onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
             onFixTestStateChange={({ isFixing, error }) => {
@@ -294,6 +307,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             existing={existingSnapshot}
             onApply={applyDraft}
             onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
             onFixTestStateChange={({ isFixing, error }) => {

@@ -121,15 +121,26 @@ const SortIcon: React.FC<{ field: SortField; activeField: SortField; order: Sort
   )
 }
 
-const SortableHead: React.FC<{
+type PayrollGridSortableHeadProps = Readonly<{
   field: SortField
   label: string
-  activeField: SortField
-  order: SortOrder
-  onSort: (field: SortField) => void
   className?: string
+  sticky?: boolean
+  activeField: SortField
+  sortOrder: SortOrder
+  onSort: (field: SortField) => void
   testId?: string
-}> = ({ field, label, activeField, order, onSort, className, testId }) => (
+}>
+
+const PayrollGridSortableHead: React.FC<PayrollGridSortableHeadProps> = ({
+  field,
+  label,
+  activeField,
+  sortOrder,
+  onSort,
+  className,
+  testId
+}) => (
   <TableHead
     className={`gba:cursor-pointer gba:select-none gba:whitespace-nowrap ${className || ''}`}
     onClick={() => onSort(field)}
@@ -137,7 +148,7 @@ const SortableHead: React.FC<{
   >
     <span className="gba:flex gba:items-center gba:gap-1">
       {label}
-      <SortIcon field={field} activeField={activeField} order={order} />
+      <SortIcon field={field} activeField={activeField} order={sortOrder} />
     </span>
   </TableHead>
 )
@@ -334,22 +345,23 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
           <Table data-testid="payroll-prep-grid-table">
             <TableHeader>
               <TableRow>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="displayName"
                   label={t('grid-employee')}
+                  sticky
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   className="gba:min-w-[200px] gba:sticky gba:left-0 gba:z-20 gba:bg-card"
                   testId="payroll-prep-grid-sort-display-name"
                 />
                 <TableHead className="gba:whitespace-nowrap">{t('grid-employee-id')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-status')}</TableHead>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="department"
                   label={t('grid-department')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-department"
                 />
@@ -359,11 +371,11 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <TableHead className="gba:whitespace-nowrap">{t('grid-location')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-contract-type')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-fte')}</TableHead>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="baseSalary"
                   label={t('grid-base-salary')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-base-salary"
                 />
@@ -376,19 +388,19 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <TableHead className="gba:whitespace-nowrap">{t('grid-logged-hours')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-capacity')}</TableHead>
                 <TableHead className="gba:whitespace-nowrap">{t('grid-balance')}</TableHead>
-                <SortableHead
+                <PayrollGridSortableHead
                   field="issues"
                   label={t('grid-issues')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-issues"
                 />
-                <SortableHead
+                <PayrollGridSortableHead
                   field="readinessStatus"
                   label={t('grid-readiness')}
                   activeField={sortField}
-                  order={sortOrder}
+                  sortOrder={sortOrder}
                   onSort={handleSort}
                   testId="payroll-prep-grid-sort-readiness"
                 />

@@ -103,8 +103,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             requireSanitization: asset.requireSanitization,
             sanitizationMethodRef: asset.sanitizationMethodRef,
             sanitizationExecutionDate: asset.sanitizationExecutionDate,
-            disposalOutcome: asset.disposalOutcome,
-            sanitizationMethod: asset.sanitizationMethod,
             responsibleEmployee: asset.responsibleEmployee,
             performerEmployee: asset.performerEmployee
           }
@@ -163,8 +161,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           requireSanitization: asset.requireSanitization,
           sanitizationMethodRef: asset.sanitizationMethodRef,
           sanitizationExecutionDate: asset.sanitizationExecutionDate,
-          disposalOutcome: asset.disposalOutcome,
-          sanitizationMethod: asset.sanitizationMethod,
           responsibleEmployee: asset.responsibleEmployee,
           performerEmployee: asset.performerEmployee
         } as Asset
@@ -255,6 +251,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             ...(updates.assetStatus && { assetStatus: updates.assetStatus }),
             ...(updates.siteLocationId && { siteLocationId: updates.siteLocationId }),
             ...(updates.notes !== undefined && { notes: updates.notes }),
+            ...(updates.isDeleted !== undefined && { isDeleted: updates.isDeleted }),
             ...(updates.currencyRef && { currencyRef: updates.currencyRef }),
             ...(updates.inventoryValue !== undefined && { inventoryValue: updates.inventoryValue }),
             ...(updates.assetBrandRef && { assetBrandRef: updates.assetBrandRef }),

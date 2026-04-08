@@ -329,7 +329,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
     if (useCase === 'webhook') {
       return [
         'Use case: Webhook handler',
-        'Goal: Validate webhook signature (secret from context.config), parse payload, and trigger an action (call API / start workflow).',
+        'Goal: Validate webhook signature (key from context.config), parse payload, and trigger an action (call API / start workflow).',
         'Ask only required questions (provider docs, signature scheme, required headers, payload fields, expected response).'
       ].join('\n')
     }
@@ -363,7 +363,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         '',
         'Pagination: event.pageSize (default 100), event.cursor (string offset, starts null/0).',
         'When nextCursor is null, the import is complete.',
-        'Use context.config for API keys, URLs, and credentials (never hardcode secrets).',
+        'Use context.config for API keys, URLs, and credentials (never hardcode credentials).',
         'Ask which data source (Oracle, SAP, Salesforce, REST API, database, CSV/file, etc.),',
         'then ask for connection details (API URL, auth method, entity/table, optional query/filter).',
         'The output MUST set connectorEnabled: true in the draft response.',
@@ -383,7 +383,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         'Item kinds: "page" (text/HTML content like Confluence/wiki) or "file" (binary files like PDF, DOCX).',
         'Pagination: event.pageSize (default 50), event.cursor (string, starts null).',
         'When nextCursor is null, the import is complete.',
-        'Use context.config for API keys, URLs, and credentials (never hardcode secrets).',
+        'Use context.config for API keys, URLs, and credentials (never hardcode credentials).',
         'Ask which data source (Confluence, SharePoint, Google Drive, S3, Notion, etc.),',
         'then ask for connection details (API URL, auth method, space/folder, optional query/filter).',
         'The output MUST set connectorEnabled: true AND connectorKind: "unstructured" in the draft response.',
@@ -1064,7 +1064,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         const res = await client.functionAssistantIterate({
           instruction:
             args?.instruction ||
-            'Fix the current function so that it passes the sandbox test for the given payload and configured credentials (context.config). Do not log or return secrets.',
+            'Fix the current function so that it passes the sandbox test for the given payload and configured credentials (context.config). Do not log or return credential material.',
           source,
           inputSchema: args?.inputSchema,
           outputSchema: args?.outputSchema,

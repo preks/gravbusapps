@@ -2,6 +2,7 @@ import React from 'react'
 import { CurrencyCircleDollarIcon, ChartLineUpIcon, TrendUpIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import { calculateTrend } from '@/common/utils/trendUtils'
 import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport'
 
 interface LiquidFundKPICardsProps {
@@ -13,16 +14,6 @@ interface LiquidFundKPICardsProps {
   prefixDataTestId?: string
 }
 
-// Calculate percentage change for comparison
-const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) return { value: 'N/A', positive: true }
-  const change = ((current - previous) / previous) * 100
-  return {
-    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-    positive: change >= 0
-  }
-}
-
 export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
   kpis,
   currency = 'EUR',
@@ -32,14 +23,6 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
   prefixDataTestId = 'LiquidFundKPICards'
 }) => {
   // Calculate trends for each KPI
-  const totalInvestmentsChange = calculateChange(kpis.totalInvestments, kpis.previousTotalInvestments || 0)
-  const averageInvestmentValueChange = calculateChange(
-    kpis.averageInvestmentValue,
-    kpis.previousAverageInvestmentValue || 0
-  )
-  const activeInvestmentsChange = calculateChange(kpis.activeInvestments, kpis.previousActiveInvestments || 0)
-  const totalAmountInvestedChange = calculateChange(kpis.totalAmountInvested, kpis.previousTotalAmountInvested || 0)
-
   const widgets: WidgetItem[] = [
     {
       key: 'total-investments',
@@ -49,11 +32,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       color: 'var(--nw-color-primary-500)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Fund count',
-      trend: {
-        value: totalInvestmentsChange.value,
-        positive: totalInvestmentsChange.positive,
-        description: 'vs last quarter'
-      }
+      trend: calculateTrend(kpis.totalInvestments, kpis.previousTotalInvestments || 0, 'vs last quarter')
     },
     {
       key: 'average-investment-value',
@@ -64,11 +43,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Avg per fund',
-      trend: {
-        value: averageInvestmentValueChange.value,
-        positive: averageInvestmentValueChange.positive,
-        description: 'vs last quarter'
-      }
+      trend: calculateTrend(kpis.averageInvestmentValue, kpis.previousAverageInvestmentValue || 0, 'vs last quarter')
     },
     {
       key: 'active-investments',
@@ -78,11 +53,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       color: 'var(--nw-color-warning-500)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Active positions',
-      trend: {
-        value: activeInvestmentsChange.value,
-        positive: activeInvestmentsChange.positive,
-        description: 'vs last quarter'
-      }
+      trend: calculateTrend(kpis.activeInvestments, kpis.previousActiveInvestments || 0, 'vs last quarter')
     },
     {
       key: 'total-investment-value',
@@ -93,11 +64,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Total capital deployed',
-      trend: {
-        value: totalAmountInvestedChange.value,
-        positive: totalAmountInvestedChange.positive,
-        description: 'vs last quarter'
-      }
+      trend: calculateTrend(kpis.totalAmountInvested, kpis.previousTotalAmountInvested || 0, 'vs last quarter')
     }
   ]
 

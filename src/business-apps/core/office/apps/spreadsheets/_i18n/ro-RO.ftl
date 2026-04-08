@@ -485,6 +485,8 @@ persist-row-update-failed = Modificările rândului nu au putut fi salvate.
 persist-row-delete-failed = Rândul nu a putut fi șters.
 persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
 persist-snapshot-failed = Aspectul foii nu a putut fi salvat pe server.
+persist-recovery-failed = Conflictul de salvare nu a putut fi rezolvat. Te rugăm să reîncarci pagina.
+persist-snapshot-too-large = Formatarea nu a putut fi salvată deoarece foaia este prea mare. Datele celulelor sunt în continuare salvate.
 
 # Share App Dialog
 share-dialog-title = Partajează „{ $name }"
