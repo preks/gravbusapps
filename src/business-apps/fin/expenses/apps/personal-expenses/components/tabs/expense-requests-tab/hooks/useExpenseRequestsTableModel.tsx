@@ -16,6 +16,7 @@ import {
   buildFilteredEmptyMessage,
   buildDefaultEmptyMessage
 } from '../../../../utils/tableUtils'
+import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
 import { createExpenseRequestFilterConfig } from '../config/expenseRequestFilterConfig'
 import { expenseRequestDefaultSort, type ExpenseRequestTableSortOrder } from '../config/expenseRequestSortableColumns'
@@ -153,16 +154,17 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     ]
   )
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...expenseRequestDefaultVisibleColumnIds])
+  const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...expenseRequestDefaultVisibleColumnIds])
+  const visibleColumnIds = useVisibleColumns(rawVisibleColumns, expenseRequestAvailableColumns)
 
   const dataTableColumnVisibility = useMemo(() => {
     const vis: Record<string, boolean> = {}
     for (const { id } of expenseRequestAvailableColumns) {
-      vis[id] = visibleColumns.includes(id)
+      vis[id] = visibleColumnIds.includes(id)
     }
     vis.actions = true
     return vis
-  }, [visibleColumns])
+  }, [visibleColumnIds])
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(selectedFilters || [], currencyStats),
@@ -406,8 +408,8 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       onSortingChange: handleSortingChange,
       primaryAction,
       secondaryActions,
-      visibleColumns,
-      onVisibleColumnsChange: setVisibleColumns,
+      visibleColumns: visibleColumnIds,
+      onVisibleColumnsChange: setRawVisibleColumns,
       filterSheetTitle: tPersonal('filter-expense-requests-title'),
       filterSheetDescription: tPersonal('filter-expense-requests-description'),
       items: tableItems,
@@ -433,7 +435,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       handleSortingChange,
       primaryAction,
       secondaryActions,
-      visibleColumns,
+      visibleColumnIds,
       tPersonal,
       tableItems,
       columns,

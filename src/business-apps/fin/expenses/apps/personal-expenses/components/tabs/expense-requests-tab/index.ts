@@ -13,4 +13,6 @@ export {
   StartDateRangeFilter,
   EndDateRangeFilter
 }
+export { useExpenseRequestsTabLogic } from './hooks/useExpenseRequestsTabLogic'
+export type { ExpenseRequestsTabProps } from './types/expenseRequestsTab.types'
 export default ExpenseRequestsTab
