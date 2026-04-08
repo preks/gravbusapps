@@ -348,11 +348,25 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     }
   }, [enabled, entityType, entityId, getAuthToken, onOperationReceived, onError])
 
+  // Queue an operation for later delivery (during disconnect or pre-join).
+  // Capped to prevent unbounded memory growth.
+  const enqueuePendingOperation = useCallback((operation: DocumentOperation) => {
+    pendingOperationsRef.current.push(operation)
+    if (pendingOperationsRef.current.length > 200) {
+      pendingOperationsRef.current = pendingOperationsRef.current.slice(-200)
+    }
+  }, [])
+
   // Emit operation
   const emitOperation = useCallback(
     (operation: DocumentOperation) => {
       if (!clientRef.current?.isConnected()) {
-        console.warn('[useCollaboration] Cannot emit operation: not connected')
+        if (entityType === 'spreadsheet') {
+          enqueuePendingOperation(operation)
+          console.warn('[useCollaboration] Queued operation (socket not connected):', operation.type)
+        } else {
+          console.warn('[useCollaboration] Dropped operation (not connected):', operation.type)
+        }
         return
       }
       if (!hasJoinedRef.current && !isJoiningRef.current) {
@@ -363,6 +377,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         joinAckTimeoutRef.current = setTimeout(() => {
           isJoiningRef.current = false
         }, 6000)
+        if (entityType === 'spreadsheet') enqueuePendingOperation(operation)
         clientRef.current.joinDocument(entityType, entityId, () => {
           hasJoinedRef.current = true
           isJoiningRef.current = false
@@ -383,23 +398,24 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
             }
           }
         })
+        return
       } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
-        pendingOperationsRef.current.push(operation)
-        if (pendingOperationsRef.current.length > 100) {
-          pendingOperationsRef.current = pendingOperationsRef.current.slice(-100)
-        }
+        enqueuePendingOperation(operation)
         return
       }
 
       clientRef.current.sendDocumentOperation(entityType, entityId, operation)
     },
-    [entityType, entityId]
+    [entityType, entityId, enqueuePendingOperation]
   )
 
   // Emit cursor position
   const emitCursor = useCallback(
     (position: { line?: number; column?: number; offset?: number; path?: string[] }) => {
-      if (!clientRef.current?.isConnected()) return
+      if (!clientRef.current?.isConnected()) {
+        if (entityType === 'spreadsheet') pendingCursorRef.current = position
+        return
+      }
       if (!hasJoinedRef.current && !isJoiningRef.current) {
         isJoiningRef.current = true
         if (joinAckTimeoutRef.current) {
@@ -408,6 +424,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         joinAckTimeoutRef.current = setTimeout(() => {
           isJoiningRef.current = false
         }, 6000)
+        if (entityType === 'spreadsheet') pendingCursorRef.current = position
         clientRef.current.joinDocument(entityType, entityId, () => {
           hasJoinedRef.current = true
           isJoiningRef.current = false
@@ -428,6 +445,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
             }
           }
         })
+        return
       } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
         pendingCursorRef.current = position
         return

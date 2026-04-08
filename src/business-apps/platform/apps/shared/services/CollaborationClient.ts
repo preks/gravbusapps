@@ -256,15 +256,17 @@ export class CollaborationClient {
 
   /**
    * Send a document operation (edit, insert, delete, etc.)
+   * Retries once on ack failure before giving up.
    */
   sendDocumentOperation(
     entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
     entityId: string,
-    operation: DocumentOperation
+    operation: DocumentOperation,
+    _retryCount = 0
   ) {
     if (!this.socket?.connected) {
-      console.error('[CollaborationClient] Cannot send operation: socket not connected')
-      return
+      console.warn('[CollaborationClient] Cannot send operation (socket not connected):', operation.type)
+      return false
     }
 
     this.socket.emit(
@@ -276,10 +278,16 @@ export class CollaborationClient {
       },
       (response: any) => {
         if (response?.success === false) {
-          console.warn('[CollaborationClient] document_operation failed:', response?.error ?? response)
+          console.warn('[CollaborationClient] document_operation ack failure:', operation.type, response?.error)
+          if (_retryCount < 1 && this.socket?.connected) {
+            setTimeout(() => {
+              this.sendDocumentOperation(entityType, entityId, operation, _retryCount + 1)
+            }, 300)
+          }
         }
       }
     )
+    return true
   }
 
   /**

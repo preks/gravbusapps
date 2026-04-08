@@ -1787,9 +1787,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         value?: unknown
         cellRef?: string
       }
-      if (!d?.sheetId || d.sheetId !== activeSheetId || d.rowId == null || d.value === undefined) return
+      if (!d?.sheetId || d.sheetId !== activeSheetId || d.rowId == null || d.value === undefined) {
+        console.warn('[Collaboration] cell_update dropped by guard', {
+          hasSheetId: !!d?.sheetId,
+          sheetMatch: d?.sheetId === activeSheetId,
+          rowId: d?.rowId,
+          hasValue: d?.value !== undefined
+        })
+        return
+      }
       const columnKey = d.column ?? d.columnId
-      if (columnKey == null) return
+      if (columnKey == null) {
+        console.warn('[Collaboration] cell_update dropped: no column key', d)
+        return
+      }
       const remoteRowId = String(d.rowId)
       const { rowIndex, colIndex, targetColumnName } = resolveRemoteCellCoordinates(String(columnKey), remoteRowId)
       const nextLocal = localSheetDataRef.current.map(row => {
@@ -2545,11 +2556,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             [op],
             `set_range_${targetSheetId.replaceAll(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)}`
           )
-          collaboration.emitOperation({
-            type: 'set_range',
-            data: { sheetId: targetSheetId, cells: cellsToPersist },
-            broadcastOnly: true
-          } as any)
+          // Do NOT emit set_range here. Each cell was already sent to collaborators as an
+          // individual cell_update (with A1 cellRef) in handleCellsChange. Emitting set_range
+          // a second time caused the receiver to apply the same values at wrong positions
+          // because set_range lacks cellRef and falls back to data-array-index resolution.
           continue
         }
 
@@ -2594,7 +2604,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     activeSheetId,
     app.id,
     applyBatchDirect,
-    collaboration,
     createOperationId,
     entityEnabled,
     isOpsV2Enabled,
@@ -2678,7 +2687,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
       cells.forEach(cell => {
         const backendRowId = getBackendRowIdForUiRowId(String(cell.rowId))
-        if (!backendRowId) return
+        if (!backendRowId) {
+          console.warn('[SpreadsheetAppViewer] Skipped collaboration emit: no backend row ID for', cell.rowId)
+          return
+        }
         const opData: Record<string, unknown> = {
           sheetId: activeSheetId,
           rowId: backendRowId,
@@ -2763,17 +2775,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         }
         await applyBatchDirect([flushOp], 'set_range_flush')
-        collaboration.emitOperation({
-          type: 'set_range',
-          data: { sheetId: activeSheetId, cells },
-          broadcastOnly: true
-        } as any)
+        // Collaboration emit intentionally skipped — cells were already sent as
+        // individual cell_update operations with A1 cellRef. See flushPendingCellChanges.
         return
       }
 
       await SpreadsheetApiService.updateRow(app.id, activeSheetId, persistedId, pending)
     },
-    [activeSheetId, app.id, applyBatchDirect, collaboration, createOperationId, isOpsV2Enabled]
+    [activeSheetId, app.id, applyBatchDirect, createOperationId, isOpsV2Enabled]
   )
 
   const persistAddedRowsWithBatch = useCallback(
