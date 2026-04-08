@@ -89,8 +89,6 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbleProps) => {
-  console.log('[MessageBubble] Rendering message type:', message.type, 'id:', message.id)
-
   switch (message.type) {
     case 'user_input': {
       return <UserMessageBubble message={message} />
@@ -161,7 +159,6 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
     }
 
     case 'structured_input_request': {
-      console.log('[MessageBubble] Rendering structured input form:', message.content)
       const formData = message.content as StructuredInputRequestEvent
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
@@ -172,21 +169,8 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
             fields={formData.fields}
             allowPartialSubmit={formData.allow_partial_submit}
             onSubmit={(values, aiDelegated) => {
-              console.log('[StructuredInputForm] Submit:', { values, aiDelegated })
-              console.log('[StructuredInputForm] Submit - values type:', typeof values, 'keys:', Object.keys(values))
-              console.log(
-                '[StructuredInputForm] Submit - aiDelegated type:',
-                typeof aiDelegated,
-                'length:',
-                aiDelegated.length
-              )
               if (onReply) {
                 const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
-                console.log(
-                  '[MessageBubble] About to call onReply with structuredPayload:',
-                  JSON.stringify(structuredPayload)
-                )
-                // Don't pass empty message - only structured input
                 onReply(undefined, structuredPayload)
               }
             }}

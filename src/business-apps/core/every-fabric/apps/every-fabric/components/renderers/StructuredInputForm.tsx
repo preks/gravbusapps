@@ -38,9 +38,6 @@ export const StructuredInputForm = ({
   onSubmit,
   onCancel
 }: StructuredInputFormProps) => {
-  // Debug logging
-  console.log('[StructuredInputForm] Rendering form:', { formId, title, fieldCount: fields.length })
-
   // Initialize field state
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>(() => {
     const initial: Record<string, FieldState> = {}
@@ -81,28 +78,19 @@ export const StructuredInputForm = ({
   }, [])
 
   const validate = useCallback(() => {
-    console.log('[validate] Starting validation, allowPartialSubmit:', allowPartialSubmit)
     const errors: Record<string, string> = {}
     let isValid = true
 
     for (const field of fields) {
       const state = fieldStates[field.field_id]
-      console.log(`[validate] Checking field ${field.field_id}:`, {
-        required: field.required,
-        hasValue: !!state.value,
-        aiDelegated: state.aiDelegated,
-        willSkip: state.aiDelegated && allowPartialSubmit
-      })
 
       // Skip validation if AI will fill it
       if (state.aiDelegated && allowPartialSubmit) {
-        console.log(`[validate] Skipping ${field.field_id} - AI will generate`)
         continue
       }
 
       // Required field check
       if (field.required && !state.value) {
-        console.log(`[validate] FAILED: ${field.field_id} is required but empty`)
         errors[field.field_id] = 'This field is required'
         isValid = false
         continue
@@ -115,13 +103,10 @@ export const StructuredInputForm = ({
         state.value &&
         !new RegExp(field.validation_pattern).test(state.value)
       ) {
-        console.log(`[validate] FAILED: ${field.field_id} pattern validation`)
         errors[field.field_id] = 'Invalid format'
         isValid = false
       }
     }
-
-    console.log('[validate] Result:', { isValid, errors })
 
     // Update error states
     setFieldStates(prev => {
@@ -136,13 +121,10 @@ export const StructuredInputForm = ({
   }, [fields, fieldStates, allowPartialSubmit])
 
   const handleSubmit = useCallback(() => {
-    console.log('[StructuredInputForm] handleSubmit called')
     if (!validate()) {
-      console.log('[StructuredInputForm] Validation failed')
       return
     }
 
-    console.log('[StructuredInputForm] Validation passed, building submission')
     setIsSubmitting(true)
 
     const values: Record<string, any> = {}
@@ -157,7 +139,6 @@ export const StructuredInputForm = ({
       }
     }
 
-    console.log('[StructuredInputForm] Calling onSubmit with:', { values, aiDelegated })
     onSubmit(values, aiDelegated)
   }, [fields, fieldStates, allowPartialSubmit, validate, onSubmit])
 
