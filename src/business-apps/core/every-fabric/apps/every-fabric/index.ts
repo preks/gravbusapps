@@ -9,6 +9,3 @@
 export { EveryFabricApp, type EveryFabricAppProps } from './EveryFabricApp'
 
 export { EveryFabricApp as default } from './EveryFabricApp'
-
-// Legacy export — kept for backward compatibility during transition
-export { EnterpriseAgentApp, type EnterpriseAgentAppProps } from './EnterpriseAgentApp'
