@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
 import type { AgentStreamEvent, DeepAgentSession, TodoItem } from '../types/enterpriseAgent'
 import type { FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../types/fabric'
+import { extractLatestTodosFromEvents } from '../utils/fabricTodoStream'
+
+type AgentTerminalEvent = Extract<AgentStreamEvent, { type: 'terminal' }>
 
 const GENERIC_DELEGATION_NAMES = new Set(['task', 'newwork_ask_expert', 'invoke_agent', 'subagent', 'dispatch_agent'])
 
@@ -69,26 +72,27 @@ const formatDuration = (ms: number): string => {
 
 /**
  * Derives a UI-ready task node list from:
- * 1. session.todos — the agent's planned task list (authoritative source)
- * 2. SSE events — for live step status and sub-agent children
+ * 1. session.todos — authoritative after REST refresh (prompt-manager persists mid-run when non-empty)
+ * 2. SSE: step_started input, step_completed (todos + output), terminal.todos — see fabricTodoStream
+ * 3. step_started / step_completed — fallback to tool names when no structured todo list exists yet
  *
- * Falls back to a synthetic "Running…" node when the session is active but
- * todos have not yet been populated by the backend.
+ * `waiting_for_human` does not close the session: pending todos stay pending.
  */
 export const useFabricProgress = (
   session: DeepAgentSession | null,
   events: AgentStreamEvent[]
 ): { taskNodes: FabricTaskNode[]; completedCount: number; totalCount: number; progressPercent: number } => {
   const taskNodes = useMemo((): FabricTaskNode[] => {
-    const terminalStatus = [...events]
-      .reverse()
-      .find((ev): ev is Extract<AgentStreamEvent, { type: 'terminal' }> => ev.type === 'terminal')?.status
-    const isTerminal = terminalStatus !== undefined
+    const lastTerminal = [...events].reverse().find((ev): ev is AgentTerminalEvent => ev.type === 'terminal')
+    const terminalStatus = lastTerminal?.status
+    const isSessionClosed =
+      terminalStatus === 'completed' || terminalStatus === 'failed' || terminalStatus === 'cancelled'
 
     // Build a lookup of completed steps from SSE events
     const completedSteps = new Map<string, { durationMs?: number; status: 'done' | 'failed' }>()
     const runningStepIds = new Set<string>()
-    const subagentCompletions = new Map<string, { status: 'done' | 'failed'; durationMs?: number }>()
+    type SubagentDoneEvent = Extract<AgentStreamEvent, { type: 'subagent_completed' | 'expert_completed' }>
+    const subagentCompletions = new Map<string, SubagentDoneEvent>()
 
     for (const ev of events) {
       if (ev.type === 'step_completed') {
@@ -102,10 +106,7 @@ export const useFabricProgress = (
           runningStepIds.add(ev.step_id)
         }
       } else if (ev.type === 'subagent_completed' || ev.type === 'expert_completed') {
-        subagentCompletions.set(ev.step_id, {
-          status: ev.status === 'failed' ? 'failed' : 'done',
-          durationMs: ev.duration_ms
-        })
+        subagentCompletions.set(ev.step_id, ev)
       }
     }
 
@@ -119,10 +120,12 @@ export const useFabricProgress = (
         name: resolveDelegatedAgentName(ev, completion),
         summary: 'task_summary' in ev ? ev.task_summary : undefined,
         status: completion
-          ? completion.status
+          ? completion.status === 'failed'
+            ? 'failed'
+            : 'done'
           : terminalStatus === 'failed' || terminalStatus === 'cancelled'
             ? 'failed'
-            : isTerminal
+            : isSessionClosed
               ? 'done'
               : 'running'
       }
@@ -132,11 +135,14 @@ export const useFabricProgress = (
       subAgentsByParentStepId.set(parentKey, [...existing, agent])
     }
 
-    const todos = session?.todos
+    const streamTodos = extractLatestTodosFromEvents(events)
+    const todosFromSession = session?.todos && session.todos.length > 0 ? session.todos : null
+    const todos = todosFromSession ?? streamTodos
+
     if (todos && todos.length > 0) {
       return todos.map((todo): FabricTaskNode => {
         let status = todoStatusToFabric(todo.status)
-        if (isTerminal && (status === 'active' || status === 'pending')) {
+        if (isSessionClosed && (status === 'active' || status === 'pending')) {
           status = terminalStatus === 'failed' || terminalStatus === 'cancelled' ? 'failed' : 'done'
         }
         const sublabelParts: string[] = []
@@ -190,7 +196,7 @@ export const useFabricProgress = (
       } else if (runningStepIds.has(ev.step_id)) {
         status = 'active'
       }
-      if (isTerminal && (status === 'active' || status === 'pending')) {
+      if (isSessionClosed && (status === 'active' || status === 'pending')) {
         status = terminalStatus === 'failed' || terminalStatus === 'cancelled' ? 'failed' : 'done'
       }
 

@@ -46,7 +46,12 @@ interface FabricContextValue {
   activeArtifact: ArtifactFile | null
 
   // Actions
-  startSession: (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[]) => Promise<string>
+  startSession: (
+    task: string,
+    config?: SessionConfig,
+    activeExternalConnectionIds?: string[],
+    activeEnterpriseSkillId?: string
+  ) => Promise<string>
   selectSession: (id: string | null) => void
   newSession: () => void
   deleteSession: (id: string) => void
@@ -115,8 +120,13 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   const startSession = useCallback(
-    async (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[]) => {
-      const sessionId = await _startSession(task, config, activeExternalConnectionIds)
+    async (
+      task: string,
+      config?: SessionConfig,
+      activeExternalConnectionIds?: string[],
+      activeEnterpriseSkillId?: string
+    ) => {
+      const sessionId = await _startSession(task, config, activeExternalConnectionIds, activeEnterpriseSkillId)
       setActiveSessionId(sessionId)
       addSession({
         session_id: sessionId,

@@ -1,12 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChatMessage, DeepAgentSession, SessionConfig } from '../types/enterpriseAgent'
+import type { AgentStreamEvent, ChatMessage, DeepAgentSession, SessionConfig } from '../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 import { useSessionStream } from './useSessionStream'
 import { sessionToMessages } from '../utils/messageUtils'
 
 const POLL_INTERVAL_MS = 3000
+const POLL_WHILE_SSE_MS = 6000
+const REST_SYNC_MAX_MS = 4000
+const REST_SYNC_INTERVAL_MS = 120
 
 const isTerminalStatus = (status: string) => status !== 'running' && status !== 'pending'
+
+/** Last terminal status in the event stream (same overlay rule as mergedSession). */
+const streamOverlayTerminalStatus = (events: AgentStreamEvent[]): string | null => {
+  let status: string | null = null
+  for (const ev of events) {
+    if (ev.type === 'terminal') status = ev.status
+  }
+  return status
+}
 
 const extractSeq = (messageId: string): number | null => {
   const match = messageId.match(/:(\d+)$/)
@@ -79,6 +91,10 @@ const mergeDuplicateMessage = (existing: ChatMessage, incoming: ChatMessage): Ch
     return toEpoch(existing.timestamp) >= toEpoch(incoming.timestamp) ? existing : incoming
   }
 
+  if (incoming.type === 'plan') {
+    return toEpoch(incoming.timestamp) >= toEpoch(existing.timestamp) ? incoming : existing
+  }
+
   return toEpoch(existing.timestamp) <= toEpoch(incoming.timestamp) ? existing : incoming
 }
 
@@ -90,11 +106,12 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   // Tracks that a reply POST was sent and the agent is running, even before the stream delivers
   // new events. Terminal events clear this. Resets on session switch.
   const [isAgentRunning, setIsAgentRunning] = useState(false)
-  const [dismissedInterruptKey, setDismissedInterruptKey] = useState<string | null>(null)
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
 
   const sessionRef = useRef<DeepAgentSession | null>(null)
   sessionRef.current = session
+  const eventsRef = useRef<AgentStreamEvent[]>([])
+  eventsRef.current = events
 
   const fetchSession = useCallback(async () => {
     if (!sessionId) return null
@@ -112,7 +129,6 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     // session's messages while the new session loads.
     setSession(null)
     setIsAgentRunning(false)
-    setDismissedInterruptKey(null)
     setOptimisticMessages([])
     if (!sessionId) {
       setStreamVersion(0)
@@ -124,6 +140,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   useEffect(() => {
     if (!sessionId) return
 
+    const intervalMs = isConnected ? POLL_WHILE_SSE_MS : POLL_INTERVAL_MS
     const timer = setInterval(async () => {
       const current = sessionRef.current
       if (!current) return
@@ -131,9 +148,8 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
         clearInterval(timer)
         return
       }
-      if (isConnected) return
       await fetchSession()
-    }, POLL_INTERVAL_MS)
+    }, intervalMs)
 
     return () => clearInterval(timer)
   }, [sessionId, fetchSession, isConnected])
@@ -153,40 +169,14 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     }
   }, [streamMessages])
 
-  const currentInterruptKey =
-    sessionId && session?.status === 'waiting_for_human' && session.human_question
-      ? `${sessionId}:${session.human_question}`
-      : null
-
-  useEffect(() => {
-    if (!dismissedInterruptKey) return
-    if (!currentInterruptKey || currentInterruptKey !== dismissedInterruptKey) {
-      setDismissedInterruptKey(null)
-    }
-  }, [currentInterruptKey, dismissedInterruptKey])
-
   const mergedSession = useMemo((): DeepAgentSession | null => {
     if (!session) return null
     let status = session.status
     for (const ev of events) {
       if (ev.type === 'terminal') status = ev.status
     }
-    const isDismissedInterrupt =
-      status === 'waiting_for_human' &&
-      sessionId &&
-      session.human_question &&
-      dismissedInterruptKey === `${sessionId}:${session.human_question}`
-
-    if (isDismissedInterrupt) {
-      return {
-        ...session,
-        status: 'running',
-        human_question: null
-      }
-    }
-
     return { ...session, status }
-  }, [session, events, sessionId, dismissedInterruptKey])
+  }, [session, events])
 
   const messages: ChatMessage[] = useMemo(() => {
     const snapshotMessages = mergedSession ? sessionToMessages(mergedSession) : []
@@ -212,8 +202,18 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
   }, [streamMessages, mergedSession, optimisticMessages])
 
   const startSession = useCallback(
-    async (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[]) => {
-      const { session_id } = await client.startSession(task, config, activeExternalConnectionIds)
+    async (
+      task: string,
+      config?: SessionConfig,
+      activeExternalConnectionIds?: string[],
+      activeEnterpriseSkillId?: string
+    ) => {
+      const { session_id } = await client.startSession(
+        task,
+        config,
+        activeExternalConnectionIds,
+        activeEnterpriseSkillId
+      )
       return session_id
     },
     [client]
@@ -221,21 +221,23 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
 
   const reply = useCallback(
     async (message?: string, structuredInput?: Record<string, any>) => {
-      console.log('[reply] Called with:', {
-        message,
-        structuredInput,
-        hasStructuredInput: !!structuredInput,
-        structuredInputType: typeof structuredInput,
-        structuredInputKeys: structuredInput ? Object.keys(structuredInput) : null
-      })
       if (!sessionId) return
-      const current = sessionRef.current
-      const interruptKey =
-        current?.status === 'waiting_for_human' && current.human_question
-          ? `${sessionId}:${current.human_question}`
-          : null
-      if (current?.status === 'waiting_for_human' && current.human_question) {
-        setDismissedInterruptKey(interruptKey)
+
+      // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
+      const readRestStatus = (): DeepAgentSession['status'] | undefined => sessionRef.current?.status
+
+      // SSE can emit terminal waiting_for_human before GET /sessions/:id catches up. The API
+      // rejects interrupt replies with 409 while status is still "running" on the REST snapshot.
+      const overlay = streamOverlayTerminalStatus(eventsRef.current)
+      if (overlay === 'waiting_for_human' && readRestStatus() === 'running') {
+        const deadline = Date.now() + REST_SYNC_MAX_MS
+        while (Date.now() < deadline) {
+          await fetchSession()
+          const st = readRestStatus()
+          if (st === 'waiting_for_human') break
+          if (st !== 'running') break
+          await new Promise(r => setTimeout(r, REST_SYNC_INTERVAL_MS))
+        }
       }
 
       const optimisticId = `optimistic-${Date.now()}`
@@ -250,17 +252,32 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       }
 
       setIsAgentRunning(true)
+      const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput)
+
       try {
-        console.log('[reply] About to call client.replyToInterrupt with:', { sessionId, message, structuredInput })
-        await client.replyToInterrupt(sessionId, message, structuredInput)
-        console.log('[reply] Backend response received, refreshing session')
+        let attempts = 0
+        while (true) {
+          try {
+            await postInterrupt()
+            break
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : ''
+            const isConflict = /409/.test(msg) && /Session is still running|waiting_for_human/i.test(msg)
+            if (isConflict && attempts < 1) {
+              attempts++
+              await fetchSession()
+              await new Promise(r => setTimeout(r, REST_SYNC_INTERVAL_MS))
+              continue
+            }
+            throw error
+          }
+        }
         setStreamVersion(v => v + 1)
         await fetchSession()
         setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))
       } catch (error) {
-        console.error('[reply] Error sending to backend:', error)
+        console.error('[reply] Error sending to backend:', error instanceof Error ? error.message : 'Request failed')
         setIsAgentRunning(false)
-        if (interruptKey) setDismissedInterruptKey(null)
         setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))
         throw error
       }

@@ -10,11 +10,12 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
 
   const startSession = useCallback(
-    (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[]) =>
+    (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[], activeEnterpriseSkillId?: string) =>
       client.post<{ session_id: string }>('/deep-agent/sessions', {
         task,
         config,
-        active_external_connection_ids: activeExternalConnectionIds
+        active_external_connection_ids: activeExternalConnectionIds,
+        active_enterprise_skill_id: activeEnterpriseSkillId
       }),
     [client]
   )
@@ -34,35 +35,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const replyToInterrupt = useCallback(
     (sessionId: string, message?: string, structuredInput?: Record<string, any>) => {
-      console.log('[replyToInterrupt] Called with:', {
-        sessionId,
-        message,
-        structuredInput,
-        hasStructuredInput: !!structuredInput,
-        structuredInputType: typeof structuredInput,
-        structuredInputKeys: structuredInput ? Object.keys(structuredInput) : null
-      })
-      // Build payload based on what's provided
-      const payload: any = {}
+      const payload: Record<string, unknown> = {}
       if (structuredInput) {
         payload.structured_input = structuredInput
-        console.log('[replyToInterrupt] Added structured_input to payload:', payload.structured_input)
       }
       if (message && message.trim()) {
         payload.message = message
-        console.log('[replyToInterrupt] Added message to payload:', payload.message)
       }
-      console.log('[replyToInterrupt] Final payload check:', {
-        hasStructuredInput: !!payload.structured_input,
-        hasMessage: !!payload.message,
-        payload
-      })
-      // Ensure at least one is provided
       if (!payload.structured_input && !payload.message) {
-        console.error('[replyToInterrupt] VALIDATION ERROR - payload:', JSON.stringify(payload))
+        console.error('[replyToInterrupt] Missing message and structured_input')
         throw new Error('Either message or structured_input must be provided')
       }
-      console.log('[replyToInterrupt] Sending POST with payload:', JSON.stringify(payload))
       return client.post(`/deep-agent/sessions/${sessionId}/message`, payload)
     },
     [client]
@@ -90,6 +73,14 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const listSpecialistAgents = useCallback(
     () => client.get<SpecialistAgent[]>('/autonomous-agents/agents', { params: { limit: '50' } }),
+    [client]
+  )
+
+  const listEnterpriseSkills = useCallback(
+    () =>
+      client.get<import('../types/enterpriseAgent').EnterpriseSkill[]>('/enterprise-skills', {
+        params: { is_active: 'true' }
+      }),
     [client]
   )
 
@@ -153,6 +144,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       saveMemory,
       getMetrics,
       listSpecialistAgents,
+      listEnterpriseSkills,
       createSpecialistAgent,
       listArtifacts,
       getArtifactUrl,
@@ -168,6 +160,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       saveMemory,
       getMetrics,
       listSpecialistAgents,
+      listEnterpriseSkills,
       createSpecialistAgent,
       listArtifacts,
       getArtifactUrl,

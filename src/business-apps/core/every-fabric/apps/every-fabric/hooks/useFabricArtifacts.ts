@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentStreamEvent, WorkspaceDocument } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
+import { isUserFacingArtifactPath } from '../utils/artifactFilters'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 
 /**
@@ -24,7 +25,7 @@ export const useFabricArtifacts = (sessionId: string | null, events: AgentStream
     if (!sessionId) return
     try {
       const files = await client.listArtifacts(sessionId)
-      setRestArtifacts(files)
+      setRestArtifacts(files.filter(f => isUserFacingArtifactPath(f.path || f.name || f.artifactKey)))
     } catch {
       // Non-critical — SSE-derived artifacts still work
     }
@@ -52,6 +53,7 @@ export const useFabricArtifacts = (sessionId: string | null, events: AgentStream
     if (!sessionId) return []
     return events
       .filter((e): e is Extract<AgentStreamEvent, { type: 'artifact_created' }> => e.type === 'artifact_created')
+      .filter(ev => isUserFacingArtifactPath(ev.path || ev.name))
       .map(ev => ({
         sessionId,
         artifactKey: ev.path || ev.name,
