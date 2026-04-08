@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFileClient } from '@/common/network/files/useFileClient'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -10,9 +9,23 @@ import translations from './_i18n'
 import { useChangeTaxDetailsData } from './useChangeTaxDetailsData'
 import { getChangeTaxDetailsLabels } from './changeTaxDetailsLabels'
 import { buildEmployeeTaxDetailPayload } from './changeTaxDetailsPayload'
-import { executeHealthInsuranceDocumentUpload } from './handleHealthInsuranceDocumentUpload'
 import { ChangeTaxDetailsFormFields } from './ChangeTaxDetailsFormFields'
 import type { TaxInfoFormValues } from './types'
+import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
+
+function toValidEmployeeDocumentId(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+    return ''
+  }
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidPattern.test(trimmed) ? trimmed : ''
+}
 
 function getEmployeeId(additionalData: unknown, userInfo: unknown): string {
   const ad = additionalData as any
@@ -46,8 +59,6 @@ const defaultValues: TaxInfoFormValues = {
 export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
   const form = useForm<TaxInfoFormValues>({ defaultValues, mode: 'onChange' })
   const initialRef = useRef<TaxInfoFormValues>(form.getValues())
-  const [healthInsuranceFileList, setHealthInsuranceFileList] = useState<any[]>([])
-  const fileClient = useFileClient({ accessToken: accessToken ?? '' })
 
   const { t } = useTranslation(translations)
   const {
@@ -74,17 +85,29 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
 
   const labels = useMemo(() => getChangeTaxDetailsLabels(t), [t])
 
-  const handleHealthInsuranceFilesChange = useCallback(
-    (files: Array<{ file: File | { name: string }; id: string }>) => {
-      const mapped = files
-        .filter(f => f.file instanceof File)
-        .map(f => ({ uid: f.id, name: (f.file as File).name, status: 'done', originFileObj: f.file as File }))
-      setHealthInsuranceFileList(mapped as any[])
-    },
-    []
-  )
+  const employeeId = getEmployeeId(additionalData, userInfo)
+  const existingHealthInsuranceDocumentIdRaw =
+    typeof (data as any)?.healthInsuranceDocument === 'object' && (data as any)?.healthInsuranceDocument?.id
+      ? String((data as any).healthInsuranceDocument.id)
+      : null
+  const existingHealthInsuranceDocumentId = toValidEmployeeDocumentId(existingHealthInsuranceDocumentIdRaw)
+  const shouldEnableDocumentSync = Boolean(isReady && employeeId)
+  const healthInsuranceDocumentSync = useEmployeeDocumentSync({
+    accessToken,
+    employeeId,
+    existingDocumentIds:
+      shouldEnableDocumentSync && existingHealthInsuranceDocumentId ? [existingHealthInsuranceDocumentId] : [],
+    enabled: shouldEnableDocumentSync,
+    appName: 'employee-profile',
+    folderPath: employeeId ? `/documents/${employeeId}` : undefined
+  })
+  const handleHealthInsuranceFilesChange = (files: Array<{ file: File | { name: string }; id: string }>) => {
+    healthInsuranceDocumentSync.onFilesChange(files as any[])
+  }
 
   const watchedValues = form.watch()
+  const isDocumentChanged =
+    healthInsuranceDocumentSync.hasPendingNewUpload || healthInsuranceDocumentSync.hasRemovedInitialFiles
 
   const normalizeForCompare = useCallback((v: TaxInfoFormValues) => {
     const toCompareString = (x: unknown): string => {
@@ -111,31 +134,34 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   }, [])
 
   const isUnchangedNow = useMemo(() => {
+    if (isDocumentChanged) {
+      return false
+    }
     const current = normalizeForCompare(watchedValues)
     const initial = normalizeForCompare(initialRef.current)
     return JSON.stringify(current) === JSON.stringify(initial)
-  }, [watchedValues, normalizeForCompare])
+  }, [watchedValues, normalizeForCompare, isDocumentChanged])
 
   const { formState } = form
   const { isValid, isDirty, errors } = formState
   const hasValidationErrors = Object.keys(errors || {}).length > 0
-  const isSubmitDisabledFinal = !isValid || hasValidationErrors || !isDirty || isUnchangedNow
+  const isSubmitDisabledFinal = !isValid || hasValidationErrors || (!isDirty && !isDocumentChanged) || isUnchangedNow
 
-  const handlePreSubmit =
-    healthInsuranceFileList.length > 0 && healthInsuranceFileList[0]?.originFileObj
-      ? async (values: TaxInfoFormValues) => {
-          const employeeId = getEmployeeId(additionalData, userInfo)
-          const file = healthInsuranceFileList[0].originFileObj as File
-          const uploadedId = await executeHealthInsuranceDocumentUpload(
-            file,
-            values,
-            employeeId,
-            accessToken ?? '',
-            fileClient
-          )
-          return { ...values, uploadedHealthInsuranceDocumentId: uploadedId }
-        }
-      : undefined
+  const handlePreSubmit = async (values: TaxInfoFormValues) => {
+    const syncResult = await healthInsuranceDocumentSync.syncDocuments({
+      documentGroup: 'DocumentGroup:v1:SALARY',
+      documentType: values.healthInsuranceDocumentTypeId || null,
+      validTo: values.healthInsuranceDocumentValidTo || null,
+      deleteFirst: true
+    })
+    const shouldClearHealthInsuranceDocument =
+      healthInsuranceDocumentSync.hasRemovedInitialFiles && !healthInsuranceDocumentSync.hasPendingNewUpload
+
+    return {
+      ...values,
+      uploadedHealthInsuranceDocumentId: shouldClearHealthInsuranceDocument ? null : syncResult.primaryDocumentId
+    }
+  }
 
   const onSubmit = useCallback(
     async (values: TaxInfoFormValues) => {
@@ -201,7 +227,12 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
             employeeBirthDate={employeeBirthDate}
             employeeBirthName={employeeBirthName}
             employeeLastName={employeeLastName}
-            healthInsuranceFileList={healthInsuranceFileList}
+            healthInsuranceFileList={healthInsuranceDocumentSync.managedFiles}
+            healthInsuranceInitialFiles={healthInsuranceDocumentSync.initialUploadFiles}
+            isLoadingHealthInsuranceInitialFiles={healthInsuranceDocumentSync.shouldShowInitialDocumentLoading}
+            isResolvingHealthInsuranceInitialDocuments={healthInsuranceDocumentSync.isResolvingInitialDocuments}
+            hasExistingHealthInsuranceDocumentHint={Boolean(existingHealthInsuranceDocumentId)}
+            hasInitialHealthInsuranceDocumentCandidates={healthInsuranceDocumentSync.hasInitialDocumentCandidates}
             onHealthInsuranceFilesChange={handleHealthInsuranceFilesChange}
           />
         </AppActionForm>
