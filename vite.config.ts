@@ -1,5 +1,6 @@
 import { resolve } from 'path'
 import { defineConfig, loadEnv, type PluginOption } from 'vite'
+import { visualizer } from 'rollup-plugin-visualizer'
 import react from '@vitejs/plugin-react'
 import tailwindCSS from '@tailwindcss/vite'
 import browserEcho from '@browser-echo/vite'
@@ -11,17 +12,6 @@ import { createRequire } from 'module'
 import dotenv from '@dotenvx/dotenvx'
 import { execSync, spawn } from 'child_process'
 import { isRemoteBundleExternal } from './remoteBundleExternals'
-
-const require = createRequire(import.meta.url)
-
-let visualizer: ((options?: Record<string, unknown>) => import('vite').Plugin | import('vite').Plugin[]) | undefined
-
-try {
-  const visualizerModule = require('rollup-plugin-visualizer')
-  visualizer = visualizerModule.visualizer
-} catch {
-  visualizer = undefined
-}
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {

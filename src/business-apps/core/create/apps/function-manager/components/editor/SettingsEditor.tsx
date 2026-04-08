@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 import {
   Badge,
@@ -10,9 +12,37 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { Copy, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { Copy, Plus, Trash2 } from 'lucide-react'
+import { fnsecretRefForId, parseFnsecretUuid } from '@/common/utils/fnsecretRef'
 
-export type ConfigRow = { key: string; value: string }
+export type ConfigRow = {
+  key: string
+  value: string
+  /** Stable list identity; do not use for API payload */ rowId?: string
+}
+
+/** Stable id for config row list keys (not sent to the API). */
+export function newConfigRowId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `row-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+}
+
+/** Use whenever adding an empty settings row so React keys stay stable while typing. */
+export function newEmptyConfigRow(): ConfigRow {
+  return { key: '', value: '', rowId: newConfigRowId() }
+}
+
+let settingsEditorFallbackRow: ConfigRow | null = null
+function fallbackEmptyRow(): ConfigRow {
+  if (!settingsEditorFallbackRow) {
+    settingsEditorFallbackRow = newEmptyConfigRow()
+  }
+  return settingsEditorFallbackRow
+}
+
+export type StoredSecretOption = { id: string; displayName: string }
 
 export interface SettingsEditorProps {
   rows: ConfigRow[]
@@ -21,6 +51,8 @@ export interface SettingsEditorProps {
   selectedConnectionId?: string | null
   onConnectionChange?: (connectionId: string | null) => void
   isLoadingConnections?: boolean
+  /** When set (even empty), enables stored-credential binding per row. */
+  storedSecrets?: StoredSecretOption[]
   'data-testid'?: string
 }
 
@@ -31,10 +63,11 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
   selectedConnectionId = null,
   onConnectionChange,
   isLoadingConnections = false,
+  storedSecrets,
   'data-testid': testId = 'function-editor-settings'
 }) => {
-  const safeRows = rows.length ? rows : [{ key: '', value: '' }]
-  const [revealed, setRevealed] = React.useState<Record<number, boolean>>({})
+  const safeRows = rows.length ? rows : [fallbackEmptyRow()]
+  const secretsEnabled = storedSecrets !== undefined
 
   const normalizedKeys = safeRows.map(r => String(r.key || '').trim())
   const keyCounts = React.useMemo(() => {
@@ -50,10 +83,6 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
   const nonEmptyKeyRows = safeRows.filter(r => String(r.key || '').trim())
   const missingValuesCount = nonEmptyKeyRows.filter(r => !String(r.value || '').trim()).length
 
-  const toggleReveal = (idx: number) => {
-    setRevealed(prev => ({ ...prev, [idx]: !prev[idx] }))
-  }
-
   return (
     <div className="gba:space-y-4" data-testid={testId}>
       <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
@@ -63,15 +92,6 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
         {missingValuesCount ? <Badge variant="outline">{missingValuesCount} missing values</Badge> : null}
       </div>
 
-      <div className="gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-4">
-        <div className="gba:text-sm gba:text-foreground gba:font-medium">How it works</div>
-        <div className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:leading-relaxed">
-          Add secrets and environment values here. They will be injected into your function as{' '}
-          <span className="gba:font-mono">context.config.&lt;UPPERCASE_KEY&gt;</span>. Keep keys UPPERCASE and don’t log
-          secret values.
-        </div>
-      </div>
-
       {onConnectionChange ? (
         <div className="gba:space-y-2">
           <Label>Shared connection</Label>
@@ -79,7 +99,11 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
             value={selectedConnectionId || '__none__'}
             onValueChange={value => onConnectionChange(value === '__none__' ? null : value)}
           >
-            <SelectTrigger className="gba:h-9" data-testid={`${testId}-shared-connection`}>
+            <SelectTrigger
+              className="gba:h-9"
+              data-testid={`${testId}-shared-connection`}
+              aria-label="Shared connection"
+            >
               <SelectValue
                 placeholder={isLoadingConnections ? 'Loading shared connections...' : 'No shared connection selected'}
               />
@@ -94,11 +118,34 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
             </SelectContent>
           </Select>
           <div className="gba:text-xs gba:text-muted-foreground">
-            Shared connection values are merged into <span className="gba:font-mono">context.config</span> at runtime.
-            Local Settings below remain available as overrides and test-only values.
+            Optional Prompt Manager connection: its <span className="gba:font-mono">config</span> /{' '}
+            <span className="gba:font-mono">env</span> merge into <span className="gba:font-mono">context.config</span>{' '}
+            first. The key/value rows below are <strong>this function’s</strong> own settings (and overrides), not the
+            connection editor—same runtime map, saved on the function.
           </div>
         </div>
       ) : null}
+
+      <div className="gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-4">
+        <div className="gba:flex gba:flex-wrap gba:items-start gba:justify-between gba:gap-3">
+          <div className="gba:min-w-0 gba:flex-1">
+            <div className="gba:text-sm gba:text-foreground gba:font-medium">How it works</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:leading-relaxed">
+              Add environment-style keys for this function. They are injected as{' '}
+              <span className="gba:font-mono">context.config.&lt;UPPERCASE_KEY&gt;</span>. Keep keys UPPERCASE and don’t
+              log credential values.
+              {secretsEnabled ? (
+                <>
+                  {' '}
+                  Create stored credentials from Function Manager’s top-level <strong>Credentials</strong> tab; here,
+                  use <span className="gba:font-mono">Stored credential</span> per row to bind an{' '}
+                  <span className="gba:font-mono">fnsecret:…</span> reference instead of plaintext in saved config.
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="gba:space-y-2">
         <div className="gba:hidden gba:sm:grid gba:sm:grid-cols-[minmax(220px,1fr)_minmax(260px,1fr)_auto] gba:gap-3 gba:px-1">
@@ -110,7 +157,7 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
         <div className="gba:rounded-xl gba:border gba:border-border gba:bg-background gba:overflow-hidden">
           {safeRows.map((kv, idx) => (
             <div
-              key={`${String(kv.key || '').trim()}-${idx}`}
+              key={kv.rowId ?? `idx-${idx}`}
               className={['gba:px-4 gba:py-3', idx === 0 ? '' : 'gba:border-t gba:border-border'].join(' ')}
               data-testid={`${testId}-row-${idx}`}
             >
@@ -161,9 +208,72 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
                   <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
                     <div className="gba:text-xs gba:text-muted-foreground gba:sm:hidden">Value</div>
                   </div>
-                  <div className="gba:relative">
+                  {secretsEnabled ? (
+                    <div className="gba:space-y-2">
+                      <Select
+                        value={(() => {
+                          const sid = parseFnsecretUuid(kv.value)
+                          const known = (storedSecrets || []).some(s => s.id.toLowerCase() === sid)
+                          return sid && known ? `ref:${sid}` : '__plain__'
+                        })()}
+                        onValueChange={v => {
+                          const next = [...safeRows]
+                          if (v === '__plain__') {
+                            const sid = parseFnsecretUuid(next[idx]?.value || '')
+                            next[idx] = { ...next[idx], value: sid ? '' : next[idx].value }
+                            onChange(next)
+                            return
+                          }
+                          if (v.startsWith('ref:')) {
+                            const id = v.slice(4)
+                            next[idx] = { ...next[idx], value: fnsecretRefForId(id) }
+                            onChange(next)
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="gba:h-9" data-testid={`${testId}-bind-${idx}`}>
+                          <SelectValue placeholder="Binding" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__plain__">Plain value</SelectItem>
+                          {(storedSecrets || []).map(s => (
+                            <SelectItem key={s.id} value={`ref:${s.id}`}>
+                              {s.displayName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {(() => {
+                        const sid = parseFnsecretUuid(kv.value)
+                        const known = sid && (storedSecrets || []).some(s => s.id.toLowerCase() === sid)
+                        if (known) {
+                          return (
+                            <div
+                              className="gba:text-xs gba:font-mono gba:text-muted-foreground gba:break-all"
+                              data-testid={`${testId}-ref-preview-${idx}`}
+                            >
+                              {kv.value}
+                            </div>
+                          )
+                        }
+                        return (
+                          <Input
+                            type="text"
+                            placeholder="Plain value (Function Manager → Credentials for stored credentials)"
+                            value={kv.value}
+                            onChange={e => {
+                              const n = [...safeRows]
+                              n[idx] = { ...n[idx], value: e.target.value }
+                              onChange(n)
+                            }}
+                            data-testid={`${testId}-value-${idx}`}
+                          />
+                        )
+                      })()}
+                    </div>
+                  ) : (
                     <Input
-                      type={revealed[idx] ? 'text' : 'password'}
+                      type="text"
                       placeholder="Value"
                       value={kv.value}
                       onChange={e => {
@@ -171,21 +281,9 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
                         next[idx] = { ...next[idx], value: e.target.value }
                         onChange(next)
                       }}
-                      className="gba:pr-10"
                       data-testid={`${testId}-value-${idx}`}
                     />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => toggleReveal(idx)}
-                      className="gba:absolute gba:right-1 gba:top-1/2 gba:-translate-y-1/2"
-                      data-testid={`${testId}-toggle-${idx}`}
-                      aria-label={revealed[idx] ? 'Hide value' : 'Show value'}
-                    >
-                      {revealed[idx] ? <EyeOff className="gba:h-4 gba:w-4" /> : <Eye className="gba:h-4 gba:w-4" />}
-                    </Button>
-                  </div>
+                  )}
                 </div>
 
                 <div className="gba:flex gba:items-center gba:justify-end gba:gap-1">
@@ -229,7 +327,7 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onChange([...safeRows, { key: '', value: '' }])}
+            onClick={() => onChange([...safeRows, newEmptyConfigRow()])}
             data-testid={`${testId}-add`}
           >
             <Plus className="gba:h-4 gba:w-4 gba:mr-2" />

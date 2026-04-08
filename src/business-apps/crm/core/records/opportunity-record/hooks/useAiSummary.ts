@@ -6,6 +6,7 @@ import { useGetCrmNotes } from '../queries/CrmNoteQueries'
 import { useGetSalesTasks } from '../queries/OpportunityTaskQueries'
 import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from '../queries/GetOpportunityByIdQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are a sales pipeline assistant analyzing a sales opportunity.
 
@@ -42,9 +43,7 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
 
     // get activity data
     const activityResult = await fetchSalesActivities({ opportunityId })
-    const sortedActivities = (activityResult.SalesActivity || []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const sortedActivities = sortActivitiesByOccurredAtDesc(activityResult.SalesActivity || [])
 
     // get notes data
     const notesResult = await fetchCrmNotes({ opportunityId })

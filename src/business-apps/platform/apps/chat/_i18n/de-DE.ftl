@@ -459,10 +459,23 @@ notifications-retry = Erneut versuchen
 # Reminders
 reminders-myReminders = Meine Erinnerungen
 reminders-noUpcoming = Keine bevorstehenden Erinnerungen
-reminders-goToEveryAI = Gehen Sie zur EveryAI-Registerkarte und bitten Sie darum, eine Erinnerung zu setzen
+reminders-goToEveryAI = Erstellen Sie eine Erinnerung mit der +-Schaltfläche oben
 reminders-loadingReminders = Erinnerungen werden geladen...
 reminders-failedToLoad = Erinnerungen konnten nicht geladen werden
 reminders-tryAgain = Erneut versuchen
+reminders-newReminder = Neue Erinnerung
+reminders-title = Titel
+reminders-titlePlaceholder = Woran sollen Sie erinnert werden?
+reminders-message = Nachricht (optional)
+reminders-messagePlaceholder = Zusätzliche Details...
+reminders-dateTime = Datum & Uhrzeit
+reminders-create = Erinnerung erstellen
+reminders-creating = Wird erstellt...
+reminders-cancel = Abbrechen
+reminders-created = Erinnerung erstellt!
+reminders-createFailed = Erinnerung konnte nicht erstellt werden
+reminders-titleRequired = Bitte geben Sie einen Titel ein
+reminders-dateTimeRequired = Bitte wählen Sie ein Datum und eine Uhrzeit
 
 # Calendar
 calendar-title = Kalender
@@ -532,6 +545,16 @@ calendar-sidebar-personalColorSaveError = Die Farbe von Mein Kalender konnte nic
 calendar-sidebar-calendarColorSaveError = Die Kalenderfarbe konnte nicht aktualisiert werden
 calendar-sidebar-resetToDefault = Standardfarbe verwenden
 calendar-sidebar-openColorPicker = Farbe für {$name} ändern
+calendar-sidebar-createManually = Manuell erstellen
+calendar-sidebar-createByGroup = Nach Gruppe
+calendar-sidebar-createCalendarByDimension = Kalender nach Organisation erstellen
+calendar-sidebar-dimensionDescription = Erstellen Sie einen gemeinsamen Kalender für eine Organisationsgruppe und geben Sie deren Mitgliedern Leserechte.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 Mitglied erhält Leserechte
+ *[other] {$count} Mitglieder erhalten Leserechte
+}
+calendar-sidebar-membersPreview = Mitglieder
+calendar-sidebar-calendarExistsInfo = Für diese Gruppe existiert bereits ein gemeinsamer Kalender. Der vorhandene Kalender wurde ausgewählt.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen

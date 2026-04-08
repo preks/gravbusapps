@@ -1,56 +1,12 @@
 /**
  * Rollup `external` predicate for remote screen CJS builds.
- * Local fallback for remote vendor externals.
+ * Contract: `@newwork/remote-component-loader/remoteVendorManifest` (generated from bootstrap).
  * Local rules only: bundle @newwork/nw-design-system and @newwork/icons into the remote chunk.
  *
  * Host resolves externals via `window.require` (installDependenciesBootstrap); CJS build does not use Rollup `output.globals`.
  */
 import path from 'path'
-
-const REMOTE_VENDOR_EXACT = new Set([
-  'react',
-  'react-dom',
-  'react/jsx-runtime',
-  'react/jsx-dev-runtime',
-  'antd',
-  '@ant-design/icons',
-  '@dnd-kit/core',
-  '@dnd-kit/utilities',
-  '@dnd-kit/sortable',
-  'zustand',
-  'clsx',
-  'tailwind-merge',
-  'react-i18next',
-  'react-icons',
-  'react-icons/pi',
-  '@phosphor-icons/react',
-  '@newwork/gravity-ui-catalog',
-  '@remixicon/react',
-  'class-variance-authority',
-  'lucide-react'
-])
-
-const REMOTE_VENDOR_PREFIXES = [
-  'antd/',
-  '@ant-design/icons/',
-  '@dnd-kit/core/',
-  '@dnd-kit/utilities/',
-  '@dnd-kit/sortable/',
-  'zustand/',
-  'clsx/',
-  'tailwind-merge/',
-  'react-i18next/',
-  'react-icons/',
-  '@phosphor-icons/react/',
-  '@newwork/gravity-ui-catalog/',
-  '@remixicon/react/',
-  'class-variance-authority/',
-  'lucide-react/'
-]
-
-function isRemoteVendorExternal(specifier: string): boolean {
-  return REMOTE_VENDOR_EXACT.has(specifier) || REMOTE_VENDOR_PREFIXES.some(prefix => specifier.startsWith(prefix))
-}
+import { isRemoteVendorExternal } from '@newwork/remote-component-loader/remoteVendorManifest'
 
 function stripQuery(id: string): string {
   const q = id.indexOf('?')

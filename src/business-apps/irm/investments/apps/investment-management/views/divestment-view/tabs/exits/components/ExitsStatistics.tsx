@@ -4,7 +4,7 @@ import { CurrencyDollarIcon, CheckCircleIcon, MedalIcon, TargetIcon } from '@pho
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency } from '@/common/utils/numberFormatter'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { calculateChange } from '@/common/data/investment/kpis/utils'
+import { calculateTrend as calculateChange } from '@/common/utils/trendUtils'
 import { DivestmentStatisticsPanel, WIDGET_SPAN, VS_LAST_QUARTER } from '../../../utils/DivestmentStatisticsPanel'
 import {
   WON_STATUS_CONDITION,

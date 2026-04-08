@@ -118,7 +118,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
 }
 
 export interface UseCollaborationOptions {
-  entityType: 'document' | 'spreadsheet' | 'note'
+  entityType: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
   entityId: string
   enabled?: boolean
   accessToken?: string

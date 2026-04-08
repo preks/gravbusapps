@@ -13,6 +13,7 @@ import {
   getLinkedInChannel,
   getXingChannel
 } from '@/common/data/common/utils/communicationChannelHelpers'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are an investment relationship assistant analyzing a contact within the investment ecosystem.
 
@@ -60,9 +61,7 @@ export function useContactAiSummary(
 
       // Get activities data
       const activities = await fetchInvestmentActivitiesByContactId(contactId)
-      const sortedActivities = (activities || []).sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      )
+      const sortedActivities = sortActivitiesByOccurredAtDesc(activities || [])
 
       // Get notes data
       const notes = await fetchInvestmentNotesByContactId(contactId)
@@ -117,7 +116,7 @@ export function useContactAiSummary(
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,
         tasksCount: sortedTasks.length,
-        lastActivityDate: sortedActivities[0]?.createdAt,
+        lastActivityDate: sortedActivities[0]?.occurredAt || sortedActivities[0]?.createdAt,
         lastNoteDate: sortedNotes[0]?.createdAt,
         lastTaskDate: sortedTasks[0]?.createdAt,
         createdAt: contact.createdAt,

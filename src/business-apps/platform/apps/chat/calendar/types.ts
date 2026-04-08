@@ -1,3 +1,5 @@
+import type { SelectedDimension } from '../../shared/types/dimensions'
+
 // Calendar and Meeting Types
 
 // Note: Agenda utilities are in ./utils/agendaUtils
@@ -148,6 +150,8 @@ export interface InternalCalendarSummary {
   type: InternalCalendarType
   ownerId: string
   spaceId?: string
+  contextEntity?: SelectedDimension['type']
+  contextEntityId?: string
   permission: InternalCalendarPermission
   memberCount: number
   canEdit: boolean
@@ -155,10 +159,17 @@ export interface InternalCalendarSummary {
   hasColorOverride: boolean
 }
 
+export interface CreateCalendarShareInput {
+  userId: string
+  permission: InternalCalendarPermission
+}
+
 export interface CreateSharedCalendarData {
   name: string
   description?: string
   color?: string
+  dimension?: SelectedDimension
+  shares?: CreateCalendarShareInput[]
 }
 
 export interface UpdateSharedCalendarData {

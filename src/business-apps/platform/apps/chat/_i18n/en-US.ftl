@@ -459,10 +459,23 @@ notifications-retry = Retry
 # Reminders
 reminders-myReminders = My Reminders
 reminders-noUpcoming = No upcoming reminders
-reminders-goToEveryAI = Go to the EveryAI tab and ask to set a reminder
+reminders-goToEveryAI = Create a reminder using the + button above
 reminders-loadingReminders = Loading reminders...
 reminders-failedToLoad = Failed to load reminders
 reminders-tryAgain = Try Again
+reminders-newReminder = New Reminder
+reminders-title = Title
+reminders-titlePlaceholder = What should you be reminded of?
+reminders-message = Message (optional)
+reminders-messagePlaceholder = Additional details...
+reminders-dateTime = Date & Time
+reminders-create = Create Reminder
+reminders-creating = Creating...
+reminders-cancel = Cancel
+reminders-created = Reminder created!
+reminders-createFailed = Failed to create reminder
+reminders-titleRequired = Please enter a title
+reminders-dateTimeRequired = Please select a date and time
 
 # Calendar
 calendar-title = Calendar
@@ -532,6 +545,16 @@ calendar-sidebar-personalColorSaveError = Could not update My calendar color
 calendar-sidebar-calendarColorSaveError = Could not update calendar color
 calendar-sidebar-resetToDefault = Use default color
 calendar-sidebar-openColorPicker = Change {$name} color
+calendar-sidebar-createManually = Create manually
+calendar-sidebar-createByGroup = By group
+calendar-sidebar-createCalendarByDimension = Create calendar by organization
+calendar-sidebar-dimensionDescription = Create a shared calendar for an organizational group and grant viewer access to its members.
+calendar-sidebar-dimensionViewerAccess = {$count ->
+  [one] 1 member will get viewer access
+ *[other] {$count} members will get viewer access
+}
+calendar-sidebar-membersPreview = Members
+calendar-sidebar-calendarExistsInfo = A shared calendar for this group already exists, so the existing calendar was selected.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting

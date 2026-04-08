@@ -7,6 +7,10 @@ page-description = Gestionati functii versionate pentru agenti si fluxuri
 # Section
 section-label = Functii
 
+# Top-level list tabs (CreateLayout hero TabSwitch)
+tab-functions = Functii
+tab-credentials = Credențiale
+
 # Actions
 new-function = Functie noua
 edit = Editare

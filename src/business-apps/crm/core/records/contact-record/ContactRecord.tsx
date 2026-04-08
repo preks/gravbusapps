@@ -103,10 +103,6 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         fetchCustomerTasksByContactId(contactId)
       ])
 
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) =>
-          new Date(b.occurredAt || b.createdAt).getTime() - new Date(a.occurredAt || a.createdAt).getTime()
-      )
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -126,7 +122,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)

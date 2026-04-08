@@ -606,8 +606,12 @@ export interface MeshLayoutResponse {
 
 // --- Client ---
 export class PromptManagerClient extends RestClient {
-  constructor() {
-    super(PROMPT_MANAGER_API_URL, {})
+  /**
+   * @param baseUrl - API base including `/api/v1` (defaults to global Prompt Manager URL).
+   *                  Use a dedicated base for feature-scoped routing (e.g. spreadsheet AI → Flowbot mount).
+   */
+  constructor(baseUrl: string = PROMPT_MANAGER_API_URL) {
+    super(baseUrl, {})
   }
 
   private hasHttpStatus(error: unknown, status: number): boolean {

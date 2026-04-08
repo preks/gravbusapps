@@ -48,14 +48,7 @@ const UsFields: React.FC<UsFieldsProps> = ({
               )}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
-            <Select
-              value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
-              }
-              onValueChange={v => field.onChange(v || null)}
-            >
+            <Select value={field.value == null ? '' : String(field.value)} onValueChange={v => field.onChange(v || null)}>
               <FormControl>
                 <SelectTrigger
                   className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
@@ -170,14 +163,7 @@ const UsFields: React.FC<UsFieldsProps> = ({
               )}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
-            <Select
-              value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
-              }
-              onValueChange={v => field.onChange(v || null)}
-            >
+            <Select value={field.value == null ? '' : String(field.value)} onValueChange={v => field.onChange(v || null)}>
               <FormControl>
                 <SelectTrigger
                   className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"

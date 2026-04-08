@@ -13,15 +13,26 @@ import {
   getImageFigureAttributesFromElement,
   normalizeImageAlign,
   normalizeImageAnchorMode,
+  normalizeImageBorderColor,
+  normalizeImageBorderDash,
+  normalizeImageBorderWidthPt,
   normalizeImageDisplay,
   normalizeImageSizeReference,
   normalizeImageSizeUnit,
   normalizeImageWrapMode,
+  normalizeImageWrapTextSide,
   normalizeNullableBoolean,
   normalizeNullableNumber
 } from './styleUtils'
-import type { CustomImageAttributes, CustomImageOptions, SetImageCropOptions, SetImageLayoutOptions } from './types'
-import { isFloatingWrapMode, resolveImageWrapPreset } from './wrapUtils'
+import {
+  DEFAULT_IMAGE_BORDER_DASH,
+  DEFAULT_IMAGE_BORDER_WIDTH_PT,
+  type CustomImageAttributes,
+  type CustomImageOptions,
+  type SetImageCropOptions,
+  type SetImageLayoutOptions
+} from './types'
+import { isFloatingWrapMode, resolveImageWrapPreset, resolveLegacyImagePreset } from './wrapUtils'
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -101,23 +112,8 @@ function getNormalizedCropAttrs(input: SetImageCropOptions) {
   }
 }
 
-function resolvePresetAttrs(
-  preset: 'inline' | 'floating-left' | 'floating-right' | 'behind-text' | 'in-front-of-text',
-  currentAttributes: Pick<CustomImageAttributes, 'align' | 'anchorMode'> = {}
-) {
-  switch (preset) {
-    case 'floating-left':
-      return resolveImageWrapPreset('square-left', currentAttributes)
-    case 'floating-right':
-      return resolveImageWrapPreset('square-right', currentAttributes)
-    case 'behind-text':
-      return resolveImageWrapPreset('behind', currentAttributes)
-    case 'in-front-of-text':
-      return resolveImageWrapPreset('front', currentAttributes)
-    case 'inline':
-    default:
-      return resolveImageWrapPreset('inline', currentAttributes)
-  }
+function refreshPaginationLayout(editor: Pick<import('@tiptap/core').Editor, 'commands'>) {
+  editor.commands.refreshPagesAndStabilize?.()
 }
 
 export const CustomImage = Image.extend<CustomImageOptions>({
@@ -179,10 +175,6 @@ export const CustomImage = Image.extend<CustomImageOptions>({
       {
         tag: 'img[src]',
         getAttrs: element => {
-          if (element.parentElement?.closest(`[data-node-type="${CUSTOM_IMAGE_TAG}"]`)) {
-            return false
-          }
-
           const attrs = getImageFigureAttributesFromElement(element, defaults)
           return attrs.src ? attrs : false
         }
@@ -524,6 +516,21 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           'data-image-wrap': normalizeImageWrapMode(attributes.wrapMode, this.options.defaultWrapMode)
         })
       },
+      wrapTextSide: {
+        default: null,
+        parseHTML: element =>
+          getImageFigureAttributesFromElement(element, {
+            align: this.options.defaultAlign,
+            wrapMode: this.options.defaultWrapMode,
+            anchorMode: this.options.defaultAnchorMode,
+            display: this.options.defaultDisplay,
+            distance: this.options.defaultDistance
+          }).wrapTextSide,
+        renderHTML: attributes =>
+          attributes.wrapTextSide
+            ? { 'data-image-wrap-text-side': normalizeImageWrapTextSide(attributes.wrapTextSide) }
+            : {}
+      },
       anchorMode: {
         default: this.options.defaultAnchorMode,
         parseHTML: element =>
@@ -673,6 +680,69 @@ export const CustomImage = Image.extend<CustomImageOptions>({
             distance: this.options.defaultDistance
           }).zIndex,
         renderHTML: attributes => ({ 'data-image-z-index': String(normalizeNullableNumber(attributes.zIndex, 1) ?? 1) })
+      },
+      borderVisible: {
+        default: false,
+        parseHTML: element =>
+          getImageFigureAttributesFromElement(element, {
+            align: this.options.defaultAlign,
+            wrapMode: this.options.defaultWrapMode,
+            anchorMode: this.options.defaultAnchorMode,
+            display: this.options.defaultDisplay,
+            distance: this.options.defaultDistance
+          }).borderVisible,
+        renderHTML: attributes => ({
+          'data-image-border-visible': String(normalizeNullableBoolean(attributes.borderVisible, false) ?? false)
+        })
+      },
+      borderColor: {
+        default: null,
+        parseHTML: element =>
+          getImageFigureAttributesFromElement(element, {
+            align: this.options.defaultAlign,
+            wrapMode: this.options.defaultWrapMode,
+            anchorMode: this.options.defaultAnchorMode,
+            display: this.options.defaultDisplay,
+            distance: this.options.defaultDistance
+          }).borderColor,
+        renderHTML: attributes => {
+          const borderColor = normalizeImageBorderColor(attributes.borderColor)
+          return borderColor == null ? {} : { 'data-image-border-color': borderColor }
+        }
+      },
+      borderWidthPt: {
+        default: DEFAULT_IMAGE_BORDER_WIDTH_PT,
+        parseHTML: element =>
+          normalizeImageBorderWidthPt(
+            getImageFigureAttributesFromElement(element, {
+              align: this.options.defaultAlign,
+              wrapMode: this.options.defaultWrapMode,
+              anchorMode: this.options.defaultAnchorMode,
+              display: this.options.defaultDisplay,
+              distance: this.options.defaultDistance
+            }).borderWidthPt,
+            DEFAULT_IMAGE_BORDER_WIDTH_PT
+          ),
+        renderHTML: attributes => ({
+          'data-image-border-width-pt': String(
+            normalizeImageBorderWidthPt(attributes.borderWidthPt, DEFAULT_IMAGE_BORDER_WIDTH_PT) ??
+              DEFAULT_IMAGE_BORDER_WIDTH_PT
+          )
+        })
+      },
+      borderDash: {
+        default: DEFAULT_IMAGE_BORDER_DASH,
+        parseHTML: element =>
+          getImageFigureAttributesFromElement(element, {
+            align: this.options.defaultAlign,
+            wrapMode: this.options.defaultWrapMode,
+            anchorMode: this.options.defaultAnchorMode,
+            display: this.options.defaultDisplay,
+            distance: this.options.defaultDistance
+          }).borderDash,
+        renderHTML: attributes => ({
+          'data-image-border-dash': normalizeImageBorderDash(attributes.borderDash, DEFAULT_IMAGE_BORDER_DASH)
+        })
       }
     }
   },
@@ -726,6 +796,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, { width, height })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageCrop:
@@ -734,6 +805,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, getNormalizedCropAttrs(crop))
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       resetImageCrop:
@@ -742,6 +814,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, getNormalizedCropAttrs({}))
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageRotation:
@@ -752,6 +825,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       moveImage:
@@ -773,6 +847,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageAnchorMode:
@@ -783,6 +858,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       applyImagePreset:
@@ -793,9 +869,10 @@ export const CustomImage = Image.extend<CustomImageOptions>({
 
           tr.setNodeMarkup(image.pos, undefined, {
             ...image.node.attrs,
-            ...resolvePresetAttrs(preset, image.node.attrs as CustomImageAttributes)
+            ...resolveLegacyImagePreset(preset, image.node.attrs as CustomImageAttributes)
           })
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageAlign:
@@ -806,6 +883,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageCaption:
@@ -836,6 +914,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           })
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       setImageLayout:
@@ -887,6 +966,9 @@ export const CustomImage = Image.extend<CustomImageOptions>({
               })
             )
           }
+          if (options.wrapTextSide !== undefined) {
+            nextAttrs.wrapTextSide = options.wrapTextSide ? normalizeImageWrapTextSide(options.wrapTextSide) : null
+          }
           if (options.anchorMode !== undefined) {
             nextAttrs.anchorMode = normalizeImageAnchorMode(options.anchorMode, this.options.defaultAnchorMode)
           }
@@ -902,6 +984,14 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           if (options.offsetY !== undefined) nextAttrs.offsetY = options.offsetY
           if (options.allowOverlap !== undefined) nextAttrs.allowOverlap = options.allowOverlap
           if (options.zIndex !== undefined) nextAttrs.zIndex = options.zIndex
+          if (options.borderVisible !== undefined) nextAttrs.borderVisible = options.borderVisible
+          if (options.borderColor !== undefined) nextAttrs.borderColor = normalizeImageBorderColor(options.borderColor)
+          if (options.borderWidthPt !== undefined) {
+            nextAttrs.borderWidthPt = normalizeImageBorderWidthPt(options.borderWidthPt, DEFAULT_IMAGE_BORDER_WIDTH_PT)
+          }
+          if (options.borderDash !== undefined) {
+            nextAttrs.borderDash = normalizeImageBorderDash(options.borderDash, DEFAULT_IMAGE_BORDER_DASH)
+          }
           if (options.alt !== undefined) nextAttrs.alt = options.alt
           if (options.title !== undefined) nextAttrs.title = options.title
           if (options.src !== undefined) nextAttrs.src = options.src
@@ -911,6 +1001,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
             ...nextAttrs
           })
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       replaceImage:
@@ -919,6 +1010,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           const updated = updateCurrentImage(state, tr, this.name, attrs)
           if (!updated) return false
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         },
       removeSelectedImage:
@@ -928,6 +1020,7 @@ export const CustomImage = Image.extend<CustomImageOptions>({
           if (!image) return false
           tr.delete(image.pos, image.pos + image.node.nodeSize)
           dispatch?.(tr)
+          refreshPaginationLayout(this.editor)
           return true
         }
     }

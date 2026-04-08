@@ -27,10 +27,9 @@ import {
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
-// CRM-specific i18n keys for validation
 const CRM_VALIDATION_ERRORS = {
-  PIPELINE_REQUIRED: 'opportunity.validation.pipelineRequired',
-  STAGE_REQUIRED: 'opportunity.validation.stageRequired'
+  PIPELINE_REQUIRED: 'Pipeline is required',
+  STAGE_REQUIRED: 'Stage is required'
 }
 
 // CRM-specific schema: Pipeline and Stage are REQUIRED (not optional like IRM)

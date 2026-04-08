@@ -19,7 +19,8 @@ import {
   applyDateRangeFromFilter,
   resolveSelectedCurrencyCode,
   applyCurrencyChange,
-  buildEmptyMessage
+  buildFilteredEmptyMessage,
+  buildDefaultEmptyMessage
 } from '../../../utils/tableUtils'
 import {
   CurrencyDropdown,
@@ -623,11 +624,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     },
     [onTableChange, sortField, sortOrder]
   )
-  const emptyMessage = buildEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:personal_expenses.no_expense_request_data',
-    'No expense requests found. Create your first expense request to get started.'
-  )
+  const emptyMessage = hasActiveFilters
+    ? buildFilteredEmptyMessage()
+    : buildDefaultEmptyMessage(
+        'lowcoder:personal_expenses.no_expense_request_data',
+        'No expense requests found. Create your first expense request to get started.'
+      )
   const columns = useMemo<ColumnDef<ExpenseRequestRow>[]>(
     () => [
       {
