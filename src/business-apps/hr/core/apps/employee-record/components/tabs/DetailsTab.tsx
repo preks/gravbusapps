@@ -139,49 +139,21 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
   const bankAccountData = getBankAccountData()
 
-  // Prepare private communication data
+  const PHONE_CHANNEL_CODES = new Set(['Phone', 'Mobile'])
+
   const getPrivateCommunication = () => {
-    // Safely extract private communication; it may be empty
     const communications = employee.communication || []
-    const privateComms = communications.filter(comm => comm?.purpose === 'PRIVATE')
+    const privateComms = communications.filter(comm => comm?.purpose === 'PRIVATE' && comm?.value?.trim())
 
-    // Helper: pick latest by channel code and type (Primary/Secondary)
-    const lastByCodeAndType = (code: string, typeLabel: 'Primary' | 'Secondary') => {
-      for (let i = privateComms.length - 1; i >= 0; i--) {
-        const comm = privateComms[i]
-        if (comm?.channel?.code === code && comm?.type?.value === typeLabel) {
-          return comm
-        }
-      }
-      return undefined
-    }
+    return privateComms.map(comm => {
+      const channelName = comm.channel?.value || comm.channel?.code || ''
+      const typeName = comm.type?.value || ''
+      const label = typeName ? `${channelName} (${typeName})` : channelName
+      const isPhone = PHONE_CHANNEL_CODES.has(comm.channel?.code || '')
+      const value = isPhone ? formatPhoneNumberWithCountryCode(comm.value) : comm.value
 
-    const primaryPhone = lastByCodeAndType('Phone', 'Primary')
-    const secondaryPhone = lastByCodeAndType('Phone', 'Secondary')
-    const primaryMobile = lastByCodeAndType('Mobile', 'Primary')
-    const secondaryMobile = lastByCodeAndType('Mobile', 'Secondary')
-    const primaryEmail = lastByCodeAndType('e-mail', 'Primary')
-    const secondaryEmail = lastByCodeAndType('e-mail', 'Secondary')
-
-    const formatOrEmpty = (val?: string) => (val && val.trim() !== '' ? val : '')
-
-    return [
-      {
-        label: t('details-label-private-phone'),
-        value: primaryPhone?.value ? formatPhoneNumberWithCountryCode(primaryPhone.value) : '',
-        secondary: secondaryPhone?.value ? formatPhoneNumberWithCountryCode(secondaryPhone.value) : undefined
-      },
-      {
-        label: t('details-label-private-mobile'),
-        value: primaryMobile?.value ? formatPhoneNumberWithCountryCode(primaryMobile.value) : '',
-        secondary: secondaryMobile?.value ? formatPhoneNumberWithCountryCode(secondaryMobile.value) : undefined
-      },
-      {
-        label: t('details-label-private-email'),
-        value: formatOrEmpty(primaryEmail?.value),
-        secondary: formatOrEmpty(secondaryEmail?.value) || undefined
-      }
-    ]
+      return { label, value }
+    })
   }
 
   const privateCommunicationData = getPrivateCommunication()
