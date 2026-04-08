@@ -1,5 +1,5 @@
 title = Teamvergütung
-subtitle = Teamgehälter, Boni und Leistungen einsehen und vergleichen. Wählen Sie ein Unternehmen, um Ihr Team zu laden.
+subtitle = Teamgehälter, Boni und Leistungen einsehen und vergleichen.
 loading = Teamdaten werden geladen...
 
 select-company-placeholder = Unternehmen wählen…
@@ -126,6 +126,7 @@ supervisor-review-no-auth = Sie müssen angemeldet sein, um Vorschläge zu geneh
 supervisor-review-no-submitted = Es gibt keine eingereichten Vorschläge für diese Aktion.
 supervisor-review-error-generic = Etwas ist schiefgelaufen. Bitte erneut versuchen.
 supervisor-review-card-title = Freigabe durch Vorgesetzte
+supervisor-review-loading = Vorschläge werden geladen…
 supervisor-review-submitted-count = { $count ->
   [zero] Keine eingereichten Vorschläge zur Prüfung.
   [one] 1 eingereichter Vorschlag zur Prüfung.
@@ -139,4 +140,4 @@ supervisor-review-send-back-title = An Team zurücksenden
 supervisor-review-send-back-placeholder = Erklären Sie, was das Team ändern soll…
 supervisor-review-send-back-cancel = Abbrechen
 supervisor-review-send-back-confirm = Zurücksenden
-supervisor-review-back-to-team = Zurück zur Teamvergütung
+supervisor-review-back-to-team = Zur Teamvergütung

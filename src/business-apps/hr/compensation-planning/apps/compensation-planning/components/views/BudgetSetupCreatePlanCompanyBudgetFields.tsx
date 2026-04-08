@@ -141,8 +141,6 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
         <span className="gba:font-medium gba:tabular-nums">{formatCurrency(annualSalaryCost, currencyCode)}</span>
       </div>
 
-      <p className="gba:text-sm gba:font-semibold">{t('budget-setup-create-plan-section-salary-budget')}</p>
-
       <SyncedAmountPercentPair
         control={control}
         setValue={setValue}

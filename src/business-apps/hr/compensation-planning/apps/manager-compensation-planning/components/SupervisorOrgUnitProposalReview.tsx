@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Spinner,
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -108,12 +109,12 @@ export function SupervisorOrgUnitProposalReview({
 
   return (
     <>
-      <Card className="gba:w-full" data-testid="supervisor-org-unit-proposal-review">
-        <CardHeader className="gba:border-b gba:border-border">
-          <CardTitle className="gba:text-base">{t('supervisor-review-card-title')}</CardTitle>
-          <p className="gba:text-sm gba:text-muted-foreground">{organizationalUnitLabel}</p>
+      <Card className="gba:w-full gba:shadow-sm" data-testid="supervisor-org-unit-proposal-review">
+        <CardHeader className="gba:space-y-1 gba:border-b gba:border-border gba:pb-4">
+          <CardTitle className="gba:text-lg">{t('supervisor-review-card-title')}</CardTitle>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{organizationalUnitLabel}</p>
         </CardHeader>
-        <CardContent className="gba:flex gba:flex-col gba:gap-3 gba:pt-4">
+        <CardContent className="gba:flex gba:flex-col gba:gap-0 gba:pt-4">
           {error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -124,29 +125,41 @@ export function SupervisorOrgUnitProposalReview({
               <AlertDescription>{actionError}</AlertDescription>
             </Alert>
           ) : null}
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {t('supervisor-review-submitted-count', { count: submittedRows.length })}
-          </p>
-          <div className="gba:flex gba:flex-wrap gba:gap-2">
-            <Button
-              type="button"
-              variant="default"
-              disabled={busy || loading || submittedRows.length === 0}
-              data-testid="supervisor-review-approve-all"
-              onClick={() => void runApproveAll()}
+          {loading ? (
+            <div
+              className="gba:flex gba:min-h-32 gba:flex-col gba:items-center gba:justify-center gba:gap-2"
+              data-testid="supervisor-review-loading"
             >
-              {busy ? t('supervisor-review-busy') : t('supervisor-review-approve-all')}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy || loading || submittedRows.length === 0}
-              data-testid="supervisor-review-send-back-open"
-              onClick={() => setSendBackOpen(true)}
-            >
-              {t('supervisor-review-send-back')}
-            </Button>
-          </div>
+              <Spinner className="gba:h-8 gba:w-8" />
+              <span className="gba:text-sm gba:text-muted-foreground">{t('supervisor-review-loading')}</span>
+            </div>
+          ) : (
+            <>
+              <p className="gba:text-sm gba:leading-relaxed gba:text-foreground">
+                {t('supervisor-review-submitted-count', { count: submittedRows.length })}
+              </p>
+              <div className="gba:mt-4 gba:flex gba:flex-wrap gba:gap-2 gba:border-t gba:border-border gba:pt-4">
+                <Button
+                  type="button"
+                  variant="default"
+                  disabled={busy || submittedRows.length === 0}
+                  data-testid="supervisor-review-approve-all"
+                  onClick={() => void runApproveAll()}
+                >
+                  {busy ? t('supervisor-review-busy') : t('supervisor-review-approve-all')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || submittedRows.length === 0}
+                  data-testid="supervisor-review-send-back-open"
+                  onClick={() => setSendBackOpen(true)}
+                >
+                  {t('supervisor-review-send-back')}
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

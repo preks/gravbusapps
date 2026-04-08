@@ -15,6 +15,8 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 
+import { ArrowLeftIcon } from '@phosphor-icons/react'
+
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentUrlWithUpdatedSearchParams, navigateTo } from '@/common/utils/navigationUtils'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
@@ -306,18 +308,16 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
 
     if (supervisorReview) {
       return (
-        <div
-          className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
-          data-testid="manager-compensation-data-body"
-        >
-          <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4">
+        <div className="gba:min-h-0 gba:overflow-auto gba:bg-background" data-testid="manager-compensation-data-body">
+          <div className="gba:flex gba:w-full gba:flex-col gba:gap-3 gba:px-4 gba:pb-4 gba:pt-0">
             <Button
               type="button"
-              variant="outline"
-              className="gba:self-start"
+              variant="ghost"
+              className="gba:-ms-2 gba:self-start gba:gap-2 gba:px-2"
               data-testid="manager-compensation-exit-supervisor-review"
               onClick={exitSupervisorReviewMode}
             >
+              <ArrowLeftIcon className="gba:size-4" aria-hidden />
               {t('supervisor-review-back-to-team')}
             </Button>
             <SupervisorOrgUnitProposalReview
@@ -394,7 +394,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       onBack={null as unknown as (() => void) | undefined}
       className="gba:min-h-screen"
     >
-      <div className="gba:space-y-6">{renderBody()}</div>
+      <div className={supervisorReview ? 'gba:space-y-0' : 'gba:space-y-6'}>{renderBody()}</div>
     </PageLayout>
   )
 }

@@ -1,5 +1,5 @@
 title = Team compensation
-subtitle = View and compare team pay, bonuses, and benefits. Choose a company to load your team.
+subtitle = View and compare team pay, bonuses, and benefits.
 loading = Loading team data...
 
 select-company-placeholder = Select company…
@@ -126,6 +126,7 @@ supervisor-review-no-auth = You must be signed in to approve or send back propos
 supervisor-review-no-submitted = There are no submitted proposals to act on.
 supervisor-review-error-generic = Something went wrong. Try again.
 supervisor-review-card-title = Supervisor review
+supervisor-review-loading = Loading proposals…
 supervisor-review-submitted-count = { $count ->
   [zero] No submitted proposals to review.
   [one] 1 submitted proposal to review.
@@ -139,4 +140,4 @@ supervisor-review-send-back-title = Send back to team
 supervisor-review-send-back-placeholder = Explain what the team should change…
 supervisor-review-send-back-cancel = Cancel
 supervisor-review-send-back-confirm = Send back
-supervisor-review-back-to-team = Back to team compensation
+supervisor-review-back-to-team = Go to team compensation

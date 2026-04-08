@@ -1,5 +1,5 @@
 title = Compensații echipă
-subtitle = Vizualizați și comparați salariile, bonusurile și beneficiile echipei. Alegeți o companie pentru a încărca echipa.
+subtitle = Vizualizați și comparați salariile, bonusurile și beneficiile echipei.
 loading = Se încarcă datele echipei...
 
 select-company-placeholder = Selectați compania…
@@ -126,6 +126,7 @@ supervisor-review-no-auth = Trebuie să fiți autentificat pentru a aproba sau a
 supervisor-review-no-submitted = Nu există propuneri trimise pentru această acțiune.
 supervisor-review-error-generic = A apărut o problemă. Încercați din nou.
 supervisor-review-card-title = Revizuire supervizor
+supervisor-review-loading = Se încarcă propunerile…
 supervisor-review-submitted-count = { $count ->
   [zero] Nicio propunere trimisă de revizuit.
   [one] 1 propunere trimisă de revizuit.
@@ -139,4 +140,4 @@ supervisor-review-send-back-title = Trimite înapoi către echipă
 supervisor-review-send-back-placeholder = Explicați ce ar trebui să schimbe echipa…
 supervisor-review-send-back-cancel = Anulează
 supervisor-review-send-back-confirm = Trimite înapoi
-supervisor-review-back-to-team = Înapoi la compensarea echipei
+supervisor-review-back-to-team = Mergi la compensarea echipei
