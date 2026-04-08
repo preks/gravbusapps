@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
+import { BrainIcon, CaretDownIcon, CaretUpIcon, CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
-import { Brain, CaretDown, CaretUp, Check, Copy, WarningCircle } from '@phosphor-icons/react'
 import { PlanRenderer } from '../renderers/PlanRenderer'
 import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
@@ -64,7 +64,7 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
             data-testid={`toggle-${message.id}`}
           >
             <span>{expanded ? 'Less' : 'More'}</span>
-            {expanded ? <CaretUp className="gba:h-3 gba:w-3" /> : <CaretDown className="gba:h-3 gba:w-3" />}
+            {expanded ? <CaretUpIcon className="gba:h-3 gba:w-3" /> : <CaretDownIcon className="gba:h-3 gba:w-3" />}
           </button>
         )}
         <button
@@ -74,7 +74,11 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
           aria-label="Copy prompt"
           data-testid={`copy-${message.id}`}
         >
-          {copied ? <Check className="gba:h-3.5 gba:w-3.5" weight="bold" /> : <Copy className="gba:h-3.5 gba:w-3.5" />}
+          {copied ? (
+            <CheckIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+          ) : (
+            <CopyIcon className="gba:h-3.5 gba:w-3.5" />
+          )}
         </button>
       </div>
     </div>
@@ -103,7 +107,7 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
               trailing={<span className="gba:text-[11px] gba:text-muted-foreground">Working on it</span>}
             />
             <div className="gba:flex gba:items-start gba:gap-3">
-              <Brain className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:mt-0.5 gba:shrink-0" />
+              <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:mt-0.5 gba:shrink-0" />
               <div className="gba:text-[15px] gba:text-foreground/88 gba:leading-7">
                 <MarkdownWithChipsRenderer content={content} />
               </div>
@@ -193,7 +197,7 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
       return (
         <div className="gba:py-1" data-testid={`msg-${message.id}`}>
           <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-2xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-5 gba:py-4">
-            <WarningCircle className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0 gba:mt-0.5" />
+            <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0 gba:mt-0.5" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mb-0.5">Session failed</p>
               <p className="gba:text-sm gba:text-muted-foreground">{errMsg}</p>
