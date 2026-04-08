@@ -18,9 +18,13 @@ export interface SubmissionsOrgUnitGraphqlRow {
 
 /** One row per `compensation_budget_plan_organizational_unit` (joined for display). */
 export interface SubmissionsOrgUnitTableRow {
+  /** `compensation_budget_plan_organizational_unit.id` (REST/GraphQL org-unit budget row; pass as plan OU id). */
   id: string
+  /** Organizational unit entity id (org chart). */
   organizationalUnitId: string
   organizationalUnitName: string
+  /** Parent `compensation_budget_plan_company.id`. */
+  compensationBudgetPlanCompanyId: string
   budgetPlanLabel: string
   displayCurrency: string
   salaryBudgetAmount: number
@@ -52,6 +56,7 @@ export function buildSubmissionsOrgUnitTableRows(
       id: raw.id,
       organizationalUnitId: ouId,
       organizationalUnitName: nameFromChart || nameFromTeam || ouId,
+      compensationBudgetPlanCompanyId: raw.compensationBudgetPlanCompanyId,
       budgetPlanLabel,
       displayCurrency,
       salaryBudgetAmount: raw.salaryBudgetAmount,
