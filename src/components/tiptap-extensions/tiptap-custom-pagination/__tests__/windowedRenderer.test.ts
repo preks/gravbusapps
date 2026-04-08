@@ -599,6 +599,32 @@ describe('renderWindowedPaginationChrome', () => {
     expect(chrome.querySelectorAll('.rm-page-spacer')).toHaveLength(0)
     expect(chrome.querySelectorAll('.rm-page-break')).toHaveLength(3)
   })
+
+  it('does not put page 1 header inside the first page break (next break header is page 2)', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    storage.pageCount = 2
+    const wrapper = createPaginationWrapper({
+      totalPages: 2,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      rendererState: {
+        activeRange: { startPage: 1, endPage: 2 },
+        mountedRange: { startPage: 1, endPage: 2 },
+        windowKey: 'w',
+        placeholderBreakerMetricsByPage: new Map()
+      }
+    })
+
+    const firstPageBreak = wrapper.querySelector('.rm-page-break[data-rm-page-number="1"]')
+    expect(firstPageBreak).not.toBeNull()
+    const breaker = firstPageBreak?.querySelector('.breaker')
+    expect(breaker?.querySelector('.rm-page-header-region[data-rm-page-number="1"]')).toBeNull()
+    expect(breaker?.querySelector('.rm-page-footer-region[data-rm-page-number="1"]')).not.toBeNull()
+    expect(breaker?.querySelector('.rm-page-header-region[data-rm-page-number="2"]')).not.toBeNull()
+  })
 })
 
 describe('createWindowedPaginationRenderer', () => {
@@ -668,7 +694,7 @@ describe('createWindowedPaginationRenderer', () => {
 
     expect(activeRegion.querySelector('.rm-page-header-content')?.innerHTML).toContain('Updated header')
     expect(deferredRegion.querySelector('.rm-page-header-content')?.innerHTML).not.toContain('Updated header')
-    expect(editorDom.style.minHeight).toBe('152px')
+    expect(editorDom.style.minHeight).toBe('158px')
     expect(scheduledCallbacks).toHaveLength(1)
 
     scheduledCallbacks[0](0)
@@ -748,7 +774,7 @@ describe('createWindowedPaginationRenderer', () => {
 
     renderer.refreshLayoutBounds(editorDom)
 
-    expect(editorDom.style.minHeight).toBe('132px')
+    expect(editorDom.style.minHeight).toBe('138px')
   })
 
   it('syncs root presentation styles through the renderer facade', () => {

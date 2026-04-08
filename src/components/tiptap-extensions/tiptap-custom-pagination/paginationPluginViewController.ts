@@ -3,7 +3,12 @@ import type { EditorView } from '@tiptap/pm/view'
 import type { AddPagesMeasurementSnapshot } from './paginationPageCountPolicy'
 import type { PagesStorage } from './types'
 
-export type PaginationDocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | null
+export type PaginationDocChangeOrigin =
+  | 'external'
+  | 'pagination-owned'
+  | 'hydration-owned'
+  | 'collaboration-remote'
+  | null
 export type SelectionNavigationDirection = 'forward' | 'backward' | null
 
 export interface PaginationPluginViewRuntimeState {
@@ -77,7 +82,10 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   const docChangedSinceLastUpdate = options.state.lastKnownDoc !== null && currentDoc !== options.state.lastKnownDoc
   const paginationOwnedDocChange = docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'pagination-owned'
   const hydrationOwnedDocChange = docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'hydration-owned'
-  const externalDocChange = docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange
+  const collaborationRemoteDocChange =
+    docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'collaboration-remote'
+  const externalDocChange =
+    docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange && !collaborationRemoteDocChange
   const selectionDirection = resolveSelectionNavigationDirection(
     options.state.lastKnownSelectionHead,
     currentSelectionHead

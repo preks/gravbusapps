@@ -50,6 +50,7 @@ export interface PagedDocumentEditorDialogHostProps {
   pageNumbersDialogOpen: boolean
   setPageNumbersDialogOpen: Dispatch<SetStateAction<boolean>>
   onApplyPageNumbers: ComponentProps<typeof PageNumbersDialog>['onApply']
+  pageNumbersLockedPosition: ComponentProps<typeof PageNumbersDialog>['lockedPosition']
   showLinkDialog: boolean
   setShowLinkDialog: Dispatch<SetStateAction<boolean>>
   linkDialogMode: ComponentProps<typeof LinkDialog>['mode']
@@ -97,6 +98,7 @@ export function PagedDocumentEditorDialogHost({
   pageNumbersDialogOpen,
   setPageNumbersDialogOpen,
   onApplyPageNumbers,
+  pageNumbersLockedPosition,
   showLinkDialog,
   setShowLinkDialog,
   linkDialogMode,
@@ -190,6 +192,7 @@ export function PagedDocumentEditorDialogHost({
           onOpenChange={setPageNumbersDialogOpen}
           pages={layoutFormatting.pages}
           onApply={onApplyPageNumbers}
+          lockedPosition={pageNumbersLockedPosition}
           data-testid="document-page-numbers-dialog"
         />
       )}

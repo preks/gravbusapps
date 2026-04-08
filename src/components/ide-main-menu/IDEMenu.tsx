@@ -42,6 +42,8 @@ export interface IDEMenuProps {
   selectedApp?: BusinessAppInfo | null
   onAppSelect: (app: BusinessAppInfo) => void
   onHomeClick: () => void
+  wordmarkUrl?: string | null
+  logomarkUrl?: string | null
 }
 
 type GroupedApps = Record<string, Record<string, BusinessAppInfo[]>>
@@ -126,7 +128,9 @@ export const IDEMenu: React.FC<IDEMenuProps> = ({
   activeSubModuleFilter,
   selectedApp,
   onAppSelect,
-  onHomeClick
+  onHomeClick,
+  wordmarkUrl,
+  logomarkUrl
 }) => {
   const grouped = React.useMemo(() => groupBusinessAppsByModule(businessApps), [businessApps])
   const basePath = getBasePath()
@@ -307,13 +311,13 @@ export const IDEMenu: React.FC<IDEMenuProps> = ({
 
   const brand: ShellSidebarBrand = React.useMemo(
     () => ({
-      logomark: <img src={PUBLIC_LOGOMARK_URL} alt="" className="nw:size-8 nw:object-contain" />,
-      wordmark: <img src={PUBLIC_WORDMARK_URL} alt="" className="nw:h-8 nw:w-auto nw:object-contain" />,
+      logomark: <img src={logomarkUrl ?? PUBLIC_LOGOMARK_URL} alt="" className="nw:size-8 nw:object-contain" />,
+      wordmark: <img src={wordmarkUrl ?? PUBLIC_WORDMARK_URL} alt="" className="nw:h-8 nw:w-auto nw:object-contain" />,
       href: homePath,
       onClick: onHomeClick,
       ariaLabel: 'Home'
     }),
-    [homePath, onHomeClick]
+    [homePath, onHomeClick, wordmarkUrl, logomarkUrl]
   )
 
   return <ShellSidebar brand={brand} sections={sections} data-testid="ide-main-menu" />

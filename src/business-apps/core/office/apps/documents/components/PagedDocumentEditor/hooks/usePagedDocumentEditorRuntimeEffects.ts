@@ -3,6 +3,7 @@ import type { Editor as TiptapEditor } from '@tiptap/react'
 import { Plugin, PluginKey, type Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Awareness } from 'y-protocols/awareness'
+import { TableMap, cellAround } from '@tiptap/pm/tables'
 import {
   emitDocumentActivity,
   emitDocumentActivityEnd
@@ -10,7 +11,6 @@ import {
 import type { PagedDocumentAutocompleteController } from './usePagedDocumentAutocompleteController'
 
 const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')
-const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHighlight')
 
 function getSpaceIdFromWindow(): string | null {
   if (globalThis.window === undefined) return null
@@ -34,19 +34,6 @@ export function mapSelectionRangeThroughTransaction(
 
   const from = Math.max(0, Math.min(mappedFrom.pos, docSize))
   const to = Math.max(from, Math.min(mappedTo.pos, docSize))
-  return to > from ? { from, to } : null
-}
-
-function resolveCurrentSelectionHighlightRange(
-  selection: Pick<TiptapEditor['state']['selection'], 'empty' | 'from' | 'to'>,
-  docSize: number
-): { from: number; to: number } | null {
-  if (selection.empty) {
-    return null
-  }
-
-  const from = Math.max(0, Math.min(selection.from, docSize))
-  const to = Math.max(from, Math.min(selection.to, docSize))
   return to > from ? { from, to } : null
 }
 
@@ -194,6 +181,58 @@ export function usePagedDocumentEditorRuntimeEffects({
   ])
 
   useEffect(() => {
+    if (!editor) return
+    const updateSelectionContext = () => {
+      const { state } = editor
+      const $cell = cellAround(state.selection.$from)
+      let context: {
+        tableId?: string
+        rowId?: string
+        rowIndex?: number
+        cellIndex?: number
+      } | null = null
+
+      for (let depth = state.selection.$from.depth; depth > 0; depth -= 1) {
+        const node = state.selection.$from.node(depth)
+        if (node.type.name === 'table') {
+          const pos = state.selection.$from.before(depth)
+          const map = TableMap.get(node)
+          const resolvedCell = $cell ? map.findCell($cell.pos - pos - 1) : null
+          const tableStableId =
+            (typeof node.attrs.id === 'string' && node.attrs.id) ||
+            (typeof node.attrs.tableId === 'string' && node.attrs.tableId) ||
+            undefined
+          context = {
+            tableId: tableStableId,
+            rowIndex: resolvedCell?.top,
+            cellIndex: resolvedCell?.left
+          }
+        }
+        if (node.type.name === 'tableRow' && context) {
+          const rowStableId =
+            (typeof node.attrs.id === 'string' && node.attrs.id) ||
+            (typeof node.attrs.rowId === 'string' && node.attrs.rowId) ||
+            undefined
+          context = { ...context, rowId: rowStableId }
+          break
+        }
+      }
+
+      awareness.setLocalStateField('selectionContext', context)
+    }
+
+    updateSelectionContext()
+    editor.on('selectionUpdate', updateSelectionContext)
+    editor.on('transaction', updateSelectionContext)
+
+    return () => {
+      editor.off('selectionUpdate', updateSelectionContext)
+      editor.off('transaction', updateSelectionContext)
+      awareness.setLocalStateField('selectionContext', null)
+    }
+  }, [editor, awareness])
+
+  useEffect(() => {
     if (!documentId || !currentUserId) return
 
     const activityType = isReadOnly ? 'viewing' : 'editing'
@@ -282,40 +321,6 @@ export function usePagedDocumentEditorRuntimeEffects({
       editor.off('selectionUpdate', handleSelectionUpdate)
     }
   }, [editor, autocomplete])
-
-  useEffect(() => {
-    if (!editor) return
-
-    const existing = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
-    if (!existing) {
-      editor.registerPlugin(
-        new Plugin({
-          key: CURRENT_SELECTION_PLUGIN_KEY,
-          props: {
-            decorations(state) {
-              const selectionRange = resolveCurrentSelectionHighlightRange(state.selection, state.doc.content.size)
-              if (!selectionRange) {
-                return DecorationSet.empty
-              }
-
-              return DecorationSet.create(state.doc, [
-                Decoration.inline(selectionRange.from, selectionRange.to, {
-                  class: 'current-selection-highlight'
-                })
-              ])
-            }
-          }
-        })
-      )
-    }
-
-    return () => {
-      const active = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
-      if (active) {
-        editor.unregisterPlugin(CURRENT_SELECTION_PLUGIN_KEY)
-      }
-    }
-  }, [editor])
 
   useEffect(() => {
     if (!editor) return

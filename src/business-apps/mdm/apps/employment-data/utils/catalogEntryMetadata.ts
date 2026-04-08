@@ -1,29 +1,14 @@
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import type { JSONObject } from '@/common/types/i18nTypes'
 
-/** JSON stored in employment type catalog entry `additionalValue2`. */
-export type EmploymentTypeMetadata = {
-  is_deleted?: boolean
-}
-
-/** JSON stored in contract type catalog entry `additionalValue2` (probation + flags). */
+/** JSON stored in contract type catalog entry `additionalValue2`. */
 export type ContractTypeAdditionalJson = {
   value?: number | null
   unit?: string
-  payroll_relevant?: boolean
-  is_deleted?: boolean
 }
 
-export function parseEmploymentMetadata(additionalValue2?: string): EmploymentTypeMetadata {
-  if (!additionalValue2?.trim()) return {}
-  try {
-    const parsed = JSON.parse(additionalValue2) as unknown
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return { is_deleted: (parsed as EmploymentTypeMetadata).is_deleted === true }
-    }
-  } catch {
-    /* ignore */
-  }
-  return {}
+export type ContractTypeObjectValue = JSONObject & {
+  payroll_relevant?: boolean
 }
 
 export function parseContractTypeJson(additionalValue2?: string): ContractTypeAdditionalJson {
@@ -33,9 +18,7 @@ export function parseContractTypeJson(additionalValue2?: string): ContractTypeAd
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return {
         value: typeof parsed.value === 'number' ? parsed.value : null,
-        unit: typeof parsed.unit === 'string' ? parsed.unit : '',
-        payroll_relevant: parsed.payroll_relevant === true,
-        is_deleted: parsed.is_deleted === true
+        unit: typeof parsed.unit === 'string' ? parsed.unit : ''
       }
     }
   } catch {
@@ -44,32 +27,38 @@ export function parseContractTypeJson(additionalValue2?: string): ContractTypeAd
   return {}
 }
 
-/**
- * List responses with `localeCode` may surface `additionalValue2` only on translations, or omit
- * `is_deleted` on the root row while GET-by-id still returns canonical metadata. Check every
- * available string so soft-deleted rows are filtered consistently.
- */
-export function isContractTypeMarkedDeleted(entry: {
-  additionalValue2?: string
-  translations?: Array<{ additionalValue2?: string }>
-}): boolean {
-  const candidates = [entry.additionalValue2, ...(entry.translations ?? []).map(t => t.additionalValue2)].filter(
-    (s): s is string => typeof s === 'string' && s.trim() !== ''
-  )
-
-  for (const raw of candidates) {
-    if (parseContractTypeJson(raw).is_deleted === true) {
-      return true
-    }
+export function asCatalogObjectValue(objectValue?: CatalogEntry['objectValue']): JSONObject {
+  if (objectValue && typeof objectValue === 'object' && !Array.isArray(objectValue)) {
+    return objectValue as JSONObject
   }
-  return false
+  return {}
 }
 
-export function serializeContractTypeAdditionalJson(meta: ContractTypeAdditionalJson): string {
-  const out: Record<string, unknown> = {
-    payroll_relevant: meta.payroll_relevant === true,
-    is_deleted: meta.is_deleted === true
+export function getContractTypeObjectValue(entry: {
+  objectValue?: CatalogEntry['objectValue']
+}): ContractTypeObjectValue {
+  const objectValue = asCatalogObjectValue(entry.objectValue)
+  return {
+    ...objectValue,
+    payroll_relevant: objectValue.payroll_relevant === true
   }
+}
+
+export function getContractTypePayrollRelevant(entry: { objectValue?: CatalogEntry['objectValue'] }): boolean {
+  const objectValue = asCatalogObjectValue(entry.objectValue)
+  return objectValue.payroll_relevant === true
+}
+
+export function isEmploymentTypeMarkedDeleted(entry: { isDeleted?: boolean }): boolean {
+  return entry.isDeleted === true
+}
+
+export function isContractTypeMarkedDeleted(entry: { isDeleted?: boolean }): boolean {
+  return entry.isDeleted === true
+}
+
+export function serializeContractTypeAdditionalJson(meta: Pick<ContractTypeAdditionalJson, 'value' | 'unit'>): string {
+  const out: Record<string, unknown> = {}
   if (meta.value != null && typeof meta.value === 'number' && meta.unit != null && String(meta.unit).trim() !== '') {
     out.value = meta.value
     out.unit = meta.unit
@@ -110,7 +99,16 @@ export function upsertCatalogTranslationForLocale(
 export function mergeCatalogEntryForPut(
   existing: CatalogEntry,
   overrides: Partial<
-    Pick<CatalogEntry, 'value' | 'additionalValue1' | 'additionalValue2' | 'additionalValue3' | 'translations'>
+    Pick<
+      CatalogEntry,
+      | 'value'
+      | 'additionalValue1'
+      | 'additionalValue2'
+      | 'additionalValue3'
+      | 'objectValue'
+      | 'isDeleted'
+      | 'translations'
+    >
   >
 ): Record<string, unknown> {
   return {
@@ -124,7 +122,8 @@ export function mergeCatalogEntryForPut(
     additionalValue1: overrides.additionalValue1 ?? existing.additionalValue1,
     additionalValue2: overrides.additionalValue2 ?? existing.additionalValue2,
     additionalValue3: overrides.additionalValue3 ?? existing.additionalValue3,
-    objectValue: existing.objectValue,
+    objectValue: overrides.objectValue !== undefined ? overrides.objectValue : existing.objectValue,
+    isDeleted: overrides.isDeleted ?? existing.isDeleted,
     parentEntryId: existing.parentEntryId,
     translations: overrides.translations !== undefined ? overrides.translations : (existing.translations ?? [])
   }

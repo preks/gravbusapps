@@ -123,13 +123,22 @@ export function compareScreenHashes(screenPath, devHashes, prodHashes) {
   return { changed: false, reason: 'hash_match', devHash, prodHash }
 }
 
+/** Default git author for hash / screen-publish CI commits */
+export const CI_GIT_AUTHOR_NAME_HASHES = 'CI Hash Update Bot'
+
+/** Git author for bundle-top-dependencies.json CI commits (distinct from hash bot in history) */
+export const CI_GIT_AUTHOR_NAME_BUNDLE = 'CI Bundle Report Bot'
+
 /**
  * Configure git for CI commits
+ * @param {object} [options]
+ * @param {string} [options.userName] — defaults to {@link CI_GIT_AUTHOR_NAME_HASHES}
  */
-export function configureGit(projectRootDir, execSyncFn) {
+export function configureGit(projectRootDir, execSyncFn, options = {}) {
+  const userName = options.userName ?? CI_GIT_AUTHOR_NAME_HASHES
   try {
     // 1) Configure Git identity (these do NOT need to be secret; it's just who is performing the commit)
-    execSyncFn('git config user.name "CI Hash Update Bot"', { cwd: projectRootDir })
+    execSyncFn(`git config user.name ${JSON.stringify(userName)}`, { cwd: projectRootDir })
     execSyncFn('git config user.email "ci-bot@newwork.com"', { cwd: projectRootDir })
 
     // 2) Reconfigure 'origin' URL with credentials

@@ -21,6 +21,7 @@ export const useGenericPipelines = (accessToken: string, catalogIdentifier: stri
       pipelines: CatalogEntry(
         where: {
           catalog: { identifier: { _eq: $catalogIdentifier } }
+          isDeleted: { _eq: false }
         }
         orderBy: { value: ASC }
       ) {

@@ -15,8 +15,12 @@ import { env } from '@/common/env/EnvUtils'
 import { getServiceDeskCatalogCache } from './catalog-cache/ServiceDeskCatalogCache'
 
 // Base URL for the custom flow engine API
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
+const API_BASE = (() => {
+  const raw = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+  const trimmed = raw.replace(/\/+$/, '')
+  if (trimmed.endsWith('/api')) return trimmed
+  return trimmed + '/api'
+})()
 
 /**
  * Services app catalog identifier for filtering service desk tickets

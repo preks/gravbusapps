@@ -1,12 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Tabs, TabsContent } from '@newwork/nw-design-system'
 import { Activity, Sparkles, Network } from 'lucide-react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { SteeringChat } from './SteeringChat'
 import { ResultCanvas } from './ResultCanvas'
 import { AgentCommFeed, type CommEvent } from './AgentCommFeed'
 import { LiveTracePanel } from './LiveTracePanel'
 import { SessionSidebar } from './SessionSidebar'
-import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
 import { useSteeringSessions } from '../../hooks/useSteeringSessions'
 import type { ExecutionTrace, SessionCommEvent } from '../../types/agentMesh'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
@@ -21,7 +21,7 @@ const MAX_PANEL_RATIO = 0.45
 const DEFAULT_PANEL_WIDTH = 400
 
 export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps) => {
-  const meshClient = useAgentMeshClient(accessToken)
+  const promptManagerClient = usePromptManagerClient(accessToken)
   const [result, setResult] = useState<string | null>(null)
   const [trace, setTrace] = useState<ExecutionTrace | null>(null)
   const [isTraceExpanded, setIsTraceExpanded] = useState(false)
@@ -55,7 +55,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
     handleSelectSession: rawSelectSession,
     handleDeleteSession,
     handleSessionSave
-  } = useSteeringSessions({ meshClient, userId: userInfo?.id, onReset: sessionResetCb })
+  } = useSteeringSessions({ meshClient: promptManagerClient, userId: userInfo?.id, onReset: sessionResetCb })
 
   const handleNewSession = useCallback(() => {
     rawNewSession()
@@ -124,7 +124,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
 
   const pollOnce = useCallback(async () => {
     try {
-      const executions = await meshClient.getExecutions({
+      const executions = await promptManagerClient.getMeshExecutions({
         limit: 20,
         ...(pollSinceRef.current ? { since: pollSinceRef.current } : {})
       })
@@ -196,7 +196,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
 
       if (currentCorrelationIdRef.current) {
         try {
-          const traceData = await meshClient.getExecutionTrace(currentCorrelationIdRef.current)
+          const traceData = await promptManagerClient.getMeshExecutionTrace(currentCorrelationIdRef.current)
           setTrace(traceData)
         } catch {
           /* best effort */
@@ -205,7 +205,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
     } catch {
       /* polling is best-effort */
     }
-  }, [meshClient])
+  }, [promptManagerClient])
 
   const handleExecutionStart = useCallback(
     (agentName: string) => {

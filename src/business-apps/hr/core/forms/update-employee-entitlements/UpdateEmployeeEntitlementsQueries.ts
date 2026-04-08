@@ -28,10 +28,20 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
       vacationDays
     }
   }
-  EmployeeAbsenceEntitlement(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, validFrom: {_gte: $firstDayOfCurrentYear}, validTo: {_lte: $lastDayOfCurrentYear}}, orderBy: {type: {code: ASC}}) {
+  EmployeeAbsenceEntitlement(
+    where: {
+      isDeleted: {_eq: false},
+      employeeId: {_eq: $employeeId},
+      validFrom: {_gte: $firstDayOfCurrentYear},
+      _or: [{validTo: {_lte: $lastDayOfCurrentYear}}, {validTo: {_isNull: true}}]
+    },
+    orderBy: {type: {code: ASC}}
+  ) {
     id
     version
     employeeId
+    validFrom
+    validTo
     type {
       objectValue
       value
@@ -49,7 +59,7 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
     total
     approved
   }  
-      absenceType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "AbsenceType"}}, objectValue: {_contains: { checkEntitlement: true }}}, orderBy: {value: ASC}) {
+      absenceType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "AbsenceType"}}, objectValue: {_contains: { checkEntitlement: true }}, isDeleted: {_eq: false}}, orderBy: {value: ASC}) {
     id
     value
     code

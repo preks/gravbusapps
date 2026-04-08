@@ -12,6 +12,7 @@ import {
   getLinkedInChannel,
   getXingChannel
 } from '@/common/data/common/utils/communicationChannelHelpers'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are a sales relationship assistant analyzing a customer contact.
 
@@ -86,8 +87,7 @@ export function useContactAiSummary(
 
       // Get activities data with pagination
       const allActivities = await fetchPaginatedData(fetchCustomerActivitiesByContactId, contactId)
-      allActivities.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      const sortedActivities = allActivities
+      const sortedActivities = sortActivitiesByOccurredAtDesc(allActivities)
 
       // Get notes data with pagination
       const allNotes = await fetchPaginatedData(fetchCustomerNotesByContactId, contactId)
@@ -140,7 +140,7 @@ export function useContactAiSummary(
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,
         tasksCount: sortedTasks.length,
-        lastActivityDate: sortedActivities[0]?.createdAt,
+        lastActivityDate: sortedActivities[0]?.occurredAt || sortedActivities[0]?.createdAt,
         lastNoteDate: sortedNotes[0]?.createdAt,
         lastTaskDate: sortedTasks[0]?.createdAt,
         createdAt: contact.createdAt,

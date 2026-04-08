@@ -9,22 +9,35 @@ function getFlowOrder(host: HTMLElement) {
   return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER
 }
 
+function findParagraphAnchorElement(anchorElement: HTMLElement) {
+  return anchorElement.closest(PARAGRAPH_ANCHOR_SELECTOR) as HTMLElement | null
+}
+
+/**
+ * Element whose `getBoundingClientRect()` drives page-overlay positioning.
+ * Word-like move-with-text wrapping keeps the image semantically anchored inside the paragraph,
+ * so paragraph geometry is the primary source-of-truth whenever paragraph anchoring applies.
+ */
 export function resolveImageAnchorGeometryElement(
   anchorElement: HTMLElement,
-  layout: Pick<WordLikeImageLayout, 'anchorReference'>
+  layout: Pick<WordLikeImageLayout, 'anchorReference' | 'flowMode'>
 ): HTMLElement {
   if (layout.anchorReference !== 'paragraph') {
     return anchorElement
   }
 
-  return (anchorElement.closest(PARAGRAPH_ANCHOR_SELECTOR) as HTMLElement | null) ?? anchorElement
+  return findParagraphAnchorElement(anchorElement) ?? anchorElement
 }
 
 export function resolveImageFlowShimTarget(
   anchorElement: HTMLElement,
-  layout: Pick<WordLikeImageLayout, 'renderMode' | 'exclusionMode' | 'anchorReference'>
+  layout: Pick<WordLikeImageLayout, 'renderMode' | 'exclusionMode' | 'anchorReference' | 'wrapMode'>
 ): HTMLElement | null {
-  if (layout.renderMode !== 'overlay' || layout.exclusionMode === 'none') {
+  if (layout.exclusionMode === 'none') {
+    return null
+  }
+
+  if (layout.renderMode !== 'overlay') {
     return null
   }
 
@@ -32,13 +45,14 @@ export function resolveImageFlowShimTarget(
     return anchorElement.parentElement
   }
 
-  return (anchorElement.closest(PARAGRAPH_ANCHOR_SELECTOR) as HTMLElement | null) ?? anchorElement.parentElement
+  return findParagraphAnchorElement(anchorElement) ?? anchorElement.parentElement
 }
 
 export function syncImageFlowShimHost(target: HTMLElement, host: HTMLElement, order: number) {
   host.dataset.imageFlowShimHost = 'true'
   host.dataset.imageFlowOrder = String(order)
   host.setAttribute('contenteditable', 'false')
+  host.style.display = 'contents'
   host.style.pointerEvents = 'none'
 
   const nextHost =
@@ -93,7 +107,6 @@ export function resolveImageFlowShimStyle(
     width: layout.layoutWidth,
     height: layout.layoutHeight,
     shapeOutside: polygon,
-    WebkitShapeOutside: polygon,
     pointerEvents: 'none',
     userSelect: 'none',
     visibility: 'hidden'

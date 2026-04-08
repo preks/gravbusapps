@@ -32,7 +32,7 @@ export const DriveListItemActions: React.FC<DriveListItemActionsProps> = ({
   t,
   testId
 }) => (
-  <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:w-36">
+  <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:w-48">
     {!isTrash && (
       <button
         onClick={e => {

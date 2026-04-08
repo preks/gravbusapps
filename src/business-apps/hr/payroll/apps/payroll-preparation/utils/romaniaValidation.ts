@@ -1,6 +1,21 @@
 import type { PayrollEmployee, PayrollIssue } from '../types/payrollTypes'
 import { createIssue } from './validationRules'
 
+const CNP_WEIGHTS = [2, 7, 9, 1, 4, 6, 3, 5, 8, 2, 7, 9]
+
+function isValidCNP(cnp: string): boolean {
+  if (!/^\d{13}$/.test(cnp)) return false
+
+  let checksum = 0
+  for (let i = 0; i < 12; i++) {
+    checksum += Number(cnp[i]) * CNP_WEIGHTS[i]
+  }
+  let remainder = checksum % 11
+  if (remainder === 10) remainder = 1
+
+  return remainder === Number(cnp[12])
+}
+
 export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] {
   const issues: PayrollIssue[] = []
 
@@ -13,6 +28,18 @@ export function runRomaniaValidation(employee: PayrollEmployee): PayrollIssue[] 
         'blocker',
         'CNP (Cod Numeric Personal) is missing. Required for Romanian payroll and statutory reporting.',
         'Add the CNP / social security number in the employee tax details section.',
+        'taxDetails.socialSecurityNumber'
+      )
+    )
+  } else if (!isValidCNP(employee.socialInsuranceNumber)) {
+    issues.push(
+      createIssue(
+        employee.employeeId,
+        'RO_INVALID_CNP',
+        'missing_tax_social',
+        'blocker',
+        'CNP (Cod Numeric Personal) is invalid. The 13-digit checksum validation failed.',
+        'Verify and correct the CNP in the employee tax details section.',
         'taxDetails.socialSecurityNumber'
       )
     )

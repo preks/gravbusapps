@@ -1949,7 +1949,6 @@ const COMMON_MISSPELLINGS: Record<string, string> = {
   relevent: 'relevant',
   responsability: 'responsibility',
   succesful: 'successful',
-  suprise: 'surprise',
   tommorow: 'tomorrow',
   wierd: 'weird',
   accomodate: 'accommodate',

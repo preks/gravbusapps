@@ -7,7 +7,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef } from 'react'
 import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import DOMPurify from 'dompurify'
 import { ChevronRight } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOfficeClient } from '@/common/network/office/useOfficeClient'
@@ -51,8 +50,10 @@ import { usePagedDocumentEditorRuntimeEffects } from './hooks/usePagedDocumentEd
 import { usePagedDocumentExternalContentSync } from './hooks/usePagedDocumentExternalContentSync'
 import { usePagedDocumentShellControls } from './hooks/usePagedDocumentShellControls'
 import { usePagedDocumentInteractionDialogs, type RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
+import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import {
   CLOSED_TABLE_SIDEBAR,
+  getSelectedDocumentTocState,
   getSelectedImageState,
   usePagedDocumentSelectionSidebars
 } from './hooks/usePagedDocumentSelectionSidebars'
@@ -99,6 +100,7 @@ function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean
   }
 }
 
+/** When true, the Pages extension is not mounted — no pagination DOM (including `.rm-first-page-header`). */
 function isDocumentPaginationDisabled(): boolean {
   return readDocumentDebugFlag('disableDocumentPagination', DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY)
 }
@@ -282,12 +284,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           const nextTitle = latest.title || title
           setTitle(nextTitle)
 
-          const latestHtml =
-            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(latest.content || '<p></p>'), {
-              USE_PROFILES: { html: true },
-              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-              ALLOW_DATA_ATTR: true
-            }) || '<p></p>'
+          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
           const currentHtml = editorRef.current.getHTML?.() || ''
           if (!isYjsSyncedRef.current && latestHtml && latestHtml !== currentHtml) {
             isApplyingRemoteContentRef.current = true
@@ -311,6 +308,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, officeClient, title])
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
+
+    const [headerFooterSettingsSessionOpen, setHeaderFooterSettingsSessionOpen] = useState(false)
+    const [headerFooterPanelFallback, setHeaderFooterPanelFallback] = useState<{
+      type: 'header' | 'footer'
+      pageNumber: number
+    } | null>(null)
     const paginationDebugDisabled = useMemo(() => isDocumentPaginationDisabled(), [])
     const targetDocumentTableDebugEnabled = useMemo(
       () => isTargetDocumentTableDebugEnabled(document?.id),
@@ -331,13 +334,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         activeEditorType: null,
         activePageNumber: null
       })
+      setHeaderFooterSettingsSessionOpen(false)
+      setHeaderFooterPanelFallback(null)
     }, [document?.id])
 
     const [showInsertTableDialog, setShowInsertTableDialog] = useState(false)
     const [showInsertSignatureDialog, setShowInsertSignatureDialog] = useState(false)
+    const replaceSignaturePosRef = useRef<number | null>(null)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [tocSidebarNodePos, setTocSidebarNodePos] = useState<number | null>(null)
+    const tocSidebarNodePosRef = useRef<number | null>(null)
+    const rightSidebarRef = useRef<RightSidebar>('closed')
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
@@ -357,6 +365,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
       return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
     }, [])
+
+    useEffect(() => {
+      tocSidebarNodePosRef.current = tocSidebarNodePos
+    }, [tocSidebarNodePos])
+
+    useEffect(() => {
+      rightSidebarRef.current = rightSidebar
+    }, [rightSidebar])
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -523,12 +539,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
             await officeClient.documents.update(id, {
               title: snapshot.title as string,
-              content:
-                DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
-                  USE_PROFILES: { html: true },
-                  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-                  ALLOW_DATA_ATTR: true
-                }) || '',
+              content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
               description: snapshot.description as string | undefined,
               tags: snapshot.tags as string[] | undefined,
               category: snapshot.category as string | undefined,
@@ -824,13 +835,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
-      return (
-        DOMPurify.sanitize(sanitizeDocumentHtmlForEditor(rawContent), {
-          USE_PROFILES: { html: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-          ALLOW_DATA_ATTR: true
-        }) || '<p></p>'
-      )
+      return sanitizeDocumentHtmlForEditor(rawContent)
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
@@ -919,7 +924,28 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setPagesEditorState
     })
 
+    const handleCloseHeaderFooterSidebar = useCallback(() => {
+      setHeaderFooterSettingsSessionOpen(false)
+      setHeaderFooterPanelFallback(null)
+      closeHeaderFooterEditorsAndSidebar()
+    }, [closeHeaderFooterEditorsAndSidebar])
+
     const activeHeaderFooterEditor = pagesEditorState.activeEditor
+
+    useEffect(() => {
+      if (isHeaderFooterEditing && activeHeaderFooterEditor) {
+        setHeaderFooterSettingsSessionOpen(true)
+      }
+    }, [isHeaderFooterEditing, activeHeaderFooterEditor])
+
+    useEffect(() => {
+      if (pagesEditorState.activeEditorType && pagesEditorState.activePageNumber != null) {
+        setHeaderFooterPanelFallback({
+          type: pagesEditorState.activeEditorType,
+          pageNumber: pagesEditorState.activePageNumber
+        })
+      }
+    }, [pagesEditorState.activeEditorType, pagesEditorState.activePageNumber])
     const activeEditor = activeHeaderFooterEditor ?? editor
     const { currentPage, handleScroll, layoutSnapshot, layoutViewportModel, isInitialLayoutSettled } =
       usePagedDocumentLayoutState({
@@ -959,10 +985,44 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         insertPart: 'full' | 'initials'
       }) => {
         if (!activeEditor) return
-        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+        const replacePos = replaceSignaturePosRef.current
+        replaceSignaturePosRef.current = null
         const isInitials = sig.insertPart === 'initials'
         const width = isInitials ? 120 : 200
         const height = isInitials ? 64 : 80
+
+        if (replacePos != null) {
+          const node = activeEditor.state.doc.nodeAt(replacePos)
+          if (node?.type.name === 'signature') {
+            const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
+            activeEditor
+              .chain()
+              .focus()
+              .setNodeSelection(replacePos)
+              .updateAttributes('signature', {
+                signatureId: sig.id ?? null,
+                kind: sig.kind,
+                snapshotSvg: sig.snapshotSvg,
+                name: sig.name ?? null,
+                pageNumber: node.attrs.pageNumber ?? pageNum,
+                x: node.attrs.x,
+                y: node.attrs.y,
+                width,
+                height,
+                lockAspectRatio: true,
+                createdBy: node.attrs.createdBy,
+                cropTop: 0,
+                cropRight: 0,
+                cropBottom: 0,
+                cropLeft: 0,
+                rotation: 0
+              })
+              .run()
+            return
+          }
+        }
+
+        const pageNum = pagesEditorState.activePageNumber ?? currentPage ?? 1
         activeEditor
           .chain()
           .focus()
@@ -982,10 +1042,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       [activeEditor, pagesEditorState.activePageNumber, currentPage]
     )
 
+    useEffect(() => {
+      if (!showInsertSignatureDialog) {
+        replaceSignaturePosRef.current = null
+      }
+    }, [showInsertSignatureDialog])
+
     const {
       replaceImagePosRef,
       selectedImageSidebar,
       selectedTableSidebar,
+      selectedSignatureSidebar,
       showBodyWhileEditingHeaderFooter,
       setShowBodyWhileEditingHeaderFooter,
       documentRightPanelOffset,
@@ -993,19 +1060,139 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentEditorRightReservePx,
       imageSidebarContextSubtitleKey,
       tableSidebarContextSubtitleKey,
+      signatureSidebarContextSubtitleKey,
       setSelectedImageSidebarState,
       setSelectedTableSidebarState,
       closeImageSettingsSidebar,
       closeTableSettingsSidebar,
-      openTableSettingsSidebar
+      closeSignatureSettingsSidebar,
+      openTableSettingsSidebar,
+      activeSignatureUiState
     } = usePagedDocumentSelectionSidebars({
       editor,
       activeEditor,
       activeHeaderFooterEditor,
       activeHeaderFooterType: pagesEditorState.activeEditorType,
       isHeaderFooterEditing,
+      headerFooterSettingsSessionOpen,
       rightSidebar
     })
+
+    const resolvedHeaderFooterType = pagesEditorState.activeEditorType ?? headerFooterPanelFallback?.type ?? 'header'
+    const resolvedHeaderFooterPageNumber =
+      pagesEditorState.activePageNumber ?? headerFooterPanelFallback?.pageNumber ?? 1
+
+    const handleOpenReplaceSignatureDialog = useCallback(() => {
+      const pos = selectedSignatureSidebar.pos
+      if (pos == null) return
+      replaceSignaturePosRef.current = pos
+      setShowInsertSignatureDialog(true)
+    }, [selectedSignatureSidebar.pos])
+
+    useEffect(() => {
+      if (!editor && !activeEditor) return
+
+      const getPersistedTocAtPos = (ed: NonNullable<typeof editor>, pos: number | null) => {
+        if (pos == null) return null
+        const node = ed.state.doc.nodeAt(pos)
+        if (node?.type.name !== 'documentTableOfContents') return null
+        return pos
+      }
+
+      const editors: NonNullable<typeof editor>[] = []
+      if (activeEditor) editors.push(activeEditor)
+      if (editor && editor !== activeEditor) editors.push(editor)
+
+      const syncTocFromSelection = (sourceEditor?: NonNullable<typeof editor>) => {
+        const candidates = sourceEditor ? [sourceEditor, ...editors.filter(e => e !== sourceEditor)] : editors
+        const match = candidates
+          .map(ed => ({ ed, toc: getSelectedDocumentTocState(ed) }))
+          .find(entry => entry.toc !== null)
+
+        if (match?.toc) {
+          setTocSidebarNodePos(match.toc.tocPos)
+          setRightSidebar('toc')
+          return
+        }
+
+        if (rightSidebarRef.current !== 'toc') return
+
+        const ed = sourceEditor ?? activeEditor ?? editor
+        if (!ed) {
+          setTocSidebarNodePos(null)
+          setRightSidebar('closed')
+          return
+        }
+
+        const persistedPos = getPersistedTocAtPos(ed, tocSidebarNodePosRef.current)
+        if (persistedPos != null) {
+          setTocSidebarNodePos(persistedPos)
+          return
+        }
+
+        setTocSidebarNodePos(null)
+        setRightSidebar('closed')
+      }
+
+      const subs: Array<{
+        ed: NonNullable<typeof editor>
+        selectionFn: () => void
+        transactionFn: (payload: { transaction: ProseMirrorTransaction }) => void
+      }> = []
+
+      for (const ed of editors) {
+        const selectionFn = () => syncTocFromSelection(ed)
+        const transactionFn = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+          if (transaction.selectionSet) {
+            syncTocFromSelection(ed)
+            return
+          }
+          if (!transaction.docChanged) return
+          if (rightSidebarRef.current !== 'toc') return
+          const pos = tocSidebarNodePosRef.current
+          if (pos == null) return
+          const mapped = transaction.mapping.mapResult(pos)
+          if (mapped.deleted) {
+            setRightSidebar('closed')
+            setTocSidebarNodePos(null)
+            return
+          }
+          if (mapped.pos !== pos) {
+            setTocSidebarNodePos(mapped.pos)
+          }
+        }
+        ed.on('selectionUpdate', selectionFn)
+        ed.on('transaction', transactionFn)
+        subs.push({ ed, selectionFn, transactionFn })
+      }
+
+      syncTocFromSelection()
+
+      return () => {
+        for (const { ed, selectionFn, transactionFn } of subs) {
+          ed.off('selectionUpdate', selectionFn)
+          ed.off('transaction', transactionFn)
+        }
+      }
+    }, [editor, activeEditor])
+
+    useEffect(() => {
+      if (rightSidebar !== 'toc') return
+
+      const handlePointerDown = (event: PointerEvent) => {
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+        if (target.closest('[data-testid="document-toc-settings-sidebar"]')) return
+        if (target.closest('[data-document-toc-sidebar-dropdown]')) return
+        if (target.closest('[data-testid="document-table-of-contents"]')) return
+        setRightSidebar('closed')
+        setTocSidebarNodePos(null)
+      }
+
+      globalThis.document.addEventListener('pointerdown', handlePointerDown, true)
+      return () => globalThis.document.removeEventListener('pointerdown', handlePointerDown, true)
+    }, [rightSidebar])
+
     const {
       showInsertImageDialog,
       setShowInsertImageDialog,
@@ -1122,8 +1309,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       persistPagesFromEditor
     } = usePagedDocumentPageNumberActions({
       editor,
-      editorRef,
       layoutFormattingRef,
+      getPersistedPagesFormatting,
       buildPersistedFormatting,
       persistFormatting,
       markUnsavedChanges: () => setHasUnsavedChanges(true)
@@ -1136,6 +1323,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       lastSavedTitleRef.current = title
     }, [document?.id])
     const getImageDataUrl = useImageDataUrlResolver(accessToken)
+    const documentTocExportLabels = useMemo(
+      () => ({
+        blockTitle: t('document-toc-block-title'),
+        emptyMessage: t('document-toc-empty'),
+        untitledHeading: t('title-untitled'),
+        duplicateHeadingFilterDocumentTitle: title.trim() || undefined
+      }),
+      [t, title]
+    )
     const {
       isSaving,
       isExporting,
@@ -1173,7 +1369,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       buildPersistedFormatting,
       layoutFormatting,
       printStyleConfig,
-      getImageDataUrl: async src => (await getImageDataUrl(src)) ?? ''
+      getImageDataUrl,
+      documentTocExportLabels
     })
     editorOnUpdateRef.current = () => {
       if (document?.id) {
@@ -1484,6 +1681,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           pageNumbersDialogOpen={pageNumbersDialogOpen}
           setPageNumbersDialogOpen={setPageNumbersDialogOpen}
           onApplyPageNumbers={handlePageNumbersApply}
+          pageNumbersLockedPosition={
+            pagesEditorState.activeEditorType === 'header' || pagesEditorState.activeEditorType === 'footer'
+              ? pagesEditorState.activeEditorType
+              : undefined
+          }
           showLinkDialog={showLinkDialog}
           setShowLinkDialog={setShowLinkDialog}
           linkDialogMode={linkDialogMode}
@@ -1516,6 +1718,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onUnhighlightComment={handleUnhighlightComment}
           onScrollToHighlight={handleScrollToHighlight}
           showHeaderFooterSidebar={showHeaderFooterSidebar}
+          headerFooterSettingsSessionOpen={headerFooterSettingsSessionOpen}
+          resolvedHeaderFooterType={resolvedHeaderFooterType}
+          resolvedHeaderFooterPageNumber={resolvedHeaderFooterPageNumber}
           pagesEditorState={pagesEditorState}
           differentFirstPage={pagesFormattingConfig.differentFirstPage}
           differentOddEven={pagesFormattingConfig.differentOddEven}
@@ -1528,7 +1733,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onOpenPageNumbers={handleOpenPageNumbersDialog}
           onQuickPageNumberPlacement={handleQuickPageNumberPlacement}
           onRemovePageNumber={handlePageNumbersRemove}
-          onCloseHeaderFooterSidebar={closeHeaderFooterEditorsAndSidebar}
+          onCloseHeaderFooterSidebar={handleCloseHeaderFooterSidebar}
           selectedTableSidebar={selectedTableSidebar}
           tableContextSubtitle={tableSidebarContextSubtitleKey ? t(tableSidebarContextSubtitleKey) : undefined}
           onCloseTableSidebar={closeTableSettingsSidebar}
@@ -1536,6 +1741,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           imageContextSubtitle={imageSidebarContextSubtitleKey ? t(imageSidebarContextSubtitleKey) : undefined}
           onCloseImageSidebar={closeImageSettingsSidebar}
           onReplaceImage={openReplaceImageDialog}
+          selectedSignatureSidebar={selectedSignatureSidebar}
+          signatureContextSubtitle={
+            signatureSidebarContextSubtitleKey ? t(signatureSidebarContextSubtitleKey) : undefined
+          }
+          onCloseSignatureSidebar={closeSignatureSettingsSidebar}
+          onReplaceSignature={handleOpenReplaceSignatureDialog}
+          signatureCropActive={
+            activeSignatureUiState.mode === 'crop' &&
+            activeSignatureUiState.pos != null &&
+            activeSignatureUiState.pos === selectedSignatureSidebar.pos
+          }
           tocSidebarNodePos={tocSidebarNodePos}
           onCloseTocSidebar={() => {
             setRightSidebar('closed')

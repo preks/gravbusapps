@@ -26,8 +26,8 @@ export interface AutomationsPanelProps {
   spreadsheetId: string
   sheetId: string
   accessToken: string
-  /** Optional: Update column labels in batch (e.g. for bulk collection form field headers) */
-  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void
+  /** Optional: Update column labels in batch (e.g. for bulk collection form field headers). May return a Promise. */
+  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void | Promise<void>
   onCreateAutomation: (
     automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'>
   ) => Promise<unknown>
@@ -36,7 +36,11 @@ export interface AutomationsPanelProps {
   onToggleAutomation: (id: string, enabled: boolean) => Promise<unknown>
   onDuplicateAutomation: (id: string) => Promise<unknown>
   onRunAutomation: (id: string, rows?: Array<{ id: string; cells: Record<string, unknown> }>) => Promise<unknown>
-  onRefreshWorkflowStatuses: () => void
+  onRefreshWorkflowStatuses: () => void | Promise<void>
+  /** Reload automations from document service (same as Spreadsheets → Automations hub tab). */
+  onRefreshAutomations?: () => void | Promise<void>
+  /** When set, shows a button to fetch completed collection responses immediately (bulk / Excel collection). */
+  onCheckCollectionResponses?: () => void | Promise<void>
   showSummarizeButton?: boolean
   onSummarizeClick?: () => void
   isSummarizing?: boolean
@@ -63,6 +67,8 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
   onDuplicateAutomation,
   onRunAutomation,
   onRefreshWorkflowStatuses,
+  onRefreshAutomations,
+  onCheckCollectionResponses,
   showSummarizeButton = false,
   onSummarizeClick,
   isSummarizing = false,
@@ -71,6 +77,17 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
   const { t } = useTranslation(translations)
   const [isWizardOpen, setIsWizardOpen] = React.useState(false)
   const [editingAutomation, setEditingAutomation] = React.useState<SpreadsheetAutomation | null>(null)
+
+  const hasEnabledCollectionAutomation = automations.some(
+    a => (a.type === 'bulk_collection' || a.type === 'excel_collection') && a.isEnabled
+  )
+
+  const handleHubRefresh = React.useCallback(async () => {
+    if (onRefreshAutomations) {
+      await onRefreshAutomations()
+    }
+    await onRefreshWorkflowStatuses()
+  }, [onRefreshAutomations, onRefreshWorkflowStatuses])
 
   if (!isOpen) return null
 
@@ -132,6 +149,7 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
                       await onRunAutomation(id, rows)
                     }}
                     onRefreshStatuses={onRefreshWorkflowStatuses}
+                    onCheckCollectionResponses={hasEnabledCollectionAutomation ? onCheckCollectionResponses : undefined}
                     isExecuting={false}
                     showSummarizeButton={showSummarizeButton}
                     onSummarizeClick={onSummarizeClick}
@@ -165,7 +183,7 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
                   }))
                   await onRunAutomation(id, rows)
                 }}
-                onRefresh={onRefreshWorkflowStatuses}
+                onRefresh={handleHubRefresh}
                 data-testid={`${testId}-hub`}
               />
             </div>

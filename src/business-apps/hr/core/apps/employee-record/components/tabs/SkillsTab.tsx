@@ -25,7 +25,8 @@ import {
   applySkillsFiltersAndSort,
   getJobProfileGap,
   getSkillDistribution,
-  getSkillsSnapshotData
+  getSkillsSnapshotData,
+  isSkillVerified
 } from './components/skills-profile/skillsProfile.utils'
 
 interface SkillsTabProps {
@@ -63,7 +64,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
   const snapshot = useMemo(() => getSkillsSnapshotData(employeeSkills), [employeeSkills])
   const distribution = useMemo(() => getSkillDistribution(employeeSkills), [employeeSkills])
-  const verifyCount = useMemo(() => validSkills.filter(skill => !skill.verificationDocumentId).length, [validSkills])
+  const verifyCount = useMemo(() => validSkills.filter(skill => !isSkillVerified(skill)).length, [validSkills])
   const jobProfileGap = useMemo(
     () =>
       getJobProfileGap({

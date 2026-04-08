@@ -1113,18 +1113,17 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
   )
 
   return (
-    <div data-testid="record-example">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={BuildingIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.example', 'EXAMPLE')}
-        headerTitle="Record Example"
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="record-example"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={BuildingIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.example', 'EXAMPLE')}
+      headerTitle="Record Example"
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

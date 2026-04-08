@@ -56,35 +56,47 @@ describe('ensurePagesStyles', () => {
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-content table[data-table-theme="blue"]')
     expect(style?.textContent).toContain('table[data-table-style-header-row="true"] > tbody > tr:first-child > td')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-header-region[contenteditable="true"]')
-    expect(style?.textContent).toContain('.rm-pages-root .rm-first-page-header > .rm-page-header')
+    expect(style?.textContent).toContain('.rm-pages-root .rm-first-page-header')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .tableWrapper')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .column-resize-handle')
+    expect(style?.textContent).toContain('z-index: 20')
+    expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror.resize-cursor')
     expect(style?.textContent).toContain('.rm-pages-root .rm-page-inline-editor .ProseMirror .selectedCell:after')
   })
 
-  it('keeps the standalone first page header shell behind overlapping body content', () => {
+  it('lifts body prose above behind-image overlays when editor root is .rm-pages-root.ProseMirror', () => {
     const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
 
     ensurePagesStyles(targetDocument)
 
     const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
 
-    expect(style?.textContent).toMatch(/\.rm-pages-root \.rm-first-page-header \{[\s\S]*?z-index: 1;/)
+    expect(style?.textContent).toContain(
+      '.rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li,'
+    )
   })
 
-  it('keeps the blank first-page header shell click-through while preserving visible header targets', () => {
+  it('stacks the first page header above page body and breaker chrome so it is not covered by overlapping layers', () => {
     const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
 
     ensurePagesStyles(targetDocument)
 
     const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
 
-    expect(style?.textContent).toMatch(
-      /\.rm-pages-root \.rm-first-page-header > \.rm-page-header \{[\s\S]*?pointer-events: none;/
-    )
-    expect(style?.textContent).toMatch(
-      /\.rm-pages-root \.rm-first-page-header \.rm-page-header-content,[\s\S]*?pointer-events: auto;/
-    )
+    expect(style?.textContent).toMatch(/\.rm-pages-root \.rm-first-page-header \{[\s\S]*?z-index: 3;/)
+  })
+
+  it('does not set pointer-events: none on the first-page header shell (same hit-testing model as rm-page-header-region)', () => {
+    const targetDocument = document.implementation.createHTMLDocument('pagination-styles')
+
+    ensurePagesStyles(targetDocument)
+
+    const style = targetDocument.head.querySelector('style[data-rm-pages-style]')
+    const text = style?.textContent ?? ''
+
+    expect(text).toContain('.rm-pages-root .rm-first-page-header')
+    expect(text).not.toMatch(/\.rm-pages-root \.rm-first-page-header \{[^}]*pointer-events:\s*none/m)
+    expect(text).not.toContain('.rm-pages-root .rm-first-page-header > .rm-page-header')
   })
 })
 
@@ -201,6 +213,59 @@ describe('createHeaderFooterRegion interaction guards', () => {
 
     expect(region.dataset.rmHasVisibleContent).toBe('true')
     expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('opens the header editor on the first click of a click gesture', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const onOpenEditor = jest.fn()
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      onOpenEditor
+    })
+
+    region.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+
+    expect(onOpenEditor).toHaveBeenCalledTimes(1)
+    expect(onOpenEditor.mock.calls[0]?.[0]).toBe('header')
+    expect(onOpenEditor.mock.calls[0]?.[1]).toBe(1)
+  })
+
+  it('does not open the editor on the second click of a double-click sequence', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    setStoredVariantContent(storage, 'header', 'default', {
+      html: '<p>Header</p>',
+      json: null
+    })
+
+    const onOpenEditor = jest.fn()
+    const region = createHeaderFooterRegion({
+      type: 'header',
+      pageNumber: 1,
+      totalPages: 3,
+      pageFormat: resolvePageFormat(options.pageFormat),
+      options,
+      storage,
+      extensions: [],
+      onOpenEditor
+    })
+
+    region.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }))
+    region.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 2 }))
+
+    expect(onOpenEditor).toHaveBeenCalledTimes(1)
   })
 
   it('keeps intercepting selectstart for inactive header regions with visible content', () => {

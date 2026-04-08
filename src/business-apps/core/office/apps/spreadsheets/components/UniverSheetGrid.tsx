@@ -5,10 +5,21 @@
  * Replaces FortuneSheetGrid; same props and ref contract for TableView and collaboration.
  */
 
-import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo, useState } from 'react'
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useImperativeHandle,
+  forwardRef,
+  useMemo,
+  useState
+} from 'react'
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import UniverPresetSheetsCoreEnUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets'
+import { useTranslation } from '@newwork/nw-design-system'
+import spreadsheetTranslations from '../_i18n'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type {
   DocumentParticipant,
@@ -30,6 +41,173 @@ const CURSOR_OVERLAY_HEADER_HEIGHT_PX = 28
 const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
 const UNIVER_COMMAND_TYPE_MUTATION = 2
 const REMOTE_ECHO_SUPPRESSION_TTL_MS = 800
+const GERMAN_NUMFMT_LOCALE = 'de_DE'
+/** Same grid pattern as context-menu injection (`tryInjectViaGridContainer`): inner list lives in `univer-grid` + `gap-1`. */
+const NUMFMT_GRID_ROW_SELECTOR = ':scope > div.univer-flex.univer-h-7'
+/** Preview lives in the second span (`sheets-numfmt-ui` `Qn` / `MoreNumfmtType`); label stays in the first span. */
+const NUMFMT_ROW_PREVIEW_SPAN_SELECTOR = ':scope > span.univer-text-xs'
+const NUMFMT_MENU_ITEM_ROW_SELECTOR = 'div.univer-flex.univer-h-7'
+
+/**
+ * Univer locale overlay for German (the library ships no de-DE bundle).
+ * Only the `sheet.numfmt.*` keys are needed for the number-format dropdown menu.
+ */
+const UNIVER_NUMFMT_DE_LOCALE = {
+  sheet: {
+    numfmt: {
+      title: 'Zahlenformat',
+      numfmtType: 'Formattypen',
+      cancel: 'Abbrechen',
+      confirm: 'Bestätigen',
+      general: 'Allgemein',
+      accounting: 'Buchhaltung',
+      text: 'Text',
+      number: 'Zahl',
+      percent: 'Prozentsatz',
+      scientific: 'Wissenschaftlich',
+      currency: 'Währung',
+      date: 'Datum',
+      time: 'Uhrzeit',
+      thousandthPercentile: 'Tausendertrennzeichen',
+      preview: 'Vorschau',
+      dateTime: 'Datum und Uhrzeit',
+      decimalLength: 'Dezimalstellen',
+      currencyType: 'Währungssymbol',
+      moreFmt: 'Formate',
+      financialValue: 'Finanzieller Wert',
+      roundingCurrency: 'Währung gerundet',
+      timeDuration: 'Zeitdauer',
+      currencyDes:
+        'Das Währungsformat wird für allgemeine Geldbeträge verwendet. Das Buchhaltungsformat richtet Dezimalstellen und Währungssymbole in einer Spalte aus.',
+      accountingDes:
+        'Das Buchhaltungsformat richtet eine Spalte von Werten an Währungssymbolen und Dezimalstellen aus.',
+      dateType: 'Datumstyp',
+      dateDes: 'Das Datumsformat stellt Datums- und Zeitreihenwerte als Datumswerte dar.',
+      negType: 'Negativer Zahlentyp',
+      generalDes: 'Das Standardformat enthält kein bestimmtes Zahlenformat.',
+      thousandthPercentileDes:
+        'Das Prozentformat wird zur Darstellung gewöhnlicher Zahlen verwendet. Währungs- und Buchhaltungsformate bieten spezialisierte Formate für Geldwertberechnungen.',
+      addDecimal: 'Dezimalstellen erhöhen',
+      subtractDecimal: 'Dezimalstellen verringern',
+      customFormat: 'Benutzerdefiniertes Format',
+      customFormatDes: 'Benutzerdefinierte Zahlenformate basierend auf vorhandenen Formaten erstellen.'
+    }
+  }
+}
+
+/**
+ * Anchors that identify the number-format dropdown (not the cell context menu).
+ * Indexed by app locale so the grid finder works regardless of Univer's UI language.
+ */
+const NUMFMT_MENU_GRID_ANCHOR_LABELS_BY_LOCALE: Record<string, string[]> = {
+  'en-US': ['General', 'Formats', 'Currency', 'Date and time'],
+  'de-DE': ['Allgemein', 'Formate', 'Währung', 'Datum und Uhrzeit']
+}
+const NUMFMT_MENU_GRID_ANCHOR_LABELS_DEFAULT = NUMFMT_MENU_GRID_ANCHOR_LABELS_BY_LOCALE['en-US']
+
+/**
+ * German-formatted preview values keyed by the label text visible in the menu.
+ * Indexed by app locale because the label language changes with the Univer locale.
+ */
+const GERMAN_NUMFMT_PREVIEW_BY_LABEL_BY_LOCALE: Record<string, Record<string, string>> = {
+  'en-US': {
+    Percentage: '122000,00%',
+    Scientific: '1,22E+03',
+    Accounting: '1.220,00 EUR',
+    'Financial value': '1.220,00',
+    Currency: '1.220,00 EUR',
+    'Rounding up the currency': '1.220 EUR',
+    Date: '04.05.1903',
+    Time: '00:00:00',
+    'Date and time': '04.05.1903 00:00'
+  },
+  'de-DE': {
+    Prozentsatz: '122000,00%',
+    Wissenschaftlich: '1,22E+03',
+    Buchhaltung: '1.220,00 EUR',
+    'Finanzieller Wert': '1.220,00',
+    Währung: '1.220,00 EUR',
+    'Währung gerundet': '1.220 EUR',
+    Datum: '04.05.1903',
+    Uhrzeit: '00:00:00',
+    'Datum und Uhrzeit': '04.05.1903 00:00'
+  }
+}
+
+const GERMAN_NUMFMT_PATTERN_BY_LABEL_BY_LOCALE: Record<string, Record<string, string>> = {
+  'en-US': {
+    Accounting: '#,##0.00 "EUR"',
+    'Financial value': '#,##0.00',
+    Currency: '#,##0.00 "EUR"',
+    'Rounding up the currency': '#,##0 "EUR"',
+    Date: 'dd.mm.yyyy',
+    Time: 'hh:mm:ss',
+    'Date and time': 'dd.mm.yyyy hh:mm'
+  },
+  'de-DE': {
+    Buchhaltung: '#,##0.00 "EUR"',
+    'Finanzieller Wert': '#,##0.00',
+    Währung: '#,##0.00 "EUR"',
+    'Währung gerundet': '#,##0 "EUR"',
+    Datum: 'dd.mm.yyyy',
+    Uhrzeit: 'hh:mm:ss',
+    'Datum und Uhrzeit': 'dd.mm.yyyy hh:mm'
+  }
+}
+
+/** Module-level active locale so static helpers (MutationObserver callbacks) can pick it up. */
+let activeAppLocale = 'en-US'
+
+function getNumfmtPreviewMap(): Record<string, string> {
+  return GERMAN_NUMFMT_PREVIEW_BY_LABEL_BY_LOCALE[activeAppLocale] ?? GERMAN_NUMFMT_PREVIEW_BY_LABEL_BY_LOCALE['en-US']
+}
+
+function getNumfmtPatternMap(): Record<string, string> {
+  return GERMAN_NUMFMT_PATTERN_BY_LABEL_BY_LOCALE[activeAppLocale] ?? GERMAN_NUMFMT_PATTERN_BY_LABEL_BY_LOCALE['en-US']
+}
+
+function getNumfmtAnchorLabels(): string[] {
+  return NUMFMT_MENU_GRID_ANCHOR_LABELS_BY_LOCALE[activeAppLocale] ?? NUMFMT_MENU_GRID_ANCHOR_LABELS_DEFAULT
+}
+
+type UniverFontConfig = {
+  value: string
+  label: string
+  category?: 'sans-serif' | 'serif' | 'monospace' | 'display' | 'handwriting'
+}
+
+const UNIVER_FONT_CANDIDATES: UniverFontConfig[] = [
+  { value: 'Arial', label: 'fontFamily.arial', category: 'sans-serif' },
+  { value: 'Times New Roman', label: 'fontFamily.times-new-roman', category: 'serif' },
+  { value: 'Tahoma', label: 'fontFamily.tahoma', category: 'sans-serif' },
+  { value: 'Verdana', label: 'fontFamily.verdana', category: 'sans-serif' },
+  { value: 'Microsoft YaHei', label: 'fontFamily.microsoft-yahei', category: 'sans-serif' },
+  { value: 'SimSun', label: 'fontFamily.simsun', category: 'serif' },
+  { value: 'SimHei', label: 'fontFamily.simhei', category: 'sans-serif' },
+  { value: 'Kaiti', label: 'fontFamily.kaiti', category: 'serif' },
+  { value: 'FangSong', label: 'fontFamily.fangsong', category: 'serif' },
+  { value: 'NSimSun', label: 'fontFamily.nsimsun', category: 'serif' },
+  { value: 'STXinwei', label: 'fontFamily.stxinwei', category: 'serif' },
+  { value: 'STXingkai', label: 'fontFamily.stxingkai', category: 'serif' },
+  { value: 'STLiti', label: 'fontFamily.stliti', category: 'serif' }
+]
+
+const UNIVER_FONT_FALLBACK_LIST: UniverFontConfig[] = UNIVER_FONT_CANDIDATES.filter(
+  font =>
+    font.value === 'Arial' || font.value === 'Times New Roman' || font.value === 'Tahoma' || font.value === 'Verdana'
+)
+
+function getSupportedUniverFonts(): UniverFontConfig[] {
+  if (typeof document === 'undefined' || !document.fonts || typeof document.fonts.check !== 'function') {
+    return UNIVER_FONT_FALLBACK_LIST
+  }
+
+  const supported = UNIVER_FONT_CANDIDATES.filter(font => {
+    return document.fonts.check(`12px "${font.value}"`) || document.fonts.check(`12px ${font.value}`)
+  })
+
+  return supported.length > 0 ? supported : UNIVER_FONT_FALLBACK_LIST
+}
 
 type RemoteEchoSuppressionEntry = {
   expiresAt: number
@@ -340,6 +518,18 @@ const COMMENT_ICON_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
 
 const CONTEXT_MENU_ANCHOR_LABELS = ['Copy Special', 'Paste Special', 'Clear', 'Insert', 'Delete', 'Freeze', 'Protect']
+
+/** True for inputs the browser should handle (copy/paste) outside the grid container. */
+function isDomTextEditingTarget(target: unknown): boolean {
+  if (!(target instanceof Element)) return false
+  const el = target
+  const tag = el.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if ((el as HTMLElement).isContentEditable) return true
+  const role = el.getAttribute('role')
+  if (role === 'textbox' || role === 'searchbox' || role === 'combobox') return true
+  return Boolean(el.closest('[contenteditable="true"]'))
+}
 
 function distanceToRect(x: number, y: number, rect: DOMRect): number {
   const dx = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0
@@ -677,6 +867,62 @@ function tryInjectContextMenuItem(
   )
 }
 
+/**
+ * Hides the "Protect Rows And Columns" item from Univer's context menu.
+ * The feature is not supported in this app; leaving it visible confuses users.
+ * Walks all nested grids/sections to find the leaf item, not a parent container.
+ */
+function hideProtectContextMenuItem(): void {
+  if (typeof document === 'undefined') return
+  const candidates = document.querySelectorAll<HTMLElement>(
+    'button, [role="button"], [role="menuitem"], .univer-menu-item, [class*="menu-item"], [class*="univer-h-8"]'
+  )
+  for (const el of candidates) {
+    if (el.style.display === 'none') continue
+    const spans = el.querySelectorAll('span')
+    for (const span of spans) {
+      if (span.children.length > 0) continue
+      const text = (span.textContent || '').trim()
+      if (/^protect/i.test(text)) {
+        el.style.display = 'none'
+        break
+      }
+    }
+  }
+}
+
+const HIDDEN_RIBBON_TABS = ['data', 'daten']
+
+/**
+ * Hides unwanted tabs from Univer's ribbon dropdown.
+ * Walks text nodes to find the tab title, then hides the closest clickable ancestor.
+ */
+function hideUnwantedRibbonTabs(): void {
+  if (typeof document === 'undefined') return
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const text = (node.textContent || '').trim().toLowerCase()
+      return HIDDEN_RIBBON_TABS.includes(text) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    }
+  })
+  let textNode: Text | null = null
+  while ((textNode = walker.nextNode() as Text | null)) {
+    let el: HTMLElement | null = textNode.parentElement
+    for (let depth = 0; depth < 8 && el; depth++) {
+      const cls = el.getAttribute('class') || ''
+      if (
+        cls.includes('univer-cursor-pointer') ||
+        cls.includes('univer-rounded') ||
+        el.getAttribute('role') === 'tab'
+      ) {
+        if (el.style.display !== 'none') el.style.display = 'none'
+        break
+      }
+      el = el.parentElement
+    }
+  }
+}
+
 function scheduleContextMenuInjectionPoll(run: () => void): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -685,8 +931,220 @@ function scheduleContextMenuInjectionPoll(run: () => void): void {
   })
 }
 
+/**
+ * Apply German number-format locale on the active workbook.
+ * Returns false if skipped or failed (caller may retry after Univer injector is ready).
+ */
+function applyGermanNumfmtLocale(workbook: unknown, opts?: { silent?: boolean }): boolean {
+  const setNumfmtLocal = (workbook as { setNumfmtLocal?: (locale: string) => unknown } | null | undefined)
+    ?.setNumfmtLocal
+  if (typeof setNumfmtLocal !== 'function') return false
+  try {
+    setNumfmtLocal.call(workbook, GERMAN_NUMFMT_LOCALE)
+    return true
+  } catch (error) {
+    if (!opts?.silent) {
+      console.error('[UniverSheetGrid] setNumfmtLocal failed:', error)
+    }
+    return false
+  }
+}
+
+/**
+ * Univer's workbook can expose setNumfmtLocal before the internal injector is wired;
+ * calling immediately after createWorkbook throws (e.g. reading '_injector' of undefined).
+ * Defer and retry briefly; failures are silent so devtools are not spammed for this race.
+ */
+function scheduleApplyGermanNumfmtLocale(univerAPI: { getActiveWorkbook?: () => unknown }): void {
+  const tryApply = (): boolean => {
+    const wb = univerAPI.getActiveWorkbook?.()
+    return Boolean(wb && applyGermanNumfmtLocale(wb, { silent: true }))
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (tryApply()) return
+      globalThis.setTimeout(() => {
+        if (tryApply()) return
+        globalThis.setTimeout(() => {
+          tryApply()
+        }, 150)
+      }, 0)
+    })
+  })
+}
+
+function normalizeMenuText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+export function extractFormatMenuLabel(text: string): string | null {
+  const normalized = normalizeMenuText(text)
+  const previewMap = getNumfmtPreviewMap()
+  const labels = Object.keys(previewMap).sort((a, b) => b.length - a.length)
+  for (const label of labels) {
+    if (normalized === label || normalized.startsWith(`${label} `)) return label
+  }
+  return null
+}
+
+export function getGermanNumfmtPattern(label: string): string | undefined {
+  return getNumfmtPatternMap()[label]
+}
+
+/**
+ * Locates the number-format dropdown list container using the same grid heuristic as
+ * `tryInjectViaGridContainer`, but keyed on format-menu anchors and excluding cell context menus.
+ */
+function findNumfmtFormatMenuGrids(): HTMLElement[] {
+  const anchorLabels = getNumfmtAnchorLabels()
+  return Array.from(document.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')).filter(
+    el => {
+      const gridText = (el.textContent || '').toLowerCase()
+      if (CONTEXT_MENU_ANCHOR_LABELS.some(lbl => gridText.includes(lbl.toLowerCase()))) return false
+      if (!anchorLabels.every(lbl => gridText.includes(lbl.toLowerCase()))) return false
+      const childGrids = el.querySelectorAll<HTMLElement>('[class*="univer-grid"][class*="univer-gap-1"]')
+      for (const child of childGrids) {
+        if (child === el) continue
+        const childText = (child.textContent || '').toLowerCase()
+        if (anchorLabels.every(lbl => childText.includes(lbl.toLowerCase()))) return false
+      }
+      return true
+    }
+  )
+}
+
+function patchGermanNumfmtMenuPreview(): void {
+  if (typeof document === 'undefined') return
+  const grids = findNumfmtFormatMenuGrids()
+  if (grids.length === 0) return
+  const previewMap = getNumfmtPreviewMap()
+  for (const grid of grids) {
+    const rows = grid.querySelectorAll<HTMLElement>(NUMFMT_GRID_ROW_SELECTOR)
+    for (const row of rows) {
+      const labelSpan = row.querySelector<HTMLElement>(':scope > span:first-child')
+      if (!labelSpan) continue
+      const label = normalizeMenuText(labelSpan.textContent || '')
+      if (!label || !(label in previewMap)) continue
+      const preview = previewMap[label]
+      const previewSpan = row.querySelector<HTMLElement>(NUMFMT_ROW_PREVIEW_SPAN_SELECTOR)
+      if (!previewSpan) continue
+      if (normalizeMenuText(previewSpan.textContent || '') === normalizeMenuText(preview)) continue
+      previewSpan.textContent = preview
+    }
+  }
+}
+
+/**
+ * Univer's date format list (`DATEFMTLISG`) contains hardcoded Chinese labels
+ * (年, 月, 日, 下午/上午). Replace them with locale-appropriate text so no
+ * Chinese ever appears in the UI.
+ */
+const CHINESE_DATE_LABEL_REPLACEMENTS: Record<string, Record<string, string>> = {
+  'en-US': {
+    '1930年08月05日': 'Aug 05, 1930',
+    '8月5日': 'Aug 5',
+    '下午01:30': '01:30 PM',
+    '下午1:30': '1:30 PM',
+    '下午1:30:30': '1:30:30 PM',
+    '08-05 下午 01:30': '08-05 01:30 PM'
+  },
+  'de-DE': {
+    '1930年08月05日': '05.08.1930',
+    '8月5日': '5. Aug.',
+    '下午01:30': '13:30',
+    '下午1:30': '13:30',
+    '下午1:30:30': '13:30:30',
+    '08-05 下午 01:30': '05.08. 13:30'
+  }
+}
+
+const CHINESE_CHAR_REGEX = /[\u4e00-\u9fff]/
+
+/**
+ * Gravity Platform hosts remote apps in a pane that uses plain Tailwind (`overflow-auto`, no `gba:`).
+ * That outer pane scrolls the whole embedded UI so Univer's sheet-tab footer scrolls away.
+ * Also, a `min-h-dvh` / oversized viewer can exceed the pane height while the shell still scrolls.
+ * Patch: stop outer vertical scrolling and size the spreadsheet viewer root to the pane height.
+ */
+function patchEmbeddedSpreadsheetHostLayout(gridHost: HTMLElement): (() => void) | undefined {
+  if (typeof document === 'undefined') return undefined
+
+  let el: HTMLElement | null = gridHost.parentElement
+  let scrollShell: HTMLElement | null = null
+  while (el && el !== document.body) {
+    const st = getComputedStyle(el)
+    const cls = typeof el.className === 'string' ? el.className : ''
+    const isGbaWrapper = cls.includes('gba:')
+    const overflowsVertically =
+      (st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 1
+    if (overflowsVertically && !isGbaWrapper) {
+      scrollShell = el
+      break
+    }
+    el = el.parentElement
+  }
+
+  if (!scrollShell) return undefined
+
+  const prevShellOverflow = scrollShell.style.overflow
+  const prevShellMinHeight = scrollShell.style.minHeight
+  scrollShell.style.overflow = 'hidden'
+  if (!scrollShell.style.minHeight) {
+    scrollShell.style.minHeight = '0'
+  }
+
+  const viewerRoot = gridHost.closest<HTMLElement>('[data-testid="spreadsheet-app-viewer"], [data-testid$="-viewer"]')
+
+  let restoreViewer: (() => void) | undefined
+  if (viewerRoot && scrollShell.contains(viewerRoot)) {
+    const slotHeight = scrollShell.clientHeight
+    if (slotHeight > 0) {
+      viewerRoot.style.setProperty('max-height', `${slotHeight}px`, 'important')
+      viewerRoot.style.setProperty('height', `${slotHeight}px`, 'important')
+      viewerRoot.style.setProperty('min-height', '0', 'important')
+      restoreViewer = () => {
+        viewerRoot.style.removeProperty('max-height')
+        viewerRoot.style.removeProperty('height')
+        viewerRoot.style.removeProperty('min-height')
+      }
+    }
+  }
+
+  return () => {
+    scrollShell.style.overflow = prevShellOverflow
+    scrollShell.style.minHeight = prevShellMinHeight
+    if (!prevShellOverflow) scrollShell.style.removeProperty('overflow')
+    if (!prevShellMinHeight) scrollShell.style.removeProperty('min-height')
+    restoreViewer?.()
+  }
+}
+
+function patchChineseDateLabels(): void {
+  if (typeof document === 'undefined') return
+  const replacements = CHINESE_DATE_LABEL_REPLACEMENTS[activeAppLocale] ?? CHINESE_DATE_LABEL_REPLACEMENTS['en-US']
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return node.textContent && CHINESE_CHAR_REGEX.test(node.textContent)
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT
+    }
+  })
+  let textNode: Text | null = null
+  while ((textNode = walker.nextNode() as Text | null)) {
+    const text = textNode.textContent ?? ''
+    const replacement = replacements[text.trim()]
+    if (replacement) {
+      textNode.textContent = replacement
+    }
+  }
+}
+
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
+    const { locale: appLocale } = useTranslation(spreadsheetTranslations)
+    activeAppLocale = appLocale
+
     const {
       sheet,
       data,
@@ -708,11 +1166,33 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       containerRef.current = node
       setGridHostEl(node)
     }, [])
+
+    useLayoutEffect(() => {
+      if (!gridHostEl) return undefined
+      let cleanup: (() => void) | undefined
+      const run = () => {
+        if (!gridHostEl.isConnected) return
+        cleanup?.()
+        cleanup = patchEmbeddedSpreadsheetHostLayout(gridHostEl)
+      }
+      run()
+      const t0 = window.setTimeout(run, 0)
+      const t1 = window.setTimeout(run, 100)
+      const raf = window.requestAnimationFrame(run)
+      return () => {
+        window.clearTimeout(t0)
+        window.clearTimeout(t1)
+        window.cancelAnimationFrame(raf)
+        cleanup?.()
+      }
+    }, [gridHostEl])
+
     // Tracks whether this sheet is the currently active editor on the page.
     // Needed for published screens where the host app may register global shortcuts (e.g. Cmd+B).
     const isSheetInteractionActiveRef = useRef<boolean>(false)
     const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null)
     const remoteEchoSuppressionRef = useRef<Map<string, RemoteEchoSuppressionEntry>>(new Map())
+    const isApplyingRemoteUpdateRef = useRef(false)
     const isDirtyRef = useRef(false)
     const hasEditedRef = useRef(false)
     const snapshotRequestInFlightRef = useRef<Promise<void> | null>(null)
@@ -791,6 +1271,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           ),
       [props.participants]
     )
+    const supportedUniverFonts = useMemo(() => getSupportedUniverFonts(), [])
     const commentOverlays = useMemo(
       () =>
         (props.commentedCells ?? [])
@@ -1017,6 +1498,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           remoteEchoSuppressionRef.current.delete(key)
         }
       }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
+      isApplyingRemoteUpdateRef.current = true
       try {
         const workbook = api.getActiveWorkbook()
         if (!workbook) return
@@ -1026,6 +1508,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (range) range.setValue(value as any)
       } catch (e) {
         console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
+      } finally {
+        isApplyingRemoteUpdateRef.current = false
       }
     }, [])
 
@@ -1220,6 +1704,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       const pollInjection = (x: number, y: number, attempts: { count: number }, maxAttempts: number) => {
         attempts.count += 1
+        hideProtectContextMenuItem()
         injectOpenLink(x, y)
         if (injectComment(x, y)) {
           stopObserver()
@@ -1238,6 +1723,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const attempts = { count: 0 }
         stopObserver()
         contextMenuObserver = new MutationObserver(() => {
+          hideProtectContextMenuItem()
           injectOpenLink(x, y)
           if (injectComment(x, y)) stopObserver()
         })
@@ -1251,6 +1737,83 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         container.removeEventListener('contextmenu', onNativeContextMenu, true)
       }
     }, [props.isReadOnly])
+
+    useEffect(() => {
+      if (props.isReadOnly) return
+      if (!gridHostEl) return
+
+      const applyGermanPatternToActiveRange = (label: string) => {
+        const pattern = getGermanNumfmtPattern(label)
+        if (!pattern) return
+        const workbook = univerAPIRef.current?.getActiveWorkbook?.() as
+          | { getActiveRange?: () => { setNumberFormat?: (nextPattern: string) => unknown } | null }
+          | undefined
+        const range = workbook?.getActiveRange?.()
+        if (!range || typeof range.setNumberFormat !== 'function') return
+        try {
+          range.setNumberFormat(pattern)
+        } catch (error) {
+          console.error('[UniverSheetGrid] setNumberFormat override failed:', error)
+        }
+      }
+
+      /**
+       * Toolbar overflow (⋮) and Radix popovers often mount outside `containerRef`. A capture listener
+       * on the grid host never runs, so we observe `document.body` and rAF-debounce patches — including
+       * `characterData` so React text updates are re-overridden.
+       */
+      let rafScheduled = 0
+      const scheduleNumfmtMenuPatch = () => {
+        if (rafScheduled !== 0) return
+        rafScheduled = globalThis.requestAnimationFrame(() => {
+          rafScheduled = 0
+          patchGermanNumfmtMenuPreview()
+          patchChineseDateLabels()
+          hideUnwantedRibbonTabs()
+        })
+      }
+
+      const observer = new globalThis.MutationObserver(() => {
+        scheduleNumfmtMenuPatch()
+      })
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+      scheduleNumfmtMenuPatch()
+
+      /** Univer re-applies `Dt(pattern)` to preview spans on render; re-patch on a timer while the sheet is mounted. */
+      const numfmtPreviewIntervalId = globalThis.setInterval(() => {
+        patchGermanNumfmtMenuPreview()
+        patchChineseDateLabels()
+        hideUnwantedRibbonTabs()
+      }, 200)
+
+      const onNumfmtMenuItemClickCapture = (event: MouseEvent) => {
+        const target = event.target as HTMLElement | null
+        if (!target) return
+        const row = target.closest(NUMFMT_MENU_ITEM_ROW_SELECTOR) as HTMLElement | null
+        if (!row) return
+        const grids = findNumfmtFormatMenuGrids()
+        if (!grids.some(g => g.contains(row))) return
+        const labelSpan = row.querySelector<HTMLElement>(':scope > span:first-child')
+        const label = labelSpan ? normalizeMenuText(labelSpan.textContent || '') : null
+        if (!label) return
+        globalThis.setTimeout(() => {
+          applyGermanPatternToActiveRange(label)
+          scheduleNumfmtMenuPatch()
+        }, 0)
+      }
+
+      document.addEventListener('click', onNumfmtMenuItemClickCapture, true)
+
+      return () => {
+        observer.disconnect()
+        globalThis.clearInterval(numfmtPreviewIntervalId)
+        if (rafScheduled !== 0) {
+          globalThis.cancelAnimationFrame(rafScheduled)
+          rafScheduled = 0
+        }
+        document.removeEventListener('click', onNumfmtMenuItemClickCapture, true)
+      }
+    }, [props.isReadOnly, gridHostEl])
 
     useEffect(() => {
       const container = containerRef.current
@@ -1400,14 +1963,23 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       contextRef.current = createUniverConversionContext(c, d)
 
+      const univerLocaleData =
+        appLocale === 'de-DE'
+          ? mergeLocales(UniverPresetSheetsCoreEnUS, UNIVER_NUMFMT_DE_LOCALE)
+          : mergeLocales(UniverPresetSheetsCoreEnUS)
+
       const { univerAPI } = createUniver({
         locale: LocaleType.EN_US,
         locales: {
-          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS)
+          [LocaleType.EN_US]: univerLocaleData
         },
         presets: [
           UniverSheetsCorePreset({
-            container: gridHostEl
+            container: gridHostEl,
+            customFontFamily: {
+              override: true,
+              list: supportedUniverFonts
+            }
           })
         ]
       })
@@ -1418,6 +1990,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPIRef.current = univerAPI
       try {
         univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
+        scheduleApplyGermanNumfmtLocale(univerAPI)
       } catch (error) {
         console.error('[UniverSheetGrid] createWorkbook error:', error)
         if (initialSnapshotForSheet && forceRowSnapshotSeed === 0) {
@@ -1657,6 +2230,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         queueMicrotask(emitWorksheetFromUniver)
         if (readOnlyRef.current) return
+        if (isApplyingRemoteUpdateRef.current) return
         const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
         if (dimensionsChanged) {
           if (dimensions) {
@@ -1690,6 +2264,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }) => {
           if (readOnlyRef.current) return
+          if (isApplyingRemoteUpdateRef.current) return
           const payload = params?.payload
           let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
           if (!cellValue) {
@@ -1875,7 +2450,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
 
       return dispose
-    }, [props.workbookRemountKey ?? sheet.id, props.snapshotSeed, props.isReadOnly, gridHostEl, forceRowSnapshotSeed])
+    }, [
+      props.workbookRemountKey ?? sheet.id,
+      props.snapshotSeed,
+      props.isReadOnly,
+      gridHostEl,
+      forceRowSnapshotSeed,
+      supportedUniverFonts,
+      appLocale
+    ])
 
     useEffect(() => {
       if (!props.multiSheetWorkbookMode) return
@@ -1924,6 +2507,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (!api || !container) return
 
         const activeEl = typeof document !== 'undefined' ? document.activeElement : null
+        if (isDomTextEditingTarget(activeEl) && activeEl instanceof Element && !container.contains(activeEl)) {
+          return
+        }
+
         const inSheet =
           (activeEl instanceof Element && container.contains(activeEl)) || isSheetInteractionActiveRef.current
         if (!inSheet) return
@@ -1977,6 +2564,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // Hijack these shortcuts when the user is focused inside the spreadsheet so Univer handles them.
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
       if (!containerRef.current?.contains(e.target as Node)) return
+      const activeEl = typeof document !== 'undefined' ? document.activeElement : null
+      if (isDomTextEditingTarget(activeEl) && activeEl instanceof Element && !containerRef.current.contains(activeEl)) {
+        return
+      }
       const isMod = e.metaKey || e.ctrlKey
       if (!isMod) return
       const key = e.key.toLowerCase()
@@ -2057,10 +2648,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   }}
                 >
                   <div
-                    className="gba:absolute gba:-top-6 gba:left-0 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-white gba:rounded-sm gba:whitespace-nowrap"
+                    className="gba:absolute gba:-top-2 gba:-right-2 gba:h-5 gba:min-w-5 gba:px-1 gba:text-[9px] gba:leading-5 gba:font-semibold gba:text-white gba:rounded-full gba:text-center gba:whitespace-nowrap gba:shadow-sm"
                     style={{ backgroundColor: cursor.userColor }}
+                    title={cursor.userName}
                   >
-                    {cursor.userName}
+                    {getInitials(cursor.userName)}
                   </div>
                 </div>
               )

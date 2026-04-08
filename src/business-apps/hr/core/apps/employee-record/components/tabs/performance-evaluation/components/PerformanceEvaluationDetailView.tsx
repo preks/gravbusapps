@@ -85,6 +85,7 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
     skillsChangeBadge,
     companyValuesRadarData,
     skillsRadarData,
+    activeReviewerKeys,
     combinedCarouselEntries,
     selfReviewerFallback,
     managerReviewerFallback
@@ -217,6 +218,7 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
             selfLabel={t('performance-evaluation-self')}
             peerLabel={t('performance-evaluation-peer')}
             managerLabel={t('performance-evaluation-manager')}
+            activeReviewerKeys={activeReviewerKeys}
             radarMaxDomain={radarMaxDomain}
           />
 
@@ -231,6 +233,7 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
             selfLabel={t('performance-evaluation-self')}
             peerLabel={t('performance-evaluation-peer')}
             managerLabel={t('performance-evaluation-manager')}
+            activeReviewerKeys={activeReviewerKeys}
             radarMaxDomain={radarMaxDomain}
           />
         </div>

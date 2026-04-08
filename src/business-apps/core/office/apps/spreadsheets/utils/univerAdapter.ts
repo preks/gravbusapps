@@ -5,7 +5,8 @@
  * and Univer's workbook/sheet/cell model for initial load and callbacks.
  */
 
-import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
+import type { SpreadsheetSheet, SpreadsheetColumn, SpreadsheetMergeRange } from '../types/spreadsheet'
+import { isPlaceholderColumnTitle } from './trackingColumns'
 
 /** Conversion context for mapping row/column indices to our rowId/columnId/name (used by collaboration and persist). */
 export interface ConversionContext {
@@ -46,6 +47,7 @@ export interface UniverWorksheetData {
   id: string
   name: string
   cellData: UniverSheetCellData
+  mergeData?: SpreadsheetMergeRange[]
   rowCount?: number
   columnCount?: number
   defaultColumnWidth?: number
@@ -361,11 +363,13 @@ export function buildWorkbookSnapshot(
   const cellData = buildCellData(data, visibleColumns)
   const columnData = buildColumnWidths(visibleColumns)
   const rowData = buildRowHeights(data)
+  const mergeData = Array.isArray(sheet.settings.mergeData) ? sheet.settings.mergeData : undefined
 
   const worksheet: UniverWorksheetData = {
     id: sheet.id,
     name: sheet.name,
     cellData,
+    mergeData,
     rowCount: Math.max(data.length, DEFAULT_MIN_ROWS),
     columnCount: Math.max(visibleColumns.length, 1),
     defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
@@ -386,6 +390,56 @@ export function buildWorkbookSnapshot(
       [sheet.id]: worksheet
     }
   }
+}
+
+/**
+ * Whether the persisted Univer snapshot's tracking-header row already shows the titles we derive from column config.
+ * When this is false, Univer was bootstrapped from a stale snapshot and will ignore corrected row state until the grid remounts.
+ */
+export function snapshotTrackingHeaderMatchesColumnLabels(
+  snapshot: Record<string, unknown>,
+  sheetId: string,
+  data: Record<string, unknown>[],
+  columns: SpreadsheetColumn[]
+): boolean {
+  const headerIdx = data.findIndex(r => r._isTrackingHeader === true)
+  if (headerIdx < 0) return true
+
+  const sheets = snapshot.sheets as Record<string, { cellData?: UniverSheetCellData }> | undefined
+  const worksheet = sheets?.[sheetId]
+  const cellData = worksheet?.cellData
+  if (!cellData || typeof cellData !== 'object') return true
+
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  const rowCells = cellData[headerIdx] ?? cellData[String(headerIdx)]
+  if (!rowCells || typeof rowCells !== 'object') return false
+
+  for (let colIndex = 0; colIndex < visibleColumns.length; colIndex++) {
+    const col = visibleColumns[colIndex]
+    const expected = (col.label?.trim() || col.name || '').trim()
+    if (!expected) continue
+    // Placeholder column titles: missing/empty header cells are OK (user cleared unused columns).
+    if (isPlaceholderColumnTitle(expected)) {
+      continue
+    }
+
+    const cell =
+      (rowCells as Record<number, UniverCellData>)[colIndex] ??
+      (rowCells as Record<string, UniverCellData>)[String(colIndex)]
+    if (!cell || typeof cell !== 'object') {
+      return false
+    }
+    const rawV = cell.v
+    const rawM = cell.m as string | undefined
+    let actual = ''
+    if (rawV !== undefined && rawV !== null && rawV !== '') {
+      actual = String(rawV).trim()
+    } else if (rawM !== undefined && rawM !== null && rawM !== '') {
+      actual = String(rawM).trim()
+    }
+    if (actual !== expected) return false
+  }
+  return true
 }
 
 export function countWorksheetsInUniverSnapshot(snapshot: unknown): number {

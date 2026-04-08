@@ -1,4 +1,9 @@
 import { UseFormReturn } from 'react-hook-form'
+import type { EntitySelectOption } from '../../selects/reference-select/EntitySelect'
+import type { TaskTemplateHydratableEntityType } from './taskTemplateEntityTypeMap'
+
+/** Recurrence mode stored in additionalProperties (legacy EVENTS normalized on load). */
+export type TaskTemplateSchedulingType = 'ONCE' | 'BUSINESS_DAYS' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM'
 
 // Base interface for all task templates (shared between SalesTaskTemplate and InvestmentTaskTemplate)
 export interface BaseTaskTemplate {
@@ -43,6 +48,18 @@ export interface BaseTaskTemplate {
 
   // Extensibility
   additionalProperties?: Record<string, any>
+
+  /** Parsed from additionalProperties for list/detail UI */
+  eventTriggerEnabled?: boolean
+  eventSourceEntityType?: string
+  eventSourceEntityId?: string
+  scopeLimited?: boolean
+  scopedEntityType?: string
+  scopedEntityId?: string
+  eventInvestmentGroupRef?: string
+  eventInvestmentTypeRef?: string
+  /** Recurrence mode (legacy EVENTS is normalized away when loading) */
+  schedulingType?: TaskTemplateSchedulingType | 'EVENTS'
 }
 
 // Recurring schedule data structure
@@ -66,12 +83,21 @@ export interface TaskTemplateFormData {
   activeFrom?: string
   activeTo?: string
 
-  // Scheduling type selection (stored in additionalProperties on save)
-  schedulingType?: 'ONCE' | 'BUSINESS_DAYS' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM' | 'EVENTS'
+  // Scheduling type selection (stored in additionalProperties on save; EVENTS is legacy-only)
+  schedulingType?: TaskTemplateSchedulingType
 
   // Recurring schedule
   recurringSchedule: RecurringSchedule
   nextStartDate?: string
+
+  // Domain events (orthogonal to time-based recurrence)
+  eventTriggerEnabled: boolean
+  eventSourceEntityType: string
+
+  // Limit template to a single record (tasks only for that entity)
+  scopeLimited: boolean
+  scopedEntityType: string
+  scopedEntityId: string
 
   // Assignment
   assigneeType: string
@@ -87,9 +113,9 @@ export interface TaskTemplateFormData {
   // Extensibility
   additionalProperties?: Record<string, any>
 
-  // Investment-specific fields (optional for base form)
-  investmentGroupRef?: string
-  investmentTypeRef?: string
+  /** When event source is INVESTMENT (IRM), optional catalog refinements */
+  eventInvestmentGroupRef?: string
+  eventInvestmentTypeRef?: string
 }
 
 // State management interfaces
@@ -136,20 +162,38 @@ export interface TaskTemplateSettingsProps {
   businessAppContext?: any
   taskTypeCatalogId?: string
   taskPriorityCatalogId?: string
-  hasEventConfig?: boolean
+  /** When set, shows entity scope + event trigger sections */
+  templateEntityConfig?: TaskTemplateEntityConfig
   // Domain-specific enum configurations (due to backend inconsistencies)
   assigneeTypes?: EnumOption[]
   holidayPolicies?: EnumOption[]
+}
+
+/** Searchable entity list (same hooks as task forms: customer / investment relations). */
+export interface TaskTemplateEntitySelectBindings {
+  entities: EntitySelectOption[]
+  entitiesLoading: boolean
+  hasMore: boolean
+  onEntitySearch: (query: string) => void
+  onEntityLoadMore: () => void
+  hydrateEntityById: (type: TaskTemplateHydratableEntityType, id: string) => void | Promise<void>
+}
+
+/** CRM / IRM entity lists and optional investment catalog refinements */
+export interface TaskTemplateEntityConfig {
+  entityTypeOptions: EnumOption[]
+  showInvestmentEventFilters?: boolean
+  prefixDataTestId?: string
+  /** When set, scope/event record fields use EntitySelect instead of raw UUID input */
+  entitySelect?: TaskTemplateEntitySelectBindings
 }
 
 // Props for the table component
 export interface TaskTemplateTableProps {
   templates: BaseTaskTemplate[]
   isLoading?: boolean
-  error?: string | null
   onEdit: (template: BaseTaskTemplate) => void
   onDelete: (id: string) => void
-  onRetry?: () => void
   onSearchChange?: (value: string) => void
   dataTestId: string
 }
@@ -166,6 +210,7 @@ export interface TaskTemplateFormProps {
   catalogConfigs?: CatalogConfig[]
   taskTypeCatalogId?: string
   taskPriorityCatalogId?: string
+  templateEntityConfig?: TaskTemplateEntityConfig
   // Domain-specific enum configurations (due to backend inconsistencies)
   assigneeTypes?: EnumOption[]
   holidayPolicies?: EnumOption[]

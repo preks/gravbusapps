@@ -1,0 +1,35 @@
+/**
+ * Copy @newwork/assets into public/platform/assets so Vite dev serves the same URLs as gravity-platform
+ * (/platform/assets/... — see chatPlatformAssetUrls.ts). Run from npm run dev (start-dev-server) or manually.
+ *
+ * Production `vite build` deletes this folder before emitting dist/ (see vite.config.ts), so images are not
+ * shipped with remote bundles — the host serves them.
+ */
+import { cp, mkdir, stat } from 'fs/promises'
+import { existsSync } from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+async function main() {
+  const root = path.resolve(__dirname, '..')
+  const srcDir = path.join(root, 'node_modules', '@newwork', 'assets', 'static')
+  const destDir = path.join(root, 'public', 'platform', 'assets')
+
+  if (!existsSync(srcDir)) {
+    console.error('[sync-platform-assets] Missing:', srcDir, '(add dependency @newwork/assets and run npm install)')
+    process.exitCode = 1
+    return
+  }
+
+  await mkdir(destDir, { recursive: true })
+  await cp(srcDir, destDir, { recursive: true })
+  await stat(path.join(destDir, 'chat', 'background-poster.jpg'))
+  console.log('[sync-platform-assets] Copied to', destDir)
+}
+
+main().catch(err => {
+  console.error('[sync-platform-assets] Error:', err)
+  process.exitCode = 1
+})

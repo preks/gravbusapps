@@ -71,8 +71,6 @@ function getListContent(
   return <EmptyState title={emptyLabel} />
 }
 
-const panelMaxHeight = 'calc(100vh - 240px)'
-
 function FlipCardInner({
   isFlipped,
   frontFace,
@@ -83,35 +81,10 @@ function FlipCardInner({
   backFace: React.ReactNode | null
 }) {
   const containerMinHeight = isFlipped ? '' : 'gba:min-h-[200px]'
-  const transform = isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
-  const minHeight = isFlipped ? undefined : '200px'
-  const height = isFlipped ? panelMaxHeight : undefined
-  const maxHeight = isFlipped ? panelMaxHeight : undefined
+
   return (
-    <div className={`gba:relative gba:w-full ${containerMinHeight}`} style={{ perspective: '1000px' }}>
-      <div
-        className="gba:relative gba:w-full gba:transition-transform gba:duration-500 gba:ease-in-out"
-        style={{ transformStyle: 'preserve-3d', transform, minHeight, height, maxHeight }}
-      >
-        <div
-          className="gba:w-full gba:min-h-[200px]"
-          style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-        >
-          {frontFace}
-        </div>
-        {backFace === null ? null : (
-          <div
-            className="gba:absolute gba:inset-0 gba:w-full gba:flex gba:flex-col"
-            style={{
-              transform: 'rotateY(180deg)',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden'
-            }}
-          >
-            {backFace}
-          </div>
-        )}
-      </div>
+    <div className={`gba:relative gba:w-full gba:h-full ${containerMinHeight}`}>
+      {isFlipped && backFace !== null ? backFace : frontFace}
     </div>
   )
 }
@@ -179,23 +152,20 @@ const FeedbackListSection: React.FC<FeedbackListSectionProps> = ({
 
   const backFace =
     footerContent === null || footerContent === undefined ? null : (
-      <div
-        className="gba:w-full gba:h-full gba:overflow-y-auto gba:overflow-x-hidden gba:scrollbar-thin gba:pr-1"
-        style={{ maxHeight: panelMaxHeight }}
-      >
-        {footerContent}
-      </div>
+      <div className="gba:w-full gba:h-full">{footerContent}</div>
     )
 
   return (
-    <Card className={hasFlip ? 'gba:overflow-hidden' : undefined}>
-      <CardContent className="gba:p-4">
+    <Card className={`gba:h-full ${hasFlip ? 'gba:overflow-hidden' : ''}`}>
+      <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
         <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold">{title}</h3>
           {headerAction}
         </div>
 
-        {hasFlip ? <FlipCardInner isFlipped={isFlipped} frontFace={frontFace} backFace={backFace} /> : frontFace}
+        <div className="gba:flex-1">
+          {hasFlip ? <FlipCardInner isFlipped={isFlipped} frontFace={frontFace} backFace={backFace} /> : frontFace}
+        </div>
       </CardContent>
     </Card>
   )

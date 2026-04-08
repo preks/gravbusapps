@@ -9,7 +9,7 @@ type YjsSyncResponse =
   | { success: true; status: 'already_ready' }
   | { success: false; error: string }
 
-type YjsEntityType = 'document' | 'note' | 'slide'
+type YjsEntityType = 'document' | 'note' | 'slide' | 'whiteboard'
 
 type YjsSyncResponseEvent = {
   documentId: string
@@ -321,6 +321,14 @@ export class SocketIoYjsProvider {
     }
   }
 
+  /**
+   * Rich-text entities bootstrap through TipTap's `default` XML fragment.
+   * Whiteboards use arrays/maps only, so waiting for that fragment would stall forever.
+   */
+  private requiresDefaultXmlBootstrapGuard(): boolean {
+    return this.entityType !== 'whiteboard'
+  }
+
   private async handleBootstrapInitializer(
     response: Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
   ): Promise<boolean> {
@@ -340,13 +348,15 @@ export class SocketIoYjsProvider {
     if (this.destroyed) return true
 
     await this.flushLayoutAfterBootstrap()
-    const fragmentReady = await this.waitForDefaultXmlFragment(8000)
-    if (!fragmentReady) {
-      console.error(
-        '[SocketIoYjsProvider] Collaborative default fragment still empty after bootstrap; will retry sync instead of sending poisoned Yjs state'
-      )
-      this.scheduleSyncRetry()
-      return true
+    if (this.requiresDefaultXmlBootstrapGuard()) {
+      const fragmentReady = await this.waitForDefaultXmlFragment(8000)
+      if (!fragmentReady) {
+        console.error(
+          '[SocketIoYjsProvider] Collaborative default fragment still empty after bootstrap; will retry sync instead of sending poisoned Yjs state'
+        )
+        this.scheduleSyncRetry()
+        return true
+      }
     }
 
     const fullStateBase64 = uint8ArrayToBase64(Y.encodeStateAsUpdate(this.ydoc))

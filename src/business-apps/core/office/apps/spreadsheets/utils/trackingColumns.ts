@@ -213,6 +213,14 @@ function calculateResponseTime(sentAt: string, respondedAt: string): string {
 }
 
 /**
+ * Default Excel-style titles for padding / unused columns (e.g. "Column B").
+ * We do not force these back into the synthetic header row after the user clears them.
+ */
+export function isPlaceholderColumnTitle(text: string): boolean {
+  return /^Column [A-Z]{1,3}$/i.test(text.trim())
+}
+
+/**
  * Check if a column name is a tracking column
  */
 export function isTrackingColumn(columnName: string): boolean {

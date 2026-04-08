@@ -571,6 +571,33 @@ function readRuntimeLayoutMode(element: HTMLElement | null, key: string): string
   return typeof value === 'string' ? value : ''
 }
 
+function resolveVisibleBodyProjectionMeasurementElement(
+  editorDom: HTMLElement,
+  element: HTMLElement
+): HTMLElement | null {
+  const nodePos = element.dataset.imageNodePos
+  if (!nodePos) {
+    return null
+  }
+
+  const projectedElements = Array.from(
+    editorDom.querySelectorAll<HTMLElement>(`.rm-page-body-layer [data-image-node-pos="${nodePos}"]`)
+  )
+
+  const projectedExclusion =
+    projectedElements.find(candidate => candidate.dataset.imagePageProjectionExclusion === 'true') ?? null
+  if (projectedExclusion && projectedExclusion !== element) {
+    return projectedExclusion
+  }
+
+  const projectedAnchor = projectedElements.find(candidate => candidate.dataset.imagePageAnchor === 'true') ?? null
+  if (projectedAnchor && projectedAnchor !== element) {
+    return projectedAnchor
+  }
+
+  return null
+}
+
 function readMeasuredElementHeight(element: HTMLElement | null): number {
   if (!element) return 0
   if (readRuntimeLayoutMode(element, 'imageMeasurementMode') === 'overlay') {
@@ -1513,15 +1540,16 @@ export function resolvePageBodyWrapBands(
 }
 
 function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement): number {
-  if (readRuntimeLayoutMode(element, 'imageMeasurementMode') === 'overlay') {
-    return getElementBottomInEditor(editorDom, element)
+  const measurementElement = resolveVisibleBodyProjectionMeasurementElement(editorDom, element) ?? element
+  if (readRuntimeLayoutMode(measurementElement, 'imageMeasurementMode') === 'overlay') {
+    return getElementBottomInEditor(editorDom, measurementElement)
   }
 
-  const layoutHeight = getElementLayoutHeight(element)
-  const visualBottom = readRuntimeLayoutMetric(element, 'imageVisualBottom')
+  const layoutHeight = getElementLayoutHeight(measurementElement)
+  const visualBottom = readRuntimeLayoutMetric(measurementElement, 'imageVisualBottom')
   return Math.max(
-    getElementBottomInEditor(editorDom, element),
-    getElementTopInEditor(editorDom, element) + (visualBottom > 0 ? visualBottom : layoutHeight)
+    getElementBottomInEditor(editorDom, measurementElement),
+    getElementTopInEditor(editorDom, measurementElement) + (visualBottom > 0 ? visualBottom : layoutHeight)
   )
 }
 

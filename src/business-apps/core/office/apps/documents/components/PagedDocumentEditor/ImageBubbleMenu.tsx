@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
+import { CaretDown, Check } from '@phosphor-icons/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import {
   Button,
@@ -11,26 +11,17 @@ import {
 } from '@newwork/nw-design-system'
 import type { Editor } from '@tiptap/react'
 import {
+  type CustomImageAttributes,
   dispatchDocumentImageUiMode,
   hasImageCrop,
   normalizeImageCrop,
-  resolveImageWrapPreset,
   type ImageAlignment,
   type ImageAnchorMode,
-  type ImageWrapMode
+  type WordStyleWrapPreset,
+  resolveWordStyleWrapPreset,
+  resolveWordStyleWrapPresetUpdate
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import translations from '../../_i18n'
-
-const WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
-  { key: 'image-wrap-inline', value: 'inline' },
-  { key: 'image-wrap-left', value: 'square-left' },
-  { key: 'image-wrap-right', value: 'square-right' },
-  { key: 'image-wrap-tight', value: 'tight' },
-  { key: 'image-wrap-through', value: 'through' },
-  { key: 'image-wrap-center', value: 'top-bottom' },
-  { key: 'image-wrap-behind', value: 'behind' },
-  { key: 'image-wrap-in-front', value: 'front' }
-]
 
 const ALIGN_OPTIONS: ReadonlyArray<{ key: string; value: ImageAlignment }> = [
   { key: 'editor-toolbar-align-left', value: 'left' },
@@ -42,6 +33,14 @@ const ANCHOR_OPTIONS: ReadonlyArray<{ key: string; value: ImageAnchorMode }> = [
   { key: 'image-anchor-inline', value: 'inline' },
   { key: 'image-anchor-move-with-text', value: 'move-with-text' },
   { key: 'image-anchor-fixed', value: 'fixed' }
+]
+
+const WORD_WRAP_OPTIONS: ReadonlyArray<{ key: string; value: WordStyleWrapPreset }> = [
+  { key: 'image-wrap-inline', value: 'inline' },
+  { key: 'image-wrap-square-left', value: 'square-left' },
+  { key: 'image-wrap-square-right', value: 'square-right' },
+  { key: 'image-wrap-behind', value: 'behind-text' },
+  { key: 'image-wrap-in-front', value: 'in-front-of-text' }
 ]
 
 export interface ImageBubbleMenuProps {
@@ -101,9 +100,14 @@ export function ImageBubbleMenu({
   const { t } = useTranslation(translations)
   const imageSelection = useMemo(() => getSelectedImage(editor), [editor, editor.state])
   const imageAttrs = imageSelection?.attrs ?? {}
-  const wrapMode = (imageAttrs.wrapMode as ImageWrapMode | undefined) ?? 'inline'
+  const currentWrapAttrs = imageAttrs as CustomImageAttributes
   const align = (imageAttrs.align as ImageAlignment | undefined) ?? 'left'
   const anchorMode = (imageAttrs.anchorMode as ImageAnchorMode | undefined) ?? 'inline'
+  const selectedWrapPreset = resolveWordStyleWrapPreset({
+    wrapMode: currentWrapAttrs.wrapMode,
+    align,
+    wrapTextSide: currentWrapAttrs.wrapTextSide
+  })
   const zIndex = parseImageAttributeNumber(imageAttrs.zIndex, 1)
   const crop = normalizeImageCrop({
     cropTop: parseImageAttributeNumber(imageAttrs.cropTop, 0),
@@ -177,21 +181,17 @@ export function ImageBubbleMenu({
             data-testid="image-bubble-wrap-trigger"
           >
             {wrapButtonLabel}
-            <ChevronDown className="gba:h-3 gba:w-3" />
+            <CaretDown className="gba:h-3 gba:w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          {WRAP_OPTIONS.map(option => (
+          {WORD_WRAP_OPTIONS.map(option => (
             <DropdownMenuItem
               key={option.value}
-              onSelect={() =>
-                editor.commands.setImageLayout?.({
-                  ...resolveImageWrapPreset(option.value, imageAttrs)
-                })
-              }
+              onSelect={() => updateImageAttrs(resolveWordStyleWrapPresetUpdate(option.value, currentWrapAttrs))}
               data-testid={`image-bubble-wrap-${option.value}`}
             >
-              {wrapMode === option.value ? (
+              {selectedWrapPreset === option.value ? (
                 <Check className="gba:mr-2 gba:h-4 gba:w-4" />
               ) : (
                 <span className="gba:mr-2 gba:w-4" />
@@ -212,7 +212,7 @@ export function ImageBubbleMenu({
             data-testid="image-bubble-align-trigger"
           >
             {alignButtonLabel}
-            <ChevronDown className="gba:h-3 gba:w-3" />
+            <CaretDown className="gba:h-3 gba:w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -243,7 +243,7 @@ export function ImageBubbleMenu({
             data-testid="image-bubble-anchor-trigger"
           >
             {anchorButtonLabel}
-            <ChevronDown className="gba:h-3 gba:w-3" />
+            <CaretDown className="gba:h-3 gba:w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -274,7 +274,7 @@ export function ImageBubbleMenu({
             data-testid="image-bubble-position-trigger"
           >
             {positionButtonLabel}
-            <ChevronDown className="gba:h-3 gba:w-3" />
+            <CaretDown className="gba:h-3 gba:w-3" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">

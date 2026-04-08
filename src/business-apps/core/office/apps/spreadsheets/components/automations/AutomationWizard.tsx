@@ -5,7 +5,7 @@
  * Guides users through type selection, trigger configuration, workflow design, and column mapping.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Button,
@@ -52,6 +52,7 @@ import {
   MessageSquare
 } from 'lucide-react'
 import { TrackingColumnsConfig, getDefaultTrackingColumns } from './TrackingColumnsConfig'
+import { AutomationFormSelectFieldConfig } from './AutomationFormSelectFieldConfig'
 import type {
   SpreadsheetAutomation,
   AutomationType,
@@ -60,7 +61,8 @@ import type {
   ResultMapping,
   AutomationFlowStep,
   AutomationFlowTemplate,
-  SheetApprovalConfig
+  SheetApprovalConfig,
+  BulkCollectionEntitySelectConfig
 } from '../../types/automation'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import { UserSelect } from '@/components/user-select'
@@ -68,14 +70,14 @@ import MultiEmployeeSelect from '@/components/multi-employee-select/MultiEmploye
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import translations from '../../_i18n'
 
-function getTriggerStepDescription(automationType: AutomationType): string {
+function getTriggerStepDescription(automationType: AutomationType, translate: (key: string) => string): string {
   if (automationType === 'sheet_approval') {
-    return 'Sheet approval is triggered manually when you submit the spreadsheet for review.'
+    return translate('wizard-trigger-description-sheet-approval')
   }
   if (automationType === 'bulk_collection' || automationType === 'excel_collection') {
-    return 'Choose when to send out collection requests to participants.'
+    return translate('wizard-trigger-description-collection')
   }
-  return 'Choose when this automation should run.'
+  return translate('wizard-trigger-description-default')
 }
 
 export interface AutomationWizardProps {
@@ -93,8 +95,8 @@ export interface AutomationWizardProps {
   spreadsheetId: string
   /** Access token for API calls (user selection) */
   accessToken?: string
-  /** Optional: Update column labels to match form field labels (for bulk collection headers) */
-  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void
+  /** Optional: Update column labels to match form field labels (for bulk collection headers). Return a Promise so save can await persistence before patching automations. */
+  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void | Promise<void>
   /** Data test ID */
   'data-testid'?: string
 }
@@ -126,54 +128,54 @@ interface WizardStepAssignment {
 
 const COLLECTION_DELIVERY_OPTIONS: {
   type: 'bulk_collection' | 'excel_collection'
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
   icon: React.FC<{ className?: string }>
 }[] = [
   {
     type: 'bulk_collection',
-    title: 'Form',
-    description: 'Send a form with custom fields. Recipients fill and submit; responses appear as rows.',
+    titleKey: 'wizard-delivery-form-title',
+    descriptionKey: 'wizard-delivery-form-description',
     icon: Users
   },
   {
     type: 'excel_collection',
-    title: 'Spreadsheet template',
-    description: 'Send a copy of a spreadsheet template. Recipients fill their copy and submit.',
+    titleKey: 'wizard-delivery-spreadsheet-title',
+    descriptionKey: 'wizard-delivery-spreadsheet-description',
     icon: FileDown
   }
 ]
 
 interface TriggerOption {
   trigger: AutomationTrigger
-  title: string
-  description: string
+  titleKey: string
+  descriptionKey: string
   icon: React.FC<{ className?: string }>
 }
 
 const TRIGGER_OPTIONS: TriggerOption[] = [
   {
     trigger: 'manual',
-    title: 'Manual',
-    description: 'Run the automation when you click the Run button.',
+    titleKey: 'wizard-trigger-manual-title',
+    descriptionKey: 'wizard-trigger-manual-description',
     icon: Play
   },
   {
     trigger: 'onRowAdd',
-    title: 'On Row Add',
-    description: 'Automatically run when a new row is added.',
+    titleKey: 'wizard-trigger-on-row-add-title',
+    descriptionKey: 'wizard-trigger-on-row-add-description',
     icon: Plus
   },
   {
     trigger: 'onFieldChange',
-    title: 'On Field Change',
-    description: 'Run when specific columns are modified.',
+    titleKey: 'wizard-trigger-on-field-change-title',
+    descriptionKey: 'wizard-trigger-on-field-change-description',
     icon: RefreshCw
   },
   {
     trigger: 'scheduled',
-    title: 'Scheduled',
-    description: 'Run at specific times or intervals.',
+    titleKey: 'wizard-trigger-scheduled-title',
+    descriptionKey: 'wizard-trigger-scheduled-description',
     icon: Clock
   }
 ]
@@ -214,33 +216,97 @@ interface SpreadsheetTemplateItem {
 
 function toTemplateOptions(
   items: SpreadsheetTemplateItem[],
-  spreadsheetId: string
+  spreadsheetId: string,
+  translate: (key: string) => string
 ): Array<{ id: string; name: string }> {
   return items
     .filter(item => !item.settings?.excel_collection_copy)
     .map(item => ({
       id: item.id,
-      name: item.id === spreadsheetId ? `${item.name || 'Untitled'} (this sheet)` : item.name || 'Untitled'
+      name:
+        item.id === spreadsheetId
+          ? `${item.name || translate('wizard-untitled')} ${translate('wizard-this-sheet')}`
+          : item.name || translate('wizard-untitled')
     }))
 }
 
-function mapExistingFormFields(existingAutomation?: SpreadsheetAutomation): Array<{
+type WizardBulkFormField = {
   id: string
   label: string
   type: 'text' | 'number' | 'date' | 'textarea' | 'select'
   required: boolean
   targetColumn: string
-}> {
+  options?: string[]
+  selectOptionsSource?: 'static' | 'entity'
+  entitySelect?: BulkCollectionEntitySelectConfig
+}
+
+function mapExistingFormFields(existingAutomation?: SpreadsheetAutomation): WizardBulkFormField[] {
   const formFields = existingAutomation?.collectionConfig?.formFields
   if (!formFields) return []
 
-  return formFields.map(field => ({
-    id: field.id,
-    label: field.label,
-    type: (field.inputType?.toLowerCase() || 'text') as 'text' | 'number' | 'date' | 'textarea' | 'select',
-    required: field.required || false,
-    targetColumn: field.columnId || field.id
-  }))
+  return formFields.map(field => {
+    const inputLower = (field.inputType?.toLowerCase() || 'text') as WizardBulkFormField['type']
+    const base: WizardBulkFormField = {
+      id: field.id,
+      label: field.label,
+      type: inputLower,
+      required: field.required || false,
+      targetColumn: field.columnId || field.id
+    }
+
+    if (inputLower !== 'select') {
+      return base
+    }
+
+    const source =
+      field.selectOptionsSource ??
+      (field.entitySelect?.entityType && field.entitySelect?.valueField && field.entitySelect?.labelField
+        ? 'entity'
+        : 'static')
+
+    if (source === 'entity' && field.entitySelect) {
+      return {
+        ...base,
+        selectOptionsSource: 'entity',
+        entitySelect: { ...field.entitySelect },
+        options: undefined
+      }
+    }
+
+    return {
+      ...base,
+      selectOptionsSource: 'static',
+      options: field.options && field.options.length > 0 ? [...field.options] : [''],
+      entitySelect: undefined
+    }
+  })
+}
+
+function validateBulkCollectionSelectFields(formFields: WizardBulkFormField[], t: (key: string) => string): string[] {
+  const errors: string[] = []
+  let staticInvalid = false
+  let entityInvalid = false
+
+  for (const f of formFields) {
+    if (f.type !== 'select') continue
+    const source =
+      f.selectOptionsSource ??
+      (f.entitySelect?.entityType && f.entitySelect?.valueField && f.entitySelect?.labelField ? 'entity' : 'static')
+    if (source === 'static') {
+      const opts = (f.options || []).map(o => String(o).trim()).filter(Boolean)
+      if (opts.length === 0) staticInvalid = true
+    } else {
+      const es = f.entitySelect
+      if (!es?.entityType?.trim() || !es.valueField?.trim() || !es.labelField?.trim()) {
+        entityInvalid = true
+      }
+    }
+  }
+
+  if (staticInvalid) errors.push(t('wizard-error-select-options-required'))
+  if (entityInvalid) errors.push(t('wizard-error-select-entity-required'))
+  return errors
 }
 
 function getFieldTypeForColumn(colType: string): 'text' | 'number' | 'date' {
@@ -265,51 +331,55 @@ function getFormFieldSuggestion(columnLabel: string): string {
     .replaceAll(/\s/g, '')
 }
 
-function getMappingDescription(automationType: AutomationType | null): string {
+function getMappingDescription(automationType: AutomationType | null, translate: (key: string) => string): string {
   switch (automationType) {
     case 'bulk_collection':
-      return 'Configure which form fields map to which spreadsheet columns. When people submit the form, their answers will fill these columns.'
+      return translate('wizard-mapping-description-bulk')
     case 'row_workflow':
-      return 'Specify which row data to include in the workflow. Recipients will see this data when reviewing.'
+      return translate('wizard-mapping-description-row-workflow')
     case 'line_approval':
-      return 'Choose which columns to show in the approval form. Approvers will see these values when reviewing each line.'
+      return translate('wizard-mapping-description-line-approval')
     case 'sheet_approval':
-      return 'Select columns to include in the approval summary. These will be shown to the approver.'
+      return translate('wizard-mapping-description-sheet-approval')
     default:
-      return 'Map spreadsheet columns to workflow data.'
+      return translate('wizard-mapping-description-default')
   }
 }
 
-function getMappingFieldLabel(automationType: AutomationType | null): string {
+function getMappingFieldLabel(automationType: AutomationType | null, translate: (key: string) => string): string {
   switch (automationType) {
     case 'bulk_collection':
-      return 'Form Field Label'
+      return translate('wizard-mapping-field-label-bulk')
     case 'row_workflow':
     case 'line_approval':
-      return 'Show as Label'
+      return translate('wizard-mapping-field-label-show-as')
     case 'sheet_approval':
-      return 'Summary Label'
+      return translate('wizard-mapping-field-label-summary')
     default:
-      return 'Field Name'
+      return translate('wizard-mapping-field-label-default')
   }
 }
 
-function getMappingDirectionLabel(automationType: AutomationType | null): string {
+function getMappingDirectionLabel(automationType: AutomationType | null, translate: (key: string) => string): string {
   switch (automationType) {
     case 'bulk_collection':
-      return 'Collect responses into column'
+      return translate('wizard-mapping-direction-label-bulk')
     case 'row_workflow':
-      return 'Send to workflow / Get result back'
+      return translate('wizard-mapping-direction-label-row-workflow')
     default:
-      return 'Data Flow'
+      return translate('wizard-mapping-direction-label-default')
   }
 }
 
-function getRecipientLabel(assignee: string | undefined, recipientCount: number): string {
-  if (assignee === 'specific') return `${recipientCount} people selected`
-  if (assignee === 'team') return 'My Team'
-  if (assignee === 'department') return 'Department'
-  return '—'
+function getRecipientLabel(
+  assignee: string | undefined,
+  recipientCount: number,
+  translate: (key: string, vars?: Record<string, string | number>) => string
+): string {
+  if (assignee === 'specific') return translate('wizard-recipients-selected-count', { count: recipientCount })
+  if (assignee === 'team') return translate('wizard-recipient-team')
+  if (assignee === 'department') return translate('wizard-recipient-department')
+  return translate('wizard-empty-dash')
 }
 
 function getStepIndicatorStyle(isActive: boolean, isCompleted: boolean): string {
@@ -318,24 +388,52 @@ function getStepIndicatorStyle(isActive: boolean, isCompleted: boolean): string 
   return 'gba:bg-muted gba:text-muted-foreground'
 }
 
-function getStepTitle(step: WizardStep): string {
-  if (step === 'type') return 'Collection Method'
-  if (step === 'setup') return 'Setup'
-  if (step === 'configure') return 'Configure Collection'
-  return step.replaceAll('_', ' ').replaceAll(/\b\w/g, c => c.toUpperCase())
+function getStepTitle(step: WizardStep, translate: (key: string) => string): string {
+  switch (step) {
+    case 'type':
+      return translate('wizard-step-type')
+    case 'setup':
+      return translate('wizard-step-setup')
+    case 'configure':
+      return translate('wizard-step-configure')
+    case 'trigger':
+      return translate('wizard-step-trigger')
+    case 'workflow':
+      return translate('wizard-step-workflow')
+    case 'mapping':
+      return translate('wizard-step-mapping')
+    case 'review':
+      return translate('wizard-step-review')
+    default:
+      return step
+  }
 }
 
-function getAutomationTypeTitle(type: AutomationType | null): string {
-  const titles: Record<AutomationType, string> = {
-    row_workflow: 'Row Workflow',
-    bulk_collection: 'Form',
-    excel_collection: 'Spreadsheet template',
-    sheet_approval: 'Sheet Approval',
-    line_approval: 'Line Approval'
+const WIZARD_CLIPBOARD_KEYS = new Set(['c', 'v', 'x', 'a'])
+
+/** Inputs inside the wizard modal and portaled pickers it opens (Select/Popover/Combobox). */
+function isEventTargetInOpenAutomationWizard(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  if (target.closest('[data-automation-wizard-root="true"]')) return true
+  return Boolean(
+    target.closest("[data-slot='select-content']") ||
+      target.closest("[data-slot='popover-content']") ||
+      target.closest("[data-slot='combobox-content']")
+  )
+}
+
+function getAutomationTypeTitle(type: AutomationType | null, translate: (key: string) => string): string {
+  if (!type) return translate('wizard-not-selected')
+
+  const titleByType: Record<AutomationType, string> = {
+    row_workflow: 'wizard-automation-type-row-workflow',
+    bulk_collection: 'wizard-automation-type-bulk-collection',
+    excel_collection: 'wizard-automation-type-excel-collection',
+    sheet_approval: 'wizard-automation-type-sheet-approval',
+    line_approval: 'wizard-automation-type-line-approval'
   }
 
-  if (!type) return 'Not selected'
-  return titles[type] || type
+  return translate(titleByType[type])
 }
 
 /**
@@ -354,6 +452,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const isEditing = !!existingAutomation
+  const wizardModalBodyRef = useRef<HTMLDivElement>(null)
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>('type')
@@ -382,16 +481,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   >([])
 
   // Form fields for bulk collection (what questions to ask)
-  const [formFields, setFormFields] = useState<
-    Array<{
-      id: string
-      label: string
-      type: 'text' | 'number' | 'date' | 'textarea' | 'select'
-      required: boolean
-      targetColumn: string // which column to write response to
-      options?: string[] // for select type
-    }>
-  >([])
+  const [formFields, setFormFields] = useState<WizardBulkFormField[]>([])
 
   // Tracking columns for bulk collection (auto-generated metadata columns)
   const [trackingColumns, setTrackingColumns] = useState<string[]>(() => getDefaultTrackingColumns())
@@ -428,6 +518,42 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const updateFormField = (fieldId: string, updates: Partial<(typeof formFields)[0]>) => {
     setFormFields(prev => prev.map(f => (f.id === fieldId ? { ...f, ...updates } : f)))
   }
+
+  // Univer registers window-level key handlers for spreadsheet copy/paste; they can win over inputs in this modal.
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDownCapture = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (!WIZARD_CLIPBOARD_KEYS.has(e.key.toLowerCase())) return
+      if (!isEventTargetInOpenAutomationWizard(e.target)) return
+      e.stopImmediatePropagation()
+    }
+    window.addEventListener('keydown', onKeyDownCapture, true)
+    return () => window.removeEventListener('keydown', onKeyDownCapture, true)
+  }, [isOpen])
+
+  // Move focus into the wizard so the grid does not keep keyboard focus (and clipboard shortcuts).
+  useEffect(() => {
+    if (!isOpen) return
+    const ae = document.activeElement
+    const gridHost = document.querySelector('[data-testid="univer-sheet-grid-container"]')
+    if (ae instanceof HTMLElement && gridHost instanceof Element && gridHost.contains(ae)) {
+      ae.blur()
+    }
+    const id = window.requestAnimationFrame(() => {
+      const root = wizardModalBodyRef.current
+      if (!root) return
+      const first = root.querySelector<HTMLElement>(
+        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])'
+      )
+      if (first) {
+        first.focus({ preventScroll: true })
+        return
+      }
+      root.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [isOpen])
 
   // Initialize from existing automation
   useEffect(() => {
@@ -504,7 +630,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
         const data = (await response.json()) as { items?: SpreadsheetTemplateItem[] }
         if (cancelled) return
-        setAvailableTemplates(toTemplateOptions(data.items || [], spreadsheetId))
+        setAvailableTemplates(toTemplateOptions(data.items || [], spreadsheetId, t))
       } catch {
         if (!cancelled) setAvailableTemplates([])
       } finally {
@@ -517,7 +643,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     return () => {
       cancelled = true
     }
-  }, [isOpen, automationType, currentStep, accessToken, spreadsheetId])
+  }, [isOpen, automationType, currentStep, accessToken, spreadsheetId, t])
 
   // Wizard steps depend on automation type (bulk: 4 steps, others: 5 steps)
   const wizardSteps = useMemo(() => getWizardStepsForType(automationType), [automationType])
@@ -529,17 +655,17 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const getPlaceholderName = (): string => {
     switch (automationType) {
       case 'row_workflow':
-        return 'e.g., Process Customer Requests'
+        return t('wizard-placeholder-name-row-workflow')
       case 'bulk_collection':
-        return 'e.g., Q4 Employee Survey'
+        return t('wizard-placeholder-name-bulk-collection')
       case 'excel_collection':
-        return 'e.g., Q4 Status Report'
+        return t('wizard-placeholder-name-excel-collection')
       case 'sheet_approval':
-        return 'e.g., Budget Approval'
+        return t('wizard-placeholder-name-sheet-approval')
       case 'line_approval':
-        return 'e.g., Expense Line Approval'
+        return t('wizard-placeholder-name-line-approval')
       default:
-        return 'e.g., My Automation'
+        return t('wizard-placeholder-name-default')
     }
   }
 
@@ -547,17 +673,17 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const getPlaceholderDescription = (): string => {
     switch (automationType) {
       case 'row_workflow':
-        return 'Process each row through review and completion tasks...'
+        return t('wizard-placeholder-description-row-workflow')
       case 'bulk_collection':
-        return 'Collect responses from team members into this spreadsheet...'
+        return t('wizard-placeholder-description-bulk-collection')
       case 'excel_collection':
-        return 'Send a copy of this spreadsheet to your team. They fill it and submit.'
+        return t('wizard-placeholder-description-excel-collection')
       case 'sheet_approval':
-        return 'Submit the entire sheet for manager approval...'
+        return t('wizard-placeholder-description-sheet-approval')
       case 'line_approval':
-        return 'Each line item will be reviewed and approved separately...'
+        return t('wizard-placeholder-description-line-approval')
       default:
-        return 'Describe what this automation does...'
+        return t('wizard-placeholder-description-default')
     }
   }
 
@@ -569,72 +695,76 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
   const validateReviewStep = useCallback(
     (errors: string[]) => {
-      if (!name.trim()) errors.push('Automation name is required')
-      if (!automationType) errors.push('Automation type is required')
+      if (!name.trim()) errors.push(t('wizard-error-name-required'))
+      if (!automationType) errors.push(t('wizard-error-type-required'))
 
       if (automationType === 'bulk_collection') {
-        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this form')
-        if (formFields.length === 0) errors.push('Please add at least one form field')
+        if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-form-recipients'))
+        if (formFields.length === 0) errors.push(t('wizard-error-add-form-field'))
+        errors.push(...validateBulkCollectionSelectFields(formFields, t))
       }
 
       if (automationType === 'excel_collection') {
-        if (!selectedTemplateId) errors.push('Please select a template spreadsheet')
-        if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
+        if (!selectedTemplateId) errors.push(t('wizard-error-select-template'))
+        if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-recipients'))
       }
     },
-    [name, automationType, hasConfiguredRecipients, formFields.length, selectedTemplateId]
+    [name, automationType, hasConfiguredRecipients, formFields, selectedTemplateId, t]
   )
 
   const validateTypeStep = useCallback(
     (errors: string[]) => {
       if (!automationType) {
-        errors.push('Please select a collection method')
+        errors.push(t('wizard-error-select-collection-method'))
       }
     },
-    [automationType]
+    [automationType, t]
   )
 
   const validateSetupStep = useCallback(
     (errors: string[]) => {
       if (!name.trim()) {
-        errors.push('Please enter an automation name')
+        errors.push(t('wizard-error-enter-name'))
       }
     },
-    [name]
+    [name, t]
   )
 
   const validateTriggerStep = useCallback(
     (errors: string[]) => {
       if (trigger === 'onFieldChange' && watchColumns.length === 0) {
-        errors.push('Please select at least one column to watch')
+        errors.push(t('wizard-error-select-watch-column'))
       }
     },
-    [trigger, watchColumns]
+    [trigger, watchColumns, t]
   )
 
   const validateWorkflowStep = useCallback(
     (errors: string[]) => {
       if (!name.trim()) {
-        errors.push('Please enter an automation name')
+        errors.push(t('wizard-error-enter-name'))
       }
       if (workflowSteps.length === 0 && approvalSteps.length === 0) {
-        errors.push('Please add at least one workflow step')
+        errors.push(t('wizard-error-add-workflow-step'))
       }
     },
-    [name, workflowSteps.length, approvalSteps.length]
+    [name, workflowSteps.length, approvalSteps.length, t]
   )
 
   const validateConfigureStep = useCallback(
     (errors: string[]) => {
-      if (!hasConfiguredRecipients()) errors.push('Please select who should receive this')
+      if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-recipients'))
       if (automationType === 'excel_collection' && !selectedTemplateId) {
-        errors.push('Please select a template spreadsheet')
+        errors.push(t('wizard-error-select-template'))
       }
       if (automationType === 'bulk_collection' && formFields.length === 0) {
-        errors.push('Please add at least one form field to collect')
+        errors.push(t('wizard-error-add-form-field-to-collect'))
+      }
+      if (automationType === 'bulk_collection') {
+        errors.push(...validateBulkCollectionSelectFields(formFields, t))
       }
     },
-    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields.length]
+    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields, t]
   )
 
   const stepValidationHandlers: Partial<Record<WizardStep, (errors: string[]) => void>> = useMemo(
@@ -779,14 +909,40 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
           recipients,
           trackingColumns,
           message,
-          formFields: formFields.map(f => ({
-            id: f.id,
-            label: f.label,
-            type: 'existing_column' as const,
-            columnId: f.targetColumn,
-            inputType: f.type.toUpperCase() as 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT',
-            required: f.required
-          })),
+          formFields: formFields.map(f => {
+            const inputType = f.type.toUpperCase() as 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT'
+            const base = {
+              id: f.id,
+              label: f.label,
+              type: 'existing_column' as const,
+              columnId: f.targetColumn,
+              inputType,
+              required: f.required
+            }
+            if (f.type !== 'select') {
+              return base
+            }
+            const source =
+              f.selectOptionsSource ??
+              (f.entitySelect?.entityType && f.entitySelect?.valueField && f.entitySelect?.labelField
+                ? 'entity'
+                : 'static')
+            if (source === 'entity' && f.entitySelect) {
+              return {
+                ...base,
+                selectOptionsSource: 'entity' as const,
+                entitySelect: f.entitySelect,
+                options: undefined
+              }
+            }
+            const trimmedOptions = (f.options || []).map(o => String(o).trim()).filter(Boolean)
+            return {
+              ...base,
+              selectOptionsSource: 'static' as const,
+              options: trimmedOptions,
+              entitySelect: undefined
+            }
+          }),
           rowIdentifier: 'assignee' as const,
           fieldMappings: formFields.map(f => ({
             workflowOutputPath: `step_0.formData.${f.targetColumn}`,
@@ -833,13 +989,13 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     [formFields, columns, columnMappings]
   )
 
-  const syncBulkCollectionColumnLabels = useCallback(() => {
+  const syncBulkCollectionColumnLabels = useCallback(async () => {
     if (automationType !== 'bulk_collection' || formFields.length === 0 || !onColumnLabelsUpdate) return
 
     const labelUpdates = formFields
       .map(field => {
         const col = columns.find(c => c.id === field.targetColumn)
-        if (col && field.label.trim() && col.label !== field.label.trim()) {
+        if (col && field.label.trim()) {
           return { columnId: col.id, newLabel: field.label.trim() }
         }
         return undefined
@@ -847,7 +1003,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       .filter((u): u is { columnId: string; newLabel: string } => u !== undefined)
 
     if (labelUpdates.length > 0) {
-      onColumnLabelsUpdate(labelUpdates)
+      await Promise.resolve(onColumnLabelsUpdate(labelUpdates))
     }
   }, [automationType, formFields, onColumnLabelsUpdate, columns])
 
@@ -882,7 +1038,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         collectionConfig
       }
 
-      syncBulkCollectionColumnLabels()
+      await syncBulkCollectionColumnLabels()
 
       await onSave(automation)
       onClose()
@@ -987,14 +1143,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         {automationType === 'sheet_approval' && <ClipboardCheck className="gba:w-4 gba:h-4" />}
         {automationType === 'line_approval' && <Zap className="gba:w-4 gba:h-4" />}
         {automationType === 'bulk_collection' && <Users className="gba:w-4 gba:h-4" />}
-        Workflow Steps
+        {t('wizard-workflow-steps')}
       </h4>
 
       {automationType === 'row_workflow' && (
         <div className="gba:space-y-4">
-          <p className="gba:text-sm gba:text-muted-foreground">
-            Each row triggers a workflow with these steps. Configure who handles each step.
-          </p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('wizard-row-workflow-description')}</p>
 
           <Card>
             <CardContent className="gba:p-4">
@@ -1004,12 +1158,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     1
                   </div>
                   <div>
-                    <div className="gba:font-medium">Review Row Data</div>
-                    <div className="gba:text-sm gba:text-muted-foreground">Task • 24h deadline</div>
+                    <div className="gba:font-medium">{t('wizard-review-row-data')}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('wizard-task-24h-deadline')}</div>
                   </div>
                 </div>
                 <div className="gba:w-48">
-                  <Label className="gba:text-xs gba:text-muted-foreground">Assigned to</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-assigned-to')}</Label>
                   <Select
                     value={approvalSteps[0]?.assignee || 'initiator'}
                     onValueChange={value => {
@@ -1026,19 +1180,19 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       <SelectItem value="initiator">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <User className="gba:w-3 gba:h-3" />
-                          Myself (initiator)
+                          {t('wizard-myself-initiator')}
                         </div>
                       </SelectItem>
                       <SelectItem value="manager">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <UserCheck className="gba:w-3 gba:h-3" />
-                          My Manager
+                          {t('wizard-my-manager')}
                         </div>
                       </SelectItem>
                       <SelectItem value="column">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <FileSpreadsheet className="gba:w-3 gba:h-3" />
-                          From Column...
+                          {t('wizard-from-column')}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -1053,7 +1207,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       }}
                     >
                       <SelectTrigger className="gba:mt-2">
-                        <SelectValue placeholder="Select column..." />
+                        <SelectValue placeholder={t('wizard-select-column')} />
                       </SelectTrigger>
                       <SelectContent style={{ zIndex: 1000003 }}>
                         {columns
@@ -1083,12 +1237,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     2
                   </div>
                   <div>
-                    <div className="gba:font-medium">Process Row</div>
-                    <div className="gba:text-sm gba:text-muted-foreground">Task • 48h deadline</div>
+                    <div className="gba:font-medium">{t('wizard-process-row')}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('wizard-task-48h-deadline')}</div>
                   </div>
                 </div>
                 <div className="gba:w-48">
-                  <Label className="gba:text-xs gba:text-muted-foreground">Assigned to</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-assigned-to')}</Label>
                   <Select
                     value={approvalSteps[1]?.assignee || 'initiator'}
                     onValueChange={value => {
@@ -1105,19 +1259,19 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       <SelectItem value="initiator">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <User className="gba:w-3 gba:h-3" />
-                          Myself (initiator)
+                          {t('wizard-myself-initiator')}
                         </div>
                       </SelectItem>
                       <SelectItem value="manager">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <UserCheck className="gba:w-3 gba:h-3" />
-                          My Manager
+                          {t('wizard-my-manager')}
                         </div>
                       </SelectItem>
                       <SelectItem value="column">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <FileSpreadsheet className="gba:w-3 gba:h-3" />
-                          From Column...
+                          {t('wizard-from-column')}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -1132,7 +1286,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       }}
                     >
                       <SelectTrigger className="gba:mt-2">
-                        <SelectValue placeholder="Select column..." />
+                        <SelectValue placeholder={t('wizard-select-column')} />
                       </SelectTrigger>
                       <SelectContent style={{ zIndex: 1000003 }}>
                         {columns
@@ -1154,9 +1308,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
       {automationType === 'sheet_approval' && (
         <div className="gba:space-y-4">
-          <p className="gba:text-sm gba:text-muted-foreground">
-            The entire spreadsheet will be submitted for approval. Configure who reviews it.
-          </p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('wizard-sheet-approval-description')}</p>
 
           <Card>
             <CardContent className="gba:p-4">
@@ -1166,11 +1318,11 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     1
                   </div>
                   <div>
-                    <div className="gba:font-medium">Submission Notification</div>
-                    <div className="gba:text-sm gba:text-muted-foreground">Info • Automatic</div>
+                    <div className="gba:font-medium">{t('wizard-submission-notification')}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('wizard-info-automatic')}</div>
                   </div>
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground gba:italic">Sent to submitter</div>
+                <div className="gba:text-sm gba:text-muted-foreground gba:italic">{t('wizard-sent-to-submitter')}</div>
               </div>
             </CardContent>
           </Card>
@@ -1187,12 +1339,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     2
                   </div>
                   <div>
-                    <div className="gba:font-medium">Approve Spreadsheet</div>
-                    <div className="gba:text-sm gba:text-muted-foreground">Approval • 3 day deadline</div>
+                    <div className="gba:font-medium">{t('wizard-approve-spreadsheet')}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('wizard-approval-3-day-deadline')}</div>
                   </div>
                 </div>
                 <div className="gba:w-48">
-                  <Label className="gba:text-xs gba:text-muted-foreground">Approver *</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-approver-required')}</Label>
                   <Select
                     value={approvalSteps[0]?.assignee || ''}
                     onValueChange={value => {
@@ -1203,19 +1355,19 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     }}
                   >
                     <SelectTrigger className="gba:mt-1">
-                      <SelectValue placeholder="Who approves?" />
+                      <SelectValue placeholder={t('wizard-who-approves')} />
                     </SelectTrigger>
                     <SelectContent style={{ zIndex: 1000003 }}>
                       <SelectItem value="manager">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <UserCheck className="gba:w-3 gba:h-3" />
-                          My Manager
+                          {t('wizard-my-manager')}
                         </div>
                       </SelectItem>
                       <SelectItem value="specific">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <User className="gba:w-3 gba:h-3" />
-                          Specific Person...
+                          {t('wizard-specific-person')}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -1231,7 +1383,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           newSteps[0].assigneeUserId = userId || undefined
                           setApprovalSteps(newSteps)
                         }}
-                        placeholder="Search and select a person..."
+                        placeholder={t('wizard-search-select-person')}
                         data-testid="sheet-approval-user-select"
                       />
                     </div>
@@ -1245,9 +1397,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
       {automationType === 'line_approval' && (
         <div className="gba:space-y-4">
-          <p className="gba:text-sm gba:text-muted-foreground">
-            Each row is sent for individual approval. Configure who approves each line item.
-          </p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('wizard-line-approval-description')}</p>
 
           <Card className="gba:border-primary/50">
             <CardContent className="gba:p-4">
@@ -1257,12 +1407,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     <RefreshCw className="gba:w-4 gba:h-4" />
                   </div>
                   <div>
-                    <div className="gba:font-medium">Approve Line Item</div>
-                    <div className="gba:text-sm gba:text-muted-foreground">Per-row approval • 48h deadline</div>
+                    <div className="gba:font-medium">{t('wizard-approve-line-item')}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('wizard-per-row-approval-48h')}</div>
                   </div>
                 </div>
                 <div className="gba:w-48">
-                  <Label className="gba:text-xs gba:text-muted-foreground">Approver *</Label>
+                  <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-approver-required')}</Label>
                   <Select
                     value={approvalSteps[0]?.assignee || ''}
                     onValueChange={value => {
@@ -1273,13 +1423,13 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     }}
                   >
                     <SelectTrigger className="gba:mt-1">
-                      <SelectValue placeholder="Who approves?" />
+                      <SelectValue placeholder={t('wizard-who-approves')} />
                     </SelectTrigger>
                     <SelectContent style={{ zIndex: 1000003 }}>
                       <SelectItem value="manager">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <UserCheck className="gba:w-3 gba:h-3" />
-                          My Manager
+                          {t('wizard-my-manager')}
                         </div>
                       </SelectItem>
                       <SelectItem value="column">
@@ -1291,7 +1441,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       <SelectItem value="specific">
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <User className="gba:w-3 gba:h-3" />
-                          Specific Person...
+                          {t('wizard-specific-person')}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -1306,7 +1456,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       }}
                     >
                       <SelectTrigger className="gba:mt-2">
-                        <SelectValue placeholder="Select approver column..." />
+                        <SelectValue placeholder={t('wizard-select-approver-column')} />
                       </SelectTrigger>
                       <SelectContent style={{ zIndex: 1000003 }}>
                         {columns
@@ -1330,7 +1480,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           newSteps[0].assigneeUserId = userId || undefined
                           setApprovalSteps(newSteps)
                         }}
-                        placeholder="Search and select a person..."
+                        placeholder={t('wizard-search-select-person')}
                         data-testid="line-approval-user-select"
                       />
                     </div>
@@ -1341,8 +1491,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
           </Card>
 
           <div className="gba:p-3 gba:bg-muted/50 gba:rounded-lg gba:text-sm gba:text-muted-foreground">
-            <strong>Tip:</strong> Use "From Column" if each row has a different approver (e.g., department manager
-            stored in the row data).
+            <strong>{t('wizard-tip-label')}:</strong> {t('wizard-tip-from-column')}
           </div>
         </div>
       )}
@@ -1355,7 +1504,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       case 'type':
         return (
           <div className="gba:space-y-4">
-            <p className="gba:text-muted-foreground">What do you want to send to recipients?</p>
+            <p className="gba:text-muted-foreground">{t('wizard-what-send-to-recipients')}</p>
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               {COLLECTION_DELIVERY_OPTIONS.map(opt => {
                 const Icon = opt.icon
@@ -1378,8 +1527,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           <Icon className="gba:w-5 gba:h-5" />
                         </div>
                         <div className="gba:flex-1">
-                          <h3 className="gba:font-semibold gba:text-foreground">{opt.title}</h3>
-                          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{opt.description}</p>
+                          <h3 className="gba:font-semibold gba:text-foreground">{t(opt.titleKey)}</h3>
+                          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t(opt.descriptionKey)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -1405,16 +1554,16 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
               ) : (
                 <Users className="gba:w-5 gba:h-5 gba:text-primary" />
               )}
-              <span className="gba:font-medium">Data Collection</span>
+              <span className="gba:font-medium">{t('wizard-data-collection')}</span>
               <Badge variant="secondary">
                 {isExcelCollection
-                  ? 'Spreadsheet template — send copy, they fill and submit'
-                  : 'Form — collect responses from multiple users'}
+                  ? t('wizard-data-collection-badge-spreadsheet')
+                  : t('wizard-data-collection-badge-form')}
               </Badge>
             </div>
 
             <div>
-              <Label htmlFor="bulk-automation-name">Automation Name *</Label>
+              <Label htmlFor="bulk-automation-name">{t('wizard-automation-name-required')}</Label>
               <Input
                 id="bulk-automation-name"
                 value={name}
@@ -1425,10 +1574,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             </div>
 
             <div>
-              <Label className="gba:mb-2 gba:block">When to send</Label>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                Choose when to send out collection requests to participants.
-              </p>
+              <Label className="gba:mb-2 gba:block">{t('wizard-when-to-send')}</Label>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">{t('wizard-when-to-send-description')}</p>
               <div className="gba:space-y-2">
                 {filteredOptions.map(option => {
                   const Icon = option.icon
@@ -1452,8 +1599,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             <Icon className="gba:w-5 gba:h-5" />
                           </div>
                           <div>
-                            <h3 className="gba:font-semibold gba:text-foreground">{option.title}</h3>
-                            <p className="gba:text-sm gba:text-muted-foreground">{option.description}</p>
+                            <h3 className="gba:font-semibold gba:text-foreground">{t(option.titleKey)}</h3>
+                            <p className="gba:text-sm gba:text-muted-foreground">{t(option.descriptionKey)}</p>
                           </div>
                         </div>
                       </CardContent>
@@ -1472,7 +1619,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
         return (
           <div className="gba:space-y-4">
-            <p className="gba:text-muted-foreground">{getTriggerStepDescription(automationType)}</p>
+            <p className="gba:text-muted-foreground">{getTriggerStepDescription(automationType, t)}</p>
             <div className="gba:space-y-3">
               {filteredOptions.map(option => {
                 const Icon = option.icon
@@ -1496,8 +1643,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           <Icon className="gba:w-5 gba:h-5" />
                         </div>
                         <div>
-                          <h3 className="gba:font-semibold gba:text-foreground">{option.title}</h3>
-                          <p className="gba:text-sm gba:text-muted-foreground">{option.description}</p>
+                          <h3 className="gba:font-semibold gba:text-foreground">{t(option.titleKey)}</h3>
+                          <p className="gba:text-sm gba:text-muted-foreground">{t(option.descriptionKey)}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -1508,7 +1655,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
             {trigger === 'onFieldChange' && (
               <div className="gba:mt-4 gba:p-4 gba:bg-muted gba:rounded-lg">
-                <Label className="gba:mb-2 gba:block">Select columns to watch</Label>
+                <Label className="gba:mb-2 gba:block">{t('wizard-select-columns-to-watch')}</Label>
                 <div className="gba:flex gba:flex-wrap gba:gap-2">
                   {columns.map(column => (
                     <label
@@ -1536,10 +1683,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
           <div className="gba:space-y-6">
             {/* Basic Info */}
             <div className="gba:space-y-4">
-              <h4 className="gba:font-semibold gba:text-foreground">Basic Information</h4>
+              <h4 className="gba:font-semibold gba:text-foreground">{t('wizard-basic-information')}</h4>
               <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                 <div>
-                  <Label htmlFor="automation-name">Automation Name *</Label>
+                  <Label htmlFor="automation-name">{t('wizard-automation-name-required')}</Label>
                   <Input
                     id="automation-name"
                     value={name}
@@ -1550,10 +1697,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 </div>
                 <div>
                   <Label htmlFor="status-column" className="gba:flex gba:items-center gba:gap-1">
-                    Status Column
+                    {t('wizard-status-column')}
                     <span
                       className="gba:text-muted-foreground gba:cursor-help"
-                      title="Select a column where the workflow status (Pending, In Progress, Completed, etc.) will be displayed for each row"
+                      title={t('wizard-status-column-tooltip')}
                     >
                       <Info className="gba:w-3.5 gba:h-3.5" />
                     </span>
@@ -1563,10 +1710,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     onValueChange={value => setStatusColumn(value === '__none__' ? undefined : value)}
                   >
                     <SelectTrigger className="gba:mt-1">
-                      <SelectValue placeholder="Select column to show status" />
+                      <SelectValue placeholder={t('wizard-select-status-column')} />
                     </SelectTrigger>
                     <SelectContent style={{ zIndex: 1000003 }}>
-                      <SelectItem value="__none__">None (don't track in spreadsheet)</SelectItem>
+                      <SelectItem value="__none__">{t('wizard-status-column-none')}</SelectItem>
                       {columns.map(column => (
                         <SelectItem key={column.id} value={column.id}>
                           {column.label}
@@ -1574,14 +1721,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                    Shows workflow progress like "Pending Review", "Approved", etc. in this column
-                  </p>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('wizard-status-column-help')}</p>
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="automation-description">Description (optional)</Label>
+                <Label htmlFor="automation-description">{t('wizard-description-optional')}</Label>
                 <Textarea
                   id="automation-description"
                   value={description}
@@ -1611,22 +1756,20 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                   <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
                     1
                   </div>
-                  <Label className="gba:text-sm gba:font-semibold">
-                    Which spreadsheet should we send to your team?
-                  </Label>
+                  <Label className="gba:text-sm gba:font-semibold">{t('wizard-which-spreadsheet-send')}</Label>
                 </div>
                 <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
-                  This sheet will receive submission status. Each recipient gets a copy of the template you choose.
+                  {t('wizard-which-spreadsheet-send-help')}
                 </p>
                 {isLoadingTemplates ? (
                   <div className="gba:ml-8 gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
                     <Spinner size="sm" />
-                    <span className="gba:text-sm">Loading your spreadsheets...</span>
+                    <span className="gba:text-sm">{t('wizard-loading-spreadsheets')}</span>
                   </div>
                 ) : (
                   <Select value={selectedTemplateId || ''} onValueChange={v => setSelectedTemplateId(v || null)}>
                     <SelectTrigger className="gba:ml-8 gba:max-w-md">
-                      <SelectValue placeholder="Select a spreadsheet template..." />
+                      <SelectValue placeholder={t('wizard-select-spreadsheet-template')} />
                     </SelectTrigger>
                     <SelectContent style={{ zIndex: 1000003 }}>
                       {availableTemplates.map(t => (
@@ -1636,7 +1779,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       ))}
                       {availableTemplates.length === 0 && !isLoadingTemplates && (
                         <SelectItem value="__none__" disabled>
-                          No other spreadsheets found
+                          {t('wizard-no-other-spreadsheets')}
                         </SelectItem>
                       )}
                     </SelectContent>
@@ -1652,15 +1795,30 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                   {isExcelConfigure ? 2 : 1}
                 </div>
                 <Label className="gba:text-sm gba:font-semibold">
-                  {isExcelConfigure ? 'Who should receive this spreadsheet copy?' : 'Who should receive this form?'}
+                  {isExcelConfigure ? t('wizard-who-receives-spreadsheet-copy') : t('wizard-who-receives-form')}
                 </Label>
               </div>
 
               <div className="gba:grid gba:grid-cols-3 gba:gap-2">
                 {[
-                  { value: 'team', icon: Users, label: 'My Team', desc: 'Direct reports' },
-                  { value: 'department', icon: Building, label: 'Department', desc: 'All members' },
-                  { value: 'specific', icon: User, label: 'Specific People', desc: 'Choose who' }
+                  {
+                    value: 'team',
+                    icon: Users,
+                    labelKey: 'wizard-recipient-team',
+                    descKey: 'wizard-recipient-team-description'
+                  },
+                  {
+                    value: 'department',
+                    icon: Building,
+                    labelKey: 'wizard-recipient-department',
+                    descKey: 'wizard-recipient-department-description'
+                  },
+                  {
+                    value: 'specific',
+                    icon: User,
+                    labelKey: 'wizard-recipient-specific-people',
+                    descKey: 'wizard-recipient-specific-people-description'
+                  }
                 ].map(opt => (
                   <button
                     key={opt.value}
@@ -1678,8 +1836,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     }`}
                   >
                     <opt.icon className="gba:w-5 gba:h-5 gba:mb-1 gba:text-muted-foreground" />
-                    <div className="gba:font-medium gba:text-sm">{opt.label}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">{opt.desc}</div>
+                    <div className="gba:font-medium gba:text-sm">{t(opt.labelKey)}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">{t(opt.descKey)}</div>
                   </button>
                 ))}
               </div>
@@ -1692,7 +1850,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       value={selectedRecipients.map(r => r.id)}
                       onValueChange={handleRecipientsValueChange}
                       onEmployeesChange={handleRecipientsEmployeesChange}
-                      placeholder="Search employees to add..."
+                      placeholder={t('wizard-search-employees-to-add')}
                       data-testid="bulk-collection-employee-select"
                     />
                   </CardContent>
@@ -1707,21 +1865,17 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                   {isExcelConfigure ? 3 : 2}
                 </div>
                 <MessageSquare className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                <Label className="gba:text-sm gba:font-semibold">Message to recipients (optional)</Label>
+                <Label className="gba:text-sm gba:font-semibold">{t('wizard-message-to-recipients-optional')}</Label>
               </div>
               <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
-                {isExcelConfigure
-                  ? 'Add a personal note that will appear when recipients open their copy.'
-                  : 'Add a note that will appear in the task sent to recipients.'}
+                {isExcelConfigure ? t('wizard-message-help-excel') : t('wizard-message-help-bulk')}
               </p>
               <div className="gba:ml-8 gba:max-w-lg">
                 <Textarea
                   value={collectionMessage}
                   onChange={e => setCollectionMessage(e.target.value)}
                   placeholder={
-                    isExcelConfigure
-                      ? 'e.g. Please fill this out by Friday. Thanks!'
-                      : 'e.g. Please complete this form at your earliest convenience.'
+                    isExcelConfigure ? t('wizard-message-placeholder-excel') : t('wizard-message-placeholder-bulk')
                   }
                   rows={3}
                   className="gba:resize-none"
@@ -1738,16 +1892,14 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
                       3
                     </div>
-                    <Label className="gba:text-sm gba:font-semibold">What data do you want to collect?</Label>
+                    <Label className="gba:text-sm gba:font-semibold">{t('wizard-what-data-collect')}</Label>
                   </div>
                   <span className="gba:text-xs gba:text-muted-foreground">
-                    {formFields.length} field{formFields.length !== 1 ? 's' : ''}
+                    {t('wizard-fields-count', { count: formFields.length })}
                   </span>
                 </div>
 
-                <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
-                  Each field becomes a question in the form. Responses will be added as new rows.
-                </p>
+                <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">{t('wizard-fields-help')}</p>
 
                 {/* Quick-add from columns - always visible so users can add multiple fields */}
                 <Card className={formFields.length === 0 ? 'gba:border-dashed' : ''}>
@@ -1756,12 +1908,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       <FileSpreadsheet className="gba:w-8 gba:h-8 gba:mx-auto gba:text-muted-foreground" />
                       <div>
                         <p className="gba:font-medium">
-                          {formFields.length === 0 ? 'Start from your columns' : 'Add more fields'}
+                          {formFields.length === 0 ? t('wizard-start-from-columns') : t('wizard-add-more-fields')}
                         </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
                           {formFields.length === 0
-                            ? 'Select which columns you want people to fill in'
-                            : 'Click to add another column as a form field'}
+                            ? t('wizard-start-from-columns-help')
+                            : t('wizard-add-more-fields-help')}
                         </p>
                       </div>
                       <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center gba:pt-2">
@@ -1783,7 +1935,11 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                         {additionalFormColumns.length > 0 && (
                           <Select value="" onValueChange={handleAddAdditionalFormColumn}>
                             <SelectTrigger className="gba:w-auto gba:min-w-[120px]">
-                              <SelectValue placeholder={`+${additionalFormColumns.length} more`} />
+                              <SelectValue
+                                placeholder={t('wizard-additional-columns-more', {
+                                  count: additionalFormColumns.length
+                                })}
+                              />
                             </SelectTrigger>
                             <SelectContent style={{ zIndex: 1000003 }}>
                               {additionalFormColumns.map(col => (
@@ -1810,40 +1966,63 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             </div>
                             <div className="gba:flex-1 gba:grid gba:grid-cols-3 gba:gap-3">
                               <div>
-                                <Label className="gba:text-xs gba:text-muted-foreground">Question Label</Label>
+                                <Label className="gba:text-xs gba:text-muted-foreground">
+                                  {t('wizard-question-label')}
+                                </Label>
                                 <Input
                                   value={field.label}
                                   onChange={e => updateFormField(field.id, { label: e.target.value })}
-                                  placeholder="e.g., Project Status"
+                                  placeholder={t('wizard-question-label-placeholder')}
                                   className="gba:mt-1 gba:h-8"
                                 />
                               </div>
                               <div>
-                                <Label className="gba:text-xs gba:text-muted-foreground">Field Type</Label>
+                                <Label className="gba:text-xs gba:text-muted-foreground">
+                                  {t('wizard-field-type')}
+                                </Label>
                                 <Select
                                   value={field.type}
-                                  onValueChange={v => updateFormField(field.id, { type: v as typeof field.type })}
+                                  onValueChange={v => {
+                                    const nextType = v as WizardBulkFormField['type']
+                                    if (nextType === 'select') {
+                                      updateFormField(field.id, {
+                                        type: 'select',
+                                        selectOptionsSource: 'static',
+                                        options: [''],
+                                        entitySelect: undefined
+                                      })
+                                    } else {
+                                      updateFormField(field.id, {
+                                        type: nextType,
+                                        options: undefined,
+                                        selectOptionsSource: undefined,
+                                        entitySelect: undefined
+                                      })
+                                    }
+                                  }}
                                 >
                                   <SelectTrigger className="gba:mt-1 gba:h-8">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent style={{ zIndex: 1000003 }}>
-                                    <SelectItem value="text">Short Text</SelectItem>
-                                    <SelectItem value="textarea">Long Text</SelectItem>
-                                    <SelectItem value="number">Number</SelectItem>
-                                    <SelectItem value="date">Date</SelectItem>
-                                    <SelectItem value="select">Dropdown</SelectItem>
+                                    <SelectItem value="text">{t('wizard-field-type-text')}</SelectItem>
+                                    <SelectItem value="textarea">{t('wizard-field-type-textarea')}</SelectItem>
+                                    <SelectItem value="number">{t('wizard-field-type-number')}</SelectItem>
+                                    <SelectItem value="date">{t('wizard-field-type-date')}</SelectItem>
+                                    <SelectItem value="select">{t('wizard-field-type-select')}</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
                               <div>
-                                <Label className="gba:text-xs gba:text-muted-foreground">Save to Column</Label>
+                                <Label className="gba:text-xs gba:text-muted-foreground">
+                                  {t('wizard-save-to-column')}
+                                </Label>
                                 <Select
                                   value={field.targetColumn}
                                   onValueChange={v => updateFormField(field.id, { targetColumn: v })}
                                 >
                                   <SelectTrigger className="gba:mt-1 gba:h-8">
-                                    <SelectValue placeholder="Select column" />
+                                    <SelectValue placeholder={t('entity-ds-select-field')} />
                                   </SelectTrigger>
                                   <SelectContent style={{ zIndex: 1000003 }}>
                                     {columns.map(col => (
@@ -1851,7 +2030,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                                         {col.label}
                                       </SelectItem>
                                     ))}
-                                    <SelectItem value="__new__">+ Create new column</SelectItem>
+                                    <SelectItem value="__new__">{t('wizard-create-new-column')}</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1861,7 +2040,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                                 checked={field.required}
                                 onCheckedChange={checked => updateFormField(field.id, { required: !!checked })}
                               />
-                              <span className="gba:text-xs gba:text-muted-foreground">Required</span>
+                              <span className="gba:text-xs gba:text-muted-foreground">{t('wizard-required')}</span>
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -1872,6 +2051,19 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                               </Button>
                             </div>
                           </div>
+                          {field.type === 'select' && (
+                            <AutomationFormSelectFieldConfig
+                              selectOptionsSource={
+                                field.selectOptionsSource ?? (field.entitySelect?.entityType ? 'entity' : 'static')
+                              }
+                              options={field.options ?? ['']}
+                              entitySelect={field.entitySelect}
+                              accessToken={accessToken}
+                              translate={t}
+                              onChange={patch => updateFormField(field.id, patch)}
+                              data-testid={`automation-wizard-select-${field.id}`}
+                            />
+                          )}
                         </CardContent>
                       </Card>
                     ))}
@@ -1885,7 +2077,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                         }}
                       >
                         <SelectTrigger className="gba:w-48">
-                          <SelectValue placeholder="Add from column..." />
+                          <SelectValue placeholder={t('wizard-add-from-column')} />
                         </SelectTrigger>
                         <SelectContent style={{ zIndex: 1000003 }}>
                           {columns
@@ -1905,7 +2097,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             ...prev,
                             {
                               id: `field_${Date.now()}`,
-                              label: 'New Field',
+                              label: t('wizard-new-field'),
                               type: 'text',
                               required: false,
                               targetColumn: '__new__'
@@ -1914,7 +2106,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                         }
                       >
                         <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-                        Custom Field
+                        {t('wizard-custom-field')}
                       </Button>
                     </div>
                   </div>
@@ -1926,9 +2118,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-muted/30 gba:rounded-lg">
               <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
               <p className="gba:text-sm gba:text-muted-foreground">
-                {isExcelConfigure
-                  ? 'Recipients will receive a copy of your spreadsheet. They fill it in-app and submit when done.'
-                  : 'Recipients will receive a form task in EveryBox with the fields above.'}
+                {isExcelConfigure ? t('wizard-note-excel') : t('wizard-note-bulk')}
               </p>
             </div>
 
@@ -1938,11 +2128,9 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
                   4
                 </div>
-                <Label className="gba:text-sm gba:font-semibold">Tracking Columns</Label>
+                <Label className="gba:text-sm gba:font-semibold">{t('wizard-tracking-columns')}</Label>
               </div>
-              <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
-                Choose which auto-generated columns to include for tracking workflow progress.
-              </p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">{t('wizard-tracking-columns-help')}</p>
               <div className="gba:ml-8">
                 <TrackingColumnsConfig
                   selectedColumns={trackingColumns}
@@ -1955,12 +2143,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         )
 
       case 'mapping': {
-        const columnLabel = 'Spreadsheet Column'
+        const columnLabel = t('wizard-spreadsheet-column')
 
         return (
           <div className="gba:space-y-6">
             <div>
-              <p className="gba:text-muted-foreground">{getMappingDescription(automationType)}</p>
+              <p className="gba:text-muted-foreground">{getMappingDescription(automationType, t)}</p>
             </div>
 
             {/* Quick setup: auto-map all columns */}
@@ -1968,9 +2156,9 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
               <div className="gba:p-4 gba:bg-primary/5 gba:border gba:border-primary/20 gba:rounded-lg">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div>
-                    <h4 className="gba:font-medium">Quick Setup</h4>
+                    <h4 className="gba:font-medium">{t('wizard-quick-setup')}</h4>
                     <p className="gba:text-sm gba:text-muted-foreground">
-                      Auto-create mappings for all {columns.length} columns
+                      {t('wizard-auto-create-mappings', { count: columns.length })}
                     </p>
                   </div>
                   <Button
@@ -1986,14 +2174,14 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                       setColumnMappings(newMappings)
                     }}
                   >
-                    Auto-Map All
+                    {t('wizard-auto-map-all')}
                   </Button>
                 </div>
               </div>
             )}
 
             <div className="gba:flex gba:items-center gba:justify-between">
-              <Label className="gba:text-base gba:font-semibold">Column Mappings</Label>
+              <Label className="gba:text-base gba:font-semibold">{t('wizard-column-mappings')}</Label>
               <Button size="sm" variant="outline" onClick={addColumnMapping}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
                 {t('add-column-title')}
@@ -2004,16 +2192,16 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
               <Card className="gba:border-dashed">
                 <CardContent className="gba:py-8 gba:text-center">
                   <FileSpreadsheet className="gba:w-10 gba:h-10 gba:mx-auto gba:mb-3 gba:text-muted-foreground" />
-                  <p className="gba:text-muted-foreground gba:mb-1">No columns mapped yet</p>
+                  <p className="gba:text-muted-foreground gba:mb-1">{t('wizard-no-columns-mapped')}</p>
                   <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
                     {automationType === 'bulk_collection'
-                      ? 'Map columns to collect responses into your spreadsheet'
-                      : "Optional: Skip if you don't need to pass data to the workflow"}
+                      ? t('wizard-no-columns-mapped-help-bulk')
+                      : t('wizard-no-columns-mapped-help-workflow')}
                   </p>
                   <div className="gba:flex gba:gap-2 gba:justify-center">
                     <Button variant="outline" onClick={addColumnMapping}>
                       <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Add Manually
+                      {t('wizard-add-manually')}
                     </Button>
                   </div>
                 </CardContent>
@@ -2024,8 +2212,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 <div className="gba:grid gba:grid-cols-12 gba:gap-3 gba:px-4 gba:text-xs gba:text-muted-foreground gba:font-medium">
                   <div className="gba:col-span-4">{columnLabel}</div>
                   <div className="gba:col-span-1"></div>
-                  <div className="gba:col-span-4">{getMappingFieldLabel(automationType)}</div>
-                  <div className="gba:col-span-2">{getMappingDirectionLabel(automationType)}</div>
+                  <div className="gba:col-span-4">{getMappingFieldLabel(automationType, t)}</div>
+                  <div className="gba:col-span-2">{getMappingDirectionLabel(automationType, t)}</div>
                   <div className="gba:col-span-1"></div>
                 </div>
 
@@ -2039,7 +2227,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             onValueChange={value => handleColumnMappingColumnChange(index, value)}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Select column..." />
+                              <SelectValue placeholder={t('wizard-select-column')} />
                             </SelectTrigger>
                             <SelectContent style={{ zIndex: 1000003 }}>
                               {columns.map(column => (
@@ -2059,7 +2247,11 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                           <Input
                             value={mapping.workflowParameter}
                             onChange={e => updateColumnMapping(index, { workflowParameter: e.target.value })}
-                            placeholder={automationType === 'bulk_collection' ? 'e.g., Amount' : 'e.g., amount'}
+                            placeholder={
+                              automationType === 'bulk_collection'
+                                ? t('wizard-parameter-placeholder-bulk')
+                                : t('wizard-parameter-placeholder-workflow')
+                            }
                           />
                         </div>
 
@@ -2075,13 +2267,13 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                             </SelectTrigger>
                             <SelectContent style={{ zIndex: 1000003 }}>
                               <SelectItem value="toWorkflow">
-                                <span className="gba:text-xs">→ Send</span>
+                                <span className="gba:text-xs">{t('wizard-direction-send')}</span>
                               </SelectItem>
                               <SelectItem value="fromWorkflow">
-                                <span className="gba:text-xs">← Receive</span>
+                                <span className="gba:text-xs">{t('wizard-direction-receive')}</span>
                               </SelectItem>
                               <SelectItem value="bidirectional">
-                                <span className="gba:text-xs">↔ Both</span>
+                                <span className="gba:text-xs">{t('wizard-direction-both')}</span>
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -2109,16 +2301,16 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
               <div className="gba:flex gba:items-start gba:gap-2">
                 <Info className="gba:w-4 gba:h-4 gba:mt-0.5 gba:text-muted-foreground gba:flex-shrink-0" />
                 <div className="gba:text-muted-foreground">
-                  <strong>Direction explained:</strong>
+                  <strong>{t('wizard-direction-explained')}:</strong>
                   <ul className="gba:mt-1 gba:space-y-1 gba:list-disc gba:list-inside">
                     <li>
-                      <strong>→ Send:</strong> Row data is included in the workflow task
+                      <strong>{t('wizard-direction-send')}</strong> {t('wizard-direction-send-help')}
                     </li>
                     <li>
-                      <strong>← Receive:</strong> Workflow results update the spreadsheet column
+                      <strong>{t('wizard-direction-receive')}</strong> {t('wizard-direction-receive-help')}
                     </li>
                     <li>
-                      <strong>↔ Both:</strong> Data flows both ways (for editable fields)
+                      <strong>{t('wizard-direction-both')}</strong> {t('wizard-direction-both-help')}
                     </li>
                   </ul>
                 </div>
@@ -2131,66 +2323,84 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       case 'review':
         return (
           <div className="gba:space-y-4">
-            <p className="gba:text-muted-foreground">Review your automation configuration before saving.</p>
+            <p className="gba:text-muted-foreground">{t('wizard-review-configuration')}</p>
 
             <Card>
               <CardHeader className="gba:pb-3">
-                <CardTitle className="gba:text-lg">{name || 'Untitled Automation'}</CardTitle>
+                <CardTitle className="gba:text-lg">{name || t('wizard-untitled-automation')}</CardTitle>
                 {description && <CardDescription>{description}</CardDescription>}
               </CardHeader>
               <CardContent className="gba:space-y-4">
                 <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                   <div>
-                    <Label className="gba:text-xs gba:text-muted-foreground">Type</Label>
-                    <p className="gba:font-medium">{getAutomationTypeTitle(automationType)}</p>
+                    <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-type')}</Label>
+                    <p className="gba:font-medium">{getAutomationTypeTitle(automationType, t)}</p>
                   </div>
                   <div>
-                    <Label className="gba:text-xs gba:text-muted-foreground">Trigger</Label>
-                    <p className="gba:font-medium">{TRIGGER_OPTIONS.find(t => t.trigger === trigger)?.title}</p>
+                    <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-trigger')}</Label>
+                    <p className="gba:font-medium">
+                      {(() => {
+                        const selectedTrigger = TRIGGER_OPTIONS.find(option => option.trigger === trigger)
+                        return selectedTrigger ? t(selectedTrigger.titleKey) : t('wizard-empty-dash')
+                      })()}
+                    </p>
                   </div>
                   {automationType === 'bulk_collection' ? (
                     <>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Recipients</Label>
+                        <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-recipients')}</Label>
                         <p className="gba:font-medium">
-                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length)}
+                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length, t)}
                         </p>
                       </div>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Form Fields</Label>
-                        <p className="gba:font-medium">{formFields.length} fields</p>
+                        <Label className="gba:text-xs gba:text-muted-foreground">
+                          {t('wizard-review-form-fields')}
+                        </Label>
+                        <p className="gba:font-medium">{t('wizard-fields-count', { count: formFields.length })}</p>
                       </div>
                     </>
                   ) : automationType === 'excel_collection' ? (
                     <>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Recipients</Label>
+                        <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-recipients')}</Label>
                         <p className="gba:font-medium">
-                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length)}
+                          {getRecipientLabel(approvalSteps[0]?.assignee, selectedRecipients.length, t)}
                         </p>
                       </div>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Template</Label>
+                        <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-review-template')}</Label>
                         <p className="gba:font-medium">
                           {selectedTemplateId
-                            ? availableTemplates.find(t => t.id === selectedTemplateId)?.name || 'Selected spreadsheet'
-                            : '—'}
+                            ? availableTemplates.find(t => t.id === selectedTemplateId)?.name ||
+                              t('wizard-selected-spreadsheet')
+                            : t('wizard-empty-dash')}
                         </p>
                       </div>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Tracking Columns</Label>
-                        <p className="gba:font-medium">{trackingColumns.length} columns</p>
+                        <Label className="gba:text-xs gba:text-muted-foreground">
+                          {t('wizard-review-tracking-columns')}
+                        </Label>
+                        <p className="gba:font-medium">
+                          {t('wizard-columns-count', { count: trackingColumns.length })}
+                        </p>
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Workflow Steps</Label>
-                        <p className="gba:font-medium">{workflowSteps.length} steps</p>
+                        <Label className="gba:text-xs gba:text-muted-foreground">
+                          {t('wizard-review-workflow-steps')}
+                        </Label>
+                        <p className="gba:font-medium">{t('wizard-steps-count', { count: workflowSteps.length })}</p>
                       </div>
                       <div>
-                        <Label className="gba:text-xs gba:text-muted-foreground">Column Mappings</Label>
-                        <p className="gba:font-medium">{columnMappings.length} mappings</p>
+                        <Label className="gba:text-xs gba:text-muted-foreground">
+                          {t('wizard-review-column-mappings')}
+                        </Label>
+                        <p className="gba:font-medium">
+                          {t('wizard-mappings-count', { count: columnMappings.length })}
+                        </p>
                       </div>
                     </>
                   )}
@@ -2198,7 +2408,9 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
                 {trigger === 'onFieldChange' && watchColumns.length > 0 && (
                   <div>
-                    <Label className="gba:text-xs gba:text-muted-foreground">Watched Columns</Label>
+                    <Label className="gba:text-xs gba:text-muted-foreground">
+                      {t('wizard-review-watched-columns')}
+                    </Label>
                     <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-1">
                       {watchColumns.map(colId => {
                         const column = columns.find(c => c.id === colId)
@@ -2214,7 +2426,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
                 {statusColumn && (
                   <div>
-                    <Label className="gba:text-xs gba:text-muted-foreground">Status Column</Label>
+                    <Label className="gba:text-xs gba:text-muted-foreground">{t('wizard-status-column')}</Label>
                     <p className="gba:font-medium">{columns.find(c => c.id === statusColumn)?.label || statusColumn}</p>
                   </div>
                 )}
@@ -2242,6 +2454,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         [data-radix-popper-content-wrapper] {
           z-index: 1000003 !important;
         }
+        /* Keep Univer from retaining focus / intercepting gestures while the wizard is open */
+        body:has([data-automation-wizard-root='true']) [data-testid='univer-sheet-grid-container'] {
+          pointer-events: none !important;
+        }
       `}</style>
       {/* Backdrop */}
       <div
@@ -2252,13 +2468,18 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
       {/* Modal */}
       <div
-        className="gba:relative gba:w-full gba:max-w-3xl gba:max-h-[90vh] gba:bg-background gba:rounded-xl gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col gba:m-4"
+        ref={wizardModalBodyRef}
+        tabIndex={-1}
+        className="gba:relative gba:w-full gba:max-w-3xl gba:max-h-[90vh] gba:bg-background gba:rounded-xl gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col gba:m-4 gba:outline-none focus-visible:gba:outline-none"
         style={{ zIndex: 1000002 }}
         data-testid={testId}
+        data-automation-wizard-root="true"
       >
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b">
-          <h2 className="gba:text-lg gba:font-semibold">{isEditing ? 'Edit Automation' : 'Create Automation'}</h2>
+          <h2 className="gba:text-lg gba:font-semibold">
+            {isEditing ? t('wizard-edit-automation') : t('wizard-create-automation')}
+          </h2>
           <button
             onClick={onClose}
             className="gba:p-2 gba:rounded-lg gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground gba:transition-colors"
@@ -2292,7 +2513,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
           {/* Step Title */}
           <div className="gba:text-center gba:mb-4">
-            <h3 className="gba:text-lg gba:font-semibold">{getStepTitle(currentStep)}</h3>
+            <h3 className="gba:text-lg gba:font-semibold">{getStepTitle(currentStep, t)}</h3>
           </div>
 
           {/* Validation Errors */}
@@ -2319,22 +2540,22 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             {currentStepIndex > 0 && (
               <Button variant="outline" onClick={handleBack}>
                 <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
-                Back
+                {t('wizard-back')}
               </Button>
             )}
           </div>
           <div className="gba:flex gba:gap-2">
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              {t('wizard-cancel')}
             </Button>
             {currentStep === 'review' ? (
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? <Spinner size="sm" className="gba:mr-2" /> : <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                {isEditing ? 'Save Changes' : 'Create Automation'}
+                {isEditing ? t('wizard-save-changes') : t('wizard-create-automation')}
               </Button>
             ) : (
               <Button onClick={handleNext} disabled={!canGoNext}>
-                Next
+                {t('wizard-next')}
                 <ChevronRight className="gba:w-4 gba:h-4 gba:ml-1" />
               </Button>
             )}

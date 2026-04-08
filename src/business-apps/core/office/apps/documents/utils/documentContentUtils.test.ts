@@ -69,6 +69,15 @@ describe('documentContentUtils pagination sanitization', () => {
     )
   })
 
+  it('preserves data-id on paragraphs and tables (UniqueID / hydration)', () => {
+    const html =
+      '<p data-id="para-uuid-1">Text</p><table data-id="table-uuid-1"><tbody><tr data-id="row-uuid-1"><td>A</td></tr></tbody></table>'
+    const sanitized = sanitizeDocumentHtmlForEditor(html)
+    expect(sanitized).toContain('data-id="para-uuid-1"')
+    expect(sanitized).toContain('data-id="table-uuid-1"')
+    expect(sanitized).toContain('data-id="row-uuid-1"')
+  })
+
   it('sanitizes executable markup while preserving editor-safe attributes', () => {
     const html = [
       '<p onclick="alert(1)" data-comment-id="comment-1">Safe text</p>',
@@ -87,6 +96,40 @@ describe('documentContentUtils pagination sanitization', () => {
     expect(image?.getAttribute('src')).toBeNull()
     expect(image?.getAttribute('data-image-id')).toBe('image-1')
     expect(doc.body.textContent).toContain('Safe text')
+  })
+
+  it('preserves imported custom-image data urls through normalization and sanitization', () => {
+    const html = [
+      '<figure data-node-type="custom-image" data-image-wrap="square" data-image-align="right">',
+      '<img src="data:image/png;base64,abc123" width="120" height="80" alt="Imported image" />',
+      '</figure>'
+    ].join('')
+
+    const sanitized = sanitizeDocumentHtmlForEditor(html)
+    const doc = new DOMParser().parseFromString(sanitized, 'text/html')
+    const imageContainer = doc.body.querySelector('[data-node-type="custom-image"]')
+    const image = imageContainer?.querySelector('img')
+
+    expect(imageContainer?.parentElement?.tagName).toBe('P')
+    expect(imageContainer?.getAttribute('data-image-wrap')).toBe('square')
+    expect(image?.getAttribute('src')).toBe('data:image/png;base64,abc123')
+    expect(image?.getAttribute('width')).toBe('120')
+    expect(image?.getAttribute('height')).toBe('80')
+  })
+
+  it('preserves native image attributes for editor-safe data uri images', () => {
+    const html =
+      '<p><img src="data:image/png;base64,abc123" width="120" height="80" alt="Imported image" title="Preview" /></p>'
+
+    const sanitized = sanitizeDocumentHtmlForEditor(html)
+    const doc = new DOMParser().parseFromString(sanitized, 'text/html')
+    const image = doc.body.querySelector('img')
+
+    expect(image?.getAttribute('src')).toBe('data:image/png;base64,abc123')
+    expect(image?.getAttribute('width')).toBe('120')
+    expect(image?.getAttribute('height')).toBe('80')
+    expect(image?.getAttribute('alt')).toBe('Imported image')
+    expect(image?.getAttribute('title')).toBe('Preview')
   })
 
   it('wraps top-level custom image nodes in paragraphs for inline-image parsing', () => {

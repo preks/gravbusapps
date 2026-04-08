@@ -1,5 +1,7 @@
 // RNNoise AudioWorklet processor with stable 128->frame buffering.
 // Uses @jitsi/rnnoise-wasm with proper Emscripten API and sample scaling.
+// This file is bundled by the inline-worklet esbuild step (not remote Rollup externals):
+// AudioWorklet has no window.require — @jitsi/rnnoise-wasm must stay inside that bundle.
 
 // Import must be at top level for Vite to bundle it properly
 // @ts-expect-error - Jitsi rnnoise-wasm types

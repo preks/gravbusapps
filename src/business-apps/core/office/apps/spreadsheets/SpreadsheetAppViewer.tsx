@@ -25,7 +25,7 @@ import translations from './_i18n'
 import { useSpreadsheetViewerCollaboration } from './hooks/useSpreadsheetViewerCollaboration'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
-import { useSpreadsheetBulkRows } from './hooks/useSpreadsheetBulkRows'
+import { useSpreadsheetBulkRows, syncTrackingHeaderRowWithColumnLabels } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
 import { useVersionUserDisplays } from '@/business-apps/core/office/apps/documents/hooks/useVersionUserDisplays'
 
@@ -39,7 +39,8 @@ import type { UniverSheetGridHandle, CellDimensionsPayload } from './components/
 import {
   buildMultiSheetWorkbookFromAppSheets,
   countWorksheetsInUniverSnapshot,
-  createUniverConversionContext
+  createUniverConversionContext,
+  snapshotTrackingHeaderMatchesColumnLabels
 } from './utils/univerAdapter'
 import {
   readLatestUniverSnapshot,
@@ -733,7 +734,7 @@ const saveSnapshotWithRetry = async ({
     failures: number
     fallbackLoads: number
   }>
-  recoverFromVersionConflict: () => Promise<void>
+  recoverFromVersionConflict: () => Promise<boolean>
   spreadsheetGridRef: React.MutableRefObject<UniverSheetGridHandle | null>
   collaboration: {
     isCollaborationConnected: boolean
@@ -746,16 +747,12 @@ const saveSnapshotWithRetry = async ({
     try {
       const snapshotToSave =
         attempt === 0 ? baseSnapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? baseSnapshot)
-      const cacheResult = writeUniverSnapshotCache(
-        appId,
-        activeSheetId,
-        Number(sheetVersionRef.current || 0),
-        snapshotToSave
-      )
+      const versionForSave = sheetVersionRef.current
       await SpreadsheetApiService.saveUniverSnapshot(appId, activeSheetId, {
-        version: sheetVersionRef.current,
+        version: versionForSave,
         snapshot: snapshotToSave
       })
+      const cacheResult = writeUniverSnapshotCache(appId, activeSheetId, Number(versionForSave || 0), snapshotToSave)
       if (collaboration.isCollaborationConnected) {
         const dimensionPayload = buildDimensionPayloadFromSnapshot(snapshotToSave, activeSheetId)
         if (dimensionPayload) {
@@ -771,7 +768,11 @@ const saveSnapshotWithRetry = async ({
       lastError = error
       if (error instanceof SpreadsheetApiRequestError && error.status === 409 && attempt < maxSnapshotRetries - 1) {
         snapshotSaveMetricsRef.current.conflicts += 1
-        await recoverFromVersionConflict()
+        const recovered = await recoverFromVersionConflict()
+        if (!recovered) {
+          snapshotSaveMetricsRef.current.failures += 1
+          throw error
+        }
         continue
       }
       snapshotSaveMetricsRef.current.failures += 1
@@ -841,6 +842,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onAppUpdate,
   onSheetUpdate,
   onBack,
+  onNavigateToSpreadsheetHub,
   onShare,
   onEdit,
   isEditing = true,
@@ -854,7 +856,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const sheetVersionRef = useRef<number>(0)
-  const recoverFromVersionConflictRef = useRef<() => Promise<void>>(async () => {})
+  const recoverFromVersionConflictRef = useRef<() => Promise<boolean>>(async () => false)
   const remoteStructuralResyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const remoteVersionRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingDimensionColumnsRef = useRef<SpreadsheetColumn[] | null>(null)
@@ -1142,7 +1144,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     apiService: SpreadsheetApiService,
     autoSaveEnabled: true,
     autoSaveInterval: 30000,
-    onVersionRestored: handleVersionRestored
+    onVersionRestored: handleVersionRestored,
+    onError: error => {
+      if (error.name === 'VersionRestoreError') {
+        toast.error(error.message)
+      }
+    },
+    t: sheetT
   })
   const versionUserDisplayMap = useVersionUserDisplays(versioning.versions, accessToken)
 
@@ -1218,6 +1226,66 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onRequestGridRefresh: requestGridRefresh
   })
 
+  const collectionHeaderColumnSignature = useMemo(() => {
+    const sheet = app.sheets.find(s => s.id === activeSheetId)
+    return (
+      sheet?.columns
+        ?.filter(c => c.isVisible !== false)
+        .map(c => `${c.id}\0${(c.label ?? '').trim()}\0${c.name}`)
+        .join('|') ?? ''
+    )
+  }, [app.sheets, activeSheetId])
+
+  /** Re-run header sync when row data hydrates (tracking header row appears), not only on mount. */
+  const collectionTrackingHeaderSyncKey = useMemo(() => {
+    const idx = localSheetData.findIndex(r => r._isTrackingHeader === true)
+    return idx >= 0 ? `${idx}:${localSheetData.length}` : 'none'
+  }, [localSheetData])
+
+  // Collection sheets store human-readable titles in a synthetic header row; keep it in sync when column labels load/update.
+  // Univer bootstraps from persisted snapshots and does not follow React `data` edits until snapshotSeed bumps — refresh when snapshot titles are stale.
+  useEffect(() => {
+    const sheet = app.sheets.find(s => s.id === activeSheetId)
+    if (!sheet?.columns?.length) return
+    const rows = localSheetDataRef.current
+    if (!rows.some(r => r._isTrackingHeader === true)) return
+    const synced = syncTrackingHeaderRowWithColumnLabels(rows, sheet.columns)
+    const dataForGrid = synced === rows ? rows : synced
+    if (synced !== rows) {
+      localSheetDataRef.current = synced
+      setLocalSheetData(synced)
+      onDataChange?.(activeSheetId, synced)
+    }
+    if (entityEnabled || isBootstrapSnapshotLoading) return
+    const snapshotForCompare = preferUniverNativeSheetTabs ? tableUniverSnapshot : bootstrapSnapshot
+    if (!snapshotForCompare || typeof snapshotForCompare !== 'object') return
+    if (
+      snapshotTrackingHeaderMatchesColumnLabels(
+        snapshotForCompare as Record<string, unknown>,
+        activeSheetId,
+        dataForGrid,
+        sheet.columns
+      )
+    ) {
+      return
+    }
+    requestGridRefresh()
+  }, [
+    activeSheetId,
+    app.sheets,
+    bootstrapSnapshot,
+    collectionHeaderColumnSignature,
+    collectionTrackingHeaderSyncKey,
+    entityEnabled,
+    isBootstrapSnapshotLoading,
+    localSheetDataRef,
+    onDataChange,
+    preferUniverNativeSheetTabs,
+    requestGridRefresh,
+    setLocalSheetData,
+    tableUniverSnapshot
+  ])
+
   // Persist automations/workflow links back into the sheet config
   const persistSheetPatch = useCallback(
     (patch: Partial<SpreadsheetSheet>) => {
@@ -1248,6 +1316,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     enablePolling: true,
     pollInterval: 30000
   })
+
+  const hasEnabledSheetCollectionAutomation = useMemo(
+    () =>
+      (activeSheet.automations ?? []).some(
+        a => (a.type === 'bulk_collection' || a.type === 'excel_collection') && a.isEnabled
+      ),
+    [activeSheet.automations]
+  )
+
+  const handleCheckCollectionResponses = useCallback(() => {
+    void automations.fetchBulkCollectionResponses()
+  }, [automations.fetchBulkCollectionResponses])
 
   const [hasTaskForCollectionCopy, setHasTaskForCollectionCopy] = useState(false)
   const fromCollectionLink =
@@ -1358,14 +1438,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       } catch {
         // Non-critical: task completion already succeeded on workflow side.
       }
-      toast.success('Submitted successfully. Your task is now complete.')
+      toast.success(sheetT('toast-submit-success'))
       onBack?.()
     } else {
-      toast.error(result.error || 'Failed to submit')
+      toast.error(result.error || sheetT('toast-submit-failed'))
     }
   }, [activeSheet.columns, app, automations.completeExcelCollectionTask, onAppUpdate, onBack, userId])
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isAutomationsOpen || !accessToken) return
+    void automations.refreshAutomationsFromDocumentService()
+  }, [isAutomationsOpen, activeSheetId, accessToken, automations.refreshAutomationsFromDocumentService])
+
   const handleOpenAICapability = useCallback((capability: AICapability) => {
     if (capability === 'charts') {
       setAnalyticsInitialTab('charts')
@@ -1789,20 +1875,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         pendingDimensionChangesRef.current = []
         if (!columnsToPersist || changedColumns.length === 0) return
 
-        void (async () => {
+        void chainOnOperationQueue(operationQueueRef, async () => {
           try {
             const updated = await onSheetUpdate(app.id, activeSheetId, { columns: columnsToPersist })
             if (updated?.version != null) {
               sheetVersionRef.current = Math.max(sheetVersionRef.current, Number(updated.version))
             } else {
               scheduleSheetVersionRefreshFromApi()
-            }
-            // Width changes must also land in the durable Univer snapshot used on page reload.
-            // Otherwise bootstrap can still prefer an older snapshot even after columns.width
-            // metadata has been persisted successfully.
-            const enqueueSnapshotCheckpoint = enqueueSnapshotCheckpointRef.current
-            if (enqueueSnapshotCheckpoint) {
-              void enqueueSnapshotCheckpoint()
             }
             changedColumns.forEach(change => {
               recentLocalColumnResizeRef.current.set(`${activeSheetId}:${change.columnId}`, {
@@ -1829,7 +1908,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             })
             console.error('[SpreadsheetAppViewer] Failed to persist column widths from dimensions:', error)
           }
-        })()
+        }).catch(() => undefined)
+        // Width changes must also land in the durable Univer snapshot used on page reload.
+        // Enqueue separately so it runs after the dimension persist completes on the queue.
+        const enqueueSnapshotCheckpoint = enqueueSnapshotCheckpointRef.current
+        if (enqueueSnapshotCheckpoint) {
+          void enqueueSnapshotCheckpoint()
+        }
       }, 500)
     },
     [
@@ -1911,7 +1996,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }, 5000)
   }, [entityEnabled])
 
-  const recoverFromVersionConflict = useCallback(async () => {
+  const recoverFromVersionConflict = useCallback(async (): Promise<boolean> => {
     try {
       const sinceVersion = sheetVersionRef.current
       const delta = await SpreadsheetApiService.getSheetChangesSince(app.id, activeSheetId, sinceVersion)
@@ -1921,7 +2006,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         commitLocalSheetData(next, { persisted: true })
         sheetPersist.recordSuccess(true)
         versioning.markAsSaved()
-        return
+        return true
       }
 
       snapshotSaveMetricsRef.current.fallbackLoads += 1
@@ -1939,6 +2024,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       }
 
+      clearUniverSnapshotCache(app.id, activeSheetId)
+      let restoredUniverSnapshot: Record<string, unknown> | null = null
+      try {
+        const univerData = await SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId)
+        if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+          restoredUniverSnapshot = univerData.snapshot
+          writeUniverSnapshotCache(app.id, activeSheetId, univerData.version, univerData.snapshot)
+        }
+      } catch (e) {
+        console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during conflict recovery:', e)
+      }
+      setBootstrapSnapshot(restoredUniverSnapshot)
+      setBootstrapSnapshotSeed(`conflict-recovery-${Date.now()}`)
+
       debugLog('version conflict fallback snapshot loaded', {
         appId: app.id,
         sheetId: activeSheetId,
@@ -1946,8 +2045,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
       sheetPersist.recordSuccess(true)
       versioning.markAsSaved()
+      return true
     } catch (error) {
       console.error('[SpreadsheetAppViewer] Failed to recover from version conflict:', error)
+      sheetPersist.recordError(sheetT('persist-recovery-failed'))
+      scheduleSheetVersionRefreshFromApi()
+      return false
     }
   }, [
     activeSheetId,
@@ -1955,8 +2058,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     localSheetDataRef,
     onDataChange,
     onSheetUpdate,
+    scheduleSheetVersionRefreshFromApi,
     setLocalSheetData,
+    sheetPersist.recordError,
     sheetPersist.recordSuccess,
+    sheetT,
     versioning.markAsSaved
   ])
 
@@ -2004,7 +2110,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           if (isActiveTarget()) {
             snapshotSaveMetricsRef.current.conflicts += 1
-            await recoverFromVersionConflict()
+            const recovered = await recoverFromVersionConflict()
+            if (!recovered) throw error
             const retry = await SpreadsheetApiService.applyOperationBatch(app.id, targetSheetId, {
               baseVersion: sheetVersionRef.current,
               operations,
@@ -2068,7 +2175,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       } catch (error) {
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           snapshotSaveMetricsRef.current.conflicts += 1
-          await recoverFromVersionConflict()
+          const recovered = await recoverFromVersionConflict()
+          if (!recovered) throw error
           const retry = await SpreadsheetApiService.applyOperationBatch(app.id, activeSheetId, {
             baseVersion: sheetVersionRef.current,
             operations,
@@ -2116,6 +2224,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           sheetId: activeSheetId,
           sizeBytes: snapshotSizeBytes
         })
+        sheetPersist.recordError(sheetT('persist-snapshot-too-large'))
         return
       }
 
@@ -2309,8 +2418,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
         updatesByBackendRowId = filtered
         cellsToPersist = flattenUpdatesToCells(filtered)
-      } catch {
-        /* keep local mapping if server rows cannot be loaded */
+      } catch (err) {
+        console.warn('[SpreadsheetAppViewer] getAllRows failed, deferring cell flush for sheet:', targetSheetId, err)
+        pendingCellChangesRef.current = [...sheetCells, ...pendingCellChangesRef.current]
+        if (!pendingCellPersistTimeoutRef.current) {
+          pendingCellPersistTimeoutRef.current = setTimeout(() => {
+            pendingCellPersistTimeoutRef.current = null
+            void chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
+          }, CELL_PERSIST_DEBOUNCE_MS * 2)
+        }
+        continue
       }
 
       if (cellsToPersist.length === 0) continue
@@ -2438,12 +2555,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         clearTimeout(pendingCellPersistTimeoutRef.current)
         pendingCellPersistTimeoutRef.current = null
       }
-      let flushFailed = false
       try {
         await chainOnOperationQueue(operationQueueRef, () => flushPendingCellChangesRef.current())
       } catch (error) {
-        flushFailed = true
-        console.warn('[SpreadsheetAppViewer] Checkpoint flush failed; continuing with live snapshot', error)
+        console.error('[SpreadsheetAppViewer] Checkpoint flush failed; aborting checkpoint', error)
+        toast.error(sheetT('toast-checkpoint-flush-warning'))
+        return null
       }
 
       // Step 2: grab the live Univer snapshot and pass it directly to createVersion.
@@ -2453,11 +2570,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         [activeSheetId]: liveSnapshot
       }
 
-      const checkpoint = await versioning.createCheckpoint(description, { univerSnapshots })
-      if (checkpoint && flushFailed) {
-        toast.error('Checkpoint saved, but some pending edits may not be included.')
-      }
-      return checkpoint
+      return versioning.createCheckpoint(description, { univerSnapshots })
     },
     [activeSheetId, versioning]
   )
@@ -2774,8 +2887,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     }
 
-    void chainOnOperationQueue(operationQueueRef, run).catch(() => undefined)
-  }, [entityEnabled])
+    void chainOnOperationQueue(operationQueueRef, run).catch(err => {
+      console.error('[SpreadsheetAppViewer] Flush on visibility/pagehide failed:', err)
+      sheetPersist.recordError(sheetT('persist-cell-failed'))
+    })
+  }, [entityEnabled, sheetPersist.recordError, sheetT])
 
   useEffect(() => {
     if (typeof globalThis === 'undefined' || typeof document === 'undefined') return
@@ -2806,11 +2922,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     }
 
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasPendingCells = pendingCellChangesRef.current.length > 0
+      const hasPendingDebounce = pendingCellPersistTimeoutRef.current != null
+      const hasPendingUniverChange = univerDataChangeTimeoutRef.current != null
+      if (hasPendingCells || hasPendingDebounce || hasPendingUniverChange) {
+        e.preventDefault()
+      }
+    }
+
     globalThis.addEventListener('pagehide', handlePageHide)
+    globalThis.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
       globalThis.removeEventListener('pagehide', handlePageHide)
+      globalThis.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [flushPendingPersistenceNow])
@@ -2937,6 +3064,66 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [persistSheetPatch]
   )
 
+  /** When saving bulk collection automations, sync form field titles onto sheet column labels (wizard awaits this before onSave). */
+  const onBulkCollectionColumnLabelsUpdate = useCallback(
+    async (updates: Array<{ columnId: string; newLabel: string }>) => {
+      if (!canEditWithLock || updates.length === 0) return
+      const byId = new Map(updates.map(u => [u.columnId, u.newLabel]))
+      const nextColumns = activeSheet.columns.map(col => {
+        const label = byId.get(col.id)
+        if (label === undefined) return col
+        return { ...col, label }
+      })
+      // Await so column PATCH finishes before the next sheet PATCH (automations); otherwise the second response can overwrite new labels with stale columns.
+      if (onSheetUpdate) {
+        await onSheetUpdate(app.id, activeSheetId, { columns: nextColumns })
+        return
+      }
+      if (onAppUpdate) {
+        const updatedSheets = app.sheets.map(sheet =>
+          sheet.id === activeSheetId ? { ...sheet, columns: nextColumns, data: localSheetDataRef.current } : sheet
+        )
+        await Promise.resolve(onAppUpdate({ ...app, sheets: updatedSheets }) as unknown as Promise<unknown>)
+      }
+    },
+    [activeSheet.columns, activeSheetId, app, app.id, canEditWithLock, localSheetDataRef, onAppUpdate, onSheetUpdate]
+  )
+
+  const handleRenameAppName = useCallback(
+    async (name: string): Promise<boolean> => {
+      if (!canEditWithLock || !onAppUpdate) {
+        return false
+      }
+      const nextName = name.trim()
+      if (!nextName) {
+        toast.error(sheetT('toast-file-name-required'))
+        return false
+      }
+      if (nextName === app.name) {
+        return true
+      }
+      try {
+        const updatedApp = await Promise.resolve(onAppUpdate({ ...app, name: nextName }) as unknown)
+        if (!updatedApp || typeof updatedApp !== 'object') {
+          toast.error(sheetT('toast-file-rename-failed'))
+          return false
+        }
+        const persistedName = (updatedApp as SpreadsheetApp).name
+        if (persistedName !== nextName) {
+          toast.error(sheetT('toast-file-rename-failed'))
+          return false
+        }
+        toast.success(sheetT('toast-file-rename-success'))
+        return true
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to rename spreadsheet:', error)
+        toast.error(sheetT('toast-file-rename-failed'))
+        return false
+      }
+    },
+    [app, canEditWithLock, onAppUpdate, sheetT]
+  )
+
   // --- Export to Excel ---
   const handleExportToExcel = useCallback(async () => {
     if (isExporting) return
@@ -2965,7 +3152,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const payloads = buildAnalyticsInsertPayloads(rows, activeSheet.columns)
 
       if (payloads.length === 0) {
-        toast.error('No matching columns found to insert pivot result.')
+        toast.error(sheetT('toast-analytics-no-matching-columns'))
         return false
       }
 
@@ -2985,7 +3172,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             })
 
         if (createdRows.length === 0) {
-          toast.error('No rows were inserted into the sheet.')
+          toast.error(sheetT('toast-analytics-no-rows-inserted'))
           return false
         }
 
@@ -2993,12 +3180,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         commitLocalSheetData(next)
         sheetPersist.recordSuccess(true)
         versioning.markAsSaved()
-        toast.success(`Inserted ${createdRows.length} analytics row${createdRows.length > 1 ? 's' : ''}.`)
+        toast.success(sheetT('toast-analytics-inserted-rows', { count: createdRows.length }))
         return true
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Failed to insert analytics rows:', error)
         sheetPersist.recordError(sheetT('persist-rows-add-failed'))
-        toast.error('Failed to insert analytics result into sheet.')
+        toast.error(sheetT('toast-analytics-insert-failed'))
         return false
       } finally {
         sheetPersist.endPersist()
@@ -3037,12 +3224,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         .filter((cell): cell is { rowId: string; columnName: string; value: string } => Boolean(cell))
 
       if (cells.length === 0) {
-        toast.error('No rows available to apply formula.')
+        toast.error(sheetT('toast-formula-no-rows'))
         return false
       }
 
       handleCellsChange(cells)
-      toast.success(`Applied formula to ${cells.length} row${cells.length > 1 ? 's' : ''}.`)
+      toast.success(sheetT('toast-formula-applied', { count: cells.length }))
       return true
     },
     [canEditWithLock, handleCellsChange, localSheetDataRef]
@@ -3055,10 +3242,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         content
       })
       if (!created) {
-        toast.error('Failed to create comment from review finding.')
+        toast.error(sheetT('toast-review-comment-create-failed'))
         return false
       }
-      toast.success('Review finding added to comments.')
+      toast.success(sheetT('toast-review-comment-created'))
       return true
     },
     [comments]
@@ -3284,11 +3471,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   ])
 
   return (
-    <div className="gba:flex gba:flex-col gba:w-full gba:h-dvh gba:min-h-dvh gba:overflow-hidden" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
       <SpreadsheetHeader
         app={app}
         activeSheet={activeSheet}
         onBack={onBack}
+        onNavigateToSpreadsheetHub={onNavigateToSpreadsheetHub}
         isEditing={isEditing}
         canEdit={canEditWithLock}
         headerParticipants={collaboration.headerParticipants}
@@ -3298,7 +3486,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         versioning={headerSaveStatus.versioning}
         persistenceError={headerSaveStatus.persistenceError}
         onShowCheckpointDialog={() => setShowCheckpointDialog(true)}
-        onShowVersionHistory={() => setShowVersionHistory(true)}
+        onShowVersionHistory={() => {
+          setShowVersionHistory(true)
+          void versioning.loadVersions()
+        }}
         publishingStatus={app.publishMetadata?.status || 'draft'}
         showComments={showComments}
         setShowComments={setShowComments}
@@ -3314,6 +3505,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         }}
         onShare={onShare}
+        onRenameAppName={handleRenameAppName}
         onOpenAICapability={handleOpenAICapability}
         onOpenAnalytics={() => {
           setAnalyticsInitialTab('charts')
@@ -3326,6 +3518,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           setIsAnalyticsOpen(false)
           setIsAutomationsOpen(true)
         }}
+        showCheckCollectionResponses={hasEnabledSheetCollectionAutomation}
+        onCheckCollectionResponses={handleCheckCollectionResponses}
         onEdit={onEdit}
         onExport={() => void handleExportToExcel()}
         isCollectionCopy={isCollectionCopy}
@@ -3455,6 +3649,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onDuplicateAutomation={automations.duplicateAutomation}
         onRunAutomation={(id, rows) => automations.runAutomation(id, rows)}
         onRefreshWorkflowStatuses={() => void automations.refreshWorkflowStatuses()}
+        onRefreshAutomations={() => void automations.refreshAutomationsFromDocumentService()}
+        onCheckCollectionResponses={handleCheckCollectionResponses}
+        onColumnLabelsUpdate={onBulkCollectionColumnLabelsUpdate}
         data-testid={`${testId}-automations-panel`}
       />
 

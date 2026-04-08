@@ -70,7 +70,11 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
 
   const handleImportToBackend = async () => {
     setImportStarted(true)
-    await onImportToBackend()
+    try {
+      await onImportToBackend()
+    } catch {
+      setImportStarted(false)
+    }
   }
 
   // Calculate data quality metrics

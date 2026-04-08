@@ -12,12 +12,49 @@ import {
 import { CatalogSelectProvider } from '@/components/catalog-select'
 import ScheduleFormSegment from './ScheduleFormSegment'
 import DetailFormSegment from './DetailFormSegment'
+import { EventAndScopeFormSegment } from './EventAndScopeFormSegment'
 import { TaskTemplateFormProps, TaskTemplateFormData } from '../types'
+import {
+  formSchedulingTypeForInput,
+  normalizeTaskTemplateLinkageForForm,
+  parseTaskTemplateExtensions
+} from '../taskTemplateExtensions'
+import { instantOrDateToDateInputValue } from '../taskTemplateDatePayload'
+
+const defaultFormValues = (
+  assigneeTypes: TaskTemplateFormProps['assigneeTypes'],
+  holidayPolicies: TaskTemplateFormProps['holidayPolicies']
+): TaskTemplateFormData => ({
+  code: '',
+  name: '',
+  description: '',
+  schedulingType: 'ONCE',
+  typeRef: '',
+  priorityRef: '',
+  assigneeType: assigneeTypes?.[0]?.value || '',
+  isActive: true,
+  activeFrom: '',
+  activeTo: '',
+  recurringSchedule: {
+    daysOfWeek: {},
+    daysOfMonth: {},
+    monthsOfYear: {},
+    intervalDays: 0,
+    holidayPolicy: holidayPolicies?.[0]?.value || ''
+  },
+  nextStartDate: '',
+  eventTriggerEnabled: true,
+  eventSourceEntityType: '',
+  scopeLimited: false,
+  scopedEntityType: '',
+  scopedEntityId: '',
+  eventInvestmentGroupRef: '',
+  eventInvestmentTypeRef: ''
+})
 
 export const TaskTemplateForm: React.FC<
   TaskTemplateFormProps & {
     businessAppContext?: any
-    hasEventConfig?: boolean
     catalogConfigs?: Array<{
       id: string
       catalogIdentifier: string
@@ -39,52 +76,33 @@ export const TaskTemplateForm: React.FC<
   businessAppContext,
   taskTypeCatalogId = 'SalesTaskType',
   taskPriorityCatalogId = 'SalesTaskPriority',
-  hasEventConfig = false,
+  templateEntityConfig,
   assigneeTypes = [],
   holidayPolicies = []
 }) => {
   const form = useForm<TaskTemplateFormData>({
-    defaultValues: {
-      code: '',
-      name: '',
-      description: '',
-      schedulingType: hasEventConfig ? 'EVENTS' : 'ONCE',
-      typeRef: '',
-      priorityRef: '',
-      assigneeType: assigneeTypes[0]?.value || '',
-      isActive: true,
-      activeFrom: '',
-      activeTo: '',
-      recurringSchedule: {
-        daysOfWeek: {},
-        daysOfMonth: {},
-        monthsOfYear: {},
-        intervalDays: 0,
-        holidayPolicy: holidayPolicies[0]?.value || ''
-      },
-      nextStartDate: '',
-      investmentGroupRef: '',
-      investmentTypeRef: ''
-    },
+    defaultValues: defaultFormValues(assigneeTypes, holidayPolicies),
     mode: 'onChange'
   })
 
-  // Reset form when editing template changes
   useEffect(() => {
     if (editingTemplate) {
-      const additionalProps = (editingTemplate.additionalProperties as any) || {}
+      const ext = parseTaskTemplateExtensions(editingTemplate.additionalProperties)
+      const schedulingType = formSchedulingTypeForInput(ext)
+      const link = normalizeTaskTemplateLinkageForForm(ext)
+      const scopeMode = link.scopeLimited
 
-      const formData = {
+      const formData: TaskTemplateFormData = {
         code: editingTemplate.code || '',
         name: editingTemplate.name || '',
         description: editingTemplate.description || '',
-        schedulingType: additionalProps.schedulingType || 'ONCE',
+        schedulingType,
         typeRef: editingTemplate.typeRef || '',
         priorityRef: editingTemplate.priorityRef || '',
-        assigneeType: (editingTemplate.assigneeType as any) || assigneeTypes[0]?.value || '',
+        assigneeType: (editingTemplate.assigneeType as string) || assigneeTypes[0]?.value || '',
         isActive: editingTemplate.isActive ?? true,
-        activeFrom: (editingTemplate as any).activeFrom || '',
-        activeTo: (editingTemplate as any).activeTo || '',
+        activeFrom: instantOrDateToDateInputValue(editingTemplate.activeFrom),
+        activeTo: instantOrDateToDateInputValue(editingTemplate.activeTo),
         recurringSchedule: editingTemplate.recurringSchedule || {
           daysOfWeek: editingTemplate.daysOfWeek || {},
           daysOfMonth: editingTemplate.daysOfMonth || {},
@@ -92,40 +110,30 @@ export const TaskTemplateForm: React.FC<
           intervalDays: editingTemplate.intervalDays || 0,
           holidayPolicy: editingTemplate.holidayPolicy || holidayPolicies[0]?.value || ''
         },
-        nextStartDate: (editingTemplate as any).nextStartDate || '',
-        // Additional domain-specific fields from additionalProperties
-        investmentGroupRef: additionalProps.investmentGroupRef || '',
-        investmentTypeRef: additionalProps.investmentTypeRef || ''
+        nextStartDate: instantOrDateToDateInputValue(editingTemplate.nextStartDate),
+        eventTriggerEnabled: link.eventTriggerEnabled,
+        eventSourceEntityType: scopeMode ? '' : ext.eventSourceEntityType,
+        scopeLimited: link.scopeLimited,
+        scopedEntityType: scopeMode ? ext.scopedEntityType : '',
+        scopedEntityId: scopeMode ? ext.scopedEntityId : '',
+        eventInvestmentGroupRef: scopeMode ? '' : ext.eventInvestmentGroupRef,
+        eventInvestmentTypeRef: scopeMode ? '' : ext.eventInvestmentTypeRef
       }
 
       form.reset(formData)
     } else {
-      form.reset({
-        code: '',
-        name: '',
-        description: '',
-        schedulingType: hasEventConfig ? 'EVENTS' : 'ONCE',
-        typeRef: '',
-        priorityRef: '',
-        assigneeType: assigneeTypes[0]?.value || '',
-        isActive: true,
-        activeFrom: '',
-        activeTo: '',
-        recurringSchedule: {
-          daysOfWeek: {},
-          daysOfMonth: {},
-          monthsOfYear: {},
-          intervalDays: 0,
-          holidayPolicy: holidayPolicies[0]?.value || ''
-        },
-        nextStartDate: '',
-        investmentGroupRef: '',
-        investmentTypeRef: ''
-      })
+      form.reset(defaultFormValues(assigneeTypes, holidayPolicies))
     }
-  }, [editingTemplate, form, assigneeTypes, holidayPolicies, hasEventConfig])
+  }, [editingTemplate, form, assigneeTypes, holidayPolicies])
 
   const handleSubmit = async (data: TaskTemplateFormData) => {
+    if (data.scopeLimited === data.eventTriggerEnabled) {
+      form.setError('scopeLimited', {
+        type: 'manual',
+        message: 'Choose exactly one: one specific record or domain events.'
+      })
+      return
+    }
     try {
       await onSave(data)
     } catch (error) {
@@ -148,7 +156,7 @@ export const TaskTemplateForm: React.FC<
           <DialogDescription>
             {editingTemplate
               ? 'Update the task template details below.'
-              : 'Create a new task template with scheduling and assignment rules.'}
+              : 'Create a new task template with scheduling, optional domain events, and assignment rules.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -157,7 +165,13 @@ export const TaskTemplateForm: React.FC<
           configs={catalogConfigs.length > 0 ? catalogConfigs : []}
           externalValues={{
             [taskTypeCatalogId]: form.watch('typeRef'),
-            [taskPriorityCatalogId]: form.watch('priorityRef')
+            [taskPriorityCatalogId]: form.watch('priorityRef'),
+            ...(templateEntityConfig?.showInvestmentEventFilters
+              ? {
+                  InvestmentGroup: form.watch('eventInvestmentGroupRef'),
+                  InvestmentType: form.watch('eventInvestmentTypeRef')
+                }
+              : {})
           }}
         >
           <Form {...form}>
@@ -170,28 +184,32 @@ export const TaskTemplateForm: React.FC<
                 assigneeTypes={assigneeTypes}
               />
 
-              {/* Recurring Schedule Section */}
               <div className="gba:space-y-4">
                 <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Recurring Schedule</h3>
                 <ScheduleFormSegment
                   value={form.watch('recurringSchedule')}
                   onChange={value => form.setValue('recurringSchedule', value)}
                   dataTestId={`${dataTestId}-schedule`}
-                  schedulingType={form.watch('schedulingType') as any}
+                  schedulingType={form.watch('schedulingType')}
                   onSchedulingTypeChange={t => form.setValue('schedulingType', t)}
                   nextStartDate={form.watch('nextStartDate')}
                   onNextStartDateChange={v => form.setValue('nextStartDate', v)}
-                  hasEventConfig={hasEventConfig}
                   holidayPolicies={holidayPolicies}
                 />
                 {renderAdditionalFields?.(form)}
               </div>
 
-              {/* Assignment section removed; Assignee Type moved to Basic Information */}
+              {templateEntityConfig && (
+                <EventAndScopeFormSegment
+                  form={form}
+                  dataTestId={dataTestId}
+                  config={{
+                    ...templateEntityConfig,
+                    prefixDataTestId: templateEntityConfig.prefixDataTestId || dataTestId
+                  }}
+                />
+              )}
 
-              {/* Advanced section removed as interval days and holiday policy are part of Schedule */}
-
-              {/* Form Actions */}
               <div className="gba:flex gba:justify-end gba:space-x-2 gba:pt-4 gba:border-t">
                 <Button
                   type="button"

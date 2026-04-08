@@ -76,7 +76,7 @@ const toComparableTimestamp = (value: string | null): number | null => {
   return Number.isNaN(timestamp) ? null : timestamp
 }
 
-const getLatestComparableTimestamp = (item: FlattenedPerformanceEvaluationItem): number => {
+export const getLatestComparableTimestamp = (item: FlattenedPerformanceEvaluationItem): number => {
   return (
     toComparableTimestamp(item.evaluation.actualCompletionDate) ??
     toComparableTimestamp(item.evaluation.startDate) ??

@@ -157,12 +157,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
     try {
       const activitiesData = await fetchCustomerActivitiesByOpportunityId(opportunityId)
-      const sortedActivities = (activitiesData || []).sort((a, b) => {
-        const dateA = new Date(a.occurredAt || a.createdAt).getTime()
-        const dateB = new Date(b.occurredAt || b.createdAt).getTime()
-        return dateB - dateA
-      })
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
     } catch (err) {
       setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
     } finally {
@@ -580,23 +575,23 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   }
 
   return (
-    <div className="gba:opportunity-details-container" data-testid="opportunity-record-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
-        headerOverline="OPPORTUNITY"
-        onBack={onBack}
-        headerTitle={opportunityData.name || 'Unnamed Opportunity'}
-        headerMeta={headerMeta}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerSlotAfter={headerContent}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="opportunity-record-detail"
+      className="gba:opportunity-details-container"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+      headerOverline="OPPORTUNITY"
+      onBack={onBack}
+      headerTitle={opportunityData.name || 'Unnamed Opportunity'}
+      headerMeta={headerMeta}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerSlotAfter={headerContent}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

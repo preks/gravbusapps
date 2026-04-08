@@ -27,6 +27,7 @@ interface FileItem {
   name: string
   status: 'done' | 'uploading' | 'error'
   errorMessage?: string
+  originFileObj?: File
 }
 
 interface FileUploadInputProps {
@@ -99,7 +100,8 @@ const FileUploadInput: React.FC<FileUploadInputProps> = ({
           uid: `${Date.now()}-${i}`,
           name: file.name,
           status: validationError ? ('error' as const) : ('done' as const),
-          errorMessage: validationError || undefined
+          errorMessage: validationError || undefined,
+          originFileObj: file
         }
       })
 

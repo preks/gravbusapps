@@ -3,19 +3,19 @@ import type { MeshSession, SessionMessage, SessionCommEvent } from '../types/age
 
 interface UseSteeringSessionsParams {
   meshClient: {
-    getSessions: (params?: { userId?: string }) => Promise<MeshSession[]>
-    getSession: (sessionId: string) => Promise<MeshSession>
-    createSession: (data: {
+    getMeshSessions: (params?: { userId?: string }) => Promise<MeshSession[]>
+    getMeshSession: (sessionId: string) => Promise<MeshSession>
+    createMeshSession: (data: {
       user_id: string
       agent_id: string
       agent_name: string
       title?: string
     }) => Promise<MeshSession>
-    updateSession: (
+    updateMeshSession: (
       sessionId: string,
       data: { messages?: SessionMessage[]; comm_events?: SessionCommEvent[]; result?: string; title?: string }
     ) => Promise<MeshSession>
-    deleteSession: (sessionId: string) => Promise<unknown>
+    deleteMeshSession: (sessionId: string) => Promise<unknown>
   }
   userId?: string
   onReset?: () => void
@@ -29,7 +29,7 @@ export function useSteeringSessions({ meshClient, userId, onReset }: UseSteering
   useEffect(() => {
     if (!userId) return
     meshClient
-      .getSessions({ userId })
+      .getMeshSessions({ userId })
       .then(setSessions)
       .catch(() => {})
   }, [meshClient, userId])
@@ -42,7 +42,7 @@ export function useSteeringSessions({ meshClient, userId, onReset }: UseSteering
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       try {
-        const session = await meshClient.getSession(sessionId)
+        const session = await meshClient.getMeshSession(sessionId)
         setActiveSessionId(session.session_id)
         return session
       } catch {
@@ -56,7 +56,7 @@ export function useSteeringSessions({ meshClient, userId, onReset }: UseSteering
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       try {
-        await meshClient.deleteSession(sessionId)
+        await meshClient.deleteMeshSession(sessionId)
         setSessions(prev => prev.filter(s => s.session_id !== sessionId))
         if (activeSessionId === sessionId) {
           setActiveSessionId(null)
@@ -92,7 +92,7 @@ export function useSteeringSessions({ meshClient, userId, onReset }: UseSteering
           const title = firstUserMsg?.content.slice(0, 60) || 'New conversation'
 
           if (activeSessionId) {
-            await meshClient.updateSession(activeSessionId, {
+            await meshClient.updateMeshSession(activeSessionId, {
               messages: sessionMessages,
               comm_events: commEvents,
               result: currentResult || undefined,
@@ -113,14 +113,14 @@ export function useSteeringSessions({ meshClient, userId, onReset }: UseSteering
               )
             )
           } else {
-            const newSession = await meshClient.createSession({
+            const newSession = await meshClient.createMeshSession({
               user_id: userId,
               agent_id: agentId,
               agent_name: agentName,
               title
             })
             setActiveSessionId(newSession.session_id)
-            await meshClient.updateSession(newSession.session_id, {
+            await meshClient.updateMeshSession(newSession.session_id, {
               messages: sessionMessages,
               comm_events: commEvents,
               result: currentResult || undefined

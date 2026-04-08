@@ -108,7 +108,7 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
         const hasCardData = state.agentCardDivision || state.agentCardDataDomains || state.agentCardCapabilities
         if (hasCardData) {
           try {
-            await client.patch(`/api/v1/agents/registry/${savedPromptId}/card`, {
+            await client.updateAgentCard(savedPromptId, {
               division: state.agentCardDivision || undefined,
               data_domains: state.agentCardDataDomains
                 ? state.agentCardDataDomains

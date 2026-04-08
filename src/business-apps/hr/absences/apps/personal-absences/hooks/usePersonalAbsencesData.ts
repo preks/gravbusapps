@@ -17,6 +17,23 @@ import dayjs from 'dayjs'
 
 const PAGE_SIZE = 10
 
+type PersonalAbsenceEntitlement = {
+  type: {
+    id: string
+    value: string
+    objectValue?: {
+      color?: string
+      display?: boolean
+    }
+  }
+  approved: number
+  pending: number
+  total: number
+  available?: number
+  validFrom: string
+  validTo?: string | null
+}
+
 export function usePersonalAbsencesData(accessToken: string | undefined, employeeId: string | undefined) {
   const client = useGraphQLClient(accessToken)
   const rawStructureId = getCurrentActiveStructureId()
@@ -47,7 +64,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
           ...ent,
           type: mapped?.label || ent.type,
           color: mapped?.color || ent.color,
-          display: mapped?.display === true
+          display: mapped?.display ?? true
         }
       }),
     [rawSnapshotEntitlements, mapType]
@@ -59,6 +76,93 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
     absenceEntitlements,
     refetch: refetchEmployeeData
   } = useEmployeeData(accessToken || '', structureId, employeeId || '')
+
+  const baseEntitlements = useMemo(() => {
+    const currentYear = dayjs().year()
+    const yearStart = dayjs(`${currentYear}-01-01`).startOf('day')
+    const yearEnd = dayjs(`${currentYear}-12-31`).endOf('day')
+    const entitlementMap = new Map<
+      string,
+      {
+        type: string
+        typeRef: string
+        color?: string
+        used: number
+        total: number
+        pending: number
+        available: number
+        display: boolean
+      }
+    >()
+
+    ;(absenceEntitlements as PersonalAbsenceEntitlement[]).forEach(entitlement => {
+      if (!entitlement?.type?.id || !entitlement.validFrom) {
+        return
+      }
+
+      const validFrom = dayjs(entitlement.validFrom)
+      const validTo = entitlement.validTo ? dayjs(entitlement.validTo) : null
+      const overlapsCurrentYear =
+        validFrom.isSameOrBefore(yearEnd) && (validTo === null || validTo.isSameOrAfter(yearStart))
+
+      if (!overlapsCurrentYear) {
+        return
+      }
+
+      const typeRef = entitlement.type.id
+      const mapped = mapType(typeRef)
+      const existing = entitlementMap.get(typeRef)
+      const total = Number(entitlement.total) || 0
+      const used = Number(entitlement.approved) || 0
+      const pending = Number(entitlement.pending) || 0
+      const available = Number(entitlement.available) || Math.max(0, total - used - pending)
+
+      if (existing) {
+        existing.total += total
+        existing.used += used
+        existing.pending += pending
+        existing.available += available
+        return
+      }
+
+      entitlementMap.set(typeRef, {
+        type: mapped?.label || entitlement.type.value || typeRef,
+        typeRef,
+        color: mapped?.color || entitlement.type.objectValue?.color,
+        used,
+        total,
+        pending,
+        available,
+        display: mapped?.display ?? entitlement.type.objectValue?.display ?? true
+      })
+    })
+
+    return Array.from(entitlementMap.values())
+  }, [absenceEntitlements, mapType])
+
+  const mergedEntitlements = useMemo(() => {
+    if (!baseEntitlements.length) {
+      return snapshotEntitlements
+    }
+
+    const mergedByType = new Map(baseEntitlements.map(entitlement => [entitlement.typeRef, entitlement]))
+
+    snapshotEntitlements.forEach(snapshotEntitlement => {
+      const typeRef = snapshotEntitlement.typeRef || snapshotEntitlement.type
+      const fallbackEntitlement = mergedByType.get(typeRef)
+
+      mergedByType.set(typeRef, {
+        ...fallbackEntitlement,
+        ...snapshotEntitlement,
+        typeRef,
+        type: snapshotEntitlement.type || fallbackEntitlement?.type || typeRef,
+        color: snapshotEntitlement.color || fallbackEntitlement?.color,
+        display: snapshotEntitlement.display === true || fallbackEntitlement?.display === true
+      })
+    })
+
+    return Array.from(mergedByType.values())
+  }, [baseEntitlements, snapshotEntitlements])
 
   useProcessCompletion({
     onSuccess: () => {
@@ -153,11 +257,52 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
       const group = absenceGroups.find(g => g.id === groupId)
       if (group) {
         const name = getAbsenceGroupDisplayValue(group).toLowerCase()
-        if (name.includes('sick') || name.includes('illness')) return 'createEmployeeSickLeave'
-        if (name.includes('special') || name.includes('personal')) return 'createEmployeeSpecialLeave'
-        if (name.includes('vacation') || name.includes('holiday') || name.includes('annual'))
+        const idValue = String(group.id || '').toLowerCase()
+        const combined = `${idValue} ${name}`
+
+        // Check special leave first so "Sonderurlaub" is not misclassified as vacation by "urlaub".
+        if (
+          combined.includes('special') ||
+          combined.includes('personal') ||
+          combined.includes('sonderurlaub') ||
+          combined.includes('concediu special')
+        ) {
+          return 'createEmployeeSpecialLeave'
+        }
+
+        if (
+          combined.includes('sick') ||
+          combined.includes('illness') ||
+          combined.includes('krank') ||
+          combined.includes('medical') ||
+          combined.includes('boala') ||
+          combined.includes('concediu medical')
+        ) {
+          return 'createEmployeeSickLeave'
+        }
+
+        if (
+          combined.includes('work') ||
+          combined.includes('training') ||
+          combined.includes('arbeitsbezogen') ||
+          combined.includes('beruf') ||
+          combined.includes('business') ||
+          combined.includes('serviciu') ||
+          combined.includes('munca')
+        ) {
+          return 'createEmployeeWorkLeave'
+        }
+
+        if (
+          combined.includes('vacation') ||
+          combined.includes('holiday') ||
+          combined.includes('annual') ||
+          combined.includes('urlaub') ||
+          combined.includes('concediu') ||
+          combined.includes('odihna')
+        ) {
           return 'createEmployeeVacation'
-        if (name.includes('work') || name.includes('training')) return 'createEmployeeWorkLeave'
+        }
       }
       return map[groupId] || 'createEmployeeVacation'
     },
@@ -218,11 +363,11 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
   const totalPages = Math.ceil(filteredAbsences.length / PAGE_SIZE)
   const paginatedAbsences = filteredAbsences.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const displayEntitlements = useMemo(() => (snapshotEntitlements || []).filter(e => e.display), [snapshotEntitlements])
+  const displayEntitlements = useMemo(() => mergedEntitlements.filter(e => e.display), [mergedEntitlements])
 
   const otherEntitlements = useMemo(
-    () => snapshotEntitlements?.filter(e => !e.display && e.used > 0) ?? [],
-    [snapshotEntitlements]
+    () => mergedEntitlements.filter(e => !e.display && e.used > 0),
+    [mergedEntitlements]
   )
 
   const ytdAbsentDays = useMemo(() => {

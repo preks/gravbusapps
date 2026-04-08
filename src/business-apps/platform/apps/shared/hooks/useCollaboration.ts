@@ -118,7 +118,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
 }
 
 export interface UseCollaborationOptions {
-  entityType: 'document' | 'spreadsheet' | 'note'
+  entityType: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
   entityId: string
   enabled?: boolean
   accessToken?: string
@@ -352,7 +352,12 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const emitOperation = useCallback(
     (operation: DocumentOperation) => {
       if (!clientRef.current?.isConnected()) {
-        console.warn('[useCollaboration] Cannot emit operation: not connected')
+        if (entityType === 'spreadsheet' && operation.broadcastOnly) {
+          pendingOperationsRef.current.push(operation)
+          if (pendingOperationsRef.current.length > 100) {
+            pendingOperationsRef.current = pendingOperationsRef.current.slice(-100)
+          }
+        }
         return
       }
       if (!hasJoinedRef.current && !isJoiningRef.current) {
