@@ -7,7 +7,6 @@ import { MODULE_COLORS } from '@/common/constants/ui'
 import TimeTracking from './components/TimeTracking'
 import { useEmployeeData } from '../employee-record/hooks/useEmployeeData'
 import timeTrackingTranslations from './_i18n'
-import DailyLog from './components/DailyLog'
 import TimeHistory from './components/TimeHistory'
 import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
 import { InterventionsTable } from '../employee-record/components/tabs/components/InterventionsTable'
@@ -16,7 +15,6 @@ enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
   EveryAIAssistant = 'everyai-assistant',
   SmartBooking = 'smart-booking',
-  DailyLog = 'daily-log',
   History = 'history'
 }
 
@@ -50,10 +48,6 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
             {
               value: MyTimeTabEnum.SmartBooking,
               label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Smart Booking')
-            },
-            {
-              value: MyTimeTabEnum.DailyLog,
-              label: t('daily_log')
             },
             {
               value: MyTimeTabEnum.History,
@@ -97,18 +91,13 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
           </div>
         )}
 
-        {activeTab === MyTimeTabEnum.DailyLog && (
-          <div data-testid="my-time-activity-content" className="gba:mt-4">
-            <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} />
-          </div>
-        )}
-
         {activeTab === MyTimeTabEnum.History && (
           <div data-testid="my-time-history-content" className="gba:mt-4">
             <TimeHistory
               employeeId={employeeId}
               accessToken={accessToken}
               userId={userInfo?.id || ''}
+              employee={employee}
               employeeCode={employee?.code}
               employeeFirstName={employee?.firstName}
               employeeLastName={employee?.lastName}

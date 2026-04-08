@@ -37,6 +37,7 @@ manual_entry = Introducere manuală
 report_title = Raport istoric de timp
 generated = Generat
 history = Istoric
+calendar_view = Calendar
 time_tracking_table_day = Zi
 time_tracking_table_workday = Tip zi
 time_tracking_day_type_not_working = Nu este zi lucrătoare
