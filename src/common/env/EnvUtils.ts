@@ -63,6 +63,20 @@ function setFlowbotOverrideInStorage(value: string): void {
   }
 }
 
+export function getActiveFlowbotUserOverride(): string | undefined {
+  const queryOverride = getFlowbotOverrideFromQuery()
+  if (queryOverride) {
+    setFlowbotOverrideInStorage(queryOverride)
+    return queryOverride
+  }
+
+  return getFlowbotOverrideFromStorage()
+}
+
+export function hasActiveFlowbotUserOverride(): boolean {
+  return Boolean(getActiveFlowbotUserOverride())
+}
+
 function getPromptManagerOverrideFromQuery(): string | undefined {
   if (typeof window === 'undefined') return undefined
   try {
@@ -143,16 +157,8 @@ export function env(key: string): string | undefined {
     }
 
     if (FLOWBOT_ENV_KEYS.has(key)) {
-      const queryOverride = getFlowbotOverrideFromQuery()
-      if (queryOverride) {
-        setFlowbotOverrideInStorage(queryOverride)
-        return queryOverride
-      }
-
-      const storedOverride = getFlowbotOverrideFromStorage()
-      if (storedOverride) {
-        return storedOverride
-      }
+      const activeOverride = getActiveFlowbotUserOverride()
+      if (activeOverride) return activeOverride
     }
 
     if (PROMPT_MANAGER_ENV_KEYS.has(key)) {
@@ -191,15 +197,6 @@ export function env(key: string): string | undefined {
   }
 
   return undefined
-}
-
-/**
- * True when the Flowbot endpoint was explicitly overridden by the user
- * (via ?flowbotEndpoint= query param or localStorage), as opposed to
- * just reading the baked build-time env value.
- */
-export function hasActiveFlowbotUserOverride(): boolean {
-  return Boolean(getFlowbotOverrideFromQuery() || getFlowbotOverrideFromStorage())
 }
 
 /**

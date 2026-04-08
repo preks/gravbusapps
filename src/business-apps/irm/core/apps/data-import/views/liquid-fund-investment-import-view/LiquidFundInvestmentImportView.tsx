@@ -11,9 +11,9 @@ import { useEntityImport, useEntityMappings } from '@/common/components/common-r
 import {
   FileUploadStep,
   MappingReviewStep,
-  ConversionResultStep,
-  ImportErrorCard
+  ConversionResultStep
 } from '@/common/components/common-relations/apps/data-import/components'
+import { ImportErrorCard } from '@/common/components/common-relations/apps/data-import/components/ImportErrorCard'
 import { liquidFundInvestmentImportConfig } from './config/liquidFundInvestmentImportConfig'
 import { ConvertedLiquidFundInvestment } from './types/liquidFundInvestmentImportTypes'
 import { convertToNestedLiquidFundInvestment } from './utils/convertToNestedStructure'

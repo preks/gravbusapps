@@ -10,31 +10,42 @@ import {
 
 const mockUseEditor = jest.fn(() => null)
 const mockPagesConfigure = jest.fn(() => ({ name: 'pages-extension' }))
-const mockDocumentImageConfigure = jest.fn(() => ({ name: 'document-image' }))
+type DocumentImageConfigureOptions = {
+  allowBase64?: boolean
+  getAccessToken?: () => string
+  HTMLAttributes?: {
+    class?: string
+  }
+}
+
+const mockDocumentImageConfigure = jest.fn((options: DocumentImageConfigureOptions) => ({
+  name: 'document-image',
+  options
+}))
 const mockTableConfigure = jest.fn(() => ({ name: 'table' }))
 const mockPlaceholderConfigure = jest.fn(() => ({ name: 'placeholder' }))
 const mockLineAndParagraphSpacingConfigure = jest.fn(() => ({ name: 'line-and-paragraph-spacing' }))
 const mockInlineCommentConfigure = jest.fn(() => ({ name: 'inline-comment' }))
 
 jest.mock('@tiptap/react', () => ({
-  useEditor: (...args: unknown[]) => mockUseEditor(...args)
+  useEditor: (...args: Parameters<typeof mockUseEditor>) => mockUseEditor(...args)
 }))
 
 jest.mock('@tiptap/extension-placeholder', () => ({
   Placeholder: {
-    configure: (...args: unknown[]) => mockPlaceholderConfigure(...args)
+    configure: (...args: Parameters<typeof mockPlaceholderConfigure>) => mockPlaceholderConfigure(...args)
   }
 }))
 
 jest.mock('@/components/tiptap-extensions/tiptap-custom-pagination', () => ({
   Pages: {
-    configure: (...args: unknown[]) => mockPagesConfigure(...args)
+    configure: (...args: Parameters<typeof mockPagesConfigure>) => mockPagesConfigure(...args)
   }
 }))
 
 jest.mock('@/components/tiptap-extensions/tiptap-custom-tables', () => ({
   Table: {
-    configure: (...args: unknown[]) => mockTableConfigure(...args)
+    configure: (...args: Parameters<typeof mockTableConfigure>) => mockTableConfigure(...args)
   },
   TableCell: { name: 'table-cell' },
   TableHeader: { name: 'table-header' },
@@ -44,7 +55,7 @@ jest.mock('@/components/tiptap-extensions/tiptap-custom-tables', () => ({
 jest.mock('../extensions', () => ({
   ColumnBreak: { name: 'column-break' },
   DocumentImage: {
-    configure: (...args: unknown[]) => mockDocumentImageConfigure(...args)
+    configure: (...args: Parameters<typeof mockDocumentImageConfigure>) => mockDocumentImageConfigure(...args)
   },
   DocumentSection: { name: 'document-section' },
   DocumentTableOfContents: { name: 'document-table-of-contents' },
@@ -60,7 +71,8 @@ jest.mock('../extensions/YjsCursor', () => ({
 
 jest.mock('../extensions/LineAndParagraphSpacing', () => ({
   LineAndParagraphSpacing: {
-    configure: (...args: unknown[]) => mockLineAndParagraphSpacingConfigure(...args)
+    configure: (...args: Parameters<typeof mockLineAndParagraphSpacingConfigure>) =>
+      mockLineAndParagraphSpacingConfigure(...args)
   }
 }))
 
@@ -78,7 +90,7 @@ jest.mock('@/components/tiptap-extensions/legacyTableIdMigration', () => ({
 
 jest.mock('@/business-apps/platform/apps/shared/extensions/InlineCommentExtension', () => ({
   InlineComment: {
-    configure: (...args: unknown[]) => mockInlineCommentConfigure(...args)
+    configure: (...args: Parameters<typeof mockInlineCommentConfigure>) => mockInlineCommentConfigure(...args)
   }
 }))
 
@@ -141,12 +153,17 @@ describe('usePagedDocumentEditorInstance', () => {
   it('enables base64 sources for imported document images', () => {
     const extension = createDocumentImageExtension('token-123')
 
-    expect(extension.name).toBe('image')
-    expect(extension.options.allowBase64).toBe(true)
-    expect(extension.options.getAccessToken()).toBe('token-123')
-    expect(extension.options.HTMLAttributes).toMatchObject({
-      class: 'editor-image'
-    })
+    expect(extension.name).toBe('document-image')
+    expect(mockDocumentImageConfigure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowBase64: true,
+        getAccessToken: expect.any(Function),
+        HTMLAttributes: expect.objectContaining({
+          class: 'editor-image'
+        })
+      })
+    )
+    expect(mockDocumentImageConfigure.mock.calls[0]?.[0]?.getAccessToken?.()).toBe('token-123')
   })
 
   it('mounts pagination extensions when pagination config is available', () => {

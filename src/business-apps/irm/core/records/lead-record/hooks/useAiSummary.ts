@@ -7,6 +7,7 @@ import {
   useGetInvestmentTasksByLeadId
 } from '@/common/data/investment/hooks/useInvestmentLeads'
 import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are an investment lead qualification assistant analyzing a potential investment prospect.
 
@@ -39,9 +40,7 @@ export function useAiSummary(leadId: string, accessToken: string, lead?: Investm
 
     // get activity data
     const activityResult = await fetchInvestmentActivitiesByLeadId(leadId)
-    const sortedActivities = (activityResult || []).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
+    const sortedActivities = sortActivitiesByOccurredAtDesc(activityResult || [])
 
     // get notes data
     const notesResult = await fetchInvestmentNotesByLeadId(leadId)

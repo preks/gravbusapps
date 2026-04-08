@@ -7,6 +7,7 @@ import { useSheetsAIFormula } from '../hooks/useSheetsAIFormula'
 import { useSheetsAIAnalyze } from '../hooks/useSheetsAIAnalyze'
 import { useSheetsAIReview } from '../hooks/useSheetsAIReview'
 import { useSpreadsheetAnalyticsAI } from '../hooks/useSpreadsheetAnalyticsAI'
+import { useSpreadsheetPromptManagerClient } from '../hooks/useSpreadsheetPromptManagerClient'
 import translations from '../_i18n'
 
 export interface SheetsAIPanelProps {
@@ -62,6 +63,7 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   'data-testid': testId = 'sheets-ai-panel'
 }) {
   const { t } = useTranslation(translations)
+  const spreadsheetPromptClient = useSpreadsheetPromptManagerClient(accessToken)
   const [activeTab, setActiveTab] = useState('formula')
   const showTabs = initialTab === 'analyze' || initialTab === 'review' || initialTab === 'insights'
   const panelTitle = useMemo(() => {
@@ -129,25 +131,25 @@ export const SheetsAIPanel: React.FC<SheetsAIPanelProps> = memo(function SheetsA
   }, [columnsForAI, normalizedRows])
 
   const formula = useSheetsAIFormula({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     columns: aiContext.columns,
     sheetData: aiContext.rows,
     onApplyFormula
   })
   const analyze = useSheetsAIAnalyze({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
     sheetData: aiContext.rows
   })
   const review = useSheetsAIReview({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
     sheetData: aiContext.rows
   })
   const { insights, insightsError, isLoadingInsights, generateInsights } = useSpreadsheetAnalyticsAI({
-    accessToken,
+    promptClient: spreadsheetPromptClient,
     sheetName,
     columns: aiContext.columns,
     sheetData: aiContext.rows
