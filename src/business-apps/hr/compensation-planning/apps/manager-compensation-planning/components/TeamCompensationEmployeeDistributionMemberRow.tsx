@@ -104,6 +104,8 @@ export function TeamCompensationEmployeeDistributionMemberRow({
           onModeChange={onCustomModeChange}
           t={tBudget}
           disabled={inputsDisabled}
+          showGlobalPoolRemainingInDetails={false}
+          useRemainingPoolForPercentSemantics
         />
       ) : (
         <>

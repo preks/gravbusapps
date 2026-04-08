@@ -46,16 +46,30 @@ export function validatePlanOuForAllSelected(
   return { ok: true }
 }
 
-export async function persistAllocationsForSelectedEmployees(
-  restClient: RestClient,
-  accessToken: string,
-  selectedIds: readonly string[],
-  memberById: ReadonlyMap<string, TeamMemberCompensationData>,
-  allocationByEmployeeId: ReadonlyMap<string, number>,
-  planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>,
-  managerOrganizationalUnitId: string | null,
+export interface PersistAllocationsForSelectedEmployeesInput {
+  restClient: RestClient
+  accessToken: string
+  selectedIds: readonly string[]
+  memberById: ReadonlyMap<string, TeamMemberCompensationData>
+  allocationByEmployeeId: ReadonlyMap<string, number>
+  planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
+  managerOrganizationalUnitId: string | null
   managerEmployeeId: string
+}
+
+export async function persistAllocationsForSelectedEmployees(
+  input: PersistAllocationsForSelectedEmployeesInput
 ): Promise<Record<string, string>> {
+  const {
+    restClient,
+    accessToken,
+    selectedIds,
+    memberById,
+    allocationByEmployeeId,
+    planOuRowIdByOrganizationalUnitId,
+    managerOrganizationalUnitId,
+    managerEmployeeId
+  } = input
   const createdIdsByEmployeeId: Record<string, string> = {}
   for (const id of selectedIds) {
     const m = memberById.get(id)

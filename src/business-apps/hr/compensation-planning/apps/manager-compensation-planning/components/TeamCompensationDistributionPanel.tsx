@@ -101,7 +101,8 @@ export function TeamCompensationDistributionPanel({
     [teamMembers]
   )
 
-  const distributionEmployeesForList = useMemo(() => teamMembers.map(m => ({ id: m.employeeId })), [teamMembers])
+  /** Table order for rows not yet in the user’s custom input-order queue (see useManagerTeamEmployeeCustomBudgetMaps). */
+  const distributionEmployeesForList = useMemo(() => filteredRows.map(m => ({ id: m.employeeId })), [filteredRows])
 
   const {
     customBudgetByEmployeeId,

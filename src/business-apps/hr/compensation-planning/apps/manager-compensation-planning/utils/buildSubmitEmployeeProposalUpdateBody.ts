@@ -1,34 +1,4 @@
 import type { SaveCompensationBudgetPlanEmployeeRestBody } from '../../../api/saveCompensationBudgetPlan'
-import type { CompensationEmployeeProposal } from '../../../types/compensationPlanningTypes'
-
-/**
- * Batch-submit: move employee proposal from DRAFT → SUBMITTED (manager flow).
- */
-export function buildSubmitEmployeeProposalUpdateBody(
-  proposal: CompensationEmployeeProposal,
-  rowVersion: number,
-  planOrganizationalUnitRowId: string,
-  submittedByEmployeeId: string,
-  submittedAtIso: string
-): SaveCompensationBudgetPlanEmployeeRestBody {
-  return {
-    changeMode: 'UPDATE',
-    compensationBudgetPlanEmployee: {
-      id: proposal.id,
-      version: rowVersion,
-      proposedSalaryIncreaseAmount: proposal.proposedSalaryIncrease ?? 0,
-      proposedSalaryIncreasePercent: proposal.proposedSalaryIncreasePercent ?? 0,
-      proposedNewSalary: proposal.proposedNewSalary ?? 0,
-      justification: proposal.justification ?? '',
-      budgetPlanStatus: 'BUDGET_PLAN_SUBMITTED',
-      submittedAt: submittedAtIso,
-      reviewNotes: proposal.reviewNotes ?? '',
-      compensationBudgetPlanOrganizationalUnit: planOrganizationalUnitRowId,
-      employee: proposal.employeeId,
-      submittedByEmployee: submittedByEmployeeId
-    }
-  }
-}
 
 export interface BuildSubmitEmployeeProposalUpdateBodyFromRowInput {
   employeeId: string
@@ -42,7 +12,7 @@ export interface BuildSubmitEmployeeProposalUpdateBodyFromRowInput {
   proposedNewSalary: number
 }
 
-/** Same as {@link buildSubmitEmployeeProposalUpdateBody} when only row id + numeric fields are known (post-save). */
+/** Batch-submit: move employee proposal from DRAFT → SUBMITTED (manager flow), using numeric fields from allocation preview. */
 export function buildSubmitEmployeeProposalUpdateBodyFromRow(
   input: BuildSubmitEmployeeProposalUpdateBodyFromRowInput
 ): SaveCompensationBudgetPlanEmployeeRestBody {

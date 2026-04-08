@@ -14,19 +14,31 @@ import { buildSubmitEmployeeProposalUpdateBodyFromRow } from './buildSubmitEmplo
 
 export type EmployeeBudgetRowStateForSubmit = Readonly<Record<string, { rowId: string; status: 'draft' | 'submitted' }>>
 
-export async function loadDraftRowsForProposalSubmit(
-  graphqlClient: GraphQLClient,
-  companyId: string,
-  activeCompensationBudgetPlanId: string,
-  draftEmployeeIds: readonly string[],
-  employeeBudgetRowState: EmployeeBudgetRowStateForSubmit,
-  teamMembers: TeamMemberCompensationData[],
-  planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>,
+export interface LoadDraftRowsForProposalSubmitInput {
+  graphqlClient: GraphQLClient
+  companyId: string
+  activeCompensationBudgetPlanId: string
+  draftEmployeeIds: readonly string[]
+  employeeBudgetRowState: EmployeeBudgetRowStateForSubmit
+  teamMembers: TeamMemberCompensationData[]
+  planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
-): Promise<{
+}
+
+export async function loadDraftRowsForProposalSubmit(input: LoadDraftRowsForProposalSubmitInput): Promise<{
   fetchedEmployeeRows: CompensationBudgetPlanEmployeeRestRow[]
   serverDraftRowsByEmployeeId: Map<string, DraftEmployeeRowForSubmit>
 }> {
+  const {
+    graphqlClient,
+    companyId,
+    activeCompensationBudgetPlanId,
+    draftEmployeeIds,
+    employeeBudgetRowState,
+    teamMembers,
+    planOuRowIdByOrganizationalUnitId,
+    managerOrganizationalUnitId
+  } = input
   try {
     const rows = await fetchCompensationBudgetPlanEmployeesForPlanAndCompany(
       graphqlClient,
@@ -107,5 +119,70 @@ export async function submitOneDraftProposal(
     proposedNewSalary
   })
   await saveCompensationBudgetPlanEmployee(p.restClient, p.accessToken, body)
+  return { ok: true }
+}
+
+export interface ExecuteManagerTeamDraftSubmitInput {
+  graphqlClient: GraphQLClient
+  companyId: string | null
+  activeCompensationBudgetPlanId: string | null
+  draftEmployeeIds: readonly string[]
+  employeeBudgetRowState: EmployeeBudgetRowStateForSubmit
+  teamMembers: TeamMemberCompensationData[]
+  planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
+  managerOrganizationalUnitId: string | null
+  managerEmployeeId: string
+  allocationByEmployeeId: ReadonlyMap<string, number>
+  memberById: ReadonlyMap<string, TeamMemberCompensationData>
+  restClient: RestClient
+  accessToken: string
+  submittedAtIso: string
+}
+
+export async function executeManagerTeamDraftSubmit(
+  input: ExecuteManagerTeamDraftSubmitInput
+): Promise<SubmitOneDraftProposalFailure | { ok: true }> {
+  let fetchedEmployeeRows: CompensationBudgetPlanEmployeeRestRow[] = []
+  let serverDraftRowsByEmployeeId = new Map<string, DraftEmployeeRowForSubmit>()
+
+  if (input.companyId && input.activeCompensationBudgetPlanId) {
+    const loaded = await loadDraftRowsForProposalSubmit({
+      graphqlClient: input.graphqlClient,
+      companyId: input.companyId,
+      activeCompensationBudgetPlanId: input.activeCompensationBudgetPlanId,
+      draftEmployeeIds: input.draftEmployeeIds,
+      employeeBudgetRowState: input.employeeBudgetRowState,
+      teamMembers: input.teamMembers,
+      planOuRowIdByOrganizationalUnitId: input.planOuRowIdByOrganizationalUnitId,
+      managerOrganizationalUnitId: input.managerOrganizationalUnitId
+    })
+    fetchedEmployeeRows = loaded.fetchedEmployeeRows
+    serverDraftRowsByEmployeeId = loaded.serverDraftRowsByEmployeeId
+  }
+
+  for (const employeeId of input.draftEmployeeIds) {
+    const entry = input.employeeBudgetRowState[employeeId]
+    const member = input.memberById.get(employeeId)
+    if (!entry || !member) {
+      continue
+    }
+    const result = await submitOneDraftProposal({
+      employeeId,
+      entry,
+      member,
+      serverDraftRowsByEmployeeId,
+      fetchedEmployeeRows,
+      allocationByEmployeeId: input.allocationByEmployeeId,
+      planOuRowIdByOrganizationalUnitId: input.planOuRowIdByOrganizationalUnitId,
+      managerOrganizationalUnitId: input.managerOrganizationalUnitId,
+      managerEmployeeId: input.managerEmployeeId,
+      submittedAtIso: input.submittedAtIso,
+      restClient: input.restClient,
+      accessToken: input.accessToken
+    })
+    if (!result.ok) {
+      return result
+    }
+  }
   return { ok: true }
 }

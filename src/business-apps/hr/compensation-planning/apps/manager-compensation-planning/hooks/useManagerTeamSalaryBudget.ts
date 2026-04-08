@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type {
   CompensationBudgetPlanCompanyRow,
@@ -146,6 +146,16 @@ export function useManagerTeamSalaryBudget(params: {
   const { accessToken, companyId, managerEmployeeId, teamMembers } = params
   const graphqlClient = useGraphQLClient(accessToken ?? '')
 
+  /** Stable while team composition (ids + OU ids) is unchanged; avoids refetching the pool on unrelated array identity changes. */
+  const budgetRelevantTeamKey = useMemo(
+    () =>
+      teamMembers
+        .map(m => `${m.employeeId}:${m.organizationalUnitId ?? ''}`)
+        .sort()
+        .join('|'),
+    [teamMembers]
+  )
+
   const [totalSalaryBudget, setTotalSalaryBudget] = useState<number | null>(null)
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -243,7 +253,7 @@ export function useManagerTeamSalaryBudget(params: {
     } finally {
       setLoadingBudget(false)
     }
-  }, [accessToken, companyId, graphqlClient, managerEmployeeId, teamMembers])
+  }, [accessToken, companyId, graphqlClient, managerEmployeeId, budgetRelevantTeamKey])
 
   useEffect(() => {
     void fetchBudgetTotal()

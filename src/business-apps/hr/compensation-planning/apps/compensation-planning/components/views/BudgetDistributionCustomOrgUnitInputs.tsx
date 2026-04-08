@@ -30,6 +30,15 @@ export interface BudgetDistributionCustomOrgUnitInputsProps {
   onModeChange: (orgUnitId: string, mode: CustomBudgetInputMode) => void
   t: Translate
   disabled?: boolean
+  /**
+   * When false, the row does not repeat the global “pool still unallocated” line (same value on every row).
+   * Use where the parent already shows the same KPI (e.g. manager team preview).
+   */
+  showGlobalPoolRemainingInDetails?: boolean
+  /**
+   * Manager team custom: percent applies to the pool left after previous rows (waterfall). Updates radio + field labels.
+   */
+  useRemainingPoolForPercentSemantics?: boolean
 }
 
 export function BudgetDistributionCustomOrgUnitInputs({
@@ -43,11 +52,20 @@ export function BudgetDistributionCustomOrgUnitInputs({
   onPercentRawChange,
   onModeChange,
   t,
-  disabled = false
+  disabled = false,
+  showGlobalPoolRemainingInDetails = true,
+  useRemainingPoolForPercentSemantics = false
 }: Readonly<BudgetDistributionCustomOrgUnitInputsProps>) {
   const entry = customBudget ?? defaultOrgUnitCustomBudgetInput()
   const mode = entry.mode
   const poolForPercent = distributionPool != null && distributionPool > 0 ? distributionPool : null
+
+  const modePoolPercentLabelKey = useRemainingPoolForPercentSemantics
+    ? 'budget-distribution-custom-mode-pool-percent-remaining'
+    : 'budget-distribution-custom-mode-pool-percent'
+  const percentFieldLabelKey = useRemainingPoolForPercentSemantics
+    ? 'budget-distribution-custom-percent-label-remaining'
+    : 'budget-distribution-custom-percent-label'
 
   const groupName = `budget-distribution-custom-mode-${orgUnitId}`
   const amountInputId = `budget-distribution-custom-amount-${orgUnitId}`
@@ -72,7 +90,9 @@ export function BudgetDistributionCustomOrgUnitInputs({
           })}
         </p>
       ) : null}
-      {customPoolUnallocatedGlobal != null && Number.isFinite(customPoolUnallocatedGlobal) ? (
+      {showGlobalPoolRemainingInDetails &&
+      customPoolUnallocatedGlobal != null &&
+      Number.isFinite(customPoolUnallocatedGlobal) ? (
         <p data-testid={`budget-distribution-custom-pool-remaining-${orgUnitId}`}>
           {t('budget-distribution-custom-pool-unallocated-global', {
             amount: formatCurrency(customPoolUnallocatedGlobal, currencyCode)
@@ -121,7 +141,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
               htmlFor={`${groupName}-percent`}
               className="gba:cursor-pointer gba:text-xs gba:font-normal gba:text-muted-foreground"
             >
-              {t('budget-distribution-custom-mode-pool-percent')}
+              {t(modePoolPercentLabelKey)}
             </Label>
           </div>
         </RadioGroup>
@@ -148,7 +168,7 @@ export function BudgetDistributionCustomOrgUnitInputs({
         ) : (
           <div className="gba:flex gba:flex-col gba:gap-1">
             <Label htmlFor={percentInputId} className="gba:text-xs gba:text-muted-foreground">
-              {t('budget-distribution-custom-percent-label')}
+              {t(percentFieldLabelKey)}
             </Label>
             <Input
               id={percentInputId}

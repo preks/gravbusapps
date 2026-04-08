@@ -139,16 +139,16 @@ export function TeamCompensationSaveAllocationsDialog({
 
     setSaving(true)
     try {
-      const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees(
+      const createdIdsByEmployeeId = await persistAllocationsForSelectedEmployees({
         restClient,
         accessToken,
-        ids,
+        selectedIds: ids,
         memberById,
         allocationByEmployeeId,
         planOuRowIdByOrganizationalUnitId,
         managerOrganizationalUnitId,
         managerEmployeeId
-      )
+      })
       await onSaved?.(createdIdsByEmployeeId)
       onOpenChange(false)
     } catch (e: unknown) {

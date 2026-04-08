@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
@@ -8,9 +8,8 @@ import {
   type SaveCompensationBudgetPlanCompanyRowInput
 } from '../../../api/saveCompensationBudgetPlan'
 import {
-  GET_COMPENSATION_BUDGET_PLAN_COMPANY,
-  LIST_COMPENSATION_BUDGET_PLANS,
-  LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY
+  GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS,
+  LIST_COMPENSATION_BUDGET_PLANS
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
 import type { BudgetType } from '../../../types/compensationPlanningTypes'
@@ -145,6 +144,15 @@ function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
   }
 }
 
+function applyPlanListAndDefaultSelection(list: CompensationBudgetPlanListItem[]): void {
+  const { selectedBudgetPlanId: currentId, selectBudgetPlan: pickPlan } = useCompensationPlanningStore.getState()
+  if (list.length === 0) {
+    pickPlan(null)
+  } else if (!currentId || !list.some(p => p.id === currentId)) {
+    pickPlan(list[0].id)
+  }
+}
+
 export function useBudgetSetupForCompany(accessToken: string, companyId: string | null) {
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
@@ -152,6 +160,22 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
   /** Avoid applying company budget list responses after the user switched company in the dropdown. */
   const companyIdRef = useRef(companyId)
   const previousCompanyIdRef = useRef<string | null>(null)
+
+  const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
+  const [companyBudgetPlanRows, setCompanyBudgetPlanRows] = useState<CompensationBudgetPlanCompanyRow[]>([])
+  const [loadingPlans, setLoadingPlans] = useState(false)
+  const [loadingCompanyRowsList, setLoadingCompanyRowsList] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [creatingPlan, setCreatingPlan] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const companyRow = useMemo((): CompensationBudgetPlanCompanyRow | null => {
+    if (!selectedBudgetPlanId) {
+      return null
+    }
+    return companyBudgetPlanRows.find(r => r.compensationBudgetPlanId === selectedBudgetPlanId) ?? null
+  }, [companyBudgetPlanRows, selectedBudgetPlanId])
+
   useEffect(() => {
     companyIdRef.current = companyId
   }, [companyId])
@@ -168,91 +192,43 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     previousCompanyIdRef.current = companyId
   }, [companyId])
 
-  const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
-  const [companyRow, setCompanyRow] = useState<CompensationBudgetPlanCompanyRow | null>(null)
-  const [companyBudgetPlanRows, setCompanyBudgetPlanRows] = useState<CompensationBudgetPlanCompanyRow[]>([])
-  const [loadingPlans, setLoadingPlans] = useState(false)
-  const [loadingCompanyRow, setLoadingCompanyRow] = useState(false)
-  const [loadingCompanyRowsList, setLoadingCompanyRowsList] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [creatingPlan, setCreatingPlan] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchPlans = useCallback(async () => {
-    if (!accessToken) return
-    setLoadingPlans(true)
+  /**
+   * One round-trip when `companyId` is set (plan list + company rows). Plans-only when no company.
+   * Avoids duplicate `GET_COMPENSATION_BUDGET_PLAN_COMPANY` — selected row is derived from the list.
+   */
+  const fetchBudgetSetupData = useCallback(async () => {
+    if (!accessToken) {
+      return
+    }
     setError(null)
-    try {
-      const result = await graphqlClient.request<{
-        CompensationBudgetPlan: CompensationBudgetPlanListItem[]
-      }>(LIST_COMPENSATION_BUDGET_PLANS)
-      const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
-      setPlans(list)
-      const { selectedBudgetPlanId: currentId, selectBudgetPlan: pickPlan } = useCompensationPlanningStore.getState()
-      if (list.length === 0) {
-        pickPlan(null)
-      } else if (!currentId || !list.some(p => p.id === currentId)) {
-        pickPlan(list[0].id)
-      }
-    } catch (err) {
-      logBudgetGraphqlFailure('ListCompensationBudgetPlans', err)
-      const message = err instanceof Error ? err.message : 'Failed to load budget plans'
-      setError(`Budget plans: ${message}`)
-      setPlans([])
-    } finally {
-      setLoadingPlans(false)
-    }
-  }, [accessToken, graphqlClient])
-
-  const fetchCompanyRow = useCallback(async () => {
-    if (!accessToken || !companyId || !selectedBudgetPlanId) {
-      setCompanyRow(null)
-      return
-    }
-    const companyIdForRequest = companyId
-    const planIdForRequest = selectedBudgetPlanId
-    setLoadingCompanyRow(true)
-    try {
-      const result = await graphqlClient.request<{
-        CompensationBudgetPlanCompany: CompensationBudgetPlanCompanyGraphqlRow[]
-      }>(GET_COMPENSATION_BUDGET_PLAN_COMPANY, {
-        planId: planIdForRequest,
-        companyId: companyIdForRequest
-      })
-      if (companyIdRef.current !== companyIdForRequest) {
-        return
-      }
-      const rows = result.CompensationBudgetPlanCompany ?? []
-      const raw = rows[0]
-      if (!raw) {
-        setCompanyRow(null)
-        return
-      }
-      setCompanyRow(mapGraphqlCompanyRow(raw))
-    } catch (err) {
-      logBudgetGraphqlFailure('GetCompensationBudgetPlanCompany', err)
-      const message = err instanceof Error ? err.message : 'Failed to load company budget'
-      setError(`Company budget: ${message}`)
-      setCompanyRow(null)
-    } finally {
-      setLoadingCompanyRow(false)
-    }
-  }, [accessToken, companyId, graphqlClient, selectedBudgetPlanId])
-
-  const fetchCompanyRowsForCompany = useCallback(async () => {
-    if (!accessToken || !companyId) {
-      setCompanyBudgetPlanRows([])
-      return
-    }
-    const companyIdForRequest = companyId
+    setLoadingPlans(true)
     setLoadingCompanyRowsList(true)
     try {
+      if (!companyId) {
+        const result = await graphqlClient.request<{
+          CompensationBudgetPlan: CompensationBudgetPlanListItem[]
+        }>(LIST_COMPENSATION_BUDGET_PLANS)
+        const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+        setPlans(list)
+        applyPlanListAndDefaultSelection(list)
+        setCompanyBudgetPlanRows([])
+        return
+      }
+
+      const companyIdForRequest = companyId
       const result = await graphqlClient.request<{
+        CompensationBudgetPlan: CompensationBudgetPlanListItem[]
         CompensationBudgetPlanCompany: CompensationBudgetPlanCompanyGraphqlRow[]
-      }>(LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY, { companyId: companyIdForRequest })
+      }>(GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS, { companyId: companyIdForRequest })
+
       if (companyIdRef.current !== companyIdForRequest) {
         return
       }
+
+      const list = sortPlans((result.CompensationBudgetPlan ?? []).map(fillPlanListItem))
+      setPlans(list)
+      applyPlanListAndDefaultSelection(list)
+
       const next: CompensationBudgetPlanCompanyRow[] = []
       for (const raw of result.CompensationBudgetPlanCompany ?? []) {
         const row = mapGraphqlCompanyRow(raw)
@@ -263,26 +239,20 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       }
       setCompanyBudgetPlanRows(next)
     } catch (err) {
-      logBudgetGraphqlFailure('ListCompensationBudgetPlanCompanyByCompany', err)
-      const message = err instanceof Error ? err.message : 'Failed to load company budget rows'
-      setError(`Company budget list: ${message}`)
+      logBudgetGraphqlFailure('GetBudgetSetupPlansAndCompanyBudgetRows', err)
+      const message = err instanceof Error ? err.message : 'Failed to load budget setup data'
+      setError(message)
+      setPlans([])
       setCompanyBudgetPlanRows([])
     } finally {
+      setLoadingPlans(false)
       setLoadingCompanyRowsList(false)
     }
   }, [accessToken, companyId, graphqlClient])
 
   useEffect(() => {
-    void fetchPlans()
-  }, [fetchPlans])
-
-  useEffect(() => {
-    void fetchCompanyRow()
-  }, [fetchCompanyRow])
-
-  useEffect(() => {
-    void fetchCompanyRowsForCompany()
-  }, [fetchCompanyRowsForCompany])
+    void fetchBudgetSetupData()
+  }, [fetchBudgetSetupData])
 
   /** Budget **setup** tab add dialog: REST `saveCompensationBudgetPlanCompany` with `changeMode: INSERT`. */
   const createPlan = useCallback(
@@ -312,8 +282,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
           return null
         }
         selectBudgetPlan(input.companyBudget.compensationBudgetPlanId)
-        await fetchPlans()
-        await fetchCompanyRowsForCompany()
+        await fetchBudgetSetupData()
         return id
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to create company budget row'
@@ -324,7 +293,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         setCreatingPlan(false)
       }
     },
-    [accessToken, fetchCompanyRowsForCompany, fetchPlans, restClient, selectBudgetPlan]
+    [accessToken, fetchBudgetSetupData, restClient, selectBudgetPlan]
   )
 
   /** Table / dialog edit: REST `saveCompensationBudgetPlanCompany` with `changeMode: UPDATE`. */
@@ -353,7 +322,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         }
         const body = buildSaveCompensationBudgetPlanCompanyUpdateBody(rowInput)
         await saveCompensationBudgetPlanCompany(restClient, accessToken, body)
-        await fetchCompanyRowsForCompany()
+        await fetchBudgetSetupData()
         return true
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to update company budget row'
@@ -364,7 +333,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         setCreatingPlan(false)
       }
     },
-    [accessToken, fetchCompanyRowsForCompany, restClient]
+    [accessToken, fetchBudgetSetupData, restClient]
   )
 
   const saveCompanyBudget = useCallback(
@@ -416,8 +385,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
             return false
           }
         }
-        await fetchCompanyRow()
-        await fetchCompanyRowsForCompany()
+        await fetchBudgetSetupData()
         return true
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to save company budget'
@@ -428,7 +396,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         setSaving(false)
       }
     },
-    [accessToken, companyId, companyRow, fetchCompanyRow, fetchCompanyRowsForCompany, restClient, selectedBudgetPlanId]
+    [accessToken, companyId, companyRow, fetchBudgetSetupData, restClient, selectedBudgetPlanId]
   )
 
   return {
@@ -438,14 +406,14 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     companyRow,
     companyBudgetPlanRows,
     loadingPlans,
-    loadingCompanyRow,
+    loadingCompanyRow: loadingCompanyRowsList,
     loadingCompanyRowsList,
     saving,
     creatingPlan,
     error,
-    refetchPlans: fetchPlans,
-    refetchCompanyRow: fetchCompanyRow,
-    refetchCompanyRowsForCompany: fetchCompanyRowsForCompany,
+    refetchPlans: fetchBudgetSetupData,
+    refetchCompanyRow: fetchBudgetSetupData,
+    refetchCompanyRowsForCompany: fetchBudgetSetupData,
     createPlan,
     updateCompanyBudgetRow,
     saveCompanyBudget
