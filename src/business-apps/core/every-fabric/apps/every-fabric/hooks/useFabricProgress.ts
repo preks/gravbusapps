@@ -70,6 +70,25 @@ const formatDuration = (ms: number): string => {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
+type SubagentDoneEvent = Extract<AgentStreamEvent, { type: 'subagent_completed' | 'expert_completed' }>
+
+function subAgentRowStatus(
+  completion: SubagentDoneEvent | undefined,
+  terminalStatus: AgentTerminalEvent['status'] | undefined,
+  isSessionClosed: boolean
+): FabricSubAgent['status'] {
+  if (completion) {
+    return completion.status === 'failed' ? 'failed' : 'done'
+  }
+  if (terminalStatus === 'failed' || terminalStatus === 'cancelled') {
+    return 'failed'
+  }
+  if (isSessionClosed) {
+    return 'done'
+  }
+  return 'running'
+}
+
 /**
  * Derives a UI-ready task node list from:
  * 1. session.todos — authoritative after REST refresh (prompt-manager persists mid-run when non-empty)
@@ -91,7 +110,6 @@ export const useFabricProgress = (
     // Build a lookup of completed steps from SSE events
     const completedSteps = new Map<string, { durationMs?: number; status: 'done' | 'failed' }>()
     const runningStepIds = new Set<string>()
-    type SubagentDoneEvent = Extract<AgentStreamEvent, { type: 'subagent_completed' | 'expert_completed' }>
     const subagentCompletions = new Map<string, SubagentDoneEvent>()
 
     for (const ev of events) {
@@ -119,15 +137,7 @@ export const useFabricProgress = (
         id: ev.step_id,
         name: resolveDelegatedAgentName(ev, completion),
         summary: 'task_summary' in ev ? ev.task_summary : undefined,
-        status: completion
-          ? completion.status === 'failed'
-            ? 'failed'
-            : 'done'
-          : terminalStatus === 'failed' || terminalStatus === 'cancelled'
-            ? 'failed'
-            : isSessionClosed
-              ? 'done'
-              : 'running'
+        status: subAgentRowStatus(completion, terminalStatus, isSessionClosed)
       }
       // Attach sub-agent to its parent step (use parent_step_id if available, else attach loosely)
       const parentKey = ('parent_step_id' in ev ? ev.parent_step_id : undefined) ?? ev.step_id

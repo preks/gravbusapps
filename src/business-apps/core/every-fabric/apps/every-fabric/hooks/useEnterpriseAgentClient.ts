@@ -39,7 +39,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       if (structuredInput) {
         payload.structured_input = structuredInput
       }
-      if (message && message.trim()) {
+      if (message?.trim()) {
         payload.message = message
       }
       if (!payload.structured_input && !payload.message) {

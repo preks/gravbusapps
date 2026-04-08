@@ -23,8 +23,48 @@ const streamOverlayTerminalStatus = (events: AgentStreamEvent[]): string | null 
 const extractSeq = (messageId: string): number | null => {
   const match = messageId.match(/:(\d+)$/)
   if (!match) return null
-  const seq = parseInt(match[1], 10)
+  const seq = Number.parseInt(match[1], 10)
   return Number.isNaN(seq) ? null : seq
+}
+
+async function waitForRestSyncWithWaitingHumanStream(
+  eventsSnapshot: AgentStreamEvent[],
+  readRestStatus: () => DeepAgentSession['status'] | undefined,
+  fetchSession: () => Promise<DeepAgentSession | null>
+): Promise<void> {
+  const overlay = streamOverlayTerminalStatus(eventsSnapshot)
+  if (overlay !== 'waiting_for_human' || readRestStatus() !== 'running') return
+  const deadline = Date.now() + REST_SYNC_MAX_MS
+  while (Date.now() < deadline) {
+    await fetchSession()
+    const st = readRestStatus()
+    if (st === 'waiting_for_human') break
+    if (st !== 'running') break
+    await new Promise(r => setTimeout(r, REST_SYNC_INTERVAL_MS))
+  }
+}
+
+async function postInterruptWith409Retry(
+  postInterrupt: () => Promise<unknown>,
+  fetchSession: () => Promise<DeepAgentSession | null>
+): Promise<void> {
+  let attempts = 0
+  while (true) {
+    try {
+      await postInterrupt()
+      return
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : ''
+      const isConflict = /409/.test(msg) && /Session is still running|waiting_for_human/i.test(msg)
+      if (isConflict && attempts < 1) {
+        attempts++
+        await fetchSession()
+        await new Promise(r => setTimeout(r, REST_SYNC_INTERVAL_MS))
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 const messageSignature = (message: ChatMessage): string => {
@@ -134,7 +174,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       setStreamVersion(0)
       return
     }
-    void fetchSession()
+    fetchSession().catch(() => undefined)
   }, [sessionId, fetchSession])
 
   useEffect(() => {
@@ -156,9 +196,9 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
 
   useEffect(() => {
     const lastEvent = events[events.length - 1]
-    if (!lastEvent || lastEvent.type !== 'terminal') return
+    if (lastEvent?.type !== 'terminal') return
     setIsAgentRunning(false)
-    void fetchSession()
+    fetchSession().catch(() => undefined)
   }, [events, fetchSession])
 
   useEffect(() => {
@@ -226,19 +266,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
       const readRestStatus = (): DeepAgentSession['status'] | undefined => sessionRef.current?.status
 
-      // SSE can emit terminal waiting_for_human before GET /sessions/:id catches up. The API
-      // rejects interrupt replies with 409 while status is still "running" on the REST snapshot.
-      const overlay = streamOverlayTerminalStatus(eventsRef.current)
-      if (overlay === 'waiting_for_human' && readRestStatus() === 'running') {
-        const deadline = Date.now() + REST_SYNC_MAX_MS
-        while (Date.now() < deadline) {
-          await fetchSession()
-          const st = readRestStatus()
-          if (st === 'waiting_for_human') break
-          if (st !== 'running') break
-          await new Promise(r => setTimeout(r, REST_SYNC_INTERVAL_MS))
-        }
-      }
+      await waitForRestSyncWithWaitingHumanStream(eventsRef.current, readRestStatus, fetchSession)
 
       const optimisticId = `optimistic-${Date.now()}`
       if (message && !structuredInput) {
@@ -255,23 +283,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput)
 
       try {
-        let attempts = 0
-        while (true) {
-          try {
-            await postInterrupt()
-            break
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : ''
-            const isConflict = /409/.test(msg) && /Session is still running|waiting_for_human/i.test(msg)
-            if (isConflict && attempts < 1) {
-              attempts++
-              await fetchSession()
-              await new Promise(r => setTimeout(r, REST_SYNC_INTERVAL_MS))
-              continue
-            }
-            throw error
-          }
-        }
+        await postInterruptWith409Retry(postInterrupt, fetchSession)
         setStreamVersion(v => v + 1)
         await fetchSession()
         setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))

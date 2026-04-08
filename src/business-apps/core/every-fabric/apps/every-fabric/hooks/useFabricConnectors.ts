@@ -56,7 +56,8 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
         active: c.active ?? true
       }))
 
-      const sorted = mapped.sort((a, b) => {
+      const sorted = [...mapped]
+      sorted.sort((a, b) => {
         const laneIndexA = CONNECT_LANES.indexOf(a.lane)
         const laneIndexB = CONNECT_LANES.indexOf(b.lane)
         const laneA = laneIndexA >= 0 ? laneIndexA : 99
@@ -75,7 +76,7 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
   }, [accessToken, client])
 
   useEffect(() => {
-    void fetchConnectors()
+    fetchConnectors().catch(() => undefined)
   }, [fetchConnectors])
 
   const toggleConnector = useCallback((connectionId: string) => {
