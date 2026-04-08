@@ -1,22 +1,39 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
   Avatar,
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Heart } from 'lucide-react'
+import { Heart, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import type { TeamMemberEvaluation } from '../../hooks/useTeamEvaluations'
-import { employeeLabel, employeeInitials, avatarSrc, heatmapScoreCellClass } from '../../utils/heatmapHelpers'
+import {
+  employeeLabel,
+  employeeInitials,
+  avatarSrc,
+  chartBandBg,
+  formatScore,
+  HEADER_BG,
+  HEADER_ACTIVE_BG,
+  AVG_ROW_BG
+} from '../../utils/heatmapHelpers'
 
 export interface CompanyValuesAnalysisProps {
   members: TeamMemberEvaluation[]
   ratingScaleLimit: number
   loading: boolean
 }
+
+type SortDir = 'asc' | 'desc'
 
 const collectValueNames = (members: TeamMemberEvaluation[]): string[] => {
   const set = new Set<string>()
@@ -57,7 +74,54 @@ const computeValueAverages = (
   return avgs
 }
 
+const SortIcon: React.FC<{ column: string; sortCol: string | null; sortDir: SortDir | null }> = ({
+  column,
+  sortCol,
+  sortDir
+}) => {
+  if (sortCol !== column) return <ArrowUpDown className="gba:h-3 gba:w-3 gba:opacity-30" />
+  return sortDir === 'asc' ? <ArrowUp className="gba:h-3 gba:w-3" /> : <ArrowDown className="gba:h-3 gba:w-3" />
+}
+
 export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({ members, ratingScaleLimit, loading }) => {
+  const [sortCol, setSortCol] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir | null>(null)
+
+  const valueNames = useMemo(() => collectValueNames(members), [members])
+
+  const memberScoreMaps = useMemo(() => new Map(members.map(m => [m.employeeId, valueScoreMap(m)])), [members])
+
+  const valueAverages = useMemo(() => computeValueAverages(memberScoreMaps, valueNames), [memberScoreMaps, valueNames])
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) {
+      if (sortDir === 'desc') setSortDir('asc')
+      else {
+        setSortCol(null)
+        setSortDir(null)
+      }
+    } else {
+      setSortCol(col)
+      setSortDir('desc')
+    }
+  }
+
+  const sortedMembers = useMemo(() => {
+    if (!sortCol || !sortDir) return members
+    return [...members].sort((a, b) => {
+      if (sortCol === '__employee') {
+        const cmp = employeeLabel(a).localeCompare(employeeLabel(b))
+        return sortDir === 'asc' ? cmp : -cmp
+      }
+      const aVal = memberScoreMaps.get(a.employeeId)?.get(sortCol) ?? null
+      const bVal = memberScoreMaps.get(b.employeeId)?.get(sortCol) ?? null
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+    })
+  }, [members, memberScoreMaps, sortCol, sortDir])
+
   if (loading) {
     return (
       <Card className="gba:rounded-xl">
@@ -75,9 +139,6 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({ me
   }
 
   const hasNoValues = members.length === 0 || members.every(m => m.companyValues.length === 0)
-  const valueNames = collectValueNames(members)
-  const memberScoreMaps = new Map(members.map(m => [m.employeeId, valueScoreMap(m)]))
-  const valueAverages = computeValueAverages(memberScoreMaps, valueNames)
 
   if (hasNoValues) {
     return (
@@ -96,90 +157,103 @@ export const CompanyValuesAnalysis: React.FC<CompanyValuesAnalysisProps> = ({ me
   }
 
   return (
-    <Card className="gba:rounded-xl">
+    <Card className="gba:rounded-xl gba:h-full">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
           <Heart className="gba:h-5 gba:w-5 gba:text-muted-foreground" aria-hidden />
           Company Values
+          <span className="gba:text-xs gba:font-normal gba:text-muted-foreground">(scale 1–{ratingScaleLimit})</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <section>
-          {valueNames.length === 0 ? (
-            <p className="gba:text-sm gba:text-muted-foreground">No company values data available for this cycle.</p>
-          ) : (
-            <div className="gba:overflow-x-auto gba:-mx-1 gba:px-1">
-              <div
-                className="gba:grid gba:gap-1 gba:min-w-max"
-                style={{
-                  gridTemplateColumns: `minmax(7rem, auto) repeat(${valueNames.length}, minmax(6rem, 1fr))`
-                }}
-              >
-                <div className="gba:p-1" />
+        <div className="gba:overflow-auto gba:max-h-[520px] gba:rounded-md gba:border gba:border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  className="gba:sticky gba:top-0 gba:left-0 gba:z-30 gba:w-px gba:cursor-pointer gba:select-none gba:text-xs"
+                  style={sortCol === '__employee' ? HEADER_ACTIVE_BG : HEADER_BG}
+                  onClick={() => toggleSort('__employee')}
+                >
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:whitespace-nowrap">
+                    Employee
+                    <SortIcon column="__employee" sortCol={sortCol} sortDir={sortDir} />
+                  </span>
+                </TableHead>
                 {valueNames.map(vn => (
-                  <div
+                  <TableHead
                     key={vn}
-                    className="gba:p-2 gba:flex gba:items-end gba:justify-center gba:text-xs gba:font-medium gba:text-muted-foreground gba:text-center gba:leading-tight"
+                    className="gba:sticky gba:top-0 gba:z-20 gba:text-center gba:cursor-pointer gba:select-none gba:min-w-[80px] gba:text-xs"
+                    style={sortCol === vn ? HEADER_ACTIVE_BG : HEADER_BG}
+                    onClick={() => toggleSort(vn)}
                   >
-                    {vn}
-                  </div>
+                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-0.5">
+                      <span className="gba:whitespace-nowrap">{vn}</span>
+                      <SortIcon column={vn} sortCol={sortCol} sortDir={sortDir} />
+                    </div>
+                  </TableHead>
                 ))}
-                {members.map(m => {
-                  const vm = memberScoreMaps.get(m.employeeId) ?? new Map()
-                  return (
-                    <React.Fragment key={m.employeeId}>
-                      <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-card gba:border-border gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-medium gba:flex gba:items-center gba:gap-1.5">
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedMembers.map(m => {
+                const vm = memberScoreMaps.get(m.employeeId) ?? new Map<string, number | null>()
+                return (
+                  <TableRow key={m.employeeId}>
+                    <TableCell className="gba:sticky gba:left-0 gba:bg-background gba:z-10 gba:w-px">
+                      <div className="gba:flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap">
                         <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
                           <AvatarImage src={avatarSrc(m.pictureThumbnail)} alt={employeeLabel(m)} />
                           <AvatarFallback className="gba:text-[9px]">
                             {employeeInitials(m.firstName, m.lastName)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="gba:truncate">{employeeLabel(m)}</span>
+                        <span className="gba:text-xs gba:font-medium">{employeeLabel(m)}</span>
                       </div>
-                      {valueNames.map(vn => {
-                        const score = vm.get(vn) ?? null
-                        const display =
-                          score != null && score !== 0
-                            ? score % 1 === 0
-                              ? String(score)
-                              : score.toFixed(1)
-                            : score === 0
-                              ? '0'
-                              : '—'
-                        return (
-                          <div
-                            key={vn}
-                            className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:p-2 gba:text-xs gba:font-semibold gba:tabular-nums ${heatmapScoreCellClass(score, ratingScaleLimit)}`}
-                          >
-                            {display}
-                          </div>
-                        )
-                      })}
-                    </React.Fragment>
-                  )
-                })}
+                    </TableCell>
+                    {valueNames.map(vn => {
+                      const score = vm.get(vn) ?? null
+                      const hasValue = score != null && score !== 0
+                      return (
+                        <TableCell
+                          key={vn}
+                          className={`gba:text-center gba:text-xs gba:tabular-nums gba:font-semibold ${
+                            hasValue ? '' : 'gba:text-muted-foreground'
+                          }`}
+                          style={hasValue ? chartBandBg(score, ratingScaleLimit) : {}}
+                        >
+                          {formatScore(score)}
+                        </TableCell>
+                      )
+                    })}
+                  </TableRow>
+                )
+              })}
 
-                {/* Average row */}
-                <div className="gba:sticky gba:left-0 gba:z-[1] gba:bg-muted/60 gba:border-border gba:border-t-2 gba:border gba:rounded-md gba:p-2 gba:text-xs gba:font-bold">
+              {/* Average summary row */}
+              <TableRow className="gba:border-t-2">
+                <TableCell
+                  className="gba:sticky gba:left-0 gba:z-10 gba:w-px gba:text-xs gba:font-bold"
+                  style={AVG_ROW_BG}
+                >
                   Average
-                </div>
+                </TableCell>
                 {valueNames.map(vn => {
                   const avg = valueAverages.get(vn) ?? null
-                  const display = avg != null ? (avg % 1 === 0 ? String(avg) : avg.toFixed(1)) : '—'
                   return (
-                    <div
+                    <TableCell
                       key={`avg-${vn}`}
-                      className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:border-t-2 gba:border gba:border-border gba:p-2 gba:text-xs gba:font-bold gba:tabular-nums ${heatmapScoreCellClass(avg, ratingScaleLimit)}`}
+                      className="gba:text-center gba:text-xs gba:font-bold gba:tabular-nums"
+                      style={{ ...AVG_ROW_BG, ...(avg != null ? chartBandBg(avg, ratingScaleLimit) : {}) }}
                     >
-                      {display}
-                    </div>
+                      {formatScore(avg)}
+                    </TableCell>
                   )
                 })}
-              </div>
-            </div>
-          )}
-        </section>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   )

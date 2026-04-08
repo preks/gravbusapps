@@ -1,4 +1,4 @@
-/* eslint-disable newwork-local/no-hardcoded-colors -- Scale markers require fixed colors */
+/* eslint-disable newwork-local/no-hardcoded-colors -- Scale markers require fixed role-distinct colors */
 import React, { useMemo, useState } from 'react'
 import {
   Card,
@@ -74,17 +74,20 @@ function computeSingleCell(d: EvaluationDimensionScore): DimensionCell {
   return { selfScore: d.selfScore, peerScore: d.peerAvgScore, managerScore: d.managerScore, gap }
 }
 
-function gapBgClass(gap: number): string {
-  if (gap > 1) return 'gba:bg-red-500/10'
-  if (gap > 0.5) return 'gba:bg-amber-500/8'
+function cellBgClass(gap: number): string {
+  if (gap > 1) return 'gba:bg-muted/50'
+  if (gap > 0.5) return 'gba:bg-muted/25'
   return ''
 }
 
-function gapTextColor(gap: number): string {
-  if (gap > 1) return 'gba:text-red-600 gba:dark:text-red-400'
-  if (gap > 0.5) return 'gba:text-amber-600 gba:dark:text-amber-400'
-  return 'gba:text-green-600 gba:dark:text-green-400'
-}
+const EmptyTrack: React.FC = () => (
+  <div className="gba:flex gba:items-center gba:gap-2 gba:px-1 gba:py-1.5 gba:opacity-25" title="No data">
+    <div className="gba:relative gba:h-4 gba:flex-1 gba:min-w-[60px]">
+      <div className="gba:absolute gba:inset-x-0 gba:top-1/2 gba:-translate-y-1/2 gba:h-px gba:bg-border" />
+    </div>
+    <span className="gba:text-[9px] gba:tabular-nums gba:text-muted-foreground">—</span>
+  </div>
+)
 
 const ScaleMarker: React.FC<{
   cell: DimensionCell
@@ -92,37 +95,42 @@ const ScaleMarker: React.FC<{
 }> = ({ cell, scaleMax }) => {
   const { selfScore, peerScore, managerScore, gap } = cell
   const hasData = selfScore != null || peerScore != null || managerScore != null
-  if (!hasData) return <span className="gba:text-xs gba:text-muted-foreground">—</span>
+  if (!hasData) return <EmptyTrack />
 
-  const toPercent = (v: number) => Math.min(Math.max((v / scaleMax) * 100, 2), 98)
+  const toPercent = (v: number) => Math.min(Math.max((v / scaleMax) * 100, 3), 97)
+  const isFlagged = gap > 1
 
   return (
-    <div className={`gba:flex gba:items-center gba:gap-2 gba:px-1 gba:py-1 gba:rounded ${gapBgClass(gap)}`}>
-      <div className="gba:relative gba:h-3 gba:flex-1 gba:min-w-[60px]">
-        <div className="gba:absolute gba:inset-x-0 gba:top-1/2 gba:-translate-y-1/2 gba:h-px gba:bg-border" />
+    <div className={`gba:flex gba:items-center gba:gap-2 gba:px-1 gba:py-1.5 gba:rounded-sm ${cellBgClass(gap)}`}>
+      <div className="gba:relative gba:h-4 gba:flex-1 gba:min-w-[60px]">
+        <div className="gba:absolute gba:inset-x-0 gba:top-1/2 gba:-translate-y-1/2 gba:h-px gba:bg-border/40" />
         {selfScore != null && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-2.5 gba:h-2.5 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background"
             style={{ left: `${toPercent(selfScore)}%` }}
             title={`Self: ${selfScore.toFixed(1)}`}
           />
         )}
         {peerScore != null && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-2.5 gba:h-2.5 gba:rounded-full gba:bg-[#10b981]"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#10b981]"
             style={{ left: `${toPercent(peerScore)}%` }}
             title={`Peer: ${peerScore.toFixed(1)}`}
           />
         )}
         {managerScore != null && (
           <div
-            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-2 gba:h-2 gba:rotate-45 gba:bg-[#f59e0b]"
+            className="gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:w-2.5 gba:h-2.5 gba:rotate-45 gba:bg-[#f59e0b]"
             style={{ left: `${toPercent(managerScore)}%` }}
             title={`Manager: ${managerScore.toFixed(1)}`}
           />
         )}
       </div>
-      <span className={`gba:text-[10px] gba:tabular-nums gba:font-medium gba:whitespace-nowrap ${gapTextColor(gap)}`}>
+      <span
+        className={`gba:text-[9px] gba:tabular-nums gba:whitespace-nowrap ${
+          isFlagged ? 'gba:font-semibold gba:text-destructive' : 'gba:font-normal gba:text-muted-foreground'
+        }`}
+      >
         {gap.toFixed(1)}
       </span>
     </div>
@@ -264,7 +272,7 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
             <Scale className="gba:h-5 gba:w-5 gba:text-muted-foreground" aria-hidden />
-            Alignment & Perspective Comparison
+            Alignment &amp; Perspective Comparison
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -276,23 +284,26 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
     )
   }
 
+  const flaggedCount = rows.filter(r => r.flagged).length
+
   return (
     <Card className="gba:rounded-xl">
       <CardHeader className="gba:pb-2">
         <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-3">
           <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
             <Scale className="gba:h-5 gba:w-5 gba:text-muted-foreground" aria-hidden />
-            Alignment & Perspective Comparison
+            Alignment &amp; Perspective Comparison
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <div className="gba:flex gba:rounded-md gba:border gba:border-border gba:overflow-hidden">
+            {/* View mode toggle */}
+            <div className="gba:flex gba:rounded-lg gba:border gba:border-border gba:overflow-hidden gba:shadow-sm">
               {(['overall', 'values', 'skills'] as ViewMode[]).map(mode => (
                 <button
                   key={mode}
                   type="button"
-                  className={`gba:px-2.5 gba:py-1 gba:text-xs gba:font-medium gba:transition-colors ${
+                  className={`gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:transition-colors gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-ring focus-visible:gba:ring-inset ${
                     viewMode === mode
-                      ? 'gba:bg-primary gba:text-primary-foreground'
+                      ? 'gba:bg-primary gba:text-primary-foreground gba:shadow-sm'
                       : 'gba:bg-background gba:text-muted-foreground hover:gba:bg-muted'
                   }`}
                   onClick={() => setViewMode(mode)}
@@ -301,6 +312,7 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
                 </button>
               ))}
             </div>
+            {/* Sort toggle */}
             <Button
               variant="outline"
               size="sm"
@@ -309,96 +321,106 @@ export const AlignmentComparison: React.FC<AlignmentComparisonProps> = ({
             >
               {sortMode === 'largest-gap' ? 'Largest gap ▼' : 'Name A-Z'}
             </Button>
+            {/* Flagged filter */}
             <Button
               variant={onlyFlagged ? 'default' : 'outline'}
               size="sm"
-              className="gba:text-xs gba:h-7 gba:gap-1"
+              className={`gba:text-xs gba:h-7 gba:gap-1 ${
+                onlyFlagged ? 'gba:ring-2 gba:ring-ring gba:ring-offset-1' : ''
+              }`}
               onClick={() => setOnlyFlagged(prev => !prev)}
             >
               <AlertTriangle className="gba:h-3 gba:w-3" />
-              Only flagged
+              Flagged{flaggedCount > 0 ? ` (${flaggedCount})` : ''}
             </Button>
           </div>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-4 gba:mt-2 gba:text-[10px] gba:text-muted-foreground">
-          <span className="gba:flex gba:items-center gba:gap-1">
-            <span className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background" />
+        {/* Legend */}
+        <div className="gba:flex gba:items-center gba:gap-5 gba:mt-2.5 gba:text-[10px] gba:text-muted-foreground">
+          <span className="gba:flex gba:items-center gba:gap-1.5">
+            <span className="gba:inline-block gba:w-2.5 gba:h-2.5 gba:rounded-full gba:border-2 gba:border-[#3b82f6] gba:bg-background" />
             Self
           </span>
-          <span className="gba:flex gba:items-center gba:gap-1">
-            <span className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-[#10b981]" />
+          <span className="gba:flex gba:items-center gba:gap-1.5">
+            <span className="gba:inline-block gba:w-2.5 gba:h-2.5 gba:rounded-full gba:bg-[#10b981]" />
             Peer
           </span>
-          <span className="gba:flex gba:items-center gba:gap-1">
-            <span className="gba:inline-block gba:w-1.5 gba:h-1.5 gba:rotate-45 gba:bg-[#f59e0b]" />
+          <span className="gba:flex gba:items-center gba:gap-1.5">
+            <span className="gba:inline-block gba:w-2 gba:h-2 gba:rotate-45 gba:bg-[#f59e0b]" />
             Manager
           </span>
-          <span>Cell tint = disagreement severity</span>
+          <span className="gba:opacity-60">Gap = max – min score spread</span>
         </div>
       </CardHeader>
-      <CardContent className="gba:overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="gba:sticky gba:left-0 gba:bg-background gba:z-10 gba:w-px" />
-              {columns.map(col => (
-                <TableHead key={col.key} className="gba:text-center gba:min-w-[110px]">
-                  <div className="gba:text-center gba:whitespace-nowrap">{col.label}</div>
-                  <div className="gba:text-[10px] gba:font-normal gba:text-muted-foreground gba:text-center">
-                    Avg gap {columnAverages.get(col.key)?.toFixed(1) ?? '—'}
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRows.map(row => {
-              const label = employeeLabel(row)
-              return (
-                <TableRow
-                  key={row.employeeId}
-                  className="gba:cursor-pointer hover:gba:bg-muted/50"
-                  onClick={() => onEmployeeClick(row.employeeId)}
-                >
-                  <TableCell className="gba:sticky gba:left-0 gba:bg-background gba:z-10 gba:w-px gba:pr-3">
-                    <div className="gba:flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap">
-                      <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
-                        <AvatarImage src={avatarSrc(row.pictureThumbnail)} alt={label} />
-                        <AvatarFallback className="gba:text-[9px]">
-                          {employeeInitials(row.firstName, row.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="gba:text-xs gba:font-medium">{label}</span>
-                      {row.flagged && <AlertTriangle className="gba:h-3 gba:w-3 gba:text-red-500 gba:shrink-0" />}
-                    </div>
-                  </TableCell>
-                  {columns.map(col => {
-                    const cell = col.getCell(row)
-                    return (
-                      <TableCell key={col.key}>
-                        {cell ? (
-                          <ScaleMarker cell={cell} scaleMax={ratingScaleLimit} />
-                        ) : (
-                          <span className="gba:text-xs gba:text-muted-foreground gba:text-center gba:block">—</span>
-                        )}
-                      </TableCell>
-                    )
-                  })}
-                </TableRow>
-              )
-            })}
-            {filteredRows.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={1 + columns.length}
-                  className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8"
-                >
-                  {onlyFlagged ? 'No flagged employees (gap > 1.0)' : 'No perspective data'}
-                </TableCell>
+      <CardContent>
+        <div className="gba:overflow-auto gba:max-h-[520px] gba:rounded-md gba:border gba:border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="gba:bg-muted/50">
+                <TableHead className="gba:sticky gba:top-0 gba:left-0 gba:z-30 gba:bg-muted/50 gba:w-px" />
+                {columns.map(col => {
+                  const avg = columnAverages.get(col.key)
+                  return (
+                    <TableHead
+                      key={col.key}
+                      className="gba:sticky gba:top-0 gba:z-20 gba:bg-muted/50 gba:text-center gba:min-w-[120px]"
+                    >
+                      <div className="gba:text-center gba:whitespace-nowrap gba:text-xs">{col.label}</div>
+                      <div className="gba:text-[9px] gba:font-normal gba:text-muted-foreground/60 gba:text-center">
+                        avg gap {avg?.toFixed(1) ?? '—'}
+                      </div>
+                    </TableHead>
+                  )
+                })}
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredRows.map(row => {
+                const label = employeeLabel(row)
+                return (
+                  <TableRow
+                    key={row.employeeId}
+                    className={`gba:cursor-pointer gba:transition-colors hover:gba:bg-muted/40 ${
+                      row.flagged ? 'gba:border-l-2 gba:border-l-destructive' : ''
+                    }`}
+                    onClick={() => onEmployeeClick(row.employeeId)}
+                  >
+                    <TableCell className="gba:sticky gba:left-0 gba:bg-background gba:z-10 gba:w-px gba:pr-3">
+                      <div className="gba:flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap">
+                        <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
+                          <AvatarImage src={avatarSrc(row.pictureThumbnail)} alt={label} />
+                          <AvatarFallback className="gba:text-[9px]">
+                            {employeeInitials(row.firstName, row.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="gba:text-xs gba:font-medium">{label}</span>
+                        {row.flagged && <AlertTriangle className="gba:h-3 gba:w-3 gba:text-destructive gba:shrink-0" />}
+                      </div>
+                    </TableCell>
+                    {columns.map(col => {
+                      const cell = col.getCell(row)
+                      return (
+                        <TableCell key={col.key} className="gba:p-1">
+                          {cell ? <ScaleMarker cell={cell} scaleMax={ratingScaleLimit} /> : <EmptyTrack />}
+                        </TableCell>
+                      )
+                    })}
+                  </TableRow>
+                )
+              })}
+              {filteredRows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={1 + columns.length}
+                    className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8"
+                  >
+                    {onlyFlagged ? 'No flagged employees (gap > 1.0)' : 'No perspective data'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   )

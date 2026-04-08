@@ -263,7 +263,7 @@ export const TeamMemberTable: React.FC<TeamMemberTableProps> = ({
     <Card className="gba:rounded-xl gba:overflow-hidden">
       <CardHeader className="gba:pb-2">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
+          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
             <Users className="gba:h-4 gba:w-4" />
             Team Overview
           </CardTitle>

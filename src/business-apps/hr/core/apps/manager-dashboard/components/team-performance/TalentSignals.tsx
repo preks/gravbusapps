@@ -115,7 +115,7 @@ export const TalentSignals: React.FC<TalentSignalsProps> = ({
     <Card className="gba:rounded-xl gba:overflow-hidden gba:h-full">
       <CardHeader className="gba:pb-2">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold">
+          <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
             <Sparkles className="gba:h-4 gba:w-4" />
             Team Signals
           </CardTitle>

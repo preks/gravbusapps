@@ -71,7 +71,7 @@ export const ActionCenter: React.FC<ActionCenterProps> = ({ alerts, onEmployeeCl
   return (
     <Card className="gba:rounded-xl gba:overflow-hidden">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Action Center</CardTitle>
+        <CardTitle className="gba:text-base">Action Center</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">
           {loading ? 'Loading…' : `${highCount} high-priority ${highCount === 1 ? 'alert' : 'alerts'}`}
         </p>

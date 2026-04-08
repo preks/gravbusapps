@@ -60,7 +60,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
 
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-5">
+      <Card className="gba:rounded-xl gba:p-5">
         <CardHeader>
           <CardTitle>Team Health</CardTitle>
         </CardHeader>
@@ -166,14 +166,10 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
 
   return (
     <>
-      <Card
-        data-testid="team-health-section"
-        style={{ borderRadius: '12px' }}
-        className="gba:p-5 gba:flex gba:flex-col"
-      >
+      <Card data-testid="team-health-section" className="gba:rounded-xl gba:p-5 gba:flex gba:flex-col">
         <CardHeader className="gba:flex-none gba:pb-3">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <CardTitle className="gba:text-lg gba:font-semibold">Team Health</CardTitle>
+            <CardTitle className="gba:text-lg">Team Health</CardTitle>
             <Badge variant={getRiskBadgeVariant(overallRisk)} className="gba:animate-none">
               {getOverallRiskLabel(overallRisk)}
             </Badge>

@@ -32,7 +32,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 }) => {
   if (loading) {
     return (
-      <Card style={{ borderRadius: '12px' }} className="gba:p-4 gba:h-full">
+      <Card className="gba:rounded-xl gba:p-4 gba:h-full">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         </CardHeader>
@@ -54,9 +54,9 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   ]
 
   return (
-    <Card data-testid="performance-growth-section" style={{ borderRadius: '12px' }} className="gba:p-4 gba:h-full">
+    <Card data-testid="performance-growth-section" className="gba:rounded-xl gba:p-4 gba:h-full">
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-base gba:font-semibold">Performance & Growth</CardTitle>
+        <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         <p className="gba:text-xs gba:text-muted-foreground">Active cycle goal progress</p>
       </CardHeader>
       <CardContent className="gba:space-y-3">
@@ -84,24 +84,11 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
         `}</style>
         <div data-layout="perf-metrics">
           {metrics.map(m => (
-            <div
-              key={m.label}
-              style={{
-                textAlign: 'center',
-                padding: '0.5rem 0.25rem',
-                borderRadius: '8px',
-                backgroundColor: 'var(--gba-surface, #f8f9fa)'
-              }}
-            >
-              <p className={m.colorClass} style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.2 }}>
+            <div key={m.label} className="gba:text-center gba:py-2 gba:px-1 gba:rounded-lg gba:bg-muted/30">
+              <p className={`gba:text-xl gba:font-bold gba:leading-tight gba:tabular-nums ${m.colorClass}`}>
                 {m.value ?? 0}
               </p>
-              <p
-                className="gba:text-muted-foreground"
-                style={{ fontSize: '0.65rem', marginTop: '2px', lineHeight: 1.2 }}
-              >
-                {m.label}
-              </p>
+              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-0.5 gba:leading-tight">{m.label}</p>
             </div>
           ))}
         </div>
