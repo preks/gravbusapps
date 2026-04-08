@@ -10,22 +10,22 @@ dayjs.extend(localeData)
 
 const { RangePicker } = DatePicker
 
-interface EndDateRangeFilterProps {
-  endDateRange?: [Date | null, Date | null] | null
-  onDateRangeChange: (endDateRange: [Date | null, Date | null] | null) => void
+interface StartDateRangeFilterProps {
+  startDateRange?: [Date | null, Date | null] | null
+  onDateRangeChange: (startDateRange: [Date | null, Date | null] | null) => void
   className?: string
   placeholder?: [string, string]
 }
 
-export const EndDateRangeFilter: React.FC<EndDateRangeFilterProps> = ({
-  endDateRange,
+export const StartDateRangeFilter: React.FC<StartDateRangeFilterProps> = ({
+  startDateRange,
   onDateRangeChange,
   placeholder = ['Start date', 'End date']
 }) => {
   // Convert Date objects to dayjs objects for the DatePicker
   const dateRange: [Dayjs | null, Dayjs | null] = [
-    endDateRange?.[0] ? dayjs(endDateRange[0]) : null,
-    endDateRange?.[1] ? dayjs(endDateRange[1]) : null
+    startDateRange?.[0] ? dayjs(startDateRange[0]) : null,
+    startDateRange?.[1] ? dayjs(startDateRange[1]) : null
   ]
 
   const handleDateRangeChange = useCallback(
@@ -51,8 +51,8 @@ export const EndDateRangeFilter: React.FC<EndDateRangeFilterProps> = ({
       format="MMM DD, YYYY"
       allowClear
       allowEmpty={[true, true]}
-      style={{ width: '100%' }}
-      data-testid="expense-request-end-date-range-filter"
+      className="gba:w-full"
+      data-testid="expense-request-start-date-range-filter"
     />
   )
 }

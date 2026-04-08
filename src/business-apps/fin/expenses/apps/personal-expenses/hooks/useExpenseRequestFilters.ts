@@ -2,9 +2,9 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { ExpenseStatus, getExpenseRequestStatusDisplay } from '../utils'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { StartDateRangeFilter } from '../components/tabs/expense-requests-tab/StartDateRangeFilter'
-import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/EndDateRangeFilter'
-import RequestDateRangeFilter from '../components/tabs/expense-requests-tab/RequestDateRangeFilter'
+import { StartDateRangeFilter } from '../components/tabs/expense-requests-tab/filters/StartDateRangeFilter'
+import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/filters/EndDateRangeFilter'
+import RequestDateRangeFilter from '../components/tabs/expense-requests-tab/filters/RequestDateRangeFilter'
 import dayjs from 'dayjs'
 
 // Define expense request status types based on srn_expenseRequest mappings

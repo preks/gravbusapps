@@ -4,16 +4,16 @@ import { DataTable, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation, Button, Badge } from '@newwork/nw-design-system'
-import { getExpenseRequestStatusDisplay } from '../../../utils'
-import ExpenseRequestDetails from './ExpenseRequestDetails'
+import { getExpenseRequestStatusDisplay } from '../../../../utils'
+import ExpenseRequestDetails from '../details/ExpenseRequestDetails'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
-import { useExpenseRequestFileService } from '../../../utils/expenseRequestFileService'
-import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters'
+import { useExpenseRequestFileService } from '../../../../utils/expenseRequestFileService'
+import { ExpenseRequestStatus } from '../../../../hooks/useExpenseRequestFilters'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { formatCurrencyDisplay } from '../../../utils'
-import translations from '../../../_i18n'
+import { formatCurrencyDisplay } from '../../../../utils'
+import translations from '../../../../_i18n'
 import {
   formatDateRangeForChip,
   applyDateRangeFromFilter,
@@ -21,24 +21,24 @@ import {
   applyCurrencyChange,
   buildFilteredEmptyMessage,
   buildDefaultEmptyMessage
-} from '../../../utils/tableUtils'
+} from '../../../../utils/tableUtils'
 import {
   CurrencyDropdown,
   PrintPreviewDialog,
   DetailsSheet,
   RowActionsWrapper,
   RowActionsIcon
-} from '../../shared/TableSharedComponents'
-import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterConfig'
+} from '../../../shared/TableSharedComponents'
+import { createExpenseRequestFilterConfig } from '../config/expenseRequestFilterConfig'
 import {
   expenseRequestSortableColumns,
   expenseRequestDefaultSort,
   type ExpenseRequestTableSortOrder
-} from './config/expenseRequestSortableColumns'
+} from '../config/expenseRequestSortableColumns'
 import {
   expenseRequestAvailableColumns,
   expenseRequestDefaultVisibleColumnIds
-} from './config/expenseRequestAvailableColumns'
+} from '../config/expenseRequestAvailableColumns'
 
 type ExpenseRequestRow = {
   id: string
