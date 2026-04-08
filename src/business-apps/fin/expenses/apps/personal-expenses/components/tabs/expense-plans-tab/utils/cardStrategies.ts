@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { ExpenseStatus } from '../../../utils'
+import { ExpenseStatus } from '../../../../utils'
 
 export type PlanCardContext = {
   setPlanDateRange: (range: [Date | null, Date | null] | null) => void
@@ -33,7 +33,7 @@ const isValidUUID = (str: string | null | undefined): boolean => {
 // Helper function to extract value from catalog object property
 const getCatalogProperty = (obj: Record<string, unknown>, key: string): string | null => {
   if (!(key in obj)) return null
-  const value = (obj as Record<string, unknown>)[key]
+  const value = obj[key]
   return typeof value === 'string' ? value : null
 }
 
@@ -67,7 +67,7 @@ const extractDestinationValue = (
   }
 
   if (typeof topDestination === 'object' && topDestination !== null) {
-    return extractFromCatalogObject(topDestination as Record<string, unknown>)
+    return extractFromCatalogObject(topDestination)
   }
 
   return null
