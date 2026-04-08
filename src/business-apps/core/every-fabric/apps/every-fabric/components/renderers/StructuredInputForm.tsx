@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type FC } from 'react'
 import {
   Button,
   Input,
@@ -9,7 +9,7 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { CheckCircle, MagicWand, Sparkle, Warning } from '@phosphor-icons/react'
+import { CheckCircleIcon, MagicWandIcon, SparkleIcon, WarningIcon } from '@phosphor-icons/react'
 import type { InputFieldSchema } from '../../types/enterpriseAgent'
 
 interface StructuredInputFormProps {
@@ -27,6 +27,35 @@ interface FieldState {
   touched: boolean
   aiDelegated: boolean
   error?: string
+}
+
+interface MultiselectOptionProps {
+  opt: string
+  fieldId: string
+  stateValue: unknown
+  isSubmitting: boolean
+  updateField: (fieldId: string, value: any) => void
+}
+
+const MultiselectOptionRow: FC<MultiselectOptionProps> = ({ opt, fieldId, stateValue, isSubmitting, updateField }) => {
+  const selected = Array.isArray(stateValue) && stateValue.includes(opt)
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const current = Array.isArray(stateValue) ? stateValue : []
+    const updated = e.target.checked ? [...current, opt] : current.filter(v => v !== opt)
+    updateField(fieldId, updated)
+  }
+  return (
+    <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:hover:bg-muted/50 gba:transition-colors">
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onChange}
+        disabled={isSubmitting}
+        className="gba:h-4 gba:w-4"
+      />
+      <span className="gba:text-sm gba:text-foreground">{opt}</span>
+    </label>
+  )
 }
 
 export const StructuredInputForm = ({
@@ -171,12 +200,12 @@ export const StructuredInputForm = ({
             >
               {state.aiDelegated ? (
                 <>
-                  <CheckCircle className="gba:h-3.5 gba:w-3.5" weight="fill" />
+                  <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
                   <span className="gba:text-xs">AI will generate</span>
                 </>
               ) : (
                 <>
-                  <Sparkle className="gba:h-3.5 gba:w-3.5" />
+                  <SparkleIcon className="gba:h-3.5 gba:w-3.5" />
                   <span className="gba:text-xs">Let AI generate</span>
                 </>
               )}
@@ -239,34 +268,22 @@ export const StructuredInputForm = ({
 
             {field.field_type === 'multiselect' && (
               <div className="gba:space-y-2">
-                {field.options?.map(opt => {
-                  const selected = Array.isArray(state.value) && state.value.includes(opt)
-                  return (
-                    <label
-                      key={opt}
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:hover:bg-muted/50 gba:transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={e => {
-                          const current = Array.isArray(state.value) ? state.value : []
-                          const updated = e.target.checked ? [...current, opt] : current.filter(v => v !== opt)
-                          updateField(field.field_id, updated)
-                        }}
-                        disabled={isSubmitting}
-                        className="gba:h-4 gba:w-4"
-                      />
-                      <span className="gba:text-sm gba:text-foreground">{opt}</span>
-                    </label>
-                  )
-                })}
+                {field.options?.map(opt => (
+                  <MultiselectOptionRow
+                    key={opt}
+                    opt={opt}
+                    fieldId={field.field_id}
+                    stateValue={state.value}
+                    isSubmitting={isSubmitting}
+                    updateField={updateField}
+                  />
+                ))}
               </div>
             )}
 
             {state.error && (
               <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-destructive gba:mt-1">
-                <Warning className="gba:h-3.5 gba:w-3.5" weight="fill" />
+                <WarningIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
                 <span>{state.error}</span>
               </div>
             )}
@@ -275,7 +292,7 @@ export const StructuredInputForm = ({
 
         {state.aiDelegated && (
           <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2.5 gba:rounded-lg gba:bg-primary/10 gba:border gba:border-primary/20">
-            <MagicWand className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />
+            <MagicWandIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />
             <span className="gba:text-xs gba:text-foreground/90">AI will generate this field</span>
           </div>
         )}
@@ -293,7 +310,7 @@ export const StructuredInputForm = ({
       {/* Header */}
       <div className="gba:px-5 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/60">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-          <Sparkle className="gba:h-5 gba:w-5 gba:text-primary" weight="fill" />
+          <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" weight="fill" />
           <h3 className="gba:text-base gba:font-bold gba:text-foreground">{title}</h3>
         </div>
         <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{description}</p>
@@ -309,7 +326,7 @@ export const StructuredInputForm = ({
         <div className="gba:flex-1">
           {hasAiDelegatedFields && allowPartialSubmit && (
             <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-              <Sparkle className="gba:h-3.5 gba:w-3.5 gba:text-primary" weight="fill" />
+              <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary" weight="fill" />
               <span>AI will generate {Object.values(fieldStates).filter(s => s.aiDelegated).length} field(s)</span>
             </p>
           )}
@@ -323,7 +340,7 @@ export const StructuredInputForm = ({
           <Button onClick={handleSubmit} disabled={isSubmitting} className="gba:gap-2">
             {hasAiDelegatedFields && allowPartialSubmit ? (
               <>
-                <MagicWand className="gba:h-4 gba:w-4" weight="fill" />
+                <MagicWandIcon className="gba:h-4 gba:w-4" weight="fill" />
                 <span>Continue with AI</span>
               </>
             ) : (

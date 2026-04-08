@@ -1,4 +1,4 @@
-import { Check, ShareNetwork, SpinnerGap, X } from '@phosphor-icons/react'
+import { CheckIcon, ShareNetworkIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 
 export interface ExpertCallRendererProps {
@@ -24,6 +24,26 @@ const isCompactRoleLabel = (value: string) => {
   return compact.length <= 42 && compact.split(/\s+/).length <= 6
 }
 
+function resolveExpertDisplayName(normalizedAgentId: string, normalizedTask: string): string {
+  const hasDistinctName =
+    !!normalizedAgentId &&
+    !isLikelyTaskText(normalizedAgentId) &&
+    normalizeText(normalizedAgentId) !== normalizeText(normalizedTask)
+  if (hasDistinctName) return normalizedAgentId
+  if (isCompactRoleLabel(normalizedTask)) return normalizedTask
+  return 'Sub-agent'
+}
+
+const ExpertCallStatusIcon: React.FC<{ status: 'running' | 'done' | 'failed' }> = ({ status }) => {
+  if (status === 'running') {
+    return <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-primary" />
+  }
+  if (status === 'done') {
+    return <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-green-500" />
+  }
+  return <XIcon className="gba:h-3.5 gba:w-3.5 gba:text-destructive" />
+}
+
 export const ExpertCallRenderer = ({
   agentId,
   task,
@@ -34,15 +54,7 @@ export const ExpertCallRenderer = ({
 }: ExpertCallRendererProps) => {
   const normalizedAgentId = agentId.trim()
   const normalizedTask = task.trim()
-  const hasDistinctName =
-    !!normalizedAgentId &&
-    !isLikelyTaskText(normalizedAgentId) &&
-    normalizeText(normalizedAgentId) !== normalizeText(normalizedTask)
-  const displayName = hasDistinctName
-    ? normalizedAgentId
-    : isCompactRoleLabel(normalizedTask)
-      ? normalizedTask
-      : 'Sub-agent'
+  const displayName = resolveExpertDisplayName(normalizedAgentId, normalizedTask)
   const subtitle =
     normalizeText(displayName) !== normalizeText(normalizedTask) ? normalizedTask || 'Working on a delegated task' : ''
 
@@ -53,7 +65,7 @@ export const ExpertCallRenderer = ({
     >
       <div className="gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-3">
         <span className="gba:flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
-          <ShareNetwork className="gba:h-4 gba:w-4" />
+          <ShareNetworkIcon className="gba:h-4 gba:w-4" />
         </span>
         <div className="gba:flex-1 gba:min-w-0">
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:mb-1">
@@ -70,13 +82,7 @@ export const ExpertCallRenderer = ({
           <p className="gba:text-xs gba:text-muted-foreground gba:leading-5 gba:line-clamp-2">{subtitle}</p>
         </div>
         <div className="gba:shrink-0 gba:pt-0.5">
-          {status === 'running' ? (
-            <SpinnerGap className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-primary" />
-          ) : status === 'done' ? (
-            <Check className="gba:h-3.5 gba:w-3.5 gba:text-green-500" />
-          ) : (
-            <X className="gba:h-3.5 gba:w-3.5 gba:text-destructive" />
-          )}
+          <ExpertCallStatusIcon status={status} />
         </div>
       </div>
 

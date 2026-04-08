@@ -1,4 +1,4 @@
-import { SealCheck, Warning } from '@phosphor-icons/react'
+import { SealCheckIcon, WarningIcon } from '@phosphor-icons/react'
 import type { ReflectionResult } from '../../types/enterpriseAgent'
 
 interface ReflectionRendererProps {
@@ -16,9 +16,9 @@ export const ReflectionRenderer = ({ result }: ReflectionRendererProps) => {
       data-testid="enterprise-agent-reflection"
     >
       {isPassing ? (
-        <SealCheck className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" weight="fill" />
+        <SealCheckIcon className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" weight="fill" />
       ) : (
-        <Warning className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" weight="fill" />
+        <WarningIcon className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" weight="fill" />
       )}
       <div className="gba:min-w-0">
         <p className="gba:text-sm gba:font-medium gba:text-foreground">

@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import {
-  CaretDown,
-  CaretRight,
-  DownloadSimple,
-  File,
-  Globe,
-  FileText,
-  FileCss,
-  FileJs,
-  FileHtml,
-  FilePy,
-  FileCode
+  CaretDownIcon,
+  CaretRightIcon,
+  DownloadSimpleIcon,
+  FileCodeIcon,
+  FileCssIcon,
+  FileHtmlIcon,
+  FileIcon,
+  FileJsIcon,
+  FilePyIcon,
+  FileTextIcon,
+  GlobeIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
@@ -39,29 +39,29 @@ const getArtifactIcon = (rendererType: string) => {
   const iconClass = 'gba:h-4 gba:w-4 gba:shrink-0'
   switch (rendererType) {
     case 'html':
-      return <FileHtml className={`${iconClass} gba:text-orange-500`} />
+      return <FileHtmlIcon className={`${iconClass} gba:text-orange-500`} />
     case 'markdown':
     case 'document':
-      return <FileText className={`${iconClass} gba:text-blue-500`} />
+      return <FileTextIcon className={`${iconClass} gba:text-blue-500`} />
     case 'css':
-      return <FileCss className={`${iconClass} gba:text-blue-400`} />
+      return <FileCssIcon className={`${iconClass} gba:text-blue-400`} />
     case 'javascript':
     case 'typescript':
-      return <FileJs className={`${iconClass} gba:text-yellow-500`} />
+      return <FileJsIcon className={`${iconClass} gba:text-yellow-500`} />
     case 'python':
-      return <FilePy className={`${iconClass} gba:text-blue-600`} />
+      return <FilePyIcon className={`${iconClass} gba:text-blue-600`} />
     case 'code':
-      return <FileCode className={`${iconClass} gba:text-purple-500`} />
+      return <FileCodeIcon className={`${iconClass} gba:text-purple-500`} />
     default:
-      return <File className={`${iconClass} gba:text-muted-foreground`} />
+      return <FileIcon className={`${iconClass} gba:text-muted-foreground`} />
   }
 }
 
 const workspaceDocIcon = (type: WorkspaceDocument['type']) => {
   const iconClass = 'gba:h-4 gba:w-4 gba:shrink-0'
-  if (type === 'slides') return <FileText className={`${iconClass} gba:text-violet-500`} />
-  if (type === 'note') return <FileText className={`${iconClass} gba:text-amber-500`} />
-  return <FileText className={`${iconClass} gba:text-blue-500`} />
+  if (type === 'slides') return <FileTextIcon className={`${iconClass} gba:text-violet-500`} />
+  if (type === 'note') return <FileTextIcon className={`${iconClass} gba:text-amber-500`} />
+  return <FileTextIcon className={`${iconClass} gba:text-blue-500`} />
 }
 
 const WorkspaceDocCard = ({ doc }: { doc: WorkspaceDocument }) => (
@@ -77,7 +77,7 @@ const WorkspaceDocCard = ({ doc }: { doc: WorkspaceDocument }) => (
       <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
       <p className="gba:text-xs gba:text-muted-foreground gba:capitalize">{doc.type}</p>
     </div>
-    <Globe className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
+    <GlobeIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
   </a>
 )
 
@@ -134,7 +134,7 @@ export const FinalAnswerRenderer = ({
                   {artifact.rendererType} · {(artifact.size / 1024).toFixed(1)} KB
                 </p>
               </div>
-              <CaretRight className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
+              <CaretRightIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
             </button>
           ))}
         </div>
@@ -160,9 +160,9 @@ export const FinalAnswerRenderer = ({
               Actions taken
             </span>
             {actionsExpanded ? (
-              <CaretDown className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+              <CaretDownIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
             ) : (
-              <CaretRight className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+              <CaretRightIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
             )}
           </button>
           {actionsExpanded && (
@@ -200,7 +200,7 @@ export const FinalAnswerRenderer = ({
           onClick={handleExport}
           data-testid="enterprise-agent-final-export"
         >
-          <DownloadSimple className="gba:h-3.5 gba:w-3.5" />
+          <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
           Export
         </Button>
       </div>

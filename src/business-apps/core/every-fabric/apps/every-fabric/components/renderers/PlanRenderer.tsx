@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CaretDown, CaretRight, Check, Clock, SpinnerGap, X } from '@phosphor-icons/react'
+import { CaretDownIcon, CaretRightIcon, CheckIcon, ClockIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import type { TodoItem } from '../../types/enterpriseAgent'
 
 interface PlanRendererProps {
@@ -8,15 +8,21 @@ interface PlanRendererProps {
 }
 
 const TODO_ICON = {
-  pending: <Clock className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/50" />,
-  in_progress: <SpinnerGap className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:animate-spin" />,
-  done: <Check className="gba:h-3.5 gba:w-3.5 gba:text-primary" />,
-  failed: <X className="gba:h-3.5 gba:w-3.5 gba:text-destructive" />,
+  pending: <ClockIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/50" />,
+  in_progress: <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:animate-spin" />,
+  done: <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary" />,
+  failed: <XIcon className="gba:h-3.5 gba:w-3.5 gba:text-destructive" />,
   skipped: (
     <span className="gba:h-3.5 gba:w-3.5 gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground/40">
       —
     </span>
   )
+}
+
+function planTodoTextClass(status: TodoItem['status']): string {
+  if (status === 'done') return 'gba:text-muted-foreground gba:line-through'
+  if (status === 'failed') return 'gba:text-destructive'
+  return 'gba:text-foreground'
 }
 
 export const PlanRenderer = ({ todos, isLive }: PlanRendererProps) => {
@@ -56,9 +62,9 @@ export const PlanRenderer = ({ todos, isLive }: PlanRendererProps) => {
           </div>
         </div>
         {expanded ? (
-          <CaretDown className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+          <CaretDownIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
         ) : (
-          <CaretRight className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+          <CaretRightIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
         )}
       </button>
 
@@ -75,17 +81,7 @@ export const PlanRenderer = ({ todos, isLive }: PlanRendererProps) => {
             >
               <div className="gba:flex-shrink-0 gba:mt-0.5">{TODO_ICON[todo.status]}</div>
               <div className="gba:flex-1 gba:min-w-0">
-                <span
-                  className={`gba:text-sm gba:leading-snug ${
-                    todo.status === 'done'
-                      ? 'gba:text-muted-foreground gba:line-through'
-                      : todo.status === 'failed'
-                        ? 'gba:text-destructive'
-                        : 'gba:text-foreground'
-                  }`}
-                >
-                  {todo.text}
-                </span>
+                <span className={`gba:text-sm gba:leading-snug ${planTodoTextClass(todo.status)}`}>{todo.text}</span>
                 {todo.tool_used && (
                   <span className="gba:ml-2 gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:text-xs gba:font-mono gba:text-muted-foreground">
                     {todo.tool_used}
