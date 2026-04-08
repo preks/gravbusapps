@@ -1,9 +1,9 @@
 import type { FC } from 'react'
-import { CheckCircle, ShareNetwork, SpinnerGap, XCircle } from '@phosphor-icons/react'
-import type { FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
+import { CheckCircleIcon, ShareNetworkIcon, SpinnerGapIcon, XCircleIcon } from '@phosphor-icons/react'
+import type { FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
 
 export const STEP_STATUS_CLASSES: Record<FabricTaskStatus, string> = {
-  done: 'gba:bg-green-100 gba:text-green-600 dark:gba:bg-green-900/30 dark:gba:text-green-400',
+  done: 'gba:bg-transparent gba:text-green-600 dark:gba:text-green-400',
   active: 'gba:bg-primary gba:text-primary-foreground',
   failed: 'gba:bg-destructive/10 gba:text-destructive',
   skipped: 'gba:bg-muted gba:text-muted-foreground/40',
@@ -33,6 +33,29 @@ export const progressLabelClass = (status: FabricTaskStatus): string => {
     return 'gba:text-foreground gba:font-medium'
   }
   return 'gba:text-foreground/85'
+}
+
+export function subAgentDelegationChipClass(status: FabricSubAgent['status']): string {
+  if (status === 'running') {
+    return 'gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300'
+  }
+  if (status === 'failed') {
+    return 'gba:bg-destructive/10 gba:text-destructive'
+  }
+  return 'gba:bg-muted gba:text-muted-foreground'
+}
+
+const ProgressStepStatusGlyph: FC<{ status: FabricTaskStatus; stepNumber: number }> = ({ status, stepNumber }) => {
+  if (status === 'done') {
+    return <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
+  }
+  if (status === 'active') {
+    return <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" weight="bold" />
+  }
+  if (status === 'failed') {
+    return <XCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
+  }
+  return <span>{stepNumber}</span>
 }
 
 interface FabricProgressTaskRowProps {
@@ -72,15 +95,7 @@ export const FabricProgressTaskRow: FC<FabricProgressTaskRowProps> = ({
           STEP_STATUS_CLASSES[node.status]
         }`}
       >
-        {isDone ? (
-          <CheckCircle className="gba:h-3.5 gba:w-3.5" weight="fill" />
-        ) : isActive ? (
-          <SpinnerGap className="gba:h-3.5 gba:w-3.5 gba:animate-spin" weight="bold" />
-        ) : node.status === 'failed' ? (
-          <XCircle className="gba:h-3.5 gba:w-3.5" weight="fill" />
-        ) : (
-          <span>{stepNumber}</span>
-        )}
+        <ProgressStepStatusGlyph status={node.status} stepNumber={stepNumber} />
       </div>
 
       <div className="gba:flex-1 gba:min-w-0">
@@ -102,15 +117,11 @@ export const FabricProgressTaskRow: FC<FabricProgressTaskRowProps> = ({
             {node.subAgents.map(sa => (
               <span
                 key={sa.id}
-                className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-medium ${
-                  sa.status === 'running'
-                    ? 'gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300'
-                    : sa.status === 'failed'
-                      ? 'gba:bg-destructive/10 gba:text-destructive'
-                      : 'gba:bg-muted gba:text-muted-foreground'
-                }`}
+                className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-medium ${subAgentDelegationChipClass(
+                  sa.status
+                )}`}
               >
-                <ShareNetwork className="gba:h-3 gba:w-3" weight="duotone" />
+                <ShareNetworkIcon className="gba:h-3 gba:w-3" weight="duotone" />
                 {sa.name}
               </span>
             ))}

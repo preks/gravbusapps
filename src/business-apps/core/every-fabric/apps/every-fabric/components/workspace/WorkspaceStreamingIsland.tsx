@@ -1,4 +1,4 @@
-import { Brain, CaretDown, CaretUp, WifiHigh, WifiX } from '@phosphor-icons/react'
+import { BrainIcon, CaretDownIcon, CaretUpIcon, WifiHighIcon, WifiXIcon } from '@phosphor-icons/react'
 import type { FC } from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
@@ -8,6 +8,13 @@ const THINKING_TAIL = 16
 const toEpoch = (ts: string): number => {
   const n = Date.parse(ts)
   return Number.isNaN(n) ? 0 : n
+}
+
+function streamingProgressLabel(totalCount: number, completedCount: number, isStreaming: boolean): string {
+  if (totalCount === 0) return 'Starting…'
+  if (isStreaming && completedCount < totalCount) return `${completedCount} of ${totalCount} done`
+  if (isStreaming && completedCount >= totalCount) return 'Finalizing…'
+  return `${completedCount} of ${totalCount} done`
 }
 
 interface WorkspaceStreamingIslandProps {
@@ -52,14 +59,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
   }, [messages])
 
   const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
-  const progressLabel =
-    totalCount === 0
-      ? 'Starting…'
-      : isStreaming && completedCount < totalCount
-        ? `${completedCount} of ${totalCount} done`
-        : isStreaming && completedCount >= totalCount
-          ? 'Finalizing…'
-          : `${completedCount} of ${totalCount} done`
+  const progressLabel = streamingProgressLabel(totalCount, completedCount, isStreaming)
 
   const collapsedSummary =
     statusHeadline ??
@@ -90,7 +90,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
             <span className="gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-muted-foreground/30 gba:animate-pulse" />
           </span>
           <span className="gba:min-w-0 gba:flex-1 gba:truncate">{collapsedSummary}</span>
-          <CaretDown className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground/70" aria-hidden />
+          <CaretDownIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground/70" aria-hidden />
         </button>
       </div>
     )
@@ -102,7 +102,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
       data-testid="fabric-workspace-streaming-island"
     >
       <div className="gba:flex gba:min-h-0 gba:items-center gba:gap-2 gba:border-b gba:border-border/50 gba:px-3 gba:py-2 sm:gba:px-3.5">
-        <Brain className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
+        <BrainIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
         <div className="gba:min-w-0 gba:flex-1">
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-2 gba:gap-y-0.5">
             <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
@@ -134,11 +134,11 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
         <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:border-l gba:border-border/40 gba:pl-2">
           {isConnected ? (
             <>
-              <WifiHigh className="gba:h-3 gba:w-3 gba:text-green-500" />
+              <WifiHighIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
               <span className="gba:hidden sm:gba:inline gba:text-[11px] gba:text-green-600 gba:font-medium">Live</span>
             </>
           ) : (
-            <WifiX className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
+            <WifiXIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
           )}
         </div>
         <button
@@ -149,7 +149,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
           aria-label="Collapse agent activity"
           data-testid="fabric-streaming-island-collapse"
         >
-          <CaretUp className="gba:h-4 gba:w-4" />
+          <CaretUpIcon className="gba:h-4 gba:w-4" />
         </button>
       </div>
 

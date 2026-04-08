@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { ArrowRight, PauseCircle, PencilSimple, X } from '@phosphor-icons/react'
+import { ArrowRightIcon, PauseCircleIcon, PencilSimpleIcon, XIcon } from '@phosphor-icons/react'
 import { WORKSPACE_CHAT_GUTTER_CLASS, WORKSPACE_CHAT_RAIL_CLASS } from './workspaceLayout.constants'
 
 // ─── Option parsing ───────────────────────────────────────────────────────────
@@ -13,21 +13,42 @@ interface ParsedQuestion {
   options: string[]
 }
 
+function extractEmbeddedOptionText(line: string): string | null {
+  const numbered = /^(\d+)[.)]\s+/.exec(line)
+  if (numbered) {
+    const text = line.slice(numbered[0].length).trim()
+    return text.length > 0 ? text : null
+  }
+
+  const marker = line[0]
+  if (marker === '-' || marker === '•' || marker === '*') {
+    const text = line.slice(1).trimStart().trim()
+    return text.length > 0 ? text : null
+  }
+
+  const lettered = /^([a-zA-Z])[.)]\s+/.exec(line)
+  if (lettered) {
+    const text = line.slice(lettered[0].length).trim()
+    return text.length > 0 ? text : null
+  }
+
+  return null
+}
+
 function parseQuestion(question: string): ParsedQuestion {
   const lines = question
     .split('\n')
     .map(l => l.trim())
     .filter(Boolean)
 
-  // Match lines like: "1. Foo", "- Foo", "• Foo", "a) Foo", "A. Foo"
-  const optionRe = /^(?:\d+[\.\)]|[-•*]|[a-zA-Z][\.\)])\s+(.+)$/
+  // Match lines like: "1. Foo", "- Foo", "• Foo", "a) Foo", "A. Foo" (linear-time; avoids ReDoS-prone combined regex)
   const options: string[] = []
   const rest: string[] = []
 
   for (const line of lines) {
-    const m = optionRe.exec(line)
-    if (m) {
-      options.push(m[1].trim())
+    const optionText = extractEmbeddedOptionText(line)
+    if (optionText) {
+      options.push(optionText)
     } else {
       rest.push(line)
     }
@@ -84,11 +105,9 @@ function useFocusTrap(ref: React.RefObject<HTMLElement | null>, active: boolean)
           e.preventDefault()
           last?.focus()
         }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault()
-          first?.focus()
-        }
+      } else if (document.activeElement === last) {
+        e.preventDefault()
+        first?.focus()
       }
     }
 
@@ -110,10 +129,17 @@ export interface ClarificationPromptProps {
 export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ question, isOpen, onAnswer, onDismiss }) => {
   const [freeText, setFreeText] = useState('')
   const [isCustomOpen, setIsCustomOpen] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDialogElement>(null)
   const { headline, options } = parseQuestion(question)
   const isOpenEnded = options.length === 0 && isOpenEndedQuestion(question)
-  const displayOptions = options.length > 0 ? options : isOpenEnded ? [] : FALLBACK_OPTIONS
+  let displayOptions: string[]
+  if (options.length > 0) {
+    displayOptions = options
+  } else if (isOpenEnded) {
+    displayOptions = []
+  } else {
+    displayOptions = FALLBACK_OPTIONS
+  }
 
   useFocusTrap(panelRef, isOpen)
 
@@ -144,13 +170,13 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
         onClick={dismiss}
       />
 
-      <div
+      <dialog
         ref={panelRef}
-        role="dialog"
+        open={isOpen}
         aria-modal="true"
         aria-label="Agent clarification"
         data-testid="fabric-clarification-prompt"
-        className={`gba:fixed gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:pointer-events-none gba:transition-all gba:duration-300 gba:ease-out ${
+        className={`gba:fixed gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${
           isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
         }`}
       >
@@ -158,7 +184,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
           <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:pointer-events-auto`}>
             <div className="gba:rounded-[1.6rem] gba:border gba:border-border/85 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-[0_20px_60px_rgba(15,23,42,0.14)] gba:overflow-hidden">
               <div className="gba:flex gba:items-center gba:gap-2.5 gba:px-4 sm:gba:px-5 gba:pt-4 gba:pb-3">
-                <PauseCircle className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
+                <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
                 <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:flex-1">
                   Agent needs your input
                 </span>
@@ -169,7 +195,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                     data-testid="fabric-clarification-dismiss"
                     aria-label="Dismiss"
                   >
-                    <X className="gba:h-4 gba:w-4" />
+                    <XIcon className="gba:h-4 gba:w-4" />
                   </button>
                 )}
               </div>
@@ -192,7 +218,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                         {i + 1}
                       </span>
                       <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground">{opt}</span>
-                      <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground/60" />
+                      <ArrowRightIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground/60" />
                     </button>
                   ))}
                 </div>
@@ -206,7 +232,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                     className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:px-3.5 gba:py-3 gba:rounded-[1.05rem] gba:border gba:border-dashed gba:border-border/70 gba:bg-background/70 gba:text-left gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/25 gba:transition-colors"
                     data-testid="fabric-clarification-open-custom"
                   >
-                    <PencilSimple className="gba:h-4 gba:w-4 gba:shrink-0" />
+                    <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:shrink-0" />
                     <span className="gba:flex-1 gba:text-sm">Write your own answer</span>
                     <span className="gba:text-[11px] gba:uppercase gba:tracking-wide">Enter to send</span>
                   </button>
@@ -215,9 +241,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
                     <Textarea
                       value={freeText}
                       onChange={e => setFreeText(e.target.value)}
-                      placeholder={
-                        isOpenEnded ? 'Type your answer and press Enter…' : 'Type your answer and press Enter…'
-                      }
+                      placeholder="Type your answer and press Enter…"
                       rows={2}
                       className="gba:resize-none gba:text-sm gba:rounded-[1.05rem]"
                       data-testid="fabric-clarification-input"
@@ -250,7 +274,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
             </div>
           </div>
         </div>
-      </div>
+      </dialog>
     </>
   )
 }

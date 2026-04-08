@@ -1,4 +1,11 @@
-import { ArrowRight, ChatCircleDots, ClockCounterClockwise, Layout, Plus, X } from '@phosphor-icons/react'
+import {
+  ArrowRightIcon,
+  ChatCircleDotsIcon,
+  ClockCounterClockwiseIcon,
+  LayoutIcon,
+  PlusIcon,
+  XIcon
+} from '@phosphor-icons/react'
 import { useEffect, useMemo, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
@@ -21,14 +28,31 @@ import {
   WORKSPACE_TOP_CONTROLS_OFFSET_CLASS
 } from './workspaceLayout.constants'
 
+function workspaceRightPanelShellClass(
+  isDesktopPanel: boolean,
+  isRightPanelOpen: boolean,
+  narrowRailBottomClass: string
+): string {
+  const desktopMotion = isRightPanelOpen
+    ? 'gba:translate-x-0 gba:opacity-100 gba:pointer-events-auto'
+    : 'gba:translate-x-[calc(100%+1.5rem)] gba:opacity-0 gba:pointer-events-none'
+  const narrowMotion = isRightPanelOpen
+    ? 'gba:translate-y-0 gba:opacity-100 gba:pointer-events-auto'
+    : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
+  if (isDesktopPanel) {
+    return `gba:fixed ${WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS} gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:bottom-6 gba:z-40 ${WORKSPACE_RIGHT_RAIL_WIDTH_CLASS} ${desktopMotion}`
+  }
+  return `gba:fixed gba:top-24 sm:gba:top-28 gba:right-3 gba:left-3 gba:z-50 sm:gba:right-4 sm:gba:left-auto sm:gba:w-[22rem] ${narrowRailBottomClass} ${narrowMotion}`
+}
+
 const parseFollowUps = (message: ChatMessage | undefined): string[] => {
-  if (!message || message.type !== 'final_answer' || !message.content || typeof message.content !== 'object') return []
+  if (message?.type !== 'final_answer' || !message?.content || typeof message.content !== 'object') return []
   const recommendations = 'recommendations' in message.content ? message.content.recommendations : undefined
   if (typeof recommendations !== 'string' || !recommendations.trim()) return []
 
   return recommendations
     .split('\n')
-    .map(line => line.replace(/^[-*\d.\)\s]+/, '').trim())
+    .map(line => line.replace(/^[-*\d.)\s]+/, '').trim())
     .filter(Boolean)
     .slice(0, 4)
 }
@@ -120,7 +144,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
     return null
   }, [taskNodes, totalCount])
   useEffect(() => {
-    if (!latestFinalAnswer || latestFinalAnswer.id !== dismissedFollowUpMessageId) {
+    if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
     }
   }, [latestFinalAnswer, dismissedFollowUpMessageId])
@@ -138,10 +162,11 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
 
   if (!session) return null
 
-  const handleComposerSubmit = (task: string, config: SessionConfig) => {
-    void config
-    return reply(task)
-  }
+  const handleComposerSubmit = (
+    task: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- FabricInput forwards SessionConfig; workspace path ignores it
+    _config: SessionConfig
+  ) => reply(task)
 
   const handleClarificationAnswer = (answer: string) => {
     // Immediately dismiss to close modal
@@ -149,7 +174,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
       setDismissedClarificationQuestion(currentClarificationQuestion)
     }
     // Send reply - modal will unmount since showClarification becomes false
-    void reply(answer)
+    reply(answer).catch(() => undefined)
   }
 
   const handleClarificationDismiss = () => {
@@ -190,7 +215,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
               className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
               data-testid="fabric-workspace-history-button"
             >
-              <ClockCounterClockwise className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
+              <ClockCounterClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
               <span className="gba:hidden sm:gba:inline">History</span>
             </button>
 
@@ -199,7 +224,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
               className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
               data-testid="fabric-workspace-new-session"
             >
-              <Plus className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
+              <PlusIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
               <span className="gba:hidden sm:gba:inline">New task</span>
             </button>
 
@@ -210,9 +235,9 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
               aria-label={isRightPanelOpen ? 'Close workspace panel' : 'Open workspace panel'}
             >
               {isRightPanelOpen ? (
-                <X className="gba:h-4 gba:w-4 gba:text-foreground" weight="bold" />
+                <XIcon className="gba:h-4 gba:w-4 gba:text-foreground" weight="bold" />
               ) : (
-                <Layout className="gba:h-4 gba:w-4 gba:text-foreground" weight="bold" />
+                <LayoutIcon className="gba:h-4 gba:w-4 gba:text-foreground" weight="bold" />
               )}
             </button>
           </div>
@@ -228,7 +253,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
                   <div className="gba:pointer-events-auto">
                     <div className="gba:overflow-hidden gba:rounded-[1.25rem] gba:border gba:border-border/80 gba:bg-background/96 gba:shadow-[0_10px_26px_rgba(15,23,42,0.05)]">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:pt-2 gba:pb-1.5 sm:gba:px-3.5">
-                        <ChatCircleDots className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground" />
+                        <ChatCircleDotsIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground" />
                         <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
                           Suggested follow-ups
                         </span>
@@ -239,7 +264,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
                           aria-label="Close suggested follow-ups"
                           data-testid="fabric-follow-ups-dismiss"
                         >
-                          <X className="gba:h-3.5 gba:w-3.5" />
+                          <XIcon className="gba:h-3.5 gba:w-3.5" />
                         </button>
                       </div>
                       <div className="gba:pb-1 sm:gba:pb-1.5">
@@ -254,7 +279,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
                             <span className="gba:flex-1 gba:text-xs sm:gba:text-sm gba:text-foreground">
                               {followUp}
                             </span>
-                            <ArrowRight className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground/60 sm:gba:h-4 sm:gba:w-4" />
+                            <ArrowRightIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground/60 sm:gba:h-4 sm:gba:w-4" />
                           </button>
                         ))}
                       </div>
@@ -294,19 +319,11 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
           </div>
 
           <div
-            className={`gba:transition-all gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${
-              isDesktopPanel
-                ? `gba:fixed ${WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS} gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:bottom-6 gba:z-40 ${WORKSPACE_RIGHT_RAIL_WIDTH_CLASS} ${
-                    isRightPanelOpen
-                      ? 'gba:translate-x-0 gba:opacity-100 gba:pointer-events-auto'
-                      : 'gba:translate-x-[calc(100%+1.5rem)] gba:opacity-0 gba:pointer-events-none'
-                  }`
-                : `gba:fixed gba:top-24 sm:gba:top-28 gba:right-3 gba:left-3 gba:z-50 sm:gba:right-4 sm:gba:left-auto sm:gba:w-[22rem] ${narrowRailBottomClass} ${
-                    isRightPanelOpen
-                      ? 'gba:translate-y-0 gba:opacity-100 gba:pointer-events-auto'
-                      : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
-                  }`
-            }`}
+            className={`gba:transition-all gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
+              isDesktopPanel,
+              isRightPanelOpen,
+              narrowRailBottomClass
+            )}`}
           >
             <WorkspaceRightPanel
               taskNodes={taskNodes}

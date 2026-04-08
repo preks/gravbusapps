@@ -1,26 +1,26 @@
 import { useMemo, useState } from 'react'
 import {
-  ArrowsClockwise,
-  Brain,
-  CaretDown,
-  CaretUp,
-  CheckCircle,
-  Database,
-  DownloadSimple,
-  File,
-  FileCode,
-  FileDoc,
-  FileHtml,
-  ListChecks,
-  ShareNetwork,
-  SpinnerGap,
-  WifiHigh,
-  WifiX,
-  Wrench,
-  XCircle,
-  FileText,
-  Presentation,
-  Note
+  ArrowsClockwiseIcon,
+  BrainIcon,
+  CaretDownIcon,
+  CaretUpIcon,
+  CheckCircleIcon,
+  DatabaseIcon,
+  DownloadSimpleIcon,
+  FileCodeIcon,
+  FileDocIcon,
+  FileHtmlIcon,
+  FileIcon,
+  FileTextIcon,
+  ListChecksIcon,
+  NoteIcon,
+  PresentationIcon,
+  ShareNetworkIcon,
+  SpinnerGapIcon,
+  WifiHighIcon,
+  WifiXIcon,
+  WrenchIcon,
+  XCircleIcon
 } from '@phosphor-icons/react'
 import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
@@ -60,9 +60,9 @@ const Card: React.FC<CardProps> = ({ title, badge, extra, defaultOpen = true, ch
             )}
           </div>
           {open ? (
-            <CaretUp className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
+            <CaretUpIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
           ) : (
-            <CaretDown className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
+            <CaretDownIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
           )}
         </button>
         {extra != null && (
@@ -74,6 +74,19 @@ const Card: React.FC<CardProps> = ({ title, badge, extra, defaultOpen = true, ch
       {open && children}
     </div>
   )
+}
+
+function rightPanelProgressLabel(params: {
+  totalCount: number
+  isStreaming: boolean
+  hasActiveWork: boolean
+  completedCount: number
+}): string {
+  const { totalCount, isStreaming, hasActiveWork, completedCount } = params
+  if (totalCount === 0) return 'Waiting to start'
+  if (isStreaming && hasActiveWork) return `${completedCount} of ${totalCount} done`
+  if (isStreaming && completedCount >= totalCount) return 'Finalizing response…'
+  return `${completedCount} of ${totalCount} done`
 }
 
 // ─── Progress card ────────────────────────────────────────────────────────────
@@ -97,23 +110,21 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
 }) => {
   const hasActiveWork = nodes.some(node => node.status === 'active' || node.status === 'pending')
   const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
-  const progressLabel =
-    totalCount === 0
-      ? 'Waiting to start'
-      : isStreaming && hasActiveWork
-        ? `${completedCount} of ${totalCount} done`
-        : isStreaming && completedCount >= totalCount
-          ? 'Finalizing response…'
-          : `${completedCount} of ${totalCount} done`
+  const progressLabel = rightPanelProgressLabel({
+    totalCount,
+    isStreaming,
+    hasActiveWork,
+    completedCount
+  })
   const connectionBadge = (
     <div className="gba:flex gba:items-center gba:gap-1">
       {isConnected ? (
         <>
-          <WifiHigh className="gba:h-3 gba:w-3 gba:text-green-500" />
+          <WifiHighIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
           <span className="gba:text-[11px] gba:text-green-600 gba:font-medium">Live</span>
         </>
       ) : (
-        <WifiX className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
+        <WifiXIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
       )}
     </div>
   )
@@ -160,14 +171,14 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
 function getArtifactIcon(file: ArtifactFile) {
   switch (file.rendererType) {
     case 'html':
-      return <FileHtml className="gba:h-4 gba:w-4 gba:text-orange-500" weight="duotone" />
+      return <FileHtmlIcon className="gba:h-4 gba:w-4 gba:text-orange-500" weight="duotone" />
     case 'document':
     case 'markdown':
-      return <FileDoc className="gba:h-4 gba:w-4 gba:text-blue-500" weight="duotone" />
+      return <FileDocIcon className="gba:h-4 gba:w-4 gba:text-blue-500" weight="duotone" />
     case 'code':
-      return <FileCode className="gba:h-4 gba:w-4 gba:text-green-500" weight="duotone" />
+      return <FileCodeIcon className="gba:h-4 gba:w-4 gba:text-green-500" weight="duotone" />
     default:
-      return <File className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="duotone" />
+      return <FileIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" weight="duotone" />
   }
 }
 
@@ -178,9 +189,9 @@ function formatFileSize(bytes: number): string {
 }
 
 const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
-  if (type === 'slides') return <Presentation className="gba:h-3.5 gba:w-3.5 gba:text-violet-500 gba:shrink-0" />
-  if (type === 'note') return <Note className="gba:h-3.5 gba:w-3.5 gba:text-amber-500 gba:shrink-0" />
-  return <FileText className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:shrink-0" />
+  if (type === 'slides') return <PresentationIcon className="gba:h-3.5 gba:w-3.5 gba:text-violet-500 gba:shrink-0" />
+  if (type === 'note') return <NoteIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-500 gba:shrink-0" />
+  return <FileTextIcon className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:shrink-0" />
 }
 
 const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs }) => (
@@ -239,7 +250,7 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
               className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
               title="Download"
             >
-              <DownloadSimple className="gba:h-3.5 gba:w-3.5" />
+              <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
             </a>
           </div>
         </div>
@@ -253,6 +264,22 @@ const ENTERPRISE_EXPERT_ACCENT = {
   running: 'gba:text-sky-600',
   done: 'gba:text-green-500',
   failed: 'gba:text-destructive'
+}
+
+function enterpriseExpertStatusText(status: FabricSubAgent['status']): string {
+  if (status === 'running') return 'Running'
+  if (status === 'failed') return 'Failed'
+  return 'Done'
+}
+
+const EnterpriseExpertTrailingIcon: React.FC<{ status: FabricSubAgent['status'] }> = ({ status }) => {
+  if (status === 'running') {
+    return <SpinnerGapIcon className={`gba:h-3.5 gba:w-3.5 gba:animate-spin ${ENTERPRISE_EXPERT_ACCENT.running}`} />
+  }
+  if (status === 'done') {
+    return <CheckCircleIcon className={`gba:h-3.5 gba:w-3.5 ${ENTERPRISE_EXPERT_ACCENT.done}`} weight="fill" />
+  }
+  return <XCircleIcon className={`gba:h-3.5 gba:w-3.5 ${ENTERPRISE_EXPERT_ACCENT.failed}`} weight="fill" />
 }
 
 const normalizeExpertName = (value: string) => value.trim().replace(/\s+/g, ' ')
@@ -359,7 +386,7 @@ const EnterpriseExpertsCard: React.FC<{
             <span
               className={`gba:flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full ${ENTERPRISE_EXPERT_ACCENT.badge}`}
             >
-              <ShareNetwork className="gba:h-4 gba:w-4" />
+              <ShareNetworkIcon className="gba:h-4 gba:w-4" />
             </span>
             <div className="gba:flex-1 gba:min-w-0">
               <p className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate">{expert.name}</p>
@@ -367,16 +394,10 @@ const EnterpriseExpertsCard: React.FC<{
                 <p className="gba:text-[11px] gba:text-muted-foreground/70 gba:line-clamp-2">{expert.summary}</p>
               )}
               <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:mt-0.5">
-                {expert.status === 'running' ? 'Running' : expert.status === 'failed' ? 'Failed' : 'Done'}
+                {enterpriseExpertStatusText(expert.status)}
               </p>
             </div>
-            {expert.status === 'running' ? (
-              <SpinnerGap className={`gba:h-3.5 gba:w-3.5 gba:animate-spin ${ENTERPRISE_EXPERT_ACCENT.running}`} />
-            ) : expert.status === 'done' ? (
-              <CheckCircle className={`gba:h-3.5 gba:w-3.5 ${ENTERPRISE_EXPERT_ACCENT.done}`} weight="fill" />
-            ) : (
-              <XCircle className={`gba:h-3.5 gba:w-3.5 ${ENTERPRISE_EXPERT_ACCENT.failed}`} weight="fill" />
-            )}
+            <EnterpriseExpertTrailingIcon status={expert.status} />
           </div>
         ))}
       </div>
@@ -387,12 +408,12 @@ const EnterpriseExpertsCard: React.FC<{
 // ─── Activity card ────────────────────────────────────────────────────────────
 
 const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
-  tool_call: <Wrench className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  tool_result: <ArrowsClockwise className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  plan_update: <ListChecks className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  reflection: <Brain className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  subagent_spawn: <ShareNetwork className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
-  memory_access: <Database className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+  tool_call: <WrenchIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
+  tool_result: <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
+  plan_update: <ListChecksIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
+  reflection: <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
+  subagent_spawn: <ShareNetworkIcon className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
+  memory_access: <DatabaseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
 }
 
 const normalizeActivityText = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
