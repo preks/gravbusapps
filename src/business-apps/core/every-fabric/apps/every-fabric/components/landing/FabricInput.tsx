@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { PaperPlaneRight, Paperclip, Plug, Stop, X } from '@phosphor-icons/react'
+import { PaperPlaneRightIcon, PaperclipIcon, PlugIcon, StopIcon, XIcon } from '@phosphor-icons/react'
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { ActiveConnectorChips } from '../connectors/ActiveConnectorChips'
@@ -31,6 +31,23 @@ const DEFAULT_CONFIG: SessionConfig = {
   mode: 'deep',
   enable_memory: true,
   enable_reflection: undefined
+}
+
+function resolveFabricInputPlaceholder(
+  placeholder: string | undefined,
+  isReplyMode: boolean,
+  activeInterrupt: string | undefined,
+  isRunning: boolean,
+  isLanding: boolean
+): string {
+  if (placeholder !== undefined) return placeholder
+  if (isReplyMode) {
+    const tail = (activeInterrupt?.length ?? 0) > 60 ? '…' : ''
+    return `Your answer to: "${activeInterrupt?.slice(0, 60)}${tail}"`
+  }
+  if (isRunning) return 'Agent is working…'
+  if (isLanding) return 'Describe a task, research topic, or ask anything…'
+  return 'Reply or give feedback…'
 }
 
 export const FabricInput: React.FC<FabricInputProps> = ({
@@ -65,15 +82,13 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   const isReplyMode = !!activeInterrupt
   const isLanding = variant === 'landing'
 
-  const resolvedPlaceholder =
-    placeholder ??
-    (isReplyMode
-      ? `Your answer to: "${activeInterrupt?.slice(0, 60)}${(activeInterrupt?.length ?? 0) > 60 ? '…' : ''}"`
-      : isRunning
-        ? 'Agent is working…'
-        : isLanding
-          ? 'Describe a task, research topic, or ask anything…'
-          : 'Reply or give feedback…')
+  const resolvedPlaceholder = resolveFabricInputPlaceholder(
+    placeholder,
+    isReplyMode,
+    activeInterrupt,
+    isRunning,
+    isLanding
+  )
 
   const handleSubmit = useCallback(async () => {
     const trimmed = value.trim()
@@ -99,7 +114,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        void handleSubmit()
+        handleSubmit().catch(() => undefined)
       }
     },
     [handleSubmit]
@@ -137,7 +152,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               title="Attach files"
               data-testid="fabric-input-attach"
             >
-              <Paperclip className="gba:h-3.5 gba:w-3.5" />
+              <PaperclipIcon className="gba:h-3.5 gba:w-3.5" />
             </button>
 
             {onConnectorsClick && (
@@ -147,19 +162,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
                 title="Connectors"
                 data-testid="fabric-input-connectors"
               >
-                <Plug className="gba:h-3.5 gba:w-3.5" />
-              </button>
-            )}
-
-            {/* Selected agent chip */}
-            {!isLanding && selectedAgent && (
-              <button
-                onClick={onClearAgent}
-                className="gba:inline-flex gba:items-center gba:gap-1 gba:h-6 gba:px-2 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium gba:hover:bg-primary/20 gba:transition-colors"
-                data-testid="fabric-input-selected-agent"
-              >
-                {selectedAgent.display_name}
-                <X className="gba:h-3 gba:w-3" />
+                <PlugIcon className="gba:h-3.5 gba:w-3.5" />
               </button>
             )}
 
@@ -169,11 +172,11 @@ export const FabricInput: React.FC<FabricInputProps> = ({
             <Button
               size="icon"
               className="gba:h-9 gba:w-9 gba:rounded-full gba:ml-1 gba:shrink-0"
-              onClick={() => void handleSubmit()}
+              onClick={() => handleSubmit().catch(() => undefined)}
               disabled={!canSend}
               data-testid="fabric-input-send"
             >
-              <PaperPlaneRight className="gba:h-3.5 gba:w-3.5" weight="fill" />
+              <PaperPlaneRightIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
             </Button>
           </div>
         </div>
@@ -209,7 +212,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
             title="Attach files"
             data-testid="fabric-input-attach"
           >
-            <Paperclip className="gba:h-3.5 gba:w-3.5" />
+            <PaperclipIcon className="gba:h-3.5 gba:w-3.5" />
           </button>
 
           {onConnectorsClick && (
@@ -219,7 +222,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               title="Connectors"
               data-testid="fabric-input-connectors"
             >
-              <Plug className="gba:h-3.5 gba:w-3.5" />
+              <PlugIcon className="gba:h-3.5 gba:w-3.5" />
             </button>
           )}
 
@@ -230,7 +233,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               data-testid="fabric-input-selected-agent"
             >
               {selectedAgent.display_name}
-              <X className="gba:h-3 gba:w-3" />
+              <XIcon className="gba:h-3 gba:w-3" />
             </button>
           )}
 
@@ -245,17 +248,17 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               data-testid="fabric-input-stop"
               aria-label="Stop"
             >
-              <Stop className="gba:h-3.5 gba:w-3.5" weight="fill" />
+              <StopIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
             </button>
           ) : (
             <Button
               size="icon"
               className="gba:h-8 gba:w-8 gba:rounded-full gba:ml-1 gba:shrink-0"
-              onClick={() => void handleSubmit()}
+              onClick={() => handleSubmit().catch(() => undefined)}
               disabled={!canSend}
               data-testid="fabric-input-send"
             >
-              <PaperPlaneRight className="gba:h-3.5 gba:w-3.5" weight="fill" />
+              <PaperPlaneRightIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
             </Button>
           )}
         </div>

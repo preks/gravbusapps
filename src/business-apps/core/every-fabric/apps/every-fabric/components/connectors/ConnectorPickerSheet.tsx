@@ -1,5 +1,5 @@
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { Check, Plug, X } from '@phosphor-icons/react'
+import { CheckIcon, PlugIcon, XIcon } from '@phosphor-icons/react'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { ConnectorLogo } from '@/business-apps/core/create/apps/newwork-connect/components/ConnectorLogo'
 import { CONNECT_LANES, LANE_CONFIG } from '@/business-apps/core/create/apps/newwork-connect/components/connectCatalog'
@@ -49,7 +49,7 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
       <div className="gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/98 gba:backdrop-blur-md gba:shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border/60">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Plug className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            <PlugIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
             <span className="gba:text-sm gba:font-semibold gba:text-foreground">Connectors</span>
           </div>
           <Button
@@ -59,20 +59,22 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
             onClick={onClose}
             data-testid="connector-picker-close"
           >
-            <X className="gba:h-4 gba:w-4" />
+            <XIcon className="gba:h-4 gba:w-4" />
           </Button>
         </div>
 
         <div className="gba:max-h-[min(28rem,60vh)] gba:overflow-y-auto gba:p-3">
-          {isLoading ? (
+          {isLoading && (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:px-4 gba:py-8 gba:text-center">
               <p className="gba:text-sm gba:text-muted-foreground">Loading connectors...</p>
             </div>
-          ) : connectors.length === 0 ? (
+          )}
+          {!isLoading && connectors.length === 0 && (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:px-4 gba:py-8 gba:text-center">
               <p className="gba:text-sm gba:text-muted-foreground">No connectors available.</p>
             </div>
-          ) : (
+          )}
+          {!isLoading && connectors.length > 0 && (
             <div className="gba:space-y-4">
               {sortedLanes.map(lane => {
                 const laneConfig = LANE_CONFIG[lane]
@@ -101,7 +103,7 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
                               </div>
                             </div>
                             {isActive && (
-                              <Check className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:shrink-0" weight="bold" />
+                              <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:shrink-0" weight="bold" />
                             )}
                           </button>
                         )

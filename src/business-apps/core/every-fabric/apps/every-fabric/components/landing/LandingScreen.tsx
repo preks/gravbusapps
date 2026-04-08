@@ -1,4 +1,4 @@
-import { CaretDown, Check, ClockCounterClockwise, Package } from '@phosphor-icons/react'
+import { CaretDownIcon, CheckIcon, ClockCounterClockwiseIcon, PackageIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import type { SessionConfig, EnterpriseSkill } from '../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
@@ -83,7 +83,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
           className="gba:inline-flex gba:items-center gba:gap-2 gba:h-10 gba:px-4 gba:rounded-full gba:border gba:border-border/70 gba:bg-card/95 gba:text-sm gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card gba:transition-colors"
           data-testid="fabric-landing-history-button"
         >
-          <ClockCounterClockwise className="gba:h-4 gba:w-4" />
+          <ClockCounterClockwiseIcon className="gba:h-4 gba:w-4" />
           History
         </button>
       </div>
@@ -134,9 +134,9 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
                     className="gba:inline-flex gba:h-9 gba:items-center gba:gap-2 gba:rounded-full gba:border gba:border-border/75 gba:bg-card/96 gba:px-3.5 gba:text-sm gba:text-muted-foreground gba:shadow-[0_6px_18px_rgba(15,23,42,0.04)] gba:transition-colors gba:hover:bg-card gba:hover:text-foreground"
                     data-testid="fabric-landing-module-menu"
                   >
-                    <Package className="gba:h-4 gba:w-4" />
+                    <PackageIcon className="gba:h-4 gba:w-4" />
                     {selectedSkill ? selectedSkill.name : 'Enterprise Skills'}
-                    <CaretDown className="gba:h-3.5 gba:w-3.5" />
+                    <CaretDownIcon className="gba:h-3.5 gba:w-3.5" />
                   </button>
 
                   <div
@@ -186,7 +186,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
                               </div>
                             </div>
                             {isSelected && (
-                              <Check className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-foreground gba:mt-1" />
+                              <CheckIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-foreground gba:mt-1" />
                             )}
                           </button>
                         )

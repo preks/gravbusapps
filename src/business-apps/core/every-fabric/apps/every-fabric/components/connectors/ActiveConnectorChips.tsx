@@ -1,4 +1,4 @@
-import { X } from '@phosphor-icons/react'
+import { XIcon } from '@phosphor-icons/react'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { ConnectorLogo } from '@/business-apps/core/create/apps/newwork-connect/components/ConnectorLogo'
 
@@ -24,7 +24,7 @@ export const ActiveConnectorChips: React.FC<ActiveConnectorChipsProps> = ({ conn
             <ConnectorLogo providerId={conn.providerIdForLogo} size="sm" />
           </div>
           <span className="gba:line-clamp-1">{conn.name}</span>
-          <X className="gba:h-3 gba:w-3 gba:ml-0.5" weight="bold" />
+          <XIcon className="gba:h-3 gba:w-3 gba:ml-0.5" weight="bold" />
         </button>
       ))}
     </div>

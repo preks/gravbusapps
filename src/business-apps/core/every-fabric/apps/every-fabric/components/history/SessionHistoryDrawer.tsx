@@ -1,5 +1,5 @@
 import { Button } from '@newwork/nw-design-system'
-import { ClockCounterClockwise, Trash, X } from '@phosphor-icons/react'
+import { ClockCounterClockwiseIcon, TrashIcon, XIcon } from '@phosphor-icons/react'
 import type { FabricSessionSummary } from '../../types/fabric'
 import { formatRelativeTime } from '../../utils/renderUtils'
 
@@ -41,7 +41,7 @@ export const SessionHistoryDrawer: React.FC<SessionHistoryDrawerProps> = ({
       <div className="gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/98 gba:backdrop-blur-md gba:shadow-[0_8px_24px_rgba(15,23,42,0.045)]">
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border/60">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <ClockCounterClockwise className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            <ClockCounterClockwiseIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
             <span className="gba:text-sm gba:font-semibold gba:text-foreground">Session history</span>
           </div>
           <Button
@@ -51,7 +51,7 @@ export const SessionHistoryDrawer: React.FC<SessionHistoryDrawerProps> = ({
             onClick={onClose}
             data-testid="fabric-session-history-close"
           >
-            <X className="gba:h-4 gba:w-4" />
+            <XIcon className="gba:h-4 gba:w-4" />
           </Button>
         </div>
 
@@ -95,7 +95,7 @@ export const SessionHistoryDrawer: React.FC<SessionHistoryDrawerProps> = ({
                       data-testid={`fabric-session-history-delete-${session.session_id}`}
                       aria-label="Delete session"
                     >
-                      <Trash className="gba:h-3.5 gba:w-3.5" />
+                      <TrashIcon className="gba:h-3.5 gba:w-3.5" />
                     </button>
                   </div>
                 )
