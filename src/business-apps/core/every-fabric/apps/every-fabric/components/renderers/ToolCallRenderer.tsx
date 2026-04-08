@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CaretDown, CaretRight, Check, Lightning, SpinnerGap, X } from '@phosphor-icons/react'
+import { CaretDownIcon, CaretRightIcon, CheckIcon, LightningIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import { toolCategoryColor } from '../../utils/renderUtils'
 
 export interface ToolCallRendererProps {
@@ -13,10 +13,10 @@ export interface ToolCallRendererProps {
 
 const STATUS_ICON = {
   pending: <span className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-muted-foreground/30" />,
-  running: <SpinnerGap className="gba:h-3 gba:w-3 gba:animate-spin gba:text-primary" />,
-  done: <Check className="gba:h-3 gba:w-3 gba:text-primary" />,
-  failed: <X className="gba:h-3 gba:w-3 gba:text-destructive" />,
-  cached: <Lightning className="gba:h-3 gba:w-3 gba:text-primary" />
+  running: <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-primary" />,
+  done: <CheckIcon className="gba:h-3 gba:w-3 gba:text-primary" />,
+  failed: <XIcon className="gba:h-3 gba:w-3 gba:text-destructive" />,
+  cached: <LightningIcon className="gba:h-3 gba:w-3 gba:text-primary" />
 }
 
 export const ToolCallRenderer = ({
@@ -53,9 +53,9 @@ export const ToolCallRenderer = ({
 
         <div className="gba:ml-auto gba:flex-shrink-0">
           {expanded ? (
-            <CaretDown className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+            <CaretDownIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
           ) : (
-            <CaretRight className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+            <CaretRightIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
           )}
         </div>
       </button>

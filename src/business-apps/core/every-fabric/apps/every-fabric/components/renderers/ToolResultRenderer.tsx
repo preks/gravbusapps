@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CaretDown, CaretRight } from '@phosphor-icons/react'
+import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { detectRendererType } from '../../utils/renderUtils'
 
@@ -30,9 +30,9 @@ export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cache
         <span className="gba:text-xs gba:text-muted-foreground/60 gba:ml-auto">{(durationMs / 1000).toFixed(2)}s</span>
         <div className="gba:flex-shrink-0">
           {expanded ? (
-            <CaretDown className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+            <CaretDownIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
           ) : (
-            <CaretRight className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+            <CaretRightIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
           )}
         </div>
       </button>
