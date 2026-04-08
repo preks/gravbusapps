@@ -26,7 +26,7 @@
   "core/create/apps/ai-orchestrator": "8ce4e0ae316aa26a735ec5f1e972e7ce",
   "core/create/apps/create-workspace": "36fc14f5be3de4b7a7998bc9bca316cd",
   "core/create/apps/custom-data-manager": "17fab0d2d8916e8b14c6dc0678ab23c0",
-  "core/create/apps/flow-creator": "992429e5bb45fd32a5290a2d5e065f9a",
+  "core/create/apps/flow-creator": "361e18bac6a36092f123a2131a29083c",
   "core/create/apps/function-manager": "ae007150ce839deaf6581fadc456e166",
   "core/create/apps/newwork-connect": "5cacc97bc832215f961df951aa2e40b9",
   "core/create/apps/prompt-manager": "dfc50622d2d7f3b1e42242726df72d55",
