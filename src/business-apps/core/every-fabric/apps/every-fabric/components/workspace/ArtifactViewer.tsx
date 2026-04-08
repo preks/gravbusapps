@@ -86,12 +86,12 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
         onClick={onClose}
       />
 
-      <div
-        role="dialog"
+      <dialog
+        open={isOpen}
         aria-modal="true"
         aria-label={file?.name ?? 'Artifact viewer'}
         data-testid="fabric-artifact-viewer"
-        className={`gba:fixed gba:top-24 sm:gba:top-28 lg:gba:top-24 gba:left-4 sm:gba:left-6 lg:gba:left-10 gba:right-4 sm:gba:right-6 lg:gba:right-10 gba:bottom-4 sm:gba:bottom-6 lg:gba:bottom-8 gba:z-[80] gba:flex gba:flex-col gba:overflow-hidden gba:rounded-[1.75rem] gba:border gba:border-border/80 gba:bg-card/98 gba:shadow-[0_30px_90px_rgba(15,23,42,0.24)] gba:transition-all gba:duration-300 gba:ease-out ${
+        className={`gba:fixed gba:top-24 sm:gba:top-28 lg:gba:top-24 gba:left-4 sm:gba:left-6 lg:gba:left-10 gba:right-4 sm:gba:right-6 lg:gba:right-10 gba:bottom-4 sm:gba:bottom-6 lg:gba:bottom-8 gba:z-[80] gba:flex gba:max-h-none gba:w-auto gba:max-w-none gba:flex-col gba:overflow-hidden gba:rounded-[1.75rem] gba:border gba:border-border/80 gba:bg-card/98 gba:p-0 gba:shadow-[0_30px_90px_rgba(15,23,42,0.24)] gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${
           isOpen
             ? 'gba:translate-y-0 gba:scale-100 gba:opacity-100 gba:pointer-events-auto'
             : 'gba:translate-y-4 gba:scale-[0.985] gba:opacity-0 gba:pointer-events-none'
@@ -137,7 +137,7 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
             </div>
           </>
         )}
-      </div>
+      </dialog>
     </>
   )
 }

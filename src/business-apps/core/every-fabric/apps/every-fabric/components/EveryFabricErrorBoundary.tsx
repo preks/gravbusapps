@@ -24,7 +24,7 @@ export class EveryFabricErrorBoundary extends Component<EveryFabricErrorBoundary
     console.error('[EveryFabricErrorBoundary] Component stack:', errorInfo.componentStack)
   }
 
-  private handleReload = () => {
+  private readonly handleReload = () => {
     this.setState({ hasError: false, error: null })
   }
 

@@ -1,16 +1,17 @@
-import { CheckCircle, Circle, MinusCircle, ShareNetwork, XCircle } from '@phosphor-icons/react'
+import { CheckCircleIcon, CircleIcon, MinusCircleIcon, ShareNetworkIcon, XCircleIcon } from '@phosphor-icons/react'
 import type { FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
+import { subAgentDelegationChipClass } from './fabricProgressShared'
 
 // ─── Status icon ──────────────────────────────────────────────────────────────
 
 const StatusIcon: React.FC<{ status: FabricTaskStatus; isLast?: boolean }> = ({ status }) => {
   switch (status) {
     case 'done':
-      return <CheckCircle className="gba:h-4 gba:w-4 gba:text-green-500 gba:shrink-0" weight="fill" />
+      return <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-green-500 gba:shrink-0" weight="fill" />
     case 'failed':
-      return <XCircle className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0" weight="fill" />
+      return <XCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0" weight="fill" />
     case 'skipped':
-      return <MinusCircle className="gba:h-4 gba:w-4 gba:text-muted-foreground/40 gba:shrink-0" weight="fill" />
+      return <MinusCircleIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground/40 gba:shrink-0" weight="fill" />
     case 'active':
       return (
         <span className="gba:relative gba:flex gba:h-4 gba:w-4 gba:shrink-0 gba:items-center gba:justify-center">
@@ -18,7 +19,7 @@ const StatusIcon: React.FC<{ status: FabricTaskStatus; isLast?: boolean }> = ({ 
         </span>
       )
     default:
-      return <Circle className="gba:h-4 gba:w-4 gba:text-border gba:shrink-0" weight="regular" />
+      return <CircleIcon className="gba:h-4 gba:w-4 gba:text-border gba:shrink-0" weight="regular" />
   }
 }
 
@@ -28,6 +29,16 @@ interface ProgressBarProps {
   completed: number
   total: number
   percent: number
+}
+
+function taskTreeLabelClass(isDone: boolean, isActive: boolean): string {
+  if (isDone) {
+    return 'gba:text-muted-foreground gba:line-through gba:decoration-muted-foreground/40'
+  }
+  if (isActive) {
+    return 'gba:text-foreground gba:font-medium'
+  }
+  return 'gba:text-foreground'
 }
 
 const ProgressBar: React.FC<ProgressBarProps> = ({ completed, total, percent }) => (
@@ -68,15 +79,7 @@ const TaskRow: React.FC<{ node: FabricTaskNode; index: number }> = ({ node, inde
 
         {/* Content */}
         <div className="gba:flex-1 gba:min-w-0">
-          <p
-            className={`gba:text-xs gba:leading-snug gba:break-words ${
-              isDone
-                ? 'gba:text-muted-foreground gba:line-through gba:decoration-muted-foreground/40'
-                : isActive
-                  ? 'gba:text-foreground gba:font-medium'
-                  : 'gba:text-foreground'
-            }`}
-          >
+          <p className={`gba:text-xs gba:leading-snug gba:break-words ${taskTreeLabelClass(isDone, isActive)}`}>
             <span className="gba:text-muted-foreground/50 gba:mr-1 gba:tabular-nums">{index + 1}.</span>
             {node.label}
           </p>
@@ -92,15 +95,11 @@ const TaskRow: React.FC<{ node: FabricTaskNode; index: number }> = ({ node, inde
               {node.subAgents.map(sa => (
                 <span
                   key={sa.id}
-                  className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-medium ${
-                    sa.status === 'running'
-                      ? 'gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300'
-                      : sa.status === 'failed'
-                        ? 'gba:bg-destructive/10 gba:text-destructive'
-                        : 'gba:bg-muted gba:text-muted-foreground'
-                  }`}
+                  className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-medium ${subAgentDelegationChipClass(
+                    sa.status
+                  )}`}
                 >
-                  <ShareNetwork className="gba:h-3 gba:w-3" weight="duotone" />
+                  <ShareNetworkIcon className="gba:h-3 gba:w-3" weight="duotone" />
                   {sa.name}
                 </span>
               ))}
