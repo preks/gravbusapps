@@ -83,8 +83,8 @@ export function useBudgetSetupPlansTableModel(
   }, [allRows, t])
 
   const filterConfiguration = useMemo(
-    () => buildBudgetSetupPlansFilterConfiguration(t, companyBudgetStatusOptions),
-    [t, companyBudgetStatusOptions]
+    () => buildBudgetSetupPlansFilterConfiguration(t, companyBudgetStatusOptions, allRows),
+    [t, companyBudgetStatusOptions, allRows]
   )
 
   const filteredRows = useMemo(() => {
