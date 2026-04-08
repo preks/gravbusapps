@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type {
   CompensationBudgetPlanCompanyRow,
@@ -54,6 +54,7 @@ function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPl
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
   return {
     id: graphqlUnknownToString(raw.id),
+    version: num(raw.version),
     compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
@@ -145,6 +146,16 @@ export function useManagerTeamSalaryBudget(params: {
   const { accessToken, companyId, managerEmployeeId, teamMembers } = params
   const graphqlClient = useGraphQLClient(accessToken ?? '')
 
+  /** Stable while team composition (ids + OU ids) is unchanged; avoids refetching the pool on unrelated array identity changes. */
+  const budgetRelevantTeamKey = useMemo(
+    () =>
+      teamMembers
+        .map(m => `${m.employeeId}:${m.organizationalUnitId ?? ''}`)
+        .sort()
+        .join('|'),
+    [teamMembers]
+  )
+
   const [totalSalaryBudget, setTotalSalaryBudget] = useState<number | null>(null)
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -152,6 +163,7 @@ export function useManagerTeamSalaryBudget(params: {
     ReadonlyMap<string, string>
   >(() => new Map())
   const [managerOrganizationalUnitId, setManagerOrganizationalUnitId] = useState<string | null>(null)
+  const [activeCompensationBudgetPlanId, setActiveCompensationBudgetPlanId] = useState<string | null>(null)
 
   const fetchBudgetTotal = useCallback(async () => {
     if (!accessToken || !companyId || !managerEmployeeId) {
@@ -159,6 +171,7 @@ export function useManagerTeamSalaryBudget(params: {
       setError(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setManagerOrganizationalUnitId(null)
+      setActiveCompensationBudgetPlanId(null)
       return
     }
 
@@ -182,6 +195,7 @@ export function useManagerTeamSalaryBudget(params: {
       if (relevantOuIds.size === 0) {
         setTotalSalaryBudget(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setActiveCompensationBudgetPlanId(null)
         return
       }
 
@@ -194,8 +208,12 @@ export function useManagerTeamSalaryBudget(params: {
       if (!companyBudgetId) {
         setTotalSalaryBudget(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setActiveCompensationBudgetPlanId(null)
         return
       }
+
+      const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
+      setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
 
       const ouResult = await graphqlClient.request<{
         CompensationBudgetPlanOrganizationalUnit: Array<{
@@ -231,10 +249,11 @@ export function useManagerTeamSalaryBudget(params: {
       setError(message)
       setTotalSalaryBudget(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
+      setActiveCompensationBudgetPlanId(null)
     } finally {
       setLoadingBudget(false)
     }
-  }, [accessToken, companyId, graphqlClient, managerEmployeeId, teamMembers])
+  }, [accessToken, companyId, graphqlClient, managerEmployeeId, budgetRelevantTeamKey])
 
   useEffect(() => {
     void fetchBudgetTotal()
@@ -246,6 +265,7 @@ export function useManagerTeamSalaryBudget(params: {
     error,
     refetch: fetchBudgetTotal,
     planOuRowIdByOrganizationalUnitId,
-    managerOrganizationalUnitId
+    managerOrganizationalUnitId,
+    activeCompensationBudgetPlanId
   }
 }

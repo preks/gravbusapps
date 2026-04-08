@@ -9,7 +9,10 @@ export interface SubmissionsOrgUnitBudgetTableProps {
   loading: boolean
   error: string | null
   hasCompanyBudgetRows: boolean
-  toolbarSecondary?: React.ReactNode
+  /** Company selector aligned with the DataDisplay toolbar (search / filters / sort). */
+  companyToolbar?: React.ReactNode
+  /** Opens manager-compensation-planning for supervisor review (submitted proposals). */
+  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
 }
 
 export function SubmissionsOrgUnitBudgetTable({
@@ -17,7 +20,8 @@ export function SubmissionsOrgUnitBudgetTable({
   loading,
   error,
   hasCompanyBudgetRows,
-  toolbarSecondary
+  companyToolbar,
+  onReviewTeam
 }: Readonly<SubmissionsOrgUnitBudgetTableProps>) {
   const { t } = useTranslation(translations)
   const {
@@ -37,7 +41,7 @@ export function SubmissionsOrgUnitBudgetTable({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useSubmissionsOrgUnitTableModel(t, rows, hasCompanyBudgetRows)
+  } = useSubmissionsOrgUnitTableModel(t, rows, hasCompanyBudgetRows, onReviewTeam)
 
   return (
     <DataDisplay
@@ -66,9 +70,9 @@ export function SubmissionsOrgUnitBudgetTable({
       availableColumns={availableColumnsForDisplay}
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={setVisibleColumns}
-      secondaryActions={
-        toolbarSecondary ? (
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">{toolbarSecondary}</div>
+      primaryAction={
+        companyToolbar ? (
+          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-3 gba:pl-2 gba:md:pl-3">{companyToolbar}</div>
         ) : undefined
       }
     >
