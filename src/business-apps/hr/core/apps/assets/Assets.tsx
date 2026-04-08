@@ -362,7 +362,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const handleConfirmDeleteAsset = useCallback(
     async (notes: string) => {
-      if (!dialogs.deletingAssetId) {
+      const trimmedNotes = notes.trim()
+
+      if (!dialogs.deletingAssetId || !trimmedNotes) {
         return
       }
 
@@ -371,6 +373,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         (selectedAsset?.id === dialogs.deletingAssetId ? selectedAsset : null)
 
       if (!assetToDelete) {
+        return
+      }
+
+      if (trimmedNotes === (assetToDelete.notes || '').trim()) {
         return
       }
 
@@ -389,7 +395,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           assetCategoryRef: assetToDelete.assetCategoryRef,
           currencyRef: assetToDelete.currencyRef,
           siteLocation: assetToDelete.siteLocationId,
-          notes,
+          notes: trimmedNotes,
           disposalStatus: assetToDelete.disposalStatus,
           disposalOutcomeRef: assetToDelete.disposalOutcomeRef,
           disposalDate: assetToDelete.disposalDate,
