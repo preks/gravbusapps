@@ -57,16 +57,6 @@ export const ASSET_FIELDS = `
   requireSanitization
   sanitizationMethodRef
   sanitizationExecutionDate
-  disposalOutcome {
-    id
-    code
-    value
-  }
-  sanitizationMethod {
-    id
-    code
-    value
-  }
   responsibleEmployee {
     id
     displayName
@@ -349,6 +339,7 @@ export interface UpdateAssetVariables {
     assetStatus?: string
     siteLocationId?: string
     notes?: string
+    isDeleted?: boolean
     currencyRef?: string
     inventoryValue?: number
     assetBrandRef?: string
