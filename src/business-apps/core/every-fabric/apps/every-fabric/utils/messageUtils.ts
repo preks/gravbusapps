@@ -141,6 +141,140 @@ const toEpoch = (value?: string): number => {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
+function toolCallMessageStatus(completed: StepCompletion | undefined): 'failed' | 'done' | 'running' {
+  if (!completed) return 'running'
+  return completed.status === 'failed' ? 'failed' : 'done'
+}
+
+function terminalCompletedToChatMessage(
+  event: AgentTerminalEvent,
+  stepCompletions: Map<string, StepCompletion> | undefined
+): ChatMessage {
+  const qualityScore = event.reflection ? (event.reflection.complete ? 1.0 : 0.5) : undefined
+  const actionsPerformed = stepCompletions
+    ? [...stepCompletions.values()]
+        .filter(s => s.type === 'step_completed')
+        .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
+    : undefined
+  return {
+    id: event.event_id,
+    type: 'final_answer',
+    timestamp: event.timestamp ?? new Date().toISOString(),
+    content: {
+      output: event.output ?? '',
+      todos: event.todos,
+      recommendations: event.reflection?.missing_steps?.join('\n'),
+      qualityScore,
+      actionsPerformed,
+      durationMs: event.duration_ms,
+      costSummary: event.cost_summary ?? undefined,
+      artifacts: toArtifactRefsFromMeta(event.artifacts),
+      workspaceDocuments: event.workspace_documents
+    }
+  }
+}
+
+function terminalWaitingToChatMessage(event: AgentTerminalEvent): ChatMessage {
+  if (event.structured_input_request) {
+    return {
+      id: event.event_id,
+      type: 'structured_input_request',
+      timestamp: event.timestamp ?? new Date().toISOString(),
+      content: event.structured_input_request
+    }
+  }
+  return {
+    id: event.event_id,
+    type: 'human_interrupt',
+    timestamp: event.timestamp ?? new Date().toISOString(),
+    content: { question: terminalQuestion(event.output, event.human_question) }
+  }
+}
+
+function terminalOtherToChatMessage(event: AgentTerminalEvent): ChatMessage {
+  return {
+    id: event.event_id,
+    type: 'error',
+    timestamp: event.timestamp ?? new Date().toISOString(),
+    content: {
+      message: event.status === 'cancelled' ? 'Session was cancelled.' : (event.output ?? 'Session failed')
+    }
+  }
+}
+
+function terminalEventToChatMessage(
+  event: AgentTerminalEvent,
+  stepCompletions?: Map<string, StepCompletion>
+): ChatMessage {
+  if (event.status === 'completed') {
+    return terminalCompletedToChatMessage(event, stepCompletions)
+  }
+  if (event.status === 'waiting_for_human') {
+    return terminalWaitingToChatMessage(event)
+  }
+  return terminalOtherToChatMessage(event)
+}
+
+function sortAgentEventsBySeq(events: AgentStreamEvent[]): AgentStreamEvent[] {
+  return [...events].sort((a, b) => {
+    const aSeq = 'seq' in a && typeof a.seq === 'number' ? a.seq : Number.MAX_SAFE_INTEGER
+    const bSeq = 'seq' in b && typeof b.seq === 'number' ? b.seq : Number.MAX_SAFE_INTEGER
+    if (aSeq !== bSeq) return aSeq - bSeq
+    return toEpoch('timestamp' in a ? a.timestamp : undefined) - toEpoch('timestamp' in b ? b.timestamp : undefined)
+  })
+}
+
+function collectStepCompletions(sortedEvents: AgentStreamEvent[]): Map<string, StepCompletion> {
+  const stepCompletions = new Map<string, StepCompletion>()
+  for (const event of sortedEvents) {
+    if (event.type === 'step_completed' || event.type === 'subagent_completed' || event.type === 'expert_completed') {
+      stepCompletions.set(event.step_id, event)
+    }
+  }
+  return stepCompletions
+}
+
+function resolveLatestPlanTimestamp(sortedEvents: AgentStreamEvent[]): string {
+  let planTimestamp = new Date().toISOString()
+  for (let i = sortedEvents.length - 1; i >= 0; i -= 1) {
+    const e = sortedEvents[i]
+    if ('timestamp' in e && typeof (e as { timestamp?: string }).timestamp === 'string') {
+      const ts = (e as { timestamp: string }).timestamp
+      if (ts) {
+        planTimestamp = ts
+        break
+      }
+    }
+  }
+  return planTimestamp
+}
+
+function delegationActivityStatus(completed: StepCompletion | undefined): 'failed' | 'done' | 'running' {
+  if (!completed || (completed.type !== 'subagent_completed' && completed.type !== 'expert_completed')) {
+    return 'running'
+  }
+  return completed.status === 'failed' ? 'failed' : 'done'
+}
+
+function appendLivePlanIfNeeded(sortedEvents: AgentStreamEvent[], messages: ChatMessage[], seenIds: Set<string>): void {
+  const todoSnapshot = extractLatestTodosFromEvents(sortedEvents)
+  if (!todoSnapshot || todoSnapshot.length === 0 || seenIds.has(FABRIC_LIVE_PLAN_MESSAGE_ID)) {
+    return
+  }
+  const planTimestamp = resolveLatestPlanTimestamp(sortedEvents)
+  const terminalClosed = sortedEvents.some(
+    (e): e is AgentTerminalEvent =>
+      e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+  )
+  messages.push({
+    id: FABRIC_LIVE_PLAN_MESSAGE_ID,
+    type: 'plan',
+    timestamp: planTimestamp,
+    content: { todos: todoSnapshot },
+    isStreaming: !terminalClosed
+  })
+}
+
 export function eventToMessage(
   event: AgentStreamEvent,
   stepCompletions?: Map<string, StepCompletion>
@@ -159,7 +293,7 @@ export function eventToMessage(
           toolName: event.name ?? 'unknown',
           input: event.input ?? {},
           callId: event.step_id,
-          status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
+          status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           resultPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
         }
@@ -194,7 +328,7 @@ export function eventToMessage(
         content: {
           agentId: agentName,
           task: event.task_summary ?? agentName,
-          status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
+          status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
         }
@@ -211,7 +345,7 @@ export function eventToMessage(
         content: {
           agentId: agentName,
           task: event.task_summary ?? agentName,
-          status: completed ? (completed.status === 'failed' ? 'failed' : 'done') : 'running',
+          status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
         }
@@ -228,56 +362,7 @@ export function eventToMessage(
     }
 
     case 'terminal':
-      if (event.status === 'completed') {
-        const qualityScore = event.reflection ? (event.reflection.complete ? 1.0 : 0.5) : undefined
-        const actionsPerformed = stepCompletions
-          ? [...stepCompletions.values()]
-              .filter(s => s.type === 'step_completed')
-              .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
-          : undefined
-        return {
-          id: event.event_id,
-          type: 'final_answer',
-          timestamp: event.timestamp ?? new Date().toISOString(),
-          content: {
-            output: event.output ?? '',
-            todos: event.todos,
-            recommendations: event.reflection?.missing_steps?.join('\n'),
-            qualityScore,
-            actionsPerformed,
-            durationMs: event.duration_ms,
-            costSummary: event.cost_summary ?? undefined,
-            artifacts: toArtifactRefsFromMeta(event.artifacts),
-            workspaceDocuments: event.workspace_documents
-          }
-        }
-      }
-      if (event.status === 'waiting_for_human') {
-        // Check if there's a structured input request
-        if (event.structured_input_request) {
-          return {
-            id: event.event_id,
-            type: 'structured_input_request',
-            timestamp: event.timestamp ?? new Date().toISOString(),
-            content: event.structured_input_request
-          }
-        }
-        // Fall back to plain text interrupt
-        return {
-          id: event.event_id,
-          type: 'human_interrupt',
-          timestamp: event.timestamp ?? new Date().toISOString(),
-          content: { question: terminalQuestion(event.output, event.human_question) }
-        }
-      }
-      return {
-        id: event.event_id,
-        type: 'error',
-        timestamp: event.timestamp ?? new Date().toISOString(),
-        content: {
-          message: event.status === 'cancelled' ? 'Session was cancelled.' : (event.output ?? 'Session failed')
-        }
-      }
+      return terminalEventToChatMessage(event, stepCompletions)
 
     case 'error':
       return {
@@ -295,20 +380,8 @@ export function eventToMessage(
 export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessage[] {
   const seenIds = new Set<string>()
   const messages: ChatMessage[] = []
-  const sortedEvents = [...events].sort((a, b) => {
-    const aSeq = 'seq' in a && typeof a.seq === 'number' ? a.seq : Number.MAX_SAFE_INTEGER
-    const bSeq = 'seq' in b && typeof b.seq === 'number' ? b.seq : Number.MAX_SAFE_INTEGER
-    if (aSeq !== bSeq) return aSeq - bSeq
-    return toEpoch('timestamp' in a ? a.timestamp : undefined) - toEpoch('timestamp' in b ? b.timestamp : undefined)
-  })
-
-  // Build a map of step completions so step_started messages can be fully resolved
-  const stepCompletions = new Map<string, StepCompletion>()
-  for (const event of sortedEvents) {
-    if (event.type === 'step_completed' || event.type === 'subagent_completed' || event.type === 'expert_completed') {
-      stepCompletions.set(event.step_id, event)
-    }
-  }
+  const sortedEvents = sortAgentEventsBySeq(events)
+  const stepCompletions = collectStepCompletions(sortedEvents)
 
   for (const event of sortedEvents) {
     const message = eventToMessage(event, stepCompletions)
@@ -317,31 +390,7 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
     messages.push(message)
   }
 
-  const todoSnapshot = extractLatestTodosFromEvents(sortedEvents)
-  if (todoSnapshot && todoSnapshot.length > 0 && !seenIds.has(FABRIC_LIVE_PLAN_MESSAGE_ID)) {
-    let planTimestamp = new Date().toISOString()
-    for (let i = sortedEvents.length - 1; i >= 0; i -= 1) {
-      const e = sortedEvents[i]
-      if ('timestamp' in e && typeof (e as { timestamp?: string }).timestamp === 'string') {
-        const ts = (e as { timestamp: string }).timestamp
-        if (ts) {
-          planTimestamp = ts
-          break
-        }
-      }
-    }
-    const terminalClosed = sortedEvents.some(
-      (e): e is AgentTerminalEvent =>
-        e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
-    )
-    messages.push({
-      id: FABRIC_LIVE_PLAN_MESSAGE_ID,
-      type: 'plan',
-      timestamp: planTimestamp,
-      content: { todos: todoSnapshot },
-      isStreaming: !terminalClosed
-    })
-  }
+  appendLivePlanIfNeeded(sortedEvents, messages, seenIds)
 
   return messages
 }
@@ -350,12 +399,7 @@ const MEMORY_TOOLS = new Set(['save_memory', 'search_memory'])
 
 /** Derive activity events from the raw SSE event stream. */
 export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
-  const stepCompletions = new Map<string, StepCompletion>()
-  for (const e of events) {
-    if (e.type === 'step_completed' || e.type === 'subagent_completed' || e.type === 'expert_completed') {
-      stepCompletions.set(e.step_id, e)
-    }
-  }
+  const stepCompletions = collectStepCompletions(events)
 
   const activityEvents: ActivityEvent[] = events
     .filter(
@@ -365,14 +409,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
     .map(e => {
       const completed = stepCompletions.get(e.step_id)
       if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
-        const completed = stepCompletions.get(e.step_id)
         const agentName = resolveDelegatedAgentName(e, completed)
-        const delegationStatus =
-          completed && (completed.type === 'subagent_completed' || completed.type === 'expert_completed')
-            ? completed.status === 'failed'
-              ? ('failed' as const)
-              : ('done' as const)
-            : ('running' as const)
         return {
           id: e.event_id,
           timestamp: e.timestamp,
@@ -380,7 +417,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
           agent: agentName,
           summary: e.task_summary ?? agentName,
           durationMs: completed?.duration_ms,
-          delegationStatus
+          delegationStatus: delegationActivityStatus(completed)
         }
       }
       const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')

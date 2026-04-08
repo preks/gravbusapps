@@ -1,5 +1,31 @@
 export type ResultRendererType = 'table' | 'chart' | 'markdown' | 'json' | 'text' | 'expert_output'
 
+function detectRendererForArray(result: unknown[]): ResultRendererType {
+  if (result.length === 0) return 'text'
+  const first = result[0]
+  if (typeof first === 'object' && first !== null && !Array.isArray(first)) {
+    const keys = Object.keys(first)
+    const hasNumericValue = keys.some(k => typeof (first as Record<string, unknown>)[k] === 'number')
+    const hasLabelKey = keys.some(k => ['label', 'name', 'date', 'time', 'period'].includes(k.toLowerCase()))
+    if (hasNumericValue && hasLabelKey) return 'chart'
+    return 'table'
+  }
+  return 'text'
+}
+
+function detectRendererForObject(obj: Record<string, unknown>): ResultRendererType {
+  if ('labels' in obj && 'values' in obj) return 'chart'
+  return 'json'
+}
+
+function detectRendererForString(result: string): ResultRendererType {
+  const trimmed = result.trimStart()
+  if (trimmed.startsWith('#') || trimmed.startsWith('*') || trimmed.startsWith('|') || trimmed.includes('\n\n')) {
+    return 'markdown'
+  }
+  return 'text'
+}
+
 /**
  * Detects the best renderer for a tool result value.
  */
@@ -7,30 +33,15 @@ export function detectRendererType(result: unknown): ResultRendererType {
   if (result === null || result === undefined) return 'text'
 
   if (Array.isArray(result)) {
-    if (result.length === 0) return 'text'
-    const first = result[0]
-    if (typeof first === 'object' && first !== null && !Array.isArray(first)) {
-      // Check if it looks like a time-series / chart dataset
-      const keys = Object.keys(first)
-      const hasNumericValue = keys.some(k => typeof (first as Record<string, unknown>)[k] === 'number')
-      const hasLabelKey = keys.some(k => ['label', 'name', 'date', 'time', 'period'].includes(k.toLowerCase()))
-      if (hasNumericValue && hasLabelKey) return 'chart'
-      return 'table'
-    }
-    return 'text'
+    return detectRendererForArray(result)
   }
 
   if (typeof result === 'object') {
-    const obj = result as Record<string, unknown>
-    if ('labels' in obj && 'values' in obj) return 'chart'
-    return 'json'
+    return detectRendererForObject(result as Record<string, unknown>)
   }
 
   if (typeof result === 'string') {
-    const trimmed = result.trimStart()
-    if (trimmed.startsWith('#') || trimmed.startsWith('*') || trimmed.startsWith('|') || trimmed.includes('\n\n'))
-      return 'markdown'
-    return 'text'
+    return detectRendererForString(result)
   }
 
   return 'text'

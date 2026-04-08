@@ -76,6 +76,21 @@ const todosFromStepCompletedEvent = (ev: Extract<AgentStreamEvent, { type: 'step
   return tryParseTodosFromToolOutput(ev.output)
 }
 
+function nextTodoSnapshotForEvent(ev: AgentStreamEvent, current: TodoItem[] | null): TodoItem[] | null {
+  if (ev.type === 'step_started' && isTodoListToolName(ev.name) && ev.input) {
+    const parsed = tryParseTodosFromInput(ev.input)
+    if (parsed && parsed.length > 0) return parsed
+  }
+  if (ev.type === 'step_completed' && isTodoListToolName(ev.name)) {
+    const parsed = todosFromStepCompletedEvent(ev)
+    if (parsed && parsed.length > 0) return parsed
+  }
+  if (ev.type === 'terminal' && ev.todos && ev.todos.length > 0) {
+    return ev.todos
+  }
+  return current
+}
+
 /**
  * Latest todo snapshot from SSE: step_started args, step_completed (todos field + output), terminal.
  */
@@ -87,17 +102,8 @@ export const extractLatestTodosFromEvents = (events: AgentStreamEvent[]): TodoIt
 
   let latest: TodoItem[] | null = null
   for (const ev of ordered) {
-    if (ev.type === 'step_started' && isTodoListToolName(ev.name) && ev.input) {
-      const parsed = tryParseTodosFromInput(ev.input)
-      if (parsed && parsed.length > 0) latest = parsed
-    }
-    if (ev.type === 'step_completed' && isTodoListToolName(ev.name)) {
-      const parsed = todosFromStepCompletedEvent(ev)
-      if (parsed && parsed.length > 0) latest = parsed
-    }
-    if (ev.type === 'terminal' && ev.todos && ev.todos.length > 0) {
-      latest = ev.todos
-    }
+    const next = nextTodoSnapshotForEvent(ev, latest)
+    if (next) latest = next
   }
   return latest
 }
