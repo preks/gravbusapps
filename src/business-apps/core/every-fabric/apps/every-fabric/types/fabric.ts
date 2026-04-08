@@ -66,7 +66,7 @@ export interface FabricSubAgent {
 
 /**
  * A single task step in the progress tree.
- * Derived from session.todos[] + live step_started/subagent_spawned SSE events.
+ * Derived from session.todos, SSE terminal/write_todos payloads, step_started/step_completed, and subagent events.
  */
 export interface FabricTaskNode {
   id: string

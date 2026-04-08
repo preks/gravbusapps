@@ -84,6 +84,8 @@ export interface AgentStepCompletedEvent {
   step_id: string
   status?: 'done' | 'failed'
   output?: string
+  /** Normalized snapshot from prompt-manager for write_todos / update_todos */
+  todos?: TodoItem[]
   duration_ms?: number
   name?: string
   timestamp: string
@@ -237,6 +239,24 @@ export interface SessionConfig {
   enable_reflection: boolean | undefined
   max_iterations?: number
   selectedAgent?: SpecialistAgent
+  selectedEnterpriseSkill?: EnterpriseSkill
+}
+
+export interface EnterpriseSkill {
+  id: string
+  skill_id: string
+  name: string
+  category: string
+  description: string
+  icon?: string
+  color?: string
+  version: string
+  is_active: boolean
+  publisher: string
+  install_count: number
+  rating?: number
+  onboarding_steps: string[]
+  estimated_setup_time?: string
 }
 
 export type ChatMessageType =

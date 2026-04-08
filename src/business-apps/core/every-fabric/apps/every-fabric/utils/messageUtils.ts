@@ -14,6 +14,9 @@ import type {
   DeepAgentSession
 } from '../types/enterpriseAgent'
 import { resolveRendererType } from '../types/fabric'
+import { extractLatestTodosFromEvents } from './fabricTodoStream'
+
+const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 
 const terminalQuestion = (output: unknown, humanQuestion?: string | null): string => {
   if (typeof humanQuestion === 'string' && humanQuestion.trim()) return humanQuestion
@@ -252,10 +255,6 @@ export function eventToMessage(
       if (event.status === 'waiting_for_human') {
         // Check if there's a structured input request
         if (event.structured_input_request) {
-          console.log(
-            '[eventToMessage] Converting terminal to structured_input_request:',
-            event.structured_input_request.form_id
-          )
           return {
             id: event.event_id,
             type: 'structured_input_request',
@@ -264,7 +263,6 @@ export function eventToMessage(
           }
         }
         // Fall back to plain text interrupt
-        console.log('[eventToMessage] Converting terminal to human_interrupt')
         return {
           id: event.event_id,
           type: 'human_interrupt',
@@ -317,6 +315,32 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
     if (!message || seenIds.has(message.id)) continue
     seenIds.add(message.id)
     messages.push(message)
+  }
+
+  const todoSnapshot = extractLatestTodosFromEvents(sortedEvents)
+  if (todoSnapshot && todoSnapshot.length > 0 && !seenIds.has(FABRIC_LIVE_PLAN_MESSAGE_ID)) {
+    let planTimestamp = new Date().toISOString()
+    for (let i = sortedEvents.length - 1; i >= 0; i -= 1) {
+      const e = sortedEvents[i]
+      if ('timestamp' in e && typeof (e as { timestamp?: string }).timestamp === 'string') {
+        const ts = (e as { timestamp: string }).timestamp
+        if (ts) {
+          planTimestamp = ts
+          break
+        }
+      }
+    }
+    const terminalClosed = sortedEvents.some(
+      (e): e is AgentTerminalEvent =>
+        e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+    )
+    messages.push({
+      id: FABRIC_LIVE_PLAN_MESSAGE_ID,
+      type: 'plan',
+      timestamp: planTimestamp,
+      content: { todos: todoSnapshot },
+      isStreaming: !terminalClosed
+    })
   }
 
   return messages
