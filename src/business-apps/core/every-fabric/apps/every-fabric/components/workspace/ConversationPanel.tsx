@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useLayoutEffect } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
 import { AgentTypingIndicator } from '../chat/AgentTypingIndicator'
 import { MessageBubble } from '../chat/MessageBubble'
@@ -6,7 +6,11 @@ import {
   WORKSPACE_CHAT_GUTTER_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
   WORKSPACE_COMPOSER_OFFSET_CLASS,
-  WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS
+  WORKSPACE_COMPOSER_STREAMING_ISLAND_OFFSET_CLASS,
+  WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS,
+  WORKSPACE_END_SENTINEL_SCROLL_MARGIN_DEFAULT_CLASS,
+  WORKSPACE_END_SENTINEL_SCROLL_MARGIN_STREAMING_ISLAND_CLASS,
+  WORKSPACE_END_SENTINEL_SCROLL_MARGIN_WITH_FOLLOWUPS_CLASS
 } from './workspaceLayout.constants'
 
 interface ConversationPanelProps {
@@ -15,6 +19,7 @@ interface ConversationPanelProps {
   isStreaming: boolean
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
+  hasStreamingIsland?: boolean
   onReply: (message?: string, structuredInput?: Record<string, any>) => void | Promise<unknown>
   onViewArtifact?: (artifactName: string) => void
   composer?: React.ReactNode
@@ -32,6 +37,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   messages,
   isStreaming,
   hasFixedFollowUps = false,
+  hasStreamingIsland = false,
   onReply,
   onViewArtifact,
   composer
@@ -39,6 +45,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const userScrolledRef = useRef(false)
+  const hadFixedFollowUpsRef = useRef(false)
 
   const visibleMessages = messages.filter(isTranscriptMessage)
 
@@ -48,11 +55,45 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
     userScrolledRef.current = el.scrollHeight - el.scrollTop - el.clientHeight > 80
   }, [])
 
+  /** When follow-ups mount, padding changes and prior scroll may leave text under the overlay — always jump clear. */
+  useLayoutEffect(() => {
+    if (!hasFixedFollowUps) {
+      hadFixedFollowUpsRef.current = false
+      return
+    }
+    const justOpened = !hadFixedFollowUpsRef.current
+    hadFixedFollowUpsRef.current = true
+    if (!justOpened) return
+
+    const el = scrollRef.current
+    if (!el) return
+
+    const scrollToEnd = () => {
+      el.scrollTop = el.scrollHeight
+    }
+
+    scrollToEnd()
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToEnd()
+        endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      })
+    })
+  }, [hasFixedFollowUps])
+
   useEffect(() => {
     if (!userScrolledRef.current) {
-      endRef.current?.scrollIntoView({ behavior: 'smooth' })
+      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
     }
-  }, [visibleMessages.length, isStreaming])
+  }, [visibleMessages.length, isStreaming, hasFixedFollowUps, hasStreamingIsland])
+
+  let bottomPaddingClass = WORKSPACE_COMPOSER_OFFSET_CLASS
+  if (hasFixedFollowUps) bottomPaddingClass = WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS
+  else if (hasStreamingIsland) bottomPaddingClass = WORKSPACE_COMPOSER_STREAMING_ISLAND_OFFSET_CLASS
+
+  let endSentinelMarginClass = WORKSPACE_END_SENTINEL_SCROLL_MARGIN_DEFAULT_CLASS
+  if (hasFixedFollowUps) endSentinelMarginClass = WORKSPACE_END_SENTINEL_SCROLL_MARGIN_WITH_FOLLOWUPS_CLASS
+  else if (hasStreamingIsland) endSentinelMarginClass = WORKSPACE_END_SENTINEL_SCROLL_MARGIN_STREAMING_ISLAND_CLASS
 
   return (
     <div
@@ -62,9 +103,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${
-          hasFixedFollowUps ? WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS : WORKSPACE_COMPOSER_OFFSET_CLASS
-        }`}
+        className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${bottomPaddingClass}`}
       >
         <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:space-y-4`}>
           {visibleMessages.map(msg => (
@@ -79,7 +118,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
           {isStreaming && <AgentTypingIndicator />}
 
-          <div ref={endRef} />
+          <div ref={endRef} className={endSentinelMarginClass} aria-hidden />
         </div>
       </div>
 

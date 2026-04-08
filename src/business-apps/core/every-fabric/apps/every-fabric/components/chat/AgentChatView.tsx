@@ -12,7 +12,7 @@ interface AgentChatViewProps {
   isStreaming: boolean
   isWaitingForInput: boolean
   onStartSession: (task: string, config: SessionConfig) => Promise<string>
-  onReply: (message: string) => void
+  onReply: (message?: string, structuredInput?: Record<string, any>) => void | Promise<void>
   onStopSession: () => void
   onOpenMemory: () => void
 }
@@ -64,7 +64,10 @@ export const AgentChatView = ({
     [session, onStartSession, onReply]
   )
 
-  const interruptQuestion = session && isWaitingForInput ? (session.human_question ?? undefined) : undefined
+  const interruptQuestion =
+    session?.human_question && !session.structured_input_request && (isWaitingForInput || isStreaming)
+      ? session.human_question
+      : undefined
 
   if (!session) {
     return (
@@ -103,7 +106,9 @@ export const AgentChatView = ({
         disabled={isDisabled}
         isRunning={isRunning}
         onStop={onStopSession}
-        onReply={onReply}
+        onReply={msg => {
+          void onReply(msg)
+        }}
         activeInterrupt={interruptQuestion}
         onOpenMemory={onOpenMemory}
       />

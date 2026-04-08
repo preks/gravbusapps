@@ -23,8 +23,9 @@ import {
   Note
 } from '@phosphor-icons/react'
 import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
-import type { ArtifactFile, FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
+import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
 import { formatRelativeTime, toolCategoryColor } from '../../utils/renderUtils'
+import { FabricProgressTaskRow } from './fabricProgressShared'
 
 // ─── Shared card shell ────────────────────────────────────────────────────────
 
@@ -38,114 +39,44 @@ interface CardProps {
 
 const Card: React.FC<CardProps> = ({ title, badge, extra, defaultOpen = true, children }) => {
   const [open, setOpen] = useState(defaultOpen)
+  const slug = title.toLowerCase().replace(/\s+/g, '-')
 
   return (
     <div className="gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/75 gba:bg-card/96 gba:backdrop-blur-sm gba:overflow-hidden gba:shadow-[0_4px_14px_rgba(15,23,42,0.03)]">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3.5 sm:gba:px-4 gba:py-2.5 sm:gba:py-3 gba:border-b gba:border-border/50 gba:hover:bg-muted/15 gba:transition-colors gba:shrink-0"
-        data-testid={`fabric-panel-card-${title.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:tracking-wide">{title}</span>
-          {badge !== undefined && badge > 0 && (
-            <span className="gba:inline-flex gba:items-center gba:justify-center gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-muted gba:text-muted-foreground">
-              {badge}
-            </span>
-          )}
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {extra}
+      <div className="gba:flex gba:min-h-0 gba:items-stretch gba:border-b gba:border-border/50 gba:shrink-0">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(v => !v)}
+          className="gba:flex gba:flex-1 gba:min-w-0 gba:items-center gba:justify-between gba:gap-2 gba:px-3.5 sm:gba:px-4 gba:py-2.5 sm:gba:py-3 gba:text-left gba:hover:bg-muted/15 gba:transition-colors"
+          data-testid={`fabric-panel-card-${slug}`}
+        >
+          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
+            <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:tracking-wide">{title}</span>
+            {badge !== undefined && badge > 0 && (
+              <span className="gba:inline-flex gba:shrink-0 gba:items-center gba:justify-center gba:min-w-[18px] gba:h-[18px] gba:px-1 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-muted gba:text-muted-foreground">
+                {badge}
+              </span>
+            )}
+          </div>
           {open ? (
-            <CaretUp className="gba:h-3 gba:w-3 gba:text-muted-foreground/60" />
+            <CaretUp className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
           ) : (
-            <CaretDown className="gba:h-3 gba:w-3 gba:text-muted-foreground/60" />
+            <CaretDown className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground/60" aria-hidden />
           )}
-        </div>
-      </button>
+        </button>
+        {extra != null && (
+          <div className="gba:flex gba:shrink-0 gba:items-center gba:border-l gba:border-border/40 gba:px-3 sm:gba:px-3.5">
+            {extra}
+          </div>
+        )}
+      </div>
       {open && children}
     </div>
   )
 }
 
 // ─── Progress card ────────────────────────────────────────────────────────────
-
-const STEP_STATUS_CLASSES: Record<FabricTaskStatus, string> = {
-  done: 'gba:bg-green-100 gba:text-green-600 dark:gba:bg-green-900/30 dark:gba:text-green-400',
-  active: 'gba:bg-primary gba:text-primary-foreground',
-  failed: 'gba:bg-destructive/10 gba:text-destructive',
-  skipped: 'gba:bg-muted gba:text-muted-foreground/40',
-  pending: 'gba:bg-muted gba:text-muted-foreground/60'
-}
-
-const ProgressStep: React.FC<{ node: FabricTaskNode; index: number }> = ({ node, index }) => {
-  const isActive = node.status === 'active'
-  const isDone = node.status === 'done'
-
-  return (
-    <div
-      className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:transition-colors gba:rounded-lg ${
-        isActive ? 'gba:bg-primary/5' : ''
-      }`}
-      data-testid={`fabric-task-${node.id}`}
-    >
-      {/* Step number / status indicator */}
-      <div
-        className={`gba:shrink-0 gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-full gba:text-[10px] gba:font-semibold gba:mt-0.5 gba:transition-all ${
-          STEP_STATUS_CLASSES[node.status]
-        }`}
-      >
-        {isDone ? (
-          <CheckCircle className="gba:h-3 gba:w-3" weight="fill" />
-        ) : isActive ? (
-          <SpinnerGap className="gba:h-3 gba:w-3 gba:animate-spin" weight="bold" />
-        ) : node.status === 'failed' ? (
-          <XCircle className="gba:h-3 gba:w-3" weight="fill" />
-        ) : (
-          <span>{index + 1}</span>
-        )}
-      </div>
-
-      <div className="gba:flex-1 gba:min-w-0">
-        <p
-          className={`gba:text-[13px] gba:leading-snug gba:wrap-break-word ${
-            isDone
-              ? 'gba:text-muted-foreground/50'
-              : isActive
-                ? 'gba:text-foreground gba:font-medium'
-                : 'gba:text-foreground/80'
-          }`}
-        >
-          {node.label}
-        </p>
-
-        {node.sublabel && (
-          <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:font-mono gba:mt-0.5">{node.sublabel}</p>
-        )}
-
-        {node.subAgents.length > 0 && (
-          <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-1.5">
-            {node.subAgents.map(sa => (
-              <span
-                key={sa.id}
-                className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-medium ${
-                  sa.status === 'running'
-                    ? 'gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-300'
-                    : sa.status === 'failed'
-                      ? 'gba:bg-destructive/10 gba:text-destructive'
-                      : 'gba:bg-muted gba:text-muted-foreground'
-                }`}
-              >
-                <ShareNetwork className="gba:h-3 gba:w-3" weight="duotone" />
-                {sa.name}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 interface ProgressCardProps {
   nodes: FabricTaskNode[]
@@ -214,9 +145,9 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
           </p>
         </div>
       ) : (
-        <div className="gba:py-1 gba:space-y-0.5">
+        <div className="gba:max-h-96 gba:min-h-0 gba:overflow-y-auto gba:py-1 gba:space-y-0.5">
           {nodes.map((node, i) => (
-            <ProgressStep key={node.id} node={node} index={i} />
+            <FabricProgressTaskRow key={node.id} node={node} index={i} />
           ))}
         </div>
       )}
@@ -553,7 +484,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   onViewArtifact
 }) => (
   <div
-    className="gba:flex gba:flex-col gba:h-full gba:max-h-full gba:min-h-0 gba:overflow-y-auto gba:rounded-[1.5rem] sm:gba:rounded-[2rem] gba:bg-transparent gba:p-0 sm:gba:p-1 gba:space-y-2 sm:gba:space-y-3"
+    className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:rounded-[1.5rem] sm:gba:rounded-[2rem] gba:bg-transparent gba:p-0 sm:gba:p-1 gba:space-y-2 sm:gba:space-y-3"
     data-testid="fabric-right-panel"
   >
     <ProgressCard
