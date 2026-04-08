@@ -551,6 +551,7 @@ add-skill-form-attach-verification-message-prefix = Laden Sie ein Dokument hoch,
 add-skill-form-attach-verification-message-suffix = zu verifizieren.
 add-skill-form-update-level-for-prefix = Level aktualisieren für die Fähigkeit 
 add-skill-form-attach-verification-upload-label = Dokument hochladen
+add-skill-form-loading-verification-document = Dokument wird geladen...
 add-skill-form-document-group = Dokumentenkategorie
 add-skill-form-document-type = Dokumenttyp
 add-skill-form-select-document-group = Dokumentenkategorie wählen
@@ -890,3 +891,6 @@ service-requests-status-canceled = Abgebrochen
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Ihre Personalabteilung prüft derzeit Ihre letzten Änderungen. Sobald die Freigabe erfolgt ist, können Sie weitere Anpassungen vornehmen.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Adressformular wird geladen...

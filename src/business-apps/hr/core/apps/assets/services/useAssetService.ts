@@ -103,8 +103,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             requireSanitization: asset.requireSanitization,
             sanitizationMethodRef: asset.sanitizationMethodRef,
             sanitizationExecutionDate: asset.sanitizationExecutionDate,
-            disposalOutcome: asset.disposalOutcome,
-            sanitizationMethod: asset.sanitizationMethod,
             responsibleEmployee: asset.responsibleEmployee,
             performerEmployee: asset.performerEmployee
           }
@@ -163,8 +161,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           requireSanitization: asset.requireSanitization,
           sanitizationMethodRef: asset.sanitizationMethodRef,
           sanitizationExecutionDate: asset.sanitizationExecutionDate,
-          disposalOutcome: asset.disposalOutcome,
-          sanitizationMethod: asset.sanitizationMethod,
           responsibleEmployee: asset.responsibleEmployee,
           performerEmployee: asset.performerEmployee
         } as Asset

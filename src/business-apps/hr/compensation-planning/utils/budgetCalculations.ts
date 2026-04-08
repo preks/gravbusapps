@@ -1,9 +1,4 @@
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import type {
-  CompensationCycleCompany,
-  CompensationEmployeeProposal,
-  DistributionMethod
-} from '../types/compensationPlanningTypes'
+import type { CompensationCycleCompany, DistributionMethod } from '../types/compensationPlanningTypes'
 
 export function resolveAbsoluteBudget(
   budgetType: 'absolute' | 'percentage',
@@ -74,26 +69,6 @@ export function resolveCompanySalaryIncreasePool(args: {
   }
   if (args.salaryBudgetPercent > 0 && baseline > 0) {
     return resolveAbsoluteBudget('percentage', args.salaryBudgetPercent, baseline)
-  }
-  return 0
-}
-
-/**
- * Resolves the company **bonus budget pool** (absolute amount) from `compensation_budget_plan_company`
- * bonus amount/percent vs the same salary-cost baseline used in budget setup (percentage is applied to
- * `currentTotalSalaryCost`, consistent with {@link computeCompanyBudgetSummary} for cycles).
- */
-export function resolveCompanyBonusBudgetPool(args: {
-  bonusBudgetAmount: number
-  bonusBudgetPercent: number
-  currentTotalSalaryCost: number
-}): number {
-  const baseline = args.currentTotalSalaryCost
-  if (args.bonusBudgetAmount > 0) {
-    return args.bonusBudgetAmount
-  }
-  if (args.bonusBudgetPercent > 0 && baseline > 0) {
-    return resolveAbsoluteBudget('percentage', args.bonusBudgetPercent, baseline)
   }
   return 0
 }
@@ -277,21 +252,6 @@ export function distributeToOrgUnits(
   return result
 }
 
-export function computeOrgUnitAllocatedAmount(proposals: CompensationEmployeeProposal[]): {
-  salary: number
-  bonus: number
-  benefits: number
-} {
-  return proposals.reduce(
-    (acc, p) => ({
-      salary: acc.salary + (p.proposedSalaryIncrease ?? 0),
-      bonus: acc.bonus + (p.proposedBonus ?? 0),
-      benefits: acc.benefits + (p.proposedBenefitsChange ?? 0)
-    }),
-    { salary: 0, bonus: 0, benefits: 0 }
-  )
-}
-
 export function computeCompaRatio(
   currentSalary: number | null,
   band: { minSalary: number; maxSalary: number } | null
@@ -300,34 +260,6 @@ export function computeCompaRatio(
   const midpoint = (band.minSalary + band.maxSalary) / 2
   if (midpoint === 0) return null
   return Math.round((currentSalary / midpoint) * 100) / 100
-}
-
-function resolveLocale(): string {
-  try {
-    return getCurrentActiveUserLocale() || 'en-US'
-  } catch {
-    return 'en-US'
-  }
-}
-
-/**
- * `value` is a percentage points number (e.g. 5.5 for 5.5%), not 0–1.
- * Uses locale for number shape, sign, and percent sign placement.
- */
-export function formatPercent(value: number | null): string {
-  if (value == null || Number.isNaN(value)) return '-'
-  const locale = resolveLocale()
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'percent',
-      signDisplay: 'exceptZero',
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1
-    }).format(value / 100)
-  } catch {
-    const sign = value >= 0 ? '+' : ''
-    return `${sign}${Math.abs(value).toFixed(1)}%`
-  }
 }
 
 export function computeNewSalaryFromIncrease(

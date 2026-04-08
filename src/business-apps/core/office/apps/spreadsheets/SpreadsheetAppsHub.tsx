@@ -585,7 +585,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
 
-  const { ownerInfoMap, sharedUsersMap, invalidateSharedUsersForApp } = useSpreadsheetAppsHubUserLookup({
+  const { ownerInfoMap, sharedUsersMap } = useSpreadsheetAppsHubUserLookup({
     apps,
     currentUserId,
     graphqlClient,
@@ -750,10 +750,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleSharesChanged = useCallback(async () => {
     await refreshApps()
-    if (selectedAppForManageShares) {
-      invalidateSharedUsersForApp(selectedAppForManageShares.id)
-    }
-  }, [refreshApps, selectedAppForManageShares, invalidateSharedUsersForApp])
+  }, [refreshApps])
 
   const finishCreatedAppNavigation = useCallback(
     async (createdApp: SpreadsheetApp, preferredView: 'viewer' | 'editor' = 'editor') => {

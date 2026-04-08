@@ -298,7 +298,56 @@ export const exportTimeHistoryPdf = async (params: {
       margin,
       cursorY
     )
+  cursorY += 16
+
+  // Summary section (between Generated line and table)
+  const summaryTitle = translate('time_tracking_summary_title', 'Summary')
+  const daysWorkedLabel = translate('time_tracking_summary_days_worked', 'Days worked')
+  const bankHolidaysLabel = translate('time_tracking_summary_bank_holidays', 'Bank holidays')
+  const vacationDaysLabel = translate('time_tracking_summary_vacation_days', 'Vacation days')
+  const plannedHoursLabel = translate('time_tracking_summary_planned_hours', 'Planned hours')
+  const effectiveHoursLabel = translate('time_tracking_summary_effective_hours', 'Effective hours')
+  const differenceHoursLabel = translate('time_tracking_summary_difference_hours', 'Difference')
+  const summaryDiffMinutes = totalPlannedMinutes - totalEffectiveMinutes
+
+  const summaryItems: Array<{ label: string; value: string }> = [
+    { label: daysWorkedLabel, value: String(daysWorkedCount) },
+    { label: bankHolidaysLabel, value: String(bankHolidayDays.size) },
+    { label: vacationDaysLabel, value: String(vacationDays.size) },
+    { label: plannedHoursLabel, value: formatMinutes(totalPlannedMinutes) },
+    { label: effectiveHoursLabel, value: formatMinutes(totalEffectiveMinutes) },
+    { label: differenceHoursLabel, value: formatMinutes(summaryDiffMinutes) }
+  ]
+
+  doc.fillColor('#000000').fontSize(9).text(summaryTitle, margin, cursorY)
   cursorY += 12
+
+  const summaryAvailableWidth = (doc.page.width as number) - margin * 2
+  const numColumns = 2
+  const columnSpacing = 20
+  const usableWidth = summaryAvailableWidth - (numColumns - 1) * columnSpacing
+  const columnWidth = usableWidth / numColumns
+  const labelWidth = columnWidth * 0.65
+  const valueWidth = columnWidth * 0.35
+  const summaryRowHeight = 12
+  const itemsPerColumn = Math.ceil(summaryItems.length / numColumns)
+  const startY = cursorY
+
+  for (let row = 0; row < itemsPerColumn; row++) {
+    for (let col = 0; col < numColumns; col++) {
+      const itemIndex = row * numColumns + col
+      if (itemIndex >= summaryItems.length) break
+      const item = summaryItems[itemIndex]
+      const x = margin + col * (columnWidth + columnSpacing)
+      const y = startY + row * summaryRowHeight
+      doc.fontSize(8).fillColor('#333333').text(item.label, x, y, { width: labelWidth })
+      doc
+        .fontSize(8)
+        .fillColor('#000000')
+        .text(item.value, x + labelWidth + 4, y, { width: valueWidth })
+    }
+  }
+  cursorY = startY + itemsPerColumn * summaryRowHeight + 14
 
   // Table layout
   const headerBg = '#f0f0f0'
@@ -394,71 +443,6 @@ export const exportTimeHistoryPdf = async (params: {
       .stroke()
     cursorY += rowHeight
   })
-
-  // Summary section
-  const summaryTitle = translate('time_tracking_summary_title', 'Summary')
-  const daysWorkedLabel = translate('time_tracking_summary_days_worked', 'Days worked')
-  const bankHolidaysLabel = translate('time_tracking_summary_bank_holidays', 'Bank holidays')
-  const vacationDaysLabel = translate('time_tracking_summary_vacation_days', 'Vacation days')
-  const plannedHoursLabel = translate('time_tracking_summary_planned_hours', 'Planned hours')
-  const effectiveHoursLabel = translate('time_tracking_summary_effective_hours', 'Effective hours')
-  const differenceHoursLabel = translate('time_tracking_summary_difference_hours', 'Difference')
-  const summaryDiffMinutes = totalPlannedMinutes - totalEffectiveMinutes
-
-  // Ensure space for ~3 lines (reduced from 8 due to multi-column layout)
-  const linesNeeded = 4
-  if (cursorY + linesNeeded * 14 > (doc.page.height as number) - margin) {
-    // Start summary on a fresh page WITHOUT repeating the table header
-    doc.addPage()
-    cursorY = margin
-  }
-  // Add spacing between table and summary
-  cursorY += 20
-  doc.fillColor('#000000').fontSize(9).text(summaryTitle, tableX, cursorY)
-  cursorY += 12
-
-  // Multi-column layout: 2 columns with 3 rows
-  const numColumns = 2
-  const columnSpacing = 20
-  const usableWidth = availableWidth - (numColumns - 1) * columnSpacing
-  const columnWidth = usableWidth / numColumns
-  const labelWidth = columnWidth * 0.65 // 65% for label
-  const valueWidth = columnWidth * 0.35 // 35% for value
-  const summaryRowHeight = 12
-
-  // Prepare summary items
-  const summaryItems: Array<{ label: string; value: string }> = [
-    { label: daysWorkedLabel, value: String(daysWorkedCount) },
-    { label: bankHolidaysLabel, value: String(bankHolidayDays.size) },
-    { label: vacationDaysLabel, value: String(vacationDays.size) },
-    { label: plannedHoursLabel, value: formatMinutes(totalPlannedMinutes) },
-    { label: effectiveHoursLabel, value: formatMinutes(totalEffectiveMinutes) },
-    { label: differenceHoursLabel, value: formatMinutes(summaryDiffMinutes) }
-  ]
-
-  // Render in 2 columns (3 rows)
-  const itemsPerColumn = Math.ceil(summaryItems.length / numColumns)
-  const startY = cursorY
-
-  for (let row = 0; row < itemsPerColumn; row++) {
-    for (let col = 0; col < numColumns; col++) {
-      const itemIndex = row * numColumns + col
-      if (itemIndex >= summaryItems.length) break
-
-      const item = summaryItems[itemIndex]
-      const x = tableX + col * (columnWidth + columnSpacing)
-      const y = startY + row * summaryRowHeight
-
-      // Write label
-      doc.fontSize(8).fillColor('#333333').text(item.label, x, y, { width: labelWidth })
-      // Write value
-      doc
-        .fontSize(8)
-        .fillColor('#000000')
-        .text(item.value, x + labelWidth + 4, y, { width: valueWidth })
-    }
-  }
-  cursorY = startY + itemsPerColumn * summaryRowHeight
 
   // Collect chunks directly from PDFKit stream and download
   const chunks: Uint8Array[] = []

@@ -13,7 +13,8 @@ import { buildSubmissionsOrgUnitFilterConfiguration } from './buildSubmissionsOr
 export function useSubmissionsOrgUnitTableModel(
   t: TranslateFn,
   sourceRows: SubmissionsOrgUnitTableRow[],
-  hasCompanyBudgetRows: boolean
+  hasCompanyBudgetRows: boolean,
+  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -100,7 +101,10 @@ export function useSubmissionsOrgUnitTableModel(
     setSelectedOrgUnitBudgetStatuses(statuses)
   }, [])
 
-  const columns = useMemo(() => buildSubmissionsOrgUnitTableColumns(t, formatStatus), [formatStatus, t])
+  const columns = useMemo(
+    () => buildSubmissionsOrgUnitTableColumns(t, formatStatus, onReviewTeam),
+    [formatStatus, onReviewTeam, t]
+  )
 
   const visibleTableColumns = useMemo(
     () =>

@@ -11,6 +11,7 @@ import { useExpenseItemsFilters } from '../../../hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
 // import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
 // import { useExpenseItemStatistics } from '../../../hooks/useExpenseItemStatistics';
 import { getSelectedCurrencyRef, pickMostUsedCurrencyRef } from '../../../utils/currencyUtils'
 import { useExpenseItemStatsOverview } from '../../../hooks/useExpenseItemStatsOverview'
@@ -303,7 +304,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
     }
 
     return () => {
-      eventNames.forEach(eventName => {
+      PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
 

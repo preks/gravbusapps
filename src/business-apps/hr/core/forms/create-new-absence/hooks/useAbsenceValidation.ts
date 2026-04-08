@@ -204,6 +204,7 @@ export interface UseAbsenceValidationProps {
   startDate?: Date
   endDate?: Date
   context: BusinessAppContextProps
+  disableCalendarValidation?: boolean
 }
 
 /**
@@ -219,7 +220,8 @@ export const useAbsenceValidation = ({
   selectedType,
   startDate,
   endDate,
-  context
+  context,
+  disableCalendarValidation = false
 }: UseAbsenceValidationProps) => {
   const { t } = useTranslation(formsTranslations)
   const client = useGraphQLClient(accessToken)
@@ -285,6 +287,11 @@ export const useAbsenceValidation = ({
   }, [accessToken, employeeId, client, isSickLeaveType])
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setExistingAbsences([])
+      return
+    }
+
     if (!accessToken || !employeeId || !startDate || !endDate) {
       setExistingAbsences([])
       return
@@ -309,9 +316,15 @@ export const useAbsenceValidation = ({
     }
 
     fetchExistingAbsences()
-  }, [accessToken, employeeId, startDate, endDate, client])
+  }, [accessToken, employeeId, startDate, endDate, client, disableCalendarValidation])
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setEmployeeRegionRef(null)
+      setWorkingHours(null)
+      return
+    }
+
     if (!accessToken || !employeeId) {
       setEmployeeRegionRef(null)
       return
@@ -344,9 +357,15 @@ export const useAbsenceValidation = ({
 
     fetchRegion()
     fetchWorkingHours()
-  }, [accessToken, employeeId, client])
+  }, [accessToken, employeeId, client, disableCalendarValidation])
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setAbsenceEntitlement(null)
+      setEntitlementSnapshot(null)
+      return
+    }
+
     if (!accessToken || !employeeId || !selectedType) {
       setAbsenceEntitlement(null)
       return
@@ -406,7 +425,7 @@ export const useAbsenceValidation = ({
     }
 
     fetchEntitlementAndSnapshot()
-  }, [accessToken, employeeId, selectedType, client, absenceTypeDetails])
+  }, [accessToken, employeeId, selectedType, client, absenceTypeDetails, disableCalendarValidation])
 
   const checkOverlapValidation = useCallback(
     (newStartDate: Date, newEndDate: Date): AbsenceValidationError[] => {
@@ -634,6 +653,14 @@ export const useAbsenceValidation = ({
 
   const validateAbsence = useCallback(
     async (validateStartDate?: Date, validateEndDate?: Date) => {
+      if (disableCalendarValidation) {
+        setValidationErrors([])
+        setValidationWarnings([])
+        setIsValidating(false)
+        setIsCheckingBankHoliday(false)
+        return []
+      }
+
       const validationStartDate = validateStartDate || startDate
       const validationEndDate = validateEndDate || endDate
 
@@ -705,17 +732,24 @@ export const useAbsenceValidation = ({
       fetchRangeHolidays,
       checkOverlapValidation,
       checkBalanceValidation,
-      t
+      t,
+      disableCalendarValidation
     ]
   )
 
   useEffect(() => {
+    if (disableCalendarValidation) {
+      setValidationErrors([])
+      setValidationWarnings([])
+      return
+    }
+
     if (startDate && endDate && selectedType) {
       validateAbsence()
     } else {
       setValidationErrors([])
     }
-  }, [startDate, endDate, selectedType, existingAbsences, validateAbsence])
+  }, [startDate, endDate, selectedType, existingAbsences, validateAbsence, disableCalendarValidation])
 
   return {
     validationErrors,

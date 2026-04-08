@@ -1,6 +1,8 @@
-import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Button } from '@newwork/nw-design-system'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
+import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
+import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
 import type { SubmissionsOrgUnitTableRow } from './submissionsOrgUnitTableRows'
 import { formatCurrencyCell, sortNumberOrFallback } from './budgetSetupPlanTableRows'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
@@ -25,18 +27,44 @@ function formatPercentCell(value: number): string {
   return `${formatNumberFunction(String(value), '0.00[,]00')}%`
 }
 
+const STATUS_META = { align: 'left' as const, type: 'text' as const }
+
 const COL = {
   orgUnit: { size: 220, minSize: 180 },
   plan: { size: 260, minSize: 220 },
   status: { size: 180, minSize: 160 },
   money: { size: 200, minSize: 180 },
-  percent: { size: 160, minSize: 140 }
+  percent: { size: 160, minSize: 140 },
+  review: { size: 140, minSize: 120 }
 } as const
 
 export function buildSubmissionsOrgUnitTableColumns(
   t: TranslateFn,
-  formatBudgetPlanStatus: (value: string | null | undefined) => string
+  formatBudgetPlanStatus: (value: string | null | undefined) => string,
+  onReviewTeam?: (row: SubmissionsOrgUnitTableRow) => void
 ): ColumnDef<SubmissionsOrgUnitTableRow>[] {
+  const reviewColumn: ColumnDef<SubmissionsOrgUnitTableRow> | null =
+    onReviewTeam == null
+      ? null
+      : {
+          id: 'reviewTeam',
+          header: submissionsColumnHeader(t, 'submissions-table-col-review'),
+          size: COL.review.size,
+          minSize: COL.review.minSize,
+          meta: { align: 'left', type: 'text' },
+          cell: ({ row }) => (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              data-testid={`submissions-review-team-${row.original.id}`}
+              onClick={() => onReviewTeam(row.original)}
+            >
+              {t('submissions-table-review-team')}
+            </Button>
+          )
+        }
+
   return [
     {
       id: 'organizationalUnitName',
@@ -62,10 +90,22 @@ export function buildSubmissionsOrgUnitTableColumns(
       header: submissionsColumnHeader(t, 'budget-setup-table-col-budget-plan-status'),
       size: COL.status.size,
       minSize: COL.status.minSize,
-      meta: { type: 'text' },
+      meta: STATUS_META,
+      sortingFn: (a, b) => {
+        const la = formatBudgetPlanStatus(a.original.budgetPlanStatus) || ''
+        const lb = formatBudgetPlanStatus(b.original.budgetPlanStatus) || ''
+        return la.localeCompare(lb)
+      },
       cell: ({ row }) => {
         const v = row.original.budgetPlanStatus
-        return <span className={TABLE_BODY}>{v ? formatBudgetPlanStatus(v) : '—'}</span>
+        if (v) {
+          return (
+            <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
+              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+            </div>
+          )
+        }
+        return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
       }
     },
     {
@@ -94,7 +134,8 @@ export function buildSubmissionsOrgUnitTableColumns(
       cell: ({ row }) => (
         <span className={TABLE_BODY_NUM_RIGHT}>{formatPercentCell(row.original.salaryBudgetPercent)}</span>
       )
-    }
+    },
+    ...(reviewColumn == null ? [] : [reviewColumn])
   ]
 }
 
@@ -103,5 +144,6 @@ export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [
   'budgetPlanLabel',
   'budgetPlanStatus',
   'salaryBudgetAmount',
-  'salaryBudgetPercent'
+  'salaryBudgetPercent',
+  'reviewTeam'
 ] as const

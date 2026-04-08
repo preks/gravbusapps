@@ -14,7 +14,7 @@ import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdva
 import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
 import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
-import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
+import ExpensePlanDetails from '../expense-plans-tab/details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'

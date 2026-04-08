@@ -135,3 +135,74 @@ export const GET_TEAM_BONUSES = `
     }
   }
 `
+
+/** One request for current salaries, full salary history, and YTD bonuses (replaces three parallel `EmployeeSalary`/`EmployeeBonus` calls). */
+export const GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES = `
+  query GetTeamCompensationSalariesAndBonuses($employeeIds: [uuid!]!, $today: date!, $yearStart: date!) {
+    teamCurrentSalaries: EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+        startDate: { _lte: $today }
+      }
+      orderBy: [{ startDate: DESC }, { createdAt: DESC }]
+      limit: 2000
+    ) {
+      id
+      employeeId
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      currencyRef
+      startDate
+      endDate
+    }
+    teamSalaryHistory: EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+      }
+      orderBy: [{ startDate: DESC_NULLS_LAST }, { createdAt: DESC }]
+      limit: 2000
+    ) {
+      id
+      employeeId
+      annualGrossSalary
+      monthlyGrossSalary
+      startDate
+      endDate
+      requestedPercent
+      requestedAmount
+      createdAt
+    }
+    teamBonuses: EmployeeBonus(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        paymentDate: { _gte: $yearStart, _lte: $today }
+      }
+      orderBy: { paymentDate: DESC }
+    ) {
+      id
+      employeeId
+      employeeBonusType {
+        ${CATALOG_ENTRY_REF}
+      }
+      amount
+      currency {
+        id
+        code
+        value
+      }
+      paymentDate
+      fiscalYear
+    }
+  }
+`

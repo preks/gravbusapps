@@ -46,6 +46,8 @@ export const Navigation = {
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
+  /** Manager / supervisor team salary proposal workspace (compensation planning). */
+  HR_COMPENSATION_MANAGER_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/manager-compensation-planning`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
   HR_ABSENCE_SETUP: `${NAVIGATION_BASE_PATH}/hr/absence/apps/absence-setup`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
@@ -156,6 +158,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
+  [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
   [Navigation.HR_ABSENCE_SETUP]: 'hr/absence/apps/absence-setup',
   [`${NAVIGATION_BASE_PATH}/hr/absence/apps/AbsenceSetup`]: 'hr/absence/apps/absence-setup',
