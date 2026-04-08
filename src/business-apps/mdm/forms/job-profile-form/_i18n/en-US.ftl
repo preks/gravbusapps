@@ -11,6 +11,7 @@ remove-button = Remove
 
 # Job Description
 job-description-label = Job Description (Optional)
+job-description-loading-message = Loading document...
 
 # Validation Errors
 validation-error-required = The skill must have at least one letter

@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { WarningCircleIcon, ShieldWarningIcon, InfoIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -33,17 +33,6 @@ const CATEGORY_KEYS: Record<IssueCategory, string> = {
   retroactive_changes: 'category-retroactive-changes',
   pending_final_payroll: 'category-pending-final-payroll',
   invalid_effective_dates: 'category-invalid-effective-dates'
-}
-
-const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
-  switch (severity) {
-    case 'blocker':
-      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
-    case 'warning':
-      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
-    case 'info':
-      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
-  }
 }
 
 interface IssueWithEmployee extends PayrollIssue {
@@ -240,6 +229,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
         </Button>
       </div>
 
+      {/* Issues List */}
       <div className="gba:space-y-2">
         {filteredIssues.length === 0 ? (
           <Card

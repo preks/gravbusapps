@@ -7,6 +7,10 @@ page-description = Manage versioned functions for agents and flows
 # Section
 section-label = Functions
 
+# Top-level list tabs (CreateLayout hero TabSwitch)
+tab-functions = Functions
+tab-credentials = Credentials
+
 # Actions
 new-function = New Function
 edit = Edit

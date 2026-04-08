@@ -7,6 +7,7 @@ activities-owner = Owner
 activities-selectOwner = Select...
 activities-type = Type
 activities-occurredAt = Date & Time
+activities-timelineOccurred = Occurred
 activities-details = Activity Details
 activities-documents = Documents
 activities-titlePlaceholder = Activity Title...

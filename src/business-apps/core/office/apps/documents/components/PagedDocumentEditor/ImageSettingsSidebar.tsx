@@ -1,18 +1,20 @@
 import { useCallback } from 'react'
 import type { Editor } from '@tiptap/react'
+import { NodeSelection } from '@tiptap/pm/state'
 import { X } from '@phosphor-icons/react'
 import { Button, Input, Label, ScrollArea, Separator, Switch, useTranslation } from '@newwork/nw-design-system'
 import {
   dispatchDocumentImageUiMode,
   normalizeImageCrop,
-  resolveImageWrapPreset,
+  resolveWordWrapTextSide,
   type CustomImageAttributes,
   type ImageAlignment,
-  type ImageAnchorMode,
-  type ImageWrapMode
+  type ImageAnchorMode
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { ImageAdvancedSizeSection } from './ImageAdvancedSizeSection'
+import { ImageBorderSection } from './ImageBorderSection'
 import { ImageSidebarSection } from './ImageSidebarSection'
+import { ImageWrapSection } from './ImageWrapSection'
 import translations from '../../_i18n'
 
 const DEFAULT_IMAGE_DISTANCE = 0
@@ -21,17 +23,6 @@ const ALIGN_OPTIONS: ReadonlyArray<{ key: string; value: ImageAlignment }> = [
   { key: 'editor-toolbar-align-left', value: 'left' },
   { key: 'editor-toolbar-align-center', value: 'center' },
   { key: 'editor-toolbar-align-right', value: 'right' }
-]
-
-const WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
-  { key: 'image-wrap-inline', value: 'inline' },
-  { key: 'image-wrap-left', value: 'square-left' },
-  { key: 'image-wrap-right', value: 'square-right' },
-  { key: 'image-wrap-tight', value: 'tight' },
-  { key: 'image-wrap-through', value: 'through' },
-  { key: 'image-wrap-center', value: 'top-bottom' },
-  { key: 'image-wrap-behind', value: 'behind' },
-  { key: 'image-wrap-in-front', value: 'front' }
 ]
 
 const ANCHOR_OPTIONS: ReadonlyArray<{ key: string; value: ImageAnchorMode }> = [
@@ -130,8 +121,10 @@ export function ImageSettingsSidebar({
           : {})
       })
 
+      tr.setSelection(NodeSelection.create(tr.doc, imagePos))
       editor.view.dispatch(tr)
       editor.commands.refreshPagesAndStabilize?.()
+      editor.view.focus()
       return true
     },
     [editor, imagePos, onClose]
@@ -151,6 +144,11 @@ export function ImageSettingsSidebar({
 
   const align = attrs.align ?? 'left'
   const wrapMode = attrs.wrapMode ?? 'inline'
+  const wrapTextSide = resolveWordWrapTextSide({
+    wrapMode,
+    align,
+    wrapTextSide: attrs.wrapTextSide ?? null
+  })
   const anchorMode = attrs.anchorMode ?? 'inline'
   const caption = attrs.caption ?? ''
   const alt = attrs.alt ?? ''
@@ -164,6 +162,10 @@ export function ImageSettingsSidebar({
 
   const choiceButtonClass =
     'gba:h-auto gba:min-h-10 gba:whitespace-normal gba:px-2.5 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:leading-snug'
+  const orderedAnchorOptions =
+    wrapMode === 'inline'
+      ? ANCHOR_OPTIONS
+      : [...ANCHOR_OPTIONS.filter(option => option.value !== 'inline'), ANCHOR_OPTIONS[0]]
 
   return (
     <div
@@ -211,23 +213,21 @@ export function ImageSettingsSidebar({
               updateImageAttrs={updateImageAttrs}
             />
 
-            <ImageSidebarSection title={t('image-context-wrap-text')} data-testid={`${testId}-wrap-section`}>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-1.5">
-                {WRAP_OPTIONS.map(option => (
-                  <Button
-                    key={option.value}
-                    variant={wrapMode === option.value ? 'secondary' : 'outline'}
-                    size="sm"
-                    className={choiceButtonClass}
-                    onMouseDown={preventEditorBlurOnMouseDown}
-                    onClick={() => updateImageAttrs(resolveImageWrapPreset(option.value, attrs))}
-                    data-testid={`${testId}-wrap-${option.value}`}
-                  >
-                    {t(option.key)}
-                  </Button>
-                ))}
-              </div>
-            </ImageSidebarSection>
+            <ImageWrapSection
+              attrs={attrs}
+              wrapMode={wrapMode}
+              wrapTextSide={wrapTextSide}
+              updateImageAttrs={updateImageAttrs}
+              onChoiceMouseDown={preventEditorBlurOnMouseDown}
+              testId={testId}
+            />
+
+            <ImageBorderSection
+              attrs={attrs}
+              updateImageAttrs={updateImageAttrs}
+              onChoiceMouseDown={preventEditorBlurOnMouseDown}
+              testId={testId}
+            />
 
             <ImageSidebarSection title={t('image-context-position')} data-testid={`${testId}-position-section`}>
               <div className="gba:flex gba:flex-col gba:gap-3">
@@ -236,7 +236,7 @@ export function ImageSettingsSidebar({
                     {t('image-context-anchor')}
                   </span>
                   <div className="gba:flex gba:flex-col gba:gap-1.5">
-                    {ANCHOR_OPTIONS.map(option => (
+                    {orderedAnchorOptions.map(option => (
                       <Button
                         key={option.value}
                         variant={anchorMode === option.value ? 'secondary' : 'outline'}

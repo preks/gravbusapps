@@ -132,9 +132,6 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
         fetchInvestmentsByContactId(contactId, contactAccountIds)
       ])
 
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -154,7 +151,7 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)

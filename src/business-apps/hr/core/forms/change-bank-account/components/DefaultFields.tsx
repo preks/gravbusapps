@@ -51,9 +51,7 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
             </FormLabel>
             <Select
               value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
+                field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
               }
               onValueChange={v => field.onChange(v || null)}
             >
@@ -119,9 +117,7 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
             </FormLabel>
             <Select
               value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
+                field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
               }
               onValueChange={v => field.onChange(v || null)}
             >
@@ -208,9 +204,7 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
             </FormLabel>
             <Select
               value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
+                field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
               }
               onValueChange={v => field.onChange(v || '')}
             >

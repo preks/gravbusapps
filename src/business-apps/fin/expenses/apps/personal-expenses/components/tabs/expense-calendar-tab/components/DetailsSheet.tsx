@@ -1,6 +1,6 @@
 import React from 'react'
 import { Sheet, SheetContent } from '@newwork/nw-design-system'
-import ExpensePlanDetails from '../../expense-plans-tab/ExpensePlanDetails'
+import ExpensePlanDetails from '../../expense-plans-tab/details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../../expense-requests-tab/ExpenseRequestDetails'
 import ExpenseDetailsShell from '../../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'

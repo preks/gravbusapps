@@ -109,7 +109,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
           const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
           return [{ [sortField]: direction }]
         }
-        return [{ createdAt: 'DESC_NULLS_LAST' }]
+        return [{ planDate: 'DESC_NULLS_LAST' }]
       })()
 
       const variables = {

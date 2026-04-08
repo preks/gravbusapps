@@ -12,6 +12,9 @@ import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
 import translations from '../_i18n'
 import { enhanceImportedHtmlWithImageLayouts, parseDocxImageLayouts } from '../utils/docxImportUtils'
 
+type MammothImage = Parameters<Parameters<typeof mammoth.images.imgElement>[0]>[0]
+type MammothMessage = Awaited<ReturnType<typeof mammoth.convertToHtml>>['messages'][number]
+
 interface UseWordParserState {
   isLoading: boolean
   progress: number
@@ -44,6 +47,14 @@ const STYLE_MAP = [
   "p[style-name='List Paragraph'] => li:fresh"
 ].join('\n')
 
+async function readWordImageAsBase64(image: MammothImage): Promise<string> {
+  try {
+    return await image.readAsBase64String()
+  } catch {
+    return image.read('base64')
+  }
+}
+
 /**
  * Hook for parsing Word documents
  */
@@ -59,20 +70,11 @@ export function useWordParser(): UseWordParserResult {
   /**
    * Convert mammoth messages to our format
    */
-  const convertMessages = useCallback((messages: mammoth.Message[]): WordParserMessage[] => {
+  const convertMessages = useCallback((messages: MammothMessage[]): WordParserMessage[] => {
     return messages.map(msg => ({
       type: msg.type as 'error' | 'warning' | 'info',
       message: msg.message
     }))
-  }, [])
-
-  /**
-   * Extract images from the document (reserved for future use)
-   * Mammoth handles image extraction via convertImage option during main conversion
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _extractImages = useCallback(async (_arrayBuffer: ArrayBuffer): Promise<WordImage[]> => {
-    return []
   }, [])
 
   /**
@@ -133,8 +135,12 @@ export function useWordParser(): UseWordParserResult {
               styleMap: STYLE_MAP,
               convertImage: mammoth.images.imgElement(async image => {
                 try {
-                  const imageBuffer = await image.read('base64')
+                  const imageBuffer = await readWordImageAsBase64(image)
                   const contentType = image.contentType || 'image/png'
+
+                  if (!imageBuffer) {
+                    throw new Error('Embedded DOCX image could not be encoded')
+                  }
 
                   collectedImages.push({
                     contentType,
@@ -148,7 +154,7 @@ export function useWordParser(): UseWordParserResult {
                   }
                 } catch (err) {
                   console.warn('[WordParser] Error converting image:', err)
-                  return { src: '' }
+                  throw new Error('Failed to extract an embedded image from the DOCX file')
                 }
               })
             }
