@@ -5,7 +5,7 @@ export const ACCEPTED_VERIFICATION_FILE_TYPES =
 
 export interface AddSkillFormValues {
   targetEmployeeId?: string
-  uploadedVerificationDocumentId?: string
+  uploadedVerificationDocumentId?: string | null
   documentTypeId?: string | null
   validTo?: string | null
 }

@@ -8,6 +8,7 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
     healthInsuranceTypeRef
     healthInsuranceDocument {
       id
+      type
     }
     taxNumber
     taxBracketRef
