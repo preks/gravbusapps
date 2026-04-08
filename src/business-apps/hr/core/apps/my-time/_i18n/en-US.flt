@@ -37,6 +37,7 @@ manual_entry = Manual Entry
 report_title = Time History Report
 generated = Generated
 history = History
+calendar_view = Calendar
 time_tracking_table_day = Day
 time_tracking_table_workday = Day Type
 time_tracking_day_type_not_working = Not a working day
