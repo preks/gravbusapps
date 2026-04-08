@@ -1,26 +1,19 @@
 /**
- * Hook for Employee filter group in Assets sidebar.
- * Provides backendSearch(search) for DataFilter and getEmployeeLabel for filter pills.
+ * Hook for the async employee filter in Asset Management.
+ * Provides merged options for both selected employees and backend search results.
  */
 
-import { useCallback, useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useStructureEmployees } from '@/business-apps/hr/core/forms/performance-evaluation-form/hooks/useStructureEmployees'
-import type { DataFilter } from '@/components/data-filter/DataFilter'
-
-const EMPLOYEE_FILTER_PREFIX = 'employee:'
-
 export interface UseEmployeeFilterBackendSearchResult {
-  backendSearch: (search: string) => {
-    filters: DataFilter[]
-    loading: boolean
-    error: any
-  }
-  getEmployeeLabel: (employeeId: string) => string | undefined
+  employeeOptions: Array<{ id: string; label: string }>
+  isLoading: boolean
+  error: string | null
 }
 
 export function useEmployeeFilterBackendSearch(
   accessToken: string,
-  selectedFilterIds: string[],
+  selectedEmployeeIds: string[],
   employeeSearchQuery: string
 ): UseEmployeeFilterBackendSearchResult {
   const { employees, isLoading, error, fetchStructureEmployees } = useStructureEmployees(accessToken ?? '', false)
@@ -33,33 +26,32 @@ export function useEmployeeFilterBackendSearch(
     fetchStructureEmployees(employeeSearchQuery)
   }, [employeeSearchQuery, fetchStructureEmployees])
 
-  const getEmployeeLabel = useCallback(
-    (employeeId: string): string | undefined => {
-      const emp = employees.find(e => e.id === employeeId)
-      return emp?.name
-    },
+  const employeeLabelMap = useMemo(
+    () => new Map(employees.map(emp => [emp.id, emp.name || emp.id] as const)),
     [employees]
   )
 
-  const backendSearch = useCallback(
-    (search: string): { filters: DataFilter[]; loading: boolean; error: any } => {
-      const trimmed = (search ?? '').trim()
-      const filters: DataFilter[] =
-        trimmed === ''
-          ? []
-          : employees.map(emp => ({
-              id: `${EMPLOYEE_FILTER_PREFIX}${emp.id}`,
-              label: emp.name,
-              selected: selectedFilterIds.includes(`${EMPLOYEE_FILTER_PREFIX}${emp.id}`)
-            }))
-      return {
-        filters,
-        loading: isLoading,
-        error: error ? (typeof error === 'string' ? error : String(error)) : null
-      }
-    },
-    [employees, isLoading, error, selectedFilterIds]
-  )
+  const selectedEmployeeOptions = selectedEmployeeIds
+    .map(employeeId => ({
+      id: employeeId,
+      label: employeeLabelMap.get(employeeId) || employeeId
+    }))
+    .filter((option, index, options) => options.findIndex(candidate => candidate.id === option.id) === index)
 
-  return { backendSearch, getEmployeeLabel }
+  const mergedOptions = [...selectedEmployeeOptions]
+  employees.forEach(emp => {
+    const option = {
+      id: emp.id,
+      label: emp.name || emp.id
+    }
+    if (!mergedOptions.some(candidate => candidate.id === option.id)) {
+      mergedOptions.push(option)
+    }
+  })
+
+  return {
+    employeeOptions: mergedOptions,
+    isLoading,
+    error: error ? (typeof error === 'string' ? error : String(error)) : null
+  }
 }
