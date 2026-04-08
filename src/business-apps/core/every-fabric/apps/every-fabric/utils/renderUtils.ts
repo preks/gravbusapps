@@ -75,8 +75,3 @@ export function formatRelativeTime(isoString: string): string {
   if (days < 7) return `${days}d ago`
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
-
-/** Format USD cost */
-export function formatCost(usd: number): string {
-  return `$${usd.toFixed(4)}`
-}

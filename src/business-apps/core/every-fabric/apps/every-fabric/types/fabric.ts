@@ -80,9 +80,6 @@ export interface FabricTaskNode {
 
 // ─── Context ───────────────────────────────────────────────────────────────────
 
-/** View modes for the right-side ActivityPanel */
-export type ActivityPanelView = 'progress' | 'artifact'
-
 /** Minimal session summary stored in the session list */
 export interface FabricSessionSummary {
   session_id: string

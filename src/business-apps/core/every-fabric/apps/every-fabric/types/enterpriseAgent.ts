@@ -296,24 +296,8 @@ export interface ActivityEvent {
   delegationStatus?: ActivityDelegationStatus
 }
 
-export type TraceEvent = AgentStreamEvent
-
 export interface ActionSummary {
   step: string
   tool?: string
   outcome: string
-}
-
-export interface RunningSessionSummary {
-  session_id: string
-  input: string
-  started_at: string
-  current_step?: string
-  step_count?: number
-}
-
-export interface WaitingSessionSummary {
-  session_id: string
-  input: string
-  question: string
 }
