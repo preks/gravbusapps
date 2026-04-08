@@ -11,6 +11,7 @@ remove-button = Entfernen
 
 # Job Description
 job-description-label = Stellenbeschreibung (Optional)
+job-description-loading-message = Dokument wird geladen...
 
 # Validation Errors
 validation-error-required = Die Fähigkeit muss mindestens einen Buchstaben enthalten

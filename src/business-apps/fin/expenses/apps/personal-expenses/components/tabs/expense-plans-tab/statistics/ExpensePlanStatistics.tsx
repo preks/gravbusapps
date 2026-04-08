@@ -2,16 +2,15 @@ import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/uti
 import React, { useMemo, useCallback } from 'react'
 import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, CompassIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { formatCurrencyDisplay } from '../../../utils'
-import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
+import { formatCurrencyDisplay } from '../../../../utils'
+import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 
 interface ExpensePlanStatisticsProps {
-  plans: any[]
   currentMonthTotal: number
   previousMonthTotal: number
   totalEstimated: number
   pendingApproval: number
-  topDestination: string | any // Can be string or catalog entry object
+  topDestination: string | Record<string, unknown>
   statsLoading?: boolean
   destinationLoading?: boolean
   statsError?: Error | null

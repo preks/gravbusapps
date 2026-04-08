@@ -6,7 +6,47 @@
  * Host resolves externals via `window.require` (installDependenciesBootstrap); CJS build does not use Rollup `output.globals`.
  */
 import path from 'path'
-import { isRemoteVendorExternal } from '@newwork/remote-component-loader/remoteVendorManifest'
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+
+const fallbackRemoteVendors = [
+  '@ant-design/icons',
+  '@dnd-kit/core',
+  '@dnd-kit/sortable',
+  '@dnd-kit/utilities',
+  '@newwork/gravity-ui-catalog',
+  '@phosphor-icons/react',
+  '@remixicon/react',
+  'antd',
+  'class-variance-authority',
+  'clsx',
+  'lucide-react',
+  'react',
+  'react-dom',
+  'react-i18next',
+  'react-icons',
+  'tailwind-merge',
+  'zustand'
+]
+
+function fallbackIsRemoteVendorExternal(moduleId: string): boolean {
+  return fallbackRemoteVendors.some(vendor => moduleId === vendor || moduleId.startsWith(`${vendor}/`))
+}
+
+let isRemoteVendorExternal: (moduleId: string) => boolean = fallbackIsRemoteVendorExternal
+
+try {
+  const remoteVendorManifestModule = require('@newwork/remote-component-loader/remoteVendorManifest') as {
+    isRemoteVendorExternal?: (moduleId: string) => boolean
+  }
+
+  if (typeof remoteVendorManifestModule.isRemoteVendorExternal === 'function') {
+    isRemoteVendorExternal = remoteVendorManifestModule.isRemoteVendorExternal
+  }
+} catch {
+  isRemoteVendorExternal = fallbackIsRemoteVendorExternal
+}
 
 function stripQuery(id: string): string {
   const q = id.indexOf('?')

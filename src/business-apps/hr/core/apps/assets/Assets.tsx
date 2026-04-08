@@ -3,38 +3,29 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, Dialog, DialogContent, DialogTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAssets } from './hooks/useAssets'
 import { useAssetDialogs } from './hooks/useAssetDialogs'
 import { useEmployeeFilterBackendSearch } from './hooks/useEmployeeFilterBackendSearch'
 import { useAssetProcessEvents } from './hooks/useAssetProcessEvents'
 import { useSiteLocationsForFilter } from './hooks/useSiteLocationsForFilter'
+import { useAssetFilterState } from './hooks/useAssetFilterState'
 import { AssetStatistics } from './components/AssetStatistics'
 import { AssetTable } from './components/AssetTable'
-import { AssetTableFilters } from './components/AssetTableFilters'
 import { AssetDetailPanel } from './components/AssetDetailPanel'
+import { AssetEmployeeFilter, buildAssetEmployeeCustomGroup } from './components/AssetEmployeeFilter'
+import { DeleteAssetDialog } from './components/DeleteAssetDialog'
 import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
 import { AllocateAsset } from '../../forms/allocate-asset/AllocateAsset'
 import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
 import { RetireAsset } from '../../forms/retire-asset/RetireAsset'
 import { Asset, AssetStatus } from './types'
+import { AssetProcessClient } from './services/AssetProcessClient'
 import { useAssetService } from './services/useAssetService'
 import { useAssetsCatalog } from '../../forms/equipment-registration/hooks/useAssetsCatalog'
-import { DataFilter, DataFilterGroup } from '@/components/data-filter/DataFilter'
-import { formatStatus } from './components/AssetTableUtils'
+import { BackofficeDataDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay'
+import { BackofficeFilterSheet } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet'
 import { generateAssetDocumentPdf } from './utils/assetDocumentPdf'
-import {
-  ACQUISITION_FROM_PREFIX,
-  ACQUISITION_TO_PREFIX,
-  DISPOSAL_FROM_PREFIX,
-  DISPOSAL_TO_PREFIX,
-  ACQUISITION_RANGE_PILL_ID,
-  DISPOSAL_RANGE_PILL_ID,
-  isAssetDateFilterPillId,
-  pickDateFilter,
-  replaceDateRangeFilters
-} from './utils/assetFilterDateIds'
-import { AssetDateRangeFilter } from './components/AssetDateRangeFilter'
 import assetsTranslations from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
@@ -47,12 +38,13 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFilterIds, setSelectedFilterIds] = useState<string[]>([])
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
   const [employeeFilterSearch, setEmployeeFilterSearch] = useState('')
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false)
   const [sortField, setSortField] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
-  const [showDataFilter, setShowDataFilter] = useState(false)
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
+  const [isDeletingAsset, setIsDeletingAsset] = useState(false)
 
   useEffect(() => {
     const checkLocale = () => {
@@ -71,122 +63,46 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const { options: categoryOptions } = useAssetsCatalog(props)
   const { locations: locationOptions } = useSiteLocationsForFilter(props.accessToken)
-  const { backendSearch: employeeBackendSearch, getEmployeeLabel } = useEmployeeFilterBackendSearch(
+  const { employeeOptions, isLoading: employeeSearchLoading } = useEmployeeFilterBackendSearch(
     props.accessToken ?? '',
-    selectedFilterIds,
+    selectedEmployeeIds,
     employeeFilterSearch
   )
-
-  const categoryFilter = useMemo(
-    () => selectedFilterIds.filter(id => id.startsWith('category:')).map(id => id.slice('category:'.length)),
-    [selectedFilterIds]
-  )
-  const locationFilter = useMemo(
-    () => selectedFilterIds.filter(id => id.startsWith('location:')).map(id => id.slice('location:'.length)),
-    [selectedFilterIds]
-  )
-  const statusFilter = useMemo(
-    () => selectedFilterIds.filter(id => id.startsWith('status:')).map(id => id.slice('status:'.length)),
-    [selectedFilterIds]
-  )
-  const employeeFilter = useMemo(
-    () => selectedFilterIds.filter(id => id.startsWith('employee:')).map(id => id.slice('employee:'.length)),
-    [selectedFilterIds]
-  )
-  const acquisitionDateFrom = useMemo(
-    () => pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX) || undefined,
-    [selectedFilterIds]
-  )
-  const acquisitionDateTo = useMemo(
-    () => pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX) || undefined,
-    [selectedFilterIds]
-  )
-  const disposalDateFrom = useMemo(
-    () => pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX) || undefined,
-    [selectedFilterIds]
-  )
-  const disposalDateTo = useMemo(
-    () => pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX) || undefined,
-    [selectedFilterIds]
-  )
-  const acquisitionRangeValue = useMemo((): [string | null, string | null] | null => {
-    const from = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
-    const to = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
-    if (!from && !to) return null
-    return [from || null, to || null]
-  }, [selectedFilterIds])
-  const disposalRangeValue = useMemo((): [string | null, string | null] | null => {
-    const from = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
-    const to = pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX)
-    if (!from && !to) return null
-    return [from || null, to || null]
-  }, [selectedFilterIds])
-
-  /** Pills shown above the table (one chip per acquisition/disposal range when both dates set). */
-  const filterPillIds = useMemo(() => {
-    const af = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
-    const at = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
-    const df = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
-    const dt = pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX)
-
-    const withoutDate = selectedFilterIds.filter(id => !isAssetDateFilterPillId(id))
-    const out = [...withoutDate]
-
-    if (af && at) {
-      out.push(ACQUISITION_RANGE_PILL_ID)
-    } else {
-      if (af) out.push(`${ACQUISITION_FROM_PREFIX}${af}`)
-      if (at) out.push(`${ACQUISITION_TO_PREFIX}${at}`)
-    }
-
-    if (df && dt) {
-      out.push(DISPOSAL_RANGE_PILL_ID)
-    } else {
-      if (df) out.push(`${DISPOSAL_FROM_PREFIX}${df}`)
-      if (dt) out.push(`${DISPOSAL_TO_PREFIX}${dt}`)
-    }
-
-    return out
-  }, [selectedFilterIds])
+  const { filterConfiguration, filtersObject, queryFilterState, handleFilterChangeFromDisplay, hasActiveFilters } =
+    useAssetFilterState({
+      statusOptions: Object.values(AssetStatus),
+      categoryOptions: categoryOptions.map(opt => ({ id: opt.value, label: opt.label })),
+      locationOptions: locationOptions.map(location => ({ id: location.id, label: location.name })),
+      employeeOptions,
+      employeeIds: selectedEmployeeIds,
+      setEmployeeIds: setSelectedEmployeeIds,
+      setCurrentPage
+    })
 
   const activeStatusFilter = useMemo(() => {
-    const statusIds = statusFilter
+    const statusIds = queryFilterState.statusFilter
     if (statusIds.length === 0) return 'all'
     if (statusIds.length === 1) return statusIds[0]
     return 'all'
-  }, [statusFilter])
+  }, [queryFilterState.statusFilter])
 
   const assetsOptions = useMemo(
     () => ({
       page: currentPage,
       pageSize,
       search: searchQuery,
-      statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
-      categoryFilter: categoryFilter.length > 0 ? categoryFilter : undefined,
-      locationFilter: locationFilter.length > 0 ? locationFilter : undefined,
-      employeeFilter: employeeFilter.length > 0 ? employeeFilter : undefined,
-      acquisitionDateFrom,
-      acquisitionDateTo,
-      disposalDateFrom,
-      disposalDateTo,
+      statusFilter: queryFilterState.statusFilter.length > 0 ? queryFilterState.statusFilter : undefined,
+      categoryFilter: queryFilterState.categoryFilter.length > 0 ? queryFilterState.categoryFilter : undefined,
+      locationFilter: queryFilterState.locationFilter.length > 0 ? queryFilterState.locationFilter : undefined,
+      employeeFilter: queryFilterState.employeeFilter.length > 0 ? queryFilterState.employeeFilter : undefined,
+      acquisitionDateFrom: queryFilterState.acquisitionDateFrom,
+      acquisitionDateTo: queryFilterState.acquisitionDateTo,
+      disposalDateFrom: queryFilterState.disposalDateFrom,
+      disposalDateTo: queryFilterState.disposalDateTo,
       sortField: sortField || undefined,
       sortOrder: sortField ? sortOrder : undefined
     }),
-    [
-      currentPage,
-      pageSize,
-      searchQuery,
-      statusFilter,
-      categoryFilter,
-      locationFilter,
-      employeeFilter,
-      acquisitionDateFrom,
-      acquisitionDateTo,
-      disposalDateFrom,
-      disposalDateTo,
-      sortField,
-      sortOrder
-    ]
+    [currentPage, pageSize, searchQuery, queryFilterState, sortField, sortOrder]
   )
 
   const {
@@ -212,6 +128,13 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   )
 
   const { getAllocationsForAsset, getAssetById } = useAssetService(props)
+  const assetProcessClient = useMemo(() => {
+    const client = new AssetProcessClient()
+    if (props.accessToken) {
+      client.setAccessToken(props.accessToken)
+    }
+    return client
+  }, [props.accessToken])
 
   const handleGenerateDocument = useCallback(
     async (assetId: string) => {
@@ -364,81 +287,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [getAssetIdFromUrl, handlePanelClose])
 
-  const handleStatusFilterChange = useCallback((status: string) => {
-    setSelectedFilterIds(prev => {
-      const withoutStatus = prev.filter(id => !id.startsWith('status:'))
-      if (status === 'all') return withoutStatus
-      return [...withoutStatus, `status:${status}`]
-    })
-    setCurrentPage(1)
-  }, [])
-
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    setSelectedFilterIds(prev => (selected ? [...prev, filterId] : prev.filter(id => id !== filterId)))
-    setCurrentPage(1)
-  }, [])
-
-  const handleAcquisitionRangeChange = useCallback((value: string | [string | null, string | null] | null) => {
-    setSelectedFilterIds(prev => {
-      if (value && typeof value === 'string') return prev
-      if (!value || !Array.isArray(value)) {
-        return replaceDateRangeFilters(prev, ACQUISITION_FROM_PREFIX, ACQUISITION_TO_PREFIX, '', '')
-      }
-      const [from, to] = value
-      return replaceDateRangeFilters(prev, ACQUISITION_FROM_PREFIX, ACQUISITION_TO_PREFIX, from ?? '', to ?? '')
-    })
-    setCurrentPage(1)
-  }, [])
-
-  const handleDisposalRangeChange = useCallback((value: string | [string | null, string | null] | null) => {
-    setSelectedFilterIds(prev => {
-      if (value && typeof value === 'string') return prev
-      if (!value || !Array.isArray(value)) {
-        return replaceDateRangeFilters(prev, DISPOSAL_FROM_PREFIX, DISPOSAL_TO_PREFIX, '', '')
-      }
-      const [from, to] = value
-      return replaceDateRangeFilters(prev, DISPOSAL_FROM_PREFIX, DISPOSAL_TO_PREFIX, from ?? '', to ?? '')
-    })
-    setCurrentPage(1)
-  }, [])
-
-  const handleSetFilterPills = useCallback((newPillIds: string[]) => {
-    setSelectedFilterIds(prev => {
-      const paf = pickDateFilter(prev, ACQUISITION_FROM_PREFIX)
-      const pat = pickDateFilter(prev, ACQUISITION_TO_PREFIX)
-      const pdf = pickDateFilter(prev, DISPOSAL_FROM_PREFIX)
-      const pdt = pickDateFilter(prev, DISPOSAL_TO_PREFIX)
-
-      const base = newPillIds.filter(id => !isAssetDateFilterPillId(id))
-      const merged = [...base]
-
-      if (newPillIds.includes(ACQUISITION_RANGE_PILL_ID)) {
-        if (paf) merged.push(`${ACQUISITION_FROM_PREFIX}${paf}`)
-        if (pat) merged.push(`${ACQUISITION_TO_PREFIX}${pat}`)
-      } else {
-        newPillIds.forEach(id => {
-          if (id.startsWith(ACQUISITION_FROM_PREFIX) || id.startsWith(ACQUISITION_TO_PREFIX)) {
-            merged.push(id)
-          }
-        })
-      }
-
-      if (newPillIds.includes(DISPOSAL_RANGE_PILL_ID)) {
-        if (pdf) merged.push(`${DISPOSAL_FROM_PREFIX}${pdf}`)
-        if (pdt) merged.push(`${DISPOSAL_TO_PREFIX}${pdt}`)
-      } else {
-        newPillIds.forEach(id => {
-          if (id.startsWith(DISPOSAL_FROM_PREFIX) || id.startsWith(DISPOSAL_TO_PREFIX)) {
-            merged.push(id)
-          }
-        })
-      }
-
-      return merged
-    })
-    setCurrentPage(1)
-  }, [])
-
   const handleSearchChange = useCallback((search: string) => {
     setSearchQuery(search)
     setCurrentPage(1)
@@ -499,6 +347,70 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       dialogs.openRetire(assetId)
     },
     [assets, dialogs]
+  )
+
+  const handleDeleteAsset = useCallback(
+    (assetId: string) => {
+      const asset = assets.find(item => item.id === assetId)
+      if (asset) {
+        setSelectedAsset(asset)
+      }
+      dialogs.openDelete(assetId)
+    },
+    [assets, dialogs]
+  )
+
+  const handleConfirmDeleteAsset = useCallback(
+    async (notes: string) => {
+      if (!dialogs.deletingAssetId) {
+        return
+      }
+
+      const assetToDelete =
+        assets.find(item => item.id === dialogs.deletingAssetId) ||
+        (selectedAsset?.id === dialogs.deletingAssetId ? selectedAsset : null)
+
+      if (!assetToDelete) {
+        return
+      }
+
+      setIsDeletingAsset(true)
+      try {
+        await assetProcessClient.deleteAsset({
+          id: assetToDelete.id,
+          version: assetToDelete.version,
+          model: assetToDelete.model,
+          serialNumber: assetToDelete.serialNumber,
+          acquisitionDate: assetToDelete.acquisitionDate,
+          warrantyPeriodMonths: assetToDelete.warrantyPeriodMonths,
+          inventoryValue: assetToDelete.inventoryValue,
+          assetStatus: assetToDelete.assetStatus,
+          assetBrandRef: assetToDelete.assetBrandRef,
+          assetCategoryRef: assetToDelete.assetCategoryRef,
+          currencyRef: assetToDelete.currencyRef,
+          siteLocation: assetToDelete.siteLocationId,
+          notes,
+          disposalStatus: assetToDelete.disposalStatus,
+          disposalOutcomeRef: assetToDelete.disposalOutcomeRef,
+          disposalDate: assetToDelete.disposalDate,
+          disposalReason: assetToDelete.disposalReason,
+          requireSanitization: assetToDelete.requireSanitization,
+          sanitizationMethodRef: assetToDelete.sanitizationMethodRef,
+          sanitizationExecutionDate: assetToDelete.sanitizationExecutionDate,
+          responsibleEmployee: assetToDelete.responsibleEmployeeId,
+          performerEmployee: assetToDelete.performerEmployeeId
+        })
+        dialogs.closeDelete()
+        if (selectedAsset?.id === assetToDelete.id) {
+          handlePanelClose()
+        }
+        refetchAssets()
+        refetchStatistics()
+      } finally {
+        setIsDeletingAsset(false)
+      }
+    },
+    [assetProcessClient, assets, dialogs, handlePanelClose, refetchAssets, refetchStatistics, selectedAsset]
   )
 
   useAssetProcessEvents({
@@ -562,133 +474,49 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [props.additionalData, dialogs.editingAssetId, selectedAsset, refetchAssets, dialogs]
   )
 
-  const filterGroups: DataFilterGroup[] = useMemo(
-    () => [
-      {
-        id: 'employee',
-        title: tAssets('employee'),
-        backendSearch: employeeBackendSearch
-      },
-      {
-        id: 'category',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category'),
-        filters: categoryOptions.map(opt => ({
-          id: `category:${opt.value}`,
-          label: opt.label,
-          selected: selectedFilterIds.includes(`category:${opt.value}`)
-        }))
-      },
-      {
-        id: 'location',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location'),
-        filters: locationOptions.map(loc => ({
-          id: `location:${loc.id}`,
-          label: loc.name,
-          selected: selectedFilterIds.includes(`location:${loc.id}`)
-        }))
-      },
-      {
-        id: 'status',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status'),
-        filters: Object.values(AssetStatus).map(s => ({
-          id: `status:${s}`,
-          label: formatStatus(s),
-          selected: selectedFilterIds.includes(`status:${s}`)
-        }))
-      },
-      {
-        id: 'acquisition-date',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date'),
-        hideSearch: true,
-        customComponent: (
-          <AssetDateRangeFilter
-            value={acquisitionRangeValue}
-            onRangeChange={handleAcquisitionRangeChange}
-            testIdPrefix="assets-filter-acquisition-date"
-          />
-        )
-      },
-      {
-        id: 'disposal-date',
-        title: tAssets('disposal_date'),
-        hideSearch: true,
-        customComponent: (
-          <AssetDateRangeFilter
-            value={disposalRangeValue}
-            onRangeChange={handleDisposalRangeChange}
-            testIdPrefix="assets-filter-disposal-date"
-          />
-        )
-      }
-    ],
-    [
-      categoryOptions,
-      locationOptions,
-      selectedFilterIds,
-      employeeBackendSearch,
-      currentLocale,
-      acquisitionRangeValue,
-      disposalRangeValue,
-      handleAcquisitionRangeChange,
-      handleDisposalRangeChange,
-      tAssets
-    ]
+  const employeeFilterCustomGroup = useMemo(
+    () =>
+      buildAssetEmployeeCustomGroup(renderProps => (
+        <AssetEmployeeFilter
+          {...renderProps}
+          searchText={employeeFilterSearch}
+          setSearchText={setEmployeeFilterSearch}
+          showDropdown={showEmployeeDropdown}
+          setShowDropdown={setShowEmployeeDropdown}
+          employeeOptions={employeeOptions}
+          isLoading={employeeSearchLoading}
+          searchPlaceholder={tAssets('asset-employee-filter-search-placeholder')}
+          emptyLabel={tAssets('asset-employee-filter-empty')}
+          loadingLabel={tAssets('asset-employee-filter-loading')}
+        />
+      )),
+    [employeeFilterSearch, employeeOptions, employeeSearchLoading, showEmployeeDropdown, tAssets]
   )
 
-  const filterLabelMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    categoryOptions.forEach(opt => {
-      map[`category:${opt.value}`] = opt.label
-    })
-    locationOptions.forEach(loc => {
-      map[`location:${loc.id}`] = loc.name
-    })
-    Object.values(AssetStatus).forEach(s => {
-      map[`status:${s}`] = formatStatus(s)
-    })
-    selectedFilterIds
-      .filter(id => id.startsWith('employee:'))
-      .forEach(id => {
-        const employeeId = id.slice('employee:'.length)
-        map[id] = getEmployeeLabel(employeeId) ?? employeeId
-      })
-    const acquisitionTitle = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:hr_assets.acquisition_date',
-      'Acquisition Date'
-    )
-    const disposalTitle = tAssets('disposal_date')
-    const af = pickDateFilter(selectedFilterIds, ACQUISITION_FROM_PREFIX)
-    const at = pickDateFilter(selectedFilterIds, ACQUISITION_TO_PREFIX)
-    const df = pickDateFilter(selectedFilterIds, DISPOSAL_FROM_PREFIX)
-    const dt = pickDateFilter(selectedFilterIds, DISPOSAL_TO_PREFIX)
+  const tablePrimaryAction = useMemo(
+    () => (
+      <Button
+        onClick={() => dialogs.openRegister()}
+        data-testid="register-equipment-button"
+        className="gba:gap-2 gba:shrink-0"
+      >
+        <PlusIcon size={20} />
+        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
+      </Button>
+    ),
+    [dialogs]
+  )
 
-    if (af && at) {
-      const d1 = formatDate(af, 'date.short') ?? af
-      const d2 = formatDate(at, 'date.short') ?? at
-      map[ACQUISITION_RANGE_PILL_ID] = `${acquisitionTitle}: ${d1} - ${d2}`
-    } else {
-      if (af) {
-        map[`${ACQUISITION_FROM_PREFIX}${af}`] = `${acquisitionTitle}: ${formatDate(af, 'date.short') ?? af} -`
-      }
-      if (at) {
-        map[`${ACQUISITION_TO_PREFIX}${at}`] = `${acquisitionTitle}: - ${formatDate(at, 'date.short') ?? at}`
-      }
-    }
-
-    if (df && dt) {
-      const d1 = formatDate(df, 'date.short') ?? df
-      const d2 = formatDate(dt, 'date.short') ?? dt
-      map[DISPOSAL_RANGE_PILL_ID] = `${disposalTitle}: ${d1} - ${d2}`
-    } else {
-      if (df) {
-        map[`${DISPOSAL_FROM_PREFIX}${df}`] = `${disposalTitle}: ${formatDate(df, 'date.short') ?? df} -`
-      }
-      if (dt) {
-        map[`${DISPOSAL_TO_PREFIX}${dt}`] = `${disposalTitle}: - ${formatDate(dt, 'date.short') ?? dt}`
-      }
-    }
-    return map
-  }, [categoryOptions, locationOptions, selectedFilterIds, getEmployeeLabel, currentLocale, tAssets])
+  const listEmptyMessage = useMemo(
+    () =>
+      hasActiveFilters || searchQuery.trim()
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.no_assets_found',
+            'No assets found matching your criteria.'
+          )
+        : tAssets('asset-management-empty'),
+    [hasActiveFilters, searchQuery, tAssets]
+  )
 
   return (
     <div data-testid="assets-app">
@@ -710,84 +538,76 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
                 isLoading={statisticsLoading}
                 error={statisticsError}
                 onRetry={refetchStatistics}
-                onStatusFilterChange={handleStatusFilterChange}
+                onStatusFilterChange={status => {
+                  if (status === 'all') {
+                    const restFilters = { ...filtersObject }
+                    delete restFilters.statusIds
+                    handleFilterChangeFromDisplay(restFilters)
+                    return
+                  }
+
+                  handleFilterChangeFromDisplay({ ...filtersObject, statusIds: [status] })
+                }}
                 activeStatusFilter={activeStatusFilter}
               />
 
-              <div className="gba:flex gba:flex-row gba:gap-4 gba:items-start">
-                {showDataFilter && (
-                  <div
-                    className="gba:flex gba:flex-col gba:w-[336px] gba:shrink-0 gba:border-r gba:border-gray-100 gba:bg-white gba:pr-4"
-                    data-testid="assets-filter-sidebar"
-                  >
-                    <DataFilter
-                      show={true}
-                      onClose={() => setShowDataFilter(false)}
-                      filterGroups={filterGroups}
-                      onFilterChange={handleFilterChange}
-                      onGroupSearchChange={(groupId, value) => {
-                        if (groupId === 'employee') setEmployeeFilterSearch(value)
-                      }}
-                    />
-                  </div>
+              <BackofficeDataDisplay
+                titleSections={[
+                  {
+                    id: 'list',
+                    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets'),
+                    metadata: { count: totalCount, isLoading: assetsLoading }
+                  }
+                ]}
+                currentSection="list"
+                searchValue={searchQuery}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:hr_assets.search_assets',
+                  'Search assets...'
                 )}
-                <div className="gba:flex-1 gba:min-w-0 gba:space-y-4">
-                  <div
-                    className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-4 gba:flex-wrap"
-                    data-testid="assets-table-section-header"
-                  >
-                    <div className="gba:flex gba:flex-row gba:items-center gba:gap-4 gba:min-w-0 gba:flex-1">
-                      <AssetTableFilters
-                        searchQuery={searchQuery}
-                        onSearchChange={handleSearchChange}
-                        onPageChange={setCurrentPage}
-                        showDataFilter={showDataFilter}
-                        onToggleDataFilter={() => setShowDataFilter(prev => !prev)}
-                      />
-                      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:shrink-0">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets')}{' '}
-                        <span className="gba:font-semibold gba:text-muted-foreground" data-testid="assets-total-count">
-                          {totalCount}
-                        </span>
-                      </h3>
-                    </div>
-                    <Button
-                      onClick={() => dialogs.openRegister()}
-                      data-testid="register-equipment-button"
-                      className="gba:gap-2 gba:shrink-0"
-                    >
-                      <PlusIcon size={20} />
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
-                    </Button>
-                  </div>
-                  <AssetTable
-                    {...props}
-                    assets={assets}
-                    totalCount={totalCount}
-                    isLoading={assetsLoading}
-                    currentPage={currentPage}
-                    pageSize={pageSize}
-                    searchQuery={searchQuery}
-                    sortField={sortField}
-                    sortOrder={sortOrder}
-                    onPageChange={setCurrentPage}
-                    onPageSizeChange={handlePageSizeChange}
-                    onSearchChange={handleSearchChange}
-                    onSortChange={handleSortChange}
-                    onAssetClick={handleAssetClick}
-                    onAllocateAsset={handleAllocateAsset}
-                    onUpdateAsset={handleUpdateAsset}
-                    onRetireAsset={handleRetireAsset}
-                    onRetrieveAsset={handleRetrieveAsset}
-                    onGenerateDocument={handleGenerateDocument}
-                    showDataFilter={showDataFilter}
-                    onToggleDataFilter={() => setShowDataFilter(prev => !prev)}
-                    filter={filterPillIds}
-                    setFilter={handleSetFilterPills}
-                    filterLabelMap={filterLabelMap}
+                onSearchChange={handleSearchChange}
+                filters={filtersObject}
+                filterConfiguration={filterConfiguration}
+                onFilterChange={handleFilterChangeFromDisplay}
+                primaryAction={tablePrimaryAction}
+                renderFilterSheet={(open, onOpenChange) => (
+                  <BackofficeFilterSheet
+                    open={open}
+                    onOpenChange={onOpenChange}
+                    configuration={filterConfiguration}
+                    values={filtersObject}
+                    onApply={handleFilterChangeFromDisplay}
+                    onChange={handleFilterChangeFromDisplay}
+                    title={tAssets('asset-filter-sheet-title')}
+                    description={tAssets('asset-filter-sheet-description')}
+                    customGroup={employeeFilterCustomGroup}
                   />
-                </div>
-              </div>
+                )}
+              >
+                <AssetTable
+                  {...props}
+                  assets={assets}
+                  totalCount={totalCount}
+                  isLoading={assetsLoading}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  searchQuery={searchQuery}
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={handlePageSizeChange}
+                  onSearchChange={handleSearchChange}
+                  onSortChange={handleSortChange}
+                  onAssetClick={handleAssetClick}
+                  onAllocateAsset={handleAllocateAsset}
+                  onUpdateAsset={handleUpdateAsset}
+                  onRetireAsset={handleRetireAsset}
+                  onRetrieveAsset={handleRetrieveAsset}
+                  onDeleteAsset={handleDeleteAsset}
+                  onGenerateDocument={handleGenerateDocument}
+                  emptyMessage={listEmptyMessage}
+                />
+              </BackofficeDataDisplay>
             </div>
           </div>
         </div>
@@ -802,7 +622,19 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         onUpdateAsset={handleUpdateAsset}
         onRetireAsset={handleRetireAsset}
         onRetrieveAsset={handleRetrieveAsset}
+        onDeleteAsset={handleDeleteAsset}
         onGenerateDocument={handleGenerateDocument}
+      />
+
+      <DeleteAssetDialog
+        open={dialogs.isDeleteOpen}
+        asset={
+          assets.find(item => item.id === dialogs.deletingAssetId) ||
+          (selectedAsset?.id === dialogs.deletingAssetId ? selectedAsset : null)
+        }
+        isSubmitting={isDeletingAsset}
+        onClose={dialogs.closeDelete}
+        onConfirm={handleConfirmDeleteAsset}
       />
 
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>

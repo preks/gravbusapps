@@ -551,6 +551,7 @@ add-skill-form-attach-verification-message-prefix = Încarcă un document pentru
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Actualizează nivelul pentru competența 
 add-skill-form-attach-verification-upload-label = Încarcă document
+add-skill-form-loading-verification-document = Se încarcă documentul...
 add-skill-form-document-group = Categorie document
 add-skill-form-document-type = Tip document
 add-skill-form-select-document-group = Selectează categoria document
@@ -890,3 +891,6 @@ service-requests-status-canceled = Anulat
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Se încarcă formularul de adresă...

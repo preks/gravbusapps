@@ -668,7 +668,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             <Label htmlFor="location" data-testid="location-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
             </Label>
-            <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading || isEditMode}>
+            <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading}>
               <SelectTrigger id="location" data-testid="location-select">
                 <SelectValue
                   placeholder={
