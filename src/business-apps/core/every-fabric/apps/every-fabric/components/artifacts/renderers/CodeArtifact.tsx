@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Check, Copy } from '@phosphor-icons/react'
+import { CheckIcon, CopyIcon } from '@phosphor-icons/react'
 import type { ArtifactFile } from '../../../types/fabric'
 
 // ─── Minimal token-based syntax highlighter ──────────────────────────────────
@@ -94,7 +94,7 @@ function tokenize(line: string): Token[] {
       continue
     }
     // Numbers
-    if (/[0-9]/.test(line[i]) && (i === 0 || /[\s,([\-+*\/=]/.test(line[i - 1]))) {
+    if (/[0-9]/.test(line[i]) && (i === 0 || /[\s,([\-+*/=]/.test(line[i - 1]))) {
       let j = i
       while (j < line.length && /[0-9._xXa-fA-F]/.test(line[j])) j++
       tokens.push({ type: 'num', value: line.slice(i, j) })
@@ -117,7 +117,7 @@ function tokenize(line: string): Token[] {
       continue
     }
     // Operators
-    if (/[=<>!+\-*\/&|^%~]/.test(line[i])) {
+    if (/[=<>!+\-*/&|^%~]/.test(line[i])) {
       tokens.push({ type: 'op', value: line[i] })
       i++
       continue
@@ -153,6 +153,16 @@ function highlightLine(line: string): string {
   return tokens.map(t => `<span style="color:${TOKEN_COLOR[t.type]}">${escapeHtml(t.value)}</span>`).join('')
 }
 
+function codeLineRowKey(line: string, rowIndex: number): string {
+  const payload = `${rowIndex}\0${line}`
+  let h = 2166136261
+  for (let p = 0; p < payload.length; p++) {
+    h ^= payload.charCodeAt(p)
+    h = Math.imul(h, 16777619)
+  }
+  return `code-row-${(h >>> 0).toString(36)}`
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface CodeArtifactProps {
@@ -164,15 +174,18 @@ export interface CodeArtifactProps {
   language?: string
 }
 
+function resolveArtifactDisplayName(file: ArtifactFile): string {
+  if (typeof file.name === 'string' && file.name.trim()) return file.name
+  if (typeof file.path === 'string' && file.path.trim()) {
+    return file.path.split('/').filter(Boolean).pop() ?? 'artifact.txt'
+  }
+  return 'artifact.txt'
+}
+
 const CodeArtifact: React.FC<CodeArtifactProps> = ({ file, content, viewMode, language }) => {
   const [copied, setCopied] = useState(false)
   const safeContent = typeof content === 'string' ? content : ''
-  const safeName =
-    typeof file?.name === 'string' && file.name.trim()
-      ? file.name
-      : typeof file?.path === 'string' && file.path.trim()
-        ? (file.path.split('/').filter(Boolean).pop() ?? 'artifact.txt')
-        : 'artifact.txt'
+  const safeName = resolveArtifactDisplayName(file)
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(safeContent).then(() => {
@@ -203,12 +216,12 @@ const CodeArtifact: React.FC<CodeArtifactProps> = ({ file, content, viewMode, la
         >
           {copied ? (
             <>
-              <Check className="gba:h-3.5 gba:w-3.5 gba:text-green-400" weight="bold" />
+              <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-green-400" weight="bold" />
               <span className="gba:text-green-400">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="gba:h-3.5 gba:w-3.5" />
+              <CopyIcon className="gba:h-3.5 gba:w-3.5" />
               Copy
             </>
           )}
@@ -219,7 +232,10 @@ const CodeArtifact: React.FC<CodeArtifactProps> = ({ file, content, viewMode, la
       <div className="gba:flex-1 gba:overflow-auto">
         <pre className="gba:p-0 gba:m-0 gba:text-[12px] gba:leading-[1.75] gba:font-mono gba:select-text">
           {lines.map((line, i) => (
-            <div key={i} className="gba:flex gba:items-start gba:hover:bg-white/5 gba:transition-colors">
+            <div
+              key={codeLineRowKey(line, i)}
+              className="gba:flex gba:items-start gba:hover:bg-white/5 gba:transition-colors"
+            >
               <span
                 className="gba:shrink-0 gba:select-none gba:py-0 gba:px-4 gba:text-slate-600 gba:text-right gba:tabular-nums"
                 style={{ minWidth: `${lineNumWidth + 3}ch` }}

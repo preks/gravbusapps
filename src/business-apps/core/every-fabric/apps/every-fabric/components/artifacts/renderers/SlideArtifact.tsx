@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight } from '@phosphor-icons/react'
+import { ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import type { ArtifactFile } from '../../../types/fabric'
 import CodeArtifact from './CodeArtifact'
 
@@ -103,7 +103,7 @@ const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:border gba:border-white/10 gba:text-slate-400 gba:hover:text-slate-200 gba:hover:bg-white/10 gba:disabled:opacity-30 gba:disabled:cursor-not-allowed gba:transition-colors"
           data-testid="fabric-slide-prev"
         >
-          <ArrowLeft className="gba:h-4 gba:w-4" />
+          <ArrowLeftIcon className="gba:h-4 gba:w-4" />
         </button>
 
         <span className="gba:text-xs gba:font-medium gba:text-slate-400 gba:tabular-nums">
@@ -116,7 +116,7 @@ const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:border gba:border-white/10 gba:text-slate-400 gba:hover:text-slate-200 gba:hover:bg-white/10 gba:disabled:opacity-30 gba:disabled:cursor-not-allowed gba:transition-colors"
           data-testid="fabric-slide-next"
         >
-          <ArrowRight className="gba:h-4 gba:w-4" />
+          <ArrowRightIcon className="gba:h-4 gba:w-4" />
         </button>
       </div>
 

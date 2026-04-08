@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ArrowsOut, Check, Copy, DownloadSimple, X } from '@phosphor-icons/react'
+import { ArrowsOutIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, XIcon } from '@phosphor-icons/react'
 import type { ArtifactFile, ArtifactRendererType } from '../../types/fabric'
 
 // ─── Type metadata ────────────────────────────────────────────────────────────
@@ -107,9 +107,9 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
           data-testid="fabric-toolbar-copy"
         >
           {copied ? (
-            <Check className="gba:h-3.5 gba:w-3.5 gba:text-green-500" weight="bold" />
+            <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-green-500" weight="bold" />
           ) : (
-            <Copy className="gba:h-3.5 gba:w-3.5" />
+            <CopyIcon className="gba:h-3.5 gba:w-3.5" />
           )}
         </button>
 
@@ -120,7 +120,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="fabric-toolbar-download"
         >
-          <DownloadSimple className="gba:h-3.5 gba:w-3.5" />
+          <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
         </a>
 
         <a
@@ -131,7 +131,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="fabric-toolbar-open"
         >
-          <ArrowsOut className="gba:h-3.5 gba:w-3.5" />
+          <ArrowsOutIcon className="gba:h-3.5 gba:w-3.5" />
         </a>
 
         <button
@@ -140,7 +140,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="fabric-toolbar-close"
         >
-          <X className="gba:h-3.5 gba:w-3.5" />
+          <XIcon className="gba:h-3.5 gba:w-3.5" />
         </button>
       </div>
     </div>
