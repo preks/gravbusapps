@@ -5,11 +5,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Alert,
   Button,
   Textarea,
   Label
 } from '@newwork/nw-design-system'
 import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
+import { AlertCircle } from 'lucide-react'
 import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
 import { UploadIcon } from '@phosphor-icons/react'
@@ -23,6 +25,10 @@ import { getAllEmployees } from './queries/getAllEmployees'
 import { GET_EMPLOYEE_DETAILS } from './queries/getEmployeeDetails'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getPrevalidateErrorPresentation,
+  shouldDuplicatePrevalidateErrorBelowDatepicker
+} from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { useAbsenceValidation } from './hooks/useAbsenceValidation'
 import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
@@ -121,6 +127,17 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     prevalidateEndDateStr
   )
   const hasPrevalidateError = !!prevalidate.errorCode
+  const duplicatedPrevalidateError = useMemo(() => {
+    if (!prevalidate.errorCode || !shouldDuplicatePrevalidateErrorBelowDatepicker(prevalidate.errorCode)) {
+      return null
+    }
+
+    const presentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
+    return {
+      title: getTranslationFromI18nKeyAndLabel(presentation.messageKey, presentation.messageFallback),
+      detail: getTranslationFromI18nKeyAndLabel(presentation.detailKey, presentation.detailFallback)
+    }
+  }, [prevalidate.errorCode, prevalidate.errorDetail])
   const hasBlockingValidationErrors = generalErrors.length > 0 || overlapErrors.length > 0
 
   useEffect(() => {
@@ -599,6 +616,15 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                     )}
                   </div>
                 </div>
+              )}
+              {duplicatedPrevalidateError && (
+                <Alert className="gba:mb-4" data-testid="prevalidate-inline-error">
+                  <AlertCircle className="gba:h-4 gba:w-4" />
+                  <span className="gba:flex gba:flex-col gba:gap-0.5">
+                    <strong>{duplicatedPrevalidateError.title}</strong>
+                    <span>{duplicatedPrevalidateError.detail}</span>
+                  </span>
+                </Alert>
               )}
             </>
           )}
