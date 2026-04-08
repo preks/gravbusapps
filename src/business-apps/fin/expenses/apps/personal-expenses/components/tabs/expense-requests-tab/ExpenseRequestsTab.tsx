@@ -12,6 +12,7 @@ import { message } from 'antd'
 import { getRequestCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
+import { expenseRequestDefaultSort, type ExpenseRequestTableSortOrder } from './config/expenseRequestSortableColumns'
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -29,8 +30,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [activeWidget, setActiveWidget] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<string>('requestDate')
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
+  const [sortField, setSortField] = useState<string>(expenseRequestDefaultSort.field)
+  const [sortOrder, setSortOrder] = useState<ExpenseRequestTableSortOrder>(expenseRequestDefaultSort.order)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
 
   const {
@@ -250,8 +251,10 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       setCurrentPage(pagination.current)
       setPageSize(pagination.pageSize)
 
-      const nextField = sorter?.field ?? 'requestDate'
-      const nextOrder = sorter?.order
+      const nextField = (sorter?.field as string) ?? expenseRequestDefaultSort.field
+      const nextOrder: ExpenseRequestTableSortOrder =
+        sorter?.order === 'ascend' || sorter?.order === 'descend' ? sorter.order : expenseRequestDefaultSort.order
+
       setSortField(nextField)
       setSortOrder(nextOrder)
 

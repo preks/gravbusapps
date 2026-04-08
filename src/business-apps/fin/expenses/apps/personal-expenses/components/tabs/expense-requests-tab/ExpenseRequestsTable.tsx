@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation, Button, Badge } from '@newwork/nw-design-system'
@@ -29,6 +29,16 @@ import {
   RowActionsWrapper,
   RowActionsIcon
 } from '../../shared/TableSharedComponents'
+import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterConfig'
+import {
+  expenseRequestSortableColumns,
+  expenseRequestDefaultSort,
+  type ExpenseRequestTableSortOrder
+} from './config/expenseRequestSortableColumns'
+import {
+  expenseRequestAvailableColumns,
+  expenseRequestDefaultVisibleColumnIds
+} from './config/expenseRequestAvailableColumns'
 
 type ExpenseRequestRow = {
   id: string
@@ -176,8 +186,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   const debouncedSearchTerm = useDebounce(searchInput, 300)
 
   // Server-side sorting state
-  const [sortField, setSortField] = useState<string>('requestDate')
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
+  const [sortField, setSortField] = useState<string>(expenseRequestDefaultSort.field)
+  const [sortOrder, setSortOrder] = useState<ExpenseRequestTableSortOrder>(expenseRequestDefaultSort.order)
   // Preserve page index across search clear
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevDebouncedSearchRef = useRef<string>('')
@@ -206,159 +216,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   const effectiveDateRange = props.effectiveDateRange ?? null
   const currencyStats = props.currencyStats ?? []
 
-  // FilterConfiguration for DataDisplay filter sheet (same pattern as plans/advance payments)
-  const expenseRequestsFilterConfig: FilterConfiguration = useMemo(() => {
-    const statusOptions = Object.values(ExpenseRequestStatus).map(s => ({
-      id: s,
-      label: filterLabelMap[s] || s
-    }))
-    const requestTypeOptions = [
-      {
-        id: 'ExpenseRequestType:v1:EXPENSES',
-        label:
-          filterLabelMap['ExpenseRequestType:v1:EXPENSES'] ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
-      },
-      {
-        id: 'ExpenseRequestType:v1:TRIP',
-        label:
-          filterLabelMap['ExpenseRequestType:v1:TRIP'] ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
-      }
-    ]
-    const groups: FilterConfiguration['groups'] = [
-      {
-        id: 'effectiveDate-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'effectiveDateRange',
-            field: 'effectiveDateRange',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
-            type: 'date',
-            config: {
-              dateType: 'date',
-              mode: 'range',
-              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
-              showClearButton: true
-            }
-          }
-        ]
-      },
-      {
-        id: 'requestDate-group',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:confirm_transfer_advance_payment.request_date_label',
-          'Request Date'
-        ),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'requestDateRange',
-            field: 'requestDateRange',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:confirm_transfer_advance_payment.request_date_label',
-              'Request Date'
-            ),
-            type: 'date',
-            config: {
-              dateType: 'date',
-              mode: 'range',
-              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
-              showClearButton: true
-            }
-          }
-        ]
-      },
-      {
-        id: 'startDate-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'startDateRange',
-            field: 'startDateRange',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
-            type: 'date',
-            config: {
-              dateType: 'date',
-              mode: 'range',
-              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
-              showClearButton: true
-            }
-          }
-        ]
-      },
-      {
-        id: 'endDate-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'endDateRange',
-            field: 'endDateRange',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
-            type: 'date',
-            config: {
-              dateType: 'date',
-              mode: 'range',
-              placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-              placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
-              showClearButton: true
-            }
-          }
-        ]
-      },
-      {
-        id: 'status-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'statusIds',
-            field: 'statusIds',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_list.expense_plan_table.status',
-              'Status'
-            ),
-            type: 'multi-select',
-            config: { options: statusOptions }
-          }
-        ]
-      },
-      {
-        id: 'requestType-group',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-          'Request Type'
-        ),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'requestTypeIds',
-            field: 'requestTypeIds',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-              'Request Type'
-            ),
-            type: 'multi-select',
-            config: { options: requestTypeOptions }
-          }
-        ]
-      }
-    ]
-    return { id: 'expense-requests-filters', name: 'Expense Requests Filters', groups }
-  }, [filterLabelMap])
+  const expenseRequestsFilterConfig = useMemo(
+    () =>
+      createExpenseRequestFilterConfig({
+        statusOptions: Object.values(ExpenseRequestStatus),
+        filterLabelMap
+      }),
+    [filterLabelMap]
+  )
 
   const filtersObject = useMemo((): Record<string, unknown> => {
     const statusIds = (selectedFilters || []).filter(f => Object.values(ExpenseRequestStatus).includes(f as any))
@@ -412,104 +277,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     ]
   )
 
-  const sortableColumns = useMemo(
-    () => [
-      {
-        id: 'code',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-          'Request Number'
-        )
-      },
-      {
-        id: 'title',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
-      },
-      {
-        id: 'requestDate',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:confirm_transfer_advance_payment.request_date_label',
-          'Request Date'
-        )
-      },
-      {
-        id: 'startDate',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_plan_list.expense_plan_table.start_date',
-          'Start Date'
-        )
-      },
-      {
-        id: 'endDate',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
-      },
-      {
-        id: 'status',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-      },
-      {
-        id: 'reimbursableAmount',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
-      }
-    ],
-    []
-  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...expenseRequestDefaultVisibleColumnIds])
 
-  const baseVisibleColumnIds = useMemo(
-    () => ['code', 'title', 'requestDate', 'startDate', 'endDate', 'status', 'reimbursableAmount', 'advance'],
-    []
-  )
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
-
-  const availableColumnsForDisplay = useMemo(
-    () => [
-      {
-        id: 'code',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-          'Request Number'
-        )
-      },
-      {
-        id: 'title',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
-      },
-      {
-        id: 'requestDate',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:confirm_transfer_advance_payment.request_date_label',
-          'Request Date'
-        )
-      },
-      {
-        id: 'startDate',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_plan_list.expense_plan_table.start_date',
-          'Start Date'
-        )
-      },
-      {
-        id: 'endDate',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
-      },
-      {
-        id: 'status',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-      },
-      {
-        id: 'reimbursableAmount',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
-      },
-      {
-        id: 'advance',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.advance',
-          'Advance'
-        )
-      }
-    ],
-    []
-  )
+  /** Keep all column defs mounted so sorting state ids (e.g. endDate) always match a column — required for sort indicators. */
+  const dataTableColumnVisibility = useMemo(() => {
+    const vis: Record<string, boolean> = {}
+    for (const { id } of expenseRequestAvailableColumns) {
+      vis[id] = visibleColumns.includes(id)
+    }
+    vis.actions = true
+    return vis
+  }, [visibleColumns])
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(selectedFilters || [], currencyStats),
@@ -583,29 +361,27 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   }, [])
 
   const sorting = useMemo(
-    () => (sortOrder ? [{ id: sortField || 'requestDate', desc: sortOrder === 'descend' }] : []),
+    () => (sortOrder ? [{ id: sortField || expenseRequestDefaultSort.field, desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       if (!onTableChange) return
       const entry = newSorting[0]
-      let nextField: string
-      let nextOrder: 'ascend' | 'descend' | undefined
-      if (!entry) {
-        nextField = sortField || 'requestDate'
-        nextOrder = undefined
+
+      let nextField = expenseRequestDefaultSort.field
+      let nextOrder: ExpenseRequestTableSortOrder = expenseRequestDefaultSort.order
+
+      if (entry) {
+        const incomingOrder: ExpenseRequestTableSortOrder = entry.desc ? 'descend' : 'ascend'
+        nextField = entry.id
+        nextOrder = incomingOrder
       } else {
-        const isSameColumn = entry.id === sortField
-        const incomingOrder = entry.desc ? 'descend' : 'ascend'
-        if (isSameColumn && sortOrder === 'descend' && incomingOrder === 'ascend') {
-          nextField = entry.id
-          nextOrder = undefined
-        } else {
-          nextField = entry.id
-          nextOrder = incomingOrder
-        }
+        // When user clears sorting, fall back to default request date desc.
+        nextField = expenseRequestDefaultSort.field
+        nextOrder = expenseRequestDefaultSort.order
       }
+
       setSortField(nextField)
       setSortOrder(nextOrder)
       onTableChange({ current: 1, pageSize }, {}, { field: nextField, order: nextOrder })
@@ -640,6 +416,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Request Number'
         ),
         size: 120,
+        sortDescFirst: false,
         cell: renderReqCodeCell
       },
       {
@@ -647,6 +424,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         accessorKey: 'title',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
         size: 200,
+        sortDescFirst: false,
         cell: renderReqTitleCell
       },
       {
@@ -657,6 +435,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Request Date'
         ),
         size: 110,
+        sortDescFirst: false,
         cell: renderReqRequestDateCell
       },
       {
@@ -667,13 +446,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           'Start Date'
         ),
         size: 110,
+        sortDescFirst: false,
         cell: renderReqStartDateCell
       },
       {
         id: 'endDate',
-        accessorKey: 'endDate',
+        accessorFn: (row: ExpenseRequestRow) => row.endDate,
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
         size: 110,
+        sortDescFirst: false,
         cell: renderReqEndDateCell
       },
       {
@@ -681,16 +462,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         accessorKey: 'status',
         header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         size: 100,
+        sortDescFirst: false,
         cell: renderReqStatusCell
       },
       {
         id: 'reimbursableAmount',
-        accessorKey: 'reimbursableAmount',
+        accessorFn: (row: ExpenseRequestRow) => row.reimbursableAmount,
         header: getTranslationFromI18nKeyAndLabel(
           'lowcoder:approve_expense_request.reimbursable',
           'Reimbursable Amount'
         ),
         size: 140,
+        sortDescFirst: false,
         meta: { align: 'right' as const },
         cell: renderReqReimbursableCell
       },
@@ -897,11 +680,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         filterConfiguration={expenseRequestsFilterConfig}
         onFilterChange={handleFilterChangeFromDisplay}
         sorting={sorting}
-        sortableColumns={sortableColumns}
+        sortableColumns={expenseRequestSortableColumns}
         onSortingChange={handleSortingChange}
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
-        availableColumns={availableColumnsForDisplay}
+        availableColumns={expenseRequestAvailableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
@@ -911,9 +694,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       >
         <DataTable<ExpenseRequestRow>
           data={items}
-          columns={columns.filter(col =>
-            visibleColumns.includes((col as ColumnDef<ExpenseRequestRow> & { id?: string }).id ?? '')
-          )}
+          columns={columns}
+          columnVisibility={dataTableColumnVisibility}
           loading={isLoading}
           error={error || undefined}
           totalCount={totalCount}
