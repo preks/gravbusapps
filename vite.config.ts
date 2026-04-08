@@ -1,6 +1,5 @@
 import { resolve } from 'path'
 import { defineConfig, loadEnv, type PluginOption } from 'vite'
-import { visualizer } from 'rollup-plugin-visualizer'
 import react from '@vitejs/plugin-react'
 import tailwindCSS from '@tailwindcss/vite'
 import browserEcho from '@browser-echo/vite'
@@ -12,6 +11,15 @@ import { createRequire } from 'module'
 import dotenv from '@dotenvx/dotenvx'
 import { execSync, spawn } from 'child_process'
 import { isRemoteBundleExternal } from './remoteBundleExternals'
+
+const require = createRequire(import.meta.url)
+let visualizer: ((options?: Record<string, unknown>) => PluginOption) | undefined
+
+try {
+  ;({ visualizer } = require('rollup-plugin-visualizer'))
+} catch {
+  visualizer = undefined
+}
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -956,7 +964,8 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
       const relativeEntryPath = path.relative(path.dirname(wrappedEntryPath), originalEntryPath).replace(/\\/g, '/')
       const originalEntrySource = fs.readFileSync(originalEntryPath, 'utf8')
       const hasDefaultExport =
-        /export\s+default/.test(originalEntrySource) || /export\s*\{[^}]*\bdefault\b[^}]*\}/s.test(originalEntrySource)
+        /export\s+default/.test(originalEntrySource) ||
+        /export\s*\{[\s\S]*?\bdefault\b[\s\S]*?\}/.test(originalEntrySource)
 
       // Check if this is a types, queries, hooks, tabs, components, utils, views, pages, or services entry (contains any of these keywords in the path)
       // These directories typically export multiple named exports but no single default export
@@ -1122,7 +1131,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
       cssCodeSplit: true,
       rollupOptions: {
         plugins: [
-          ...(process.env.VITE_ANALYZE === 'true' && isBuildCommand
+          ...(process.env.VITE_ANALYZE === 'true' && isBuildCommand && visualizer
             ? [
                 visualizer({
                   filename: resolve(projectRootDir, 'dist/bundle-stats.html'),
