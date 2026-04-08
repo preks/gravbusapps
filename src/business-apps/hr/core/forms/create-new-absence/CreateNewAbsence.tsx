@@ -105,15 +105,15 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const formValuesState = form.watch()
 
-  const { isValidating, isCheckingBankHoliday, overlapErrors, generalErrors, existingSickLeave, hasExistingSickLeave } =
-    useAbsenceValidation({
-      accessToken,
-      employeeId: employeeId || '',
-      selectedType: formValuesState.selectedType || '',
-      startDate: formValuesState.startDate,
-      endDate: formValuesState.endDate,
-      context: props
-    })
+  const { existingSickLeave, hasExistingSickLeave } = useAbsenceValidation({
+    accessToken,
+    employeeId: employeeId || '',
+    selectedType: formValuesState.selectedType || '',
+    startDate: formValuesState.startDate,
+    endDate: formValuesState.endDate,
+    context: props,
+    disableCalendarValidation: true
+  })
 
   const prevalidateStartDateStr =
     formValuesState.startDate == null ? null : dayjs(formValuesState.startDate).format('YYYY-MM-DD')
@@ -138,7 +138,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       detail: getTranslationFromI18nKeyAndLabel(presentation.detailKey, presentation.detailFallback)
     }
   }, [prevalidate.errorCode, prevalidate.errorDetail])
-  const hasBlockingValidationErrors = generalErrors.length > 0 || overlapErrors.length > 0
 
   useEffect(() => {
     const start = formValuesState.startDate
@@ -207,24 +206,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const isFormValid = useMemo(() => {
     if (isUpdateMode) {
-      const updateModeValid =
-        formValuesState.selectedType &&
-        formValuesState.startDate &&
-        formValuesState.endDate &&
-        !hasBlockingValidationErrors &&
-        !isValidating
-
-      return updateModeValid
+      return !!(formValuesState.selectedType && formValuesState.startDate && formValuesState.endDate)
     }
 
-    const createModeValid = isMandatoryFieldsCompleted && !hasBlockingValidationErrors && !isValidating
-
-    return createModeValid
+    return isMandatoryFieldsCompleted
   }, [
     isUpdateMode,
     isMandatoryFieldsCompleted,
-    hasBlockingValidationErrors,
-    isValidating,
     formValuesState.selectedType,
     formValuesState.startDate,
     formValuesState.endDate
@@ -342,32 +330,24 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
   )
 
-  const validateForm = useCallback(
-    (formData: CreateNewAbsenceFormValues): string[] | null => {
-      const errors: string[] = []
+  const validateForm = useCallback((formData: CreateNewAbsenceFormValues): string[] | null => {
+    const errors: string[] = []
 
-      if (!formData.selectedType) {
-        errors.push('Type is required')
-      }
-      if (!formData.startDate) {
-        errors.push('Start date is required')
-      }
-      if (!formData.endDate) {
-        errors.push('End date is required')
-      }
-      if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
-        errors.push('End date must be after start date')
-      }
+    if (!formData.selectedType) {
+      errors.push('Type is required')
+    }
+    if (!formData.startDate) {
+      errors.push('Start date is required')
+    }
+    if (!formData.endDate) {
+      errors.push('End date is required')
+    }
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      errors.push('End date must be after start date')
+    }
 
-      if (hasBlockingValidationErrors) {
-        generalErrors.forEach(error => errors.push(error.message))
-        overlapErrors.forEach(error => errors.push(error.message))
-      }
-
-      return errors.length > 0 ? errors : null
-    },
-    [hasBlockingValidationErrors, generalErrors, overlapErrors]
-  )
+    return errors.length > 0 ? errors : null
+  }, [])
 
   return (
     <div
@@ -403,7 +383,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday || hasPrevalidateError}
+        isSubmitDisabled={!isFormValid || hasPrevalidateError}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"
@@ -564,19 +544,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                       'Updating existing absence'
                     )}
                   </p>
-                </div>
-              )}
-
-              {/* Loading indicator for validation */}
-              {isValidating && (
-                <div
-                  className="gba:mb-4 gba:text-center gba:text-sm gba:text-muted-foreground"
-                  data-testid="validation-loading"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_form.validation_checking',
-                    'Checking availability...'
-                  )}
                 </div>
               )}
 
