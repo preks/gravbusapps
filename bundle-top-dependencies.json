@@ -36083,15 +36083,15 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10616,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10616/",
-    "chunkJsBytes": 964129,
+    "bitbucketBuildNumber": 10625,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10625/",
+    "chunkJsBytes": 964117,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 591101,
-        "gzip": 32462
+        "gzip": 32459
       },
       {
         "kind": "bucket",
@@ -41011,9 +41011,9 @@
     ]
   },
   "hr/compensation-planning/apps/compensation-planning": {
-    "bitbucketBuildNumber": 10606,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10606/",
-    "chunkJsBytes": 825076,
+    "bitbucketBuildNumber": 10625,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10625/",
+    "chunkJsBytes": 872523,
     "top": [
       {
         "kind": "bucket",
@@ -41024,8 +41024,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 282270,
-        "gzip": 73786
+        "rendered": 360340,
+        "gzip": 91007
       },
       {
         "kind": "bucket",
@@ -41053,6 +41053,12 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/utils",
+        "rendered": 12039,
+        "gzip": 3881
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/components/widget-group",
         "rendered": 10632,
         "gzip": 2685
@@ -41062,12 +41068,6 @@
         "name": "(src)/common/data",
         "rendered": 10373,
         "gzip": 3350
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/utils",
-        "rendered": 9394,
-        "gzip": 2868
       },
       {
         "kind": "bucket",
@@ -41126,27 +41126,27 @@
     ]
   },
   "hr/compensation-planning/apps/manager-compensation-planning": {
-    "bitbucketBuildNumber": 10606,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10606/",
-    "chunkJsBytes": 720489,
+    "bitbucketBuildNumber": 10625,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10625/",
+    "chunkJsBytes": 777937,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 623122,
-        "gzip": 267520
+        "rendered": 624153,
+        "gzip": 268070
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 192842,
-        "gzip": 52393
+        "rendered": 262220,
+        "gzip": 69878
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41545,
-        "gzip": 10137
+        "gzip": 10136
       },
       {
         "kind": "bucket",
@@ -41168,9 +41168,15 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/components/widget-group",
+        "rendered": 10632,
+        "gzip": 2685
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 6979,
-        "gzip": 2195
+        "rendered": 10071,
+        "gzip": 3288
       },
       {
         "kind": "bucket",
@@ -41236,7 +41242,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-08T09:50:08.664Z",
+    "generatedAt": "2026-04-08T10:35:48.852Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
