@@ -249,14 +249,27 @@ function remoteEchoKey(row: number, col: number): string {
   return `${row}:${col}`
 }
 
+// Prioritizes the cellRef (A1 notation) for cursor position, falling back to raw row:/col: entries.
+// A1 references represent the sender's exact visual cell position and don't suffer from
+// row-index drift between the data array and Univer grid.
 function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   if (!path || path.length === 0) return null
-  const rowEntry = path.find(item => item.startsWith('row:'))
+
+  const cellRefEntry = path.find(item => item.startsWith('cellRef:'))
+  if (cellRefEntry) {
+    const parsed = parseA1Reference(cellRefEntry.slice(8))
+    if (parsed) return parsed
+  }
+
   const colEntry = path.find(item => item.startsWith('col:'))
-  if (!rowEntry || !colEntry) return null
-  const row = Number(rowEntry.slice(4))
+  if (!colEntry) return null
   const col = Number(colEntry.slice(4))
-  if (!Number.isFinite(row) || !Number.isFinite(col) || row < 0 || col < 0) return null
+  if (!Number.isFinite(col) || col < 0) return null
+
+  const rowEntry = path.find(item => item.startsWith('row:'))
+  if (!rowEntry) return null
+  const row = Number(rowEntry.slice(4))
+  if (!Number.isFinite(row) || row < 0) return null
   return { row, col }
 }
 
@@ -405,15 +418,30 @@ function buildNewRowsFromCellMatrix(params: {
   })
 }
 
+/**
+ * Extract changed cells from a Univer value-change event.
+ *
+ * Returns univerRow/univerCol alongside the logical rowId/columnName. The Univer grid indices
+ * are the sender's actual visual position and get transmitted as an A1 cellRef in the collaboration
+ * operation. The receiver uses this cellRef to update the correct Univer cell, avoiding a bug where
+ * data-array-index-based resolution wrote to the wrong row after row additions/deletions caused
+ * the data array and Univer grid to drift out of sync.
+ */
 function collectChangedCells(params: {
   cellValue: SheetCellMatrix
   ctx: ConversionContext
   rowOffset: number
   colOffset: number
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
-}): Array<{ rowId: string; columnName: string; value: unknown }> {
+}): Array<{ rowId: string; columnName: string; value: unknown; univerRow: number; univerCol: number }> {
   const { cellValue, ctx, rowOffset, colOffset, shouldSuppress } = params
-  const changedCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
+  const changedCells: Array<{
+    rowId: string
+    columnName: string
+    value: unknown
+    univerRow: number
+    univerCol: number
+  }> = []
   for (const rowKey of Object.keys(cellValue)) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex)) continue
@@ -431,7 +459,13 @@ function collectChangedCells(params: {
       if (columnName === undefined) continue
       const cell = rowCells[colIndex]
       if (shouldSuppress?.(globalRowIndex, globalColIndex, cell) === true) continue
-      changedCells.push({ rowId, columnName, value: cell ?? { v: '' } })
+      changedCells.push({
+        rowId,
+        columnName,
+        value: cell ?? { v: '' },
+        univerRow: globalRowIndex,
+        univerCol: globalColIndex
+      })
     }
   }
   return changedCells
@@ -482,7 +516,7 @@ export interface CellDimensionsPayload {
 }
 
 export interface UniverSheetGridHandle {
-  applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown) => void
+  applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown, rowId?: string) => void
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
   applyRemoteDimensions: (payload: CellDimensionsPayload) => void
@@ -1485,11 +1519,28 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       if (!stillExists) setHoveredCommentId(null)
     }, [commentOverlays, hoveredCommentId])
 
-    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
+    // Callers should prefer passing A1-resolved coordinates (from cellRef) directly as rowIndex/colIndex.
+    // The rowId fallback attempts to re-resolve via contextRef, but contextRef tracks the data prop
+    // (not the Univer workbook), so it can be wrong after structural changes. See handleCollaborationOperation.
+    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown, rowId?: string) => {
       const api = univerAPIRef.current
       if (!api) return
+      let resolvedRow = rowIndex
+      if (rowId && contextRef.current) {
+        const gridIndex = contextRef.current.rowIdToIndex.get(rowId)
+        if (gridIndex !== undefined) {
+          resolvedRow = gridIndex
+        } else {
+          const d = propsRef.current.data
+          const fallback = d.findIndex(r => {
+            const ids = [r._rowUuid, r._id, r.id].map(v => (v == null ? '' : String(v))).filter(Boolean)
+            return ids.includes(rowId)
+          })
+          if (fallback >= 0) resolvedRow = fallback
+        }
+      }
       const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
-      const key = remoteEchoKey(rowIndex, colIndex)
+      const key = remoteEchoKey(resolvedRow, colIndex)
       remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
       globalThis.setTimeout(() => {
         const current = remoteEchoSuppressionRef.current.get(key)
@@ -1502,7 +1553,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (!workbook) return
         const worksheet = workbook.getActiveSheet()
         if (!worksheet) return
-        const range = worksheet.getRange(rowIndex, colIndex)
+        const range = worksheet.getRange(resolvedRow, colIndex)
         if (range) range.setValue(value as any)
       } catch (e) {
         console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
@@ -2361,11 +2412,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       )
       const selectionEventKey =
         (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
+      // Emits cursor position using A1 notation (cellRef) as the primary coordinate.
+      // row:/col: entries are kept for backward compatibility.
       const emitCursorByRowCol = (startRow: number, startColumn: number) => {
         activeSelectionRef.current = { row: startRow, col: startColumn }
         const onCursorEmitCb = callbacksRef.current.onCursorEmit
         if (!onCursorEmitCb) return
-        const path = [`row:${startRow}`, `col:${startColumn}`]
+        const a1 = toA1Reference(startRow, startColumn)
+        const path = [`cellRef:${a1}`, `row:${startRow}`, `col:${startColumn}`]
         const signature = path.join('|')
         if (lastEmittedCursorPathRef.current === signature) return
         lastEmittedCursorPathRef.current = signature

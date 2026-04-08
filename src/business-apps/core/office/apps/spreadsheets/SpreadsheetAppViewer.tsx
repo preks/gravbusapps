@@ -40,7 +40,9 @@ import {
   buildMultiSheetWorkbookFromAppSheets,
   countWorksheetsInUniverSnapshot,
   createUniverConversionContext,
-  snapshotTrackingHeaderMatchesColumnLabels
+  parseA1Reference,
+  snapshotTrackingHeaderMatchesColumnLabels,
+  toA1Reference
 } from './utils/univerAdapter'
 import {
   readLatestUniverSnapshot,
@@ -1687,7 +1689,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         Object.entries(rowData).forEach(([columnKey, value]) => {
           const { rowIndex, colIndex } = resolveRemoteCellCoordinates(columnKey, remoteRowId)
           if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-            spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, value)
+            spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, value, remoteRowId)
           }
         })
         return
@@ -1719,12 +1721,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (operation.type === 'set_range') {
         const d = operation.data as {
           sheetId?: string
-          cells?: Array<{ rowId?: string; columnName?: string; column?: string; columnId?: string; value?: unknown }>
+          cells?: Array<{
+            rowId?: string
+            columnName?: string
+            column?: string
+            columnId?: string
+            value?: unknown
+            cellRef?: string
+          }>
         }
         if (!d?.sheetId || d.sheetId !== activeSheetId || !Array.isArray(d.cells) || d.cells.length === 0) return
 
         const updatesByRowId = new Map<string, Record<string, unknown>>()
-        const gridUpdates: Array<{ rowIndex: number; colIndex: number; value: unknown }> = []
+        const gridUpdates: Array<{ rowIndex: number; colIndex: number; value: unknown; rowId: string }> = []
         for (const cell of d.cells) {
           if (!cell?.rowId) continue
           const columnKey = cell.columnName ?? cell.column ?? cell.columnId
@@ -1734,8 +1743,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           const rowUpdates = updatesByRowId.get(remoteRowId) ?? {}
           rowUpdates[targetColumnName] = cell.value
           updatesByRowId.set(remoteRowId, rowUpdates)
-          if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-            gridUpdates.push({ rowIndex, colIndex, value: cell.value })
+          // Same A1-cellRef strategy as cell_update path (see comment there for rationale)
+          const parsedRef = cell.cellRef ? parseA1Reference(cell.cellRef) : null
+          if (parsedRef) {
+            gridUpdates.push({
+              rowIndex: parsedRef.row,
+              colIndex: parsedRef.col,
+              value: cell.value,
+              rowId: remoteRowId
+            })
+          } else if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+            gridUpdates.push({ rowIndex, colIndex, value: cell.value, rowId: remoteRowId })
           }
         }
 
@@ -1750,7 +1768,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
         commitLocalSheetData(nextLocal, { persisted: true })
         gridUpdates.forEach(update => {
-          spreadsheetGridRef.current?.applyRemoteCellUpdate(update.rowIndex, update.colIndex, update.value)
+          spreadsheetGridRef.current?.applyRemoteCellUpdate(
+            update.rowIndex,
+            update.colIndex,
+            update.value,
+            update.rowId
+          )
         })
         return
       }
@@ -1762,6 +1785,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         column?: string
         columnId?: string
         value?: unknown
+        cellRef?: string
       }
       if (!d?.sheetId || d.sheetId !== activeSheetId || d.rowId == null || d.value === undefined) return
       const columnKey = d.column ?? d.columnId
@@ -1774,8 +1798,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       })
       commitLocalSheetData(nextLocal, { persisted: true })
 
-      if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-        spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, d.value)
+      // Prefer the sender's A1 cellRef for the Univer grid update. The cellRef encodes the
+      // sender's actual Univer grid position, which stays correct even when the data array
+      // and Univer workbook have drifted out of sync (e.g. after row additions/deletions).
+      // The data-model update above (commitLocalSheetData) uses rowId matching which is always
+      // correct; only the direct Univer grid write needs the visual coordinate.
+      const parsed = d.cellRef ? parseA1Reference(d.cellRef) : null
+      if (parsed) {
+        spreadsheetGridRef.current?.applyRemoteCellUpdate(parsed.row, parsed.col, d.value)
+      } else if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+        spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, d.value, remoteRowId)
       }
     },
     [
@@ -2635,7 +2667,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   )
 
   const handleCellsChange = useCallback(
-    (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+    (cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>) => {
       if (!canEditWithLock) return
       if (entityEnabled) return
       if (cells.length === 0) return
@@ -2644,29 +2676,24 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       versioning.markAsChanged()
 
       pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
-      const firstCell = cells[0]
-      if (firstCell) {
-        const ctx = createUniverConversionContext(activeSheet.columns, localSheetDataRef.current)
-        const rowIndex = ctx.rowIdToIndex.get(String(firstCell.rowId))
-        const colIndex =
-          activeSheet.columns.findIndex(c => c.name === firstCell.columnName) >= 0
-            ? activeSheet.columns.findIndex(c => c.name === firstCell.columnName)
-            : (ctx.columnIdToIndex.get(String(firstCell.columnName)) ?? -1)
-        if (rowIndex !== undefined && colIndex >= 0) {
-          collaboration.emitCursor({ path: [`row:${rowIndex}`, `col:${colIndex}`] })
-        }
-      }
       cells.forEach(cell => {
         const backendRowId = getBackendRowIdForUiRowId(String(cell.rowId))
         if (!backendRowId) return
+        const opData: Record<string, unknown> = {
+          sheetId: activeSheetId,
+          rowId: backendRowId,
+          column: cell.columnName,
+          value: cell.value
+        }
+        // Attach the sender's visual cell position as an A1 reference (e.g. "D16").
+        // The receiver uses this to update the correct Univer grid cell directly, avoiding
+        // a mismatch where data-array indices diverge from Univer row indices after row add/delete.
+        if (cell.univerRow != null && cell.univerCol != null) {
+          opData.cellRef = toA1Reference(cell.univerRow, cell.univerCol)
+        }
         collaboration.emitOperation({
           type: 'cell_update',
-          data: {
-            sheetId: activeSheetId,
-            rowId: backendRowId,
-            column: cell.columnName,
-            value: cell.value
-          },
+          data: opData,
           broadcastOnly: true
         } as any)
       })
@@ -2698,7 +2725,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       canEditWithLock,
       commitLocalSheetData,
       collaboration.emitOperation,
-      collaboration.emitCursor,
       entityEnabled,
       getBackendRowIdForUiRowId,
       localSheetDataRef,

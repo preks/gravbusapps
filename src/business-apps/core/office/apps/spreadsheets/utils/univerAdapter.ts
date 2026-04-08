@@ -629,6 +629,40 @@ export function createUniverConversionContext(
 }
 
 /**
+ * Convert 0-based row/col to an A1 cell reference (e.g. row=15, col=3 → "D16").
+ *
+ * Used by collaboration to transmit the sender's visual cell position. This is critical because
+ * the Univer grid's internal row numbering can drift from the data array indices after row
+ * additions/deletions. A1 references are immune to this drift since they represent the actual
+ * grid coordinates. See also parseA1Reference (the inverse).
+ */
+export function toA1Reference(row: number, col: number): string {
+  if (row < 0 || col < 0) return ''
+  let column = col
+  let letters = ''
+  while (column >= 0) {
+    letters = String.fromCharCode((column % 26) + 65) + letters
+    column = Math.floor(column / 26) - 1
+  }
+  return `${letters}${row + 1}`
+}
+
+/** Parse an A1 cell reference (e.g. "D16") into 0-based row/col. Inverse of toA1Reference. */
+export function parseA1Reference(cellRef: string): { row: number; col: number } | null {
+  const normalized = cellRef.trim().toUpperCase()
+  const m = /^([A-Z]+)(\d+)$/.exec(normalized)
+  if (!m) return null
+  const [, columnLetters, rowStr] = m
+  const row = Number(rowStr) - 1
+  if (!Number.isFinite(row) || row < 0) return null
+  let col = 0
+  for (let i = 0; i < columnLetters.length; i++) {
+    col = col * 26 + (columnLetters.charCodeAt(i) - 64)
+  }
+  return { row, col: col - 1 }
+}
+
+/**
  * Extract URL from =HYPERLINK("url","text") formula.
  */
 export function extractUrlFromHyperlinkFormula(formula: string): string | null {
