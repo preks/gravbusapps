@@ -1,5 +1,5 @@
 title = Team compensation
-subtitle = View and compare team pay, bonuses, and benefits. Choose a company to load your team.
+subtitle = View and compare team pay, bonuses, and benefits.
 loading = Loading team data...
 
 select-company-placeholder = Select company…
@@ -12,6 +12,8 @@ error-performance-scores = Could not load performance scores for team members. {
 error-salary-budget-title = Could not load team salary budget
 error-title = Something went wrong
 table-section-title = Team members
+manager-team-context-card-title = Team compensation
+manager-team-budget-allocation-card-title = Remaining budget
 budget-summary-total-available = Total budget available
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Sums salary budgets for your team members’ org units on the latest company budget plan when rows exist (or your position’s unit if members have no OU).
@@ -113,3 +115,29 @@ manager-team-save-missing-plan-ou = No salary budget row for this plan on {$name
 manager-team-save-custom-exceeds-pool = Total custom allocations exceed the increase pool. Adjust amounts before saving.
 manager-team-save-error = Could not save allocations. {$message}
 manager-team-save-error-generic = Something went wrong while saving.
+manager-team-submit-proposals = Submit proposals
+manager-team-submitting = Submitting…
+manager-team-submit-no-drafts = Save at least one allocation to the budget plan before submitting. Use Distribute, then save in the dialog.
+manager-team-submit-error = Could not submit proposals. {$message}
+manager-team-submit-missing-row-version = Could not load budget row version for submission. Refresh the page and try again.
+manager-team-proposals-readonly-hint = Proposals have been submitted for review. Editing is disabled.
+
+supervisor-review-no-auth = You must be signed in to approve or send back proposals.
+supervisor-review-no-submitted = There are no submitted proposals to act on.
+supervisor-review-error-generic = Something went wrong. Try again.
+supervisor-review-card-title = Supervisor review
+supervisor-review-loading = Loading proposals…
+supervisor-review-submitted-count = { $count ->
+  [zero] No submitted proposals to review.
+  [one] 1 submitted proposal to review.
+  *[other] {$count} submitted proposals to review.
+}
+supervisor-review-busy = Working…
+supervisor-review-approve-all = Approve all
+supervisor-review-send-back = Send back
+supervisor-review-send-back-notes-required = Add notes for the team before sending back.
+supervisor-review-send-back-title = Send back to team
+supervisor-review-send-back-placeholder = Explain what the team should change…
+supervisor-review-send-back-cancel = Cancel
+supervisor-review-send-back-confirm = Send back
+supervisor-review-back-to-team = Go to team compensation
