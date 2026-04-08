@@ -15,6 +15,12 @@ export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
       level
       validFrom
       validTo
+      verificationDocumentId
+      verificationDocument {
+        id
+        type
+        validTo
+      }
       skill {
         id
         name

@@ -15,6 +15,12 @@ export interface EmployeeByPk {
   id?: string
   userId?: string
   version?: number
+  personalDocument?: {
+    id?: string | null
+    documentGroup?: string | null
+    type?: string | null
+  } | null
+  personalDocumentId?: string | null
   status?: string | null
   salutationRef?: string | null
   salutation?: CatalogEntry | null
