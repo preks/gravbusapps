@@ -62,7 +62,7 @@ export interface DeleteAssetPayload {
   assetCategoryRef?: string
   currencyRef?: string
   siteLocation?: string
-  notes?: string
+  notes: string
   disposalStatus?: string
   disposalOutcomeRef?: string
   disposalDate?: string

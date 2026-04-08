@@ -251,7 +251,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             ...(updates.assetStatus && { assetStatus: updates.assetStatus }),
             ...(updates.siteLocationId && { siteLocationId: updates.siteLocationId }),
             ...(updates.notes !== undefined && { notes: updates.notes }),
-            ...(updates.isDeleted !== undefined && { isDeleted: updates.isDeleted }),
             ...(updates.currencyRef && { currencyRef: updates.currencyRef }),
             ...(updates.inventoryValue !== undefined && { inventoryValue: updates.inventoryValue }),
             ...(updates.assetBrandRef && { assetBrandRef: updates.assetBrandRef }),
