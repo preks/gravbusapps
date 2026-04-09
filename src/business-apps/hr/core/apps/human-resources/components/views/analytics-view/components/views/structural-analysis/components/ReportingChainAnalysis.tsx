@@ -170,7 +170,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
 
       {/* Bottlenecks Analysis */}
       <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
+        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold gba:flex gba:items-center">
           <SirenIcon size={16} className="gba:mr-2 gba:text-warning" />
           {t('hr-analytics-bottleneck-managers')}
         </h3>

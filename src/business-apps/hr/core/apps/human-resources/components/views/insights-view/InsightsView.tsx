@@ -25,6 +25,7 @@ import {
 import { MoreHorizontal } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -46,6 +47,18 @@ interface EmployeeInsight {
   jobPositionName?: string
   organizationalUnitName?: string
   companyName?: string
+}
+
+interface UpcomingBirthdayDatasetRow {
+  category?: string
+  value?: number
+  display_name?: string
+  first_name?: string
+  last_name?: string
+  birth_date?: string
+  organizational_unit_name?: string
+  job_position_name?: string
+  picture_thumbnail?: string
 }
 
 const GET_EMPLOYEE_INSIGHTS = `
@@ -98,14 +111,20 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const [newHires, setNewHires] = useState<EmployeeInsight[]>([])
   const [probationEnds, setProbationEnds] = useState<EmployeeInsight[]>([])
   const [terminations, setTerminations] = useState<EmployeeInsight[]>([])
+  const [birthdaysPage, setBirthdaysPage] = useState(1)
+  const [birthdaysPageSize] = useState(10)
+  const [birthdaysHasNextPage, setBirthdaysHasNextPage] = useState(false)
   const [generateDocEmployee, setGenerateDocEmployee] = useState<EmployeeInsight | null>(null)
   const [generateDocOpen, setGenerateDocOpen] = useState(false)
 
   const client = useGraphqlClient(accessToken)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   const entityDataMapForDoc = useMemo(() => {
-    if (!generateDocEmployee) return {}
-    return {
+    if (!generateDocEmployee) {
+      return {} as Record<string, Record<string, unknown>>
+    }
+    const entityDataMap: Record<string, Record<string, unknown>> = {
       employee: {
         id: generateDocEmployee.id,
         firstName: generateDocEmployee.firstName,
@@ -130,12 +149,37 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         name: generateDocEmployee.companyName
       }
     }
+    return entityDataMap
   }, [generateDocEmployee])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
+      const asOfDate = new Date().toISOString().slice(0, 10)
+      const birthdaysDataset = await datasetClient.executeQuery('upcomingBirthdaysEmployees', QueryType.DATASET, {
+        asOfDate,
+        page: birthdaysPage,
+        pageSize: birthdaysPageSize
+      })
+      const birthdayRows = (birthdaysDataset?.data ?? []) as UpcomingBirthdayDatasetRow[]
+      const birthdaysFromDataset: EmployeeInsight[] = birthdayRows.map(row => {
+        const firstName = row.first_name ?? ''
+        const lastName = row.last_name ?? ''
+        const fallbackName = `${firstName} ${lastName}`.trim()
+        return {
+          id: String(row.category ?? ''),
+          firstName,
+          lastName,
+          fullName: row.display_name ?? fallbackName,
+          birthDate: row.birth_date,
+          pictureThumbnail: row.picture_thumbnail,
+          jobPositionName: row.job_position_name,
+          organizationalUnitName: row.organizational_unit_name
+        }
+      })
+      setBirthdaysHasNextPage(birthdayRows.length === birthdaysPageSize)
+
       const asOf = new Date().toISOString()
       const data: any = await client.request(GET_EMPLOYEE_INSIGHTS, { asOf })
       const now = new Date()
@@ -167,22 +211,12 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       const startWindow = addDays(today, -30)
       const endWindow = addDays(today, 30)
 
-      const upcomingBirthdays: EmployeeInsight[] = []
       const upcomingAnniversaries: EmployeeInsight[] = []
       const upcomingNewHires: EmployeeInsight[] = []
       const upcomingProbationEnds: EmployeeInsight[] = []
       const upcomingTerminations: EmployeeInsight[] = []
 
       employees.forEach((emp: EmployeeInsight) => {
-        // Birthdays (future 30 only)
-        if (emp.birthDate) {
-          const birthDate = parseISO(emp.birthDate)
-          const nextOcc = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
-          const next =
-            nextOcc < today ? new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate()) : nextOcc
-          if (isWithinInterval(next, { start: today, end: endWindow })) upcomingBirthdays.push(emp)
-        }
-
         // Anniversaries (future 30 only)
         if (emp.hireDate) {
           const hireDate = parseISO(emp.hireDate)
@@ -218,22 +252,11 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       })
 
       // Sort helpers
-      const getBirthdayDateForSort = (dateStr: string): Date => {
-        const birthDate = parseISO(dateStr)
-        const nextOcc = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
-        return nextOcc < today ? new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate()) : nextOcc
-      }
-
       const getAnniversaryDateForSort = (dateStr: string): Date => {
         const hireDate = parseISO(dateStr)
         const nextOcc = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())
         return nextOcc < today ? new Date(today.getFullYear() + 1, hireDate.getMonth(), hireDate.getDate()) : nextOcc
       }
-
-      upcomingBirthdays.sort((a, b) => {
-        if (!a.birthDate || !b.birthDate) return 0
-        return getBirthdayDateForSort(a.birthDate).getTime() - getBirthdayDateForSort(b.birthDate).getTime()
-      })
 
       upcomingAnniversaries.sort((a, b) => {
         if (!a.hireDate || !b.hireDate) return 0
@@ -255,7 +278,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         return parseISO(a.exitDate).getTime() - parseISO(b.exitDate).getTime()
       })
 
-      setBirthdays(upcomingBirthdays)
+      setBirthdays(birthdaysFromDataset)
       setAnniversaries(upcomingAnniversaries)
       setNewHires(upcomingNewHires)
       setProbationEnds(upcomingProbationEnds)
@@ -269,7 +292,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     } finally {
       setLoading(false)
     }
-  }, [client])
+  }, [birthdaysPage, birthdaysPageSize, client, datasetClient])
 
   useEffect(() => {
     fetchData()
@@ -515,6 +538,29 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             'birthDate',
             getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday_date', 'Birthday')
           )}
+          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {birthdaysPage}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-birthdays-prev-page"
+              onClick={() => setBirthdaysPage(currentPage => Math.max(1, currentPage - 1))}
+              disabled={birthdaysPage === 1}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-birthdays-next-page"
+              onClick={() => setBirthdaysPage(currentPage => currentPage + 1)}
+              disabled={!birthdaysHasNextPage}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="anniversaries" className="gba:mt-6">
