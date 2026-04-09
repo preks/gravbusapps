@@ -9,16 +9,16 @@ export interface UseExpenseRequestsProcessCompletionRefreshParams {
     filters: ExpenseRequestWhereClause,
     page: number,
     pageSize: number,
-    sortField: string,
-    sortOrder: ExpenseRequestTableSortOrder,
+    sortField: string | null,
+    sortOrder: ExpenseRequestTableSortOrder | null,
     options?: { force?: boolean }
   ) => void | Promise<void>
   getFilters: () => ExpenseRequestWhereClause
   explicitSelectedCurrencyRef: string | undefined
   currentPage: number
   pageSize: number
-  sortField: string
-  sortOrder: ExpenseRequestTableSortOrder
+  sortField: string | null
+  sortOrder: ExpenseRequestTableSortOrder | null
   accessToken: string | undefined
   employeeId: string | undefined
   currenciesInitialized: boolean

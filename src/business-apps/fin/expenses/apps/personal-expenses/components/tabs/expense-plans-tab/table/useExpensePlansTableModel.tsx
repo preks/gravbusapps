@@ -17,6 +17,20 @@ import type { ExpensePlansTableProps } from './expensePlansTable.types'
 import { useExpensePlansTableFilters } from './useExpensePlansTableFilters'
 import { ExpensePlansPrimaryAction, ExpensePlansSecondaryActions } from './ExpensePlansTableActions'
 
+const PLAN_DATE_FIELD = 'planDate'
+
+type PlanTableSortOrder = 'ascend' | 'descend' | null
+
+function expensePlanSorterArg(
+  field: string | null,
+  order: PlanTableSortOrder
+): { field?: string; order?: PlanTableSortOrder } {
+  if (field != null && order != null) {
+    return { field, order }
+  }
+  return {}
+}
+
 export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
   const {
     items: plans,
@@ -176,37 +190,49 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
   }, [])
 
   const sorting = useMemo(() => {
-    const field = sortField || 'planDate'
-    const order = sortOrder ?? 'descend'
-    return [{ id: field, desc: order === 'descend' }]
+    const field = sortField ?? null
+    const order = sortOrder ?? null
+    if (field != null && order != null) {
+      return [{ id: field, desc: order === 'descend' }]
+    }
+    return []
   }, [sortField, sortOrder])
 
   const handleSortingChange = useCallback(
     (newSorting: Array<{ id: string; desc: boolean }>) => {
       if (!onTableChange) return
       const entry = newSorting[0]
-      if (!entry) {
-        onTableChange({ current: 1, pageSize }, {}, { field: sortField || 'planDate', order: undefined })
-        return
-      }
-      const isSameColumn = entry.id === sortField
-      const incomingOrder = entry.desc ? 'descend' : 'ascend'
-      if (isSameColumn && sortOrder === 'descend' && incomingOrder === 'ascend') {
-        onTableChange({ current: 1, pageSize }, {}, { field: entry.id, order: undefined })
+      const currentField = sortField ?? null
+
+      let nextField: string | null
+      let nextOrder: PlanTableSortOrder
+      if (entry) {
+        nextField = entry.id
+        nextOrder = entry.desc ? 'descend' : 'ascend'
+      } else if (currentField != null && currentField !== PLAN_DATE_FIELD) {
+        nextField = PLAN_DATE_FIELD
+        nextOrder = 'descend'
       } else {
-        onTableChange({ current: 1, pageSize }, {}, { field: entry.id, order: incomingOrder })
+        nextField = null
+        nextOrder = null
       }
+
+      onTableChange({ current: 1, pageSize }, {}, expensePlanSorterArg(nextField, nextOrder))
     },
-    [onTableChange, pageSize, sortField, sortOrder]
+    [onTableChange, pageSize, sortField]
   )
 
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
   const handlePaginationChange = useCallback(
     (newPagination: { pageIndex: number; pageSize: number }) => {
       if (!onTableChange) return
-      onTableChange({ current: newPagination.pageIndex + 1, pageSize: newPagination.pageSize }, {}, {})
+      onTableChange(
+        { current: newPagination.pageIndex + 1, pageSize: newPagination.pageSize },
+        {},
+        expensePlanSorterArg(sortField ?? null, sortOrder ?? null)
+      )
     },
-    [onTableChange]
+    [onTableChange, sortField, sortOrder]
   )
 
   const emptyMessage = hasActiveFilters
@@ -258,23 +284,23 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
         current: currentPage,
         pageSize
       }
-      const sorter = sortField ? { field: sortField, order: sortOrder } : {}
-      onTableChange(paginationPayload, {}, sorter)
+      onTableChange(paginationPayload, {}, expensePlanSorterArg(sortField ?? null, sortOrder ?? null))
     }
   }, [props.tableRefreshTrigger, currentPage, pageSize, sortField, sortOrder, onTableChange])
 
   useEffect(() => {
     const prev = (prevSearchRef.current || '').trim()
     const next = (props.search || '').trim()
+    const sorterPayload = expensePlanSorterArg(sortField ?? null, sortOrder ?? null)
     if (prev === '' && next !== '') {
       savedPageBeforeSearchRef.current = currentPage
-      onTableChange({ current: 1, pageSize, total: totalCount }, {}, {})
+      onTableChange({ current: 1, pageSize, total: totalCount }, {}, sorterPayload)
     } else if (prev !== '' && next === '') {
-      onTableChange({ current: 1, pageSize, total: totalCount }, {}, {})
+      onTableChange({ current: 1, pageSize, total: totalCount }, {}, sorterPayload)
       savedPageBeforeSearchRef.current = null
     }
     prevSearchRef.current = props.search || ''
-  }, [props.search, onTableChange, currentPage, pageSize, totalCount])
+  }, [props.search, onTableChange, currentPage, pageSize, totalCount, sortField, sortOrder])
 
   const dataBodyProps: ExpensePlansTableDisplayProps = {
     totalCount,

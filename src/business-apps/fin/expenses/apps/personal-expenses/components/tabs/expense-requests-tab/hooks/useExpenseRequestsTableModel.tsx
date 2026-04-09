@@ -31,6 +31,16 @@ import type { ExpenseRequestsTableProps } from '../types/expenseRequestsTable.ty
 
 const DEFAULT_PAGE_SIZE = 20
 
+function expenseRequestSorterArg(
+  field: string | null,
+  order: ExpenseRequestTableSortOrder | null
+): { field?: string; order?: ExpenseRequestTableSortOrder } {
+  if (field != null && order != null) {
+    return { field, order }
+  }
+  return {}
+}
+
 export interface UseExpenseRequestsTableModelResult {
   dataBodyProps: ExpenseRequestsDataBodyProps
   selectedItem: ExpenseRequestRow | null
@@ -73,8 +83,8 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
 
   const [searchInput, setSearchInput] = useState(search || '')
   const debouncedSearchTerm = useDebounce(searchInput, 300)
-  const [sortField, setSortField] = useState<string>(expenseRequestDefaultSort.field)
-  const [sortOrder, setSortOrder] = useState<ExpenseRequestTableSortOrder>(expenseRequestDefaultSort.order)
+  const [sortField, setSortField] = useState<string | null>(expenseRequestDefaultSort.field)
+  const [sortOrder, setSortOrder] = useState<ExpenseRequestTableSortOrder | null>(expenseRequestDefaultSort.order)
   const prevDebouncedSearchRef = useRef<string>('')
   const [selectedItem, setSelectedItem] = useState<(typeof items)[0] | null>(null)
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
@@ -138,7 +148,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       if (props.setFilters) {
         props.setFilters([...statusIds, ...requestTypeIds, ...currencyTokens, ...dateRangeTokens])
       }
-      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, expenseRequestSorterArg(sortField, sortOrder))
     },
     [
       selectedFilters,
@@ -174,7 +184,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       if (props.setFilters) {
         applyCurrencyChange(code, selectedFilters || [], currencyStats, props.setFilters)
       }
-      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+      if (onTableChange) onTableChange({ current: 1, pageSize }, {}, expenseRequestSorterArg(sortField, sortOrder))
     },
     [selectedFilters, currencyStats, props.setFilters, onTableChange, pageSize, sortField, sortOrder]
   )
@@ -183,7 +193,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
       const lastPage = Math.max(1, Math.ceil(totalCount / pageSize))
       if (currentPage > lastPage) {
-        onTableChange({ current: lastPage, pageSize }, {}, { field: sortField, order: sortOrder })
+        onTableChange({ current: lastPage, pageSize }, {}, expenseRequestSorterArg(sortField, sortOrder))
       }
     }
   }, [isLoading, totalCount, currentPage, pageSize, onTableChange, sortField, sortOrder])
@@ -204,7 +214,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       onTableChange && currentPage !== 1 && ((prev === '' && next !== '') || (prev !== next && next !== ''))
 
     if (shouldResetPage) {
-      onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
+      onTableChange({ current: 1, pageSize }, {}, expenseRequestSorterArg(sortField, sortOrder))
     }
 
     prevDebouncedSearchRef.current = debouncedSearchTerm
@@ -213,7 +223,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   useEffect(() => {
     if (tableRefreshTrigger && tableRefreshTrigger > 0) {
       if (onTableChange) {
-        onTableChange({ current: currentPage, pageSize }, {}, { field: sortField, order: sortOrder })
+        onTableChange({ current: currentPage, pageSize }, {}, expenseRequestSorterArg(sortField, sortOrder))
       }
     }
   }, [tableRefreshTrigger, onTableChange, currentPage, pageSize, sortField, sortOrder])
@@ -223,7 +233,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   }, [])
 
   const sorting = useMemo(
-    () => (sortOrder ? [{ id: sortField || expenseRequestDefaultSort.field, desc: sortOrder === 'descend' }] : []),
+    () => (sortField != null && sortOrder != null ? [{ id: sortField, desc: sortOrder === 'descend' }] : []),
     [sortField, sortOrder]
   )
 
@@ -232,21 +242,24 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       if (!onTableChange) return
       const entry = newSorting[0]
 
-      let nextField: string
-      let nextOrder: ExpenseRequestTableSortOrder
+      let nextField: string | null
+      let nextOrder: ExpenseRequestTableSortOrder | null
       if (entry) {
         nextField = entry.id
         nextOrder = entry.desc ? 'descend' : 'ascend'
-      } else {
+      } else if (sortField != null && sortField !== expenseRequestDefaultSort.field) {
         nextField = expenseRequestDefaultSort.field
         nextOrder = expenseRequestDefaultSort.order
+      } else {
+        nextField = null
+        nextOrder = null
       }
 
       setSortField(nextField)
       setSortOrder(nextOrder)
-      onTableChange({ current: 1, pageSize }, {}, { field: nextField, order: nextOrder })
+      onTableChange({ current: 1, pageSize }, {}, expenseRequestSorterArg(nextField, nextOrder))
     },
-    [onTableChange, pageSize]
+    [onTableChange, pageSize, sortField]
   )
 
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
@@ -257,7 +270,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       onTableChange(
         { current: newPagination.pageIndex + 1, pageSize: newPagination.pageSize },
         {},
-        { field: sortField, order: sortOrder }
+        expenseRequestSorterArg(sortField, sortOrder)
       )
     },
     [onTableChange, sortField, sortOrder]

@@ -9,14 +9,14 @@ export interface UseExpenseRequestsTabFetchEffectParams {
     filters: unknown,
     page: number,
     pageSize: number,
-    sortField: string,
-    sortOrder: ExpenseRequestTableSortOrder
+    sortField: string | null,
+    sortOrder: ExpenseRequestTableSortOrder | null
   ) => void | Promise<void>
   debouncedFilters: unknown
   currentPage: number
   pageSize: number
-  sortField: string
-  sortOrder: ExpenseRequestTableSortOrder
+  sortField: string | null
+  sortOrder: ExpenseRequestTableSortOrder | null
 }
 
 export function useExpenseRequestsTabFetchEffect({

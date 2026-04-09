@@ -110,7 +110,7 @@ export function createExpenseRequestColumns(): ColumnDef<ExpenseRequestRow>[] {
         'Request Date'
       ),
       size: 110,
-      sortDescFirst: false,
+      sortDescFirst: true,
       cell: renderReqRequestDateCell
     },
     {

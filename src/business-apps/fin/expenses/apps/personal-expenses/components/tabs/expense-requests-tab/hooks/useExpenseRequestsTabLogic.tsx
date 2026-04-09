@@ -28,8 +28,8 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [activeWidget, setActiveWidget] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<string>(expenseRequestDefaultSort.field)
-  const [sortOrder, setSortOrder] = useState<ExpenseRequestTableSortOrder>(expenseRequestDefaultSort.order)
+  const [sortField, setSortField] = useState<string | null>(expenseRequestDefaultSort.field)
+  const [sortOrder, setSortOrder] = useState<ExpenseRequestTableSortOrder | null>(expenseRequestDefaultSort.order)
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
 
   const {
@@ -201,16 +201,31 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
       setCurrentPage(pagination.current)
       setPageSize(pagination.pageSize)
 
-      const nextField = (sorter?.field as string) ?? expenseRequestDefaultSort.field
-      const nextOrder: ExpenseRequestTableSortOrder =
-        sorter?.order === 'ascend' || sorter?.order === 'descend' ? sorter.order : expenseRequestDefaultSort.order
+      const field = sorter?.field
+      const order = sorter?.order
+      const hasExplicitSort =
+        typeof field === 'string' && field.length > 0 && (order === 'ascend' || order === 'descend')
 
-      setSortField(nextField)
-      setSortOrder(nextOrder)
-
-      if (contextProps.accessToken && employeeId && currenciesInitialized) {
-        const filters = buildExpenseRequestFetchFilters(getFilters, explicitSelectedCurrencyRef)
-        fetchItems(filters, pagination.current, pagination.pageSize ?? pageSize, nextField, nextOrder)
+      if (hasExplicitSort) {
+        setSortField(field)
+        setSortOrder(order as ExpenseRequestTableSortOrder)
+        if (contextProps.accessToken && employeeId && currenciesInitialized) {
+          const filters = buildExpenseRequestFetchFilters(getFilters, explicitSelectedCurrencyRef)
+          fetchItems(
+            filters,
+            pagination.current,
+            pagination.pageSize ?? pageSize,
+            field,
+            order as ExpenseRequestTableSortOrder
+          )
+        }
+      } else {
+        setSortField(null)
+        setSortOrder(null)
+        if (contextProps.accessToken && employeeId && currenciesInitialized) {
+          const filters = buildExpenseRequestFetchFilters(getFilters, explicitSelectedCurrencyRef)
+          fetchItems(filters, pagination.current, pagination.pageSize ?? pageSize, null, null)
+        }
       }
     },
     [

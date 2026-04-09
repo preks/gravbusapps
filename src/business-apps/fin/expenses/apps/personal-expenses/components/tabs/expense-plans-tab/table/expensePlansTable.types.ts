@@ -22,7 +22,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   removeFilter: (filterId: string) => void
   tableRefreshTrigger?: number
   currencyStats?: Array<{ ref: string; code: string; count: number }>
-  sortField?: string
+  sortField?: string | null
   sortOrder?: 'ascend' | 'descend' | null
   planDateRange?: [Date | null, Date | null] | null
   setPlanDateRange?: (range: [Date | null, Date | null] | null) => void
