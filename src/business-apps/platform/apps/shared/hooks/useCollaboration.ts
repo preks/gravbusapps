@@ -118,7 +118,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
 }
 
 export interface UseCollaborationOptions {
-  entityType: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
+  entityType: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard' | 'presentation'
   entityId: string
   enabled?: boolean
   accessToken?: string
@@ -179,8 +179,6 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const hasJoinedRef = useRef(false)
   const isJoiningRef = useRef(false)
   const joinAckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingOperationsRef = useRef<DocumentOperation[]>([])
-  const pendingCursorRef = useRef<{ line?: number; column?: number; offset?: number; path?: string[] } | null>(null)
 
   // Get auth token - prefer passed accessToken, then try localStorage
   const getAuthToken = useCallback((): string | null => {
@@ -243,30 +241,11 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       }
     }
 
-    const flushPendingSpreadsheetEvents = () => {
-      if (entityType !== 'spreadsheet' || !client.getSocket()?.connected || !hasJoinedRef.current) return
-
-      const pendingOps = pendingOperationsRef.current
-      if (pendingOps.length > 0) {
-        pendingOperationsRef.current = []
-        pendingOps.forEach(op => {
-          client.sendDocumentOperation(entityType, entityId, op)
-        })
-      }
-
-      const pendingCursor = pendingCursorRef.current
-      if (pendingCursor) {
-        pendingCursorRef.current = null
-        client.sendCursorMove(entityType, entityId, pendingCursor)
-      }
-    }
-
     const joinRoomIfNeeded = () => {
       if (hasJoinedRef.current || isJoiningRef.current) return
       if (!client.getSocket()?.connected) return
       isJoiningRef.current = true
       clearJoinAckTimeout()
-      // Avoid getting stuck in "joining" when ack is dropped.
       joinAckTimeoutRef.current = setTimeout(() => {
         isJoiningRef.current = false
       }, 6000)
@@ -275,7 +254,6 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         hasJoinedRef.current = true
         isJoiningRef.current = false
         clearJoinAckTimeout()
-        flushPendingSpreadsheetEvents()
       })
     }
 
@@ -348,36 +326,20 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     }
   }, [enabled, entityType, entityId, getAuthToken, onOperationReceived, onError])
 
-  // Queue an operation for later delivery (during disconnect or pre-join).
-  // Capped to prevent unbounded memory growth.
-  const enqueuePendingOperation = useCallback((operation: DocumentOperation) => {
-    pendingOperationsRef.current.push(operation)
-    if (pendingOperationsRef.current.length > 200) {
-      pendingOperationsRef.current = pendingOperationsRef.current.slice(-200)
-    }
-  }, [])
-
-  // Emit operation
+  // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
+  // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
   const emitOperation = useCallback(
     (operation: DocumentOperation) => {
       if (!clientRef.current?.isConnected()) {
-        if (entityType === 'spreadsheet') {
-          enqueuePendingOperation(operation)
-          console.warn('[useCollaboration] Queued operation (socket not connected):', operation.type)
-        } else {
-          console.warn('[useCollaboration] Dropped operation (not connected):', operation.type)
-        }
+        console.warn('[useCollaboration] Dropped operation (not connected):', operation.type)
         return
       }
       if (!hasJoinedRef.current && !isJoiningRef.current) {
         isJoiningRef.current = true
-        if (joinAckTimeoutRef.current) {
-          clearTimeout(joinAckTimeoutRef.current)
-        }
+        if (joinAckTimeoutRef.current) clearTimeout(joinAckTimeoutRef.current)
         joinAckTimeoutRef.current = setTimeout(() => {
           isJoiningRef.current = false
         }, 6000)
-        if (entityType === 'spreadsheet') enqueuePendingOperation(operation)
         clientRef.current.joinDocument(entityType, entityId, () => {
           hasJoinedRef.current = true
           isJoiningRef.current = false
@@ -385,72 +347,20 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
             clearTimeout(joinAckTimeoutRef.current)
             joinAckTimeoutRef.current = null
           }
-          if (entityType === 'spreadsheet' && clientRef.current?.isConnected()) {
-            const pendingOps = pendingOperationsRef.current
-            pendingOperationsRef.current = []
-            pendingOps.forEach(op => {
-              clientRef.current?.sendDocumentOperation(entityType, entityId, op)
-            })
-            const pendingCursor = pendingCursorRef.current
-            if (pendingCursor) {
-              pendingCursorRef.current = null
-              clientRef.current.sendCursorMove(entityType, entityId, pendingCursor)
-            }
-          }
         })
         return
-      } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
-        enqueuePendingOperation(operation)
+      } else if (!hasJoinedRef.current) {
         return
       }
-
       clientRef.current.sendDocumentOperation(entityType, entityId, operation)
     },
-    [entityType, entityId, enqueuePendingOperation]
+    [entityType, entityId]
   )
 
-  // Emit cursor position
+  // Emit cursor position — pass-through to the socket
   const emitCursor = useCallback(
     (position: { line?: number; column?: number; offset?: number; path?: string[] }) => {
-      if (!clientRef.current?.isConnected()) {
-        if (entityType === 'spreadsheet') pendingCursorRef.current = position
-        return
-      }
-      if (!hasJoinedRef.current && !isJoiningRef.current) {
-        isJoiningRef.current = true
-        if (joinAckTimeoutRef.current) {
-          clearTimeout(joinAckTimeoutRef.current)
-        }
-        joinAckTimeoutRef.current = setTimeout(() => {
-          isJoiningRef.current = false
-        }, 6000)
-        if (entityType === 'spreadsheet') pendingCursorRef.current = position
-        clientRef.current.joinDocument(entityType, entityId, () => {
-          hasJoinedRef.current = true
-          isJoiningRef.current = false
-          if (joinAckTimeoutRef.current) {
-            clearTimeout(joinAckTimeoutRef.current)
-            joinAckTimeoutRef.current = null
-          }
-          if (entityType === 'spreadsheet' && clientRef.current?.isConnected()) {
-            const pendingOps = pendingOperationsRef.current
-            pendingOperationsRef.current = []
-            pendingOps.forEach(op => {
-              clientRef.current?.sendDocumentOperation(entityType, entityId, op)
-            })
-            const pendingCursor = pendingCursorRef.current
-            if (pendingCursor) {
-              pendingCursorRef.current = null
-              clientRef.current.sendCursorMove(entityType, entityId, pendingCursor)
-            }
-          }
-        })
-        return
-      } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
-        pendingCursorRef.current = position
-        return
-      }
-
+      if (!clientRef.current?.isConnected() || !hasJoinedRef.current) return
       clientRef.current.sendCursorMove(entityType, entityId, position)
     },
     [entityType, entityId]

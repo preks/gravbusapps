@@ -199,7 +199,7 @@ export class CollaborationClient {
    * Join a document, spreadsheet, or note for collaboration
    */
   joinDocument(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     onParticipantsReceived?: (participants: any[]) => void
   ) {
@@ -249,44 +249,33 @@ export class CollaborationClient {
   /**
    * Leave a document, spreadsheet, or note
    */
-  leaveDocument(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  leaveDocument(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     console.log('[CollaborationClient] Leaving document:', { entityType, entityId })
     this.socket?.emit('leave_document', { entityType, entityId })
   }
 
   /**
    * Send a document operation (edit, insert, delete, etc.)
-   * Retries once on ack failure before giving up.
+   * No retry logic — callers (e.g. SpreadsheetCollaborationManager) handle retries.
    */
   sendDocumentOperation(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
-    operation: DocumentOperation,
-    _retryCount = 0
+    operation: DocumentOperation
   ) {
     if (!this.socket?.connected) {
       console.warn('[CollaborationClient] Cannot send operation (socket not connected):', operation.type)
       return false
     }
 
-    this.socket.emit(
-      'document_operation',
-      {
-        entityType,
-        entityId,
-        operation
-      },
-      (response: any) => {
-        if (response?.success === false) {
-          console.warn('[CollaborationClient] document_operation ack failure:', operation.type, response?.error)
-          if (_retryCount < 1 && this.socket?.connected) {
-            setTimeout(() => {
-              this.sendDocumentOperation(entityType, entityId, operation, _retryCount + 1)
-            }, 300)
-          }
-        }
+    this.socket.emit('document_operation', { entityType, entityId, operation }, (response: any) => {
+      if (response?.success === false) {
+        console.warn('[CollaborationClient] document_operation ack failure:', operation.type, response?.error)
       }
-    )
+    })
     return true
   }
 
@@ -294,7 +283,7 @@ export class CollaborationClient {
    * Send cursor position update
    */
   sendCursorMove(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     position: {
       line?: number
@@ -323,7 +312,7 @@ export class CollaborationClient {
    * Send selection change
    */
   sendSelectionChange(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     selection: {
       start: { line?: number; column?: number; offset?: number }
@@ -340,14 +329,20 @@ export class CollaborationClient {
   /**
    * Send typing start indicator
    */
-  sendTypingStart(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  sendTypingStart(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     this.socket?.emit('typing_start', { entityType, entityId })
   }
 
   /**
    * Send typing stop indicator
    */
-  sendTypingStop(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  sendTypingStop(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     this.socket?.emit('typing_stop', { entityType, entityId })
   }
 

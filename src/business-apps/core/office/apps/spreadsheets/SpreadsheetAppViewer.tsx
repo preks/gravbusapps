@@ -22,7 +22,8 @@ import {
 import { useSpreadsheetViewerState, sortSpreadsheetRowsBySheetSettings } from './hooks/useSpreadsheetViewerState'
 import { useSpreadsheetPersistenceIndicator, maxPersistDate } from './hooks/useSpreadsheetPersistenceIndicator'
 import translations from './_i18n'
-import { useSpreadsheetViewerCollaboration } from './hooks/useSpreadsheetViewerCollaboration'
+import { useSpreadsheetCollaboration } from './hooks/useSpreadsheetCollaboration'
+import type { CollaborationCallbacks } from './services/SpreadsheetCollaborationManager'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows, syncTrackingHeaderRowWithColumnLabels } from './hooks/useSpreadsheetBulkRows'
@@ -39,10 +40,7 @@ import type { UniverSheetGridHandle, CellDimensionsPayload } from './components/
 import {
   buildMultiSheetWorkbookFromAppSheets,
   countWorksheetsInUniverSnapshot,
-  createUniverConversionContext,
-  parseA1Reference,
-  snapshotTrackingHeaderMatchesColumnLabels,
-  toA1Reference
+  snapshotTrackingHeaderMatchesColumnLabels
 } from './utils/univerAdapter'
 import {
   readLatestUniverSnapshot,
@@ -92,40 +90,33 @@ const debugOpQueue = (
 type ViewerRow = Record<string, unknown>
 type CellChange = { rowId: string; columnName: string; value: unknown; sheetId?: string }
 
-const viewerRowId = (row: Record<string, unknown>): string => {
-  const id = row._id ?? row.id
-  if (id == null) return ''
-  if (typeof id === 'string') return id
-  if (typeof id === 'number') return String(id)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const isUuidString = (value: string): boolean => UUID_RE.test(value)
+
+/**
+ * Canonical row identifier. Prefer `_id` (server UUID for persisted rows), fall back to
+ * `_rowUuid` then `id`. Returns empty string for rows with no usable ID.
+ */
+const getCanonicalRowId = (row: ViewerRow): string => {
+  const idField = row._id ?? row.id
+  if (idField != null) {
+    const s = typeof idField === 'number' ? String(idField) : (idField as string)
+    if (s) return s
+  }
+  const rowUuid = row._rowUuid
+  if (typeof rowUuid === 'string' && rowUuid) return rowUuid
   return ''
 }
 
+const viewerRowId = (row: Record<string, unknown>): string => getCanonicalRowId(row)
+
 /**
- * Row id sent to document-service must be SpreadsheetRow.id. Prefer UUID `_id` for persisted rows
- * so a stale `_rowUuid` does not override the canonical backend row id. For client-only rows,
- * `_rowUuid` becomes valid after persistence.
+ * Backend row ID for API calls. Returns the first UUID found among the row's ID fields
+ * (preferring _id, then _rowUuid, then id). Returns undefined for unsaved rows.
  */
 const resolveBackendRowIdForViewerRow = (row: ViewerRow, isUuid: (value: string) => boolean): string | undefined => {
-  const uiKey = viewerRowId(row)
-  if (!uiKey) return undefined
-
-  const rowUuid = String(row._rowUuid || '')
-  const idAsString = String(row._id ?? '')
-  const recordId = String(row.id ?? '')
-
-  if (!isUuid(uiKey) && isUuid(rowUuid)) {
-    return rowUuid
-  }
-  if (isUuid(idAsString)) {
-    return idAsString
-  }
-  if (isUuid(rowUuid)) {
-    return rowUuid
-  }
-  if (isUuid(recordId)) {
-    return recordId
-  }
-  return undefined
+  const fields = [String(row._id ?? ''), String(row._rowUuid ?? ''), String(row.id ?? '')]
+  return fields.find(f => f !== '' && isUuid(f))
 }
 
 const SNAPSHOT_FETCH_TIMEOUT_MS = 15000
@@ -133,10 +124,7 @@ const SNAPSHOT_FETCH_TIMEOUT_MS = 15000
 const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
 const rowMatchesRemoteId = (row: ViewerRow, remoteRowId: string): boolean => {
-  const candidateIds = [row._rowUuid, row._id, row.id]
-    .map(value => (value == null ? '' : String(value)))
-    .filter(Boolean)
-  return candidateIds.includes(remoteRowId)
+  return getCanonicalRowId(row) === remoteRowId
 }
 
 const fetchUniverSnapshotWithTimeout = async (
@@ -185,10 +173,8 @@ const applySetRangeDelta = (rows: ViewerRow[], payload: Record<string, unknown>)
     updatesByRowId.set(rowId, updates)
   }
   return rows.map(row => {
-    const updates =
-      updatesByRowId.get(String(row._rowUuid || '')) ??
-      updatesByRowId.get(String(row._id || '')) ??
-      updatesByRowId.get(String(row.id || ''))
+    const canonical = getCanonicalRowId(row)
+    const updates = canonical ? updatesByRowId.get(canonical) : undefined
     if (!updates) return row
     return { ...row, ...updates }
   })
@@ -319,19 +305,7 @@ const areColumnWidthPatchesEquivalent = (
     return currentWidth === change.width || Math.round(pendingWidth ?? NaN) === change.width
   })
 
-const SPREADSHEET_STRUCTURAL_REMOTE_OPS = new Set([
-  'row_add',
-  'row_delete',
-  'column_add',
-  'column_delete',
-  'columns_reorder'
-])
-
-function getSpreadsheetOperationSheetId(data: unknown): string | undefined {
-  if (!data || typeof data !== 'object') return undefined
-  const d = data as Record<string, unknown>
-  return typeof d.sheetId === 'string' ? d.sheetId : undefined
-}
+// SPREADSHEET_STRUCTURAL_REMOTE_OPS and getSpreadsheetOperationSheetId moved to SpreadsheetCollaborationManager
 
 /**
  * Refuse to apply a delta when the server says so, when the version advanced without ops,
@@ -542,7 +516,7 @@ const buildCreatedRowsFromBatch = (
   return { createdRows, flushCells }
 }
 
-const persistReconcileCellsLegacy = async (
+const persistReconcileCells = async (
   reconcileCells: Array<{ rowId: string; columnName: string; value: unknown }>,
   appId: string,
   sheetId: string,
@@ -1554,36 +1528,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setShowComments(true)
   }, [])
 
-  const resolveRemoteCellCoordinates = useCallback(
-    (
-      columnKey: string,
-      remoteRowId: string
-    ): {
-      rowIndex: number | undefined
-      colIndex: number | undefined
-      targetColumnName: string
-    } => {
-      const ctx = createUniverConversionContext(activeSheet.columns, localSheetDataRef.current)
-      let rowIndex = ctx.rowIdToIndex.get(remoteRowId)
-      if (rowIndex === undefined) {
-        const fallbackIndex = localSheetDataRef.current.findIndex(row => rowMatchesRemoteId(row, remoteRowId))
-        if (fallbackIndex >= 0) rowIndex = fallbackIndex
-      }
-
-      let colIndex = ctx.columnIdToIndex.get(columnKey)
-      if (colIndex === undefined) {
-        colIndex = activeSheet.columns.findIndex(c => c.id === columnKey || c.name === columnKey)
-      }
-
-      const targetColumnName =
-        activeSheet.columns.find(c => c.id === columnKey)?.name ??
-        activeSheet.columns.find(c => c.name === columnKey)?.name ??
-        String(columnKey)
-
-      return { rowIndex, colIndex, targetColumnName }
-    },
-    [activeSheet.columns, localSheetDataRef]
-  )
+  // resolveRemoteCellCoordinates has been moved into SpreadsheetCollaborationManager
 
   const scheduleRemoteStructuralResync = useCallback(() => {
     if (remoteStructuralResyncTimeoutRef.current) clearTimeout(remoteStructuralResyncTimeoutRef.current)
@@ -1611,235 +1556,106 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [app.id, activeSheetId])
 
   // --- Collaboration (header presence + Univer grid operations/cursors) ---
-  const handleCollaborationOperation = useCallback(
-    (payload: { operation: { type: string; data?: unknown; broadcastOnly?: boolean }; version?: number }) => {
-      const operation = payload.operation
-      if (operation.type === 'dimension_sync') {
-        const d = operation.data as CellDimensionsPayload | undefined
-        if (d?.sheetId === activeSheetId && spreadsheetGridRef.current?.applyRemoteDimensions) {
-          spreadsheetGridRef.current.applyRemoteDimensions(d)
-        }
-        return
+  // Column update handler — kept in the viewer because it needs access to viewer-specific
+  // state (pendingColumnWidthOverrides, recentLocalColumnResizeRef, applyRemoteColumnUpdate).
+  const handleRemoteColumnUpdate = useCallback(
+    (data: Record<string, unknown>) => {
+      const d = data as {
+        sheetId?: string
+        columnId?: string
+        columnPatch?: Partial<SpreadsheetColumn>
+        label?: string
+        columns?: SpreadsheetColumn[]
       }
-
-      if (operation.type === 'column_update') {
-        const d = operation.data as {
-          sheetId?: string
-          columnId?: string
-          columnPatch?: Partial<SpreadsheetColumn>
-          label?: string
-          columns?: SpreadsheetColumn[]
-        }
-        if (d?.sheetId !== activeSheetId) return
-        if (typeof payload.version === 'number' && Number.isFinite(payload.version) && payload.version >= 0) {
-          sheetVersionRef.current = Math.max(sheetVersionRef.current, Math.trunc(payload.version))
-        } else {
-          scheduleSheetVersionRefreshFromApi()
-        }
-        const nextWidth =
-          typeof d.columnPatch?.width === 'number' && Number.isFinite(d.columnPatch.width)
-            ? Math.round(d.columnPatch.width)
-            : undefined
-        const currentColumn = activeSheet.columns.find(column => column.id === d.columnId)
-        const currentWidth =
-          typeof currentColumn?.width === 'number' && Number.isFinite(currentColumn.width)
-            ? Math.round(currentColumn.width)
-            : undefined
-        const pendingWidth = pendingColumnWidthOverrides[d.columnId ?? '']
-        const localResizeKey = `${activeSheetId}:${d.columnId ?? ''}`
-        const recentLocalResize = recentLocalColumnResizeRef.current.get(localResizeKey)
-        if (
-          nextWidth != null &&
-          (currentWidth === nextWidth ||
-            Math.round(pendingWidth ?? NaN) === nextWidth ||
-            (recentLocalResize && recentLocalResize.width === nextWidth && Date.now() - recentLocalResize.at < 5000))
-        ) {
-          return
-        }
-        const nextColumns = applyRemoteColumnUpdate(activeSheet.columns, d)
-        if (!nextColumns || !onAppUpdate) return
-        onAppUpdate({
-          ...app,
-          sheets: app.sheets.map(sheet => (sheet.id === activeSheetId ? { ...sheet, columns: nextColumns } : sheet))
-        })
-        return
-      }
-
-      if (operation.type === 'row_update') {
-        const d = operation.data as {
-          sheetId?: string
-          rowId?: string
-          rowData?: Record<string, unknown>
-        }
-        if (!d?.sheetId || d.sheetId !== activeSheetId || !d.rowId || !d.rowData || typeof d.rowData !== 'object')
-          return
-        if (typeof payload.version === 'number' && Number.isFinite(payload.version) && payload.version >= 0) {
-          sheetVersionRef.current = Math.max(sheetVersionRef.current, Math.trunc(payload.version))
-        } else {
-          scheduleSheetVersionRefreshFromApi()
-        }
-        const remoteRowId = String(d.rowId)
-        const rowData = d.rowData
-        const nextLocal = localSheetDataRef.current.map(row => {
-          if (!rowMatchesRemoteId(row, remoteRowId)) return row
-          return { ...row, ...rowData, _updatedAt: new Date().toISOString() }
-        })
-        commitLocalSheetData(nextLocal, { persisted: true })
-
-        Object.entries(rowData).forEach(([columnKey, value]) => {
-          const { rowIndex, colIndex } = resolveRemoteCellCoordinates(columnKey, remoteRowId)
-          if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-            spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, value, remoteRowId)
-          }
-        })
-        return
-      }
-
-      const opSheetId = getSpreadsheetOperationSheetId(operation.data)
+      if (d?.sheetId !== activeSheetId) return
+      const nextWidth =
+        typeof d.columnPatch?.width === 'number' && Number.isFinite(d.columnPatch.width)
+          ? Math.round(d.columnPatch.width)
+          : undefined
+      const currentColumn = activeSheet.columns.find(column => column.id === d.columnId)
+      const currentWidth =
+        typeof currentColumn?.width === 'number' && Number.isFinite(currentColumn.width)
+          ? Math.round(currentColumn.width)
+          : undefined
+      const pendingWidth = pendingColumnWidthOverrides[d.columnId ?? '']
+      const localResizeKey = `${activeSheetId}:${d.columnId ?? ''}`
+      const recentLocalResize = recentLocalColumnResizeRef.current.get(localResizeKey)
       if (
-        opSheetId === activeSheetId &&
-        typeof payload.version === 'number' &&
-        Number.isFinite(payload.version) &&
-        payload.version >= 0
+        nextWidth != null &&
+        (currentWidth === nextWidth ||
+          Math.round(pendingWidth ?? NaN) === nextWidth ||
+          (recentLocalResize && recentLocalResize.width === nextWidth && Date.now() - recentLocalResize.at < 5000))
       ) {
-        sheetVersionRef.current = Math.max(sheetVersionRef.current, Math.trunc(payload.version))
-      } else if (
-        opSheetId === activeSheetId &&
-        (operation.type === 'cell_update' ||
-          operation.type === 'cell_change' ||
-          operation.type === 'set_range' ||
-          operation.type === 'row_update') &&
-        payload.version == null
-      ) {
-        scheduleSheetVersionRefreshFromApi()
+        return
       }
+      const nextColumns = applyRemoteColumnUpdate(activeSheet.columns, d)
+      if (!nextColumns || !onAppUpdate) return
+      onAppUpdate({
+        ...app,
+        sheets: app.sheets.map(sheet => (sheet.id === activeSheetId ? { ...sheet, columns: nextColumns } : sheet))
+      })
+    },
+    [activeSheetId, activeSheet.columns, app, onAppUpdate, pendingColumnWidthOverrides]
+  )
 
-      if (opSheetId === activeSheetId && SPREADSHEET_STRUCTURAL_REMOTE_OPS.has(operation.type)) {
-        scheduleRemoteStructuralResync()
-      }
+  // Ref for getBackendRowIdForUiRowId — defined later, but the manager reads it lazily via
+  // the callbacks ref, so the actual function is always current by the time an operation fires.
+  const getBackendRowIdForUiRowIdRef = useRef<(uiRowId: string) => string | undefined>(() => undefined)
 
-      if (operation.type === 'set_range') {
-        const d = operation.data as {
-          sheetId?: string
-          cells?: Array<{
-            rowId?: string
-            columnName?: string
-            column?: string
-            columnId?: string
-            value?: unknown
-            cellRef?: string
+  // Collaboration callbacks wired from the viewer into SpreadsheetCollaborationManager
+  const collaborationCallbacks = useMemo(
+    (): CollaborationCallbacks => ({
+      getActiveSheetId: () => activeSheetId,
+      getColumns: () => activeSheet.columns,
+      getLocalSheetData: () => localSheetDataRef.current,
+      getBackendRowIdForUiRowId: uiRowId => getBackendRowIdForUiRowIdRef.current(uiRowId),
+      commitLocalSheetData,
+      applyRemoteCellUpdate: (rowIndex, colIndex, value, rowId) => {
+        spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, value, rowId)
+      },
+      applyRemoteDimensions: d => {
+        spreadsheetGridRef.current?.applyRemoteDimensions?.(d)
+      },
+      onVersionUpdate: version => {
+        sheetVersionRef.current = Math.max(sheetVersionRef.current, Math.trunc(version))
+      },
+      scheduleSheetVersionRefreshFromApi,
+      scheduleRemoteStructuralResync,
+      onRemoteColumnUpdate: handleRemoteColumnUpdate,
+      fetchChangesSince: async (sheetId, sinceVersion) => {
+        const raw = await SpreadsheetApiService.getSheetChangesSince(app.id, sheetId, sinceVersion)
+        return {
+          currentVersion: raw.currentVersion,
+          requiresSnapshot: raw.requiresSnapshot,
+          changes: raw.changes as unknown as Array<{
+            operationType: string
+            payload: Record<string, unknown>
+            appliedVersion: number
           }>
         }
-        if (!d?.sheetId || d.sheetId !== activeSheetId || !Array.isArray(d.cells) || d.cells.length === 0) return
-
-        const updatesByRowId = new Map<string, Record<string, unknown>>()
-        const gridUpdates: Array<{ rowIndex: number; colIndex: number; value: unknown; rowId: string }> = []
-        for (const cell of d.cells) {
-          if (!cell?.rowId) continue
-          const columnKey = cell.columnName ?? cell.column ?? cell.columnId
-          if (columnKey == null) continue
-          const remoteRowId = String(cell.rowId)
-          const { rowIndex, colIndex, targetColumnName } = resolveRemoteCellCoordinates(String(columnKey), remoteRowId)
-          const rowUpdates = updatesByRowId.get(remoteRowId) ?? {}
-          rowUpdates[targetColumnName] = cell.value
-          updatesByRowId.set(remoteRowId, rowUpdates)
-          // Same A1-cellRef strategy as cell_update path (see comment there for rationale)
-          const parsedRef = cell.cellRef ? parseA1Reference(cell.cellRef) : null
-          if (parsedRef) {
-            gridUpdates.push({
-              rowIndex: parsedRef.row,
-              colIndex: parsedRef.col,
-              value: cell.value,
-              rowId: remoteRowId
-            })
-          } else if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-            gridUpdates.push({ rowIndex, colIndex, value: cell.value, rowId: remoteRowId })
-          }
-        }
-
-        if (updatesByRowId.size === 0) return
-        const nextLocal = localSheetDataRef.current.map(row => {
-          const updates =
-            updatesByRowId.get(String(row._rowUuid || '')) ??
-            updatesByRowId.get(String(row._id || '')) ??
-            updatesByRowId.get(String(row.id || ''))
-          if (!updates) return row
-          return { ...row, ...updates, _updatedAt: new Date().toISOString() }
-        })
-        commitLocalSheetData(nextLocal, { persisted: true })
-        gridUpdates.forEach(update => {
-          spreadsheetGridRef.current?.applyRemoteCellUpdate(
-            update.rowIndex,
-            update.colIndex,
-            update.value,
-            update.rowId
-          )
-        })
-        return
       }
-
-      if (operation.type !== 'cell_update' && operation.type !== 'cell_change') return
-      const d = operation.data as {
-        sheetId?: string
-        rowId?: string
-        column?: string
-        columnId?: string
-        value?: unknown
-        cellRef?: string
-      }
-      if (!d?.sheetId || d.sheetId !== activeSheetId || d.rowId == null || d.value === undefined) {
-        console.warn('[Collaboration] cell_update dropped by guard', {
-          hasSheetId: !!d?.sheetId,
-          sheetMatch: d?.sheetId === activeSheetId,
-          rowId: d?.rowId,
-          hasValue: d?.value !== undefined
-        })
-        return
-      }
-      const columnKey = d.column ?? d.columnId
-      if (columnKey == null) {
-        console.warn('[Collaboration] cell_update dropped: no column key', d)
-        return
-      }
-      const remoteRowId = String(d.rowId)
-      const { rowIndex, colIndex, targetColumnName } = resolveRemoteCellCoordinates(String(columnKey), remoteRowId)
-      const nextLocal = localSheetDataRef.current.map(row => {
-        if (!rowMatchesRemoteId(row, remoteRowId)) return row
-        return { ...row, [targetColumnName]: d.value, _updatedAt: new Date().toISOString() }
-      })
-      commitLocalSheetData(nextLocal, { persisted: true })
-
-      // Prefer the sender's A1 cellRef for the Univer grid update. The cellRef encodes the
-      // sender's actual Univer grid position, which stays correct even when the data array
-      // and Univer workbook have drifted out of sync (e.g. after row additions/deletions).
-      // The data-model update above (commitLocalSheetData) uses rowId matching which is always
-      // correct; only the direct Univer grid write needs the visual coordinate.
-      const parsed = d.cellRef ? parseA1Reference(d.cellRef) : null
-      if (parsed) {
-        spreadsheetGridRef.current?.applyRemoteCellUpdate(parsed.row, parsed.col, d.value)
-      } else if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-        spreadsheetGridRef.current?.applyRemoteCellUpdate(rowIndex, colIndex, d.value, remoteRowId)
-      }
-    },
+    }),
     [
       activeSheetId,
       activeSheet.columns,
-      app,
+      app.id,
       commitLocalSheetData,
-      localSheetDataRef,
-      onAppUpdate,
-      pendingColumnWidthOverrides,
-      resolveRemoteCellCoordinates,
+      handleRemoteColumnUpdate,
       scheduleRemoteStructuralResync,
       scheduleSheetVersionRefreshFromApi
     ]
   )
 
-  const collaboration = useSpreadsheetViewerCollaboration({
+  const collaboration = useSpreadsheetCollaboration({
     appId: app.id,
     accessToken,
-    onOperationReceived: handleCollaborationOperation
+    callbacks: collaborationCallbacks
   })
+
+  // Seed the manager's version tracker so delta reconciliation has a baseline
+  useEffect(() => {
+    collaboration.manager.setLastKnownVersion(sheetVersionRef.current)
+  }, [collaboration.manager, activeSheetId])
 
   useEffect(() => {
     const sock = collaboration.socket
@@ -2073,9 +1889,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
   }, [])
 
-  const isUuid = useCallback((value: string): boolean => {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-  }, [])
+  const isUuid = useCallback((value: string): boolean => isUuidString(value), [])
 
   const getBackendRowIdForUiRowId = useCallback(
     (uiRowId: string): string | undefined => {
@@ -2085,6 +1899,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     },
     [isUuid, localSheetDataRef]
   )
+  getBackendRowIdForUiRowIdRef.current = getBackendRowIdForUiRowId
 
   const scheduleSnapshotCheckpointFromPersistence = useCallback(() => {
     if (entityEnabled) return
@@ -2389,7 +2204,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             }
             await applyBatchWithConflictRetry([op], 'checkpoint_reconcile')
           } else {
-            await persistReconcileCellsLegacy(reconcileCellsToPersist, app.id, activeSheetId, onRowUpdate)
+            await persistReconcileCells(reconcileCellsToPersist, app.id, activeSheetId, onRowUpdate)
           }
           lastPersistedSheetDataRef.current = localSheetDataRef.current
         } else if (reconcileCells.length > 0) {
@@ -2556,10 +2371,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             [op],
             `set_range_${targetSheetId.replaceAll(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)}`
           )
-          // Do NOT emit set_range here. Each cell was already sent to collaborators as an
-          // individual cell_update (with A1 cellRef) in handleCellsChange. Emitting set_range
-          // a second time caused the receiver to apply the same values at wrong positions
-          // because set_range lacks cellRef and falls back to data-array-index resolution.
+          // Collaboration emit handled by handleCellsChange via cells_changed — no second emit here.
           continue
         }
 
@@ -2685,30 +2497,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       versioning.markAsChanged()
 
       pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
-      cells.forEach(cell => {
-        const backendRowId = getBackendRowIdForUiRowId(String(cell.rowId))
-        if (!backendRowId) {
-          console.warn('[SpreadsheetAppViewer] Skipped collaboration emit: no backend row ID for', cell.rowId)
-          return
-        }
-        const opData: Record<string, unknown> = {
-          sheetId: activeSheetId,
-          rowId: backendRowId,
-          column: cell.columnName,
-          value: cell.value
-        }
-        // Attach the sender's visual cell position as an A1 reference (e.g. "D16").
-        // The receiver uses this to update the correct Univer grid cell directly, avoiding
-        // a mismatch where data-array indices diverge from Univer row indices after row add/delete.
-        if (cell.univerRow != null && cell.univerCol != null) {
-          opData.cellRef = toA1Reference(cell.univerRow, cell.univerCol)
-        }
-        collaboration.emitOperation({
-          type: 'cell_update',
-          data: opData,
-          broadcastOnly: true
-        } as any)
-      })
+
+      // Delegate collaboration emit to the manager (batches as a single cells_changed op)
+      collaboration.manager.emitCellsChanged(cells)
       debugLog('cells queued', {
         addedCells: cells.length,
         queuedCells: pendingCellChangesRef.current.length
@@ -2736,9 +2527,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       activeSheetId,
       canEditWithLock,
       commitLocalSheetData,
-      collaboration.emitOperation,
+      collaboration.manager,
       entityEnabled,
-      getBackendRowIdForUiRowId,
       localSheetDataRef,
       onDataChange,
       schedulePendingCellPersist,
@@ -2775,8 +2565,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         }
         await applyBatchDirect([flushOp], 'set_range_flush')
-        // Collaboration emit intentionally skipped — cells were already sent as
-        // individual cell_update operations with A1 cellRef. See flushPendingCellChanges.
+        // Collaboration emit handled by handleCellsChange via cells_changed — no second emit here.
         return
       }
 
@@ -3066,12 +2855,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             getBackendRowIdForUiRowId(rowId) ||
             rowId
         )
-        if (collaboration.isCollaborationConnected) {
-          collaboration.emitOperation({
-            type: 'row_update',
-            data: { sheetId: activeSheetId, rowId: backendRowId, rowData: values },
-            broadcastOnly: true
-          } as any)
+        const cellsForCollab = Object.entries(values).map(([columnName, value]) => ({
+          rowId: backendRowId,
+          columnName,
+          value
+        }))
+        if (cellsForCollab.length > 0) {
+          collaboration.manager.emitCellsChanged(cellsForCollab)
         }
         scheduleSheetVersionRefreshFromApi()
         sheetPersist.recordSuccess(true)
