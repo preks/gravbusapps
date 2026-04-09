@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { Button } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../../utils/expenseRequestFileService'
-import { EXPENSE_REQUEST_FILTER_STATUSES } from '../../../../hooks/useExpenseRequestFilters'
+import { EXPENSE_REQUEST_FILTER_STATUSES } from '../utils/expenseRequestFilterConstants'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../../../../_i18n'
 import {
@@ -201,16 +200,11 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       onSearchChange(debouncedSearchTerm)
     }
 
-    if (prev === '' && next !== '') {
-      if (onTableChange && currentPage !== 1) {
-        onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
-      }
-    } else if (prev !== '' && next === '') {
-      /* search cleared */
-    } else if (prev !== next && next !== '') {
-      if (onTableChange && currentPage !== 1) {
-        onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
-      }
+    const shouldResetPage =
+      onTableChange && currentPage !== 1 && ((prev === '' && next !== '') || (prev !== next && next !== ''))
+
+    if (shouldResetPage) {
+      onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
     }
 
     prevDebouncedSearchRef.current = debouncedSearchTerm
@@ -238,13 +232,11 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       if (!onTableChange) return
       const entry = newSorting[0]
 
-      let nextField = expenseRequestDefaultSort.field
-      let nextOrder: ExpenseRequestTableSortOrder = expenseRequestDefaultSort.order
-
+      let nextField: string
+      let nextOrder: ExpenseRequestTableSortOrder
       if (entry) {
-        const incomingOrder: ExpenseRequestTableSortOrder = entry.desc ? 'descend' : 'ascend'
         nextField = entry.id
-        nextOrder = incomingOrder
+        nextOrder = entry.desc ? 'descend' : 'ascend'
       } else {
         nextField = expenseRequestDefaultSort.field
         nextOrder = expenseRequestDefaultSort.order
@@ -254,7 +246,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       setSortOrder(nextOrder)
       onTableChange({ current: 1, pageSize }, {}, { field: nextField, order: nextOrder })
     },
-    [onTableChange, pageSize, sortField, sortOrder]
+    [onTableChange, pageSize]
   )
 
   const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])

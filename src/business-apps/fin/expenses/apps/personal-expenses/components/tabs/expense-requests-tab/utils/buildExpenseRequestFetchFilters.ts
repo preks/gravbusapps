@@ -1,4 +1,4 @@
-import type { ExpenseRequestWhereClause } from '../../../../hooks/useExpenseRequestFilters'
+import type { ExpenseRequestWhereClause } from './expenseRequestWhereClause.types'
 
 /**
  * Same filter shape as the debounced list fetch: base `getFilters()` plus explicit currency scope

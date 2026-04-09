@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
-import type { ExpenseRequestTableSortOrder } from '../components/tabs/expense-requests-tab/config/expenseRequestSortableColumns'
-import { buildExpenseRequestFetchFilters } from '../components/tabs/expense-requests-tab/utils/buildExpenseRequestFetchFilters'
-import type { ExpenseRequestWhereClause } from './useExpenseRequestFilters'
+import type { ExpenseRequestTableSortOrder } from '../config/expenseRequestSortableColumns'
+import { buildExpenseRequestFetchFilters } from '../utils/buildExpenseRequestFetchFilters'
+import type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
 
 export interface UseExpenseRequestsProcessCompletionRefreshParams {
   fetchItems: (

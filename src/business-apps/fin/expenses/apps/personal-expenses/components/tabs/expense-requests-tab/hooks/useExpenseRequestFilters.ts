@@ -1,34 +1,18 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { ExpenseStatus, getExpenseRequestStatusDisplay } from '../utils'
+import { getExpenseRequestStatusDisplay } from '../../../../utils'
+import type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { StartDateRangeFilter } from '../components/tabs/expense-requests-tab/filters/StartDateRangeFilter'
-import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/filters/EndDateRangeFilter'
-import RequestDateRangeFilter from '../components/tabs/expense-requests-tab/filters/RequestDateRangeFilter'
-import dayjs from 'dayjs'
+import { StartDateRangeFilter } from '../filters/StartDateRangeFilter'
+import { EndDateRangeFilter } from '../filters/EndDateRangeFilter'
+import RequestDateRangeFilter from '../filters/RequestDateRangeFilter'
+import { buildExpenseRequestWhereConditions } from '../utils/buildExpenseRequestWhereConditions'
+import {
+  EXPENSE_REQUEST_FILTER_STATUSES,
+  LEGACY_EXPENSE_REQUEST_FILTER_IDS
+} from '../utils/expenseRequestFilterConstants'
 
-/**
- * Statuses exposed in Expense Request filters (personal expenses), aligned with product matrix.
- */
-export const EXPENSE_REQUEST_FILTER_STATUSES: readonly string[] = [
-  'CREATED',
-  'PENDING',
-  'APPROVED',
-  'REJECTED',
-  'VERIFIED',
-  'BOOKED',
-  'PAID',
-  'TRANSFERRED'
-]
-
-/** Former filter ids — cleared when resetting filters from dashboard cards */
-export const LEGACY_EXPENSE_REQUEST_FILTER_IDS: readonly string[] = [
-  'PREPARED',
-  'ASSIGNED',
-  'CLOSED',
-  'RETURNED',
-  'DISCARDED'
-]
+export { EXPENSE_REQUEST_FILTER_STATUSES, LEGACY_EXPENSE_REQUEST_FILTER_IDS }
 
 // Interface for request filter
 export interface ExpenseRequestFilter {
@@ -42,42 +26,7 @@ export interface ExpenseRequestFilter {
   requestType?: { value: string }
 }
 
-// Interface for GraphQL where clause structure
-export interface ExpenseRequestWhereClause {
-  _and?: Array<{
-    _or?: Array<{
-      code?: { _ilike: string }
-      title?: { _ilike: string }
-    }>
-    status?: {
-      _in?: string[]
-      _neq?: string
-    }
-    currencyRef?: {
-      _eq?: string
-    }
-    currency?: {
-      code?: {
-        _eq?: string
-      }
-    }
-    startDate?: {
-      _gte?: string
-      _lte?: string
-    }
-    endDate?: {
-      _gte?: string
-      _lte?: string
-    }
-    requestDate?: {
-      _gte?: string
-      _lte?: string
-    }
-    requestTypeRef?: {
-      _eq?: string
-    }
-  }>
-}
+export type { ExpenseRequestWhereClause }
 
 // Interface for the return type of useExpenseRequestFilters
 export interface UseExpenseRequestFiltersReturn {
@@ -410,83 +359,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Convert UI filters to API filter format
   const getFilters = useCallback((): ExpenseRequestWhereClause => {
-    const conditions: any[] = []
-
-    // Helper function to format date for start of range (beginning of day)
-    const formatStartDate = (date: Date): string => {
-      return dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss')
-    }
-
-    // Helper function to format date for end of range (end of day)
-    const formatEndDate = (date: Date): string => {
-      return dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss')
-    }
-
-    if (search && typeof search === 'string' && search.trim()) {
-      conditions.push({
-        _or: [{ code: { _ilike: `%${search.trim()}%` } }, { title: { _ilike: `%${search.trim()}%` } }]
-      })
-    }
-    // Separate status filters from request type filters
-    const statusFilters = selectedFilters.filter(filter => EXPENSE_REQUEST_FILTER_STATUSES.includes(filter))
-    const requestTypeFilters = selectedFilters.filter(filter => filter.startsWith('ExpenseRequestType:'))
-
-    if (statusFilters.length > 0) {
-      conditions.push({ status: { _in: statusFilters } })
-    } else {
-      // Default list view: hide discarded unless user explicitly filters by status
-      conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
-    }
-
-    if (requestTypeFilters.length > 0) {
-      // For request type, we need to use the correct GraphQL structure
-      // The requestType field is a catalog entry, so we filter by the catalog entry ID
-      // Use requestTypeRef which is the correct field name in the GraphQL schema
-      conditions.push({ requestTypeRef: { _eq: requestTypeFilters[0] } })
-    }
-    if (startDateRange?.[0]) {
-      conditions.push({ startDate: { _gte: formatStartDate(startDateRange[0]) } })
-    }
-    if (startDateRange?.[1]) {
-      conditions.push({ startDate: { _lte: formatEndDate(startDateRange[1]) } })
-    }
-    if (endDateRange?.[0]) {
-      conditions.push({ endDate: { _gte: formatStartDate(endDateRange[0]) } })
-    }
-    if (endDateRange?.[1]) {
-      conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } })
-    }
-    if (requestDateRange?.[0]) {
-      conditions.push({ requestDate: { _gte: formatStartDate(requestDateRange[0]) } })
-    }
-    if (requestDateRange?.[1]) {
-      conditions.push({ requestDate: { _lte: formatEndDate(requestDateRange[1]) } })
-    }
-
-    // Effective Date: EXPENSES -> expenseItem.expenseDate, TRIP -> startDate
-    if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
-      const start = effectiveDateRange?.[0] ? formatStartDate(effectiveDateRange[0]) : undefined
-      const end = effectiveDateRange?.[1] ? formatEndDate(effectiveDateRange[1]) : undefined
-      const tripAnd: any[] = []
-      const expenseAnd: any[] = []
-      if (start) {
-        tripAnd.push({ startDate: { _gte: start } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _gte: start } } })
-      }
-      if (end) {
-        tripAnd.push({ startDate: { _lte: end } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _lte: end } } })
-      }
-      conditions.push({
-        _or: [
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
-        ]
-      })
-    }
-
-    const result = { _and: conditions.length > 0 ? conditions : [{}] }
-    return result
+    return buildExpenseRequestWhereConditions(
+      search,
+      selectedFilters,
+      startDateRange,
+      endDateRange,
+      requestDateRange,
+      effectiveDateRange
+    )
   }, [search, selectedFilters, startDateRange, endDateRange, requestDateRange, effectiveDateRange])
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
