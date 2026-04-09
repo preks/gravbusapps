@@ -26,7 +26,7 @@ const EveryFabricInner: React.FC = () => {
 
   const isLoadingSession = activeSessionId && !session
   const sessionNotFound =
-    activeSessionId && sessions.length > 0 && !sessions.find(s => s.session_id === activeSessionId)
+    activeSessionId && sessions.length > 0 && !sessions.some(s => s.session_id === activeSessionId)
 
   if (isLoadingSession && !sessionNotFound) {
     return (

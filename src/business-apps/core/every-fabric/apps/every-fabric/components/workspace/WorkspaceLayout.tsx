@@ -95,18 +95,18 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
   const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof globalThis.innerWidth !== 'number') return
 
     const syncPanelMode = () => {
-      const desktop = window.innerWidth >= 1500
+      const desktop = globalThis.innerWidth >= 1500
       setIsDesktopPanel(desktop)
       if (desktop) setIsRightPanelOpen(true)
     }
 
     syncPanelMode()
-    window.addEventListener('resize', syncPanelMode)
+    globalThis.addEventListener('resize', syncPanelMode)
 
-    return () => window.removeEventListener('resize', syncPanelMode)
+    return () => globalThis.removeEventListener('resize', syncPanelMode)
   }, [])
 
   const currentClarificationQuestion = session?.human_question ?? null

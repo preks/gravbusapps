@@ -313,6 +313,52 @@ const pickRicherDelegationStatus = (
   b: FabricSubAgent['status']
 ): FabricSubAgent['status'] => (DELEGATION_STATUS_RANK[a] >= DELEGATION_STATUS_RANK[b] ? a : b)
 
+function resolveExpertDisplayName(name: string | undefined, summary: string | undefined): string {
+  if (isMeaningfulExpertLabel(name)) return normalizeExpertName(name ?? '')
+  return inferExpertLabelFromSummary(summary)
+}
+
+function mergeSeenExpert(seen: Map<string, FabricSubAgent>, key: string, incoming: FabricSubAgent): void {
+  const existing = seen.get(key)
+  if (!existing) {
+    seen.set(key, incoming)
+    return
+  }
+
+  const mergedStatus = pickRicherDelegationStatus(existing.status, incoming.status)
+  const chosen = mergedStatus === incoming.status ? incoming : existing
+  seen.set(key, { ...chosen, name: incoming.name, status: mergedStatus })
+}
+
+function collectExpertsFromNodes(nodes: FabricTaskNode[], seen: Map<string, FabricSubAgent>): void {
+  for (const node of nodes) {
+    for (const expert of node.subAgents) {
+      const displayName = resolveExpertDisplayName(expert.name, expert.summary)
+      const key = `${displayName.toLowerCase()}::${(expert.summary ?? '').trim().toLowerCase()}`
+      mergeSeenExpert(seen, key, { ...expert, name: displayName })
+    }
+  }
+}
+
+function collectExpertsFromEvents(
+  events: ActivityEvent[],
+  isStreaming: boolean,
+  seen: Map<string, FabricSubAgent>
+): void {
+  for (const event of events) {
+    if (event.type !== 'subagent_spawn') continue
+    const displayName = resolveExpertDisplayName(event.agent, event.summary)
+    const key = `${displayName.toLowerCase()}::${(event.summary ?? '').trim().toLowerCase()}`
+    const incoming: FabricSubAgent = {
+      id: event.id,
+      name: displayName,
+      summary: event.summary,
+      status: resolveActivityDelegationStatus(event, isStreaming)
+    }
+    mergeSeenExpert(seen, key, incoming)
+  }
+}
+
 /** Map activity row + stream state to FabricSubAgent status (matches deriveActivityFromEvents / SSE). */
 const resolveActivityDelegationStatus = (event: ActivityEvent, isStreaming: boolean): FabricSubAgent['status'] => {
   if (event.type !== 'subagent_spawn') return 'running'
@@ -330,44 +376,8 @@ const EnterpriseExpertsCard: React.FC<{
 }> = ({ nodes, events, isStreaming }) => {
   const experts = useMemo(() => {
     const seen = new Map<string, FabricSubAgent>()
-
-    for (const node of nodes) {
-      for (const expert of node.subAgents) {
-        const normalizedName = normalizeExpertName(expert.name)
-        const displayName =
-          normalizedName && normalizedName.toLowerCase() !== 'sub-agent'
-            ? normalizedName
-            : inferExpertLabelFromSummary(expert.summary)
-        const key = `${displayName.toLowerCase()}::${(expert.summary ?? '').trim().toLowerCase()}`
-        const existing = seen.get(key)
-        const mergedStatus = pickRicherDelegationStatus(existing?.status ?? 'running', expert.status)
-        const chosen = !existing || mergedStatus === expert.status ? expert : existing
-        seen.set(key, { ...chosen, name: displayName, status: mergedStatus })
-      }
-    }
-
-    for (const event of events) {
-      if (event.type !== 'subagent_spawn') continue
-      const displayName = isMeaningfulExpertLabel(event.agent)
-        ? normalizeExpertName(event.agent!)
-        : inferExpertLabelFromSummary(event.summary)
-      const key = `${displayName.toLowerCase()}::${(event.summary ?? '').trim().toLowerCase()}`
-      const status = resolveActivityDelegationStatus(event, isStreaming)
-      const incoming: FabricSubAgent = {
-        id: event.id,
-        name: displayName,
-        summary: event.summary,
-        status
-      }
-      const existing = seen.get(key)
-      if (!existing) {
-        seen.set(key, incoming)
-        continue
-      }
-      const mergedStatus = pickRicherDelegationStatus(existing.status, incoming.status)
-      const chosen = mergedStatus === incoming.status ? incoming : existing
-      seen.set(key, { ...chosen, name: displayName, status: mergedStatus })
-    }
+    collectExpertsFromNodes(nodes, seen)
+    collectExpertsFromEvents(events, isStreaming, seen)
 
     return [...seen.values()]
   }, [nodes, events, isStreaming])

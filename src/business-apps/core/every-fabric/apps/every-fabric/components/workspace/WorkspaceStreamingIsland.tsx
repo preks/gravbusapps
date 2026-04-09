@@ -17,6 +17,14 @@ function streamingProgressLabel(totalCount: number, completedCount: number, isSt
   return `${completedCount} of ${totalCount} done`
 }
 
+function collapsedStreamingSummary(statusHeadline: string | null, thinkingText: string): string {
+  if (statusHeadline) return statusHeadline
+  if (!thinkingText) return 'Agent is working…'
+
+  const preview = thinkingText.slice(0, 72)
+  return thinkingText.length > 72 ? `${preview}…` : preview
+}
+
 interface WorkspaceStreamingIslandProps {
   sessionId: string
   messages: ChatMessage[]
@@ -61,10 +69,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
   const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
   const progressLabel = streamingProgressLabel(totalCount, completedCount, isStreaming)
 
-  const collapsedSummary =
-    statusHeadline ??
-    (thinkingText ? `${thinkingText.slice(0, 72)}${thinkingText.length > 72 ? '…' : ''}` : null) ??
-    'Agent is working…'
+  const collapsedSummary = collapsedStreamingSummary(statusHeadline, thinkingText)
 
   useLayoutEffect(() => {
     const el = thinkingScrollRef.current
@@ -159,7 +164,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
         data-testid="fabric-streaming-island-thinking"
       >
         {thinkingText ? (
-          <p className="gba:whitespace-pre-wrap gba:break-words gba:text-xs gba:leading-relaxed gba:text-muted-foreground">
+          <p className="gba:whitespace-pre-wrap gba:wrap-break-word gba:text-xs gba:leading-relaxed gba:text-muted-foreground">
             {thinkingText}
           </p>
         ) : (

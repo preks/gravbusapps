@@ -70,8 +70,8 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    globalThis.addEventListener('keydown', handler)
+    return () => globalThis.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
   const Renderer = file ? renderers[file.rendererType] : null
