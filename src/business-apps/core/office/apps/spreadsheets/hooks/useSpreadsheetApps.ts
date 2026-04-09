@@ -137,15 +137,42 @@ function updateSheetRowsForRowDelete(sheets: SpreadsheetSheet[], sheetId: string
 
 async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
   const PAGE_SIZE = 100
+  const MAX_PAGES = 100
   const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
+  const seenAppIds = new Set<string>()
+  const seenPageSignatures = new Set<string>()
   let page = 1
   let hasMore = true
 
-  while (hasMore) {
+  while (hasMore && page <= MAX_PAGES) {
     const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
-    allApps.push(...pageItems)
-    hasMore = pageItems.length === PAGE_SIZE
+    const pageSignature = pageItems.map(app => app.id).join(',')
+
+    if (pageItems.length > 0 && seenPageSignatures.has(pageSignature)) {
+      console.warn('[useSpreadsheetApps] Detected repeated list page; stopping pagination early', {
+        page,
+        pageSize: pageItems.length
+      })
+      break
+    }
+
+    seenPageSignatures.add(pageSignature)
+
+    const uniquePageItems = pageItems.filter(app => {
+      if (seenAppIds.has(app.id)) return false
+      seenAppIds.add(app.id)
+      return true
+    })
+
+    allApps.push(...uniquePageItems)
+    hasMore = pageItems.length === PAGE_SIZE && uniquePageItems.length > 0
     page++
+  }
+
+  if (hasMore) {
+    console.warn('[useSpreadsheetApps] Stopped list pagination after reaching safety page limit', {
+      maxPages: MAX_PAGES
+    })
   }
 
   return allApps
