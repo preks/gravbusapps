@@ -6,5 +6,20 @@
   {
     "key": "NEXT_PUBLIC_PROMPT_MANAGER_API_URL",
     "values": ["${NEXT_PUBLIC_BASE_URL}/prompt-manager"]
+  },
+  {
+    "key": "NEXT_PUBLIC_FLOWBOT_API_URL",
+    "values": [
+      "${NEXT_PUBLIC_BASE_URL}",
+      "${NEXT_PUBLIC_BASE_URL}/flowbot/api",
+      "https://newwork-dev.newwork.com",
+      "https://newwork-dev.newwork.com/flowbot/api"
+    ],
+    "localhostSuffix": "/flowbot"
+  },
+  {
+    "key": "NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL",
+    "values": ["${NEXT_PUBLIC_BASE_URL}/flow-engine", "${NEXT_PUBLIC_BASE_URL}", "https://newwork-dev.newwork.com"],
+    "localhostSuffix": "/api"
   }
 ]

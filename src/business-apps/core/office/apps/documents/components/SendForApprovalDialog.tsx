@@ -28,7 +28,7 @@ import {
 import { Send, Search, User, X, Calendar, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import translations from '../_i18n'
 
 export interface SendForApprovalDialogProps {
@@ -94,7 +94,7 @@ const sendApprovalRequest = async (
   }
 ): Promise<{ success: boolean; workflowIds?: string[]; approverWorkflows?: ApproverWorkflow[]; error?: string }> => {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const timestamp = Date.now()
     const blinkGroupId = `doc_approval_${timestamp}_${payload.initiatorId}`
 
@@ -182,7 +182,7 @@ const sendApprovalRequest = async (
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

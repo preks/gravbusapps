@@ -5,7 +5,7 @@
  * This service would connect to a backend API for persistence.
  */
 
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type { PersonalAgent, AgentListResponse, AgentExecutionResult, AgentExecutionHistoryResponse } from '../types'
 
 export class AgentRegistryService {
@@ -15,7 +15,7 @@ export class AgentRegistryService {
   constructor(accessToken: string) {
     this.accessToken = accessToken
     // Agent service would be part of custom-flow-engine or a separate microservice
-    this.baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    this.baseUrl = CUSTOM_FLOW_ENGINE_API_URL
   }
 
   /**
@@ -39,7 +39,7 @@ export class AgentRegistryService {
       }
     }
 
-    const response = await fetch(`${this.baseUrl}/api/agents`, {
+    const response = await fetch(`${this.baseUrl}/agents`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export class AgentRegistryService {
     if (params?.limit) searchParams.append('limit', params.limit.toString())
     if (params?.offset) searchParams.append('offset', params.offset.toString())
 
-    const response = await fetch(`${this.baseUrl}/api/agents?${searchParams}`, {
+    const response = await fetch(`${this.baseUrl}/agents?${searchParams}`, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`
       }
@@ -95,7 +95,7 @@ export class AgentRegistryService {
    * Get a specific agent by ID
    */
   async getAgent(agentId: string): Promise<PersonalAgent> {
-    const response = await fetch(`${this.baseUrl}/api/agents/${agentId}`, {
+    const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`
       }
@@ -112,7 +112,7 @@ export class AgentRegistryService {
    * Update an existing agent
    */
   async updateAgent(agentId: string, updates: Partial<PersonalAgent>): Promise<PersonalAgent> {
-    const response = await fetch(`${this.baseUrl}/api/agents/${agentId}`, {
+    const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export class AgentRegistryService {
    * Delete an agent
    */
   async deleteAgent(agentId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/agents/${agentId}`, {
+    const response = await fetch(`${this.baseUrl}/agents/${agentId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -162,7 +162,7 @@ export class AgentRegistryService {
    * Test an agent (run once manually)
    */
   async testAgent(agentId: string): Promise<AgentExecutionResult> {
-    const response = await fetch(`${this.baseUrl}/api/agents/${agentId}/test`, {
+    const response = await fetch(`${this.baseUrl}/agents/${agentId}/test`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -192,7 +192,7 @@ export class AgentRegistryService {
     if (params?.offset) searchParams.append('offset', params.offset.toString())
     if (params?.status) searchParams.append('status', params.status)
 
-    const response = await fetch(`${this.baseUrl}/api/agents/${agentId}/executions?${searchParams}`, {
+    const response = await fetch(`${this.baseUrl}/agents/${agentId}/executions?${searchParams}`, {
       headers: {
         Authorization: `Bearer ${this.accessToken}`
       }

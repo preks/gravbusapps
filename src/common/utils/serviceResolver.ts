@@ -167,6 +167,11 @@ export const PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_PROMPT_MANA
   servicePath: '/prompt-manager',
   apiPath: '/api/v1'
 })
+/** Spreadsheet AI menu (formula / analyze / review / insights) → Flowbot-embedded Prompt Manager. */
+export const SPREADSHEET_PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC_SPREADSHEET_PROMPT_MANAGER_API_URL', {
+  servicePath: '/flowbot/prompt-manager',
+  apiPath: '/api/v1'
+})
 /** Processes base (base + /processes). No env override; for FlowClient / useKogitoProcess only. */
 export const PROCESSES_BASE_URL = (() => {
   let base = env('NEXT_PUBLIC_BASE_URL') || ''

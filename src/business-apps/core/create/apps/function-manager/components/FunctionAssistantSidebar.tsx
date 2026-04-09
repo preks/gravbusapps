@@ -31,6 +31,8 @@ export interface FunctionAssistantSidebarProps {
   existing?: FunctionAssistantExistingSnapshot
   onApply: (draft: FunctionAssistantDraftResponse) => void
   onOpenDefinitionTab?: (tab: FunctionDefinitionTab) => void
+  /** Leave the editor and open Function Manager → Credentials. */
+  onOpenTenantCredentials?: () => void
   fixTestRequest?: (AssistantFixTestArgs & { nonce: string }) | null
   onFixTestRequestHandled?: () => void
   onFixTestStateChange?: (state: { isFixing: boolean; error: string | null }) => void
@@ -86,6 +88,7 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
   existing,
   onApply,
   onOpenDefinitionTab,
+  onOpenTenantCredentials,
   fixTestRequest,
   onFixTestRequestHandled,
   onFixTestStateChange,
@@ -184,6 +187,7 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
             userInfo={userInfo}
             userAvatarSrc={userAvatarSrc}
             onOpenDefinitionTab={onOpenDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             onRetryLast={retryLast}
             canRetryLast={canRetryLast}
             clarifyWizard={clarifyWizard}

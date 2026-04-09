@@ -9,15 +9,20 @@ import { useBudgetSetupPlansTableModel } from './useBudgetSetupPlansTableModel'
 import translations from '../../_i18n'
 
 export interface BudgetSetupPlansTableProps {
-  /** Legal entity selected in the app toolbar — table shows `compensation_budget_plan_company` for this id only. */
+  /** Legal entity selected in the app — table shows `compensation_budget_plan_company` for this id only. */
   companyId: string
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[]
   currencyCode: string
   plans: CompensationBudgetPlanListItem[]
   loading: boolean
   error: string | null
-  toolbarCompany?: React.ReactNode
+  /** Compensation cycle selector — use `CompensationCycleSelector` with `variant="toolbar"` (same layout as `BudgetPlanSelector`). */
+  cycleToolbar?: React.ReactNode
+  /** Primary button in the DataDisplay toolbar (e.g. create plan). */
   toolbarEnd?: React.ReactNode
+  onEditRow: (row: BudgetSetupPlanTableRow) => void
+  /** Filters rows to this compensation cycle (toolbar selector). */
+  selectedCompensationPlanId: string | null
 }
 
 export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
@@ -27,8 +32,10 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   plans,
   loading,
   error,
-  toolbarCompany,
-  toolbarEnd
+  cycleToolbar,
+  toolbarEnd,
+  onEditRow,
+  selectedCompensationPlanId
 }) => {
   const { t } = useTranslation(translations)
   const {
@@ -48,7 +55,15 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     sortableColumns,
     availableColumnsForDisplay,
     handlePaginationChange
-  } = useBudgetSetupPlansTableModel(t, companyBudgetPlanRows, companyId, currencyCode, plans)
+  } = useBudgetSetupPlansTableModel(
+    t,
+    companyBudgetPlanRows,
+    companyId,
+    currencyCode,
+    plans,
+    onEditRow,
+    selectedCompensationPlanId
+  )
 
   return (
     <DataDisplay
@@ -77,9 +92,9 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
       availableColumns={availableColumnsForDisplay}
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={setVisibleColumns}
-      secondaryActions={
-        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-          {toolbarCompany}
+      primaryAction={
+        <div className="gba:inline-flex gba:shrink-0 gba:items-center gba:gap-2">
+          {cycleToolbar}
           {toolbarEnd}
         </div>
       }

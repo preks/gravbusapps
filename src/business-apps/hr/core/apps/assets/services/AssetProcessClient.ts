@@ -49,6 +49,31 @@ export interface UpdateAssetPayload {
   performerEmployee?: string
 }
 
+export interface DeleteAssetPayload {
+  id: string
+  version: number
+  model?: string
+  serialNumber?: string
+  acquisitionDate?: string
+  warrantyPeriodMonths?: number
+  inventoryValue?: number
+  assetStatus?: string
+  assetBrandRef?: string
+  assetCategoryRef?: string
+  currencyRef?: string
+  siteLocation?: string
+  notes: string
+  disposalStatus?: string
+  disposalOutcomeRef?: string
+  disposalDate?: string
+  disposalReason?: string
+  requireSanitization?: boolean
+  sanitizationMethodRef?: string
+  sanitizationExecutionDate?: string
+  responsibleEmployee?: string
+  performerEmployee?: string
+}
+
 export interface CreateEmployeeAssetPayload {
   startDate: string
   expectedEndDate?: string
@@ -158,14 +183,19 @@ export class AssetProcessClient extends RestClient {
   /**
    * Delete an asset via process API
    */
-  public async deleteAsset(id: string, version: number): Promise<AssetProcessResponse> {
+  public async deleteAsset(payload: DeleteAssetPayload): Promise<AssetProcessResponse> {
     try {
-      return await this.delete<AssetProcessResponse>(`/processes/employee/updateAsset/${id}`, {
-        params: { version },
-        headers: {
-          'Content-Type': 'application/json'
+      return await this.post<AssetProcessResponse>(
+        '/processes/employee/deleteAsset',
+        {
+          asset: payload
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      })
+      )
     } catch (error) {
       console.error('AssetProcessClient: Error deleting asset:', error)
       throw error

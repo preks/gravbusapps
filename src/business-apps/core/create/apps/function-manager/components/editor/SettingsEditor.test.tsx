@@ -19,7 +19,9 @@ describe('SettingsEditor', () => {
       />
     )
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'conn-custom' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Shared connection' }), {
+      target: { value: 'conn-custom' }
+    })
 
     expect(onConnectionChange).toHaveBeenCalledWith('conn-custom')
   })

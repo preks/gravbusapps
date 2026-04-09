@@ -4,6 +4,7 @@ import { EntityCard } from './EntityCard'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { getOperationBadge } from './utils/displayUtils'
+import { resolveContentCategoryName } from '@/common/data/content/constants/contentConstants'
 
 interface ContentEntryDisplayProps {
   contentEntryId: string
@@ -65,7 +66,7 @@ export const ContentEntryDisplay: React.FC<ContentEntryDisplayProps> = ({ conten
       return []
     }
     return entry.contentEntryCategories
-      .map(cat => cat.contentCategory?.value)
+      .map(cat => resolveContentCategoryName(cat.contentCategory))
       .filter((value): value is string => Boolean(value))
   }, [entry?.contentEntryCategories])
 

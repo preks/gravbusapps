@@ -46,6 +46,8 @@ export const Navigation = {
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
+  /** Manager / supervisor team salary proposal workspace (compensation planning). */
+  HR_COMPENSATION_MANAGER_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/manager-compensation-planning`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
   HR_ABSENCE_SETUP: `${NAVIGATION_BASE_PATH}/hr/absence/apps/absence-setup`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
@@ -111,7 +113,8 @@ export const Navigation = {
   CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
   CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
   CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
-  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`,
+  CREATE_ENTERPRISE_AGENT: `${NAVIGATION_BASE_PATH}/every-fabric`
 } as const
 
 // Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
@@ -155,6 +158,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
+  [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
   [Navigation.HR_ABSENCE_SETUP]: 'hr/absence/apps/absence-setup',
   [`${NAVIGATION_BASE_PATH}/hr/absence/apps/AbsenceSetup`]: 'hr/absence/apps/absence-setup',
@@ -221,7 +225,8 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CREATE_DEBUG_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_PROMPT_MESH]: 'platform/apps/agent-mesh',
-  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator'
+  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator',
+  [Navigation.CREATE_ENTERPRISE_AGENT]: 'core/every-fabric/apps/every-fabric'
 }
 
 /**

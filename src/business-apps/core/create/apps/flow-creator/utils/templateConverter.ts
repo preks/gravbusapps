@@ -210,16 +210,17 @@ export function studioGraphToTemplate(
               outputExpressionMap: cfg.functionConfig.outputExpressionMap
             }
           : undefined,
-        agentConfig: cfg.agentConfig
-          ? {
-              promptId: cfg.agentConfig.promptId,
-              version: cfg.agentConfig.version,
-              systemParamsMap: cfg.agentConfig.systemParamsMap,
-              userParamsMap: cfg.agentConfig.userParamsMap,
-              outputExpressionMap: cfg.agentConfig.outputExpressionMap,
-              modelSettings: cfg.agentConfig.modelSettings
-            }
-          : undefined,
+        agentConfig:
+          cfg.agentConfig && cfg.agentConfig.promptId
+            ? {
+                promptId: cfg.agentConfig.promptId,
+                version: cfg.agentConfig.version,
+                systemParamsMap: cfg.agentConfig.systemParamsMap,
+                userParamsMap: cfg.agentConfig.userParamsMap,
+                outputExpressionMap: cfg.agentConfig.outputExpressionMap,
+                modelSettings: cfg.agentConfig.modelSettings
+              }
+            : undefined,
         aiAgentConfig: persistedOutputSchema ? { resultSchema: persistedOutputSchema } : undefined
       }
 
@@ -553,12 +554,13 @@ export function templateToStudioGraph(template: FlowTemplate): {
               ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
             }
           : undefined,
-        agentConfig: step.agentConfig
-          ? {
-              ...step.agentConfig,
-              ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
-            }
-          : undefined,
+        agentConfig:
+          step.agentConfig || step.aiAgentConfig?.resultSchema
+            ? {
+                ...(step.agentConfig ?? {}),
+                ...(step.aiAgentConfig?.resultSchema ? { outputSchema: step.aiAgentConfig.resultSchema } : {})
+              }
+            : undefined,
         eventSubscriptions: step.eventSubscriptions,
         reworkConfig: step.reworkConfig,
         permissionContext: step.permissionContext,

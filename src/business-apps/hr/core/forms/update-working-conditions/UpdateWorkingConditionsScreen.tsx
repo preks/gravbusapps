@@ -24,6 +24,8 @@ import translations from '../_i18n'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 
+const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
+
 const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
   const {
@@ -379,7 +381,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               </div>
               <DateInput
                 type="date"
-                value={startDate}
+                value={getDateInputValue(startDate)}
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const stringValue = typeof value === 'string' ? value : ''
                   setStartDate(stringValue)
@@ -410,7 +412,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               </div>
               <DateInput
                 type="date"
-                value={probationEndDate}
+                value={getDateInputValue(probationEndDate)}
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const stringValue = typeof value === 'string' ? value : ''
                   setProbationEndDate(stringValue)
@@ -443,7 +445,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               </div>
               <DateInput
                 type="date"
-                value={endDate}
+                value={getDateInputValue(endDate)}
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const stringValue = typeof value === 'string' ? value : ''
                   setEndDate(stringValue)

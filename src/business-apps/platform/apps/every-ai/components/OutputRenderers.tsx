@@ -34,6 +34,18 @@ import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
 import { ChatSnippetDisplay } from './displays/ChatSnippetDisplay'
+import {
+  AreaChartDisplay,
+  GanttDisplay,
+  HeatmapDisplay,
+  KanbanBoardDisplay,
+  LineChartDisplay,
+  MetricCardsDisplay,
+  PieChartDisplay,
+  StackedBarChartDisplay,
+  TimelineDisplay,
+  TreemapDisplay
+} from './displays/visual-elements'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -808,6 +820,26 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       // ReminderData is already handled via EntityData with entity: 'reminder'
       // Skip rendering to avoid duplicates
       return null
+    case 'lineChart':
+      return <LineChartDisplay key={idx} data={item} />
+    case 'areaChart':
+      return <AreaChartDisplay key={idx} data={item} />
+    case 'stackedBarChart':
+      return <StackedBarChartDisplay key={idx} data={item} />
+    case 'pieChart':
+      return <PieChartDisplay key={idx} data={item} />
+    case 'metricCards':
+      return <MetricCardsDisplay key={idx} data={item} />
+    case 'heatmap':
+      return <HeatmapDisplay key={idx} data={item} />
+    case 'timeline':
+      return <TimelineDisplay key={idx} data={item} />
+    case 'gantt':
+      return <GanttDisplay key={idx} data={item} />
+    case 'treemap':
+      return <TreemapDisplay key={idx} data={item} />
+    case 'kanbanBoard':
+      return <KanbanBoardDisplay key={idx} data={item} />
     default:
       return null
   }
@@ -1078,8 +1110,8 @@ export const OutputItemRenderer: React.FC<{
             flowData.preview ||
             flowData.previewText ||
             flowData.content ||
-            flowData.contentGroupRef ||
-            flowData.contentTypeRef ||
+            flowData.contentGroup ||
+            flowData.contentTypeId ||
             flowData.role)
             ? flowData
             : null
@@ -1089,8 +1121,8 @@ export const OutputItemRenderer: React.FC<{
             taskData.preview ||
             taskData.previewText ||
             taskData.content ||
-            taskData.contentGroupRef ||
-            taskData.contentTypeRef ||
+            taskData.contentGroup ||
+            taskData.contentTypeId ||
             taskData.role)
             ? taskData
             : null
@@ -1110,9 +1142,9 @@ export const OutputItemRenderer: React.FC<{
           previewText: contentEntryData.preview ?? '', // Some forms use previewText instead of preview
           content: contentEntryData.content ?? '',
           role: contentEntryData.role ?? '',
-          contentGroupRef: contentEntryData.contentGroupRef ?? '',
-          contentTypeRef:
-            contentEntryData.contentTypeRef ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
+          contentGroup: contentEntryData.contentGroup ?? '',
+          contentTypeId:
+            contentEntryData.contentTypeId ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
           creatorEmployee: contentEntryData.creatorEmployee ?? ''
         }
 

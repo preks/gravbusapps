@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type { FlowRunStatus } from '../types'
 import type { NoteActionItemFlow } from '../types'
 
@@ -6,10 +6,6 @@ export interface FlowStatusResult {
   status: FlowRunStatus
   completedAt?: string
   lastSyncedAt: string
-}
-
-function getFlowEngineBaseUrl(): string {
-  return env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || `${env('NEXT_PUBLIC_BASE_URL')}/flow-engine`
 }
 
 function mapFlowStatus(status?: string): FlowRunStatus {
@@ -28,14 +24,14 @@ export class FlowEngineApiService {
     const noteId = params.noteId
     if (!noteId) return []
 
-    const baseUrl = getFlowEngineBaseUrl()
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const query = new URLSearchParams({
       'tags.app': 'quick-task',
       'tags.entityId': noteId,
       ...(params.entityType ? { 'tags.entityType': params.entityType } : {})
     })
 
-    const response = await fetch(`${baseUrl}/api/flows/list?${query.toString()}`, {
+    const response = await fetch(`${baseUrl}/flows/list?${query.toString()}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -87,10 +83,10 @@ export class FlowEngineApiService {
   async getFlowStatus(workflowId: string): Promise<FlowStatusResult | null> {
     if (!workflowId) return null
 
-    const baseUrl = getFlowEngineBaseUrl()
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const lastSyncedAt = new Date().toISOString()
 
-    const response = await fetch(`${baseUrl}/api/flows/${workflowId}`, {
+    const response = await fetch(`${baseUrl}/flows/${workflowId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`
@@ -116,7 +112,7 @@ export class FlowEngineApiService {
     // If completed but no timestamp, try to derive from progress endpoint (best-effort)
     if (!completedAt && (status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELED')) {
       try {
-        const progressRes = await fetch(`${baseUrl}/api/flows/${workflowId}/progress`, {
+        const progressRes = await fetch(`${baseUrl}/flows/${workflowId}/progress`, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${this.accessToken}`

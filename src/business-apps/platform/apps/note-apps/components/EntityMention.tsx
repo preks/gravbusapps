@@ -29,6 +29,7 @@ import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 
 // Entity types (same as chat)
 export type EntityType =
@@ -615,10 +616,7 @@ const SEARCH_ENTITIES_QUERY = `
       title
       preview
       pictureThumbnail
-      contentGroupRef
-      contentGroup {
-        value
-      }
+      contentGroup
     }
   }
 `
@@ -644,8 +642,7 @@ interface SearchResponse {
     title?: string
     preview?: string
     pictureThumbnail?: string
-    contentGroupRef?: string
-    contentGroup?: { value?: string }
+    contentGroup?: string
   }>
 }
 
@@ -716,17 +713,17 @@ const transformSearchResponse = (result: SearchResponse): EntityReference[] => {
 
   // Content entries
   result.ContentEntry?.forEach(entry => {
-    const groupRef = entry.contentGroupRef || ''
+    const group = entry.contentGroup || ''
     let entityType: EntityType = 'intranet_article'
     let categoryLabel = 'Content'
 
-    if (groupRef.includes('NEWS')) {
+    if (group === ContentGroup.NEWS) {
       entityType = 'news_article'
       categoryLabel = 'News'
-    } else if (groupRef.includes('KNOWLEDGE')) {
+    } else if (group === ContentGroup.KNOWLEDGE || group === ContentGroup.GLOSSARY) {
       entityType = 'knowledge_article'
       categoryLabel = 'Knowledge'
-    } else if (groupRef.includes('DOCUMENT')) {
+    } else if (group === ContentGroup.DOCUMENT) {
       entityType = 'document_article'
       categoryLabel = 'Document'
     }
@@ -735,7 +732,7 @@ const transformSearchResponse = (result: SearchResponse): EntityReference[] => {
       id: entry.id,
       type: entityType,
       name: entry.title || 'Untitled',
-      subtitle: `${categoryLabel} • ${entry.contentGroup?.value || 'Article'}`,
+      subtitle: `${categoryLabel} • Article`,
       pictureThumbnail: entry.pictureThumbnail
     })
   })

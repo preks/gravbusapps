@@ -1327,7 +1327,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     return (
       <>
         <div
-          className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
+          className="gba:flex gba:h-full gba:min-h-0 gba:w-full gba:flex-col gba:overflow-hidden gba:bg-background gba:rounded-t-none"
           data-testid={testId}
         >
           <IdleCanvas
@@ -1347,7 +1347,10 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   return (
     <>
-      <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:relative" data-testid={testId}>
+      <div
+        className="gba:relative gba:flex gba:h-full gba:min-h-0 gba:w-full gba:flex-col gba:overflow-hidden gba:bg-background"
+        data-testid={testId}
+      >
         {isRestoringSession && <SessionSwitchOverlay />}
 
         <CreateLayout

@@ -5,11 +5,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Alert,
   Button,
   Textarea,
-  Label,
-  Alert,
-  useTranslation
+  Label
 } from '@newwork/nw-design-system'
 import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
 import { AlertCircle } from 'lucide-react'
@@ -26,13 +25,15 @@ import { getAllEmployees } from './queries/getAllEmployees'
 import { GET_EMPLOYEE_DETAILS } from './queries/getEmployeeDetails'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getPrevalidateErrorPresentation,
+  shouldDuplicatePrevalidateErrorBelowDatepicker
+} from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { useAbsenceValidation } from './hooks/useAbsenceValidation'
 import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { getPrevalidateErrorPresentation } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
-import formsTranslations from '../_i18n'
 
 type Employee = {
   id: string
@@ -50,7 +51,6 @@ type CreateNewAbsenceFormValues = {
 }
 
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
-  const { t } = useTranslation(formsTranslations)
   const { accessToken, userInfo, additionalData } = props
   const client = useGraphQLClient(accessToken)
   const structureId = getCurrentActiveStructureId()
@@ -105,23 +105,14 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const formValuesState = form.watch()
 
-  const {
-    isValidating,
-    isCheckingBankHoliday,
-    hasValidationErrors,
-    overlapErrors,
-    balanceErrors,
-    generalErrors,
-    existingSickLeave,
-    hasExistingSickLeave,
-    validationWarnings
-  } = useAbsenceValidation({
+  const { existingSickLeave, hasExistingSickLeave } = useAbsenceValidation({
     accessToken,
     employeeId: employeeId || '',
     selectedType: formValuesState.selectedType || '',
     startDate: formValuesState.startDate,
     endDate: formValuesState.endDate,
-    context: props
+    context: props,
+    disableCalendarValidation: true
   })
 
   const prevalidateStartDateStr =
@@ -136,24 +127,17 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     prevalidateEndDateStr
   )
   const hasPrevalidateError = !!prevalidate.errorCode
-  const prevalidateErrorPresentation = useMemo(() => {
-    if (!prevalidate.errorCode) {
+  const duplicatedPrevalidateError = useMemo(() => {
+    if (!prevalidate.errorCode || !shouldDuplicatePrevalidateErrorBelowDatepicker(prevalidate.errorCode)) {
       return null
     }
 
     const presentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
     return {
-      title: t(presentation.messageKey) || presentation.messageFallback,
-      detail: t(presentation.detailKey) || presentation.detailFallback
+      title: getTranslationFromI18nKeyAndLabel(presentation.messageKey, presentation.messageFallback),
+      detail: getTranslationFromI18nKeyAndLabel(presentation.detailKey, presentation.detailFallback)
     }
-  }, [prevalidate.errorCode, prevalidate.errorDetail, t])
-  const visibleValidationWarnings = useMemo(() => {
-    if (!hasPrevalidateError) {
-      return validationWarnings
-    }
-
-    return validationWarnings.filter(warning => warning.type !== 'balance')
-  }, [hasPrevalidateError, validationWarnings])
+  }, [prevalidate.errorCode, prevalidate.errorDetail])
 
   useEffect(() => {
     const start = formValuesState.startDate
@@ -222,24 +206,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const isFormValid = useMemo(() => {
     if (isUpdateMode) {
-      const updateModeValid =
-        formValuesState.selectedType &&
-        formValuesState.startDate &&
-        formValuesState.endDate &&
-        !hasValidationErrors &&
-        !isValidating
-
-      return updateModeValid
+      return !!(formValuesState.selectedType && formValuesState.startDate && formValuesState.endDate)
     }
 
-    const createModeValid = isMandatoryFieldsCompleted && !hasValidationErrors && !isValidating
-
-    return createModeValid
+    return isMandatoryFieldsCompleted
   }, [
     isUpdateMode,
     isMandatoryFieldsCompleted,
-    hasValidationErrors,
-    isValidating,
     formValuesState.selectedType,
     formValuesState.startDate,
     formValuesState.endDate
@@ -357,33 +330,24 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
   )
 
-  const validateForm = useCallback(
-    (formData: CreateNewAbsenceFormValues): string[] | null => {
-      const errors: string[] = []
+  const validateForm = useCallback((formData: CreateNewAbsenceFormValues): string[] | null => {
+    const errors: string[] = []
 
-      if (!formData.selectedType) {
-        errors.push('Type is required')
-      }
-      if (!formData.startDate) {
-        errors.push('Start date is required')
-      }
-      if (!formData.endDate) {
-        errors.push('End date is required')
-      }
-      if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
-        errors.push('End date must be after start date')
-      }
+    if (!formData.selectedType) {
+      errors.push('Type is required')
+    }
+    if (!formData.startDate) {
+      errors.push('Start date is required')
+    }
+    if (!formData.endDate) {
+      errors.push('End date is required')
+    }
+    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+      errors.push('End date must be after start date')
+    }
 
-      if (hasValidationErrors) {
-        generalErrors.forEach(error => errors.push(error.message))
-        overlapErrors.forEach(error => errors.push(error.message))
-        balanceErrors.forEach(error => errors.push(error.message))
-      }
-
-      return errors.length > 0 ? errors : null
-    },
-    [hasValidationErrors, generalErrors, overlapErrors, balanceErrors]
-  )
+    return errors.length > 0 ? errors : null
+  }, [])
 
   return (
     <div
@@ -419,7 +383,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               )
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
-        isSubmitDisabled={!isFormValid || isValidating || isCheckingBankHoliday || hasPrevalidateError}
+        isSubmitDisabled={!isFormValid || hasPrevalidateError}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
         data-testid="create-new-absence-form"
@@ -583,59 +547,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 </div>
               )}
 
-              {(hasValidationErrors || visibleValidationWarnings.length > 0 || prevalidateErrorPresentation) && (
-                <div className="gba:mb-4" data-testid="validation-errors-container">
-                  {generalErrors.map((error, index) => (
-                    <Alert key={`general-${index}`} className="gba:mb-2" data-testid={`general-error-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{error.message}</span>
-                    </Alert>
-                  ))}
-
-                  {overlapErrors.map((error, index) => (
-                    <Alert key={`overlap-${index}`} className="gba:mb-2" data-testid={`overlap-error-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{error.message}</span>
-                    </Alert>
-                  ))}
-
-                  {balanceErrors.map((error, index) => (
-                    <Alert key={`balance-${index}`} className="gba:mb-2" data-testid={`balance-error-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{error.message}</span>
-                    </Alert>
-                  ))}
-                  {prevalidateErrorPresentation && (
-                    <Alert className="gba:mb-2" data-testid="prevalidate-sync-error">
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span className="gba:flex gba:flex-col gba:gap-0.5">
-                        <strong>{prevalidateErrorPresentation.title}</strong>
-                        <span>{prevalidateErrorPresentation.detail}</span>
-                      </span>
-                    </Alert>
-                  )}
-                  {visibleValidationWarnings.map((warning, index) => (
-                    <Alert key={`warning-${index}`} className="gba:mb-2" data-testid={`validation-warning-${index}`}>
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <span>{warning.message}</span>
-                    </Alert>
-                  ))}
-                </div>
-              )}
-
-              {/* Loading indicator for validation */}
-              {isValidating && (
-                <div
-                  className="gba:mb-4 gba:text-center gba:text-sm gba:text-muted-foreground"
-                  data-testid="validation-loading"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_form.validation_checking',
-                    'Checking availability...'
-                  )}
-                </div>
-              )}
-
               {/* File Upload Section - Only for Sick Leave */}
               {isSickLeaveProcess && (
                 <div className="gba:mb-4">
@@ -672,6 +583,15 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                     )}
                   </div>
                 </div>
+              )}
+              {duplicatedPrevalidateError && (
+                <Alert className="gba:mb-4" data-testid="prevalidate-inline-error">
+                  <AlertCircle className="gba:h-4 gba:w-4" />
+                  <span className="gba:flex gba:flex-col gba:gap-0.5">
+                    <strong>{duplicatedPrevalidateError.title}</strong>
+                    <span>{duplicatedPrevalidateError.detail}</span>
+                  </span>
+                </Alert>
               )}
             </>
           )}

@@ -1,5 +1,5 @@
 title = Compensații echipă
-subtitle = Vizualizați și comparați salariile, bonusurile și beneficiile echipei. Alegeți o companie pentru a încărca echipa.
+subtitle = Vizualizați și comparați salariile, bonusurile și beneficiile echipei.
 loading = Se încarcă datele echipei...
 
 select-company-placeholder = Selectați compania…
@@ -12,6 +12,8 @@ error-performance-scores = Nu s-au putut încărca scorurile de performanță pe
 error-salary-budget-title = Nu s-a putut încărca bugetul salarial al echipei
 error-title = A apărut o problemă
 table-section-title = Membri echipă
+manager-team-context-card-title = Compensații echipă
+manager-team-budget-allocation-card-title = Buget rămas
 budget-summary-total-available = Buget total disponibil
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Însumează bugetele salariale pentru unitățile organizaționale ale membrilor echipei în cel mai recent plan de buget al companiei, dacă există rânduri (altfel unitatea din poziția dvs. dacă membrii nu au UO).
@@ -113,3 +115,29 @@ manager-team-save-missing-plan-ou = Nu există rând de buget salarial în acest
 manager-team-save-custom-exceeds-pool = Alocările personalizate depășesc fondul de creștere. Ajustați sumele înainte de salvare.
 manager-team-save-error = Nu s-au putut salva alocările. {$message}
 manager-team-save-error-generic = A apărut o problemă la salvare.
+manager-team-submit-proposals = Trimite propunerile
+manager-team-submitting = Se trimite…
+manager-team-submit-no-drafts = Salvați cel puțin o alocare în planul de buget înainte de trimitere. Folosiți Distribuie, apoi salvați în dialog.
+manager-team-submit-error = Nu s-au putut trimite propunerile. {$message}
+manager-team-submit-missing-row-version = Nu s-a putut încărca versiunea rândului de buget pentru trimitere. Reîmprospătați pagina și încercați din nou.
+manager-team-proposals-readonly-hint = Propunerile au fost trimise spre revizuire. Editarea este dezactivată.
+
+supervisor-review-no-auth = Trebuie să fiți autentificat pentru a aproba sau a trimite înapoi propunerile.
+supervisor-review-no-submitted = Nu există propuneri trimise pentru această acțiune.
+supervisor-review-error-generic = A apărut o problemă. Încercați din nou.
+supervisor-review-card-title = Revizuire supervizor
+supervisor-review-loading = Se încarcă propunerile…
+supervisor-review-submitted-count = { $count ->
+  [zero] Nicio propunere trimisă de revizuit.
+  [one] 1 propunere trimisă de revizuit.
+  *[other] {$count} propuneri trimise de revizuit.
+}
+supervisor-review-busy = Se procesează…
+supervisor-review-approve-all = Aprobă toate
+supervisor-review-send-back = Trimite înapoi
+supervisor-review-send-back-notes-required = Adăugați note pentru echipă înainte de trimiterea înapoi.
+supervisor-review-send-back-title = Trimite înapoi către echipă
+supervisor-review-send-back-placeholder = Explicați ce ar trebui să schimbe echipa…
+supervisor-review-send-back-cancel = Anulează
+supervisor-review-send-back-confirm = Trimite înapoi
+supervisor-review-back-to-team = Mergi la compensarea echipei
