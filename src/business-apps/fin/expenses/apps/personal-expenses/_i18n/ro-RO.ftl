@@ -33,3 +33,6 @@ dashboard-stat-trend-decrease-vs-last-month = scădere față de luna trecută
 # Expense Items Tab
 expense-items-date-label = Data
 delete-selection-discard-error-draft = Puteți elimina doar pozițiile cu status "Ciornă" sau "Atribuit".
+
+# Table lists (no rows)
+table-empty-filtered = Nu sunt date disponibile

@@ -66,16 +66,22 @@ export function useVisibleColumns(visibleColumns: string[], availableColumns: Ar
   }, [visibleColumns, availableColumns])
 }
 
-export function useEmptyMessage(hasActiveFilters: boolean, noDataI18nKey: string, noDataFallback: string) {
+export function useEmptyMessage(
+  hasActiveFilters: boolean,
+  noDataI18nKey: string,
+  noDataFallback: string,
+  filteredEmptyLabel?: string
+) {
   return useMemo(
     () =>
       hasActiveFilters
-        ? getTranslationFromI18nKeyAndLabel(
+        ? (filteredEmptyLabel ??
+          getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
             'No data available'
-          )
+          ))
         : getTranslationFromI18nKeyAndLabel(noDataI18nKey, noDataFallback),
-    [hasActiveFilters, noDataI18nKey, noDataFallback]
+    [hasActiveFilters, noDataI18nKey, noDataFallback, filteredEmptyLabel]
   )
 }
 

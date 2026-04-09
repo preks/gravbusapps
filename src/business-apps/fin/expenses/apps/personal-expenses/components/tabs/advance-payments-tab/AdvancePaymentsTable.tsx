@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { DataTable, DataDisplay, type FilterConfiguration, useTranslation } from '@newwork/nw-design-system'
+import { DataTable, DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import type { ColumnDef, CellContext } from '@tanstack/react-table'
 import { Badge, Button } from '@newwork/nw-design-system'
 import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
@@ -22,16 +22,16 @@ import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documen
 import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
 import { toast } from 'sonner'
-import {
-  resolveSelectedCurrencyCode,
-  applyCurrencyChange,
-  buildFilteredEmptyMessage,
-  buildDefaultEmptyMessage
-} from '../../../utils/tableUtils'
+import { resolveSelectedCurrencyCode, applyCurrencyChange } from '../../../utils/tableUtils'
 import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
+import { createPersonalAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
+import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
+import {
+  advancePaymentAvailableColumns,
+  advancePaymentDefaultVisibleColumnIds
+} from './config/advancePaymentAvailableColumns'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
-const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
 
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -379,77 +379,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     fetchApprovalData()
   }, [generateDocOpen, generateDocRecord, contextProps.accessToken, graphqlClient])
 
-  // FilterConfiguration for DataDisplay filter sheet (same pattern as items/plans)
-  const advancePaymentsFilterConfig: FilterConfiguration = useMemo(() => {
-    const statusOptions = Object.keys(filterLabelMap)
-      .filter(k => !k.startsWith('currency:') && k !== 'amountRange' && k !== 'advanceRange')
-      .map(s => ({ id: s, label: filterLabelMap[s] || s }))
-    const groups: FilterConfiguration['groups'] = [
-      {
-        id: 'status-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'statusIds',
-            field: 'statusIds',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
-            type: 'multi-select',
-            config: { options: statusOptions }
-          }
-        ]
-      },
-      {
-        id: 'amount-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'amount',
-            field: 'amount',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-            type: 'number',
-            config: {
-              mode: 'range',
-              min: 0,
-              max: 1000000,
-              step: 100,
-              placeholderMin: 'Min Amount',
-              placeholderMax: 'Max Amount'
-            }
-          }
-        ]
-      },
-      {
-        id: 'advance-group',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_range_filter', 'Advance Range'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'advance',
-            field: 'advance',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.advance_range_filter',
-              'Advance Range'
-            ),
-            type: 'number',
-            config: {
-              mode: 'range',
-              min: 0,
-              max: 1000000,
-              step: 100,
-              placeholderMin: 'Min Advance',
-              placeholderMax: 'Max Advance'
-            }
-          }
-        ]
-      }
-    ]
-    return { id: 'advance-payments-filters', name: 'Advance Payments Filters', groups }
-  }, [filterLabelMap])
+  const advancePaymentsFilterConfig = useMemo(
+    () => createPersonalAdvancePaymentFilterConfig({ filterLabelMap }),
+    [filterLabelMap]
+  )
 
   // filters object for DataDisplay chips (from current state)
   const filtersObject = useMemo((): Record<string, unknown> => {
@@ -489,86 +422,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     [props.selectedFilters, props.onFilterChange, props.setAmountRange, props.setAdvanceRange]
   )
 
-  // Sortable columns for DataDisplay (match API fieldMap: code, status, amount, paymentMethod, createdAt)
-  const sortableColumns = useMemo(
-    () => [
-      {
-        id: 'createdAt',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.created_at', 'Created')
-      },
-      {
-        id: 'code',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
-          'Plan Number'
-        )
-      },
-      {
-        id: 'status',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status')
-      },
-      {
-        id: 'amount',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.advance',
-          'Advance'
-        )
-      },
-      {
-        id: 'paymentMethod',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-          'Payment Method'
-        )
-      }
-    ],
-    []
-  )
-
-  const baseVisibleColumnIds = useMemo(
-    () => ['expensePlan', 'planNumber', 'status', 'amount', 'advance', 'paymentMethod'],
-    []
-  )
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
-
-  const availableColumnsForDisplay = useMemo(
-    () => [
-      {
-        id: 'expensePlan',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.initial_expense_plan_select_label',
-          'Expense Plan'
-        )
-      },
-      {
-        id: 'planNumber',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
-          'Plan Number'
-        )
-      },
-      { id: 'status', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status') },
-      {
-        id: 'amount',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount')
-      },
-      {
-        id: 'advance',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.advance',
-          'Advance'
-        )
-      },
-      {
-        id: 'paymentMethod',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-          'Payment Method'
-        )
-      }
-    ],
-    []
-  )
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...advancePaymentDefaultVisibleColumnIds])
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(props.selectedFilters || [], currencyStats),
@@ -657,23 +511,6 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   }, [generateDocRecord, approverData, supervisorName])
 
   const prevFilterSignatureRef = useRef<string | null>(null)
-
-  const hasActiveFilters = useMemo(() => {
-    const hasSearch = (debouncedSearchText || '').trim() !== ''
-    const hasAmountRange =
-      debouncedAmountRange && (debouncedAmountRange.min !== undefined || debouncedAmountRange.max !== undefined)
-    const hasAdvanceRange =
-      debouncedAdvanceRange && (debouncedAdvanceRange.min !== undefined || debouncedAdvanceRange.max !== undefined)
-
-    const hasNonDefaultStatusFilter = (() => {
-      const statuses = debouncedStatusFilter || []
-      if (statuses.length === 0) return false
-      if (statuses.length !== DEFAULT_STATUS_FILTER.length) return true
-      return !DEFAULT_STATUS_FILTER.every(status => statuses.includes(status))
-    })()
-
-    return hasSearch || hasNonDefaultStatusFilter || !!hasAmountRange || !!hasAdvanceRange
-  }, [debouncedSearchText, debouncedStatusFilter, debouncedAmountRange, debouncedAdvanceRange])
 
   useEffect(() => {
     const signature = JSON.stringify({
@@ -863,12 +700,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     setCurrentPage(newPagination.pageIndex + 1)
     setPageSize(newPagination.pageSize)
   }, [])
-  const emptyMessage = hasActiveFilters
-    ? buildFilteredEmptyMessage()
-    : buildDefaultEmptyMessage(
-        'lowcoder:personal_expenses.no_advance_payments_found',
-        'No advance payments found. Create your first advance payment to get started.'
-      )
+  const emptyMessage = tPersonal('table-empty-filtered')
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
@@ -1103,11 +935,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         filterConfiguration={advancePaymentsFilterConfig}
         onFilterChange={handleFilterChangeFromDisplay}
         sorting={sorting}
-        sortableColumns={sortableColumns}
+        sortableColumns={advancePaymentSortableColumns}
         onSortingChange={handleSortingChange}
         primaryAction={primaryAction}
         secondaryActions={secondaryActions}
-        availableColumns={availableColumnsForDisplay}
+        availableColumns={advancePaymentAvailableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         toolbarDensity="default"
