@@ -13,7 +13,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUserEngagement } from '../../hooks/useUserEngagement'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import {
   Eye,
   Heart,
@@ -122,7 +122,7 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
   const myContentQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRefs: [
+      contentGroups: [
         ContentGroup.NEWS,
         ContentGroup.KNOWLEDGE,
         ContentGroup.DOCUMENT,
@@ -149,7 +149,7 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
 
     return myContentEntries.reduce(
       (acc, entry) => {
-        const group = entry.contentGroupRef || 'other'
+        const group = entry.contentGroup || 'other'
         if (!acc[group]) {
           acc[group] = []
         }

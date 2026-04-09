@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button, Badge, Card, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -24,18 +24,6 @@ interface RemindersPanelProps extends Pick<BusinessAppContextProps, 'accessToken
   onReminderDue?: () => void // Callback when a reminder becomes due
   onOverdueCountChange?: (count: number) => void // Callback with count of overdue reminders
   t?: (key: string) => string // Translation function
-}
-
-/** Resolve the flow-engine base URL (env override → localhost fallback → origin). */
-function resolveFlowEngineBaseUrl(): string {
-  const envUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (envUrl) return envUrl
-
-  let baseUrl = window.location.origin
-  if (baseUrl.includes('localhost')) {
-    baseUrl = 'https://newwork-dev.newwork.com'
-  }
-  return `${baseUrl}/flow-engine`
 }
 
 export const RemindersPanel: React.FC<RemindersPanelProps> = ({
@@ -126,7 +114,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     setError(null)
 
     try {
-      const baseUrl = resolveFlowEngineBaseUrl()
+      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
 
       // Skip if no user ID
       if (!userId) {
@@ -143,7 +131,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         'tag.userId': userId
       })
 
-      const response = await fetch(`${baseUrl}/api/flows/user/${userId}/initiated?${searchParams}`, {
+      const response = await fetch(`${baseUrl}/flows/user/${userId}/initiated?${searchParams}`, {
         headers: authHeaders
       })
 
@@ -303,7 +291,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     setIsCreating(true)
 
     try {
-      const baseUrl = resolveFlowEngineBaseUrl()
+      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
 
       const reminderDate = dayjs(createDateTime)
       const reminderDateTimeISO = reminderDate.toISOString()
@@ -365,7 +353,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify(requestPayload)
@@ -397,13 +385,13 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
-      const baseUrl = resolveFlowEngineBaseUrl()
+      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
 
       // Strategy 1: Try to get task ID from the step_0 data endpoint
       let taskId: string | null = null
 
       try {
-        const stepDataResponse = await fetch(`${baseUrl}/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
+        const stepDataResponse = await fetch(`${baseUrl}/flows/${workflowId}/steps/step_0/data?limit=1`, {
           headers: authHeaders
         })
 
@@ -428,7 +416,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
             search: workflowId
           })
 
-          const tasksResponse = await fetch(`${baseUrl}/api/tasks/user/${encodeURIComponent(userId)}?${searchParams}`, {
+          const tasksResponse = await fetch(`${baseUrl}/tasks/user/${encodeURIComponent(userId)}?${searchParams}`, {
             headers: authHeaders
           })
 
@@ -451,7 +439,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
       // Strategy 3: Last resort — try to complete the flow directly via progress/complete
       if (!taskId) {
         try {
-          const completeFlowResponse = await fetch(`${baseUrl}/api/flows/${workflowId}/progress/complete`, {
+          const completeFlowResponse = await fetch(`${baseUrl}/flows/${workflowId}/progress/complete`, {
             method: 'POST',
             headers: authHeaders,
             body: JSON.stringify({ userId })
@@ -475,7 +463,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         throw new Error('Could not find the task for this reminder. It may have already been completed.')
       }
 
-      const completeResponse = await fetch(`${baseUrl}/api/tasks/${taskId}/complete`, {
+      const completeResponse = await fetch(`${baseUrl}/tasks/${taskId}/complete`, {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import ContentCard from '../../components/cards/ContentCard'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
 import SearchInput from '../../components/shared/SearchInput'
@@ -43,29 +43,29 @@ const NewsView: React.FC<NewsViewProps> = ({
   const { t } = useTranslation(translations)
   const [offset, setOffset] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedContentTypeRef, setSelectedContentTypeRef] = useState<string | null>(null)
+  const [selectedContentTypeId, setSelectedContentTypeId] = useState<string | null>(null)
 
   // Fetch filter options (ContentTypes) from distinct ContentEntry queries (scoped to NEWS)
   const { getFilterOptions } = useContentFilterGroups({ accessToken, userInfo }, ContentGroup.NEWS)
 
   // Get ContentType filter options
-  const contentTypeOptions = getFilterOptions('contentTypeRef')
+  const contentTypeOptions = getFilterOptions('contentTypeId')
 
   // Build categories from filter options
   const categories = useMemo(() => {
-    const allTag = { label: ALL_TAG, checked: selectedContentTypeRef === null }
+    const allTag = { label: ALL_TAG, checked: selectedContentTypeId === null }
     const typeTags = contentTypeOptions.map(option => ({
       label: option.label || 'Unnamed',
-      checked: selectedContentTypeRef === option.id
+      checked: selectedContentTypeId === option.id
     }))
     return [allTag, ...typeTags]
-  }, [contentTypeOptions, selectedContentTypeRef])
+  }, [contentTypeOptions, selectedContentTypeId])
 
   // Featured content (independent of search) - always shows latest
   const featuredQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.NEWS,
+      contentGroup: ContentGroup.NEWS,
       limit: 2,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -78,15 +78,15 @@ const NewsView: React.FC<NewsViewProps> = ({
   const queryParams = useMemo(() => {
     return {
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.NEWS,
-      contentTypeRef: selectedContentTypeRef || undefined,
+      contentGroup: ContentGroup.NEWS,
+      contentTypeId: selectedContentTypeId || undefined,
       search: searchQuery,
       limit: PAGE_SIZE,
       offset: offset,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }
-  }, [searchQuery, offset, selectedContentTypeRef])
+  }, [searchQuery, offset, selectedContentTypeId])
 
   // Featured entries - not affected by search
   const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
@@ -96,7 +96,7 @@ const NewsView: React.FC<NewsViewProps> = ({
 
   // Accumulate entries for infinite scroll
   // Track the query key to detect when search/category changes (which should reset)
-  const queryKey = useMemo(() => `${searchQuery}-${selectedContentTypeRef}`, [searchQuery, selectedContentTypeRef])
+  const queryKey = useMemo(() => `${searchQuery}-${selectedContentTypeId}`, [searchQuery, selectedContentTypeId])
   const lastQueryKeyRef = useRef(queryKey)
   const [allLoadedEntries, setAllLoadedEntries] = useState<typeof fetchedEntries>([])
 
@@ -189,10 +189,10 @@ const NewsView: React.FC<NewsViewProps> = ({
 
   const handleCategoryClick = (label: string) => {
     if (label === ALL_TAG) {
-      setSelectedContentTypeRef(null)
+      setSelectedContentTypeId(null)
     } else {
       const selectedType = contentTypeOptions.find(option => option.label === label)
-      setSelectedContentTypeRef(selectedType?.id || null)
+      setSelectedContentTypeId(selectedType?.id || null)
     }
     // Offset will be reset by the queryKey effect
   }
