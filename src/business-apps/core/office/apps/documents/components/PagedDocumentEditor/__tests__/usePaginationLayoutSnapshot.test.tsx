@@ -3,7 +3,10 @@ import { act, renderHook } from '@testing-library/react'
 import type { Transaction } from '@tiptap/pm/state'
 import type { DocumentLayoutMeasurementRequest, DocumentLayoutPageSnapshot } from '../../../types'
 import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
-import { PAGINATION_OWNED_DOC_CHANGE_META } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
+import {
+  PAGINATION_OWNED_DOC_CHANGE_META,
+  PAGINATION_REFRESH_META
+} from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import * as documentLayoutServiceModule from '../documentLayoutService'
 import type { DocumentLayoutService } from '../documentLayoutService'
 import * as documentLayoutScheduler from '../documentLayoutScheduler'
@@ -673,6 +676,42 @@ describe('usePaginationLayoutSnapshot', () => {
       const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
       expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
       expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(false)
+    })
+
+    it('schedules a layout catch-up when pagination refresh metadata arrives without a doc change', async () => {
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD - 1
+      const { service } = createLayoutServiceStub(pageCount)
+      const container = document.createElement('div')
+      const editorContainerRef = { current: container } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 1,
+        posAtCoords: () => ({ pos: 1 })
+      })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        editor.emit('transaction', {
+          transaction: createMockTransaction(false, { [PAGINATION_REFRESH_META]: true })
+        })
+      })
+
+      const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
+      expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
+      expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(true)
     })
   })
 

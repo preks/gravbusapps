@@ -3,13 +3,14 @@
  */
 
 import { Node, mergeAttributes } from '@tiptap/core'
-import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
+import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import { getHeadingsForDocumentTableOfContents } from '../../../utils/navigationPanelUtils'
 import { DocumentTableOfContentsView } from '../components/DocumentTableOfContentsView'
 
 const documentTocSnapshotKey = new PluginKey('documentTableOfContentsSnapshot')
+const REMOTE_DOCUMENT_TOC_REFRESH_DELAY_MS = 800
 
 export interface DocumentTableOfContentsOptions {
   HTMLAttributes: Record<string, unknown>
@@ -94,6 +95,47 @@ function parseSnapshotLines(snapshotJson: string): { level: number; text: string
   } catch {
     return []
   }
+}
+
+function hasTocOrHeadingChange(trs: readonly Transaction[], newState: EditorState, typeName: string) {
+  return trs.some(tr => {
+    let found = false
+    tr.steps.forEach((_step, i) => {
+      if (found) return
+      const map = tr.mapping.maps[i]
+      map.forEach((_from, _to, newFrom, newTo) => {
+        if (found) return
+        newState.doc.nodesBetween(newFrom, Math.min(newTo, newState.doc.content.size), node => {
+          if (node.type.name === typeName || node.type.name === 'heading') {
+            found = true
+            return false
+          }
+        })
+      })
+    })
+    return found
+  })
+}
+
+function buildDocumentTocSnapshotTransaction(state: EditorState, typeName: string) {
+  let tr = state.tr
+  let modified = false
+
+  state.doc.descendants((node, pos) => {
+    if (node.type.name !== typeName) {
+      return
+    }
+    const afterPos = pos + node.nodeSize
+    const maxLevel = normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel)
+    const headings = getHeadingsForDocumentTableOfContents(state.doc, afterPos).filter(h => h.level <= maxLevel)
+    const nextJson = JSON.stringify(headings.map(h => ({ level: h.level, text: h.text, pos: h.pos })))
+    if (nextJson !== node.attrs.snapshotJson) {
+      tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, snapshotJson: nextJson })
+      modified = true
+    }
+  })
+
+  return modified ? tr : null
 }
 
 export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOptions>({
@@ -195,6 +237,34 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
 
   addProseMirrorPlugins() {
     const typeName = this.name
+    const editor = this.editor
+    let remoteRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+    const clearRemoteRefreshTimer = () => {
+      if (remoteRefreshTimer !== null) {
+        clearTimeout(remoteRefreshTimer)
+        remoteRefreshTimer = null
+      }
+    }
+
+    const scheduleRemoteSnapshotRefresh = () => {
+      clearRemoteRefreshTimer()
+      remoteRefreshTimer = setTimeout(() => {
+        remoteRefreshTimer = null
+        if ((editor as typeof editor & { isDestroyed?: boolean }).isDestroyed) {
+          return
+        }
+        const view = editor.view
+        if (!view) {
+          return
+        }
+        const tr = buildDocumentTocSnapshotTransaction(view.state, typeName)
+        if (tr) {
+          view.dispatch(tr)
+        }
+      }, REMOTE_DOCUMENT_TOC_REFRESH_DELAY_MS)
+    }
+
     return [
       new Plugin({
         key: documentTocSnapshotKey,
@@ -202,48 +272,22 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
           if (!trs.some(tr => tr.docChanged)) {
             return null
           }
+          if (!hasTocOrHeadingChange(trs, newState, typeName)) {
+            return null
+          }
+
           if (trs.some(tr => tr.getMeta(ySyncPluginKey))) {
+            scheduleRemoteSnapshotRefresh()
             return null
           }
-          const hasTocOrHeadingChange = trs.some(tr => {
-            let found = false
-            tr.steps.forEach((_step, i) => {
-              if (found) return
-              const map = tr.mapping.maps[i]
-              map.forEach((_from, _to, newFrom, newTo) => {
-                if (found) return
-                newState.doc.nodesBetween(newFrom, Math.min(newTo, newState.doc.content.size), node => {
-                  if (node.type.name === typeName || node.type.name === 'heading') {
-                    found = true
-                    return false
-                  }
-                })
-              })
-            })
-            return found
-          })
-          if (!hasTocOrHeadingChange) {
-            return null
+
+          return buildDocumentTocSnapshotTransaction(newState, typeName)
+        },
+        view: () => ({
+          destroy: () => {
+            clearRemoteRefreshTimer()
           }
-          let tr = newState.tr
-          let modified = false
-          newState.doc.descendants((node, pos) => {
-            if (node.type.name !== typeName) {
-              return
-            }
-            const afterPos = pos + node.nodeSize
-            const maxLevel = normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel)
-            const headings = getHeadingsForDocumentTableOfContents(newState.doc, afterPos).filter(
-              h => h.level <= maxLevel
-            )
-            const nextJson = JSON.stringify(headings.map(h => ({ level: h.level, text: h.text, pos: h.pos })))
-            if (nextJson !== node.attrs.snapshotJson) {
-              tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, snapshotJson: nextJson })
-              modified = true
-            }
-          })
-          return modified ? tr : null
-        }
+        })
       })
     ]
   },

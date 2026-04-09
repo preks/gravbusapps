@@ -73,7 +73,9 @@ export function createPaginationExtensionPlugins(options: {
   let deferredRepaginationPassId = 0
   let headerPageCountPassId = 0
   let contentChangeDebounceTimer: ReturnType<typeof setTimeout> | null = null
-  const COLLABORATION_REPAGINATION_DELAY_MS = 1500
+  let lastBuiltDecorationPageCount: number | null = null
+  let pendingChromePresentationRefresh = false
+  const COLLABORATION_REPAGINATION_DELAY_MS = 800
   const LOCAL_REPAGINATION_DELAY_MS = 500
   let suppressPaginationOwnedDeferredScheduling = false
   const tablePaginationController = createTablePaginationController(options.paginationOwnedDocChangeMeta)
@@ -83,15 +85,19 @@ export function createPaginationExtensionPlugins(options: {
   const getEditorRuntimeOptions = (targetEditor: Editor) =>
     getRuntimeOptions(targetEditor, extensionOptions, options.defaultOptions)
 
-  const requestRefresh = (view: EditorView, source = 'unknown') => {
+  const requestRefresh = (view: EditorView, source = 'unknown', shouldStabilize = false) => {
     logPaginationDebug('request-refresh', {
       source,
       existingPageCount: getExistingPageCount(view),
       storedPageCount: storage.pageCount,
-      stabilizationAttemptsRemaining: deferredRepaginationScheduler.getStabilizationAttemptsRemaining()
+      stabilizationAttemptsRemaining: deferredRepaginationScheduler.getStabilizationAttemptsRemaining(),
+      shouldStabilize
     })
     deferredRepaginationScheduler.clear()
     const transaction = view.state.tr.setMeta(options.refreshMeta, true)
+    if (shouldStabilize) {
+      transaction.setMeta(options.refreshAndStabilizeMeta, true)
+    }
     view.dispatch(transaction)
   }
 
@@ -254,8 +260,10 @@ export function createPaginationExtensionPlugins(options: {
     })
   }
 
-  const buildPageDecorations = (): DecorationSet =>
-    createPaginationChromeDecorationSet({
+  const buildPageDecorations = (): DecorationSet => {
+    lastBuiltDecorationPageCount = clampPageCount(storage.pageCount)
+    pendingChromePresentationRefresh = false
+    return createPaginationChromeDecorationSet({
       doc: editor.state.doc,
       renderWidget: view => {
         const runtimeOptions = getEditorRuntimeOptions(editor)
@@ -279,6 +287,7 @@ export function createPaginationExtensionPlugins(options: {
         })
       }
     })
+  }
 
   return [
     new Plugin({
@@ -304,6 +313,11 @@ export function createPaginationExtensionPlugins(options: {
           }
 
           if (tr.getMeta(options.refreshMeta)) {
+            if (lastBuiltDecorationPageCount === clampPageCount(storage.pageCount)) {
+              pendingChromePresentationRefresh = true
+              return oldValue
+            }
+
             return buildPageDecorations()
           }
 
@@ -388,6 +402,7 @@ export function createPaginationExtensionPlugins(options: {
       view: () => ({
         update: updatedView => {
           if (lastDocChangeOrigin === 'collaboration-remote' || lastDocChangeOrigin === 'external') {
+            const shouldStabilizeOnSettle = lastDocChangeOrigin === 'collaboration-remote'
             const delayMs =
               lastDocChangeOrigin === 'collaboration-remote'
                 ? COLLABORATION_REPAGINATION_DELAY_MS
@@ -402,7 +417,7 @@ export function createPaginationExtensionPlugins(options: {
               contentChangeDebounceTimer = null
               const mounted = getMountedEditorView(editor)
               if (mounted && !(mounted as EditorView & { isDestroyed?: boolean }).isDestroyed) {
-                requestRefresh(mounted, 'content-change-settle')
+                requestRefresh(mounted, 'content-change-settle', shouldStabilizeOnSettle)
               }
             }, delayMs)
             return
@@ -424,6 +439,14 @@ export function createPaginationExtensionPlugins(options: {
           const measured = applyMeasuredPageHeightsToView(updatedView, storage, runtimeOptions)
           measuredHeaderHeights = measured.headerHeights
           measuredFooterHeights = measured.footerHeights
+          if (pendingChromePresentationRefresh) {
+            pendingChromePresentationRefresh = false
+            windowedRenderer.refreshPresentation({
+              editorDom: updatedView.dom,
+              options: runtimeOptions,
+              storage
+            })
+          }
           const nextPluginViewState = runPaginationPluginViewUpdate({
             view: updatedView,
             storage,
