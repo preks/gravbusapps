@@ -66,16 +66,9 @@ export function createExpensePlanFilterConfig({
           label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
           type: 'multi-select',
           config: { options: planTypeOptions }
-        }
-      ]
-    },
-    {
-      id: 'topDestination-group',
-      label: topDestinationLabel,
-      collapsible: false,
-      filters: [
+        },
         {
-          id: 'topDestinationIds',
+          id: 'topDestinationToolbarChipOnly',
           field: 'topDestinationIds',
           label: topDestinationLabel,
           type: 'multi-select',

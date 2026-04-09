@@ -1,7 +1,8 @@
 import React from 'react'
-import { DataDisplay, DataTable, type FilterConfiguration } from '@newwork/nw-design-system'
+import { DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import ExpenseDataTable from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import { expenseRequestAvailableColumns } from '../../config/expenseRequestAvailableColumns'
 import { expenseRequestSortableColumns } from '../../config/expenseRequestSortableColumns'
 import type { ExpenseRequestRow } from '../columns/expenseRequestColumns'
@@ -26,11 +27,10 @@ export interface ExpenseRequestsDataBodyProps {
   filterSheetDescription: string
   items: ExpenseRequestRow[]
   columns: ColumnDef<ExpenseRequestRow>[]
-  columnVisibility: Record<string, boolean>
   error: string | undefined
   pagination: { pageIndex: number; pageSize: number }
   onPaginationChange: (p: { pageIndex: number; pageSize: number }) => void
-  emptyMessage: React.ReactNode
+  emptyMessage: string
   rowActions: (row: { original: ExpenseRequestRow }) => React.ReactNode
   onRowClick: (row: ExpenseRequestRow) => void
 }
@@ -54,7 +54,6 @@ export function ExpenseRequestsDataBody({
   filterSheetDescription,
   items,
   columns,
-  columnVisibility,
   error,
   pagination,
   onPaginationChange,
@@ -94,10 +93,9 @@ export function ExpenseRequestsDataBody({
       filterSheetTitle={filterSheetTitle}
       filterSheetDescription={filterSheetDescription}
     >
-      <DataTable<ExpenseRequestRow>
+      <ExpenseDataTable<ExpenseRequestRow>
         data={items}
         columns={columns}
-        columnVisibility={columnVisibility}
         loading={isLoading}
         error={error}
         totalCount={totalCount}
@@ -105,19 +103,10 @@ export function ExpenseRequestsDataBody({
         onSortingChange={onSortingChange}
         pagination={pagination}
         onPaginationChange={onPaginationChange}
-        enablePagination
-        enableSorting
-        enableSelection={false}
-        enableColumnPinning
-        enableResizing={false}
-        tableLayout="fixed"
-        rowsPerPageOptions={[10, 20, 50, 100]}
-        showPageNumbers
-        maxVisiblePages={7}
-        emptyMessage={emptyMessage as string | undefined}
+        emptyMessage={emptyMessage}
         actions={rowActions}
         onRowClick={onRowClick}
-        data-testid={EXPENSE_REQUESTS_TABLE_DATA_TEST_ID}
+        dataTestId={EXPENSE_REQUESTS_TABLE_DATA_TEST_ID}
       />
     </DataDisplay>
   )

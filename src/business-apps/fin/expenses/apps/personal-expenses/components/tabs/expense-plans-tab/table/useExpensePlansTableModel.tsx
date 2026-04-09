@@ -5,7 +5,8 @@ import personalTranslations from '../../../../_i18n'
 import { useExpensePlanFileService } from '../../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildFilteredEmptyMessage, buildDefaultEmptyMessage } from '../../../../utils/tableUtils'
-import { useVisibleColumns } from '../../../../../../common/hooks/useSharedTabState'
+import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTableSetup'
+import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { expensePlanAvailableColumns } from '../config/expensePlanAvailableColumns'
 import { expensePlanSortableColumns } from '../config/expensePlanSortableColumns'
 import { createExpensePlanColumns } from './expensePlanColumns'
@@ -63,7 +64,8 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     setEndDateRange,
     setFilters: props.setFilters,
     onFiltersChange,
-    currencyStats: props.currencyStats || []
+    currencyStats: props.currencyStats || [],
+    widgetTopDestinationFilterTokens: props.widgetTopDestinationFilterTokens ?? []
   })
 
   const baseVisibleColumnIds = useMemo(() => expensePlanAvailableColumns.map(c => c.id), [])
@@ -71,6 +73,18 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
   const visibleColumnIds = useVisibleColumns(
     rawVisibleColumns,
     baseVisibleColumnIds.map(id => ({ id }))
+  )
+
+  const ignorePageStateUpdate = useCallback(() => {
+    void 0
+  }, [])
+  const ignorePageSizeStateUpdate = useCallback(() => {
+    void 0
+  }, [])
+
+  const tableContextProps = useMemo(
+    () => ({ accessToken: contextProps.accessToken, userInfo: contextProps.userInfo }),
+    [contextProps.accessToken, contextProps.userInfo]
   )
 
   const savedPageBeforeSearchRef = useRef<number | null>(null)
@@ -220,6 +234,16 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
 
   const allColumns = useMemo(() => createExpensePlanColumns(), [])
 
+  const { columns: visibleTableColumns } = useTableSetup<ExpensePlan>(
+    tableContextProps,
+    allColumns,
+    visibleColumnIds,
+    currentPage,
+    pageSize,
+    ignorePageStateUpdate,
+    ignorePageSizeStateUpdate
+  )
+
   const rowActions = useExpensePlanRowActions({
     employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
     accessToken: contextProps.accessToken,
@@ -271,7 +295,7 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     filterSheetTitle: tPersonal('filter-expense-plans-title'),
     filterSheetDescription: tPersonal('filter-expense-plans-description'),
     plans: plans || [],
-    allColumns,
+    columns: visibleTableColumns,
     tableError: props.error || undefined,
     pagination,
     onPaginationChange: handlePaginationChange,

@@ -86,17 +86,23 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
 
-  const { uiSelectedFilters, uiFilterLabelMap, setFiltersForTable } = useExpensePlansTabTopDestinationUi({
-    destinationFilter,
-    topDestination: overview?.topDestination,
-    selectedFilters,
-    filterLabelMap,
-    setBaseFilters: setFilters,
-    setDestinationFilter,
-    activeWidget,
-    setActiveWidget,
-    setSuppressCurrencyAutoSelect
-  })
+  const { uiSelectedFilters, uiFilterLabelMap, setFiltersForTable, topDestinationPill } =
+    useExpensePlansTabTopDestinationUi({
+      destinationFilter,
+      topDestination: overview?.topDestination,
+      selectedFilters,
+      filterLabelMap,
+      setBaseFilters: setFilters,
+      setDestinationFilter,
+      activeWidget,
+      setActiveWidget,
+      setSuppressCurrencyAutoSelect
+    })
+
+  const widgetTopDestinationFilterTokens = useMemo(
+    () => (topDestinationPill ? [topDestinationPill.token] : []),
+    [topDestinationPill]
+  )
 
   const { sortField, sortOrder, handleTableChange } = useExpensePlansTableSort({
     overviewTotalCount: overview?.totalCount,
@@ -291,6 +297,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setEffectiveDateRange={setEffectiveDateRange}
       onFiltersChange={() => setCurrentPage(1)}
       availableStatuses={expensePlanAvailableStatuses}
+      widgetTopDestinationFilterTokens={widgetTopDestinationFilterTokens}
       {...({ currencyStats } as any)}
     />
   )

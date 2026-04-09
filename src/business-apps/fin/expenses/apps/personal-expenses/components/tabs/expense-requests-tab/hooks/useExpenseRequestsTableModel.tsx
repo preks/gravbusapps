@@ -16,6 +16,7 @@ import {
   buildFilteredEmptyMessage,
   buildDefaultEmptyMessage
 } from '../../../../utils/tableUtils'
+import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTableSetup'
 import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
 import { createExpenseRequestFilterConfig } from '../config/expenseRequestFilterConfig'
@@ -157,14 +158,12 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...expenseRequestDefaultVisibleColumnIds])
   const visibleColumnIds = useVisibleColumns(rawVisibleColumns, expenseRequestAvailableColumns)
 
-  const dataTableColumnVisibility = useMemo(() => {
-    const vis: Record<string, boolean> = {}
-    for (const { id } of expenseRequestAvailableColumns) {
-      vis[id] = visibleColumnIds.includes(id)
-    }
-    vis.actions = true
-    return vis
-  }, [visibleColumnIds])
+  const ignorePageStateUpdate = useCallback(() => {
+    void 0
+  }, [])
+  const ignorePageSizeStateUpdate = useCallback(() => {
+    void 0
+  }, [])
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(selectedFilters || [], currencyStats),
@@ -280,6 +279,16 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       )
 
   const columns = useMemo(() => createExpenseRequestColumns(), [])
+
+  const { columns: visibleTableColumns } = useTableSetup<ExpenseRequestRow>(
+    contextProps,
+    columns,
+    visibleColumnIds,
+    currentPage,
+    pageSize,
+    ignorePageStateUpdate,
+    ignorePageSizeStateUpdate
+  )
 
   const handleSelectItem = useCallback((item: ExpenseRequestRow) => {
     setSelectedItem(item)
@@ -413,8 +422,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       filterSheetTitle: tPersonal('filter-expense-requests-title'),
       filterSheetDescription: tPersonal('filter-expense-requests-description'),
       items: tableItems,
-      columns,
-      columnVisibility: dataTableColumnVisibility,
+      columns: visibleTableColumns,
       error: error || undefined,
       pagination,
       onPaginationChange: handlePaginationChange,
@@ -438,8 +446,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       visibleColumnIds,
       tPersonal,
       tableItems,
-      columns,
-      dataTableColumnVisibility,
+      visibleTableColumns,
       error,
       pagination,
       handlePaginationChange,

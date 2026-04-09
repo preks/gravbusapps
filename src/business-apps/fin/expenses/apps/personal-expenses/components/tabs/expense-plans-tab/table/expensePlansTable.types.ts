@@ -1,6 +1,6 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import type { ExpensePlan } from '../../../hooks/useGetExpensePlans'
+import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 
 export interface ExpensePlansTableProps extends BusinessAppContextProps {
   items: ExpensePlan[] | undefined
@@ -34,4 +34,5 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
   onFiltersChange?: () => void
   availableStatuses?: string[]
+  widgetTopDestinationFilterTokens?: string[]
 }
