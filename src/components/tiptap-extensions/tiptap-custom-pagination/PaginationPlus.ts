@@ -124,6 +124,17 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       defaultOptions,
       syncStorageFromOptions
     })
+
+    const editorDom = this.editor.view.dom
+    editorDom.ownerDocument?.fonts?.ready
+      .then(() => {
+        if (!this.editor.isDestroyed) {
+          this.editor.commands.refreshPagesAndStabilize()
+        }
+      })
+      .catch(() => {
+        // fonts.ready rejection is non-fatal; skip the refresh.
+      })
   },
 
   onDestroy() {

@@ -94,7 +94,7 @@ describe('resolveSelectionNavigationDirection', () => {
 })
 
 describe('runPaginationPluginViewUpdate', () => {
-  it('refreshes when overflow measurement shows page growth', () => {
+  it('refreshes via page-count-grow when measurement detects page growth', () => {
     const harness = createHarness({
       state: {
         lastKnownDoc: createDoc('prev'),
@@ -121,7 +121,7 @@ describe('runPaginationPluginViewUpdate', () => {
 
     expect(harness.callbacks.onClearGrowthSuppression).toHaveBeenCalledTimes(2)
     expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(3)
-    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('selection-overflow')
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-grow')
     expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
     expect(nextState.lastKnownDoc).toBe(harness.currentDoc)
     expect(nextState.lastKnownSelectionHead).toBe(10)

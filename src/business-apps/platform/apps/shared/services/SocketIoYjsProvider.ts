@@ -67,7 +67,7 @@ export interface SocketIoYjsProviderOptions {
     fragmentLength: number
   }) => Promise<void> | void
   onLocalDocumentChange?: () => void
-  onRemoteDocumentChange?: () => void
+  onRemoteDocumentChange?: (info: { fragmentChanged: boolean; fragmentLength: number }) => void
   onRemoteAwarenessChange?: () => void
   /** Resolve before first apply of doc/awareness state so the editor view can mount. */
   onBeforeFirstSync?: () => Promise<void>
@@ -105,7 +105,7 @@ export class SocketIoYjsProvider {
     fragmentLength: number
   }) => Promise<void> | void
   private onLocalDocumentChange?: () => void
-  private onRemoteDocumentChange?: () => void
+  private onRemoteDocumentChange?: (info: { fragmentChanged: boolean; fragmentLength: number }) => void
   private onRemoteAwarenessChange?: () => void
   private readonly onBeforeFirstSync?: () => Promise<void>
   private hasWaitedForReady = false
@@ -113,6 +113,7 @@ export class SocketIoYjsProvider {
   private retrySyncTimeout: number | null = null
   private pendingLocalDocUpdates: Uint8Array[] = []
   private pendingLocalAwarenessUpdates: Uint8Array[] = []
+  private isApplyingRemoteDocUpdate = false
   private readonly syncAckTimeoutMs: number
 
   constructor(options: SocketIoYjsProviderOptions) {
@@ -266,11 +267,12 @@ export class SocketIoYjsProvider {
     if (this.destroyed) return false
 
     if (response.status === 'ready') {
-      const fragmentLength = this.applyDocState(response.state)
+      const applyResult = this.applyDocState(response.state)
+      this.queueLocalDiffAfterFullSync(response.state)
       await this.onReadyStateApplied?.({
         source: 'sync',
         status: response.status,
-        fragmentLength
+        fragmentLength: applyResult.fragmentLength
       })
       const awarenessPayload = response.awareness
       if (awarenessPayload) {
@@ -284,6 +286,28 @@ export class SocketIoYjsProvider {
     }
     this.setSynced(true)
     return true
+  }
+
+  /**
+   * After applying a full server snapshot, compute whatever the local ydoc has
+   * that the server state didn't know about (e.g. TipTap's initial empty paragraph,
+   * written to the ydoc before the provider listener was registered) and queue it
+   * for sending so other peers can resolve Yjs predecessor dependencies.
+   */
+  private queueLocalDiffAfterFullSync(serverStateBase64: string): void {
+    try {
+      const serverStateBytes = base64ToUint8Array(serverStateBase64)
+      const tempDoc = new Y.Doc()
+      Y.applyUpdate(tempDoc, serverStateBytes)
+      const serverSV = Y.encodeStateVector(tempDoc)
+      tempDoc.destroy()
+      const localDiff = Y.encodeStateAsUpdate(this.ydoc, serverSV)
+      if (localDiff.length > 2) {
+        this.pendingLocalDocUpdates.push(localDiff)
+      }
+    } catch (error) {
+      console.error('[SocketIoYjsProvider] queueLocalDiffAfterFullSync failed:', error)
+    }
   }
 
   private async flushLayoutAfterBootstrap(): Promise<void> {
@@ -411,17 +435,27 @@ export class SocketIoYjsProvider {
     this.handleWaitingStatus(response as Extract<YjsSyncResponse, { success: true; status: 'waiting' }>)
   }
 
-  private applyDocState(stateBase64: string): number {
+  private applyDocState(stateBase64: string): { fragmentChanged: boolean; fragmentLength: number } {
     try {
       const stateBytes = base64ToUint8Array(stateBase64)
-      Y.applyUpdate(this.ydoc, stateBytes, 'remote')
-      this.onRemoteDocumentChange?.()
+      const fragmentBefore = this.ydoc.getXmlFragment('default')
+      const fragBefore = fragmentBefore.toString()
+      this.isApplyingRemoteDocUpdate = true
+      try {
+        Y.applyUpdate(this.ydoc, stateBytes)
+      } finally {
+        this.isApplyingRemoteDocUpdate = false
+      }
+      const fragmentAfter = this.ydoc.getXmlFragment('default')
+      const fragAfter = fragmentAfter.toString()
+      const fragmentChanged = fragBefore !== fragAfter
 
-      const fragment = this.ydoc.getXmlFragment('default')
-      return fragment.length
+      this.onRemoteDocumentChange?.({ fragmentChanged, fragmentLength: fragmentAfter.length })
+
+      return { fragmentChanged, fragmentLength: fragmentAfter.length }
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying doc state:', error)
-      return -1
+      return { fragmentChanged: false, fragmentLength: -1 }
     }
   }
 
@@ -443,11 +477,12 @@ export class SocketIoYjsProvider {
 
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      const fragmentLength = this.applyDocState(event.state)
+      const applyResult = this.applyDocState(event.state)
+      this.queueLocalDiffAfterFullSync(event.state)
       void this.onReadyStateApplied?.({
         source: 'event',
         status: 'ready',
-        fragmentLength
+        fragmentLength: applyResult.fragmentLength
       })
       if (event.awareness) {
         this.applyAwarenessState(event.awareness)
@@ -482,9 +517,9 @@ export class SocketIoYjsProvider {
     })
   }
 
-  private handleLocalYjsUpdate = (_update: Uint8Array, origin: unknown) => {
+  private handleLocalYjsUpdate = (_update: Uint8Array) => {
     if (this.destroyed) return
-    if (origin === 'remote') return
+    if (this.isApplyingRemoteDocUpdate) return
 
     const updateBase64 = uint8ArrayToBase64(_update)
     if (this.synced) {

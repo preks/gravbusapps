@@ -636,11 +636,15 @@ export function shouldScheduleDeferredRepaginationOnUpdate(options: {
     return false
   }
 
+  if (externalDocChange) {
+    return true
+  }
+
   if (!hasTables) {
     return false
   }
 
-  return externalDocChange || paginationOwnedDocChange || hydrationOwnedDocChange
+  return paginationOwnedDocChange || hydrationOwnedDocChange
 }
 
 export function resolveDeferredRepaginationOutcome(options: {
