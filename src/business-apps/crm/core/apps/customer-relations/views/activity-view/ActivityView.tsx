@@ -4,6 +4,7 @@ import { ActivityLayout } from '@/common/components/common-relations/view-layout
 import { buildCrmActivityConfig } from './config/activityConfig'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerActivityStatistics } from '@/common/data/customer/hooks/useCustomerActivityStatistics'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 
 export type ActivityViewProps = BusinessAppContextProps
 
@@ -14,11 +15,12 @@ export type ActivityViewProps = BusinessAppContextProps
  * on every render (which would cause duplicate fetches).
  */
 export const ActivityView: React.FC<ActivityViewProps> = props => {
-  // Call hooks at component level (same pattern as TaskView)
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-activity-preferences:v1')
+
   const { fetchCustomerActivities } = useCustomerActivities(props)
   const activityStatistics = useCustomerActivityStatistics(props)
 
-  // Memoize config — new object only when fetchCustomerActivities actually changes
   const config = useMemo(() => buildCrmActivityConfig(fetchCustomerActivities), [fetchCustomerActivities])
 
   return (
@@ -29,6 +31,12 @@ export const ActivityView: React.FC<ActivityViewProps> = props => {
       showOwnerEmployee
       enableExport
       exportFilenamePrefix="crm-activities"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
       kpiStatistics={activityStatistics.teamActivitiesStatistics}
       kpiLoading={activityStatistics.isLoading}
       kpiError={activityStatistics.error}

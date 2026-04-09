@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole } from '@/common/data/content/constants/contentConstants'
 
 export interface ArticleComment {
   id: string

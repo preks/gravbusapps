@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataDisplay, DataTable, Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 import { useContentData } from './hooks/useContentData'
@@ -9,6 +9,10 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PlusIcon } from '@phosphor-icons/react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useContentFilterGroups } from '@/common/data/content/hooks/useContentFilterGroups'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
+import { CONTENT_ENTRY_DESCRIPTORS } from '@/common/data/content/types/contentEntryTypes'
+import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
 
 type ContentManagerProps = BusinessAppContextProps
 
@@ -65,10 +69,29 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
     setSelectedContent(entry)
   }, [])
 
-  // Get filter configuration based on current section
-  const getFilterConfig = () => {
-    return currentSection === 'all' ? contentFilterConfigAll : contentFilterConfigSpecific
-  }
+  const activeContentGroup = useMemo(() => {
+    const groupMap: Record<'news' | 'knowledge' | 'policy' | 'document' | 'question', ContentGroup> = {
+      news: ContentGroup.NEWS,
+      knowledge: ContentGroup.KNOWLEDGE,
+      policy: ContentGroup.POLICY,
+      document: ContentGroup.DOCUMENT,
+      question: ContentGroup.QUESTION
+    }
+
+    return currentSection === 'all' ? undefined : groupMap[currentSection]
+  }, [currentSection])
+
+  const contentFilterGroups = useContentFilterGroups(context, activeContentGroup)
+
+  const currentFilterConfig = useMemo(() => {
+    const baseConfig = currentSection === 'all' ? contentFilterConfigAll : contentFilterConfigSpecific
+
+    if (contentFilterGroups.isLoading || Object.keys(contentFilterGroups.filterData || {}).length === 0) {
+      return baseConfig
+    }
+
+    return buildDynamicFilterConfig(baseConfig, CONTENT_ENTRY_DESCRIPTORS, contentFilterGroups)
+  }, [currentSection, contentFilterGroups])
 
   return (
     <div className="gba:p-6" data-testid="content-management">
@@ -166,7 +189,7 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         onSearchChange={current.setSearch}
         // Filters
         filters={current.filters}
-        filterConfiguration={getFilterConfig()}
+        filterConfiguration={currentFilterConfig}
         onFilterChange={current.setFilters}
         enableLiveFiltering={true}
         filterSheetTitle="Filter Content"

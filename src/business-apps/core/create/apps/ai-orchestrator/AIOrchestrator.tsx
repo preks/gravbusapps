@@ -28,7 +28,7 @@ export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
   const [{ jobId, sessionId, initialPrompt }] = useState(() => getQueryParams())
 
   return (
-    <div className="gba:h-full gba:w-full">
+    <div className="gba:flex gba:h-full gba:min-h-0 gba:w-full gba:flex-col">
       <PlanDetailPage
         accessToken={context.accessToken ?? ''}
         userInfo={context.userInfo}

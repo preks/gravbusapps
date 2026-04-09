@@ -254,7 +254,7 @@ function buildFetchQuery(contentType, documentId) {
             title
             content
             preview
-            contentGroupRef
+            contentGroup
             categoryNames
             tagNames
             createdAt

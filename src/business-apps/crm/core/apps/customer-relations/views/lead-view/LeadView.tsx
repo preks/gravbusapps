@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { type CustomerLead, CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customerLeadTypes'
 import {
   commonLeadColumns,
@@ -79,6 +80,8 @@ const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: Cus
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-lead-preferences:v1')
 
   // Data Hooks
   const { fetchCustomerLeads } = useCustomerLeads(context)
@@ -158,6 +161,12 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       dataTestId="customer-lead-view"
       enableExport
       exportFilenamePrefix="leads"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

@@ -17,11 +17,10 @@ import {
   LinkedEntity,
   LinkedCase
 } from '../types'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 // Base URL for the custom flow engine API - same pattern as ConductorWorkflowEngineAdapter
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
+const API_BASE = CUSTOM_FLOW_ENGINE_API_URL
 
 export class CaseApiClient {
   private baseUrl: string

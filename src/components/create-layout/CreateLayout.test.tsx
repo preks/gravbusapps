@@ -16,7 +16,7 @@ jest.mock('@newwork/nw-design-system', () => {
         {children}
       </button>
     ),
-    ResizablePanelGroup: React.forwardRef(({ children, ...props }: any, ref) => {
+    ResizablePanelGroup: React.forwardRef(({ children, ...props }: any, ref: any) => {
       React.useImperativeHandle(ref, () => ({ setLayout: jest.fn() }))
       return <div {...props}>{children}</div>
     })
