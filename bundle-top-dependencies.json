@@ -9895,9 +9895,9 @@
     ]
   },
   "fin/expenses/apps/backoffice-expenses": {
-    "bitbucketBuildNumber": 10661,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10661/",
-    "chunkJsBytes": 1049506,
+    "bitbucketBuildNumber": 10672,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
+    "chunkJsBytes": 1051801,
     "top": [
       {
         "kind": "bucket",
@@ -9908,8 +9908,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 641894,
-        "gzip": 167752
+        "rendered": 644228,
+        "gzip": 168364
       },
       {
         "kind": "bucket",
@@ -10252,15 +10252,15 @@
     ]
   },
   "fin/expenses/apps/expense-request-record": {
-    "bitbucketBuildNumber": 10661,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10661/",
-    "chunkJsBytes": 194750,
+    "bitbucketBuildNumber": 10672,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
+    "chunkJsBytes": 197039,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 117859,
-        "gzip": 29785
+        "rendered": 120193,
+        "gzip": 30399
       },
       {
         "kind": "bucket",
@@ -11754,9 +11754,9 @@
     ]
   },
   "fin/expenses/apps/manager-expenses": {
-    "bitbucketBuildNumber": 10670,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10670/",
-    "chunkJsBytes": 1220023,
+    "bitbucketBuildNumber": 10672,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
+    "chunkJsBytes": 1222323,
     "top": [
       {
         "kind": "bucket",
@@ -11767,8 +11767,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 488026,
-        "gzip": 121315
+        "rendered": 490360,
+        "gzip": 121928
       },
       {
         "kind": "bucket",
@@ -11881,9 +11881,9 @@
     ]
   },
   "fin/expenses/apps/personal-expenses": {
-    "bitbucketBuildNumber": 10661,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10661/",
-    "chunkJsBytes": 1292854,
+    "bitbucketBuildNumber": 10672,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
+    "chunkJsBytes": 1292471,
     "top": [
       {
         "kind": "bucket",
@@ -11894,8 +11894,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 585028,
-        "gzip": 152690
+        "rendered": 583291,
+        "gzip": 156237
       },
       {
         "kind": "bucket",
@@ -12117,9 +12117,9 @@
     ]
   },
   "fin/expenses/apps/unallocated-expense-items": {
-    "bitbucketBuildNumber": 10661,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10661/",
-    "chunkJsBytes": 712601,
+    "bitbucketBuildNumber": 10672,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
+    "chunkJsBytes": 715754,
     "top": [
       {
         "kind": "bucket",
@@ -12130,8 +12130,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 119896,
-        "gzip": 37017
+        "rendered": 123894,
+        "gzip": 38380
       },
       {
         "kind": "bucket",
@@ -36095,15 +36095,15 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10670,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10670/",
-    "chunkJsBytes": 969137,
+    "bitbucketBuildNumber": 10672,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
+    "chunkJsBytes": 969141,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 593301,
-        "gzip": 32441
+        "gzip": 32509
       },
       {
         "kind": "bucket",
@@ -41375,7 +41375,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-09T11:09:52.654Z",
+    "generatedAt": "2026-04-09T11:47:30.236Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }

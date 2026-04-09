@@ -208,7 +208,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         onSortingChange={handleSortingChange}
         sortableColumns={sortableColumns}
         availableColumns={availableColumns}
-        primaryAction={<ExpenseItemsPrimaryAction onAddExpenseItem={onAddExpenseItem} />}
+        primaryAction={
+          selectedRowKeys.length === 0 ? <ExpenseItemsPrimaryAction onAddExpenseItem={onAddExpenseItem} /> : null
+        }
         secondaryActions={
           <ExpenseItemsSecondaryActions
             availableCurrencyCodes={availableCurrencyCodes}

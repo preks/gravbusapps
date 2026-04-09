@@ -1,9 +1,9 @@
 import ExpenseRequestsTab from './ExpenseRequestsTab'
-import ExpenseRequestsTable from './ExpenseRequestsTable'
-import ExpenseRequestStatistics from './ExpenseRequestStatistics'
-import ExpenseRequestDetails from './ExpenseRequestDetails'
-import { StartDateRangeFilter } from './StartDateRangeFilter'
-import { EndDateRangeFilter } from './EndDateRangeFilter'
+import ExpenseRequestsTable from './table/ExpenseRequestsTable'
+import ExpenseRequestStatistics from './statistics/ExpenseRequestStatistics'
+import ExpenseRequestDetails from './details/ExpenseRequestDetails'
+import { StartDateRangeFilter } from './filters/StartDateRangeFilter'
+import { EndDateRangeFilter } from './filters/EndDateRangeFilter'
 
 export {
   ExpenseRequestsTab,
@@ -13,4 +13,6 @@ export {
   StartDateRangeFilter,
   EndDateRangeFilter
 }
+export { useExpenseRequestsTabLogic } from './hooks/useExpenseRequestsTabLogic'
+export type { ExpenseRequestsTabProps } from './types/expenseRequestsTab.types'
 export default ExpenseRequestsTab
