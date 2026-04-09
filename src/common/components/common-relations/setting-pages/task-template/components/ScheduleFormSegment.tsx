@@ -11,8 +11,8 @@ import {
   FormControl,
   Input
 } from '@newwork/nw-design-system'
-import { X } from 'lucide-react'
-import { RecurringScheduleFieldsProps, EnumOption } from '../types'
+import { XIcon } from '@phosphor-icons/react'
+import { RecurringScheduleFieldsProps, EnumOption, type TaskTemplateSchedulingType } from '../types'
 
 const DAYS_OF_WEEK = [
   { value: 'monday', label: 'Monday' },
@@ -46,11 +46,8 @@ const MONTHS_OF_YEAR = [
 
 export const ScheduleFormSegment: React.FC<
   RecurringScheduleFieldsProps & {
-    schedulingType?: 'ONCE' | 'BUSINESS_DAYS' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM' | 'EVENTS'
-    onSchedulingTypeChange?: (
-      t: 'ONCE' | 'BUSINESS_DAYS' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM' | 'EVENTS'
-    ) => void
-    hasEventConfig?: boolean
+    schedulingType?: TaskTemplateSchedulingType
+    onSchedulingTypeChange?: (t: TaskTemplateSchedulingType) => void
     nextStartDate?: string
     onNextStartDateChange?: (v: string) => void
     holidayPolicies: EnumOption[]
@@ -61,7 +58,6 @@ export const ScheduleFormSegment: React.FC<
   dataTestId,
   schedulingType = 'CUSTOM',
   onSchedulingTypeChange,
-  hasEventConfig = false,
   nextStartDate,
   onNextStartDateChange,
   holidayPolicies
@@ -127,7 +123,7 @@ export const ScheduleFormSegment: React.FC<
     <div className="gba:space-y-6" data-testid={dataTestId}>
       <div className="gba:space-y-2">
         <Label className="gba:text-sm gba:font-medium gba:text-foreground">Scheduling Type</Label>
-        <Select value={schedulingType} onValueChange={v => onSchedulingTypeChange?.(v as any)}>
+        <Select value={schedulingType} onValueChange={v => onSchedulingTypeChange?.(v as TaskTemplateSchedulingType)}>
           <FormControl>
             <SelectTrigger data-testid={`${dataTestId}-scheduling-type`}>
               <SelectValue placeholder="Select scheduling type" />
@@ -140,22 +136,19 @@ export const ScheduleFormSegment: React.FC<
             <SelectItem value="BIWEEKLY">Bi-weekly</SelectItem>
             <SelectItem value="MONTHLY">Monthly</SelectItem>
             <SelectItem value="CUSTOM">Custom</SelectItem>
-            {hasEventConfig && <SelectItem value="EVENTS">Events</SelectItem>}
           </SelectContent>
         </Select>
       </div>
 
-      {schedulingType !== 'EVENTS' && (
-        <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-foreground">Next Start Date</Label>
-          <Input
-            type="date"
-            value={nextStartDate || ''}
-            onChange={e => onNextStartDateChange?.(e.target.value)}
-            data-testid={`${dataTestId}-next-start-date-input`}
-          />
-        </div>
-      )}
+      <div className="gba:space-y-2">
+        <Label className="gba:text-sm gba:font-medium gba:text-foreground">Next Start Date</Label>
+        <Input
+          type="date"
+          value={nextStartDate || ''}
+          onChange={e => onNextStartDateChange?.(e.target.value)}
+          data-testid={`${dataTestId}-next-start-date-input`}
+        />
+      </div>
 
       {(schedulingType === 'WEEKLY' || schedulingType === 'BIWEEKLY' || schedulingType === 'CUSTOM') && (
         <div className="gba:space-y-2">
@@ -179,7 +172,7 @@ export const ScheduleFormSegment: React.FC<
                     aria-label={`Remove ${d}`}
                     className="gba:text-destructive hover:gba:text-destructive/80"
                   >
-                    <X className="gba:h-3 gba:w-3" />
+                    <XIcon className="gba:h-3 gba:w-3" />
                   </button>
                 </Badge>
               ))}
@@ -210,7 +203,7 @@ export const ScheduleFormSegment: React.FC<
                     aria-label={`Remove ${d}`}
                     className="gba:text-destructive hover:gba:text-destructive/80"
                   >
-                    <X className="gba:h-3 gba:w-3" />
+                    <XIcon className="gba:h-3 gba:w-3" />
                   </button>
                 </Badge>
               ))}
@@ -241,7 +234,7 @@ export const ScheduleFormSegment: React.FC<
                     aria-label={`Remove ${m}`}
                     className="gba:text-destructive hover:gba:text-destructive/80"
                   >
-                    <X className="gba:h-3 gba:w-3" />
+                    <XIcon className="gba:h-3 gba:w-3" />
                   </button>
                 </Badge>
               ))}
@@ -250,7 +243,7 @@ export const ScheduleFormSegment: React.FC<
         </div>
       )}
 
-      {schedulingType !== 'ONCE' && schedulingType !== 'EVENTS' && (
+      {schedulingType !== 'ONCE' && (
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div className="gba:space-y-2">
             <Label className="gba:text-sm gba:font-medium gba:text-foreground">Interval</Label>

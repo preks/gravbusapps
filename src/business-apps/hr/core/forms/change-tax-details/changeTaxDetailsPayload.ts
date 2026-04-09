@@ -27,16 +27,18 @@ function buildEmployeeTaxDetailObject(
   additionalProperties: Record<string, unknown>,
   isEmployeeInGermany: boolean
 ): any {
+  const existingHealthInsuranceDocument =
+    typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null
+      ? (data.healthInsuranceDocument as { id?: string }).id
+      : data?.healthInsuranceDocument
+  const hasUploadedHealthInsuranceDocumentValue = values.uploadedHealthInsuranceDocumentId !== undefined
   const childTaxAllowanceNum =
     values.childTaxAllowance !== '' && values.childTaxAllowance != null
       ? parseLocalizedNumber(values.childTaxAllowance)
       : 0
-  const healthInsuranceDocId =
-    values.uploadedHealthInsuranceDocumentId ??
-    (typeof data?.healthInsuranceDocument === 'object' && data?.healthInsuranceDocument != null
-      ? (data.healthInsuranceDocument as { id?: string }).id
-      : data?.healthInsuranceDocument) ??
-    null
+  const healthInsuranceDocId = hasUploadedHealthInsuranceDocumentValue
+    ? values.uploadedHealthInsuranceDocumentId
+    : (existingHealthInsuranceDocument ?? null)
   return {
     ...(data?.id ? { id: data.id } : {}),
     ...(data?.version !== undefined ? { version: data.version } : { version: 0 }),

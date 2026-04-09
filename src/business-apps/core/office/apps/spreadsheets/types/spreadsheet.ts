@@ -643,6 +643,8 @@ export interface SpreadsheetAppSummary {
   isShared?: boolean
   isOwner?: boolean
   sharedWithCount?: number
+  /** Recipient user ids for hub avatars (from list API); full share rows load on demand */
+  sharedPreviewUserIds?: string[]
   // Permission info from backend
   permission?: AppPermission
   sharedBy?: string

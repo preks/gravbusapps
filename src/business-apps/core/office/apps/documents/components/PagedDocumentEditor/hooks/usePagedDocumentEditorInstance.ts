@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, type MutableRefObject } from 'react'
+import { useCallback, useMemo, type MutableRefObject } from 'react'
 import { useEditor, type Editor as TiptapEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
+import { StarterKit } from '@tiptap/starter-kit'
+import { Collaboration } from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Underline } from '@tiptap/extension-underline'
@@ -39,26 +39,6 @@ const PAGE_GAP_PX = 24
 const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
 
 type TranslateFn = (key: string) => string
-
-function containsImgTag(html: string): boolean {
-  return /<img\b/i.test(html)
-}
-
-function containsCustomImageMarkup(html: string): boolean {
-  return /\bdata-node-type=(?:"|')custom-image(?:"|')/i.test(html)
-}
-
-function countImageNodes(editor: TiptapEditor): number {
-  let count = 0
-
-  editor.state.doc.descendants(node => {
-    if (node.type.name === 'image') {
-      count += 1
-    }
-  })
-
-  return count
-}
 
 export function createDocumentImageExtension(accessToken: string) {
   return DocumentImage.configure({
@@ -302,7 +282,7 @@ export function usePagedDocumentEditorInstance({
     ]
   )
 
-  const editor = useEditor(
+  return useEditor(
     {
       extensions,
       content: tiptapInitialContent,
@@ -373,33 +353,4 @@ export function usePagedDocumentEditorInstance({
           scheduleAutocompleteRef
         ]
   )
-
-  useEffect(() => {
-    if (!editor || isCollaborationMode) {
-      return
-    }
-
-    const initialContentHasImgTag = containsImgTag(editorContent)
-    const initialContentHasCustomImageMarkup = containsCustomImageMarkup(editorContent)
-
-    if (!initialContentHasImgTag && !initialContentHasCustomImageMarkup) {
-      return
-    }
-
-    const timeoutId = setTimeout(() => {
-      const editorHtml = editor.getHTML()
-
-      console.info('[PagedDocumentEditor] DOCX import image diagnostics', {
-        initialContentHasImgTag,
-        initialContentHasCustomImageMarkup,
-        editorHtmlHasImgTag: containsImgTag(editorHtml),
-        editorHtmlHasCustomImageMarkup: containsCustomImageMarkup(editorHtml),
-        imageNodeCount: countImageNodes(editor)
-      })
-    }, 0)
-
-    return () => clearTimeout(timeoutId)
-  }, [editor, editorContent, isCollaborationMode])
-
-  return editor
 }

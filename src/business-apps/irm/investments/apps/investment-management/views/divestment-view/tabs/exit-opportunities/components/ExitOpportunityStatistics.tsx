@@ -3,7 +3,7 @@ import type { WidgetItem } from '@/components/widget-group'
 import { TrendUpIcon, TargetIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
-import { calculateChange } from '@/common/data/investment/kpis/utils'
+import { calculateTrend as calculateChange } from '@/common/utils/trendUtils'
 import { useExitOpportunityMetrics, ExitOpportunityMetrics } from '../hooks/useExitOpportunityMetrics'
 import { DivestmentStatisticsPanel, WIDGET_SPAN, VS_LAST_QUARTER } from '../../../utils/DivestmentStatisticsPanel'
 

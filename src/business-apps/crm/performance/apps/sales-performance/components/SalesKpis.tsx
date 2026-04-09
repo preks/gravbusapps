@@ -19,24 +19,32 @@ const DATA_TEST_ID_PREFIX = 'sales-performance-kpis'
 const calculateTrend = (
   trendData: KpiTrendData,
   formatValue?: (value: number) => string
-): { value: string; positive: boolean; description: string } => {
+): { value: string; positive: boolean | undefined; description: string; badgeVariant?: 'offline' } => {
   const { current, previous } = trendData
 
   if (previous === 0) {
-    return {
-      value: current > 0 ? '+100%' : '0%',
-      positive: current >= 0,
-      description: 'vs previous 30 days'
+    if (current === 0) {
+      return { value: '0%', positive: undefined, badgeVariant: 'offline', description: 'vs previous 30 days' }
     }
+    return { value: '+100%', positive: true, description: 'vs previous 30 days' }
   }
 
   const change = ((current - previous) / previous) * 100
   const formattedCurrent = formatValue ? formatValue(current) : current.toFixed(0)
   const formattedPrevious = formatValue ? formatValue(previous) : previous.toFixed(0)
 
+  if (change === 0) {
+    return {
+      value: '0%',
+      positive: undefined,
+      badgeVariant: 'offline',
+      description: `${formattedCurrent} vs ${formattedPrevious} (30d)`
+    }
+  }
+
   return {
     value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-    positive: change >= 0,
+    positive: change > 0,
     description: `${formattedCurrent} vs ${formattedPrevious} (30d)`
   }
 }

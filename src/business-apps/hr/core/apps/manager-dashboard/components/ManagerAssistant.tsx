@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneRightIcon, XIcon, StarIcon } from '@phosphor-icons/react'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { UserInfo } from '../types/employee.types'
 
 // AI suggestions - keeping existing predefined prompts
@@ -96,7 +97,8 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       }
       form.append('current_page_context', JSON.stringify(pageContext))
 
-      const response = await fetch('/flowbot/api/agent/v2/chat', {
+      const flowbotBaseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${flowbotBaseUrl}/flowbot/api/agent/v2/chat`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

@@ -1,5 +1,5 @@
 import type { RestClient } from '@/common/network/rest/RestClient'
-import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
+import type { BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 import {
   SAVE_COMPENSATION_BUDGET_PLAN_PATH,
   SAVE_COMPENSATION_BUDGET_PLAN_COMPANY_PATH,
@@ -10,43 +10,38 @@ import {
   extractCreatedCompensationBudgetPlanId,
   extractCreatedCompensationBudgetPlanCompanyId,
   type CompensationBudgetPlanCreatePayload,
-  type CompensationBudgetPlanCompanyRestPayload
+  type CompensationBudgetPlanCompanyRestPayload,
+  type CompensationBudgetPlanCompanyUpdatePayload,
+  type CompensationBudgetPlanUpdatePayload
 } from './createCompensationBudgetPlan'
 
-/** Row fields required to build a company-budget UPDATE payload (mirrors `CompensationBudgetPlanCompanyRow`). */
+/** Values needed to build `saveCompensationBudgetPlanCompany` UPDATE (includes `version`). */
 export interface SaveCompensationBudgetPlanCompanyRowInput {
   id: string
+  version: number
   compensationBudgetPlanId: string
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
-  bonusBudgetAmount: number
-  bonusBudgetPercent: number
-  budgetPlanStatus: string
   currentTotalSalaryCost: number
   currencyRef: string | null
-  headcount: number
 }
 
 export type CompensationBudgetPlanChangeMode = 'INSERT' | 'UPDATE'
 
-/** Insert/update a **compensation budget plan** (plan-level entity). */
 export interface SaveCompensationBudgetPlanRestBody {
   changeMode: CompensationBudgetPlanChangeMode
-  compensationBudgetPlan: CompensationBudgetPlanCreatePayload
+  compensationBudgetPlan: CompensationBudgetPlanCreatePayload | CompensationBudgetPlanUpdatePayload
 }
 
 export interface CompensationBudgetPlanOrganizationalUnitRestPayload {
-  /** Present when {@link CompensationBudgetPlanChangeMode} is `UPDATE`. */
   id?: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: BudgetPlanStatusApi
-  /** `compensation_budget_plan_company.id` */
   compensationBudgetPlanCompany: string
-  /** Organizational unit UUID */
   organizationalUnit: string
 }
 
@@ -62,11 +57,7 @@ export interface SaveCompensationBudgetPlanCompanyInsertBody {
 
 export interface SaveCompensationBudgetPlanCompanyUpdateBody {
   changeMode: 'UPDATE'
-  compensationBudgetPlanCompany: CompensationBudgetPlanCompanyRestPayload & {
-    id: string
-    distributionMethod: BudgetDistributionMethodApi
-    headcount: number
-  }
+  compensationBudgetPlanCompany: CompensationBudgetPlanCompanyUpdatePayload
 }
 
 export type SaveCompensationBudgetPlanCompanyRestBody =
@@ -74,24 +65,19 @@ export type SaveCompensationBudgetPlanCompanyRestBody =
   | SaveCompensationBudgetPlanCompanyUpdateBody
 
 export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
-  row: SaveCompensationBudgetPlanCompanyRowInput,
-  distributionMethod: BudgetDistributionMethodApi
+  row: SaveCompensationBudgetPlanCompanyRowInput
 ): SaveCompensationBudgetPlanCompanyUpdateBody {
   return {
     changeMode: 'UPDATE',
     compensationBudgetPlanCompany: {
       id: row.id,
-      compensationBudgetPlan: row.compensationBudgetPlanId,
-      company: row.companyId,
+      version: row.version,
       salaryBudgetAmount: row.salaryBudgetAmount,
       salaryBudgetPercent: row.salaryBudgetPercent,
-      bonusBudgetAmount: row.bonusBudgetAmount,
-      bonusBudgetPercent: row.bonusBudgetPercent,
-      budgetPlanStatus: row.budgetPlanStatus as BudgetPlanStatusApi,
-      currentTotalSalaryCost: row.currentTotalSalaryCost,
       currencyRef: row.currencyRef,
-      distributionMethod,
-      headcount: row.headcount
+      currentTotalSalaryCost: row.currentTotalSalaryCost,
+      compensationBudgetPlan: row.compensationBudgetPlanId,
+      company: row.companyId
     }
   }
 }
@@ -129,19 +115,25 @@ export async function saveCompensationBudgetPlanCompany(
 }
 
 export interface CompensationBudgetPlanEmployeeRestPayload {
+  /** Set for UPDATE (changeMode UPDATE). */
+  id?: string
+  /** Required for UPDATE — optimistic locking (from GraphQL `version`). */
+  version?: number
   proposedSalaryIncreaseAmount: number
   proposedSalaryIncreasePercent: number
   proposedNewSalary: number
   justification: string
   budgetPlanStatus: BudgetPlanStatusApi
+  /** Empty string when proposal is still in draft (not yet submitted). */
   submittedAt: string
   reviewNotes: string
-  /** `compensation_budget_plan_organizational_unit.id` */
   compensationBudgetPlanOrganizationalUnit: string
-  /** Employee UUID */
   employee: string
-  /** Submitting manager employee UUID */
   submittedByEmployee: string
+  /** Supervisor review (optional; set when approving or sending back). */
+  reviewedByEmployee?: string
+  /** ISO-8601 timestamp when supervisor reviewed (optional). */
+  reviewedAt?: string
 }
 
 export interface SaveCompensationBudgetPlanEmployeeRestBody {

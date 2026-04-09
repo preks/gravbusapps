@@ -157,12 +157,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
     try {
       const activitiesData = await fetchCustomerActivitiesByOpportunityId(opportunityId)
-      const sortedActivities = (activitiesData || []).sort((a, b) => {
-        const dateA = new Date(a.occurredAt || a.createdAt).getTime()
-        const dateB = new Date(b.occurredAt || b.createdAt).getTime()
-        return dateB - dateA
-      })
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
     } catch (err) {
       setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
     } finally {

@@ -558,6 +558,7 @@ add-skill-form-attach-verification-message-prefix = Upload a document to verify 
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Update level for skill 
 add-skill-form-attach-verification-upload-label = Upload document
+add-skill-form-loading-verification-document = Loading document...
 add-skill-form-document-group = Document Category
 add-skill-form-document-type = Document Type
 add-skill-form-select-document-group = Select Document Category
@@ -897,3 +898,6 @@ service-requests-status-canceled = Canceled
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = HR is currently reviewing your recent updates. You’ll be able to make further changes as soon as they have approved the request.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Loading address form...

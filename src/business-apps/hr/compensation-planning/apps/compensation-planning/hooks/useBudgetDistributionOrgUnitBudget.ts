@@ -74,6 +74,7 @@ function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPl
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
   return {
     id: graphqlUnknownToString(raw.id),
+    version: num(raw.version),
     compensationBudgetPlanId: graphqlUnknownToString(raw.compensationBudgetPlanId),
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),

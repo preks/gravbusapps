@@ -2,9 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_COMPENSATION_TEAM_MEMBERS,
-  GET_TEAM_CURRENT_SALARIES,
-  GET_TEAM_SALARY_HISTORY,
-  GET_TEAM_BONUSES
+  GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES
 } from '../../../queries/compensationPlanningQueries'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { computeCompaRatio } from '../../../utils/budgetCalculations'
@@ -168,24 +166,19 @@ export function useTeamCompensationData({
       const yearStart = `${y}-01-01`
       const today = todayLocal
 
-      const [salariesResult, historyResult, bonusesResult] = await Promise.all([
-        graphqlClient.request<{ EmployeeSalary: SalaryResult[] }>(GET_TEAM_CURRENT_SALARIES, {
-          employeeIds,
-          today
-        }),
-        graphqlClient.request<{ EmployeeSalary: SalaryHistoryResult[] }>(GET_TEAM_SALARY_HISTORY, {
-          employeeIds
-        }),
-        graphqlClient.request<{ EmployeeBonus: BonusResult[] }>(GET_TEAM_BONUSES, {
-          employeeIds,
-          yearStart,
-          today: todayLocal
-        })
-      ])
+      const batchResult = await graphqlClient.request<{
+        teamCurrentSalaries: SalaryResult[]
+        teamSalaryHistory: SalaryHistoryResult[]
+        teamBonuses: BonusResult[]
+      }>(GET_TEAM_COMPENSATION_SALARIES_AND_BONUSES, {
+        employeeIds,
+        today,
+        yearStart
+      })
 
-      const currentSalaryMap = buildCurrentSalaryMap(salariesResult.EmployeeSalary || [], today)
-      const lastRaiseMap = buildLastRaiseMap(historyResult.EmployeeSalary || [])
-      const bonusTotalMap = buildBonusTotalMap(bonusesResult.EmployeeBonus || [])
+      const currentSalaryMap = buildCurrentSalaryMap(batchResult.teamCurrentSalaries ?? [], today)
+      const lastRaiseMap = buildLastRaiseMap(batchResult.teamSalaryHistory ?? [])
+      const bonusTotalMap = buildBonusTotalMap(batchResult.teamBonuses ?? [])
 
       const members: TeamMemberCompensationData[] = positions.map(pos => {
         const salary = currentSalaryMap.get(pos.employeeId)

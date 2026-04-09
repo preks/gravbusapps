@@ -1,7 +1,8 @@
 import ExpensePlansTab from './ExpensePlansTab'
-import ExpensePlansTable from './ExpensePlansTable'
-import { DateRangeFilter } from './DateRangeFilter'
-import { EndDateRangeFilter } from './EndDateRangeFilter'
+import ExpensePlansTable from './table/ExpensePlansTable'
+import { DateRangeFilter } from './filters/DateRangeFilter'
+import { EndDateRangeFilter } from './filters/EndDateRangeFilter'
+import { ExpensePlansTableDisplay } from './table/ExpensePlansTableDisplay'
 
-export { ExpensePlansTab, ExpensePlansTable, DateRangeFilter, EndDateRangeFilter }
+export { ExpensePlansTab, ExpensePlansTable, ExpensePlansTableDisplay, DateRangeFilter, EndDateRangeFilter }
 export default ExpensePlansTab

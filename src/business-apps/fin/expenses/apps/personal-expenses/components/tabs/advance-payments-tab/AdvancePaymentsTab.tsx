@@ -5,6 +5,7 @@ import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
 // import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -53,10 +54,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     })
     return (
       <AdvancePaymentStatistics
+        key={refreshKey}
         accessToken={contextProps.accessToken}
         userInfo={contextProps.userInfo}
         selectedCurrencyRef={selectedCurrencyRef}
-        refreshKey={refreshKey}
       />
     )
   }, [
@@ -126,20 +127,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       }
     }
 
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
+    PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
       window.addEventListener(eventName, handleProcessCompletion as EventListener)
     })
 
@@ -152,7 +140,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     }
 
     return () => {
-      eventNames.forEach(eventName => {
+      PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
 

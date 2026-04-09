@@ -19,7 +19,7 @@ export interface TaxInfoFormValues {
   individualFreeAmount: string
   healthInsuranceDocumentTypeId: string | null
   healthInsuranceDocumentValidTo: string
-  uploadedHealthInsuranceDocumentId?: string
+  uploadedHealthInsuranceDocumentId?: string | null
   uploadNewHealthInsuranceDocument: boolean
 }
 
