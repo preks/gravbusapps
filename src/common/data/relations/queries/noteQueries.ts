@@ -139,6 +139,7 @@ export const buildNoteQuery = (
         ${entityFields.source}
         ${entityFields.title}
         ${entityFields.text}
+        ${entityFields.noteType}
         ${additionalFields || ''}
         ${references || ''}
       }
@@ -179,6 +180,7 @@ export const buildNoteByIdQuery = (
         ${entityFields.source}
         ${entityFields.text}
         ${entityFields.title}
+        ${entityFields.noteType}
   `
 
   // Common entity relations
