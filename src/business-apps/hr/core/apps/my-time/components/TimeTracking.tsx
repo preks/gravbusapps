@@ -142,7 +142,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
           todayRecordedMinutes={todayRecordedMinutes}
         />
         <TodaysLogCard entries={entries} />
-        <QuickActionsCard />
+        <QuickActionsCard employeeId={employeeId} accessToken={accessToken} />
       </div>
 
       {/* Location confirm modal */}

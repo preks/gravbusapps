@@ -10,6 +10,7 @@ import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import CommunicationCard from './components/CommunicationCard'
 
 interface DetailsTabProps {
   employee: Employee
@@ -138,25 +139,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   }
 
   const bankAccountData = getBankAccountData()
-
-  const PHONE_CHANNEL_CODES = new Set(['Phone', 'Mobile'])
-
-  const getPrivateCommunication = () => {
-    const communications = employee.communication || []
-    const privateComms = communications.filter(comm => comm?.purpose === 'PRIVATE' && comm?.value?.trim())
-
-    return privateComms.map(comm => {
-      const channelName = comm.channel?.value || comm.channel?.code || ''
-      const typeName = comm.type?.value || ''
-      const label = typeName ? `${channelName} (${typeName})` : channelName
-      const isPhone = PHONE_CHANNEL_CODES.has(comm.channel?.code || '')
-      const value = isPhone ? formatPhoneNumberWithCountryCode(comm.value) : comm.value
-
-      return { label, value }
-    })
-  }
-
-  const privateCommunicationData = getPrivateCommunication()
 
   // Prepare emergency contact data
 
@@ -308,28 +290,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Private Communication Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-communication">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-private-communication')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="private-communication-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeCommunication, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="private-communication-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            {renderDataItems(
-              privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
-            )}
-          </CardContent>
-        </Card>
-
         {/* Emergency Contact Card - Always visible but values may be masked */}
         <Card data-testid="details-section-emergency">
           <CardContent className="gba:p-4">
@@ -396,6 +356,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             </Card>
           )
         })()}
+
+        <CommunicationCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>
