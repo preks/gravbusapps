@@ -22,6 +22,14 @@ dashboard-quick-action-plan-button = Neue Dienstreise planen
 dashboard-quick-action-expense-item-button = Neuer Spesenposten
 dashboard-quick-action-request-button = Neue Abrechnungsanfrage
 
+# Expense dashboard — first widget trend (vs previous period)
+dashboard-stat-trend-increase-vs-last-year = Anstieg gegenüber dem Vorjahr
+dashboard-stat-trend-decrease-vs-last-year = Rückgang gegenüber dem Vorjahr
+dashboard-stat-trend-increase-vs-last-quarter = Anstieg gegenüber dem Vorquartal
+dashboard-stat-trend-decrease-vs-last-quarter = Rückgang gegenüber dem Vorquartal
+dashboard-stat-trend-increase-vs-last-month = Anstieg gegenüber dem Vormonat
+dashboard-stat-trend-decrease-vs-last-month = Rückgang gegenüber dem Vormonat
+
 # Expense Items Tab
 expense-items-date-label = Datum
 delete-selection-discard-error-draft = Sie können nur Elemente mit dem Status "Entwurf" oder "Zugewiesen" verwerfen.
