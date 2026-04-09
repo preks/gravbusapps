@@ -349,7 +349,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showNavigationPanel, setShowNavigationPanel] = useNavigationPanelState()
     const [navigationPanelTab, setNavigationPanelTab] = useState<NavigationPanelTab>('headings')
     const suppressYjsSnapshotSaveRef = useRef(false)
+    const [collaborationBindingSeed, setCollaborationBindingSeed] = useState(0)
     const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+    const handleBootstrapEditorRebind = useCallback(() => {
+      setCollaborationBindingSeed(currentSeed => currentSeed + 1)
+    }, [])
 
     useEffect(() => {
       if (globalThis.window === undefined) return
@@ -709,7 +713,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       getPagesStorageSnapshot
     })
 
-    const { isYjsSynced } = useYjsDocumentSync({
+    const { isYjsSynced, onCollaborationFirstRender } = useYjsDocumentSync({
       accessToken,
       documentId: document?.id,
       collaborationSocket,
@@ -720,6 +724,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       debugTablesEnabled: targetDocumentTableDebugEnabled,
       isReadOnly,
       title,
+      onBootstrapEditorRebind: handleBootstrapEditorRebind,
       getFormattingForSave: () => buildPersistedFormatting(layoutFormatting),
       setLastSaved,
       setHasUnsavedChanges
@@ -891,6 +896,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentId: document?.id,
       documentTitle: document?.title,
       initialTitle,
+      collaborationBindingSeed,
+      onCollaborationFirstRender,
       editorContent,
       editorEditable,
       ydoc,
@@ -1595,6 +1602,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <VirtualizedDocumentViewport
             editor={editor}
             activeEditor={activeEditor}
+            editorRenderKey={collaborationBindingSeed}
             editorContainerRef={editorContainerRef}
             zoom={zoom}
             viewportBodyStateClass={viewportBodyStateClass}

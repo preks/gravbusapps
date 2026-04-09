@@ -559,6 +559,11 @@ export function ensurePagesStyles(targetDocument: Document) {
       height: 0;
       overflow: visible;
     }
+    .rm-pages-root .page[data-layout-window-active="false"] {
+      contain: layout style paint;
+      content-visibility: auto;
+      contain-intrinsic-size: var(--rm-page-width) var(--rm-page-body-intrinsic-height, 0px);
+    }
     .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .ProseMirror :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
     .rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
       position: relative;
@@ -579,6 +584,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       background: transparent;
       z-index: 1;
+    }
+    .rm-pages-root .rm-page-body-layer[data-layout-window-active="false"],
+    .rm-pages-root .rm-page-image-overlay-layer[data-layout-window-active="false"] {
+      contain: layout style paint;
+      content-visibility: auto;
+      contain-intrinsic-size:
+        calc(var(--rm-page-width) + var(--rm-page-margin-left) + var(--rm-page-margin-right))
+        var(--rm-page-body-intrinsic-height, 0px);
     }
     .rm-pages-root .rm-page-body-layer > * {
       pointer-events: auto;
@@ -1345,11 +1358,14 @@ export function createPageBreakElement(params: {
     options.headerHeight,
     options.footerHeight
   ).bodyHeight
+  const pageBodyIntrinsicHeight = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   const bodyLayer = document.createElement('div')
   bodyLayer.className = 'rm-page-body-layer'
   bodyLayer.dataset.rmPageBody = 'true'
   bodyLayer.dataset.rmPageBodyPresentation = 'visible'
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
+  page.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  bodyLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
   const behindImageLayer = createPageImageOverlayLayer({
@@ -1367,6 +1383,9 @@ export function createPageBreakElement(params: {
     pageBodyHeight: defaultBodyHeight,
     layer: 'front'
   })
+  behindImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  floatingImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  frontImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
   page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =

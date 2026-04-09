@@ -54,13 +54,16 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   onResetTableController: () => void
   onClearGrowthSuppression: () => void
   onSetStoredPageCount: (pageCount: number) => void
-  onRequestRefresh: (source: 'selection-overflow' | 'page-count-shrink') => void
+  onRequestRefresh: (
+    source: 'selection-overflow' | 'page-count-shrink' | 'page-count-grow' | 'collaboration-remote'
+  ) => void
   onScheduleDeferredRepagination: (minimumAttempts?: number) => void
   getDeferredStabilizationAttemptCount: (view: EditorView) => number
   shouldScheduleDeferredRepaginationOnUpdate: (options: {
     activeEditorType: PagesStorage['activeEditorType']
     hasTables: boolean
     externalDocChange: boolean
+    collaborationRemoteDocChange?: boolean
     paginationOwnedDocChange: boolean
     hydrationOwnedDocChange: boolean
   }) => boolean
@@ -114,8 +117,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   if (
     storage.activeEditorType === null &&
     !(view as EditorView & { composing?: boolean }).composing &&
-    docChangedSinceLastUpdate &&
-    !shouldDeferSelectionOverflowResolution
+    docChangedSinceLastUpdate
   ) {
     const measurementState = options.resolveMeasurementState(nextState)
 
@@ -132,6 +134,14 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       options.onSetStoredPageCount(measurementState.measuredPageCount)
       nextState.lastKnownSelectionHead = currentSelectionHead
       options.onRequestRefresh('page-count-shrink')
+      return nextState
+    }
+
+    if (measurementState.measuredPageCount > measurementState.currentPageCount) {
+      options.onClearGrowthSuppression()
+      options.onSetStoredPageCount(measurementState.measuredPageCount)
+      nextState.lastKnownSelectionHead = currentSelectionHead
+      options.onRequestRefresh('page-count-grow')
       return nextState
     }
   }
@@ -192,6 +202,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       activeEditorType: storage.activeEditorType,
       hasTables: resolveHasTables(),
       externalDocChange,
+      collaborationRemoteDocChange,
       paginationOwnedDocChange: paginationOwnedDocChange && !options.state.suppressPaginationOwnedDeferredScheduling,
       hydrationOwnedDocChange
     })
