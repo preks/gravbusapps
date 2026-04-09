@@ -26,7 +26,7 @@ import { MoreHorizontal } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
-import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
+import { format, addDays, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
@@ -61,47 +61,53 @@ interface UpcomingBirthdayDatasetRow {
   picture_thumbnail?: string
 }
 
-const GET_EMPLOYEE_INSIGHTS = `
-query GetEmployeeInsights($asOf: timestamp!) {
-  EmployeePosition(
-    where: {
-      _and: [
-        { _or: [{ hireDate: { _lte: $asOf } }, { hireDate: { _isNull: true } }] }
-        { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: $asOf } }] }
-        { employee: { isDeleted: { _eq: false } } }
-      ]
-    }
-    orderBy: { createdAt: DESC }
-  ) {
-    employee {
-      id
-      firstName
-      lastName
-      fullName
-      birthDate
-      pictureThumbnail
-      workingCondition(
-        where: {
-          _and: [
-            { _or: [{ hireDate: { _lte: $asOf } }, { hireDate: { _isNull: true } }] }
-            { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: $asOf } }] }
-            { isDeleted: { _eq: false } }
-          ]
-        }
-        limit: 1
-        orderBy: { createdAt: DESC }
-      ) {
-        hireDate
-        probationEnd
-        exitDate
-        contractStatus
-      }
-    }
-    organizationalUnit { name, companyId, company { id, name } }
-    jobPosition { name }
-  }
+interface UpcomingAnniversaryDatasetRow {
+  category?: string
+  value?: number
+  display_name?: string
+  first_name?: string
+  last_name?: string
+  hire_date?: string
+  organizational_unit_name?: string
+  job_position_name?: string
+  picture_thumbnail?: string
 }
-`
+
+interface UpcomingNewHireDatasetRow {
+  category?: string
+  value?: number
+  display_name?: string
+  first_name?: string
+  last_name?: string
+  hire_date?: string
+  organizational_unit_name?: string
+  job_position_name?: string
+  picture_thumbnail?: string
+}
+
+interface UpcomingProbationDatasetRow {
+  category?: string
+  value?: number
+  display_name?: string
+  first_name?: string
+  last_name?: string
+  probation_end_date?: string
+  organizational_unit_name?: string
+  job_position_name?: string
+  picture_thumbnail?: string
+}
+
+interface UpcomingTerminationDatasetRow {
+  category?: string
+  value?: number
+  display_name?: string
+  first_name?: string
+  last_name?: string
+  termination_date?: string
+  organizational_unit_name?: string
+  job_position_name?: string
+  picture_thumbnail?: string
+}
 
 export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const [loading, setLoading] = useState(true)
@@ -114,6 +120,18 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const [birthdaysPage, setBirthdaysPage] = useState(1)
   const [birthdaysPageSize] = useState(10)
   const [birthdaysHasNextPage, setBirthdaysHasNextPage] = useState(false)
+  const [anniversariesPage, setAnniversariesPage] = useState(1)
+  const [anniversariesPageSize] = useState(10)
+  const [anniversariesHasNextPage, setAnniversariesHasNextPage] = useState(false)
+  const [newHiresPage, setNewHiresPage] = useState(1)
+  const [newHiresPageSize] = useState(10)
+  const [newHiresHasNextPage, setNewHiresHasNextPage] = useState(false)
+  const [probationPage, setProbationPage] = useState(1)
+  const [probationPageSize] = useState(10)
+  const [probationHasNextPage, setProbationHasNextPage] = useState(false)
+  const [terminationsPage, setTerminationsPage] = useState(1)
+  const [terminationsPageSize] = useState(10)
+  const [terminationsHasNextPage, setTerminationsHasNextPage] = useState(false)
   const [generateDocEmployee, setGenerateDocEmployee] = useState<EmployeeInsight | null>(null)
   const [generateDocOpen, setGenerateDocOpen] = useState(false)
 
@@ -156,9 +174,11 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     setLoading(true)
     setError(null)
     try {
-      const asOfDate = new Date().toISOString().slice(0, 10)
+      const startDate = new Date().toISOString().slice(0, 10)
+      const endDate = addDays(new Date(), 30).toISOString().slice(0, 10)
       const birthdaysDataset = await datasetClient.executeQuery('upcomingBirthdaysEmployees', QueryType.DATASET, {
-        asOfDate,
+        startDate,
+        endDate,
         page: birthdaysPage,
         pageSize: birthdaysPageSize
       })
@@ -180,109 +200,111 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       })
       setBirthdaysHasNextPage(birthdayRows.length === birthdaysPageSize)
 
-      const asOf = new Date().toISOString()
-      const data: any = await client.request(GET_EMPLOYEE_INSIGHTS, { asOf })
-      const now = new Date()
-      const employees = (data.EmployeePosition || [])
-        .map((ep: any) => ({
-          id: ep.employee?.id,
-          firstName: ep.employee?.firstName,
-          lastName: ep.employee?.lastName,
-          fullName: ep.employee?.fullName,
-          birthDate: ep.employee?.birthDate,
-          contract_status: ep.employee?.workingCondition?.[0]?.contractStatus,
-          pictureThumbnail: ep.employee?.pictureThumbnail,
-          hireDate: ep.employee?.workingCondition?.[0]?.hireDate,
-          probationEnd: ep.employee?.workingCondition?.[0]?.probationEnd,
-          exitDate: ep.employee?.workingCondition?.[0]?.exitDate,
-          jobPositionName: ep.jobPosition?.name,
-          organizationalUnitName: ep.organizationalUnit?.name,
-          companyName: ep.organizationalUnit?.company?.name
-        }))
-        // Active-as-of safeguard (server already filters positions)
-        .filter((emp: any) => {
-          const hireOk = !emp.hireDate || parseISO(emp.hireDate) <= now
-          const exitOk = !emp.exitDate || parseISO(emp.exitDate) > now
-          const notInactiveWithExit = !(emp.exitDate && String(emp.contract_status || '').toUpperCase() === 'INACTIVE')
-          return hireOk && exitOk && notInactiveWithExit
-        })
-
-      const today = new Date()
-      const startWindow = addDays(today, -30)
-      const endWindow = addDays(today, 30)
-
-      const upcomingAnniversaries: EmployeeInsight[] = []
-      const upcomingNewHires: EmployeeInsight[] = []
-      const upcomingProbationEnds: EmployeeInsight[] = []
-      const upcomingTerminations: EmployeeInsight[] = []
-
-      employees.forEach((emp: EmployeeInsight) => {
-        // Anniversaries (future 30 only)
-        if (emp.hireDate) {
-          const hireDate = parseISO(emp.hireDate)
-          const nextOcc = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())
-          const next =
-            nextOcc < today ? new Date(today.getFullYear() + 1, hireDate.getMonth(), hireDate.getDate()) : nextOcc
-          if (isWithinInterval(next, { start: today, end: endWindow })) upcomingAnniversaries.push(emp)
+      const anniversariesDataset = await datasetClient.executeQuery(
+        'upcomingAnniversariesEmployees',
+        QueryType.DATASET,
+        {
+          startDate,
+          endDate,
+          page: anniversariesPage,
+          pageSize: anniversariesPageSize
         }
-
-        // New Hires (start date in next 30 days)
-        if (emp.hireDate) {
-          const hireDate = parseISO(emp.hireDate)
-          if (isWithinInterval(hireDate, { start: startWindow, end: endWindow })) {
-            upcomingNewHires.push(emp)
-          }
-        }
-
-        // Probation Ends (probationEnd in next 30 days)
-        if (emp.probationEnd) {
-          const probationEndDate = parseISO(emp.probationEnd)
-          if (isWithinInterval(probationEndDate, { start: startWindow, end: endWindow })) {
-            upcomingProbationEnds.push(emp)
-          }
-        }
-
-        // Terminations (exitDate in next 30 days)
-        if (emp.exitDate) {
-          const exitDate = parseISO(emp.exitDate)
-          if (isWithinInterval(exitDate, { start: startWindow, end: endWindow })) {
-            upcomingTerminations.push(emp)
-          }
+      )
+      const anniversaryRows = (anniversariesDataset?.data ?? []) as UpcomingAnniversaryDatasetRow[]
+      const anniversariesFromDataset: EmployeeInsight[] = anniversaryRows.map(row => {
+        const firstName = row.first_name ?? ''
+        const lastName = row.last_name ?? ''
+        const fallbackName = `${firstName} ${lastName}`.trim()
+        return {
+          id: String(row.category ?? ''),
+          firstName,
+          lastName,
+          fullName: row.display_name ?? fallbackName,
+          hireDate: row.hire_date,
+          pictureThumbnail: row.picture_thumbnail,
+          jobPositionName: row.job_position_name,
+          organizationalUnitName: row.organizational_unit_name
         }
       })
+      setAnniversariesHasNextPage(anniversaryRows.length === anniversariesPageSize)
 
-      // Sort helpers
-      const getAnniversaryDateForSort = (dateStr: string): Date => {
-        const hireDate = parseISO(dateStr)
-        const nextOcc = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())
-        return nextOcc < today ? new Date(today.getFullYear() + 1, hireDate.getMonth(), hireDate.getDate()) : nextOcc
-      }
-
-      upcomingAnniversaries.sort((a, b) => {
-        if (!a.hireDate || !b.hireDate) return 0
-        return getAnniversaryDateForSort(a.hireDate).getTime() - getAnniversaryDateForSort(b.hireDate).getTime()
+      const newHiresDataset = await datasetClient.executeQuery('upcomingNewHiresEmployees', QueryType.DATASET, {
+        startDate,
+        endDate,
+        page: newHiresPage,
+        pageSize: newHiresPageSize
       })
-
-      upcomingNewHires.sort((a, b) => {
-        if (!a.hireDate || !b.hireDate) return 0
-        return parseISO(a.hireDate).getTime() - parseISO(b.hireDate).getTime()
+      const newHireRows = (newHiresDataset?.data ?? []) as UpcomingNewHireDatasetRow[]
+      const newHiresFromDataset: EmployeeInsight[] = newHireRows.map(row => {
+        const firstName = row.first_name ?? ''
+        const lastName = row.last_name ?? ''
+        const fallbackName = `${firstName} ${lastName}`.trim()
+        return {
+          id: String(row.category ?? ''),
+          firstName,
+          lastName,
+          fullName: row.display_name ?? fallbackName,
+          hireDate: row.hire_date,
+          pictureThumbnail: row.picture_thumbnail,
+          jobPositionName: row.job_position_name,
+          organizationalUnitName: row.organizational_unit_name
+        }
       })
+      setNewHiresHasNextPage(newHireRows.length === newHiresPageSize)
 
-      upcomingProbationEnds.sort((a, b) => {
-        if (!a.probationEnd || !b.probationEnd) return 0
-        return parseISO(a.probationEnd).getTime() - parseISO(b.probationEnd).getTime()
+      const probationDataset = await datasetClient.executeQuery('upcomingProbationEndsEmployees', QueryType.DATASET, {
+        startDate,
+        endDate,
+        page: probationPage,
+        pageSize: probationPageSize
       })
+      const probationRows = (probationDataset?.data ?? []) as UpcomingProbationDatasetRow[]
+      const probationFromDataset: EmployeeInsight[] = probationRows.map(row => {
+        const firstName = row.first_name ?? ''
+        const lastName = row.last_name ?? ''
+        const fallbackName = `${firstName} ${lastName}`.trim()
+        return {
+          id: String(row.category ?? ''),
+          firstName,
+          lastName,
+          fullName: row.display_name ?? fallbackName,
+          probationEnd: row.probation_end_date,
+          pictureThumbnail: row.picture_thumbnail,
+          jobPositionName: row.job_position_name,
+          organizationalUnitName: row.organizational_unit_name
+        }
+      })
+      setProbationHasNextPage(probationRows.length === probationPageSize)
 
-      upcomingTerminations.sort((a, b) => {
-        if (!a.exitDate || !b.exitDate) return 0
-        return parseISO(a.exitDate).getTime() - parseISO(b.exitDate).getTime()
+      const terminationsDataset = await datasetClient.executeQuery('upcomingTerminationsEmployees', QueryType.DATASET, {
+        startDate,
+        endDate,
+        page: terminationsPage,
+        pageSize: terminationsPageSize
       })
+      const termRows = (terminationsDataset?.data ?? []) as UpcomingTerminationDatasetRow[]
+      const terminationsFromDataset: EmployeeInsight[] = termRows.map(row => {
+        const firstName = row.first_name ?? ''
+        const lastName = row.last_name ?? ''
+        const fallbackName = `${firstName} ${lastName}`.trim()
+        return {
+          id: String(row.category ?? ''),
+          firstName,
+          lastName,
+          fullName: row.display_name ?? fallbackName,
+          exitDate: row.termination_date,
+          pictureThumbnail: row.picture_thumbnail,
+          jobPositionName: row.job_position_name,
+          organizationalUnitName: row.organizational_unit_name
+        }
+      })
+      setTerminationsHasNextPage(termRows.length === terminationsPageSize)
 
       setBirthdays(birthdaysFromDataset)
-      setAnniversaries(upcomingAnniversaries)
-      setNewHires(upcomingNewHires)
-      setProbationEnds(upcomingProbationEnds)
-      setTerminations(upcomingTerminations)
+      setAnniversaries(anniversariesFromDataset)
+      setNewHires(newHiresFromDataset)
+      setProbationEnds(probationFromDataset)
+      setTerminations(terminationsFromDataset)
     } catch (err: any) {
       setError(
         err.message ||
@@ -292,7 +314,20 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     } finally {
       setLoading(false)
     }
-  }, [birthdaysPage, birthdaysPageSize, client, datasetClient])
+  }, [
+    birthdaysPage,
+    birthdaysPageSize,
+    client,
+    datasetClient,
+    anniversariesPage,
+    anniversariesPageSize,
+    newHiresPage,
+    newHiresPageSize,
+    probationPage,
+    probationPageSize,
+    terminationsPage,
+    terminationsPageSize
+  ])
 
   useEffect(() => {
     fetchData()
@@ -569,6 +604,29 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             'hireDate',
             getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')
           )}
+          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {anniversariesPage}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-anniversaries-prev-page"
+              onClick={() => setAnniversariesPage(currentPage => Math.max(1, currentPage - 1))}
+              disabled={anniversariesPage === 1}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-anniversaries-next-page"
+              onClick={() => setAnniversariesPage(currentPage => currentPage + 1)}
+              disabled={!anniversariesHasNextPage}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="new-hires" className="gba:mt-6">
@@ -577,6 +635,29 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             'hireDate',
             getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.start_date', 'Start Date')
           )}
+          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {newHiresPage}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-new-hires-prev-page"
+              onClick={() => setNewHiresPage(currentPage => Math.max(1, currentPage - 1))}
+              disabled={newHiresPage === 1}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-new-hires-next-page"
+              onClick={() => setNewHiresPage(currentPage => currentPage + 1)}
+              disabled={!newHiresHasNextPage}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="probation-ends" className="gba:mt-6">
@@ -585,6 +666,29 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             'probationEnd',
             getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_end_date', 'Probation End')
           )}
+          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {probationPage}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-probation-prev-page"
+              onClick={() => setProbationPage(currentPage => Math.max(1, currentPage - 1))}
+              disabled={probationPage === 1}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-probation-next-page"
+              onClick={() => setProbationPage(currentPage => currentPage + 1)}
+              disabled={!probationHasNextPage}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="terminations" className="gba:mt-6">
@@ -593,6 +697,29 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             'exitDate',
             getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date')
           )}
+          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {terminationsPage}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-terminations-prev-page"
+              onClick={() => setTerminationsPage(currentPage => Math.max(1, currentPage - 1))}
+              disabled={terminationsPage === 1}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="hr-insights-terminations-next-page"
+              onClick={() => setTerminationsPage(currentPage => currentPage + 1)}
+              disabled={!terminationsHasNextPage}
+            >
+              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
 
