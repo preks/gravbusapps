@@ -63,6 +63,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
     activeEditorType: PagesStorage['activeEditorType']
     hasTables: boolean
     externalDocChange: boolean
+    collaborationRemoteDocChange?: boolean
     paginationOwnedDocChange: boolean
     hydrationOwnedDocChange: boolean
   }) => boolean
@@ -201,6 +202,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       activeEditorType: storage.activeEditorType,
       hasTables: resolveHasTables(),
       externalDocChange,
+      collaborationRemoteDocChange,
       paginationOwnedDocChange: paginationOwnedDocChange && !options.state.suppressPaginationOwnedDeferredScheduling,
       hydrationOwnedDocChange
     })

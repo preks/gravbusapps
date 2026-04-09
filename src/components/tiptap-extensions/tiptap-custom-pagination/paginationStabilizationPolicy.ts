@@ -627,16 +627,24 @@ export function shouldScheduleDeferredRepaginationOnUpdate(options: {
   activeEditorType: PagesStorage['activeEditorType']
   hasTables: boolean
   externalDocChange: boolean
+  collaborationRemoteDocChange?: boolean
   paginationOwnedDocChange: boolean
   hydrationOwnedDocChange: boolean
 }) {
-  const { activeEditorType, hasTables, externalDocChange, paginationOwnedDocChange, hydrationOwnedDocChange } = options
+  const {
+    activeEditorType,
+    hasTables,
+    externalDocChange,
+    collaborationRemoteDocChange,
+    paginationOwnedDocChange,
+    hydrationOwnedDocChange
+  } = options
 
   if (activeEditorType !== null) {
     return false
   }
 
-  if (externalDocChange) {
+  if (externalDocChange || collaborationRemoteDocChange) {
     return true
   }
 

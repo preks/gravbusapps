@@ -72,6 +72,7 @@ export function createPaginationExtensionPlugins(options: {
   let pendingRefreshDrivenStabilization = false
   let deferredRepaginationPassId = 0
   let headerPageCountPassId = 0
+  let collaborationRemoteDebounceTimer: ReturnType<typeof setTimeout> | null = null
   let suppressPaginationOwnedDeferredScheduling = false
   const tablePaginationController = createTablePaginationController(options.paginationOwnedDocChangeMeta)
   const getDeferredStabilizationAttemptCount = (view: EditorView) =>
@@ -391,6 +392,24 @@ export function createPaginationExtensionPlugins(options: {
             getRuntimeOptions: () => getEditorRuntimeOptions(editor),
             getStorage: () => storage
           }).recoverStaleOverlayState(updatedView.dom)
+
+          if (lastDocChangeOrigin === 'collaboration-remote') {
+            lastKnownDoc = updatedView.state.doc
+            lastKnownSelectionHead = updatedView.state.selection.head
+            lastDocChangeOrigin = null
+            if (collaborationRemoteDebounceTimer !== null) {
+              clearTimeout(collaborationRemoteDebounceTimer)
+            }
+            collaborationRemoteDebounceTimer = setTimeout(() => {
+              collaborationRemoteDebounceTimer = null
+              const mounted = getMountedEditorView(editor)
+              if (mounted && !mounted.isDestroyed) {
+                deferredRepaginationScheduler.schedule(mounted)
+              }
+            }, 150)
+            return
+          }
+
           windowedRenderer.syncRootPresentation({
             editorDom: updatedView.dom,
             options: runtimeOptions,
@@ -472,6 +491,10 @@ export function createPaginationExtensionPlugins(options: {
           pendingRefreshDrivenStabilization = nextPluginViewState.pendingRefreshDrivenStabilization
         },
         destroy: () => {
+          if (collaborationRemoteDebounceTimer !== null) {
+            clearTimeout(collaborationRemoteDebounceTimer)
+            collaborationRemoteDebounceTimer = null
+          }
           deferredRepaginationScheduler.destroy()
           windowedRenderer.destroy()
         }

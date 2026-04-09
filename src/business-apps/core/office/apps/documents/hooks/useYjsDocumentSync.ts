@@ -300,16 +300,6 @@ export function useYjsDocumentSync({
     })
   }, [documentId, editorRef])
 
-  const forceEditorViewRefresh = useCallback(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const ed = editorRef.current as HydrationRefreshableEditor | null
-        if (!ed) return
-        schedulePostHydrationPaginationRefresh(ed)
-      })
-    })
-  }, [editorRef])
-
   const applyNormalizedContentToEditor = useCallback(
     async (html: string) => {
       const start = Date.now()
@@ -476,8 +466,7 @@ export function useYjsDocumentSync({
         }
         const ed = editorRef.current
         if (ed) scheduleSnapshotSaveRef.current(ed as { getHTML?: () => string })
-      },
-      onRemoteDocumentChange: forceEditorViewRefresh
+      }
     })
 
     providerRef.current = provider
@@ -501,8 +490,7 @@ export function useYjsDocumentSync({
     suppressSnapshotSaveRef,
     getEditorReadyPromise,
     applyNormalizedContentToEditor,
-    handleReadyStateApplied,
-    forceEditorViewRefresh
+    handleReadyStateApplied
   ])
 
   // Cleanup snapshot timeout on unmount
