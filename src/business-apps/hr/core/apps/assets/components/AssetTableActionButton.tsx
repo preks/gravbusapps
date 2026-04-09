@@ -51,6 +51,7 @@ export function getActionLabels(): Record<ActionLabelKey, string> {
 interface AssetTableActionButtonProps {
   assetId: string
   assetStatus: AssetStatus
+  canDeleteAsset?: boolean
   accessToken: string
   dataTestIdPrefix: string
   onAllocateAsset?: (assetId: string) => void
@@ -64,6 +65,7 @@ interface AssetTableActionButtonProps {
 export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
   assetId,
   assetStatus,
+  canDeleteAsset = false,
   accessToken,
   dataTestIdPrefix,
   onAllocateAsset,
@@ -129,7 +131,7 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
       })
     }
 
-    if (onDeleteAsset) {
+    if (canDeleteAsset && onDeleteAsset) {
       actions.push({
         category: labels.actions,
         key: 'delete-asset',
@@ -163,6 +165,7 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
     onUpdateAsset,
     onRetireAsset,
     onRetrieveAsset,
+    canDeleteAsset,
     onDeleteAsset,
     onGenerateDocument
   ])
