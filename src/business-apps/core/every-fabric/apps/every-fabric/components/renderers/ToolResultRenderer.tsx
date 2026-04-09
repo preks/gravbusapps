@@ -11,6 +11,13 @@ export interface ToolResultRendererProps {
   cached: boolean
 }
 
+const formatTableCellValue = (value: unknown): string => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
+  return JSON.stringify(value)
+}
+
 export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cached }: ToolResultRendererProps) => {
   const [expanded, setExpanded] = useState(false)
   const rendererType = detectRendererType(result)
@@ -28,7 +35,7 @@ export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cache
         <span className="gba:text-xs gba:text-muted-foreground/70">· {rendererType}</span>
         {cached && <span className="gba:text-xs gba:text-muted-foreground">cached</span>}
         <span className="gba:text-xs gba:text-muted-foreground/60 gba:ml-auto">{(durationMs / 1000).toFixed(2)}s</span>
-        <div className="gba:flex-shrink-0">
+        <div className="gba:shrink-0">
           {expanded ? (
             <CaretDownIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
           ) : (
@@ -50,11 +57,11 @@ function ResultContent({
   toolName,
   result,
   rendererType
-}: {
+}: Readonly<{
   toolName?: string
   result: unknown
   rendererType: ReturnType<typeof detectRendererType>
-}) {
+}>) {
   if (
     toolName === 'web_search' &&
     result &&
@@ -132,7 +139,7 @@ function ResultContent({
                     key={col}
                     className="gba:px-2 gba:py-1 gba:border gba:border-border gba:truncate gba:max-w-[200px]"
                   >
-                    {String(row[col] ?? '')}
+                    {formatTableCellValue(row[col])}
                   </td>
                 ))}
               </tr>

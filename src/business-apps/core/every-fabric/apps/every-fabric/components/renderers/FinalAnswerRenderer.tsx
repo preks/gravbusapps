@@ -83,6 +83,7 @@ const WorkspaceDocCard = ({ doc }: { doc: WorkspaceDocument }) => (
 
 export const FinalAnswerRenderer = ({
   output,
+  todos,
   actionsPerformed,
   durationMs,
   artifacts,
@@ -90,6 +91,7 @@ export const FinalAnswerRenderer = ({
   onViewArtifact
 }: FinalAnswerRendererProps) => {
   const [actionsExpanded, setActionsExpanded] = useState(false)
+  const todoCount = todos?.length ?? 0
 
   const handleExport = () => {
     const text = output
@@ -191,6 +193,11 @@ export const FinalAnswerRenderer = ({
         {durationMs !== undefined && (
           <span className="gba:text-xs gba:text-muted-foreground">
             Duration: <strong>{formatDuration(durationMs)}</strong>
+          </span>
+        )}
+        {todoCount > 0 && (
+          <span className="gba:text-xs gba:text-muted-foreground">
+            Tasks: <strong>{todoCount}</strong>
           </span>
         )}
         <Button

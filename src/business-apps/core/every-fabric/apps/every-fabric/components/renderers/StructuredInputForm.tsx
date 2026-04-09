@@ -240,7 +240,7 @@ export const StructuredInputForm = ({
               <Input
                 type="number"
                 value={state.value || ''}
-                onChange={e => updateField(field.field_id, parseFloat(e.target.value))}
+                onChange={e => updateField(field.field_id, Number.parseFloat(e.target.value))}
                 placeholder={field.placeholder}
                 disabled={isSubmitting}
                 className={state.error ? 'gba:border-destructive' : ''}

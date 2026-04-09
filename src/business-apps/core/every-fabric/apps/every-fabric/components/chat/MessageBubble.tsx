@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { BrainIcon, CaretDownIcon, CaretUpIcon, CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import type { ChatMessage } from '../../types/enterpriseAgent'
+import type { ChatMessage, StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 import { PlanRenderer } from '../renderers/PlanRenderer'
 import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
@@ -9,7 +9,6 @@ import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import type { StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 
 const formatMessageTimestamp = (timestamp: string) => {
   const date = new Date(timestamp)
@@ -43,7 +42,7 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(content).then(() => {
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
+      globalThis.setTimeout(() => setCopied(false), 1800)
     })
   }, [content])
 

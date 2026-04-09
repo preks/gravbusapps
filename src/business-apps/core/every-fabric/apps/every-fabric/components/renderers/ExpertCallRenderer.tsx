@@ -34,6 +34,10 @@ function resolveExpertDisplayName(normalizedAgentId: string, normalizedTask: str
   return 'Sub-agent'
 }
 
+function hasSubtitle(displayName: string, normalizedTask: string): boolean {
+  return normalizeText(displayName) === normalizeText(normalizedTask)
+}
+
 const ExpertCallStatusIcon: React.FC<{ status: 'running' | 'done' | 'failed' }> = ({ status }) => {
   if (status === 'running') {
     return <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-primary" />
@@ -55,8 +59,7 @@ export const ExpertCallRenderer = ({
   const normalizedAgentId = agentId.trim()
   const normalizedTask = task.trim()
   const displayName = resolveExpertDisplayName(normalizedAgentId, normalizedTask)
-  const subtitle =
-    normalizeText(displayName) !== normalizeText(normalizedTask) ? normalizedTask || 'Working on a delegated task' : ''
+  const subtitle = hasSubtitle(displayName, normalizedTask) ? '' : normalizedTask || 'Working on a delegated task'
 
   return (
     <div
