@@ -401,8 +401,8 @@ export function createPaginationExtensionPlugins(options: {
             contentChangeDebounceTimer = setTimeout(() => {
               contentChangeDebounceTimer = null
               const mounted = getMountedEditorView(editor)
-              if (mounted && !mounted.isDestroyed) {
-                deferredRepaginationScheduler.schedule(mounted)
+              if (mounted && !(mounted as EditorView & { isDestroyed?: boolean }).isDestroyed) {
+                requestRefresh(mounted, 'content-change-settle')
               }
             }, delayMs)
             return
