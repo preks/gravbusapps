@@ -577,6 +577,18 @@ export function createUniverConversionContext(
   }
 }
 
+export function overlaySparseRowIndexMappings(
+  ctx: ConversionContext,
+  sparseRowMappings: Array<{ rowIndex: number; rowId: string }>
+): ConversionContext {
+  sparseRowMappings.forEach(({ rowIndex, rowId }) => {
+    if (!Number.isFinite(rowIndex) || rowIndex < 0 || !rowId) return
+    ctx.rowIndexToId.set(rowIndex, rowId)
+    ctx.rowIdToIndex.set(rowId, rowIndex)
+  })
+  return ctx
+}
+
 /**
  * Extract URL from =HYPERLINK("url","text") formula.
  */

@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 
 // Client version for tracking
 const CLIENT_VERSION = '1'
@@ -29,6 +30,7 @@ export interface DocumentOperation {
   path?: string
   baseVersion?: number
   broadcastOnly?: boolean
+  version?: number
 }
 
 export interface CollaborationWebSocketOptions {
@@ -37,6 +39,7 @@ export interface CollaborationWebSocketOptions {
   reconnectionDelayMax?: number
   path?: string
   enablePollingFallback?: boolean
+  serviceApiUrl?: string
 }
 
 export type CollaborationEventHandler = (data: any) => void
@@ -491,7 +494,7 @@ export class CollaborationClient {
  * Automatically determines the WebSocket URL from the document service URL
  */
 export function createCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
-  const apiUrl = getDocumentServiceApiUrl()
+  const apiUrl = options?.serviceApiUrl || getDocumentServiceApiUrl()
 
   // Remove /api/v1 suffix if present to get base service URL
   // e.g., 'https://newwork-dev.newwork.com/document/api/v1' -> 'https://newwork-dev.newwork.com/document'
@@ -521,6 +524,13 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   return new CollaborationClient(wsUrl, {
     ...options,
     path: socketPath
+  })
+}
+
+export function createSpreadsheetCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
+  return createCollaborationClient({
+    ...options,
+    serviceApiUrl: getSpreadsheetServiceApiUrl()
   })
 }
 

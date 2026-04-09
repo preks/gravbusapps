@@ -120,6 +120,45 @@ describe('spreadsheetCollaborationReceive', () => {
   })
 
   describe('sequential remote updates', () => {
+    it('can resolve direct grid patches for authoritative batch set_range cells before row-state sync', () => {
+      const gridPatches: Array<{ rowIndex: number; colIndex: number; value: unknown }> = []
+      const incomingBatch = {
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            type: 'set_range',
+            data: {
+              sheetId: 'sheet-1',
+              cells: [
+                { rowId: 'uuid-1', columnName: 'ColumnA', value: 'first' },
+                { rowId: 'uuid-2', columnName: 'ColumnB', value: 42 }
+              ]
+            }
+          }
+        ]
+      }
+
+      const cells = (
+        incomingBatch.operations[0].data as { cells: Array<{ rowId: string; columnName: string; value: unknown }> }
+      ).cells
+      for (const cell of cells) {
+        const { rowIndex, colIndex } = resolveRemoteCellCoordinates(
+          columns,
+          dataWithBackendIds,
+          cell.columnName,
+          cell.rowId
+        )
+        if (rowIndex !== undefined && colIndex >= 0) {
+          gridPatches.push({ rowIndex, colIndex, value: cell.value })
+        }
+      }
+
+      expect(gridPatches).toEqual([
+        { rowIndex: 0, colIndex: 0, value: 'first' },
+        { rowIndex: 1, colIndex: 1, value: 42 }
+      ])
+    })
+
     it('preserves earlier cell changes when remote events arrive back-to-back', () => {
       const localRef = {
         current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '', ColumnB: 0 }] as Record<string, unknown>[]
@@ -142,17 +181,26 @@ describe('spreadsheetCollaborationReceive', () => {
       ])
     })
 
-    it('heals a missed live cell update when the persisted set_range arrives', () => {
+    it('applies the authoritative batch directly without a second healing path', () => {
       const localRef = {
         current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '', ColumnB: 0 }] as Record<string, unknown>[]
       }
 
-      const applyRemoteRange = (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+      const applyRemoteBatch = (batch: {
+        sheetId: string
+        operations: Array<{
+          type: string
+          data: { cells: Array<{ rowId: string; columnName: string; value: unknown }> }
+        }>
+      }) => {
         const updatesByRowId = new Map<string, Record<string, unknown>>()
-        for (const cell of cells) {
-          const rowUpdates = updatesByRowId.get(cell.rowId) ?? {}
-          rowUpdates[cell.columnName] = cell.value
-          updatesByRowId.set(cell.rowId, rowUpdates)
+        for (const operation of batch.operations) {
+          if (operation.type !== 'set_range') continue
+          for (const cell of operation.data.cells) {
+            const rowUpdates = updatesByRowId.get(cell.rowId) ?? {}
+            rowUpdates[cell.columnName] = cell.value
+            updatesByRowId.set(cell.rowId, rowUpdates)
+          }
         }
         localRef.current = localRef.current.map(row => {
           const updates = updatesByRowId.get(backendRowIdOf(row))
@@ -160,18 +208,27 @@ describe('spreadsheetCollaborationReceive', () => {
         })
       }
 
-      // Simulate the first live event being missed entirely on the receiver.
-      applyRemoteRange([
-        { rowId: 'uuid-1', columnName: 'ColumnA', value: 'first' },
-        { rowId: 'uuid-1', columnName: 'ColumnB', value: 42 }
-      ])
+      applyRemoteBatch({
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            type: 'set_range',
+            data: {
+              cells: [
+                { rowId: 'uuid-1', columnName: 'ColumnA', value: 'first' },
+                { rowId: 'uuid-1', columnName: 'ColumnB', value: 42 }
+              ]
+            }
+          }
+        ]
+      })
 
       expect(localRef.current).toEqual([
         { _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: 'first', ColumnB: 42, _updatedAt: 'now' }
       ])
     })
 
-    it('applies persisted set_range rows even when payload uses _id instead of _rowUuid', () => {
+    it('applies authoritative set_range rows even when payload uses _id instead of _rowUuid', () => {
       const localRef = {
         current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: '', ColumnB: 0 }] as Record<string, unknown>[]
       }
@@ -185,7 +242,7 @@ describe('spreadsheetCollaborationReceive', () => {
         }
         localRef.current = localRef.current.map(row => {
           const updates =
-            updatesByRowId.get(String((row as { _rowUuid?: string })._rowUuid || '')) ??
+            updatesByRowId.get(backendRowIdOf(row)) ??
             updatesByRowId.get(String((row as { _id?: string })._id || '')) ??
             updatesByRowId.get(String((row as { id?: string }).id || ''))
           return updates ? { ...row, ...updates, _updatedAt: 'now' } : row

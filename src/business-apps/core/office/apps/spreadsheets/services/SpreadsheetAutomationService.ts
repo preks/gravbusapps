@@ -19,7 +19,7 @@ import type {
 import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
 import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { getSpreadsheetBasePath } from '../utils/spreadsheetPaths'
 
 // Flow engine API base URL for tasks, flows, etc.
@@ -529,7 +529,7 @@ export class SpreadsheetAutomationService {
     if (backendId) return backendId
 
     const { spreadsheetId, sheetId } = params
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
     const templateAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
 
     const createRes = await fetch(`${docBase}/automations`, {
@@ -561,13 +561,13 @@ export class SpreadsheetAutomationService {
       } catch {
         msg = errText || `HTTP ${createRes.status}`
       }
-      throw new Error(`Failed to create automation in document-service: ${msg}`)
+      throw new Error(`Failed to create automation in spreadsheet-service: ${msg}`)
     }
 
     const created = await createRes.json()
     const id = created.data?.id ?? created.id
     if (!id || !isUuid(id)) {
-      throw new Error('Document-service did not return a valid automation UUID')
+      throw new Error('Spreadsheet-service did not return a valid automation UUID')
     }
     return id
   }
@@ -583,7 +583,7 @@ export class SpreadsheetAutomationService {
     const { automation, recipients } = params
     const executedAt = new Date().toISOString()
 
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
 
     let backendId: string
     try {
@@ -633,7 +633,7 @@ export class SpreadsheetAutomationService {
         return {
           success: false,
           error: isTemplateMissing
-            ? 'Template spreadsheet not found. If using a local document-service, ensure the spreadsheet app exists there. Check NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL.'
+            ? 'Template spreadsheet not found. Ensure the spreadsheet app is available through spreadsheet-service.'
             : errorMessage,
           workflows: [],
           executedAt,
@@ -1754,11 +1754,11 @@ export class SpreadsheetAutomationService {
     }>
   > {
     try {
-      // For excel_collection, use document-service (implements aggregate-bulk).
+      // For excel_collection, use spreadsheet-service (which proxies aggregate-bulk).
       // Flow engine does not have this endpoint (returns 404).
       const aggregateUrl =
         params.automationType === 'excel_collection'
-          ? `${getDocumentServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
+          ? `${getSpreadsheetServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
           : `${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk`
 
       const queryParams = new URLSearchParams({
@@ -2377,7 +2377,7 @@ export class SpreadsheetAutomationService {
 
   private async markDocumentRunSubmissionComplete(copyAppId: string): Promise<boolean> {
     try {
-      const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+      const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
       const markRes = await fetch(`${docBase}/automations/runs/submissions/complete`, {
         method: 'POST',
         headers: {

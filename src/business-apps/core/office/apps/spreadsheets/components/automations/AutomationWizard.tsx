@@ -65,7 +65,7 @@ import type {
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import { UserSelect } from '@/components/user-select'
 import MultiEmployeeSelect from '@/components/multi-employee-select/MultiEmployeeSelect'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import translations from '../../_i18n'
 
 function getTriggerStepDescription(automationType: AutomationType, translate: (key: string) => string): string {
@@ -518,7 +518,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     let cancelled = false
     const fetchTemplates = async () => {
       setIsLoadingTemplates(true)
-      const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+      const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
       try {
         const response = await fetch(`${docBase}/spreadsheets?limit=100`, {
           headers: { Authorization: `Bearer ${accessToken}` }

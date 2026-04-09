@@ -21,6 +21,7 @@ jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: t
 
 let lastPresetContainer: unknown
 let lastSetNumfmtLocalMock: jest.Mock | undefined
+let lastRangeGetValueMock: jest.Mock | undefined
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
@@ -43,6 +44,7 @@ jest.mock(
         getValue: jest.fn(),
         getCellData: jest.fn(() => ({ v: undefined }))
       }
+      lastRangeGetValueMock = range.getValue
       const activeSheet = {
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
         onScroll: () => ({ dispose: jest.fn() }),
@@ -108,6 +110,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
     lastPresetContainer = undefined
     lastSetNumfmtLocalMock = undefined
+    lastRangeGetValueMock = undefined
   })
 
   afterEach(() => {
@@ -245,7 +248,13 @@ describe('UniverSheetGrid read-only behavior', () => {
         }
       }
     })
-    expect(onCellsChange).toHaveBeenCalled()
+    expect(onCellsChange).toHaveBeenCalledWith([
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        value: 'Allowed'
+      }
+    ])
   })
 
   it('suppresses remote echo updates without blocking subsequent local edits', () => {
@@ -291,6 +300,42 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
     expect(onCellsChange).toHaveBeenCalled()
+  })
+
+  it('prefers the worksheet post-mutation value over a stale event payload value', () => {
+    const onCellsChange = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    lastRangeGetValueMock?.mockReturnValue('Current')
+
+    const sheetValueChanged = eventHandlers.SheetValueChanged
+    sheetValueChanged?.({
+      payload: {
+        params: {
+          cellValue: { 0: { 0: { v: 'Previous' } } },
+          range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+        }
+      }
+    })
+
+    expect(onCellsChange).toHaveBeenCalledWith([
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        value: 'Current'
+      }
+    ])
   })
 
   it('injects Add comment into the vertical context menu list', () => {

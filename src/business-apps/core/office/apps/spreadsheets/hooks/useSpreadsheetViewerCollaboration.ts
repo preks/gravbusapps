@@ -16,7 +16,10 @@ import type {
 
 function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
   return (
-    a.userId === b.userId && (a.userName || '') === (b.userName || '') && (a.avatarUrl || '') === (b.avatarUrl || '')
+    a.userId === b.userId &&
+    (a.socketId || '') === (b.socketId || '') &&
+    (a.userName || '') === (b.userName || '') &&
+    (a.avatarUrl || '') === (b.avatarUrl || '')
   )
 }
 
@@ -151,14 +154,30 @@ export function useSpreadsheetViewerCollaboration({
 
   // Enriched participants for cell cursor indicators
   const [cursorParticipants, setCursorParticipants] = useState<DocumentParticipant[]>([])
+  const cursorAvatarCacheRef = useRef<Map<string, string>>(new Map())
+  const headerAvatarCacheRef = useRef<Map<string, string>>(new Map())
 
   const setHeaderFromRawParticipants = useCallback(() => {
     setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
   }, [rawParticipants])
 
   const setCursorFromRawParticipants = useCallback(() => {
-    setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-  }, [rawParticipants])
+    const ownSocketId = socket?.id || ''
+    const merged = rawParticipants
+      .map(p => ({
+        ...p,
+        avatarUrl: p.avatarUrl || cursorAvatarCacheRef.current.get(p.userId) || undefined
+      }))
+      .filter(p => {
+        if (!p.cursor?.path?.length) return false
+        if (ownSocketId && p.socketId === ownSocketId) return false
+        return true
+      })
+    setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, merged) ? prev : merged))
+  }, [rawParticipants, socket?.id])
+
+  const cursorParticipantIdsKey = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))].sort().join('|')
+  const headerParticipantIdsKey = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))].sort().join('|')
 
   // Fetch current user info
   useEffect(() => {
@@ -214,6 +233,18 @@ export function useSpreadsheetViewerCollaboration({
         return
       }
 
+      const missingUserIds = userIds.filter(id => !headerAvatarCacheRef.current.has(id))
+      if (missingUserIds.length === 0) {
+        const enrichedParticipants = rawParticipants.map(p => ({
+          ...p,
+          avatarUrl: p.avatarUrl || headerAvatarCacheRef.current.get(p.userId) || undefined
+        }))
+        setHeaderParticipants(prev =>
+          areParticipantsEquivalent(prev, enrichedParticipants) ? prev : enrichedParticipants
+        )
+        return
+      }
+
       try {
         const query = `
           query GetEmployeeAvatars($userIds: [String!]!) {
@@ -225,9 +256,9 @@ export function useSpreadsheetViewerCollaboration({
         `
         const result = await graphqlClient.request<{
           Employee: Array<{ userId: string; pictureThumbnail: string | null }>
-        }>(query, { userIds })
+        }>(query, { userIds: missingUserIds })
 
-        const avatarMap = new Map<string, string>()
+        const avatarMap = new Map(headerAvatarCacheRef.current)
         result?.Employee?.forEach(emp => {
           if (emp.pictureThumbnail) {
             const avatarUrl = emp.pictureThumbnail.startsWith('data:')
@@ -236,6 +267,7 @@ export function useSpreadsheetViewerCollaboration({
             avatarMap.set(emp.userId, avatarUrl)
           }
         })
+        headerAvatarCacheRef.current = avatarMap
 
         const enrichedParticipants = rawParticipants.map(p => ({
           ...p,
@@ -251,9 +283,13 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchAvatars()
-  }, [rawParticipants, authToken, graphqlClient, setHeaderFromRawParticipants])
+  }, [headerParticipantIdsKey, rawParticipants, authToken, graphqlClient, setHeaderFromRawParticipants])
 
   // Fetch avatars for cell cursor indicators (more robust resolution)
+  useEffect(() => {
+    setCursorFromRawParticipants()
+  }, [setCursorFromRawParticipants])
+
   useEffect(() => {
     async function fetchCursorAvatars() {
       if (!rawParticipants.length || !authToken) {
@@ -263,6 +299,12 @@ export function useSpreadsheetViewerCollaboration({
 
       const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (ids.length === 0) {
+        setCursorFromRawParticipants()
+        return
+      }
+
+      const missingIds = ids.filter(id => !cursorAvatarCacheRef.current.has(id))
+      if (missingIds.length === 0) {
         setCursorFromRawParticipants()
         return
       }
@@ -282,9 +324,9 @@ export function useSpreadsheetViewerCollaboration({
         `
         const byUserIdResult = await graphqlClient.request<{
           Employee: Array<{ id: string; userId: string; pictureThumbnail: string | null }>
-        }>(byUserIdQuery, { userIds: ids })
+        }>(byUserIdQuery, { userIds: missingIds })
 
-        const avatarMap = new Map<string, string>()
+        const avatarMap = new Map(cursorAvatarCacheRef.current)
         byUserIdResult?.Employee?.forEach(emp => {
           if (!emp.pictureThumbnail) return
           const avatarUrl = emp.pictureThumbnail.startsWith('data:')
@@ -295,7 +337,7 @@ export function useSpreadsheetViewerCollaboration({
         })
 
         // Also query by Employee.id for UUID ids
-        const uuidIdsMissing = ids.filter(id => uuidRegex.test(id) && !avatarMap.has(id))
+        const uuidIdsMissing = missingIds.filter(id => uuidRegex.test(id) && !avatarMap.has(id))
         if (uuidIdsMissing.length > 0) {
           const byEmployeeIdQuery = `
             query GetEmployeeAvatarsByEmployeeId($employeeIds: [uuid!]!) {
@@ -324,6 +366,7 @@ export function useSpreadsheetViewerCollaboration({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
+        cursorAvatarCacheRef.current = avatarMap
         setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, enriched) ? prev : enriched))
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch cursor participant avatars:', error)
@@ -332,7 +375,7 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCursorAvatars()
-  }, [rawParticipants, authToken, graphqlClient, setCursorFromRawParticipants])
+  }, [cursorParticipantIdsKey, authToken, graphqlClient, rawParticipants, setCursorFromRawParticipants])
 
   return {
     headerParticipants,
