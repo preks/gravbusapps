@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback, useState, useRef } from 'react'
 import { Control, useWatch } from 'react-hook-form'
 import {
+  Combobox,
   FormControl,
   FormField,
   FormFieldGroup,
@@ -8,6 +9,11 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
   Button,
   Switch,
@@ -19,89 +25,137 @@ import {
 import { ImageIcon, Folder, Link } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { TableHandler } from '../quillTableSetup'
-import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
 import { ContentAiTextGenerator } from '../components/ContentAiTextGenerator'
+import {
+  CONTENT_GROUP_VALUES,
+  CONTENT_GROUP_KEY,
+  CONTENT_GROUP_LABEL,
+  resolveContentCategoryName,
+  resolveContentTagName,
+  resolveContentTypeName
+} from '@/common/data/content/constants/contentConstants'
+import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
+import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
+import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
+import { useContentCategorySelect } from '@/common/data/content/hooks/useContentCategorySelect'
+import { useContentTagSelect } from '@/common/data/content/hooks/useContentTagSelect'
 import translations from '../_i18n'
 
 interface AiTextGeneratorWrapperProps {
   control: Control<ContentEntryFormValues>
   watchTitle: string
-  watchPreviewText: string
-  watchContentTypeRef?: string
-  watchCategories?: string[]
-  watchTags?: string[]
+  watchPreview: string
+  watchContentTypeId?: string
+  watchContentCategoryIds?: string[]
+  watchContentCategoryNames?: string[]
+  watchContentTagIds?: string[]
+  watchContentTagNames?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
-  extractedContentGroupRef?: string
+  extractedContentGroup?: string | null
   handlePictureUrl: (url: string) => Promise<void>
-  onContentTypeRefChange?: (value: string | undefined) => void
-  onContentCategoryRefsChange?: (refs: string[]) => void
-  onContentCategoryNamesChange?: (names: string[]) => void
-  onContentTagRefsChange?: (refs: string[]) => void
-  onContentTagNamesChange?: (names: string[]) => void
+  onContentTypeIdChange?: (value: string | undefined) => void
+  onContentCategoryIdsChange?: (ids: string[]) => void
+  onContentTagIdsChange?: (ids: string[]) => void
 }
 
 const AiTextGeneratorWrapper = React.memo(function AiTextGeneratorWrapper({
   control,
   watchTitle,
-  watchPreviewText,
-  watchContentTypeRef,
-  watchCategories,
-  watchTags,
+  watchPreview,
+  watchContentTypeId,
+  watchContentCategoryIds,
+  watchContentCategoryNames,
+  watchContentTagIds,
+  watchContentTagNames,
   setValue,
   context,
-  extractedContentGroupRef,
+  extractedContentGroup,
   handlePictureUrl,
-  onContentTypeRefChange,
-  onContentCategoryRefsChange,
-  onContentCategoryNamesChange,
-  onContentTagRefsChange,
-  onContentTagNamesChange
+  onContentTypeIdChange,
+  onContentCategoryIdsChange,
+  onContentTagIdsChange
 }: AiTextGeneratorWrapperProps) {
   const content = useWatch({ control, name: 'content' })
+  const watchContentGroup = useWatch({ control, name: 'contentGroup' })
+  const activeContentGroup = extractedContentGroup || watchContentGroup
+
+  const contentGroupOptions = useMemo(
+    () =>
+      CONTENT_GROUP_VALUES.map(group => ({
+        id: group,
+        name: CONTENT_GROUP_LABEL[group]
+      })),
+    []
+  )
+
+  const { options: contentTypePromptOptions } = useContentTypeOptions(context.accessToken, activeContentGroup)
+  const { options: contentCategoryPromptOptions } = useContentCategoryOptions(context.accessToken)
+  const { options: contentTagPromptOptions } = useContentTagOptions(context.accessToken)
+
+  const mappedContentTypeOptions = useMemo(
+    () =>
+      contentTypePromptOptions.flatMap(contentType =>
+        contentType.contentGroup
+          ? [
+              {
+                id: contentType.id,
+                name: resolveContentTypeName(contentType) || contentType.name || contentType.id,
+                contentGroup: contentType.contentGroup
+              }
+            ]
+          : []
+      ),
+    [contentTypePromptOptions]
+  )
+
+  const mappedContentCategoryOptions = useMemo(
+    () =>
+      contentCategoryPromptOptions.map(contentCategory => ({
+        id: contentCategory.id,
+        name: resolveContentCategoryName(contentCategory) || contentCategory.name || contentCategory.id
+      })),
+    [contentCategoryPromptOptions]
+  )
+
+  const mappedContentTagOptions = useMemo(
+    () =>
+      contentTagPromptOptions.map(contentTag => ({
+        id: contentTag.id,
+        name: resolveContentTagName(contentTag) || contentTag.name || contentTag.id
+      })),
+    [contentTagPromptOptions]
+  )
+
   return (
     <ContentAiTextGenerator
       title={watchTitle || ''}
-      previewText={watchPreviewText || ''}
+      previewText={watchPreview || ''}
       content={content || ''}
       onTitleChange={value => setValue('title', value)}
-      onPreviewTextChange={value => setValue('previewText', value)}
+      onPreviewTextChange={value => setValue('preview', value)}
       onContentChange={value => setValue('content', value)}
       onPictureChange={handlePictureUrl}
       accessToken={context.accessToken || ''}
       context={context}
-      contentGroupRef={extractedContentGroupRef}
-      contentTypeRef={watchContentTypeRef}
-      contentCategoryRefs={
-        watchCategories?.filter(cat => {
-          const parts = cat.split(':')
-          return parts.length >= 2
-        }) || []
-      }
-      contentCategoryNames={
-        watchCategories?.filter(cat => {
-          const parts = cat.split(':')
-          return parts.length < 2
-        }) || []
-      }
-      contentTagRefs={
-        watchTags?.filter(tag => {
-          const parts = tag.split(':')
-          return parts.length >= 2
-        }) || []
-      }
-      contentTagNames={
-        watchTags?.filter(tag => {
-          const parts = tag.split(':')
-          return parts.length < 2
-        }) || []
-      }
-      onContentTypeRefChange={onContentTypeRefChange}
-      onContentCategoryRefsChange={onContentCategoryRefsChange}
-      onContentCategoryNamesChange={onContentCategoryNamesChange}
-      onContentTagRefsChange={onContentTagRefsChange}
-      onContentTagNamesChange={onContentTagNamesChange}
+      contentGroup={activeContentGroup}
+      contentTypeId={watchContentTypeId}
+      contentCategoryIds={watchContentCategoryIds || []}
+      contentCategoryNames={watchContentCategoryNames || []}
+      contentTagIds={watchContentTagIds || []}
+      contentTagNames={watchContentTagNames || []}
+      contentGroupOptions={contentGroupOptions}
+      contentTypeOptions={mappedContentTypeOptions}
+      contentCategoryOptions={mappedContentCategoryOptions}
+      contentTagOptions={mappedContentTagOptions}
+      onContentGroupChange={extractedContentGroup ? undefined : value => setValue('contentGroup', value ?? '')}
+      onContentTypeIdChange={onContentTypeIdChange}
+      onContentCategoryIdsChange={onContentCategoryIdsChange}
+      onContentCategoryNamesChange={names => setValue('contentCategoryNames', names)}
+      onContentTagIdsChange={onContentTagIdsChange}
+      onContentTagNamesChange={names => setValue('contentTagNames', names)}
     />
   )
 })
@@ -114,31 +168,23 @@ interface ArticleSegmentProps {
   setImageInfo: (info: { name: string; size: string } | null) => void
   setImageFile: (file: File | null) => void
   watchTitle: string
-  watchPreviewText: string
+  watchPreview: string
   watchSchedulePublication: boolean
-  watchContentTypeRef?: string
-  watchCategories?: string[]
-  watchTags?: string[]
+  watchContentTypeId?: string
+  watchContentCategoryIds?: string[]
+  watchContentCategoryNames?: string[]
+  watchContentTagIds?: string[]
+  watchContentTagNames?: string[]
   setValue: (name: keyof ContentEntryFormValues, value: any) => void
   context: any
-  extractedContentGroupRef?: string
-  onCreateCategory?: (label: string) => Promise<string>
-  onCreateTag?: (label: string) => Promise<string>
-  onCategoriesChange?: (categories: string[]) => void
-  onTagsChange?: (tags: string[]) => void
-  onContentTypeRefChange?: (value: string | undefined) => void
-  onContentCategoryRefsChange?: (value: string[]) => void
-  onContentCategoryNamesChange?: (value: string[]) => void
-  onContentTagRefsChange?: (value: string[]) => void
-  onContentTagNamesChange?: (value: string[]) => void
+  extractedContentGroup?: string | null
+  onContentTypeIdChange?: (value: string | undefined) => void
+  onContentCategoryIdsChange?: (ids: string[]) => void
+  onContentTagIdsChange?: (ids: string[]) => void
 }
 
 const MAX_IMAGE_SIZE_MB = 5
 
-/**
- * ArticleSegment - Form segment for News, Knowledge Base articles
- * Features: Confluence-like layout with AI Button, Image Upload, Title, Preview Text, and Rich Text Editor
- */
 export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
   ({
     control,
@@ -148,23 +194,19 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
     setImageInfo,
     setImageFile,
     watchTitle,
-    watchPreviewText,
+    watchPreview,
     watchSchedulePublication,
-    watchContentTypeRef,
-    watchCategories,
-    watchTags,
+    watchContentTypeId,
+    watchContentCategoryIds,
+    watchContentCategoryNames,
+    watchContentTagIds,
+    watchContentTagNames,
     setValue,
     context,
-    extractedContentGroupRef,
-    onCreateCategory,
-    onCreateTag,
-    onCategoriesChange,
-    onTagsChange,
-    onContentTypeRefChange,
-    onContentCategoryRefsChange,
-    onContentCategoryNamesChange,
-    onContentTagRefsChange,
-    onContentTagNamesChange
+    extractedContentGroup,
+    onContentTypeIdChange,
+    onContentCategoryIdsChange,
+    onContentTagIdsChange
   }) => {
     const { t } = useTranslation(translations)
     const [dragActive, setDragActive] = useState(false)
@@ -174,7 +216,56 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
     const [isLoadingUrl, setIsLoadingUrl] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    // Process file (used by both file upload and drag & drop)
+    const watchContentGroup = useWatch({ control, name: 'contentGroup' })
+    const activeGroup = extractedContentGroup || watchContentGroup
+
+    const {
+      options: contentTypeOptions,
+      isLoading: typesLoading,
+      isReady: typeOptionsReady,
+      setSearch: setTypeSearch,
+      hasMore: typeHasMore,
+      loadMore: loadMoreTypes,
+      component: typeComponent
+    } = useContentTypeSelect(context.accessToken, activeGroup, watchContentTypeId ? [watchContentTypeId] : [])
+
+    const {
+      options: categoryOptions,
+      isLoading: categoriesLoading,
+      isReady: categoryOptionsReady,
+      setSearch: setCategorySearch,
+      hasMore: categoryHasMore,
+      loadMore: loadMoreCategories
+    } = useContentCategorySelect(context.accessToken, watchContentCategoryIds || [])
+
+    const {
+      options: tagOptions,
+      isLoading: tagsLoading,
+      isReady: tagOptionsReady,
+      setSearch: setTagSearch,
+      hasMore: tagHasMore,
+      loadMore: loadMoreTags
+    } = useContentTagSelect(context.accessToken, watchContentTagIds || [])
+
+    const createdCategoryOptions = useMemo(
+      () => (watchContentCategoryNames || []).map(name => ({ value: name, label: name })),
+      [watchContentCategoryNames]
+    )
+    const createdTagOptions = useMemo(
+      () => (watchContentTagNames || []).map(name => ({ value: name, label: name })),
+      [watchContentTagNames]
+    )
+    const displayedCategoryValues = useMemo(
+      () => [...(watchContentCategoryIds || []), ...(watchContentCategoryNames || [])],
+      [watchContentCategoryIds, watchContentCategoryNames]
+    )
+    const displayedTagValues = useMemo(
+      () => [...(watchContentTagIds || []), ...(watchContentTagNames || [])],
+      [watchContentTagIds, watchContentTagNames]
+    )
+    const categoryOptionValues = useMemo(() => new Set(categoryOptions.map(option => option.value)), [categoryOptions])
+    const tagOptionValues = useMemo(() => new Set(tagOptions.map(option => option.value)), [tagOptions])
+
     const processFile = useCallback(
       (file: File) => {
         const fileSizeMB = file.size / (1024 * 1024)
@@ -182,24 +273,16 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
           alert(`Image size must be less than ${MAX_IMAGE_SIZE_MB}MB`)
           return
         }
-
         if (!file.type.startsWith('image/')) {
           alert('Please upload a valid image file')
           return
         }
-
-        // Store the file for upload in pre-submit
         setImageFile(file)
-
         const reader = new FileReader()
         reader.onloadend = () => {
           setImage(reader.result as string)
-          setImageInfo({
-            name: file.name,
-            size: `${fileSizeMB.toFixed(2)}MB`
-          })
-          // Store base64 for preview, will be replaced with fileInfo in pre-submit
-          setValue('contentImage', reader.result as string)
+          setImageInfo({ name: file.name, size: `${fileSizeMB.toFixed(2)}MB` })
+          setValue('picture', reader.result as string)
         }
         reader.readAsDataURL(file)
       },
@@ -211,25 +294,18 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
         const file = event.target.files?.[0]
         if (!file) return
         processFile(file)
-        // Clear input so same file can be selected again
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''
-        }
+        if (fileInputRef.current) fileInputRef.current.value = ''
       },
       [processFile]
     )
 
-    // Drag and drop handlers
     const handleDrop = useCallback(
       (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault()
         event.stopPropagation()
         setDragActive(false)
-
         const file = event.dataTransfer.files?.[0]
-        if (file) {
-          processFile(file)
-        }
+        if (file) processFile(file)
       },
       [processFile]
     )
@@ -246,40 +322,21 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
       setDragActive(false)
     }, [])
 
-    // Helper function to fetch image from URL and process it
     const handlePictureUrl = useCallback(
       async (pictureUrl: string) => {
-        try {
-          const response = await fetch(pictureUrl, { mode: 'cors' })
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-          }
-
-          const blob = await response.blob()
-          if (!blob.type.startsWith('image/')) {
-            throw new Error('URL does not point to an image')
-          }
-
-          // Convert blob to File
-          const fileName = pictureUrl.split('/').pop()?.split('?')[0] || 'image.jpg'
-          const fileExtension = fileName.split('.').pop() || 'jpg'
-          const mimeType = blob.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`
-          const file = new File([blob], fileName, { type: mimeType })
-
-          // Process as regular file upload
-          processFile(file)
-        } catch (error) {
-          console.error('Failed to load picture from URL:', error)
-          throw error
-        }
+        const response = await fetch(pictureUrl, { mode: 'cors' })
+        if (!response.ok) throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+        const blob = await response.blob()
+        if (!blob.type.startsWith('image/')) throw new Error('URL does not point to an image')
+        const fileName = pictureUrl.split('/').pop()?.split('?')[0] || 'image.jpg'
+        const mimeType = blob.type || `image/jpeg`
+        processFile(new File([blob], fileName, { type: mimeType }))
       },
       [processFile]
     )
 
-    // URL fetch handler
     const handleUrlFetch = useCallback(async () => {
       if (!urlInput.trim()) return
-
       setIsLoadingUrl(true)
       try {
         await handlePictureUrl(urlInput.trim())
@@ -297,7 +354,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
       setImage(null)
       setImageInfo(null)
       setImageFile(null)
-      setValue('contentImage', null)
+      setValue('picture', null)
     }, [setImage, setImageInfo, setImageFile, setValue])
 
     const quillModules = useMemo(
@@ -310,58 +367,56 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
           [TableHandler.toolName],
           ['clean']
         ],
-        [TableHandler.moduleName]: {
-          fullWidth: true,
-          customButton: 'Insert table',
-          dragResize: false
-        }
+        [TableHandler.moduleName]: { fullWidth: true, customButton: 'Insert table', dragResize: false }
       }),
       []
     )
 
     return (
       <div className="gba:flex gba:flex-1 gba:flex-col gba:gap-6 gba:overflow-hidden">
-        {/* MAIN CONTENT */}
         <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
-          {/* AI Text Generator Button */}
           <div className="gba:flex gba:justify-end gba:mb-4">
             <AiTextGeneratorWrapper
               control={control}
               watchTitle={watchTitle}
-              watchPreviewText={watchPreviewText}
-              watchContentTypeRef={watchContentTypeRef}
-              watchCategories={watchCategories}
-              watchTags={watchTags}
+              watchPreview={watchPreview}
+              watchContentTypeId={watchContentTypeId}
+              watchContentCategoryIds={watchContentCategoryIds}
+              watchContentCategoryNames={watchContentCategoryNames}
+              watchContentTagIds={watchContentTagIds}
+              watchContentTagNames={watchContentTagNames}
               setValue={setValue}
               context={context}
-              extractedContentGroupRef={extractedContentGroupRef}
+              extractedContentGroup={extractedContentGroup}
               handlePictureUrl={handlePictureUrl}
-              onContentTypeRefChange={onContentTypeRefChange}
-              onContentCategoryRefsChange={onContentCategoryRefsChange}
-              onContentCategoryNamesChange={onContentCategoryNamesChange}
-              onContentTagRefsChange={onContentTagRefsChange}
-              onContentTagNamesChange={onContentTagNamesChange}
+              onContentTypeIdChange={onContentTypeIdChange}
+              onContentCategoryIdsChange={onContentCategoryIdsChange}
+              onContentTagIdsChange={onContentTagIdsChange}
             />
           </div>
 
-          {/* Content Group and Content Type - Above Image Upload */}
           <FormFieldGroup>
-            {/* Content Group Selection - Hidden if provided via props or additionalData */}
-            {!extractedContentGroupRef && (
+            {!extractedContentGroup && (
               <FormField
                 control={control as any}
-                name="contentGroupRef"
+                name="contentGroup"
                 rules={{ required: t('group-required') }}
                 render={({ field }) => (
                   <FormItem className="gba:flex-1">
                     <FormLabel>{t('content-group')}</FormLabel>
                     <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier="ContentGroup:v1"
-                        value={field.value || ''}
-                        onValueChange={field.onChange}
-                        data-testid="content-entry-window-group-select"
-                      />
+                      <Select value={field.value || ''} onValueChange={field.onChange}>
+                        <SelectTrigger data-testid="content-entry-window-group-select">
+                          <SelectValue placeholder={t('select-group') || 'Select group'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTENT_GROUP_VALUES.map(value => (
+                            <SelectItem key={value} value={value}>
+                              {t(CONTENT_GROUP_KEY[value])}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -369,23 +424,50 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
               />
             )}
 
-            {/* Content Type Selection */}
             <FormField
               control={control as any}
-              name="contentTypeRef"
+              name="contentTypeId"
               render={({ field }) => (
                 <FormItem className="gba:flex-1">
                   <FormLabel>{t('content-type')}</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentType:v1"
-                      parentField="contentGroupRef"
-                      requireSourceForEnable={true}
-                      autoSelectFirst={true}
-                      value={field.value || ''}
-                      onValueChange={field.onChange}
-                      data-testid="content-entry-window-type-select"
-                    />
+                    {typeComponent === 'select' ? (
+                      <Select
+                        key={typeOptionsReady ? 'resolved' : 'resolving'}
+                        value={typeOptionsReady ? field.value || '' : ''}
+                        onValueChange={field.onChange}
+                        disabled={!activeGroup || typesLoading}
+                      >
+                        <SelectTrigger data-testid="content-entry-window-type-select">
+                          <SelectValue placeholder={typesLoading ? 'Loading...' : t('select-type') || 'Select type'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contentTypeOptions.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Combobox
+                        key={typeOptionsReady ? 'resolved' : 'resolving'}
+                        mode="default"
+                        options={contentTypeOptions}
+                        value={typeOptionsReady ? field.value || '' : ''}
+                        onValueChange={(next: string) => field.onChange(next)}
+                        placeholder={t('select-type') || 'Select type'}
+                        searchPlaceholder="Search types..."
+                        emptyText={typesLoading ? 'Loading...' : 'No results'}
+                        loading={typesLoading}
+                        onSearch={setTypeSearch}
+                        searchDebounce={300}
+                        onLoadMore={loadMoreTypes}
+                        hasMore={typeHasMore}
+                        disabled={!activeGroup}
+                        data-testid="content-entry-window-type-select"
+                      />
+                    )}
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -393,10 +475,9 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
             />
           </FormFieldGroup>
 
-          {/* Image Upload */}
           <FormField
             control={control as any}
-            name="contentImage"
+            name="picture"
             render={() => (
               <FormItem>
                 <FormLabel>{t('header-image') || 'Header Image'}</FormLabel>
@@ -489,9 +570,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
                                         onChange={e => setUrlInput(e.target.value)}
                                         placeholder="https://example.com/image.jpg"
                                         onKeyDown={e => {
-                                          if (e.key === 'Enter' && !isLoadingUrl) {
-                                            handleUrlFetch()
-                                          }
+                                          if (e.key === 'Enter' && !isLoadingUrl) handleUrlFetch()
                                         }}
                                         data-testid="content-entry-window-url-input"
                                       />
@@ -534,7 +613,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
             )}
           />
 
-          {/* Title */}
           <FormField
             control={control as any}
             name="title"
@@ -555,10 +633,9 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
             )}
           />
 
-          {/* Preview Text */}
           <FormField
             control={control as any}
-            name="previewText"
+            name="preview"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('preview-text') || 'Preview Text'}</FormLabel>
@@ -575,12 +652,9 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
             )}
           />
 
-          {/* Quill Editor - Takes full remaining height */}
           <div className="gba:flex-1 gba:flex gba:flex-col gba:border-t gba:border-border gba:overflow-hidden gba:min-h-0">
             <style>{`
-            .ql-editor {
-              min-height: 50px;
-            }
+            .ql-editor { min-height: 50px; }
             .ql-table { border-collapse: separate; table-layout: fixed; }
             .ql-table[data-full] { width: 100%; }
             .ql-table-wrapper { width: 100%; padding-left: 1px; padding-right: 1px; overflow: auto; }
@@ -616,32 +690,40 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
             />
           </div>
 
-          {/* Categories and Tags - Below Editor */}
           <FormFieldGroup>
-            {/* Categories - Tags Mode */}
             <FormField
               control={control as any}
-              name="categories"
+              name="contentCategoryIds"
               render={({ field }) => (
                 <FormItem className="gba:flex-1">
                   <FormLabel>Categories</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentCategory:v1"
+                    <Combobox
                       mode="tags"
-                      value={field.value || []}
-                      onValueChange={value => {
-                        const categories = Array.isArray(value) ? value : []
-                        field.onChange(categories)
-                        onCategoriesChange?.(categories)
+                      options={categoryOptions}
+                      value={categoryOptionsReady ? displayedCategoryValues : watchContentCategoryNames || []}
+                      onValueChange={(next: string[]) => {
+                        field.onChange(next.filter(value => categoryOptionValues.has(value)))
+                        setValue(
+                          'contentCategoryNames',
+                          next.filter(value => !categoryOptionValues.has(value))
+                        )
                       }}
-                      onCreateTag={async (tag: string) => {
-                        if (!onCreateCategory) {
-                          throw new Error('onCreateCategory is required for categories')
-                        }
-                        const newId = await onCreateCategory(tag)
-                        return newId
+                      onCreateTag={rawName => {
+                        const trimmedName = rawName.trim()
+                        if (!trimmedName) return
+                        if ((watchContentCategoryNames || []).includes(trimmedName)) return
+                        setValue('contentCategoryNames', [...(watchContentCategoryNames || []), trimmedName])
                       }}
+                      createdOptions={createdCategoryOptions}
+                      placeholder="Select categories..."
+                      searchPlaceholder="Search or create..."
+                      emptyText={categoriesLoading ? 'Loading...' : 'No results'}
+                      loading={categoriesLoading}
+                      onSearch={setCategorySearch}
+                      searchDebounce={300}
+                      onLoadMore={loadMoreCategories}
+                      hasMore={categoryHasMore}
                       data-testid="content-entry-window-categories-select"
                     />
                   </FormControl>
@@ -650,30 +732,39 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
               )}
             />
 
-            {/* Tags - Tags Mode */}
             <FormField
               control={control as any}
-              name="tags"
+              name="contentTagIds"
               render={({ field }) => (
                 <FormItem className="gba:flex-1">
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <CatalogSelect
-                      catalogIdentifier="ContentTag:v1"
+                    <Combobox
                       mode="tags"
-                      value={field.value || []}
-                      onValueChange={value => {
-                        const tags = Array.isArray(value) ? value : []
-                        field.onChange(tags)
-                        onTagsChange?.(tags)
+                      options={tagOptions}
+                      value={tagOptionsReady ? displayedTagValues : watchContentTagNames || []}
+                      onValueChange={(next: string[]) => {
+                        field.onChange(next.filter(value => tagOptionValues.has(value)))
+                        setValue(
+                          'contentTagNames',
+                          next.filter(value => !tagOptionValues.has(value))
+                        )
                       }}
-                      onCreateTag={async (tag: string) => {
-                        if (!onCreateTag) {
-                          throw new Error('onCreateTag is required for tags')
-                        }
-                        const newId = await onCreateTag(tag)
-                        return newId
+                      onCreateTag={rawName => {
+                        const trimmedName = rawName.trim()
+                        if (!trimmedName) return
+                        if ((watchContentTagNames || []).includes(trimmedName)) return
+                        setValue('contentTagNames', [...(watchContentTagNames || []), trimmedName])
                       }}
+                      createdOptions={createdTagOptions}
+                      placeholder="Select tags..."
+                      searchPlaceholder="Search or create..."
+                      emptyText={tagsLoading ? 'Loading...' : 'No results'}
+                      loading={tagsLoading}
+                      onSearch={setTagSearch}
+                      searchDebounce={300}
+                      onLoadMore={loadMoreTags}
+                      hasMore={tagHasMore}
                       data-testid="content-entry-window-tags-select"
                     />
                   </FormControl>
@@ -684,14 +775,12 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
           </FormFieldGroup>
         </div>
 
-        {/* BOTTOM CONTROLS */}
         <div className="gba:flex gba:flex-col gba:gap-6 gba:flex-shrink-0 gba:overflow-y-auto gba:transition-all gba:duration-300 gba:border-border gba:w-full gba:pt-4 gba:border-t">
-          {/* Schedule Dates - if enabled */}
           {watchSchedulePublication && (
             <div className="gba:space-y-4">
               <FormField
                 control={control as any}
-                name="startDate"
+                name="activeFrom"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('start-date') || 'Start Date'}</FormLabel>
@@ -707,10 +796,9 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={control as any}
-                name="endDate"
+                name="activeTo"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('end-date') || 'End Date'}</FormLabel>
@@ -729,11 +817,10 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
             </div>
           )}
 
-          {/* Compact toggles */}
           <div className="gba:mt-auto gba:flex gba:flex-wrap gba:gap-4">
             <FormField
               control={control as any}
-              name="displayAuthor"
+              name="displayCreator"
               render={({ field }) => (
                 <FormItem className="gba:flex gba:items-center gba:gap-2 gba:space-y-0">
                   <FormLabel className="gba:text-sm">{t('display-author') || 'Display Author'}</FormLabel>
@@ -743,7 +830,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
                 </FormItem>
               )}
             />
-
             <FormField
               control={control as any}
               name="allowComment"
@@ -756,7 +842,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
                 </FormItem>
               )}
             />
-
             <FormField
               control={control as any}
               name="allowReaction"
@@ -773,7 +858,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = React.memo(
                 </FormItem>
               )}
             />
-
             <FormField
               control={control as any}
               name="schedulePublication"

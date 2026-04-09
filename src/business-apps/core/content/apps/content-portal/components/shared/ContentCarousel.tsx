@@ -230,7 +230,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         )}
                         {(() => {
                           const entityType =
-                            getEntityTypeFromContentGroup(article.contentGroupRef) || getEntityTypeFromTab(currentTab)
+                            getEntityTypeFromContentGroup(article.contentGroup) || getEntityTypeFromTab(currentTab)
                           return entityType ? (
                             <AppAction
                               variant="custom"

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 
 export interface UserEngagementData {
   articlesCreated: number
@@ -51,7 +51,7 @@ const buildUserEngagementQuery = (userId: string): string => {
       articlesCreated: ContentEntryAggregate(
         where: {
           role: { _eq: "${ContentRole.ROOT}" }
-          contentGroupRef: { _in: ["${ContentGroup.NEWS}", "${ContentGroup.KNOWLEDGE}"] }
+          contentGroup: { _in: ["${ContentGroup.NEWS}", "${ContentGroup.KNOWLEDGE}"] }
           createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
@@ -63,7 +63,7 @@ const buildUserEngagementQuery = (userId: string): string => {
       questionsAsked: ContentEntryAggregate(
         where: {
           role: { _eq: "${ContentRole.ROOT}" }
-          contentGroupRef: { _eq: "${ContentGroup.QUESTION}" }
+          contentGroup: { _eq: "${ContentGroup.QUESTION}" }
           createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
         }
@@ -100,7 +100,7 @@ const buildUserEngagementQuery = (userId: string): string => {
           createdBy: { _eq: "${userId}" }
           isDeleted: { _eq: false }
           parentContentEntry: {
-            contentGroupRef: { _eq: "${ContentGroup.QUESTION}" }
+            contentGroup: { _eq: "${ContentGroup.QUESTION}" }
             role: { _eq: "${ContentRole.ROOT}" }
           }
         }

@@ -20,12 +20,17 @@ import {
 } from '@newwork/nw-design-system'
 import { Search, FileText, BookOpen, CheckCircle2 } from 'lucide-react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import {
+  CONTENT_GROUP_LABEL,
+  ContentGroup,
+  resolveContentTypeName
+} from '@/common/data/content/constants/contentConstants'
 
 interface ContentEntry {
   id: string
   title: string
-  contentType?: { value: string }
-  contentGroup?: { value: string }
+  contentType?: { id: string; name: string; nameI18n?: Record<string, string> }
+  contentGroup?: string
   publishedOn?: string
   pictureThumbnail?: string
 }
@@ -55,8 +60,8 @@ const SEARCH_CONTENT_QUERY = `
       id
       title
       preview
-      contentType { value }
-      contentGroup { value }
+      contentType { id name nameI18n }
+      contentGroup
       createdAt
     }
   }
@@ -97,7 +102,9 @@ export const ContentEntrySelector: React.FC<ContentEntrySelectorProps> = ({
   }, [searchQuery, graphqlClient])
 
   useEffect(() => {
-    const timer = setTimeout(() => { searchContent() }, 300)
+    const timer = setTimeout(() => {
+      searchContent()
+    }, 300)
     return () => clearTimeout(timer)
   }, [searchContent])
 
@@ -180,13 +187,15 @@ export const ContentEntrySelector: React.FC<ContentEntrySelectorProps> = ({
                         <div className="gba:flex-1 gba:min-w-0">
                           <h4 className="gba:font-medium gba:text-sm gba:line-clamp-1">{entry.title}</h4>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
-                            {entry.contentGroup?.value && (
+                            {entry.contentGroup && (
                               <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                {entry.contentGroup.value}
+                                {CONTENT_GROUP_LABEL[entry.contentGroup as ContentGroup]}
                               </Badge>
                             )}
-                            {entry.contentType?.value && (
-                              <span className="gba:text-xs gba:text-muted-foreground">{entry.contentType.value}</span>
+                            {resolveContentTypeName(entry.contentType) && (
+                              <span className="gba:text-xs gba:text-muted-foreground">
+                                {resolveContentTypeName(entry.contentType)}
+                              </span>
                             )}
                           </div>
                         </div>
