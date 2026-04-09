@@ -8,7 +8,7 @@ export interface DiagramArtifactProps {
 }
 
 /** Diagram source only (no graph renderer); uses the same highlighter as code artifacts. */
-function DiagramArtifact({ file, content, viewMode }: DiagramArtifactProps) {
+function DiagramArtifact({ file, content, viewMode }: Readonly<DiagramArtifactProps>) {
   if (content === null) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-sm gba:text-muted-foreground">

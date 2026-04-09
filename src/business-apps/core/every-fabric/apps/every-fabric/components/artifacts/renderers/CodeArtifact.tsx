@@ -70,66 +70,119 @@ interface Token {
   value: string
 }
 
+interface ParsedToken {
+  token: Token
+  nextIndex: number
+}
+
+function readCommentToken(line: string, index: number): ParsedToken | null {
+  if (line[index] === '/' && line[index + 1] === '/') {
+    return { token: { type: 'comment', value: line.slice(index) }, nextIndex: line.length }
+  }
+  if (line[index] === '#') {
+    return { token: { type: 'comment', value: line.slice(index) }, nextIndex: line.length }
+  }
+  return null
+}
+
+function readStringToken(line: string, index: number): ParsedToken | null {
+  const quote = line[index]
+  if (quote !== '"' && quote !== "'" && quote !== '`') {
+    return null
+  }
+
+  let j = index + 1
+  while (j < line.length && (line[j] !== quote || line[j - 1] === '\\')) j += 1
+  return {
+    token: { type: 'str', value: line.slice(index, j + 1) },
+    nextIndex: j + 1
+  }
+}
+
+function readNumberToken(line: string, index: number): ParsedToken | null {
+  const current = line[index]
+  const previous = line[index - 1]
+  const startsWithDigit = /\d/.test(current)
+  const isBoundary = index === 0 || /[\s,([\-+*/=]/.test(previous)
+  if (!startsWithDigit || !isBoundary) {
+    return null
+  }
+
+  let j = index
+  while (j < line.length && /[\d._xXa-fA-F]/.test(line[j])) j += 1
+  return {
+    token: { type: 'num', value: line.slice(index, j) },
+    nextIndex: j
+  }
+}
+
+function readWordToken(line: string, index: number): ParsedToken | null {
+  if (!/[a-zA-Z_$]/.test(line[index])) {
+    return null
+  }
+
+  let j = index
+  while (j < line.length && /[a-zA-Z0-9_$]/.test(line[j])) j += 1
+  const word = line.slice(index, j)
+
+  if (KEYWORDS.has(word)) {
+    return { token: { type: 'kw', value: word }, nextIndex: j }
+  }
+  if (word === 'true' || word === 'false' || word === 'null' || word === 'undefined' || word === 'None') {
+    return { token: { type: 'bool', value: word }, nextIndex: j }
+  }
+  return { token: { type: 'text', value: word }, nextIndex: j }
+}
+
+function appendPlainTextToken(tokens: Token[], value: string): void {
+  const last = tokens[tokens.length - 1]
+  if (last?.type === 'text') {
+    last.value += value
+    return
+  }
+  tokens.push({ type: 'text', value })
+}
+
 function tokenize(line: string): Token[] {
   const tokens: Token[] = []
   let i = 0
 
   while (i < line.length) {
-    // Line comments
-    if (line[i] === '/' && line[i + 1] === '/') {
-      tokens.push({ type: 'comment', value: line.slice(i) })
+    const comment = readCommentToken(line, i)
+    if (comment) {
+      tokens.push(comment.token)
       break
     }
-    if (line[i] === '#') {
-      tokens.push({ type: 'comment', value: line.slice(i) })
-      break
-    }
-    // Strings
-    if (line[i] === '"' || line[i] === "'" || line[i] === '`') {
-      const q = line[i]
-      let j = i + 1
-      while (j < line.length && (line[j] !== q || line[j - 1] === '\\')) j++
-      tokens.push({ type: 'str', value: line.slice(i, j + 1) })
-      i = j + 1
+
+    const stringToken = readStringToken(line, i)
+    if (stringToken) {
+      tokens.push(stringToken.token)
+      i = stringToken.nextIndex
       continue
     }
-    // Numbers
-    if (/[0-9]/.test(line[i]) && (i === 0 || /[\s,([\-+*/=]/.test(line[i - 1]))) {
-      let j = i
-      while (j < line.length && /[0-9._xXa-fA-F]/.test(line[j])) j++
-      tokens.push({ type: 'num', value: line.slice(i, j) })
-      i = j
+
+    const numberToken = readNumberToken(line, i)
+    if (numberToken) {
+      tokens.push(numberToken.token)
+      i = numberToken.nextIndex
       continue
     }
-    // Words (keywords, booleans, identifiers)
-    if (/[a-zA-Z_$]/.test(line[i])) {
-      let j = i
-      while (j < line.length && /[a-zA-Z0-9_$]/.test(line[j])) j++
-      const word = line.slice(i, j)
-      if (KEYWORDS.has(word)) {
-        tokens.push({ type: 'kw', value: word })
-      } else if (word === 'true' || word === 'false' || word === 'null' || word === 'undefined' || word === 'None') {
-        tokens.push({ type: 'bool', value: word })
-      } else {
-        tokens.push({ type: 'text', value: word })
-      }
-      i = j
+
+    const wordToken = readWordToken(line, i)
+    if (wordToken) {
+      tokens.push(wordToken.token)
+      i = wordToken.nextIndex
       continue
     }
-    // Operators
+
     if (/[=<>!+\-*/&|^%~]/.test(line[i])) {
       tokens.push({ type: 'op', value: line[i] })
-      i++
+      i += 1
       continue
     }
-    // Plain text
-    const last = tokens[tokens.length - 1]
-    if (last?.type === 'text') {
-      last.value += line[i]
-    } else {
-      tokens.push({ type: 'text', value: line[i] })
-    }
-    i++
+
+    appendPlainTextToken(tokens, line[i])
+    i += 1
   }
   return tokens
 }
@@ -157,7 +210,7 @@ function codeLineRowKey(line: string, rowIndex: number): string {
   const payload = `${rowIndex}\0${line}`
   let h = 2166136261
   for (let p = 0; p < payload.length; p++) {
-    h ^= payload.charCodeAt(p)
+    h ^= payload.codePointAt(p) ?? 0
     h = Math.imul(h, 16777619)
   }
   return `code-row-${(h >>> 0).toString(36)}`

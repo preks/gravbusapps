@@ -51,8 +51,8 @@ const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }
       if (e.key === 'ArrowLeft') prev()
       if (e.key === 'ArrowRight') next()
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    globalThis.addEventListener('keydown', handler)
+    return () => globalThis.removeEventListener('keydown', handler)
   }, [prev, next])
 
   if (content === null) {
