@@ -283,8 +283,9 @@ export const buildNoteFragment = (fields: Record<keyof typeof NoteFields, string
   ${fields.id}
   ${fields.reminderDate}
   ${fields.source}
-  # text missing in CRM
-  # title missing in CRM
+  ${fields.title}
+  ${fields.text}
+  ${fields.noteType}
 `
 }
 
