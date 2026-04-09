@@ -9,6 +9,17 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
+function parseJsonSafely<T>(rawText: string): T | null {
+  const text = rawText.trim()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    // Defensive: avoid crashing screen bootstrap on malformed backend payloads.
+    return null
+  }
+}
+
 async function request<T>(path: string, accessToken: string, options?: RequestInit): Promise<T> {
   const baseUrl = getDocumentServiceApiUrl()
   const response = await fetch(`${baseUrl}${path}`, {
@@ -24,7 +35,7 @@ async function request<T>(path: string, accessToken: string, options?: RequestIn
     throw new Error(error.message || `API Error: ${response.status}`)
   }
   const text = await response.text()
-  return text ? JSON.parse(text) : (null as T)
+  return parseJsonSafely<T>(text) as T
 }
 
 export const WhiteboardApiService = {

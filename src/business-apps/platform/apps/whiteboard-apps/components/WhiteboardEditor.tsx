@@ -515,6 +515,18 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 viewportZoomFactor: 0.9,
                 animate: false
               })
+              requestAnimationFrame(() => {
+                const currentState = excalidrawApi.getAppState()
+                if (currentState.zoom.value > 1) {
+                  excalidrawApi.updateScene({
+                    appState: { zoom: { value: 1 as Zoom['value'] } }
+                  })
+                  excalidrawApi.scrollToContent(elements, {
+                    fitToViewport: false,
+                    animate: false
+                  })
+                }
+              })
             })
           }
           hasRestoredViewportRef.current = true

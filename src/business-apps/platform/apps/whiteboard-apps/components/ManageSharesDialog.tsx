@@ -11,7 +11,7 @@ import {
   AvatarFallback,
   useTranslation
 } from '@newwork/nw-design-system'
-import { WhiteboardApiService } from '../services'
+import { WhiteboardApiService } from '../services/WhiteboardApiService'
 import translations from '../_i18n'
 
 interface ManageSharesDialogProps {
