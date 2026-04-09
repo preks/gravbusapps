@@ -2,6 +2,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
+  createExpenseTripMultiSelectOptions,
   createStatusFilterGroup
 } from '../../../../../../common/config/filterConfigHelpers'
 
@@ -15,20 +16,7 @@ export function createExpensePlanFilterConfig({
   filterLabelMap
 }: ExpensePlanFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
-  const planTypeOptions = [
-    {
-      id: 'planType:EXPENSES',
-      label:
-        filterLabelMap?.['planType:EXPENSES'] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
-    },
-    {
-      id: 'planType:TRIP',
-      label:
-        filterLabelMap?.['planType:TRIP'] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
-    }
-  ]
+  const planTypeOptions = createExpenseTripMultiSelectOptions(filterLabelMap, 'planType:EXPENSES', 'planType:TRIP')
 
   const topDestinationLabel = getTranslationFromI18nKeyAndLabel(
     'lowcoder:personal_expenses.top_destination',
@@ -66,16 +54,9 @@ export function createExpensePlanFilterConfig({
           label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
           type: 'multi-select',
           config: { options: planTypeOptions }
-        }
-      ]
-    },
-    {
-      id: 'topDestination-group',
-      label: topDestinationLabel,
-      collapsible: false,
-      filters: [
+        },
         {
-          id: 'topDestinationIds',
+          id: 'topDestinationToolbarChipOnly',
           field: 'topDestinationIds',
           label: topDestinationLabel,
           type: 'multi-select',

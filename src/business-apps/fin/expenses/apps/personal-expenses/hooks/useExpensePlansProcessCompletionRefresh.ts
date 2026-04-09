@@ -15,7 +15,7 @@ export interface UseExpensePlansProcessCompletionRefreshParams {
   memoizedFilters: Record<string, unknown>
   currentPage: number
   pageSize: number
-  sortField: string
+  sortField: string | null
   sortOrder: 'ascend' | 'descend' | null
   accessToken: string | undefined
   employeeId: string | undefined

@@ -1,7 +1,8 @@
-import { type ReactNode, useMemo } from 'react'
-import { DataDisplay, DataTable, type FilterConfiguration } from '@newwork/nw-design-system'
+import { type ReactNode } from 'react'
+import { DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import ExpenseDataTable from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from './expensePlanColumns'
 
@@ -24,7 +25,7 @@ export interface ExpensePlansTableDisplayProps {
   filterSheetTitle: string
   filterSheetDescription: string
   plans: ExpensePlan[]
-  allColumns: ColumnDef<ExpensePlan>[]
+  columns: ColumnDef<ExpensePlan>[]
   tableError: string | undefined
   pagination: { pageIndex: number; pageSize: number }
   onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
@@ -52,7 +53,7 @@ export function ExpensePlansTableDisplay({
   filterSheetTitle,
   filterSheetDescription,
   plans,
-  allColumns,
+  columns,
   tableError,
   pagination,
   onPaginationChange,
@@ -60,12 +61,6 @@ export function ExpensePlansTableDisplay({
   rowActions,
   onRowClick
 }: Readonly<ExpensePlansTableDisplayProps>) {
-  const visibleColumns = useMemo(
-    () =>
-      allColumns.filter(col => visibleColumnIds.includes((col as ColumnDef<ExpensePlan> & { id?: string }).id ?? '')),
-    [allColumns, visibleColumnIds]
-  )
-
   const searchPlaceholder = `${getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_list.employee_report_filter.job_search',
     'Search'
@@ -100,9 +95,9 @@ export function ExpensePlansTableDisplay({
       filterSheetTitle={filterSheetTitle}
       filterSheetDescription={filterSheetDescription}
     >
-      <DataTable<ExpensePlan>
+      <ExpenseDataTable<ExpensePlan>
         data={plans}
-        columns={visibleColumns}
+        columns={columns}
         loading={isLoading}
         error={tableError}
         totalCount={totalCount}
@@ -110,19 +105,10 @@ export function ExpensePlansTableDisplay({
         onSortingChange={onSortingChange}
         pagination={pagination}
         onPaginationChange={onPaginationChange}
-        enablePagination
-        enableSorting
-        enableSelection={false}
-        enableColumnPinning
-        enableResizing={false}
-        tableLayout="fixed"
-        rowsPerPageOptions={[10, 20, 50, 100]}
-        showPageNumbers
-        maxVisiblePages={7}
         emptyMessage={emptyMessage}
         actions={rowActions}
         onRowClick={onRowClick}
-        data-testid={EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX}
+        dataTestId={EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX}
       />
     </DataDisplay>
   )
