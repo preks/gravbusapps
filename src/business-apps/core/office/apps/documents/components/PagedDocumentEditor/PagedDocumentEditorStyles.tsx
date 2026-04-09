@@ -43,6 +43,54 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         --default-cell-min-width: 25px;
       }
 
+      /*
+       * gravity-platform applies its primary font to every element, which gives nested editor
+       * tags their own Roboto family instead of inheriting the document's configured font.
+       * Re-enable inheritance only for text-bearing document elements so code/pre keep their
+       * explicit monospace stacks.
+       */
+      .paged-document-editor .ProseMirror :where(
+        p,
+        ol,
+        ul,
+        li,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        blockquote,
+        table,
+        tbody,
+        thead,
+        tfoot,
+        tr,
+        td,
+        th,
+        span,
+        strong,
+        b,
+        em,
+        i,
+        u,
+        s,
+        sub,
+        sup,
+        a,
+        mark
+      ) {
+        font-family: inherit;
+      }
+
+      .paged-document-editor .ProseMirror :where(strong, b) {
+        font-weight: 700;
+      }
+
+      .paged-document-editor .ProseMirror :where(em, i) {
+        font-style: italic;
+      }
+
       .paged-document-editor .ProseMirror .document-table-of-contents {
         display: block;
         width: 100%;
