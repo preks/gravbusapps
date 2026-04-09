@@ -76,7 +76,7 @@ const createFlowBotFormData = (prompt: string): FormData => {
   const form = new FormData()
   form.append('session_id', '')
   form.append('user_input_text', prompt)
-  form.append('llm_model', 'gpt-4.1')
+  form.append('model_kind', 'default')
   form.append('use_web_search_tool', 'false')
   form.append(
     'current_page_context',

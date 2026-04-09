@@ -1,10 +1,27 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
 import { ArrowUpIcon, GlobeIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { calculatePercentChange } from '../utils/formatters'
 import { DashboardStats } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
+import personalTranslations from '../../../../_i18n'
+
+function getDashboardStatTrendDescription(
+  t: (key: string) => string,
+  isPositiveChange: boolean,
+  period: 'monthly' | 'quarterly' | 'yearly'
+): string {
+  const direction = isPositiveChange ? 'increase' : 'decrease'
+  if (period === 'yearly') {
+    return t(`dashboard-stat-trend-${direction}-vs-last-year`)
+  }
+  if (period === 'quarterly') {
+    return t(`dashboard-stat-trend-${direction}-vs-last-quarter`)
+  }
+  return t(`dashboard-stat-trend-${direction}-vs-last-month`)
+}
 
 interface SummaryStatisticsProps {
   statistics: DashboardStats | undefined
@@ -25,6 +42,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   onRetry,
   onWidgetClick
 }) => {
+  const { t } = useTranslation(personalTranslations)
   const [hoveredWidgetKey, setHoveredWidgetKey] = React.useState<string | null>(null)
 
   // Provide simple defaults so widgets always show numeric values (0) when stats are missing
@@ -88,13 +106,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       trend: {
         value: `${Math.abs(percentChange).toFixed(1)}%`,
         positive: isPositiveChange,
-        description: `${isPositiveChange ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.increase', 'increase') : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decrease', 'decrease')} ${
-          period === 'yearly'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_year', 'from last year')
-            : period === 'quarterly'
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_quarter', 'from last quarter')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
-        }`
+        description: getDashboardStatTrendDescription(t, isPositiveChange, period)
       }
     },
     {

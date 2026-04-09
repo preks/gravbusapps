@@ -1,11 +1,11 @@
 import React, { useMemo, useCallback } from 'react'
 import { FileTextIcon, CurrencyDollarIcon, CalendarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { useGetExpenseRequestStatistics } from '../../../hooks/useGetExpenseRequestStatistics'
+import { useGetExpenseRequestStatistics } from '../../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../utils'
-import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
+import { formatCurrencyDisplay } from '../../../../utils'
+import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean

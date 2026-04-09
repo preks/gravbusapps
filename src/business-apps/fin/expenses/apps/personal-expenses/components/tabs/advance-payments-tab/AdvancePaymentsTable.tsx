@@ -15,7 +15,7 @@ import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCur
 import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
 import ExpensePlanDetails from '../expense-plans-tab/details/ExpensePlanDetails'
-import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
+import ExpenseRequestDetails from '../expense-requests-tab/details/ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
