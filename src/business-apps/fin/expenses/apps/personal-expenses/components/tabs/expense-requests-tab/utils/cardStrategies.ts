@@ -6,11 +6,13 @@ import {
 
 const ALL_RESETTABLE_REQUEST_STATUSES = [...EXPENSE_REQUEST_FILTER_STATUSES, ...LEGACY_EXPENSE_REQUEST_FILTER_IDS]
 
+/** Dashboard cards that scope “completed” requests by month + terminal statuses. */
+const TERMINAL_REQUEST_STATUS_FILTERS = ['PAID', 'CLOSED', 'TRANSFERRED'] as const
+
 export type RequestsCardContext = {
   setRequestDateRange: (range: [Date | null, Date | null] | null) => void
   setStartDateRange: (range: [Date | null, Date | null] | null) => void
   setEndDateRange: (range: [Date | null, Date | null] | null) => void
-  // New: use effective date instead of request/start directly
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
   handleFilterChange: (filterId: string, selected: boolean) => void
 }
@@ -26,56 +28,39 @@ const currentMonthRange = (): [Date, Date] => {
   return [start, end]
 }
 
+function setCurrentMonthRangeOnContext(ctx: RequestsCardContext, range: [Date, Date] | null): void {
+  if (ctx.setEffectiveDateRange) {
+    ctx.setEffectiveDateRange(range)
+  } else {
+    ctx.setRequestDateRange(range)
+  }
+}
+
+function applyMonthScopeAndTerminalStatuses(ctx: RequestsCardContext, active: boolean): void {
+  setCurrentMonthRangeOnContext(ctx, active ? currentMonthRange() : null)
+  for (const status of TERMINAL_REQUEST_STATUS_FILTERS) {
+    ctx.handleFilterChange(status, active)
+  }
+}
+
+function clearRequestDateDimensions(ctx: RequestsCardContext): void {
+  ctx.setRequestDateRange(null)
+  ctx.setStartDateRange(null)
+  ctx.setEndDateRange(null)
+}
+
 export const getRequestCardStrategies = (ctx: RequestsCardContext): Record<string, CardStrategy> => ({
   'total-requests': {
-    apply: () => {
-      if (ctx.setEffectiveDateRange) {
-        ctx.setEffectiveDateRange(currentMonthRange())
-      } else {
-        ctx.setRequestDateRange(currentMonthRange())
-      }
-      ctx.handleFilterChange('PAID', true)
-      ctx.handleFilterChange('CLOSED', true)
-      ctx.handleFilterChange('TRANSFERRED', true)
-    },
-    remove: () => {
-      if (ctx.setEffectiveDateRange) {
-        ctx.setEffectiveDateRange(null)
-      } else {
-        ctx.setRequestDateRange(null)
-      }
-      ctx.handleFilterChange('PAID', false)
-      ctx.handleFilterChange('CLOSED', false)
-      ctx.handleFilterChange('TRANSFERRED', false)
-    }
+    apply: () => applyMonthScopeAndTerminalStatuses(ctx, true),
+    remove: () => applyMonthScopeAndTerminalStatuses(ctx, false)
   },
   'total-amount': {
-    apply: () => {
-      if (ctx.setEffectiveDateRange) {
-        ctx.setEffectiveDateRange(currentMonthRange())
-      } else {
-        ctx.setRequestDateRange(currentMonthRange())
-      }
-      ctx.handleFilterChange('PAID', true)
-      ctx.handleFilterChange('CLOSED', true)
-      ctx.handleFilterChange('TRANSFERRED', true)
-    },
-    remove: () => {
-      if (ctx.setEffectiveDateRange) {
-        ctx.setEffectiveDateRange(null)
-      } else {
-        ctx.setRequestDateRange(null)
-      }
-      ctx.handleFilterChange('PAID', false)
-      ctx.handleFilterChange('CLOSED', false)
-      ctx.handleFilterChange('TRANSFERRED', false)
-    }
+    apply: () => applyMonthScopeAndTerminalStatuses(ctx, true),
+    remove: () => applyMonthScopeAndTerminalStatuses(ctx, false)
   },
   'pending-approval': {
     apply: () => {
-      ctx.setRequestDateRange(null)
-      ctx.setStartDateRange(null)
-      ctx.setEndDateRange(null)
+      clearRequestDateDimensions(ctx)
       ALL_RESETTABLE_REQUEST_STATUSES.forEach(s => ctx.handleFilterChange(s, false))
       ctx.handleFilterChange('PENDING', true)
     },
@@ -85,9 +70,7 @@ export const getRequestCardStrategies = (ctx: RequestsCardContext): Record<strin
   },
   reimbursable: {
     apply: () => {
-      ctx.setRequestDateRange(null)
-      ctx.setStartDateRange(null)
-      ctx.setEndDateRange(null)
+      clearRequestDateDimensions(ctx)
       EXPENSE_REQUEST_FILTER_STATUSES.forEach(s => ctx.handleFilterChange(s, !['PAID', 'TRANSFERRED'].includes(s)))
     },
     remove: () => {

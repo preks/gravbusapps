@@ -2,6 +2,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
+  createExpenseTripMultiSelectOptions,
   createStatusFilterGroup,
   createTypeFilterGroup
 } from '../../../../../../common/config/filterConfigHelpers'
@@ -16,20 +17,11 @@ export function createExpenseRequestFilterConfig({
   filterLabelMap
 }: ExpenseRequestFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
-  const requestTypeOptions = [
-    {
-      id: 'ExpenseRequestType:v1:EXPENSES',
-      label:
-        filterLabelMap?.['ExpenseRequestType:v1:EXPENSES'] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
-    },
-    {
-      id: 'ExpenseRequestType:v1:TRIP',
-      label:
-        filterLabelMap?.['ExpenseRequestType:v1:TRIP'] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
-    }
-  ]
+  const requestTypeOptions = createExpenseTripMultiSelectOptions(
+    filterLabelMap,
+    'ExpenseRequestType:v1:EXPENSES',
+    'ExpenseRequestType:v1:TRIP'
+  )
 
   const groups: FilterConfiguration['groups'] = [
     createDateRangeFilterGroup(
