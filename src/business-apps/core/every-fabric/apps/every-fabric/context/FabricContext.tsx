@@ -1,7 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { ChatMessage, DeepAgentSession, SessionConfig, WorkspaceDocument } from '../types/enterpriseAgent'
-import type { ActivityEvent, AgentStreamEvent } from '../types/enterpriseAgent'
+import type {
+  ActivityEvent,
+  AgentStreamEvent,
+  ChatMessage,
+  DeepAgentSession,
+  SessionConfig,
+  WorkspaceDocument
+} from '../types/enterpriseAgent'
 import type { ArtifactFile, FabricSessionSummary, FabricTaskNode } from '../types/fabric'
 import { useAgentSession } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'

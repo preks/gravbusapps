@@ -71,6 +71,8 @@ const formatDuration = (ms: number): string => {
 }
 
 type SubagentDoneEvent = Extract<AgentStreamEvent, { type: 'subagent_completed' | 'expert_completed' }>
+type StepCompletionMap = Map<string, { durationMs?: number; status: 'done' | 'failed' }>
+type SubagentCompletionMap = Map<string, SubagentDoneEvent>
 
 function subAgentRowStatus(
   completion: SubagentDoneEvent | undefined,
@@ -89,135 +91,206 @@ function subAgentRowStatus(
   return 'running'
 }
 
+function resolveTerminalState(events: AgentStreamEvent[]): {
+  terminalStatus: AgentTerminalEvent['status'] | undefined
+  isSessionClosed: boolean
+} {
+  const lastTerminal = [...events].reverse().find((ev): ev is AgentTerminalEvent => ev.type === 'terminal')
+  const terminalStatus = lastTerminal?.status
+  const isSessionClosed =
+    terminalStatus === 'completed' || terminalStatus === 'failed' || terminalStatus === 'cancelled'
+
+  return { terminalStatus, isSessionClosed }
+}
+
+function collectStepRuntimeState(events: AgentStreamEvent[]): {
+  completedSteps: StepCompletionMap
+  runningStepIds: Set<string>
+  subagentCompletions: SubagentCompletionMap
+} {
+  const completedSteps: StepCompletionMap = new Map()
+  const runningStepIds = new Set<string>()
+  const subagentCompletions: SubagentCompletionMap = new Map()
+
+  for (const ev of events) {
+    if (ev.type === 'step_completed') {
+      completedSteps.set(ev.step_id, {
+        durationMs: ev.duration_ms,
+        status: ev.status === 'failed' ? 'failed' : 'done'
+      })
+      runningStepIds.delete(ev.step_id)
+      continue
+    }
+
+    if (ev.type === 'step_started') {
+      if (!completedSteps.has(ev.step_id)) {
+        runningStepIds.add(ev.step_id)
+      }
+      continue
+    }
+
+    if (ev.type === 'subagent_completed' || ev.type === 'expert_completed') {
+      subagentCompletions.set(ev.step_id, ev)
+    }
+  }
+
+  return { completedSteps, runningStepIds, subagentCompletions }
+}
+
+function collectSubAgentsByParentStepId(
+  events: AgentStreamEvent[],
+  subagentCompletions: SubagentCompletionMap,
+  terminalStatus: AgentTerminalEvent['status'] | undefined,
+  isSessionClosed: boolean
+): Map<string, FabricSubAgent[]> {
+  const subAgentsByParentStepId = new Map<string, FabricSubAgent[]>()
+
+  for (const ev of events) {
+    if (ev.type !== 'subagent_spawned' && ev.type !== 'expert_called') continue
+    const completion = subagentCompletions.get(ev.step_id)
+    const parentKey = ('parent_step_id' in ev ? ev.parent_step_id : undefined) ?? ev.step_id
+    const agent: FabricSubAgent = {
+      id: ev.step_id,
+      name: resolveDelegatedAgentName(ev, completion),
+      summary: 'task_summary' in ev ? ev.task_summary : undefined,
+      status: subAgentRowStatus(completion, terminalStatus, isSessionClosed)
+    }
+    const existing = subAgentsByParentStepId.get(parentKey) ?? []
+    subAgentsByParentStepId.set(parentKey, [...existing, agent])
+  }
+
+  return subAgentsByParentStepId
+}
+
+function resolveClosedTaskStatus(
+  status: FabricTaskStatus,
+  terminalStatus: AgentTerminalEvent['status'] | undefined,
+  isSessionClosed: boolean
+): FabricTaskStatus {
+  if (!isSessionClosed || (status !== 'active' && status !== 'pending')) {
+    return status
+  }
+  return terminalStatus === 'failed' || terminalStatus === 'cancelled' ? 'failed' : 'done'
+}
+
+function mapTodosToTaskNodes(
+  todos: TodoItem[],
+  terminalStatus: AgentTerminalEvent['status'] | undefined,
+  isSessionClosed: boolean,
+  subAgentsByParentStepId: Map<string, FabricSubAgent[]>
+): FabricTaskNode[] {
+  return todos.map((todo): FabricTaskNode => {
+    const status = resolveClosedTaskStatus(todoStatusToFabric(todo.status), terminalStatus, isSessionClosed)
+    const sublabelParts: string[] = []
+    if (todo.tool_used) sublabelParts.push(todo.tool_used)
+    if (todo.duration_ms) sublabelParts.push(formatDuration(todo.duration_ms))
+
+    return {
+      id: todo.id,
+      label: todo.text,
+      sublabel: sublabelParts.length > 0 ? sublabelParts.join(' · ') : undefined,
+      status,
+      subAgents: subAgentsByParentStepId.get(todo.id) ?? []
+    }
+  })
+}
+
+function fallbackTaskNodesFromStepEvents(
+  events: AgentStreamEvent[],
+  session: DeepAgentSession | null,
+  completedSteps: StepCompletionMap,
+  runningStepIds: Set<string>,
+  terminalStatus: AgentTerminalEvent['status'] | undefined,
+  isSessionClosed: boolean,
+  subAgentsByParentStepId: Map<string, FabricSubAgent[]>
+): FabricTaskNode[] {
+  const stepEvents = events.filter(
+    (e): e is Extract<AgentStreamEvent, { type: 'step_started' }> => e.type === 'step_started'
+  )
+
+  if (stepEvents.length === 0) {
+    if (session?.status === 'running' || session?.status === 'pending') {
+      return [
+        {
+          id: 'synthetic-start',
+          label: 'Starting session…',
+          status: 'active',
+          subAgents: []
+        }
+      ]
+    }
+    return []
+  }
+
+  const latestStepStartById = new Map<string, Extract<AgentStreamEvent, { type: 'step_started' }>>()
+  for (const ev of stepEvents) {
+    latestStepStartById.set(ev.step_id, ev)
+  }
+
+  return [...latestStepStartById.values()].map((ev): FabricTaskNode => {
+    const completion = completedSteps.get(ev.step_id)
+    const sublabelParts: string[] = []
+    if (ev.name) sublabelParts.push(ev.name)
+    if (completion?.durationMs) sublabelParts.push(formatDuration(completion.durationMs))
+
+    let status: FabricTaskStatus = 'pending'
+    if (completion) {
+      status = completion.status
+    } else if (runningStepIds.has(ev.step_id)) {
+      status = 'active'
+    }
+
+    status = resolveClosedTaskStatus(status, terminalStatus, isSessionClosed)
+
+    return {
+      id: ev.step_id,
+      label: ev.name ?? 'Processing…',
+      sublabel: sublabelParts.length > 1 ? sublabelParts.join(' · ') : undefined,
+      status,
+      subAgents: subAgentsByParentStepId.get(ev.step_id) ?? []
+    }
+  })
+}
+
 /**
  * Derives a UI-ready task node list from:
- * 1. session.todos — authoritative after REST refresh (prompt-manager persists mid-run when non-empty)
- * 2. SSE: step_started input, step_completed (todos + output), terminal.todos — see fabricTodoStream
- * 3. step_started / step_completed — fallback to tool names when no structured todo list exists yet
+ * 1. session task list — authoritative after REST refresh (prompt-manager persists mid-run when non-empty)
+ * 2. SSE: step_started input, step_completed (task list + output), terminal task list — see fabricTodoStream
+ * 3. step_started / step_completed — fallback to tool names when no structured task list exists yet
  *
- * `waiting_for_human` does not close the session: pending todos stay pending.
+ * `waiting_for_human` does not close the session: pending tasks stay pending.
  */
 export const useFabricProgress = (
   session: DeepAgentSession | null,
   events: AgentStreamEvent[]
 ): { taskNodes: FabricTaskNode[]; completedCount: number; totalCount: number; progressPercent: number } => {
   const taskNodes = useMemo((): FabricTaskNode[] => {
-    const lastTerminal = [...events].reverse().find((ev): ev is AgentTerminalEvent => ev.type === 'terminal')
-    const terminalStatus = lastTerminal?.status
-    const isSessionClosed =
-      terminalStatus === 'completed' || terminalStatus === 'failed' || terminalStatus === 'cancelled'
-
-    // Build a lookup of completed steps from SSE events
-    const completedSteps = new Map<string, { durationMs?: number; status: 'done' | 'failed' }>()
-    const runningStepIds = new Set<string>()
-    const subagentCompletions = new Map<string, SubagentDoneEvent>()
-
-    for (const ev of events) {
-      if (ev.type === 'step_completed') {
-        completedSteps.set(ev.step_id, {
-          durationMs: ev.duration_ms,
-          status: ev.status === 'failed' ? 'failed' : 'done'
-        })
-        runningStepIds.delete(ev.step_id)
-      } else if (ev.type === 'step_started') {
-        if (!completedSteps.has(ev.step_id)) {
-          runningStepIds.add(ev.step_id)
-        }
-      } else if (ev.type === 'subagent_completed' || ev.type === 'expert_completed') {
-        subagentCompletions.set(ev.step_id, ev)
-      }
-    }
-
-    // Derive sub-agents from subagent_spawned events
-    const subAgentsByParentStepId = new Map<string, FabricSubAgent[]>()
-    for (const ev of events) {
-      if (ev.type !== 'subagent_spawned' && ev.type !== 'expert_called') continue
-      const completion = subagentCompletions.get(ev.step_id)
-      const agent: FabricSubAgent = {
-        id: ev.step_id,
-        name: resolveDelegatedAgentName(ev, completion),
-        summary: 'task_summary' in ev ? ev.task_summary : undefined,
-        status: subAgentRowStatus(completion, terminalStatus, isSessionClosed)
-      }
-      // Attach sub-agent to its parent step (use parent_step_id if available, else attach loosely)
-      const parentKey = ('parent_step_id' in ev ? ev.parent_step_id : undefined) ?? ev.step_id
-      const existing = subAgentsByParentStepId.get(parentKey) ?? []
-      subAgentsByParentStepId.set(parentKey, [...existing, agent])
-    }
+    const { terminalStatus, isSessionClosed } = resolveTerminalState(events)
+    const { completedSteps, runningStepIds, subagentCompletions } = collectStepRuntimeState(events)
+    const subAgentsByParentStepId = collectSubAgentsByParentStepId(
+      events,
+      subagentCompletions,
+      terminalStatus,
+      isSessionClosed
+    )
 
     const streamTodos = extractLatestTodosFromEvents(events)
     const todosFromSession = session?.todos && session.todos.length > 0 ? session.todos : null
     const todos = todosFromSession ?? streamTodos
 
     if (todos && todos.length > 0) {
-      return todos.map((todo): FabricTaskNode => {
-        let status = todoStatusToFabric(todo.status)
-        if (isSessionClosed && (status === 'active' || status === 'pending')) {
-          status = terminalStatus === 'failed' || terminalStatus === 'cancelled' ? 'failed' : 'done'
-        }
-        const sublabelParts: string[] = []
-        if (todo.tool_used) sublabelParts.push(todo.tool_used)
-        if (todo.duration_ms) sublabelParts.push(formatDuration(todo.duration_ms))
-
-        return {
-          id: todo.id,
-          label: todo.text,
-          sublabel: sublabelParts.length > 0 ? sublabelParts.join(' · ') : undefined,
-          status,
-          subAgents: subAgentsByParentStepId.get(todo.id) ?? []
-        }
-      })
+      return mapTodosToTaskNodes(todos, terminalStatus, isSessionClosed, subAgentsByParentStepId)
     }
 
-    // No todos yet — synthesise from raw step events for a live feel
-    const stepEvents = events.filter(
-      (e): e is Extract<AgentStreamEvent, { type: 'step_started' }> => e.type === 'step_started'
+    return fallbackTaskNodesFromStepEvents(
+      events,
+      session,
+      completedSteps,
+      runningStepIds,
+      terminalStatus,
+      isSessionClosed,
+      subAgentsByParentStepId
     )
-
-    if (stepEvents.length === 0) {
-      // Session is running but nothing has happened yet
-      if (session?.status === 'running' || session?.status === 'pending') {
-        return [
-          {
-            id: 'synthetic-start',
-            label: 'Starting session…',
-            status: 'active',
-            subAgents: []
-          }
-        ]
-      }
-      return []
-    }
-
-    const latestStepStartById = new Map<string, Extract<AgentStreamEvent, { type: 'step_started' }>>()
-    for (const ev of stepEvents) {
-      latestStepStartById.set(ev.step_id, ev)
-    }
-
-    return [...latestStepStartById.values()].map((ev): FabricTaskNode => {
-      const completion = completedSteps.get(ev.step_id)
-      const sublabelParts: string[] = []
-      if (ev.name) sublabelParts.push(ev.name)
-      if (completion?.durationMs) sublabelParts.push(formatDuration(completion.durationMs))
-
-      let status: FabricTaskStatus = 'pending'
-      if (completion) {
-        status = completion.status
-      } else if (runningStepIds.has(ev.step_id)) {
-        status = 'active'
-      }
-      if (isSessionClosed && (status === 'active' || status === 'pending')) {
-        status = terminalStatus === 'failed' || terminalStatus === 'cancelled' ? 'failed' : 'done'
-      }
-
-      return {
-        id: ev.step_id,
-        label: ev.name ?? 'Processing…',
-        sublabel: sublabelParts.length > 1 ? sublabelParts.join(' · ') : undefined,
-        status,
-        subAgents: subAgentsByParentStepId.get(ev.step_id) ?? []
-      }
-    })
   }, [session, events])
 
   const completedCount = useMemo(
