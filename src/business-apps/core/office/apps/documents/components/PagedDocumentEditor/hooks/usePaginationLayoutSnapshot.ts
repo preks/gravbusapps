@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
 import type { Editor as TiptapEditor } from '@tiptap/react'
+import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import type {
   DocumentLayoutFlowSnapshot,
   DocumentLayoutInvalidationReason,
@@ -31,6 +32,7 @@ import {
   resolveNextDocumentLayoutVersion
 } from '../documentLayoutSnapshotHelpers'
 import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
+import { PAGINATION_REFRESH_META } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import { resolvePageBodyWrapBands } from '@/components/tiptap-extensions/tiptap-custom-pagination/utils'
 import {
   isDocumentVirtualWindowEnabled,
@@ -1079,13 +1081,25 @@ export function usePaginationLayoutSnapshot({
     }
 
     const handleTransaction = ({ transaction }: { transaction: Transaction }) => {
-      if (!transaction.docChanged || !hasInitializedLayoutRef.current) {
+      if (!hasInitializedLayoutRef.current) {
+        return
+      }
+      const isPaginationRefresh = transaction.getMeta(PAGINATION_REFRESH_META) === true
+      if (!transaction.docChanged && !isPaginationRefresh) {
+        return
+      }
+      if (transaction.getMeta(ySyncPluginKey)) {
         return
       }
 
       // Large docs: debounce coalesces rapid structural passes (e.g. pagination-owned RM_PAGES_* transactions).
       const debounceStructuralLayout =
         lastMeasuredLayoutPageCountRef.current >= LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD
+
+      if (isPaginationRefresh) {
+        scheduleLayoutSnapshotRefresh('editor-transaction', !debounceStructuralLayout)
+        return
+      }
 
       scheduleLayoutSnapshotRefresh('editor-transaction', !debounceStructuralLayout)
     }

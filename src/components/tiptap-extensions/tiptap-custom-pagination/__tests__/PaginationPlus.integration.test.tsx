@@ -1220,7 +1220,19 @@ describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
     ).toBe(true)
   })
 
-  it('does not schedule deferred repagination for non-table documents', () => {
+  it('does not schedule deferred repagination for non-table pagination-owned changes', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        hasTables: false,
+        externalDocChange: false,
+        paginationOwnedDocChange: true,
+        hydrationOwnedDocChange: false
+      })
+    ).toBe(false)
+  })
+
+  it('schedules deferred repagination for external doc changes regardless of tables', () => {
     expect(
       shouldScheduleDeferredRepaginationOnUpdate({
         activeEditorType: null,
@@ -1229,7 +1241,20 @@ describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
         paginationOwnedDocChange: false,
         hydrationOwnedDocChange: false
       })
-    ).toBe(false)
+    ).toBe(true)
+  })
+
+  it('schedules deferred repagination for collaboration-remote changes', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        hasTables: false,
+        externalDocChange: false,
+        collaborationRemoteDocChange: true,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false
+      })
+    ).toBe(true)
   })
 
   it('does not schedule while a header or footer editor is active', () => {

@@ -14,6 +14,7 @@ import {
 export interface VirtualizedDocumentViewportProps {
   editor: TiptapEditor | null
   activeEditor: TiptapEditor | null
+  editorRenderKey?: number
   editorContainerRef: MutableRefObject<HTMLDivElement | null>
   zoom: number
   viewportBodyStateClass: string
@@ -34,6 +35,7 @@ export interface VirtualizedDocumentViewportProps {
 export function VirtualizedDocumentViewport({
   editor,
   activeEditor,
+  editorRenderKey,
   editorContainerRef,
   zoom,
   viewportBodyStateClass,
@@ -97,7 +99,7 @@ export function VirtualizedDocumentViewport({
               layoutSnapshotPageCount > DOCUMENT_VIRTUAL_WINDOW_PAGE_THRESHOLD ? 'true' : 'false'
             }
           >
-            <EditorContent editor={editor} className="editor-content" />
+            <EditorContent key={editorRenderKey} editor={editor} className="editor-content" />
             {editor && (
               <BubbleMenu
                 editor={editor}
