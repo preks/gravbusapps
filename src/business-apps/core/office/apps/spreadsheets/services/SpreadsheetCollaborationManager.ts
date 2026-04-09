@@ -150,6 +150,15 @@ export class SpreadsheetCollaborationManager {
     this.enqueueOrSend(op)
   }
 
+  handleAckFailure(op: DocumentOperation): void {
+    if ((op as DocumentOperation & { _retried?: boolean })._retried) return
+    const tagged = { ...op, _retried: true } as DocumentOperation & { _retried: boolean }
+    this.pendingOps.push(tagged)
+    if (this.connected && this.joined) {
+      this.flushPendingOps()
+    }
+  }
+
   // --- Receiver ---
 
   handleOperation(payload: CollaborationOperation): void {
@@ -338,10 +347,11 @@ export class SpreadsheetCollaborationManager {
 
     if (updatesByRowId.size === 0) return
 
-    this.applyDataModelUpdates(updatesByRowId)
+    const changedKeys = this.applyDataModelUpdates(updatesByRowId)
 
     for (const [rowId, updates] of updatesByRowId) {
       for (const [columnName, value] of Object.entries(updates)) {
+        if (!changedKeys.has(`${rowId}:${columnName}`)) continue
         const { rowIndex, colIndex } = this.resolveCoordinates(columnName, rowId)
         if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
           this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, value, rowId)
@@ -374,13 +384,26 @@ export class SpreadsheetCollaborationManager {
     return { rowIndex, colIndex }
   }
 
-  private applyDataModelUpdates(updatesByRowId: Map<string, Record<string, unknown>>): void {
-    const nextLocal = this.callbacks.getLocalSheetData().map(row => {
+  private applyDataModelUpdates(updatesByRowId: Map<string, Record<string, unknown>>): Set<string> {
+    const changedKeys = new Set<string>()
+    const currentData = this.callbacks.getLocalSheetData()
+    const nextLocal = currentData.map(row => {
       const canonical = getCanonicalRowId(row)
       const updates = canonical ? updatesByRowId.get(canonical) : undefined
       if (!updates) return row
+      let hasChange = false
+      for (const [col, val] of Object.entries(updates)) {
+        if (row[col] !== val) {
+          changedKeys.add(`${canonical}:${col}`)
+          hasChange = true
+        }
+      }
+      if (!hasChange) return row
       return { ...row, ...updates, _updatedAt: new Date().toISOString() }
     })
-    this.callbacks.commitLocalSheetData(nextLocal, { persisted: true })
+    if (changedKeys.size > 0) {
+      this.callbacks.commitLocalSheetData(nextLocal, { persisted: true })
+    }
+    return changedKeys
   }
 }

@@ -7,6 +7,20 @@ import {
   DocumentOperation
 } from '../services/CollaborationClient'
 
+const isCollabDebug = (): boolean => {
+  try {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    )
+      return true
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('nw-collab-debug') === 'true') return true
+  } catch {
+    /* SSR guard */
+  }
+  return false
+}
+
 type SocketParticipant = {
   odId?: string
   userId?: string
@@ -129,12 +143,17 @@ export interface UseCollaborationOptions {
     version?: number
     timestamp: number
   }) => void
+  onOperationAckFailure?: (operation: DocumentOperation) => void
   onError?: (error: Error) => void
 }
+
+export type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
 
 export interface UseCollaborationReturn {
   participants: DocumentParticipant[]
   isConnected: boolean
+  hasJoined: boolean
+  collaborationHealth: CollaborationHealth
   socket: Socket | null
   emitOperation: (operation: DocumentOperation) => void
   emitCursor: (position: { line?: number; column?: number; offset?: number; path?: string[] }) => void
@@ -169,10 +188,20 @@ export interface UseCollaborationReturn {
  * ```
  */
 export function useCollaboration(options: UseCollaborationOptions): UseCollaborationReturn {
-  const { entityType, entityId, enabled = true, accessToken, onOperationReceived, onError } = options
+  const {
+    entityType,
+    entityId,
+    enabled = true,
+    accessToken,
+    onOperationReceived,
+    onOperationAckFailure,
+    onError
+  } = options
 
   const [participants, setParticipants] = useState<DocumentParticipant[]>([])
   const [isConnected, setIsConnected] = useState(false)
+  const [hasJoined, setHasJoined] = useState(false)
+  const [collaborationHealth, setCollaborationHealth] = useState<CollaborationHealth>('reconnecting')
   const [socket, setSocket] = useState<Socket | null>(null)
 
   const clientRef = useRef<CollaborationClient | null>(null)
@@ -225,7 +254,8 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     // Create client
     const client = createCollaborationClient({
       reconnectionAttempts: 10,
-      connectionTimeout: 20000
+      connectionTimeout: 20000,
+      onReconnectFailed: () => setCollaborationHealth('failed')
     })
 
     clientRef.current = client
@@ -253,19 +283,23 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         setParticipants(rawParticipants.map(mapSocketParticipantToParticipant))
         hasJoinedRef.current = true
         isJoiningRef.current = false
+        setHasJoined(true)
         clearJoinAckTimeout()
       })
     }
 
     const handleConnect = () => {
-      console.log('[useCollaboration] Connected to collaboration server')
+      if (isCollabDebug()) console.log('[useCollaboration] Connected to collaboration server')
       setIsConnected(true)
+      setCollaborationHealth('connected')
       joinRoomIfNeeded()
     }
 
     const handleDisconnect = () => {
-      console.log('[useCollaboration] Disconnected from collaboration server')
+      if (isCollabDebug()) console.log('[useCollaboration] Disconnected from collaboration server')
       setIsConnected(false)
+      setHasJoined(false)
+      setCollaborationHealth('reconnecting')
       hasJoinedRef.current = false
       isJoiningRef.current = false
       clearJoinAckTimeout()
@@ -282,14 +316,14 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
     // Handle user joined
     const handleUserJoined = (data: ParticipantEventData) => {
-      console.log('[useCollaboration] User joined:', data)
+      if (isCollabDebug()) console.log('[useCollaboration] User joined:', data)
       setParticipants(prev => addParticipantIfMissing(prev, data))
     }
     client.onUserJoined(handleUserJoined)
 
     // Handle user left
     const handleUserLeft = (data: { userId: string }) => {
-      console.log('[useCollaboration] User left:', data)
+      if (isCollabDebug()) console.log('[useCollaboration] User left:', data)
       setParticipants(prev => removeParticipant(prev, data.userId))
     }
     client.onUserLeft(handleUserLeft)
@@ -320,6 +354,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         client.leaveDocument(entityType, entityId)
         hasJoinedRef.current = false
       }
+      setHasJoined(false)
       client.disconnect()
       clientRef.current = null
       setSocket(null)
@@ -352,9 +387,9 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       } else if (!hasJoinedRef.current) {
         return
       }
-      clientRef.current.sendDocumentOperation(entityType, entityId, operation)
+      clientRef.current.sendDocumentOperation(entityType, entityId, operation, onOperationAckFailure)
     },
-    [entityType, entityId]
+    [entityType, entityId, onOperationAckFailure]
   )
 
   // Emit cursor position — pass-through to the socket
@@ -403,6 +438,8 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   return {
     participants,
     isConnected,
+    hasJoined,
+    collaborationHealth,
     socket,
     emitOperation,
     emitCursor,

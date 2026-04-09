@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Socket } from 'socket.io-client'
-import { useCollaboration } from '@/business-apps/platform/apps/shared/hooks/useCollaboration'
+import { useCollaboration, type CollaborationHealth } from '@/business-apps/platform/apps/shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type {
   DocumentParticipant,
@@ -77,6 +77,7 @@ export interface SpreadsheetCollaborationState {
   currentUserAvatar: string | undefined
   currentUserIdRef: React.MutableRefObject<string | undefined>
   isCollaborationConnected: boolean
+  collaborationHealth: CollaborationHealth
   socket: Socket | null
   manager: SpreadsheetCollaborationManager
   emitOperation: (operation: Omit<DocumentOperation, 'userId' | 'timestamp'>) => void
@@ -122,9 +123,18 @@ export function useSpreadsheetCollaboration({
     onErrorRef.current?.(error)
   }, [])
 
+  const onAckFailureStable = useCallback(
+    (op: DocumentOperation) => {
+      manager.handleAckFailure(op)
+    },
+    [manager]
+  )
+
   const {
     participants: rawParticipants,
     isConnected: isCollaborationConnected,
+    hasJoined: isCollaborationJoined,
+    collaborationHealth,
     socket,
     emitOperation: baseEmitOperation,
     emitCursor: baseEmitCursor
@@ -134,6 +144,7 @@ export function useSpreadsheetCollaboration({
     enabled: true,
     accessToken,
     onOperationReceived: onOperationReceivedStable,
+    onOperationAckFailure: onAckFailureStable,
     onError: onErrorStable
   })
 
@@ -143,8 +154,8 @@ export function useSpreadsheetCollaboration({
   }, [manager, baseEmitOperation, baseEmitCursor])
 
   useEffect(() => {
-    manager.setConnectionState(isCollaborationConnected, isCollaborationConnected)
-  }, [manager, isCollaborationConnected])
+    manager.setConnectionState(isCollaborationConnected, isCollaborationJoined)
+  }, [manager, isCollaborationConnected, isCollaborationJoined])
 
   // Expose the manager's emitOperation (which queues if not connected)
   const emitOperation = useCallback(
@@ -268,6 +279,7 @@ export function useSpreadsheetCollaboration({
     currentUserAvatar,
     currentUserIdRef,
     isCollaborationConnected,
+    collaborationHealth,
     socket,
     manager,
     emitOperation,

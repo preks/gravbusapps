@@ -3558,6 +3558,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         data-testid={`${testId}-sheets-ai-panel`}
       />
 
+      {collaboration.collaborationHealth === 'failed' && (
+        <div
+          className="gba:fixed gba:top-0 gba:left-0 gba:right-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:bg-red-600 gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-white"
+          data-testid={`${testId}-collab-health-banner`}
+        >
+          <span>Collaboration connection lost. Changes may not sync until you reload.</span>
+        </div>
+      )}
+
       {isSpreadsheetAppsDebugEnabled() && (
         <div
           className="gba:fixed gba:bottom-0 gba:left-0 gba:right-0 gba:z-50 gba:flex gba:flex-col gba:gap-0 gba:bg-zinc-900 gba:px-3 gba:py-1 gba:text-[11px] gba:font-mono gba:text-zinc-300"
@@ -3590,8 +3599,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             <span className="gba:font-semibold gba:text-blue-400">Socket.IO</span>
             <span>
               Status:{' '}
-              <span className={collaboration.isCollaborationConnected ? 'gba:text-emerald-400' : 'gba:text-red-400'}>
-                {collaboration.isCollaborationConnected ? 'Connected' : 'Disconnected'}
+              <span
+                className={
+                  collaboration.collaborationHealth === 'connected'
+                    ? 'gba:text-emerald-400'
+                    : collaboration.collaborationHealth === 'failed'
+                      ? 'gba:text-red-400'
+                      : 'gba:text-yellow-400'
+                }
+              >
+                {collaboration.collaborationHealth === 'connected'
+                  ? 'Connected'
+                  : collaboration.collaborationHealth === 'failed'
+                    ? 'Failed'
+                    : 'Reconnecting'}
               </span>
             </span>
             <span>Transport: {socketDebugInfo.transport || '—'}</span>
