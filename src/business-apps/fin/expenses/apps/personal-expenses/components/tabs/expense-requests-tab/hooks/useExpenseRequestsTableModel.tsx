@@ -5,7 +5,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../../utils/expenseRequestFileService'
-import { ExpenseRequestStatus } from '../../../../hooks/useExpenseRequestFilters'
+import { EXPENSE_REQUEST_FILTER_STATUSES } from '../../../../hooks/useExpenseRequestFilters'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../../../../_i18n'
 import {
@@ -98,14 +98,14 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   const expenseRequestsFilterConfig = useMemo(
     () =>
       createExpenseRequestFilterConfig({
-        statusOptions: Object.values(ExpenseRequestStatus),
+        statusOptions: [...EXPENSE_REQUEST_FILTER_STATUSES],
         filterLabelMap
       }),
     [filterLabelMap]
   )
 
   const filtersObject = useMemo((): Record<string, unknown> => {
-    const statusIds = (selectedFilters || []).filter(f => Object.values(ExpenseRequestStatus).includes(f as any))
+    const statusIds = (selectedFilters || []).filter(f => EXPENSE_REQUEST_FILTER_STATUSES.includes(f))
     const requestTypeIds = (selectedFilters || []).filter(f =>
       ['ExpenseRequestType:v1:EXPENSES', 'ExpenseRequestType:v1:TRIP'].includes(f)
     )

@@ -1,4 +1,10 @@
 import dayjs from 'dayjs'
+import {
+  EXPENSE_REQUEST_FILTER_STATUSES,
+  LEGACY_EXPENSE_REQUEST_FILTER_IDS
+} from '../../../../hooks/useExpenseRequestFilters'
+
+const ALL_RESETTABLE_REQUEST_STATUSES = [...EXPENSE_REQUEST_FILTER_STATUSES, ...LEGACY_EXPENSE_REQUEST_FILTER_IDS]
 
 export type RequestsCardContext = {
   setRequestDateRange: (range: [Date | null, Date | null] | null) => void
@@ -70,20 +76,7 @@ export const getRequestCardStrategies = (ctx: RequestsCardContext): Record<strin
       ctx.setRequestDateRange(null)
       ctx.setStartDateRange(null)
       ctx.setEndDateRange(null)
-      const statuses = [
-        'PREPARED',
-        'CREATED',
-        'ASSIGNED',
-        'PENDING',
-        'APPROVED',
-        'REJECTED',
-        'VERIFIED',
-        'BOOKED',
-        'PAID',
-        'CLOSED',
-        'TRANSFERRED'
-      ]
-      statuses.forEach(s => ctx.handleFilterChange(s, false))
+      ALL_RESETTABLE_REQUEST_STATUSES.forEach(s => ctx.handleFilterChange(s, false))
       ctx.handleFilterChange('PENDING', true)
     },
     remove: () => {
@@ -95,24 +88,12 @@ export const getRequestCardStrategies = (ctx: RequestsCardContext): Record<strin
       ctx.setRequestDateRange(null)
       ctx.setStartDateRange(null)
       ctx.setEndDateRange(null)
-      const statuses = [
-        'PREPARED',
-        'CREATED',
-        'ASSIGNED',
-        'PENDING',
-        'APPROVED',
-        'REJECTED',
-        'VERIFIED',
-        'BOOKED',
-        'PAID',
-        'CLOSED',
-        'TRANSFERRED'
-      ]
-      statuses.forEach(s => ctx.handleFilterChange(s, !['PAID', 'CLOSED', 'TRANSFERRED'].includes(s)))
+      EXPENSE_REQUEST_FILTER_STATUSES.forEach(s => ctx.handleFilterChange(s, !['PAID', 'TRANSFERRED'].includes(s)))
     },
     remove: () => {
-      const statuses = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED']
-      statuses.forEach(s => ctx.handleFilterChange(s, false))
+      EXPENSE_REQUEST_FILTER_STATUSES.filter(s => !['PAID', 'TRANSFERRED'].includes(s)).forEach(s =>
+        ctx.handleFilterChange(s, false)
+      )
     }
   }
 })

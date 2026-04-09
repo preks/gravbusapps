@@ -17,6 +17,11 @@ filter-expense-items-description = Aplică filtre pentru a restrânge lista pozi
 # Expense Requests Tab
 personal-expenses-update-request-action = Actualizare Solicitare
 
+# Expense dashboard — quick action card buttons
+dashboard-quick-action-plan-button = Planifică o nouă delegație
+dashboard-quick-action-expense-item-button = Element nou de cheltuială
+dashboard-quick-action-request-button = Cerere de decont
+
 # Expense Items Tab
 expense-items-date-label = Data
 delete-selection-discard-error-draft = Puteți elimina doar pozițiile cu status "Ciornă" sau "Atribuit".

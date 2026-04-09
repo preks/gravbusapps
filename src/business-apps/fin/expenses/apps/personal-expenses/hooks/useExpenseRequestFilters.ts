@@ -7,20 +7,28 @@ import { EndDateRangeFilter } from '../components/tabs/expense-requests-tab/filt
 import RequestDateRangeFilter from '../components/tabs/expense-requests-tab/filters/RequestDateRangeFilter'
 import dayjs from 'dayjs'
 
-// Define expense request status types based on srn_expenseRequest mappings
-export enum ExpenseRequestStatus {
-  PREPARED = 'PREPARED',
-  CREATED = 'CREATED',
-  ASSIGNED = 'ASSIGNED',
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  VERIFIED = 'VERIFIED',
-  BOOKED = 'BOOKED',
-  PAID = 'PAID',
-  CLOSED = 'CLOSED',
-  TRANSFERRED = 'TRANSFERRED'
-}
+/**
+ * Statuses exposed in Expense Request filters (personal expenses), aligned with product matrix.
+ */
+export const EXPENSE_REQUEST_FILTER_STATUSES: readonly string[] = [
+  'CREATED',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'VERIFIED',
+  'BOOKED',
+  'PAID',
+  'TRANSFERRED'
+]
+
+/** Former filter ids — cleared when resetting filters from dashboard cards */
+export const LEGACY_EXPENSE_REQUEST_FILTER_IDS: readonly string[] = [
+  'PREPARED',
+  'ASSIGNED',
+  'CLOSED',
+  'RETURNED',
+  'DISCARDED'
+]
 
 // Interface for request filter
 export interface ExpenseRequestFilter {
@@ -195,7 +203,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
           'lowcoder:manager_expense_request_list.expense_table.status',
           'Status'
         ),
-        filters: Object.values(ExpenseRequestStatus).map(status => {
+        filters: EXPENSE_REQUEST_FILTER_STATUSES.map(status => {
           const id = status
           return {
             id,
@@ -263,7 +271,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     }
 
     // Add all status options using the same display names as the filter dropdown
-    Object.values(ExpenseRequestStatus).forEach(status => {
+    EXPENSE_REQUEST_FILTER_STATUSES.forEach(status => {
       labelMap[status] = getStatusDisplayName(status)
     })
 
@@ -420,13 +428,14 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       })
     }
     // Separate status filters from request type filters
-    const statusFilters = selectedFilters.filter(filter =>
-      Object.values(ExpenseRequestStatus).includes(filter as ExpenseRequestStatus)
-    )
+    const statusFilters = selectedFilters.filter(filter => EXPENSE_REQUEST_FILTER_STATUSES.includes(filter))
     const requestTypeFilters = selectedFilters.filter(filter => filter.startsWith('ExpenseRequestType:'))
 
     if (statusFilters.length > 0) {
       conditions.push({ status: { _in: statusFilters } })
+    } else {
+      // Default list view: hide discarded unless user explicitly filters by status
+      conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
     }
 
     if (requestTypeFilters.length > 0) {
@@ -475,9 +484,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
         ]
       })
     }
-
-    // Always exclude DISCARDED requests at backend level for correct pagination
-    conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
 
     const result = { _and: conditions.length > 0 ? conditions : [{}] }
     return result

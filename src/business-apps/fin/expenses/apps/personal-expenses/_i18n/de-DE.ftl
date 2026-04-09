@@ -17,6 +17,11 @@ filter-expense-items-description = Wenden Sie Filter an, um die Liste der Spesen
 # Expense Requests Tab
 personal-expenses-update-request-action = Anfrage aktualisieren
 
+# Expense dashboard — quick action card buttons
+dashboard-quick-action-plan-button = Neue Dienstreise planen
+dashboard-quick-action-expense-item-button = Neuer Spesenposten
+dashboard-quick-action-request-button = Neue Abrechnungsanfrage
+
 # Expense Items Tab
 expense-items-date-label = Datum
 delete-selection-discard-error-draft = Sie können nur Elemente mit dem Status "Entwurf" oder "Zugewiesen" verwerfen.
