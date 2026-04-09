@@ -368,7 +368,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   useKeyboardShortcuts({ onSave: requestSave, enabled: view === 'designer' })
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full gba:bg-background" data-testid={testId}>
       {view === 'designer' ? (
         <>
           {saveError ? (

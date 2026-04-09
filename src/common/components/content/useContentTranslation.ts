@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react'
-import { flowbotClient } from '@/common/network/flowbot'
+import { useState, useCallback, useMemo } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
   collectAllTexts,
   mapTranslationsToContentEntry,
   extractTextFromHTML
 } from '@/business-apps/core/content/utils/translationUtils'
+import { ContentTranslatorService } from '@/business-apps/core/content/services/ContentTranslatorService'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 export interface TranslatedTexts {
@@ -44,9 +44,7 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
   const [error, setError] = useState<string | null>(null)
 
   const catalogClient = useCatalogManagerClient(accessToken)
-
-  // Set access token for flowbot client
-  flowbotClient.setAccessToken(accessToken)
+  const contentTranslatorService = useMemo(() => new ContentTranslatorService(accessToken), [accessToken])
 
   /**
    * Load Language Catalog Entry by ID
@@ -102,12 +100,11 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
           return
         }
 
-        // Call translation API without target language for detection only
-        const response = await flowbotClient.translate([plainText.substring(0, 1000)]) // Limit to first 1000 chars for detection
+        const detectedLanguageResult = await contentTranslatorService.detectLanguage(plainText.substring(0, 1000))
+        const detectedLangId = detectedLanguageResult.languageId
 
-        if (response.languages && response.languages.length > 0) {
-          const detectedLangId = response.languages[0]
-          const confidence = response.confidences?.[0] || 0
+        if (detectedLangId) {
+          const confidence = detectedLanguageResult.confidence
 
           // Load catalog entry for display
           const catalogValue = await loadLanguageCatalogEntry(detectedLangId)
@@ -127,7 +124,7 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
         setIsDetecting(false)
       }
     },
-    [loadLanguageCatalogEntry]
+    [contentTranslatorService, loadLanguageCatalogEntry]
   )
 
   /**
@@ -166,62 +163,67 @@ export const useContentTranslation = (accessToken: string): UseContentTranslatio
   /**
    * Translate all texts in a ContentEntry
    */
-  const translateContent = useCallback(async (contentEntry: ContentEntry, targetLang: string) => {
-    if (!contentEntry) {
-      setError('No content entry provided')
-      return
-    }
-
-    setIsTranslating(true)
-    setError(null)
-
-    try {
-      // Collect all texts to translate
-      const textsToTranslate = collectAllTexts(contentEntry)
-
-      if (textsToTranslate.length === 0) {
-        setError('No texts found to translate')
-        setIsTranslating(false)
+  const translateContent = useCallback(
+    async (contentEntry: ContentEntry, targetLang: string) => {
+      if (!contentEntry) {
+        setError('No content entry provided')
         return
       }
 
-      // Call translation API
-      const response = await flowbotClient.translate(textsToTranslate, targetLang)
+      setIsTranslating(true)
+      setError(null)
 
-      if (response.translations && response.translations.length === textsToTranslate.length) {
-        // Map translations back to content structure
-        const translated = mapTranslationsToContentEntry(response.translations, contentEntry)
-        setTranslatedTexts(translated)
-        setTargetLanguage(targetLang)
-      } else {
-        setError('Translation response incomplete')
+      try {
+        // Collect all texts to translate
+        const textsToTranslate = collectAllTexts(contentEntry)
+
+        if (textsToTranslate.length === 0) {
+          setError('No texts found to translate')
+          setIsTranslating(false)
+          return
+        }
+
+        const translatedTextsResponse = await contentTranslatorService.translateTexts(textsToTranslate, targetLang)
+
+        if (translatedTextsResponse.length === textsToTranslate.length) {
+          // Map translations back to content structure
+          const translated = mapTranslationsToContentEntry(translatedTextsResponse, contentEntry)
+          setTranslatedTexts(translated)
+          setTargetLanguage(targetLang)
+        } else {
+          setError('Translation response incomplete')
+        }
+      } catch (err) {
+        console.error('Error translating content:', err)
+        setError(err instanceof Error ? err.message : 'Failed to translate content')
+        // Fallback: keep original texts
+        setTranslatedTexts(null)
+      } finally {
+        setIsTranslating(false)
       }
-    } catch (err) {
-      console.error('Error translating content:', err)
-      setError(err instanceof Error ? err.message : 'Failed to translate content')
-      // Fallback: keep original texts
-      setTranslatedTexts(null)
-    } finally {
-      setIsTranslating(false)
-    }
-  }, [])
+    },
+    [contentTranslatorService]
+  )
 
   /**
    * Translate comment texts
    */
-  const translateComments = useCallback(async (commentTexts: string[], targetLang: string): Promise<string[]> => {
-    if (!commentTexts || commentTexts.length === 0) {
-      return []
-    }
+  const translateComments = useCallback(
+    async (commentTexts: string[], targetLang: string): Promise<string[]> => {
+      if (!commentTexts || commentTexts.length === 0) {
+        return []
+      }
 
-    try {
-      const response = await flowbotClient.translate(commentTexts, targetLang)
-      return response.translations || commentTexts // Fallback to original if translation fails
-    } catch (err) {
-      console.error('Error translating comments:', err)
-      return commentTexts // Fallback to original texts
-    }
-  }, [])
+      try {
+        const translatedTextsResponse = await contentTranslatorService.translateTexts(commentTexts, targetLang)
+        return translatedTextsResponse.length > 0 ? translatedTextsResponse : commentTexts
+      } catch (err) {
+        console.error('Error translating comments:', err)
+        return commentTexts // Fallback to original texts
+      }
+    },
+    [contentTranslatorService]
+  )
 
   /**
    * Reset translation state

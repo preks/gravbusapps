@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { buildCreateContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole } from '@/common/data/content/constants/contentConstants'
 
 export interface AnswerFormProps {
   questionId: string // Root question ID

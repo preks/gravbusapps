@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import type { ContentEntryQueryParams } from '@/common/data/content/queries/contentQueries'
-import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 
 // Define types locally since nw-design-system doesn't export them
 export type SortingState = Array<{
@@ -16,9 +16,10 @@ export interface PaginationState {
 }
 
 export interface ContentDataFilters {
-  contentGroupRef?: string[]
-  contentTypeRef?: string[]
-  categoryRefs?: string[]
+  contentGroup?: string[]
+  contentTypeId?: string[]
+  categoryIds?: string[]
+  tagIds?: string[]
   status?: string[]
   creatorEmployeeId?: string[]
   dateRange?: { start?: string; end?: string }
@@ -70,7 +71,7 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultColumns)
   const [selectedRows, setSelectedRows] = useState<ContentEntry[]>([])
 
-  // Map type to contentGroupRef filter
+  // Map type to contentGroup filter
   const contentGroupFilter = useMemo(() => {
     if (type === 'all') return undefined
     const groupMap: Record<string, ContentGroup> = {
@@ -99,8 +100,8 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     } else {
       // Regular field mapping
       const columnToFieldMap: Record<string, string> = {
-        type: 'contentTypeRef',
-        group: 'contentGroupRef',
+        type: 'contentTypeId',
+        group: 'contentGroup',
         title: 'title',
         author: 'creatorEmployeeId',
         createdAt: 'createdAt',
@@ -117,9 +118,10 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
       search: search.trim(),
       sortBy,
       sortOrder,
-      contentGroupRef: contentGroupFilter || filters.contentGroupRef?.[0],
-      contentTypeRef: filters.contentTypeRef?.[0],
-      categoryRefs: filters.categoryRefs,
+      contentGroup: contentGroupFilter || filters.contentGroup?.[0],
+      contentTypeId: filters.contentTypeId?.[0],
+      categoryIds: filters.categoryIds,
+      tagIds: filters.tagIds,
       // Note: Status filtering requires custom implementation
       creatorEmployeeId: filters.creatorEmployeeId?.[0],
       activeFrom: filters.dateRange?.start,
@@ -131,9 +133,10 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     search,
     sorting,
     contentGroupFilter,
-    filters.contentGroupRef,
-    filters.contentTypeRef,
-    filters.categoryRefs,
+    filters.contentGroup,
+    filters.contentTypeId,
+    filters.categoryIds,
+    filters.tagIds,
     filters.creatorEmployeeId,
     filters.dateRange
   ])

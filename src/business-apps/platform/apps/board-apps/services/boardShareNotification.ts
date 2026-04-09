@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type { BoardPermission } from '../types'
 
 const createAssignmentTargets = (userIds: string[]) => ({
@@ -23,7 +23,7 @@ export async function sendBoardShareNotification(
   }
 ): Promise<void> {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const timestamp = Date.now()
     const blinkGroupId = `board_share_${timestamp}_${payload.initiatorId}`
 
@@ -83,7 +83,7 @@ export async function sendBoardShareNotification(
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(requestPayload)

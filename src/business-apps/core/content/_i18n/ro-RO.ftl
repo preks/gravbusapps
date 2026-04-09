@@ -52,3 +52,12 @@ add_comment = Adaugă comentariu
 answer = Răspuns
 answers = Răspunsuri
 unknown = Necunoscut
+
+# Content groups
+content-group-unknown = Necunoscut
+content-group-news = Știri
+content-group-knowledge = Cunoaștere
+content-group-glossary = Glosar
+content-group-question = Întrebare
+content-group-document = Document
+content-group-policy = Politică

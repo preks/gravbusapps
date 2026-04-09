@@ -19,7 +19,7 @@ import { useContentEntries } from '@/common/data/content/hooks/useContentEntries
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
@@ -35,11 +35,9 @@ const POLICY_VIEW_FIELDS: Array<keyof ContentEntry> = [
   'title',
   'preview',
   'picture',
-  'contentGroupRef',
-  'contentTypeRef',
-  'creatorEmployee',
   'contentGroup',
   'contentType',
+  'creatorEmployee',
   'contentEntryCategories',
   'contentEntryTags',
   'createdAt',
@@ -67,7 +65,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRefs: [ContentGroup.POLICY],
+      contentGroups: [ContentGroup.POLICY],
       search: searchQuery,
       limit: PAGE_SIZE,
       offset,
