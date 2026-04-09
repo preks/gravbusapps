@@ -5702,9 +5702,9 @@
     ]
   },
   "crm/core/apps/customer-relations": {
-    "bitbucketBuildNumber": 10670,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10670/",
-    "chunkJsBytes": 1561497,
+    "bitbucketBuildNumber": 10676,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10676/",
+    "chunkJsBytes": 1561580,
     "top": [
       {
         "kind": "bucket",
@@ -5721,8 +5721,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
-        "rendered": 247449,
-        "gzip": 61861
+        "rendered": 247563,
+        "gzip": 61894
       },
       {
         "kind": "bucket",
@@ -27393,9 +27393,9 @@
     ]
   },
   "irm/core/apps/investment-relations": {
-    "bitbucketBuildNumber": 10670,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10670/",
-    "chunkJsBytes": 1470768,
+    "bitbucketBuildNumber": 10676,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10676/",
+    "chunkJsBytes": 1470851,
     "top": [
       {
         "kind": "bucket",
@@ -27418,8 +27418,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 115756,
-        "gzip": 32790
+        "rendered": 115870,
+        "gzip": 32824
       },
       {
         "kind": "bucket",
@@ -36095,15 +36095,15 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10672,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10672/",
-    "chunkJsBytes": 969141,
+    "bitbucketBuildNumber": 10676,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10676/",
+    "chunkJsBytes": 969135,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 593301,
-        "gzip": 32509
+        "gzip": 32522
       },
       {
         "kind": "bucket",
@@ -41375,7 +41375,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-09T11:47:30.236Z",
+    "generatedAt": "2026-04-09T13:04:29.087Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
