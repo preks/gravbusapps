@@ -278,8 +278,8 @@ query BoardGetContentEntries($where: ContentEntryBoolExp, $limit: Int, $offset: 
     preview
     createdAt
     updatedAt
-    contentGroup { value }
-    contentType { value }
+    contentGroup
+    contentType { id name nameI18n }
     language { value }
     creatorEmployee { id displayName }
   }

@@ -56,6 +56,29 @@ export function createStatusFilterGroup(
   }
 }
 
+/**
+ * Expense vs Trip options for multi-select filters; option ids are tab-specific catalog tokens.
+ */
+export function createExpenseTripMultiSelectOptions(
+  filterLabelMap: Record<string, string> | undefined,
+  expenseOptionId: string,
+  tripOptionId: string
+): Array<{ id: string; label: string }> {
+  return [
+    {
+      id: expenseOptionId,
+      label:
+        filterLabelMap?.[expenseOptionId] ??
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+    },
+    {
+      id: tripOptionId,
+      label:
+        filterLabelMap?.[tripOptionId] ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+    }
+  ]
+}
+
 export function createTypeFilterGroup(
   id: string,
   field: string,

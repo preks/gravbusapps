@@ -122,6 +122,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         recordState
         processInstanceId
         verificationDocumentId
+        verificationDocument {
+          id
+        }
         additionalProperties
         synchronizedAt
         validFrom
@@ -502,6 +505,9 @@ interface EmployeeSkill {
   recordState?: string | null
   processInstanceId?: string | null
   verificationDocumentId?: string | null
+  verificationDocument?: {
+    id?: string | null
+  } | null
   acl?: unknown
   additionalProperties?: unknown
   synchronizedAt: string | null

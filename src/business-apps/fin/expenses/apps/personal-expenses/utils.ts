@@ -9,3 +9,5 @@ export {
 } from '../../common/utils/statusDisplayUtils'
 
 export { formatCurrencyDisplay } from '../../common/utils/formatCurrency'
+
+export { generateExpenseRequestActions } from './utils/expenseRequestActions'

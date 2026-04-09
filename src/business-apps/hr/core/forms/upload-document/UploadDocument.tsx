@@ -9,7 +9,6 @@ import {
   DateInput,
   Textarea,
   Combobox,
-  FileUpload,
   Button,
   Input
 } from '@newwork/nw-design-system'
@@ -23,6 +22,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useDocumentClassification } from '@/common/hooks/useDocumentClassification'
+import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
 
 // Extracted submit logic for re-use and testing
 export async function submitUploadDocument(
@@ -119,7 +119,6 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
     mode: 'onChange'
   })
 
-  const [, setFileList] = useState<UploadFile[]>([])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [pendingTypeValue, setPendingTypeValue] = useState<string | null>(null)
   const initialDefaultsRef = useRef(form.getValues())
@@ -329,30 +328,23 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
         <div className="gba:flex-1 gba:space-y-4" data-testid={formatDataTestId(dataTestId, 'FormContent')}>
           {/* Upload field */}
           <div>
-            <FormLabel>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.upload_document', 'Upload Document')}
-            </FormLabel>
-            <div className="gba:mt-2" data-testid="flw_documentModule_uploadFile">
-              <FileUpload
-                multiple={false}
-                maxFiles={1}
-                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
-                layout="list"
-                preview="icon"
-                onFilesChange={(files: any[]) => {
-                  // minimal UploadFile mapping without originFileObj to satisfy type
-                  const mapped = (files || []).map((f: any) => ({
-                    uid: f.id,
-                    name: f.file?.name || 'file',
-                    status: 'done' as const,
-                    type: (f.file as File)?.type
-                  })) as UploadFile[]
-                  setFileList(mapped)
-                  const first = (files || [])[0]
-                  setSelectedFile(first && first.file instanceof File ? (first.file as File) : null)
-                }}
-              />
-            </div>
+            <EmployeeDocumentUploadField
+              name="uploadDocumentFile"
+              label={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:upload_document_form.upload_document',
+                'Upload Document'
+              )}
+              isLoading={false}
+              initialFiles={[]}
+              onFilesChange={(files: any[]) => {
+                const first = (files || [])[0]
+                setSelectedFile(first && first.file instanceof File ? (first.file as File) : null)
+              }}
+              accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+              maxFiles={1}
+              multiple={false}
+              dataTestId="flw_documentModule_uploadFile"
+            />
             {/* AI classification status */}
             {selectedFile && (
               <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="upload-document-ai-status">

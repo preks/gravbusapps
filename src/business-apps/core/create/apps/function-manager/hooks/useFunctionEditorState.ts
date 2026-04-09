@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FunctionsServiceClient,
   type LatestFunctionItem,
   type ConnectorKind,
   type FunctionConnectionBinding
 } from '@/common/network/functions/FunctionsServiceClient'
+import type { StoredSecretOption } from '../components/editor/SettingsEditor'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
   FunctionAssistantDraftResponse,
@@ -12,7 +13,7 @@ import type {
   FunctionAssistantMode,
   FunctionExecutionLogEntry
 } from '@/common/network/functions/FunctionsServiceClient'
-import type { ConfigRow } from '../components/editor/SettingsEditor'
+import { newConfigRowId, newEmptyConfigRow, type ConfigRow } from '../components/editor/SettingsEditor'
 import { getApplicableDraftUpdates, hasMeaningfulSchema } from '../utils/functionDraftGuards'
 
 function safeJsonParseObject(value: string): Record<string, unknown> | undefined {
@@ -57,7 +58,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const [outputSchema, setOutputSchema] = useState('')
 
   // Settings/Config key-value pairs
-  const [configKeys, setConfigKeys] = useState<ConfigRow[]>([{ key: '', value: '' }])
+  const [configKeys, setConfigKeys] = useState<ConfigRow[]>(() => [newEmptyConfigRow()])
   const [connectionOptions, setConnectionOptions] = useState<Array<{ id: string; name: string }>>([])
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
   const [isLoadingConnections, setIsLoadingConnections] = useState(false)
@@ -80,6 +81,40 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   // Save
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
+
+  const refreshSecrets = useCallback(async () => {
+    try {
+      const list = await client.listSecrets()
+      setStoredSecrets(
+        (list || []).map(s => ({
+          id: s.id,
+          displayName: s.displayName
+        }))
+      )
+    } catch {
+      setStoredSecrets([])
+    }
+  }, [client])
+
+  useEffect(() => {
+    void refreshSecrets()
+  }, [refreshSecrets])
+
+  const onCreateStoredSecret = useCallback(
+    async (input: { displayName: string; value: string }) => {
+      await client.createSecret({
+        displayName: input.displayName,
+        value: input.value
+      })
+      await refreshSecrets()
+    },
+    [client, refreshSecrets]
+  )
+
+  // Test-only plaintext overrides (merged server-side after fnsecret resolve; not persisted)
+  const [testOverrideRows, setTestOverrideRows] = useState<ConfigRow[]>(() => [newEmptyConfigRow()])
 
   // Testing state
   const [testPayloadObj, setTestPayloadObj] = useState<Record<string, unknown>>({})
@@ -157,9 +192,15 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       setSelectedConnectionId(func.connectionBinding?.connectionId ?? null)
 
       if (func.config && Object.keys(func.config).length > 0) {
-        setConfigKeys(Object.entries(func.config).map(([key, value]) => ({ key, value })))
+        setConfigKeys(
+          Object.entries(func.config).map(([key, value]) => ({
+            key,
+            value: String(value ?? ''),
+            rowId: newConfigRowId()
+          }))
+        )
       } else {
-        setConfigKeys([{ key: '', value: '' }])
+        setConfigKeys([newEmptyConfigRow()])
       }
 
       if (func.latestVersion) {
@@ -197,7 +238,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       )
       setInputSchema(JSON.stringify({ type: 'object', properties: {} }, null, 2))
       setOutputSchema(JSON.stringify({ type: 'object', properties: {} }, null, 2))
-      setConfigKeys([{ key: '', value: '' }])
+      setConfigKeys([newEmptyConfigRow()])
     }
   }, [mode, func?.id])
 
@@ -270,23 +311,27 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const mergeConfigKeys = useMemo(() => {
     return (existingRows: ConfigRow[], keys: string[]) => {
       const normalizedExisting = (existingRows || []).filter(r => r.key.trim() || r.value.trim())
-      const map = new Map<string, string>()
+      const map = new Map<string, { value: string; rowId?: string }>()
       for (const r of normalizedExisting) {
         const k = String(r.key || '')
           .trim()
           .toUpperCase()
         if (!k) continue
-        map.set(k, r.value || '')
+        map.set(k, { value: r.value || '', rowId: r.rowId })
       }
       for (const k of keys || []) {
         const kk = String(k || '')
           .trim()
           .toUpperCase()
         if (!kk) continue
-        if (!map.has(kk)) map.set(kk, '')
+        if (!map.has(kk)) map.set(kk, { value: '', rowId: undefined })
       }
-      const merged = Array.from(map.entries()).map(([k, v]) => ({ key: k, value: v }))
-      return merged.length ? merged : [{ key: '', value: '' }]
+      const merged = Array.from(map.entries()).map(([k, data]) => ({
+        key: k,
+        value: data.value,
+        rowId: data.rowId ?? newConfigRowId()
+      }))
+      return merged.length ? merged : [newEmptyConfigRow()]
     }
   }, [])
 
@@ -316,7 +361,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       source,
       inputSchema,
       outputSchema,
-      configKeys: (configKeys || []).map(r => ({ key: r.key, value: r.value }))
+      configKeys: (configKeys || []).map(r => ({ key: r.key, value: r.value, rowId: r.rowId }))
     })
     if (mode === 'create' && draft.name && !name.trim()) setName(draft.name)
     if (draft.description && !description.trim()) setDescription(draft.description)
@@ -345,7 +390,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     setSource(snap.source)
     setInputSchema(snap.inputSchema)
     setOutputSchema(snap.outputSchema)
-    setConfigKeys(snap.configKeys && snap.configKeys.length ? snap.configKeys : [{ key: '', value: '' }])
+    setConfigKeys(snap.configKeys && snap.configKeys.length ? snap.configKeys : [newEmptyConfigRow()])
     setAssistantUndoSnapshot(null)
   }
 
@@ -501,13 +546,18 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     const connectionBinding: FunctionConnectionBinding | null = selectedConnectionId
       ? { connectionId: selectedConnectionId }
       : null
+    const rawOverrides = buildConfigObject(testOverrideRows)
+    const testConfigOverrides = Object.fromEntries(
+      Object.entries(rawOverrides).filter(([k, v]) => String(k || '').trim() && String(v ?? '').trim())
+    )
     return await client.testFunction({
       source: source.trim(),
       payload,
       inputSchema: inputSchemaObj,
       outputSchema: outputSchemaObj,
       config,
-      connectionBinding
+      connectionBinding,
+      ...(Object.keys(testConfigOverrides).length ? { testConfigOverrides } : {})
     })
   }
 
@@ -562,6 +612,12 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     testError,
     onTest,
     buildTestIterationSnapshot,
-    runTestCase
+    runTestCase,
+
+    storedSecrets,
+    refreshSecrets,
+    onCreateStoredSecret,
+    testOverrideRows,
+    setTestOverrideRows
   }
 }

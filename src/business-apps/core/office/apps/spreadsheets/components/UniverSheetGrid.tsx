@@ -1226,6 +1226,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const isSheetInteractionActiveRef = useRef<boolean>(false)
     const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null)
     const remoteEchoSuppressionRef = useRef<Map<string, RemoteEchoSuppressionEntry>>(new Map())
+    const isApplyingRemoteUpdateRef = useRef(false)
     const isDirtyRef = useRef(false)
     const hasEditedRef = useRef(false)
     const snapshotRequestInFlightRef = useRef<Promise<void> | null>(null)
@@ -1624,8 +1625,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         } catch (e) {
           console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
+        } finally {
+          isApplyingRemoteUpdateRef.current = false
         }
       }
+      isApplyingRemoteUpdateRef.current = true
       tryApply(0)
     }, [])
 
@@ -2350,6 +2354,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         queueMicrotask(emitWorksheetFromUniver)
         if (readOnlyRef.current) return
+        if (isApplyingRemoteUpdateRef.current) return
         const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
         if (dimensionsChanged) {
           if (dimensions) {
@@ -2383,6 +2388,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }) => {
           if (readOnlyRef.current) return
+          if (isApplyingRemoteUpdateRef.current) return
           const payload = params?.payload
           let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
           if (!cellValue) {

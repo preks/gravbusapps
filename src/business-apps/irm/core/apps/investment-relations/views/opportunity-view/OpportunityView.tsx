@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import type { QuickFiltersRenderProps } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
@@ -53,6 +54,9 @@ const InvestmentOpportunityStatistics: React.FC<{
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:investment-opportunity-preferences:v1')
+
   const { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunities(context)
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
@@ -202,6 +206,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       quickFilter={activeQuickFilter}
       enableExport
       exportFilenamePrefix="opportunities"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

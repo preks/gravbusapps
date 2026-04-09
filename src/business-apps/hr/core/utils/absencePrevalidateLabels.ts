@@ -90,6 +90,10 @@ export const getPrevalidateErrorPresentation = (
   )
 }
 
+export const shouldDuplicatePrevalidateErrorBelowDatepicker = (errorCode: string): boolean => {
+  return errorCode.trim() !== ''
+}
+
 export const getPrevalidateErrorLabel = (errorCode: string, errorDetail?: string | null): string => {
   return getPrevalidateErrorPresentation(errorCode, errorDetail).messageFallback
 }

@@ -530,6 +530,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
         }
 
         const baseUrl = resolveFlowbotBaseUrl()
+
         const url = `${baseUrl}/flowbot/api/agent/v2/chat`
 
         // Use existing session ID from previous AI messages in this conversation

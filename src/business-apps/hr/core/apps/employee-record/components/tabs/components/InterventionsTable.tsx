@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Card, CardContent, Alert, Badge, Icon, IconAvatar, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Alert, Badge, Icon, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -20,6 +20,8 @@ interface InterventionsTableProps {
     fridayHours?: number
     saturdayHours?: number
   }
+  onReviewClick?: () => void
+  defaultExpanded?: boolean
 }
 
 const formatHm = (minutes: number) => {
@@ -28,15 +30,20 @@ const formatHm = (minutes: number) => {
   return `${h}:${String(m).padStart(2, '0')}`
 }
 
-export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employeeId, accessToken, workingHours }) => {
+export const InterventionsTable: React.FC<InterventionsTableProps> = ({
+  employeeId,
+  accessToken,
+  workingHours,
+  onReviewClick,
+  defaultExpanded = false
+}) => {
   const { items, isLoading, error } = useTimeInterventions({
     employeeId,
     accessToken,
     workingHours
   })
 
-  // Collapsed by default: show warning header and hide cards
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const headerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -109,26 +116,17 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
   }
 
   return (
-    <Card className="gba:mt-4" data-testid="time-interventions-card">
+    <Card className="" data-testid="time-interventions-card">
       <CardContent className="gba:p-4">
-        <div
-          className="gba:flex gba:items-center gba:justify-between gba:mb-3"
-          data-testid="time-interventions-header"
-          ref={headerRef}
-        >
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            className="gba:flex gba:items-center gba:gap-2 gba:select-none"
-            data-testid="time-interventions-toggle-text"
-          >
-            <IconAvatar
-              icon={isExpanded ? LightningIcon : WarningCircleIcon}
-              variant="secondary"
-              size="md"
+        <div className="gba:mb-3" data-testid="time-interventions-header" ref={headerRef}>
+          <div className="gba:flex gba:items-start gba:gap-2">
+            <div
+              className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-ai/10 gba:text-ai"
               data-testid="time-interventions-assistant-icon"
-            />
-            <div className="gba:text-lg gba:font-semibold gba:text-left">
+            >
+              <Icon icon={isExpanded ? LightningIcon : WarningCircleIcon} />
+            </div>
+            <div className="gba:text-base gba:font-semibold">
               {isExpanded ? (
                 <>
                   <span>NEWWORK </span>
@@ -153,14 +151,19 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({ employee
                 </>
               )}
             </div>
-          </button>
-          <div>
-            <Button variant="ghost" size="sm" onClick={toggleExpanded} data-testid="time-interventions-toggle-button">
+          </div>
+          {!defaultExpanded && (
+            <Button
+              variant="outline"
+              className="gba:w-full gba:mt-3"
+              onClick={onReviewClick ?? toggleExpanded}
+              data-testid="time-interventions-toggle-button"
+            >
               {isExpanded
                 ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.hide', 'Hide')
                 : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.review', 'Review')}
             </Button>
-          </div>
+          )}
         </div>
 
         {isExpanded && (

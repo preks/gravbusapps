@@ -278,8 +278,8 @@ export const ENTITY_REGISTRY_CRM: Record<string, EntityQueryDef> = {
       f('id', 'ID', 'text', false, 'id'),
       f('title', 'Title', 'text', true, 'title'),
       f('preview', 'Preview', 'text', true, 'preview'),
-      f('contentGroup', 'Group', 'text', true, 'contentGroup.value'),
-      f('contentType', 'Type', 'text', true, 'contentType.value'),
+      f('contentGroup', 'Group', 'text', true, 'contentGroup'),
+      f('contentType', 'Type', 'text', true, 'contentType.name'),
       f('language', 'Language', 'text', false, 'language.value'),
       f('creator', 'Creator', 'text', true, 'creatorEmployee.displayName'),
       f('createdAt', 'Created At', 'datetime', false, 'createdAt')

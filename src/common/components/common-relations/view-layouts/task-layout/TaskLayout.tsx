@@ -91,6 +91,12 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
   customPrimaryAction?: React.ReactNode
   enableExport?: boolean
   exportFilenamePrefix?: string
+  /** Called whenever the user changes filters — use to persist filter state externally. */
+  onFilterChange?: (filters: Record<string, any>) => void
+  initialSorting?: Array<{ id: string; desc: boolean }>
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  initialVisibleColumns?: string[]
+  onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 const getTaskExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
@@ -144,7 +150,12 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     hideFilters = false,
     customPrimaryAction,
     enableExport = false,
-    exportFilenamePrefix = 'tasks'
+    exportFilenamePrefix = 'tasks',
+    onFilterChange: onFilterChangeProp,
+    initialSorting: initialSortingProp,
+    onSortingChange: onSortingChangeProp,
+    initialVisibleColumns: initialVisibleColumnsProp,
+    onVisibleColumnsChange: onVisibleColumnsChangeProp
   } = props
   const { accessToken, userInfo } = context
 
@@ -152,20 +163,25 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   const [selectedTask, setSelectedTask] = useState<TTask | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
-  // Column Visibility (Team Tasks - show assignedTo column)
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'name',
-    'assignedTo',
-    'taskType',
-    'taskPriority',
-    'taskStatus',
-    'reference',
-    'dueDate',
-    'createdAt'
-  ])
+  // Column Visibility (Team Tasks — restored from storage or defaults)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    () =>
+      initialVisibleColumnsProp ?? [
+        'name',
+        'assignedTo',
+        'taskType',
+        'taskPriority',
+        'taskStatus',
+        'reference',
+        'dueDate',
+        'createdAt'
+      ]
+  )
 
   // Data State
   const [tasks, setTasks] = useState<TTask[]>([])
@@ -252,10 +268,30 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChangeProp?.(filters)
+    },
+    [onFilterChangeProp]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChangeProp?.(newColumns)
+    },
+    [onVisibleColumnsChangeProp]
+  )
 
   const handleTaskClick = useCallback(
     (task: TTask) => {
@@ -376,10 +412,10 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           customPrimaryAction ||
           (config.flowContexts.createContext ? (
@@ -413,7 +449,7 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           pagination={pagination}
           onPaginationChange={setPagination}
           actions={rowActions}

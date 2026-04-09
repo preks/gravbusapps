@@ -45,6 +45,34 @@ type FormValues = {
   notes?: string
 }
 
+type AssetFormSource = {
+  assetCategoryRef?: string | null
+  assetBrandRef?: string | null
+  model?: string | null
+  serialNumber?: string | null
+  siteLocationId?: string | null
+  acquisitionDate?: string | null
+  warrantyPeriodMonths?: number | null
+  inventoryValue?: number | null
+  currencyRef?: string | null
+  assetStatus?: AssetStatus | null
+  notes?: string | null
+}
+
+const buildFormValues = (asset?: AssetFormSource | null): FormValues => ({
+  category: asset?.assetCategoryRef || '',
+  brand: asset?.assetBrandRef || '',
+  model: asset?.model || '',
+  serialNumber: asset?.serialNumber || '',
+  location: asset?.siteLocationId || '',
+  acquisitionDate: asset?.acquisitionDate || '',
+  warrantyPeriodMonths: asset?.warrantyPeriodMonths || 0,
+  inventoryValue: asset?.inventoryValue || 0,
+  currency: asset?.currencyRef || '',
+  status: asset?.assetStatus || AssetStatus.AVAILABLE,
+  notes: asset?.notes || ''
+})
+
 type SerialNumberFieldProps = {
   form: UseFormReturn<FormValues>
   control: Control<FormValues>
@@ -297,20 +325,15 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: 'onChange',
-    defaultValues: {
-      category: '',
-      brand: '',
-      model: '',
-      serialNumber: '',
-      location: '',
-      acquisitionDate: '',
-      warrantyPeriodMonths: 0,
-      inventoryValue: 0,
-      currency: '',
-      status: AssetStatus.AVAILABLE,
-      notes: ''
-    }
+    defaultValues: buildFormValues()
   })
+
+  const watchedValues = form.watch()
+  const initialValuesRef = React.useRef<FormValues>(buildFormValues(existingAsset))
+
+  const isUnchangedNow = useMemo(() => {
+    return JSON.stringify(watchedValues) === JSON.stringify(initialValuesRef.current)
+  }, [watchedValues])
 
   React.useEffect(() => {
     const loadAsset = async () => {
@@ -318,19 +341,10 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         try {
           const asset = await getAssetById(assetId)
           if (asset) {
-            form.reset({
-              category: asset.assetCategoryRef || '',
-              brand: asset.assetBrandRef || '',
-              model: asset.model || '',
-              serialNumber: asset.serialNumber || '',
-              location: asset.siteLocationId || '',
-              acquisitionDate: asset.acquisitionDate || '',
-              warrantyPeriodMonths: asset.warrantyPeriodMonths,
-              inventoryValue: asset.inventoryValue,
-              currency: asset.currencyRef || '',
-              status: asset.assetStatus || AssetStatus.AVAILABLE,
-              notes: asset.notes || ''
-            })
+            const nextValues = buildFormValues(asset)
+            initialValuesRef.current = nextValues
+            form.reset(nextValues)
+            void form.trigger()
 
             // Load current allocation to determine valid status transitions
             try {
@@ -345,19 +359,10 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           console.error('Error loading asset:', error)
         }
       } else if (isEditMode && existingAsset) {
-        form.reset({
-          category: existingAsset.assetCategoryRef || '',
-          brand: existingAsset.assetBrandRef || '',
-          model: existingAsset.model || '',
-          serialNumber: existingAsset.serialNumber || '',
-          location: existingAsset.siteLocationId || '',
-          acquisitionDate: existingAsset.acquisitionDate || '',
-          warrantyPeriodMonths: existingAsset.warrantyPeriodMonths,
-          inventoryValue: existingAsset.inventoryValue,
-          currency: existingAsset.currencyRef || '',
-          status: existingAsset.assetStatus || AssetStatus.AVAILABLE,
-          notes: existingAsset.notes || ''
-        })
+        const nextValues = buildFormValues(existingAsset)
+        initialValuesRef.current = nextValues
+        form.reset(nextValues)
+        void form.trigger()
 
         // Load current allocation to determine valid status transitions
         if (assetId) {
@@ -375,22 +380,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     loadAsset()
   }, [isEditMode, assetId, existingAsset, getAssetById, getCurrentAllocation, form])
 
-  const defaultValues: FormValues = useMemo(
-    () => ({
-      category: existingAsset?.assetCategoryRef || '',
-      brand: existingAsset?.assetBrandRef || '',
-      model: existingAsset?.model || '',
-      serialNumber: existingAsset?.serialNumber || '',
-      location: existingAsset?.siteLocationId || '',
-      acquisitionDate: existingAsset?.acquisitionDate || '',
-      warrantyPeriodMonths: existingAsset?.warrantyPeriodMonths || 0,
-      inventoryValue: existingAsset?.inventoryValue || 0,
-      currency: existingAsset?.currencyRef || '',
-      status: existingAsset?.assetStatus || AssetStatus.AVAILABLE,
-      notes: existingAsset?.notes || ''
-    }),
-    [existingAsset]
-  )
+  const defaultValues: FormValues = useMemo(() => buildFormValues(existingAsset), [existingAsset])
 
   const title = useMemo(
     () =>
@@ -417,10 +407,29 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   )
 
   const isSubmitDisabled = useMemo(() => {
+    const hasValidationErrors = Object.keys(form.formState.errors || {}).length > 0
+
     return (
-      isSubmitting || currenciesLoading || assetsLoading || brandsLoading || locationsLoading || !form.formState.isValid
+      isSubmitting ||
+      currenciesLoading ||
+      assetsLoading ||
+      brandsLoading ||
+      locationsLoading ||
+      !form.formState.isValid ||
+      hasValidationErrors ||
+      (isEditMode && isUnchangedNow)
     )
-  }, [isSubmitting, currenciesLoading, assetsLoading, brandsLoading, locationsLoading, form.formState.isValid])
+  }, [
+    isSubmitting,
+    currenciesLoading,
+    assetsLoading,
+    brandsLoading,
+    locationsLoading,
+    form.formState.errors,
+    form.formState.isValid,
+    isEditMode,
+    isUnchangedNow
+  ])
 
   const handleCreateSubmit = async (values: FormValues) => {
     try {
@@ -668,7 +677,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             <Label htmlFor="location" data-testid="location-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
             </Label>
-            <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading || isEditMode}>
+            <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading}>
               <SelectTrigger id="location" data-testid="location-select">
                 <SelectValue
                   placeholder={
