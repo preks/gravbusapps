@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
 import type { Editor as TiptapEditor } from '@tiptap/react'
+import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import type {
   DocumentLayoutFlowSnapshot,
   DocumentLayoutInvalidationReason,
@@ -1080,6 +1081,9 @@ export function usePaginationLayoutSnapshot({
 
     const handleTransaction = ({ transaction }: { transaction: Transaction }) => {
       if (!transaction.docChanged || !hasInitializedLayoutRef.current) {
+        return
+      }
+      if (transaction.getMeta(ySyncPluginKey)) {
         return
       }
 

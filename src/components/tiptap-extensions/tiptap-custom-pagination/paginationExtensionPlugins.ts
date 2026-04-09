@@ -72,7 +72,9 @@ export function createPaginationExtensionPlugins(options: {
   let pendingRefreshDrivenStabilization = false
   let deferredRepaginationPassId = 0
   let headerPageCountPassId = 0
-  let collaborationRemoteDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  let contentChangeDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  const COLLABORATION_REPAGINATION_DELAY_MS = 1500
+  const LOCAL_REPAGINATION_DELAY_MS = 500
   let suppressPaginationOwnedDeferredScheduling = false
   const tablePaginationController = createTablePaginationController(options.paginationOwnedDocChangeMeta)
   const getDeferredStabilizationAttemptCount = (view: EditorView) =>
@@ -385,6 +387,27 @@ export function createPaginationExtensionPlugins(options: {
       },
       view: () => ({
         update: updatedView => {
+          if (lastDocChangeOrigin === 'collaboration-remote' || lastDocChangeOrigin === 'external') {
+            const delayMs =
+              lastDocChangeOrigin === 'collaboration-remote'
+                ? COLLABORATION_REPAGINATION_DELAY_MS
+                : LOCAL_REPAGINATION_DELAY_MS
+            lastKnownDoc = updatedView.state.doc
+            lastKnownSelectionHead = updatedView.state.selection.head
+            lastDocChangeOrigin = null
+            if (contentChangeDebounceTimer !== null) {
+              clearTimeout(contentChangeDebounceTimer)
+            }
+            contentChangeDebounceTimer = setTimeout(() => {
+              contentChangeDebounceTimer = null
+              const mounted = getMountedEditorView(editor)
+              if (mounted && !mounted.isDestroyed) {
+                deferredRepaginationScheduler.schedule(mounted)
+              }
+            }, delayMs)
+            return
+          }
+
           const runtimeOptions = getEditorRuntimeOptions(editor)
           syncStorageFromOptions(storage, runtimeOptions)
           getPaginationOverlayManager({
@@ -392,23 +415,6 @@ export function createPaginationExtensionPlugins(options: {
             getRuntimeOptions: () => getEditorRuntimeOptions(editor),
             getStorage: () => storage
           }).recoverStaleOverlayState(updatedView.dom)
-
-          if (lastDocChangeOrigin === 'collaboration-remote') {
-            lastKnownDoc = updatedView.state.doc
-            lastKnownSelectionHead = updatedView.state.selection.head
-            lastDocChangeOrigin = null
-            if (collaborationRemoteDebounceTimer !== null) {
-              clearTimeout(collaborationRemoteDebounceTimer)
-            }
-            collaborationRemoteDebounceTimer = setTimeout(() => {
-              collaborationRemoteDebounceTimer = null
-              const mounted = getMountedEditorView(editor)
-              if (mounted && !mounted.isDestroyed) {
-                deferredRepaginationScheduler.schedule(mounted)
-              }
-            }, 150)
-            return
-          }
 
           windowedRenderer.syncRootPresentation({
             editorDom: updatedView.dom,
@@ -491,9 +497,9 @@ export function createPaginationExtensionPlugins(options: {
           pendingRefreshDrivenStabilization = nextPluginViewState.pendingRefreshDrivenStabilization
         },
         destroy: () => {
-          if (collaborationRemoteDebounceTimer !== null) {
-            clearTimeout(collaborationRemoteDebounceTimer)
-            collaborationRemoteDebounceTimer = null
+          if (contentChangeDebounceTimer !== null) {
+            clearTimeout(contentChangeDebounceTimer)
+            contentChangeDebounceTimer = null
           }
           deferredRepaginationScheduler.destroy()
           windowedRenderer.destroy()
@@ -506,7 +512,7 @@ export function createPaginationExtensionPlugins(options: {
         init: (_, state) => buildHardBreakDecorations(state.doc),
         apply(tr, oldValue) {
           if (shouldRebuildHardBreakDecorations(tr)) {
-            return buildHardBreakDecorations(tr.doc)
+            return oldValue.map(tr.mapping, tr.doc)
           }
 
           return oldValue
@@ -523,8 +529,11 @@ export function createPaginationExtensionPlugins(options: {
       state: {
         init: (_, state) => buildSquareWrapDecorations(state.doc),
         apply(tr, oldValue) {
-          if (tr.getMeta(options.refreshMeta) || tr.docChanged) {
+          if (tr.getMeta(options.refreshMeta)) {
             return buildSquareWrapDecorations(tr.doc)
+          }
+          if (tr.docChanged) {
+            return oldValue.map(tr.mapping, tr.doc)
           }
 
           return oldValue

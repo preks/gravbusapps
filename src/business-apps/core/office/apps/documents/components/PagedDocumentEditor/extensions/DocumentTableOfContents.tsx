@@ -5,6 +5,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
+import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import { getHeadingsForDocumentTableOfContents } from '../../../utils/navigationPanelUtils'
 import { DocumentTableOfContentsView } from '../components/DocumentTableOfContentsView'
 
@@ -199,6 +200,29 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
         key: documentTocSnapshotKey,
         appendTransaction(trs, _oldState, newState) {
           if (!trs.some(tr => tr.docChanged)) {
+            return null
+          }
+          if (trs.some(tr => tr.getMeta(ySyncPluginKey))) {
+            return null
+          }
+          const hasTocOrHeadingChange = trs.some(tr => {
+            let found = false
+            tr.steps.forEach((_step, i) => {
+              if (found) return
+              const map = tr.mapping.maps[i]
+              map.forEach((_from, _to, newFrom, newTo) => {
+                if (found) return
+                newState.doc.nodesBetween(newFrom, Math.min(newTo, newState.doc.content.size), node => {
+                  if (node.type.name === typeName || node.type.name === 'heading') {
+                    found = true
+                    return false
+                  }
+                })
+              })
+            })
+            return found
+          })
+          if (!hasTocOrHeadingChange) {
             return null
           }
           let tr = newState.tr
