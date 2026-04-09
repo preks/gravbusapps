@@ -7,6 +7,7 @@ import {
   AccountQuickFilters,
   type QuickFilterType
 } from '@/common/components/common-relations/view-layouts/account-layout'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import { INVESTMENT_ACCOUNT_DESCRIPTORS } from '@/common/data/investment/types/investmentAccountTypes'
 import {
@@ -69,8 +70,17 @@ const copyInvestmentAccountFilters = (
 
 export type AccountViewProps = BusinessAppContextProps
 
+const deriveQuickFilter = (filters: Record<string, any>): QuickFilterType => {
+  if (filters.prospective === true) return 'prospect'
+  if (filters.prospective === false) return 'established'
+  return 'all'
+}
+
 export const AccountView: React.FC<AccountViewProps> = context => {
-  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:investment-account-preferences:v1')
+
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>(deriveQuickFilter(initialFilters))
 
   const handleQuickFilterChange = useCallback(
     (
@@ -224,6 +234,12 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       renderQuickFilters={renderQuickFilters}
       enableExport
       exportFilenamePrefix="accounts"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }
