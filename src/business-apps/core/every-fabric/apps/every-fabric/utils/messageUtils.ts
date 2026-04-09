@@ -150,7 +150,10 @@ function terminalCompletedToChatMessage(
   event: AgentTerminalEvent,
   stepCompletions: Map<string, StepCompletion> | undefined
 ): ChatMessage {
-  const qualityScore = event.reflection ? (event.reflection.complete ? 1.0 : 0.5) : undefined
+  let qualityScore: number | undefined
+  if (event.reflection) {
+    qualityScore = event.reflection.complete ? 1 : 0.5
+  }
   const actionsPerformed = stepCompletions
     ? [...stepCompletions.values()]
         .filter(s => s.type === 'step_completed')
@@ -397,6 +400,20 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
 
 const MEMORY_TOOLS = new Set(['save_memory', 'search_memory'])
 
+function memoryActivitySummary(toolName?: string): string {
+  const action = toolName === 'save_memory' ? 'Saved to' : 'Searched'
+  return `${action} memory`
+}
+
+function toolActivitySummary(toolName: string | undefined, hasCompleted: boolean): string {
+  return `${toolName ?? 'Tool'} ${hasCompleted ? '— done' : '— running'}`
+}
+
+function reflectionActivitySummary(isComplete: boolean, gapCount: number, issueCount: number): string {
+  if (isComplete) return 'Reflection complete — output quality confirmed'
+  return `Reflection: ${gapCount} gap(s), ${issueCount} quality issue(s) found`
+}
+
 /** Derive activity events from the raw SSE event stream. */
 export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
   const stepCompletions = collectStepCompletions(events)
@@ -426,9 +443,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
         timestamp: e.timestamp,
         type: isMemoryTool ? ('memory_access' as const) : ('tool_call' as const),
         toolName: e.name,
-        summary: isMemoryTool
-          ? `${e.name === 'save_memory' ? 'Saved to' : 'Searched'} memory`
-          : `${e.name ?? 'Tool'} ${completed ? '— done' : '— running'}`,
+        summary: isMemoryTool ? memoryActivitySummary(e.name) : toolActivitySummary(e.name, !!completed),
         durationMs: completed?.duration_ms
       }
     })
@@ -443,9 +458,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
       timestamp: terminalEvent.timestamp ?? new Date().toISOString(),
       type: 'reflection' as const,
       toolName: undefined,
-      summary: terminalEvent.reflection.complete
-        ? `Reflection complete — output quality confirmed`
-        : `Reflection: ${gapCount} gap(s), ${issueCount} quality issue(s) found`,
+      summary: reflectionActivitySummary(terminalEvent.reflection.complete, gapCount, issueCount),
       durationMs: undefined
     })
   }

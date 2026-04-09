@@ -21,7 +21,7 @@ const streamOverlayTerminalStatus = (events: AgentStreamEvent[]): string | null 
 }
 
 const extractSeq = (messageId: string): number | null => {
-  const match = messageId.match(/:(\d+)$/)
+  const match = /:(\d+)$/.exec(messageId)
   if (!match) return null
   const seq = Number.parseInt(match[1], 10)
   return Number.isNaN(seq) ? null : seq

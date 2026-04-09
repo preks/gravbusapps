@@ -92,12 +92,12 @@ function nextTodoSnapshotForEvent(ev: AgentStreamEvent, current: TodoItem[] | nu
 }
 
 /**
- * Latest todo snapshot from SSE: step_started args, step_completed (todos field + output), terminal.
+ * Latest task-list snapshot from SSE: step_started args, step_completed (tasks field + output), terminal.
  */
 export const extractLatestTodosFromEvents = (events: AgentStreamEvent[]): TodoItem[] | null => {
   const ordered = [...events].sort((a, b) => {
     const d = eventSeq(a) - eventSeq(b)
-    return d !== 0 ? d : 0
+    return d
   })
 
   let latest: TodoItem[] | null = null

@@ -78,6 +78,16 @@ export const useSessionStream = (sessionId: string | null, accessToken: string, 
       setIsConnected(false)
     }
 
+    const reconnectAfterDelay = () => {
+      const delay = reconnectDelayMs
+      reconnectTimer = setTimeout(handleReconnectTimeout, delay)
+    }
+
+    const handleReconnectTimeout = () => {
+      reconnectDelayMs = Math.min(reconnectDelayMs * 2, 10000)
+      connect()
+    }
+
     const connect = () => {
       if (disposed || terminalReached) return
 
@@ -104,11 +114,7 @@ export const useSessionStream = (sessionId: string | null, accessToken: string, 
       source.onerror = () => {
         closeStream()
         if (disposed || terminalReached) return
-        const delay = reconnectDelayMs
-        reconnectTimer = setTimeout(() => {
-          reconnectDelayMs = Math.min(reconnectDelayMs * 2, 10000)
-          connect()
-        }, delay)
+        reconnectAfterDelay()
       }
     }
 
