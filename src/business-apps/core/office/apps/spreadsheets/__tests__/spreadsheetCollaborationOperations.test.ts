@@ -59,6 +59,78 @@ function rowMatchesRemoteId(row: Record<string, unknown>, remoteRowId: string): 
   return candidateIds.includes(remoteRowId)
 }
 
+function viewerRowId(row: Record<string, unknown>): string {
+  const id = row._id ?? row.id
+  if (id == null) return ''
+  return String(id)
+}
+
+function replaceClientRowsWithCreatedRows(
+  existingRows: Array<Record<string, unknown>>,
+  createdRows: Array<Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  const createdRowByClientId = new Map<string, Record<string, unknown>>()
+  createdRows.forEach(row => {
+    const clientRowId = viewerRowId(row)
+    if (!clientRowId) return
+    createdRowByClientId.set(clientRowId, row)
+  })
+
+  const replacedClientRowIds = new Set<string>()
+  const nextRows = existingRows.map(row => {
+    const clientRowId = viewerRowId(row)
+    if (!clientRowId) return row
+    const createdRow = createdRowByClientId.get(clientRowId)
+    if (!createdRow) return row
+    replacedClientRowIds.add(clientRowId)
+    return createdRow
+  })
+
+  createdRows.forEach(row => {
+    const clientRowId = viewerRowId(row)
+    if (clientRowId && replacedClientRowIds.has(clientRowId)) return
+    nextRows.push(row)
+  })
+
+  return nextRows
+}
+
+function mapAddedRowsFromDeltaResult(result: Record<string, unknown>): Array<Record<string, unknown>> {
+  const rows = Array.isArray(result.rows) ? (result.rows as Array<Record<string, unknown>>) : []
+  return rows.map(entry => {
+    const rowData = ((entry.data as Record<string, unknown>) || {}) as Record<string, unknown>
+    const clientRowId = rowData._clientRowId
+    if (clientRowId) {
+      return {
+        ...rowData,
+        _id: clientRowId,
+        _rowUuid: (entry.id as string) || 'generated'
+      }
+    }
+    return {
+      ...rowData,
+      _id: (entry.id as string) || 'generated'
+    }
+  })
+}
+
+function applyRemoteRowAddPlaceholders(
+  rows: Array<Record<string, unknown>>,
+  payload: Record<string, unknown>
+): Array<Record<string, unknown>> {
+  const rowIds = Array.isArray(payload.rowIds) ? payload.rowIds.map(value => String(value || '')).filter(Boolean) : []
+  if (rowIds.length === 0) return rows
+  const nextRows = [...rows]
+  for (const rowId of rowIds) {
+    if (nextRows.some(row => rowMatchesRemoteId(row, rowId))) continue
+    nextRows.push({
+      _id: rowId,
+      _rowUuid: rowId
+    })
+  }
+  return nextRows
+}
+
 function applyColumnWidthsFromDimensions(
   columns: SpreadsheetColumn[],
   payload: {
@@ -417,6 +489,49 @@ describe('spreadsheetCollaborationOperations', () => {
       const row = { _id: 'row_0', _rowUuid: 'uuid-row-1', ColumnA: 'before' }
       expect(rowMatchesRemoteId(row, 'uuid-row-1')).toBe(true)
       expect(rowMatchesRemoteId(row, 'row_0')).toBe(true)
+    })
+
+    it('replaces a temporary client row instead of appending a duplicate persisted row', () => {
+      const existingRows = [
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', ColumnA: 'draft' }
+      ]
+
+      const createdRows = [{ _id: 'client_row_1', _rowUuid: 'uuid-row-1', ColumnA: 'draft' }]
+
+      expect(replaceClientRowsWithCreatedRows(existingRows, createdRows)).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', _rowUuid: 'uuid-row-1', ColumnA: 'draft' }
+      ])
+    })
+
+    it('replaces a temporary client row when add_rows delta arrives from remote recovery', () => {
+      const existingRows = [
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', ColumnA: 'draft' }
+      ]
+
+      const addedRows = mapAddedRowsFromDeltaResult({
+        rows: [{ id: 'uuid-row-1', data: { _clientRowId: 'client_row_1', ColumnA: 'draft' } }]
+      })
+
+      expect(replaceClientRowsWithCreatedRows(existingRows, addedRows)).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'client_row_1', _rowUuid: 'uuid-row-1', _clientRowId: 'client_row_1', ColumnA: 'draft' }
+      ])
+    })
+
+    it('adds placeholder rows for live row_add operations so later set_range can match them', () => {
+      const existingRows = [{ _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' }]
+
+      const withPlaceholders = applyRemoteRowAddPlaceholders(existingRows, {
+        rowIds: ['uuid-row-1']
+      })
+
+      expect(withPlaceholders).toEqual([
+        { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
+        { _id: 'uuid-row-1', _rowUuid: 'uuid-row-1' }
+      ])
     })
   })
 })

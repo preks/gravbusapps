@@ -31,7 +31,6 @@ import {
   type SheetCellMatrix,
   type SheetRangeShape
 } from './cellMatrixUtils'
-import { recordSpreadsheetCellProbe } from './cellEditProbe'
 import { shouldScheduleSnapshotForMutation } from './snapshotTriggerUtils'
 
 // Match Univer's standard defaults for consistent cursor sizing before snapshot is read
@@ -231,6 +230,18 @@ function normalizeValueForEchoSignature(value: unknown): unknown {
   return value
 }
 
+function normalizeValueForGridWrite(value: unknown): unknown {
+  const normalized = normalizeValueForEchoSignature(value)
+  if (normalized === undefined || normalized === null) return ''
+  if (typeof normalized === 'object' && normalized && !Array.isArray(normalized)) {
+    const obj = normalized as Record<string, unknown>
+    if (typeof obj.f === 'string') {
+      return obj.f.trim().startsWith('=') ? obj.f.trim() : `=${obj.f.trim()}`
+    }
+  }
+  return normalized
+}
+
 function toEchoSignature(value: unknown): string {
   const normalized = normalizeValueForEchoSignature(value)
   if (normalized === undefined) return 'u:'
@@ -308,61 +319,6 @@ function parseA1Reference(cellRef: string): { row: number; col: number } | null 
     col = col * 26 + (columnLetters.charCodeAt(i) - 64)
   }
   return { row, col: col - 1 }
-}
-
-function countCellMatrixEntries(value: SheetCellMatrix | undefined): number {
-  if (!value) return 0
-  let count = 0
-  for (const rowKey of Object.keys(value)) {
-    const rowCells = value[Number(rowKey)]
-    if (!rowCells || typeof rowCells !== 'object') continue
-    count += Object.keys(rowCells).length
-  }
-  return count
-}
-
-function listCellMatrixRefs(value: SheetCellMatrix | undefined, limit = 20): string[] {
-  if (!value) return []
-  const refs: string[] = []
-  for (const rowKey of Object.keys(value)) {
-    const rowIndex = Number(rowKey)
-    if (Number.isNaN(rowIndex)) continue
-    const rowCells = value[rowIndex]
-    if (!rowCells || typeof rowCells !== 'object') continue
-    for (const colKey of Object.keys(rowCells)) {
-      const colIndex = Number(colKey)
-      if (Number.isNaN(colIndex)) continue
-      refs.push(toA1Reference(rowIndex, colIndex))
-      if (refs.length >= limit) return refs
-    }
-  }
-  return refs
-}
-
-function collectUnmappedCellRefs(
-  cellValue: SheetCellMatrix,
-  ctx: ConversionContext,
-  rowOffset: number,
-  colOffset: number
-): string[] {
-  const missing: string[] = []
-  for (const rowKey of Object.keys(cellValue)) {
-    const rowIndex = Number(rowKey)
-    if (Number.isNaN(rowIndex)) continue
-    const rowCells = cellValue[rowIndex]
-    if (!rowCells || typeof rowCells !== 'object') continue
-    const globalRowIndex = rowIndex + rowOffset
-    const rowId = ctx.rowIndexToId.get(globalRowIndex)
-    for (const colKey of Object.keys(rowCells)) {
-      const colIndex = Number(colKey)
-      if (Number.isNaN(colIndex)) continue
-      const globalColIndex = colIndex + colOffset
-      const columnName = ctx.columnIndexToName.get(globalColIndex) ?? ctx.columnIndexToId.get(globalColIndex)
-      if (rowId && columnName) continue
-      missing.push(`${toA1Reference(globalRowIndex, globalColIndex)}:${rowId ? 'col' : 'row'}`)
-    }
-  }
-  return missing
 }
 
 function buildChangedCellSignature(cells: Array<{ rowId: string; columnName: string; value: unknown }>): string {
@@ -1407,7 +1363,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (!worksheet) return
         const range = worksheet.getRange(rowIndex, colIndex)
         if (!range) return
-        range.setValue(value as any)
+        range.setValue(normalizeValueForGridWrite(value) as any)
       } catch (e) {
         console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
       }
@@ -2142,7 +2098,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
       const handleDetectedCellMutation = ({
         source,
-        commandId,
         payloadCellValue,
         ranges
       }: {
@@ -2216,18 +2171,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (hasAuthoritativeDiff) break
           }
 
-          if (!hasAuthoritativeDiff) {
-            recordSpreadsheetCellProbe('grid:selection-reconcile-noop', {
-              commandId,
-              ranges: ranges.map(range => ({
-                startRow: range.startRow,
-                endRow: range.endRow,
-                startColumn: range.startColumn,
-                endColumn: range.endColumn
-              }))
-            })
-            return false
-          }
+          if (!hasAuthoritativeDiff) return false
         }
 
         lastCellValueMutationAtRef.current = now
@@ -2267,22 +2211,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
         const ctx = contextRef.current ?? ctxBefore
         const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
-        recordSpreadsheetCellProbe(`grid:${source}`, {
-          commandId,
-          ranges: ranges.map(range => ({
-            startRow: range.startRow,
-            endRow: range.endRow,
-            startColumn: range.startColumn,
-            endColumn: range.endColumn
-          })),
-          payloadCount: countCellMatrixEntries(payloadCellValue),
-          worksheetCount: countCellMatrixEntries(worksheetCellValue),
-          mergedCount: countCellMatrixEntries(cellValue),
-          mergedRefs: listCellMatrixRefs(cellValue),
-          changedCount: changedCells.length,
-          changedRefs: changedCells.map(cell => `${String(cell.columnName)}:${String(cell.rowId)}`).slice(0, 20),
-          unmappedRefs: collectUnmappedCellRefs(cellValue, ctx, rowOffset, colOffset).slice(0, 20)
-        })
 
         if (changedCells.length === 0) return false
 
@@ -2292,15 +2220,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             recentLocalMutationSignaturesRef.current.delete(existingSignature)
           }
         }
-        if (recentLocalMutationSignaturesRef.current.has(signature)) {
-          recordSpreadsheetCellProbe('grid:deduped-local-mutation', {
-            source,
-            commandId,
-            changedCount: changedCells.length,
-            signature
-          })
-          return true
-        }
+        if (recentLocalMutationSignaturesRef.current.has(signature)) return true
         recentLocalMutationSignaturesRef.current.set(signature, now)
 
         if (onCellsChangeCb) {
@@ -2533,11 +2453,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (Date.now() < suppressProgrammaticMutationSideEffectsUntilRef.current) return
           const cell = params?.cell
           const range = params?.range
-          const workbook = univerAPIRef.current?.getActiveWorkbook?.()
-          const active = activeSelectionRef.current ?? extractActiveRangePosition(workbook)
-          const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow ?? active?.row
-          const col =
-            cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn ?? active?.col
+          // Never fall back to the current active selection here. After a slow edit ends,
+          // Univer may already have moved selection to the next cell, which can duplicate
+          // the just-typed value into a neighbor. Selection-based reconciliation runs separately.
+          const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
+          const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
           reconcileSingleCell(row, col, 'sheet-edit-ended', 'sheet-edit-ended')
         }
       )

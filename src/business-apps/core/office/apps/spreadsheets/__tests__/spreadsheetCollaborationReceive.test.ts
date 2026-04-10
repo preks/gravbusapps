@@ -23,28 +23,56 @@ function rowMatchesRemoteId(row: Record<string, unknown>, remoteRowId: string): 
   return candidateIds.includes(remoteRowId)
 }
 
+function normalizeValueForEchoSignature(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed.startsWith('=')) return { f: trimmed }
+    return value
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const obj = value as Record<string, unknown>
+  if (typeof obj.f === 'string') {
+    const trimmed = obj.f.trim()
+    return { f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
+  }
+  if (obj.v !== undefined) return obj.v
+  if (obj.m !== undefined) return obj.m
+  return value
+}
+
+function normalizeValueForGridWrite(value: unknown): unknown {
+  const normalized = normalizeValueForEchoSignature(value)
+  if (normalized === undefined || normalized === null) return ''
+  if (typeof normalized === 'object' && normalized && !Array.isArray(normalized)) {
+    const obj = normalized as Record<string, unknown>
+    if (typeof obj.f === 'string') {
+      return obj.f.trim().startsWith('=') ? obj.f.trim() : `=${obj.f.trim()}`
+    }
+  }
+  return normalized
+}
+
 function resolveRemoteCellCoordinates(
   columns: SpreadsheetColumn[],
   data: Record<string, unknown>[],
   columnKey: string,
   remoteRowId: string
-): { rowIndex: number | undefined; colIndex: number; targetColumnName: string } {
+): { rowIndex: number | undefined; colIndex: number | undefined; targetColumnName: string; columnExists: boolean } {
   const ctx = createUniverConversionContext(columns, data)
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
   let rowIndex = ctx.rowIdToIndex.get(remoteRowId)
   if (rowIndex === undefined) {
     const fallbackIndex = data.findIndex(row => backendRowIdOf(row) === remoteRowId)
     if (fallbackIndex >= 0) rowIndex = fallbackIndex
   }
 
-  let colIndex = ctx.columnIdToIndex.get(columnKey) ?? -1
-  if (colIndex < 0) {
-    colIndex = columns.findIndex(c => c.id === columnKey || c.name === columnKey)
-  }
+  const targetColumn = columns.find(c => c.id === columnKey || c.name === columnKey)
+  let colIndex = visibleColumns.findIndex(c => c.id === columnKey || c.name === columnKey)
+  if (colIndex < 0) colIndex = undefined
 
-  const targetColumnName =
-    columns.find(c => c.id === columnKey)?.name ?? columns.find(c => c.name === columnKey)?.name ?? String(columnKey)
+  const targetColumnName = targetColumn?.name ?? String(columnKey)
 
-  return { rowIndex, colIndex, targetColumnName }
+  return { rowIndex, colIndex, targetColumnName, columnExists: Boolean(targetColumn) }
 }
 
 describe('spreadsheetCollaborationReceive', () => {
@@ -71,6 +99,7 @@ describe('spreadsheetCollaborationReceive', () => {
       expect(result.rowIndex).toBe(0)
       expect(result.colIndex).toBe(0)
       expect(result.targetColumnName).toBe('ColumnA')
+      expect(result.columnExists).toBe(true)
     })
 
     it('returns rowIndex undefined when remoteRowId not found in data', () => {
@@ -86,11 +115,26 @@ describe('spreadsheetCollaborationReceive', () => {
       expect(result.targetColumnName).toBe('ColumnA')
     })
 
-    it('returns colIndex -1 when column not found', () => {
+    it('returns undefined colIndex when column not found', () => {
       const result = resolveRemoteCellCoordinates(columns, dataWithBackendIds, 'NonExistentColumn', 'uuid-1')
       expect(result.rowIndex).toBe(0)
-      expect(result.colIndex).toBe(-1)
+      expect(result.colIndex).toBeUndefined()
       expect(result.targetColumnName).toBe('NonExistentColumn')
+      expect(result.columnExists).toBe(false)
+    })
+
+    it('uses visible-column indexes for remote grid patches', () => {
+      const columnsWithHidden: SpreadsheetColumn[] = [
+        { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true },
+        { id: 'col-hidden', name: 'HiddenColumn', type: 'text', isVisible: false },
+        { id: 'col-b', name: 'ColumnB', type: 'number', isVisible: true }
+      ]
+
+      const result = resolveRemoteCellCoordinates(columnsWithHidden, dataWithBackendIds, 'ColumnB', 'uuid-1')
+      expect(result.rowIndex).toBe(0)
+      expect(result.colIndex).toBe(1)
+      expect(result.targetColumnName).toBe('ColumnB')
+      expect(result.columnExists).toBe(true)
     })
   })
 
@@ -112,7 +156,7 @@ describe('spreadsheetCollaborationReceive', () => {
       expect(shouldCallApplyRemoteCellUpdate).toBe(false)
     })
 
-    it('would NOT apply when colIndex is -1 (column not found)', () => {
+    it('would NOT apply when colIndex is undefined (column not found)', () => {
       const { rowIndex, colIndex } = resolveRemoteCellCoordinates(columns, dataWithBackendIds, 'BadColumn', 'uuid-1')
       const shouldCallApplyRemoteCellUpdate = rowIndex !== undefined && colIndex !== undefined && colIndex >= 0
       expect(shouldCallApplyRemoteCellUpdate).toBe(false)
@@ -120,6 +164,12 @@ describe('spreadsheetCollaborationReceive', () => {
   })
 
   describe('sequential remote updates', () => {
+    it('unwraps persisted cell objects before writing them into the remote grid', () => {
+      expect(normalizeValueForGridWrite({ v: 1 })).toBe(1)
+      expect(normalizeValueForGridWrite({ m: 'display-only' })).toBe('display-only')
+      expect(normalizeValueForGridWrite({ f: 'SUM(A1:A3)' })).toBe('=SUM(A1:A3)')
+    })
+
     it('can resolve direct grid patches for authoritative batch set_range cells before row-state sync', () => {
       const gridPatches: Array<{ rowIndex: number; colIndex: number; value: unknown }> = []
       const incomingBatch = {
