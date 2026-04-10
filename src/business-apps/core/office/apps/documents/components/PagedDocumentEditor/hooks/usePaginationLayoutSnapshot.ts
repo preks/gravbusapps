@@ -534,17 +534,77 @@ export function shouldRefreshViewportWindow(
   return shouldShiftDocumentVirtualWindow(activeRange, nextPage, pageCount)
 }
 
-function isPendingViewportRefreshForPage(runtimeState: DocumentLayoutRuntimeState, pageNumber: number): boolean {
-  if (runtimeState.pendingScope !== 'viewport') {
+function doesPageRangeCoverPage(range: DocumentLayoutPageRange | null, pageNumber: number): boolean {
+  if (!range) {
     return false
   }
 
-  const pendingRange = runtimeState.pendingRange
-  if (!pendingRange) {
+  return pageNumber >= range.startPage && pageNumber <= range.endPage
+}
+
+function doesPageRangeCoverRange(
+  containerRange: DocumentLayoutPageRange | null,
+  requestedRange: DocumentLayoutPageRange | null
+): boolean {
+  if (!requestedRange) {
+    return containerRange === null
+  }
+
+  if (!containerRange) {
+    return false
+  }
+
+  return requestedRange.startPage >= containerRange.startPage && requestedRange.endPage <= containerRange.endPage
+}
+
+function isPendingViewportRefreshForPage(runtimeState: DocumentLayoutRuntimeState, pageNumber: number): boolean {
+  if (runtimeState.pendingScope !== null) {
+    if (!runtimeState.pendingRange) {
+      return true
+    }
+
+    if (doesPageRangeCoverPage(runtimeState.pendingRange, pageNumber)) {
+      return true
+    }
+  }
+
+  if (runtimeState.status !== 'idle' && doesPageRangeCoverPage(runtimeState.lastRequestedRange, pageNumber)) {
     return true
   }
 
-  return pageNumber >= pendingRange.startPage && pageNumber <= pendingRange.endPage
+  return runtimeState.status === 'idle' && doesPageRangeCoverPage(runtimeState.lastResolvedRange, pageNumber)
+}
+
+function shouldSkipViewportRefreshRequest(options: {
+  runtimeState: DocumentLayoutRuntimeState
+  snapshot: DocumentLayoutSnapshot
+  requestedRange: DocumentLayoutPageRange | null
+}): boolean {
+  const { runtimeState, snapshot, requestedRange } = options
+  if (!requestedRange) {
+    return false
+  }
+
+  const activeSnapshotRange = snapshot.activeRange ?? snapshot.mountedRange
+  if (doesPageRangeCoverRange(activeSnapshotRange, requestedRange)) {
+    return true
+  }
+
+  if (runtimeState.pendingScope !== null) {
+    if (!runtimeState.pendingRange) {
+      return true
+    }
+
+    if (doesPageRangeCoverRange(runtimeState.pendingRange, requestedRange)) {
+      return true
+    }
+  }
+
+  if (runtimeState.status !== 'idle' && doesPageRangeCoverRange(runtimeState.lastRequestedRange, requestedRange)) {
+    return true
+  }
+
+  return runtimeState.status === 'idle' && doesPageRangeCoverRange(runtimeState.lastResolvedRange, requestedRange)
 }
 
 export function resolveCurrentPageFromPageBounds(
@@ -1063,6 +1123,16 @@ export function usePaginationLayoutSnapshot({
       const resolvedTargetPage = targetPage ?? currentPageRef.current
       const scope = resolveInvalidationScope(reason)
       const pageRange = resolveInvalidationRange(reason, pageCount, resolvedTargetPage)
+      if (
+        reason === 'viewport-resize' &&
+        shouldSkipViewportRefreshRequest({
+          runtimeState: runtimeStateRef.current,
+          snapshot: layoutSnapshotRef.current,
+          requestedRange: pageRange
+        })
+      ) {
+        return
+      }
       incrementPaginationInstrumentationCounter('layout-snapshot-refresh-scheduled-total')
       incrementPaginationInstrumentationCounter(`layout-snapshot-refresh-reason:${reason}`)
       if (immediate) {

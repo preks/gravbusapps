@@ -985,6 +985,57 @@ describe('usePaginationLayoutSnapshot', () => {
       expect(requestLayoutCalls.filter(call => call.reason === 'document-hydration')).toEqual([])
       expect(requestLayoutCalls.filter(call => call.reason === 'layout-service-changed')).toEqual([])
     })
+
+    it('skips redundant viewport refreshes once the requested window is already active', async () => {
+      const { service } = createLayoutServiceStub(30)
+      let emitInvalidation: ((reason: string) => void) | null = null
+      service.observeLayout = jest.fn(({ onInvalidated }) => {
+        emitInvalidation = onInvalidated as (reason: string) => void
+        return () => undefined
+      })
+      const editorContainerRef = {
+        current: document.createElement('div')
+      } as MutableRefObject<HTMLDivElement | null>
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: null,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 6; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        emitInvalidation?.('viewport-resize')
+      })
+
+      await act(async () => {
+        for (let i = 0; i < 4; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      requestLayoutCalls = []
+
+      act(() => {
+        emitInvalidation?.('viewport-resize')
+      })
+
+      await act(async () => {
+        for (let i = 0; i < 2; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      expect(requestLayoutCalls.filter(call => call.reason === 'viewport-resize')).toEqual([])
+    })
   })
 
   describe('chunked layout yields after measurement', () => {
