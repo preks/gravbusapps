@@ -4,6 +4,7 @@ import { PaperPlaneRightIcon, PaperclipIcon, PlugIcon, StopIcon, XIcon } from '@
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { ActiveConnectorChips } from '../connectors/ActiveConnectorChips'
+import { SETTINGS_KEY } from '../settings/agentSettings.types'
 
 export interface FabricInputProps {
   /** 'landing' = full centered card; 'workspace' = compact bottom bar */
@@ -31,6 +32,24 @@ const DEFAULT_CONFIG: SessionConfig = {
   mode: 'deep',
   enable_memory: true,
   enable_reflection: undefined
+}
+
+function buildSessionConfig(selectedAgent?: SpecialistAgent): SessionConfig {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (!raw) return { ...DEFAULT_CONFIG, selectedAgent }
+    const parsed = JSON.parse(raw)
+    return {
+      ...DEFAULT_CONFIG,
+      enable_memory: parsed.enableMemory ?? DEFAULT_CONFIG.enable_memory,
+      enable_reflection:
+        parsed.enableReflection === 'always' ? true : parsed.enableReflection === 'disabled' ? false : undefined,
+      ...(parsed.maxIterations ? { max_iterations: parsed.maxIterations } : {}),
+      selectedAgent
+    }
+  } catch {
+    return { ...DEFAULT_CONFIG, selectedAgent }
+  }
 }
 
 function resolveFabricInputPlaceholder(
@@ -99,10 +118,13 @@ export const FabricInput: React.FC<FabricInputProps> = ({
       if (isReplyMode && onReply) {
         await Promise.resolve(onReply(trimmed))
       } else {
-        const task = selectedAgent
-          ? `[Working with: ${selectedAgent.display_name} — ${selectedAgent.description}]\n\n${trimmed}`
-          : trimmed
-        await Promise.resolve(onSubmit(task, { ...DEFAULT_CONFIG, selectedAgent }))
+        let task = trimmed
+
+        if (selectedAgent) {
+          task = `[Working with: ${selectedAgent.display_name} — ${selectedAgent.description}]\n\n${trimmed}`
+        }
+
+        await Promise.resolve(onSubmit(task, buildSessionConfig(selectedAgent)))
       }
       setValue('')
     } finally {
@@ -126,7 +148,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   if (isLanding) {
     return (
       <div className="gba:w-full" data-testid="fabric-input-landing">
-        <div className="gba:rounded-[2rem] gba:border gba:border-border/80 gba:bg-card/98 gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/15 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+        <div className="gba:rounded-4xl gba:border gba:border-border/80 gba:bg-card/98 gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/15 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
           <Textarea
             ref={textareaRef}
             value={value}

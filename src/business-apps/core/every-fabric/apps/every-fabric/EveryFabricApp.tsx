@@ -4,6 +4,7 @@ import { Button } from '@newwork/nw-design-system'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { SessionHistoryDrawer } from './components/history/SessionHistoryDrawer'
+import { AgentSettingsPanel } from './components/settings/AgentSettingsPanel'
 import { WorkspaceLayout } from './components/workspace/WorkspaceLayout'
 import { FabricProvider, useFabric } from './context/FabricContext'
 
@@ -18,6 +19,7 @@ import { FabricProvider, useFabric } from './context/FabricContext'
 const EveryFabricInner: React.FC = () => {
   const { session, sessions, activeSessionId, accessToken, startSession, selectSession, deleteSession } = useFabric()
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const handleSelectSession = (id: string) => {
     selectSession(id)
@@ -52,6 +54,7 @@ const EveryFabricInner: React.FC = () => {
           accessToken={accessToken}
           onStartSession={startSession}
           onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
         <SessionHistoryDrawer
           sessions={sessions}
@@ -61,13 +64,18 @@ const EveryFabricInner: React.FC = () => {
           onSelectSession={handleSelectSession}
           onDeleteSession={deleteSession}
         />
+        <AgentSettingsPanel
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          accessToken={accessToken}
+        />
       </>
     )
   }
 
   return (
     <>
-      <WorkspaceLayout onOpenHistory={() => setIsHistoryOpen(true)} />
+      <WorkspaceLayout onOpenHistory={() => setIsHistoryOpen(true)} onOpenSettings={() => setIsSettingsOpen(true)} />
       <SessionHistoryDrawer
         sessions={sessions}
         activeSessionId={activeSessionId}
@@ -76,6 +84,7 @@ const EveryFabricInner: React.FC = () => {
         onSelectSession={handleSelectSession}
         onDeleteSession={deleteSession}
       />
+      <AgentSettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} accessToken={accessToken} />
     </>
   )
 }
