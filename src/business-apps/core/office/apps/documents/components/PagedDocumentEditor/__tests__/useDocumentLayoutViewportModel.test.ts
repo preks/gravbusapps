@@ -268,4 +268,54 @@ describe('useDocumentLayoutViewportModel', () => {
     expect(result.current.activePageBodyBounds).toBe(layoutSnapshot.mountedPageBodyBounds)
     expect(result.current.activePagePositionRanges).toBe(layoutSnapshot.pagePositionRanges)
   })
+
+  it('recovers a virtual active range from the current page for sparse large documents', () => {
+    const layoutSnapshot: DocumentLayoutSnapshot = {
+      documentVersion: 3,
+      layoutVersion: 6,
+      source: 'incremental-layout-engine',
+      pageCount: 41,
+      pages: Array.from({ length: 41 }, (_unused, index) => ({
+        pageNumber: index + 1,
+        flowIndex: index,
+        mountedIndex: index < 21 ? index : null,
+        isMounted: index < 21
+      })),
+      flow: Array.from({ length: 41 }, (_unused, index) => ({
+        flowIndex: index,
+        pageRange: { startPage: index + 1, endPage: index + 1 },
+        kind: index < 21 ? ('page-break' as const) : ('spacer' as const),
+        isMounted: index < 21
+      })),
+      mountedRange: { startPage: 1, endPage: 21 },
+      pageBounds: [],
+      mountedPageBodyBounds: Array.from({ length: 21 }, (_unused, index) => ({
+        pageNumber: index + 1,
+        top: index * 100,
+        bottom: index * 100 + 90,
+        left: 10,
+        right: 110
+      })),
+      pageSpans: [],
+      retainedPageSpans: [],
+      pagePositionRanges: [],
+      pageChromeMetrics: [],
+      anchors: { comments: [], images: [], links: [], tables: [] },
+      tableFragments: [],
+      activeRange: { startPage: 1, endPage: 41 },
+      activePages: Array.from({ length: 41 }, (_unused, index) => ({
+        pageNumber: index + 1,
+        flowIndex: index,
+        mountedIndex: index < 21 ? index : null,
+        isMounted: index < 21
+      }))
+    }
+
+    const { result } = renderHook(() => useDocumentLayoutViewportModel(layoutSnapshot, 38))
+
+    expect(result.current.activeRange).toEqual({ startPage: 36, endPage: 40 })
+    expect(result.current.activePageNumbers).toEqual([36, 37, 38, 39, 40])
+    expect(result.current.isWindowed).toBe(true)
+    expect(result.current.windowKey).toBe('incremental-layout-engine:36-40:5:1-21:sparse')
+  })
 })

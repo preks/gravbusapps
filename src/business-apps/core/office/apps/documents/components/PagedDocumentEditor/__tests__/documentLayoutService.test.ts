@@ -671,6 +671,29 @@ describe('large-document chunked geometry', () => {
     expect(bounds).toHaveLength(60)
   })
 
+  it('excludes placeholder shells from batched mounted body bounds on large documents', async () => {
+    const container = mountPaginationRoot(60)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const pageBreakEls = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    pageBreakEls.forEach((pageBreak, index) => {
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, { top: index * 100, bottom: index * 100 + 90, left: 0, right: 100, width: 100, height: 90 })
+      }
+      if (index >= 6) {
+        pageBreak.dataset.rmPageShellState = 'placeholder'
+      } else {
+        pageBreak.dataset.rmPageShellState = 'hydrated'
+      }
+    })
+
+    const boundsPromise = resolveMountedPageBodyBoundsBatched(pageBreakEls, 28)
+    const bounds = await settleChunkedLayoutPromise(boundsPromise)
+
+    expect(bounds).toHaveLength(6)
+    expect(bounds.map(bound => bound.pageNumber)).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
   it('matches synchronous layout measurement after flushing rAF for large structures', async () => {
     const container = mountPaginationRoot(60)
     const root = container.querySelector('[data-rm-pagination]') as HTMLElement

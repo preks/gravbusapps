@@ -10,7 +10,7 @@ import type {
   DocumentLayoutSource,
   DocumentLayoutTableFragmentSnapshot
 } from '../../../types'
-import { isDocumentVirtualWindowEnabled } from '../virtualWindowConfig'
+import { isDocumentVirtualWindowEnabled, resolveDocumentVirtualWindowRange } from '../virtualWindowConfig'
 
 export interface DocumentLayoutViewportModel {
   documentVersion: number
@@ -49,6 +49,37 @@ function createFallbackRange(totalPages: number): DocumentLayoutPageRange {
   }
 }
 
+function arePageRangesEqual(left: DocumentLayoutPageRange | null, right: DocumentLayoutPageRange | null): boolean {
+  if (left === right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  return left.startPage === right.startPage && left.endPage === right.endPage
+}
+
+function doesPageRangeCoverRange(
+  containerRange: DocumentLayoutPageRange | null,
+  requestedRange: DocumentLayoutPageRange | null
+): boolean {
+  if (!requestedRange) {
+    return containerRange === null
+  }
+
+  if (!containerRange) {
+    return false
+  }
+
+  return requestedRange.startPage >= containerRange.startPage && requestedRange.endPage <= containerRange.endPage
+}
+
+function isFullDocumentRange(range: DocumentLayoutPageRange | null, totalPages: number): boolean {
+  return Boolean(range && range.startPage <= 1 && range.endPage >= totalPages)
+}
+
 function filterPageNumberEntriesForActiveRange<T extends { pageNumber: number }>(
   entries: T[],
   activeRange: DocumentLayoutPageRange
@@ -66,6 +97,13 @@ function filterPageNumberEntriesForActiveRange<T extends { pageNumber: number }>
   return entries.filter(entry => entry.pageNumber >= activeRange.startPage && entry.pageNumber <= activeRange.endPage)
 }
 
+function filterPageSnapshotsForActiveRange(
+  pages: DocumentLayoutSnapshot['pages'],
+  activeRange: DocumentLayoutPageRange
+): DocumentLayoutSnapshot['activePages'] {
+  return pages.filter(page => page.pageNumber >= activeRange.startPage && page.pageNumber <= activeRange.endPage)
+}
+
 export function useDocumentLayoutViewportModel(
   layoutSnapshot: DocumentLayoutSnapshot,
   currentPage: number
@@ -73,14 +111,29 @@ export function useDocumentLayoutViewportModel(
   return useMemo(() => {
     const totalPages = Math.max(1, layoutSnapshot.pageCount)
     const windowingEnabled = isDocumentVirtualWindowEnabled(totalPages)
+    const hasSparseFlow = layoutSnapshot.flow.some(flowEntry => !flowEntry.isMounted)
+    const fallbackRange = createFallbackRange(totalPages)
+    const snapshotActiveRange = layoutSnapshot.activeRange
+    const shouldRecoverWindowedActiveRange =
+      windowingEnabled &&
+      hasSparseFlow &&
+      (!snapshotActiveRange ||
+        isFullDocumentRange(snapshotActiveRange, totalPages) ||
+        !doesPageRangeCoverRange(layoutSnapshot.mountedRange, snapshotActiveRange))
     const activeRange = windowingEnabled
-      ? (layoutSnapshot.activeRange ?? createFallbackRange(totalPages))
-      : createFallbackRange(totalPages)
+      ? shouldRecoverWindowedActiveRange
+        ? resolveDocumentVirtualWindowRange(totalPages, currentPage)
+        : (snapshotActiveRange ?? fallbackRange)
+      : fallbackRange
+    const activePages =
+      windowingEnabled && arePageRangesEqual(snapshotActiveRange, activeRange)
+        ? layoutSnapshot.activePages
+        : filterPageSnapshotsForActiveRange(layoutSnapshot.pages, activeRange)
     const activePageNumbers = windowingEnabled
-      ? layoutSnapshot.activePages.map(page => page.pageNumber)
+      ? activePages.map(page => page.pageNumber)
       : Array.from({ length: totalPages }, (_unused, index) => index + 1)
     const activePageCount = activePageNumbers.length
-    const mountedRange = windowingEnabled ? layoutSnapshot.mountedRange : createFallbackRange(totalPages)
+    const mountedRange = windowingEnabled ? layoutSnapshot.mountedRange : fallbackRange
     const mountedPageNumbers = windowingEnabled
       ? layoutSnapshot.pages.filter(page => page.isMounted).map(page => page.pageNumber)
       : Array.from({ length: totalPages }, (_unused, index) => index + 1)
@@ -95,7 +148,6 @@ export function useDocumentLayoutViewportModel(
     const pageChromeMetrics = layoutSnapshot.pageChromeMetrics
     const anchors = layoutSnapshot.anchors
     const tableFragments = layoutSnapshot.tableFragments
-    const hasSparseFlow = layoutSnapshot.flow.some(flowEntry => !flowEntry.isMounted)
     const isWindowed = activeRange.startPage > 1 || activeRange.endPage < totalPages
     const containsCurrentPage = currentPage >= activeRange.startPage && currentPage <= activeRange.endPage
     const mountedRangeLabel = mountedRange ? `${mountedRange.startPage}-${mountedRange.endPage}` : 'none'

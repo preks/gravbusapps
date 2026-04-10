@@ -102,6 +102,48 @@ function resolveMountedRange(activeRange: DocumentLayoutPageRange) {
   }
 }
 
+function doesPageRangeCoverRange(
+  containerRange: DocumentLayoutPageRange | null,
+  requestedRange: DocumentLayoutPageRange
+): boolean {
+  if (!containerRange) {
+    return false
+  }
+
+  return requestedRange.startPage >= containerRange.startPage && requestedRange.endPage <= containerRange.endPage
+}
+
+function createPageNumbersForRange(range: DocumentLayoutPageRange, totalPages: number): number[] {
+  const pageNumbers: number[] = []
+  const endPage = Math.min(totalPages, range.endPage)
+
+  for (let pageNumber = Math.max(1, range.startPage); pageNumber <= endPage; pageNumber += 1) {
+    pageNumbers.push(pageNumber)
+  }
+
+  return pageNumbers
+}
+
+function resolveEffectiveMountedState(
+  viewportModel: Pick<DocumentLayoutViewportModel, 'activeRange' | 'mountedRange' | 'mountedPageNumbers' | 'totalPages'>
+): {
+  mountedRange: DocumentLayoutPageRange
+  mountedPageNumbers: number[]
+} {
+  if (doesPageRangeCoverRange(viewportModel.mountedRange, viewportModel.activeRange)) {
+    return {
+      mountedRange: viewportModel.mountedRange ?? resolveMountedRange(viewportModel.activeRange),
+      mountedPageNumbers: viewportModel.mountedPageNumbers
+    }
+  }
+
+  const recoveredMountedRange = resolveMountedRange(viewportModel.activeRange)
+  return {
+    mountedRange: recoveredMountedRange,
+    mountedPageNumbers: createPageNumbersForRange(recoveredMountedRange, viewportModel.totalPages)
+  }
+}
+
 export function parkPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
   const breaker = resolveBreakerElement(pageBreakEl)
   if (!(breaker instanceof HTMLElement)) return
@@ -237,9 +279,9 @@ export function useApplyDocumentLayoutWindowedBreakers({
         return
       }
 
-      const desiredMountedRange = viewportModel.mountedRange ?? resolveMountedRange(viewportModel.activeRange)
-      syncMountedRangeMetadata(paginationRoot, desiredMountedRange, viewportModel.totalPages)
-      const mountedPages = new Set(viewportModel.mountedPageNumbers)
+      const effectiveMountedState = resolveEffectiveMountedState(viewportModel)
+      syncMountedRangeMetadata(paginationRoot, effectiveMountedState.mountedRange, viewportModel.totalPages)
+      const mountedPages = new Set(effectiveMountedState.mountedPageNumbers)
       const desiredHydratedPages = resolveDesiredHydratedPageNumbers(mountedPages, viewportModel.totalPages)
       const pageNumbersToHydrate: number[] = []
 
