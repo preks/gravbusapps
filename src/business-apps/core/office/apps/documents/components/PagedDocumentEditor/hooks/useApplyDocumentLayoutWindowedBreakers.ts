@@ -58,11 +58,11 @@ function syncMountedRangeMetadata(
   paginationRoot.dataset.rmMountedEndPage = String(normalizedRange.endPage)
 }
 
-function resolveDesiredHydratedPageNumbers(activePages: Set<number>, totalPages: number) {
+function resolveDesiredHydratedPageNumbers(mountedPages: Set<number>, totalPages: number) {
   const desiredHydratedPages = new Set<number>()
 
   for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
-    if (shouldMountPageBreaker(pageNumber, activePages)) {
+    if (shouldMountPageBreaker(pageNumber, mountedPages)) {
       desiredHydratedPages.add(pageNumber)
     }
   }
@@ -237,10 +237,10 @@ export function useApplyDocumentLayoutWindowedBreakers({
         return
       }
 
-      const desiredMountedRange = resolveMountedRange(viewportModel.activeRange)
+      const desiredMountedRange = viewportModel.mountedRange ?? resolveMountedRange(viewportModel.activeRange)
       syncMountedRangeMetadata(paginationRoot, desiredMountedRange, viewportModel.totalPages)
-      const activePages = new Set(viewportModel.activePageNumbers)
-      const desiredHydratedPages = resolveDesiredHydratedPageNumbers(activePages, viewportModel.totalPages)
+      const mountedPages = new Set(viewportModel.mountedPageNumbers)
+      const desiredHydratedPages = resolveDesiredHydratedPageNumbers(mountedPages, viewportModel.totalPages)
       const pageNumbersToHydrate: number[] = []
 
       pageBreakersRef.current.forEach((pageBreakEl, pageNumber) => {
@@ -282,6 +282,8 @@ export function useApplyDocumentLayoutWindowedBreakers({
     viewportModel.activePageNumbers,
     viewportModel.activeRange,
     viewportModel.isWindowed,
+    viewportModel.mountedPageNumbers,
+    viewportModel.mountedRange,
     viewportModel.totalPages,
     viewportModel.windowKey
   ])
