@@ -3,7 +3,7 @@ import { io, type Socket } from 'socket.io-client'
 
 const OFFICE_CLIENT_VERSION = '1'
 
-export type OfficeEntityType = 'document' | 'spreadsheet' | 'note'
+export type OfficeEntityType = 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard' | 'presentation'
 
 export type OfficeWebSocketOptions = {
   connectionTimeout?: number
@@ -50,6 +50,8 @@ export interface OfficeDocumentOperation {
   baseVersion?: number
   broadcastOnly?: boolean
 }
+
+export type OfficeDocumentOperationAckResult = { success: boolean; version?: number; error?: string }
 
 type JoinDocumentResponse = {
   success?: boolean
@@ -289,13 +291,92 @@ export class OfficeWebSocketClient {
     return this.emit('leave_document', { entityType, entityId })
   }
 
-  sendDocumentOperation(entityType: OfficeEntityType, entityId: string, operation: OfficeDocumentOperation) {
+  sendDocumentOperation(
+    entityType: OfficeEntityType,
+    entityId: string,
+    operation: OfficeDocumentOperation,
+    onAckFailure?: (operation: OfficeDocumentOperation) => void
+  ) {
     if (!this.socket?.connected) {
+      onAckFailure?.(operation)
       return false
     }
 
-    this.socket.emit('document_operation', { entityType, entityId, operation })
+    let ackReceived = false
+    const ackTimeout = setTimeout(() => {
+      if (ackReceived) {
+        return
+      }
+
+      ackReceived = true
+      onAckFailure?.(operation)
+    }, 5000)
+
+    this.socket.emit('document_operation', { entityType, entityId, operation }, (response: unknown) => {
+      if (ackReceived) {
+        return
+      }
+
+      ackReceived = true
+      clearTimeout(ackTimeout)
+
+      const resolvedResponse = response as { success?: boolean; error?: string } | null
+      if (resolvedResponse?.success === false) {
+        onAckFailure?.(operation)
+      }
+    })
     return true
+  }
+
+  sendDocumentOperationAsync(
+    entityType: OfficeEntityType,
+    entityId: string,
+    operation: OfficeDocumentOperation,
+    timeoutMs = 15000
+  ): Promise<OfficeDocumentOperationAckResult> {
+    return new Promise(resolve => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: 'not_connected' })
+        return
+      }
+
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        resolve({ success: false, error: 'timeout' })
+      }, timeoutMs)
+
+      this.socket.emit('document_operation', { entityType, entityId, operation }, (response: unknown) => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        clearTimeout(timer)
+
+        if (response == null) {
+          resolve({ success: false, error: 'empty_ack' })
+          return
+        }
+
+        const resolvedResponse = response as { success?: boolean; version?: number; error?: string }
+        if (resolvedResponse.success === false) {
+          resolve({ success: false, error: String(resolvedResponse.error ?? 'ack_failure') })
+          return
+        }
+
+        const version = resolvedResponse.version
+        resolve({
+          success: true,
+          version:
+            typeof version === 'number' && Number.isFinite(version) && version >= 0 ? Math.trunc(version) : undefined
+        })
+      })
+    })
   }
 
   sendCursorMove(
