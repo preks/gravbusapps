@@ -72,10 +72,19 @@ const STRUCTURAL_OPS = new Set(['row_add', 'row_delete', 'column_add', 'column_d
 const STRUCTURAL_OP_TYPES = new Set(['add_rows', 'delete_rows'])
 const CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell', 'cells_changed'])
 
+export type PersistCellsToServerResult = {
+  success: boolean
+  version?: number
+  error?: string
+}
+
 export class SpreadsheetCollaborationManager {
   private callbacks: CollaborationCallbacks
   private emitFn: ((op: DocumentOperation) => void) | null = null
   private emitCursorFn: ((pos: { path?: string[] }) => void) | null = null
+  private documentOpAsync:
+    | ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>)
+    | null = null
   private connected = false
   private joined = false
   private pendingOps: DocumentOperation[] = []
@@ -94,6 +103,12 @@ export class SpreadsheetCollaborationManager {
   setEmitFunctions(emitOp: (op: DocumentOperation) => void, emitCursor: (pos: { path?: string[] }) => void): void {
     this.emitFn = emitOp
     this.emitCursorFn = emitCursor
+  }
+
+  setDocumentOperationAsync(
+    fn: ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>) | null
+  ): void {
+    this.documentOpAsync = fn
   }
 
   setConnectionState(connected: boolean, joined: boolean): void {
@@ -135,6 +150,52 @@ export class SpreadsheetCollaborationManager {
       data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
       broadcastOnly: true
     })
+  }
+
+  async persistCellsChangedToServer(
+    cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>
+  ): Promise<PersistCellsToServerResult> {
+    const sheetId = this.callbacks.getActiveSheetId()
+    const collabCells: CellsChangedCell[] = []
+
+    for (const cell of cells) {
+      const backendRowId = this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId))
+      if (!backendRowId) continue
+      const entry: CellsChangedCell = { rowId: backendRowId, column: cell.columnName, value: cell.value }
+      if (cell.univerRow != null && cell.univerCol != null) {
+        entry.cellRef = toA1Reference(cell.univerRow, cell.univerCol)
+      }
+      collabCells.push(entry)
+    }
+
+    if (collabCells.length === 0) {
+      return {
+        success: false,
+        error: cells.length > 0 ? 'no_backend_rows' : undefined
+      }
+    }
+
+    const op: DocumentOperation = {
+      type: 'cells_changed',
+      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
+      broadcastOnly: false
+    }
+
+    const send = this.documentOpAsync
+    if (!send) {
+      return { success: false, error: 'no_async_channel' }
+    }
+
+    const result = await send(op)
+    if (result.success && result.version != null) {
+      this.lastKnownVersion = Math.max(this.lastKnownVersion, result.version)
+      this.callbacks.onVersionUpdate(result.version)
+    }
+    return {
+      success: result.success,
+      version: result.version,
+      error: result.error
+    }
   }
 
   emitCursor(path: string[]): void {

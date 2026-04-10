@@ -1,8 +1,9 @@
-import { CaretDownIcon, CheckIcon, ClockCounterClockwiseIcon, PackageIcon } from '@phosphor-icons/react'
+import { CaretDownIcon, CheckIcon, ClockCounterClockwiseIcon, GearIcon, PackageIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import type { SessionConfig, EnterpriseSkill } from '../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
+import { SETTINGS_KEY } from '../settings/agentSettings.types'
 import { FabricInput } from './FabricInput'
 import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
 
@@ -15,6 +16,7 @@ interface LandingScreenProps {
     activeEnterpriseSkillId?: string
   ) => void | Promise<unknown>
   onOpenHistory: () => void
+  onOpenSettings: () => void
 }
 
 // ─── Radial glow background (CSS-in-JS since Tailwind can't express this) ────
@@ -38,7 +40,12 @@ const GlowStyle: React.FC = () => (
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession, onOpenHistory }) => {
+export const LandingScreen: React.FC<LandingScreenProps> = ({
+  accessToken,
+  onStartSession,
+  onOpenHistory,
+  onOpenSettings
+}) => {
   const client = useEnterpriseAgentClient(accessToken)
   const {
     availableConnectors,
@@ -55,7 +62,26 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
   useEffect(() => {
     client
       .listEnterpriseSkills()
-      .then(data => setSkills((data ?? []).filter(skl => skl.is_active !== false)))
+      .then(data => {
+        const active = (data ?? []).filter(skl => skl.is_active !== false)
+        setSkills(active)
+
+        // Pre-select the default skill from settings (if configured and not already chosen)
+        if (!selectedSkill && active.length > 0) {
+          try {
+            const raw = localStorage.getItem(SETTINGS_KEY)
+            if (raw) {
+              const parsed = JSON.parse(raw)
+              if (parsed.defaultSkillId) {
+                const match = active.find(s => s.skill_id === parsed.defaultSkillId)
+                if (match) setSelectedSkill(match)
+              }
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      })
       .catch(() => setSkills([]))
   }, [client])
 
@@ -77,7 +103,15 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
       className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:h-full gba:min-h-0 gba:bg-background gba:overflow-hidden"
       data-testid="fabric-landing"
     >
-      <div className="gba:absolute gba:top-5 gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:z-20">
+      <div className="gba:absolute gba:top-5 gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:z-20 gba:flex gba:items-center gba:gap-2">
+        <button
+          onClick={onOpenSettings}
+          className="gba:inline-flex gba:items-center gba:gap-2 gba:h-10 gba:px-4 gba:rounded-full gba:border gba:border-border/70 gba:bg-card/95 gba:text-sm gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card gba:transition-colors"
+          data-testid="fabric-landing-settings-button"
+        >
+          <GearIcon className="gba:h-4 gba:w-4" />
+          Settings
+        </button>
         <button
           onClick={onOpenHistory}
           className="gba:inline-flex gba:items-center gba:gap-2 gba:h-10 gba:px-4 gba:rounded-full gba:border gba:border-border/70 gba:bg-card/95 gba:text-sm gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card gba:transition-colors"

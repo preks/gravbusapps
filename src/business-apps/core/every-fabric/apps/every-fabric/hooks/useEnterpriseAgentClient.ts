@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
-import type { DeepAgentSession, SessionConfig, SpecialistAgent } from '../types/enterpriseAgent'
+import type { DeepAgentSession, SessionConfig } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 
@@ -66,13 +66,11 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
-  const getMetrics = useCallback(
-    (from: string, to: string) => client.get('/deep-agent/metrics', { params: { from, to } }),
-    [client]
-  )
-
-  const listSpecialistAgents = useCallback(
-    () => client.get<SpecialistAgent[]>('/autonomous-agents/agents', { params: { limit: '50' } }),
+  const deleteMemory = useCallback(
+    (key: string, namespace?: string) =>
+      client.delete('/deep-agent/memory', {
+        params: { key, namespace: namespace ?? 'preferences' }
+      }),
     [client]
   )
 
@@ -84,15 +82,15 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
-  const createSpecialistAgent = useCallback(
-    (data: {
-      name: string
-      display_name: string
-      description: string
-      domain: string
-      system_prompt: string
-      tags: string[]
-    }) => client.post<SpecialistAgent>('/autonomous-agents/agents', data),
+  const getSkillDetails = useCallback(
+    (skillId: string) =>
+      client.get<import('../types/enterpriseAgent').EnterpriseSkill>(`/enterprise-skills/${skillId}`),
+    [client]
+  )
+
+  const installSkill = useCallback(
+    (skillId: string) =>
+      client.post<{ success: boolean; skill_id: string }>(`/enterprise-skills/${skillId}/install`, {}),
     [client]
   )
 
@@ -142,10 +140,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       stopSession,
       getMemory,
       saveMemory,
-      getMetrics,
-      listSpecialistAgents,
+      deleteMemory,
       listEnterpriseSkills,
-      createSpecialistAgent,
+      getSkillDetails,
+      installSkill,
       listArtifacts,
       getArtifactUrl,
       getArtifactContent
@@ -158,10 +156,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       stopSession,
       getMemory,
       saveMemory,
-      getMetrics,
-      listSpecialistAgents,
+      deleteMemory,
       listEnterpriseSkills,
-      createSpecialistAgent,
+      getSkillDetails,
+      installSkill,
       listArtifacts,
       getArtifactUrl,
       getArtifactContent
