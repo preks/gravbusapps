@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Socket } from 'socket.io-client'
-import { useCollaboration, type CollaborationHealth } from '@/business-apps/platform/apps/shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { OfficeWebSocketClient } from '@/common/network/office/OfficeWebSocketClient'
 import type {
   DocumentParticipant,
   DocumentOperation
@@ -14,6 +14,43 @@ import {
   type CollaborationCallbacks,
   type CollaborationOperation
 } from '../services/SpreadsheetCollaborationManager'
+
+type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
+
+type ParticipantEventData = {
+  userId: string
+  userName: string
+  userColor: string
+  socketId?: string
+  avatarUrl?: string
+  avatar?: string
+}
+
+type CursorEventData = {
+  userId: string
+  userName?: string
+  userColor?: string
+  position: DocumentParticipant['cursor']
+}
+
+type SelectionEventData = {
+  userId: string
+  userName?: string
+  userColor?: string
+  selection: DocumentParticipant['selection']
+}
+
+const TOKEN_REFRESH_EVENT = 'com.newwork.token.shouldRefreshAuthorizationHeader'
+
+function safeGetLocalStorageItem(key: string): string | null {
+  try {
+    return globalThis.localStorage?.getItem(key) ?? null
+  } catch {
+    return null
+  }
+}
+
+type TokenRefreshEventDetail = string | boolean | { accessToken?: string } | undefined
 
 function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
   return (
@@ -48,6 +85,91 @@ function areCursorParticipantsEquivalent(a: DocumentParticipant[], b: DocumentPa
   return true
 }
 
+function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantEventData): DocumentParticipant[] {
+  if (prev.some(p => p.userId === data.userId)) return prev
+
+  return [
+    ...prev,
+    {
+      userId: data.userId,
+      userName: data.userName,
+      userColor: data.userColor,
+      socketId: data.socketId,
+      avatarUrl: data.avatarUrl || data.avatar,
+      lastActiveAt: new Date()
+    }
+  ]
+}
+
+function removeParticipant(prev: DocumentParticipant[], userId: string): DocumentParticipant[] {
+  return prev.filter(participant => participant.userId !== userId)
+}
+
+function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
+  let found = false
+  const next = prev.map(participant => {
+    if (participant.userId !== data.userId) return participant
+
+    found = true
+    return { ...participant, cursor: data.position, lastActiveAt: new Date() }
+  })
+
+  if (found) return next
+
+  return [
+    ...next,
+    {
+      userId: data.userId,
+      userName: data.userName || 'User',
+      userColor: data.userColor || '#4ECDC4',
+      socketId: '',
+      cursor: data.position,
+      lastActiveAt: new Date()
+    }
+  ]
+}
+
+function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
+  let found = false
+  const next = prev.map(participant => {
+    if (participant.userId !== data.userId) return participant
+
+    found = true
+    return { ...participant, selection: data.selection, lastActiveAt: new Date() }
+  })
+
+  if (found) return next
+
+  return [
+    ...next,
+    {
+      userId: data.userId,
+      userName: data.userName || 'User',
+      userColor: data.userColor || '#4ECDC4',
+      socketId: '',
+      selection: data.selection,
+      lastActiveAt: new Date()
+    }
+  ]
+}
+
+function resolveAccessTokenFromRefreshEvent(event: Event, fallbackAccessToken: string): string {
+  const eventDetail = 'detail' in event ? ((event as CustomEvent).detail as TokenRefreshEventDetail) : undefined
+  if (!eventDetail) {
+    return fallbackAccessToken
+  }
+
+  if (typeof eventDetail === 'string') {
+    return eventDetail.trim() || fallbackAccessToken
+  }
+
+  if (typeof eventDetail === 'object' && 'accessToken' in eventDetail) {
+    return String(eventDetail.accessToken ?? '').trim() || fallbackAccessToken
+  }
+
+  return fallbackAccessToken
+}
+
 function safeParseJwtPayload(
   token: string
 ): { sub?: string; userId?: string; name?: string; preferred_username?: string } | null {
@@ -77,6 +199,7 @@ export interface SpreadsheetCollaborationState {
   currentUserAvatar: string | undefined
   currentUserIdRef: React.MutableRefObject<string | undefined>
   isCollaborationConnected: boolean
+  isCollaborationJoined: boolean
   collaborationHealth: CollaborationHealth
   socket: Socket | null
   manager: SpreadsheetCollaborationManager
@@ -130,28 +253,186 @@ export function useSpreadsheetCollaboration({
     [manager]
   )
 
-  const {
-    participants: rawParticipants,
-    isConnected: isCollaborationConnected,
-    hasJoined: isCollaborationJoined,
-    collaborationHealth,
-    socket,
-    emitOperation: baseEmitOperation,
-    emitCursor: baseEmitCursor
-  } = useCollaboration({
-    entityType: 'spreadsheet',
-    entityId: appId,
-    enabled: true,
-    accessToken,
-    onOperationReceived: onOperationReceivedStable,
-    onOperationAckFailure: onAckFailureStable,
-    onError: onErrorStable
-  })
+  const clientRef = useRef<OfficeWebSocketClient | null>(null)
+  const hasJoinedRef = useRef(false)
+  const isJoiningRef = useRef(false)
+  const joinAckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [rawParticipants, setRawParticipants] = useState<DocumentParticipant[]>([])
+  const [isCollaborationConnected, setIsCollaborationConnected] = useState(false)
+  const [isCollaborationJoined, setIsCollaborationJoined] = useState(false)
+  const [collaborationHealth, setCollaborationHealth] = useState<CollaborationHealth>('reconnecting')
+  const [socket, setSocket] = useState<Socket | null>(null)
+
+  const clearJoinAckTimeout = useCallback(() => {
+    if (joinAckTimeoutRef.current) {
+      clearTimeout(joinAckTimeoutRef.current)
+      joinAckTimeoutRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!accessToken || !appId) {
+      setRawParticipants([])
+      setIsCollaborationConnected(false)
+      setIsCollaborationJoined(false)
+      setCollaborationHealth('reconnecting')
+      setSocket(null)
+      hasJoinedRef.current = false
+      isJoiningRef.current = false
+      clientRef.current?.disconnect()
+      clientRef.current = null
+      return
+    }
+
+    const client = clientRef.current ?? new OfficeWebSocketClient()
+    clientRef.current = client
+    client.setAccessToken(accessToken)
+    setSocket(client.connect(accessToken))
+
+    const joinRoomIfNeeded = () => {
+      if (hasJoinedRef.current || isJoiningRef.current) return
+      if (!client.getSocket()?.connected) return
+
+      isJoiningRef.current = true
+      clearJoinAckTimeout()
+      joinAckTimeoutRef.current = setTimeout(() => {
+        isJoiningRef.current = false
+      }, 6000)
+
+      client.joinDocument('spreadsheet', appId, participants => {
+        setRawParticipants(participants as DocumentParticipant[])
+        hasJoinedRef.current = true
+        isJoiningRef.current = false
+        setIsCollaborationJoined(true)
+        clearJoinAckTimeout()
+      })
+    }
+
+    const unsubscribeConnect = client.onConnect(() => {
+      setIsCollaborationConnected(true)
+      setCollaborationHealth('connected')
+      setSocket(client.getSocket())
+      joinRoomIfNeeded()
+    })
+
+    const unsubscribeDisconnect = client.onDisconnect(() => {
+      setIsCollaborationConnected(false)
+      setIsCollaborationJoined(false)
+      setCollaborationHealth('reconnecting')
+      setSocket(null)
+      setRawParticipants([])
+      hasJoinedRef.current = false
+      isJoiningRef.current = false
+      clearJoinAckTimeout()
+    })
+
+    const unsubscribeConnectError = client.onConnectError(error => {
+      setCollaborationHealth(client.isHealthy() ? 'reconnecting' : 'failed')
+      onErrorStable(error)
+    })
+
+    const unsubscribeUserJoined = client.onUserJoined(data => {
+      setRawParticipants(prev => addParticipantIfMissing(prev, data))
+    })
+
+    const unsubscribeUserLeft = client.onUserLeft(data => {
+      setRawParticipants(prev => removeParticipant(prev, data.userId))
+    })
+
+    const unsubscribeOperationApplied = client.onOperationApplied(data => {
+      onOperationReceivedStable(data as CollaborationOperation)
+    })
+
+    const unsubscribeCursorUpdate = client.onCursorUpdate(data => {
+      setRawParticipants(prev => updateParticipantCursor(prev, data))
+    })
+
+    const unsubscribeSelectionUpdate = client.onSelectionUpdate(data => {
+      setRawParticipants(prev => updateParticipantSelection(prev, data))
+    })
+
+    if (client.getSocket()?.connected) {
+      setIsCollaborationConnected(true)
+      setCollaborationHealth('connected')
+      setSocket(client.getSocket())
+      joinRoomIfNeeded()
+    }
+
+    return () => {
+      clearJoinAckTimeout()
+      unsubscribeSelectionUpdate()
+      unsubscribeCursorUpdate()
+      unsubscribeOperationApplied()
+      unsubscribeUserLeft()
+      unsubscribeUserJoined()
+      unsubscribeConnectError()
+      unsubscribeDisconnect()
+      unsubscribeConnect()
+
+      if (hasJoinedRef.current) {
+        client.leaveDocument('spreadsheet', appId)
+      }
+      hasJoinedRef.current = false
+      isJoiningRef.current = false
+      setIsCollaborationJoined(false)
+      setIsCollaborationConnected(false)
+      setSocket(null)
+      setRawParticipants([])
+      client.disconnect()
+      clientRef.current = null
+    }
+  }, [accessToken, appId, clearJoinAckTimeout, onErrorStable, onOperationReceivedStable])
+
+  useEffect(() => {
+    if (!accessToken || typeof window === 'undefined') {
+      return
+    }
+
+    const handleTokenRefresh: EventListener = event => {
+      clientRef.current?.setAccessToken(resolveAccessTokenFromRefreshEvent(event, accessToken))
+    }
+
+    window.addEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
+
+    return () => {
+      window.removeEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
+    }
+  }, [accessToken])
+
+  const baseEmitOperation = useCallback(
+    (operation: DocumentOperation) => {
+      clientRef.current?.sendDocumentOperation('spreadsheet', appId, operation, onAckFailureStable)
+    },
+    [appId, onAckFailureStable]
+  )
+
+  const baseEmitCursor = useCallback(
+    (position: { path?: string[] }) => {
+      clientRef.current?.sendCursorMove('spreadsheet', appId, position)
+    },
+    [appId]
+  )
+
+  const baseEmitDocumentOperationAsync = useCallback(
+    (operation: DocumentOperation) => {
+      if (!clientRef.current) {
+        return Promise.resolve({ success: false, error: 'no_client' } as const)
+      }
+      return clientRef.current.sendDocumentOperationAsync('spreadsheet', appId, operation)
+    },
+    [appId]
+  )
 
   // Wire emit functions into the manager
   useEffect(() => {
     manager.setEmitFunctions(baseEmitOperation, baseEmitCursor as (pos: { path?: string[] }) => void)
   }, [manager, baseEmitOperation, baseEmitCursor])
+
+  useEffect(() => {
+    manager.setDocumentOperationAsync(op => baseEmitDocumentOperationAsync(op))
+    return () => manager.setDocumentOperationAsync(null)
+  }, [manager, baseEmitDocumentOperationAsync])
 
   useEffect(() => {
     manager.setConnectionState(isCollaborationConnected, isCollaborationJoined)
@@ -175,7 +456,7 @@ export function useSpreadsheetCollaboration({
   )
 
   // Avatar enrichment — single query for both header and cursor participants
-  const authToken = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
+  const authToken = accessToken || safeGetLocalStorageItem('business-app-ide-access-token') || ''
   const graphqlClient = useGraphQLClient(authToken)
 
   const [headerParticipants, setHeaderParticipants] = useState<DocumentParticipant[]>([])
@@ -185,7 +466,7 @@ export function useSpreadsheetCollaboration({
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
       try {
-        const token = localStorage.getItem('business-app-ide-access-token') || accessToken
+        const token = safeGetLocalStorageItem('business-app-ide-access-token') || accessToken
         if (!token) return
         const payload = safeParseJwtPayload(token)
         if (!payload) return
@@ -279,6 +560,7 @@ export function useSpreadsheetCollaboration({
     currentUserAvatar,
     currentUserIdRef,
     isCollaborationConnected,
+    isCollaborationJoined,
     collaborationHealth,
     socket,
     manager,
