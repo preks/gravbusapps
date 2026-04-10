@@ -68,9 +68,9 @@ describe('useDocumentLayoutViewportModel', () => {
       activeRange: { startPage: 2, endPage: 4 },
       activePageNumbers: [2, 3, 4],
       activePageCount: 3,
-      mountedRange: { startPage: 2, endPage: 4 },
-      mountedPageNumbers: [2, 3, 4],
-      mountedPageCount: 3,
+      mountedRange: { startPage: 1, endPage: 4 },
+      mountedPageNumbers: [1, 2, 3, 4],
+      mountedPageCount: 4,
       pageBounds: [
         { pageNumber: 2, top: 100, bottom: 200, left: 10, right: 110 },
         { pageNumber: 3, top: 210, bottom: 310, left: 10, right: 110 },
@@ -110,7 +110,7 @@ describe('useDocumentLayoutViewportModel', () => {
       isWindowed: true,
       containsCurrentPage: true,
       rangeLabel: '2-4',
-      windowKey: 'incremental-layout-engine:2-4:3:2-4:sparse'
+      windowKey: 'incremental-layout-engine:2-4:3:1-4:sparse'
     })
   })
 
@@ -205,7 +205,7 @@ describe('useDocumentLayoutViewportModel', () => {
     const sparse = renderHook(() => useDocumentLayoutViewportModel(sparseSnapshot, 2))
     const full = renderHook(() => useDocumentLayoutViewportModel(fullSnapshot, 2))
 
-    expect(sparse.result.current.windowKey).toBe('incremental-layout-engine:2-4:3:2-4:sparse')
+    expect(sparse.result.current.windowKey).toBe('incremental-layout-engine:2-4:3:1-4:sparse')
     expect(full.result.current.windowKey).toBe('incremental-layout-engine:2-4:3:1-6:full')
   })
 
@@ -315,7 +315,9 @@ describe('useDocumentLayoutViewportModel', () => {
 
     expect(result.current.activeRange).toEqual({ startPage: 36, endPage: 40 })
     expect(result.current.activePageNumbers).toEqual([36, 37, 38, 39, 40])
+    expect(result.current.mountedRange).toEqual({ startPage: 35, endPage: 40 })
+    expect(result.current.mountedPageNumbers).toEqual([35, 36, 37, 38, 39, 40])
     expect(result.current.isWindowed).toBe(true)
-    expect(result.current.windowKey).toBe('incremental-layout-engine:36-40:5:1-21:sparse')
+    expect(result.current.windowKey).toBe('incremental-layout-engine:36-40:5:35-40:sparse')
   })
 })

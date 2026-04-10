@@ -49,6 +49,13 @@ function createFallbackRange(totalPages: number): DocumentLayoutPageRange {
   }
 }
 
+function resolveMountedWindowRange(activeRange: DocumentLayoutPageRange): DocumentLayoutPageRange {
+  return {
+    startPage: Math.max(1, activeRange.startPage - 1),
+    endPage: activeRange.endPage
+  }
+}
+
 function arePageRangesEqual(left: DocumentLayoutPageRange | null, right: DocumentLayoutPageRange | null): boolean {
   if (left === right) {
     return true
@@ -104,6 +111,16 @@ function filterPageSnapshotsForActiveRange(
   return pages.filter(page => page.pageNumber >= activeRange.startPage && page.pageNumber <= activeRange.endPage)
 }
 
+function createPageNumbersForRange(range: DocumentLayoutPageRange): number[] {
+  const pageNumbers: number[] = []
+
+  for (let pageNumber = range.startPage; pageNumber <= range.endPage; pageNumber += 1) {
+    pageNumbers.push(pageNumber)
+  }
+
+  return pageNumbers
+}
+
 export function useDocumentLayoutViewportModel(
   layoutSnapshot: DocumentLayoutSnapshot,
   currentPage: number
@@ -125,6 +142,13 @@ export function useDocumentLayoutViewportModel(
         ? resolveDocumentVirtualWindowRange(totalPages, currentPage)
         : (snapshotActiveRange ?? fallbackRange)
       : fallbackRange
+    const preferredMountedRange = windowingEnabled ? resolveMountedWindowRange(activeRange) : fallbackRange
+    const shouldRecoverMountedRange =
+      windowingEnabled &&
+      hasSparseFlow &&
+      (!layoutSnapshot.mountedRange ||
+        !arePageRangesEqual(layoutSnapshot.mountedRange, preferredMountedRange) ||
+        !doesPageRangeCoverRange(layoutSnapshot.mountedRange, activeRange))
     const activePages =
       windowingEnabled && arePageRangesEqual(snapshotActiveRange, activeRange)
         ? layoutSnapshot.activePages
@@ -133,9 +157,15 @@ export function useDocumentLayoutViewportModel(
       ? activePages.map(page => page.pageNumber)
       : Array.from({ length: totalPages }, (_unused, index) => index + 1)
     const activePageCount = activePageNumbers.length
-    const mountedRange = windowingEnabled ? layoutSnapshot.mountedRange : fallbackRange
+    const mountedRange = windowingEnabled
+      ? shouldRecoverMountedRange
+        ? preferredMountedRange
+        : layoutSnapshot.mountedRange
+      : fallbackRange
     const mountedPageNumbers = windowingEnabled
-      ? layoutSnapshot.pages.filter(page => page.isMounted).map(page => page.pageNumber)
+      ? shouldRecoverMountedRange
+        ? createPageNumbersForRange(mountedRange ?? preferredMountedRange)
+        : layoutSnapshot.pages.filter(page => page.isMounted).map(page => page.pageNumber)
       : Array.from({ length: totalPages }, (_unused, index) => index + 1)
     const mountedPageCount = mountedPageNumbers.length
     const pageBounds = layoutSnapshot.pageBounds
