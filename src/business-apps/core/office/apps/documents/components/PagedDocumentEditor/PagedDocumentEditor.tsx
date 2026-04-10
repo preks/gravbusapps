@@ -75,6 +75,10 @@ import {
   replyToDocumentComment,
   updateDocumentComment
 } from '../../utils/documentOfficeOperations'
+import {
+  incrementPaginationInstrumentationCounter,
+  recordPaginationInstrumentationEvent
+} from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationInstrumentation'
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
@@ -232,6 +236,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const translateRef = useRef(t)
     translateRef.current = t
     const translateStable = useCallback((key: string) => translateRef.current(key), [])
+    const pagedDocumentEditorRenderCountRef = useRef(0)
+    pagedDocumentEditorRenderCountRef.current += 1
+    const pagedDocumentEditorRenderCount = pagedDocumentEditorRenderCountRef.current
     const officeClient = useOfficeClient(accessTokenProp)
     // Editor state
     const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
@@ -369,6 +376,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
       return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
     }, [])
+
+    useEffect(() => {
+      incrementPaginationInstrumentationCounter('paged-document-editor-render-total')
+      recordPaginationInstrumentationEvent('paged-document-editor-render', {
+        activeEditorType: pagesEditorState.activeEditorType,
+        hasUnsavedChanges,
+        headerFooterSettingsSessionOpen,
+        navigationPanelOpen: showNavigationPanel,
+        renderCount: pagedDocumentEditorRenderCount,
+        rightSidebar,
+        tocSidebarOpen: tocSidebarNodePos !== null
+      })
+    })
 
     useEffect(() => {
       tocSidebarNodePosRef.current = tocSidebarNodePos

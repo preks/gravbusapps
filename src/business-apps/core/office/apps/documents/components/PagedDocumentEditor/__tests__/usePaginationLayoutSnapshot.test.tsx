@@ -16,6 +16,7 @@ import {
   resolveCurrentPageFromPageBounds,
   resolveMountedPagePositionRanges,
   resolvePreferredActiveRange,
+  resolveRetainedPagePositionRanges,
   resolveSpacerPageBodyBounds,
   resolveSpacerPagePositionRanges,
   shouldRefreshViewportWindow,
@@ -278,6 +279,97 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(measureLayout.mock.calls[0]?.[1].reason).toBe('initial-load')
   })
 
+  it('reuses measured mounted bounds and only reads placeholder shell bounds during rebuild', () => {
+    const mountedPageBreak = document.createElement('div')
+    mountedPageBreak.className = 'rm-page-break'
+    mountedPageBreak.dataset.rmPageShellState = 'hydrated'
+    const mountedBody = document.createElement('div')
+    mountedBody.className = 'page'
+    mountedBody.dataset.rmPageNumber = '1'
+    mountedPageBreak.appendChild(mountedBody)
+    mountedBody.getBoundingClientRect = () =>
+      ({
+        top: 20,
+        bottom: 120,
+        left: 10,
+        right: 90
+      }) as DOMRect
+
+    const placeholderPageBreak = document.createElement('div')
+    placeholderPageBreak.className = 'rm-page-break'
+    placeholderPageBreak.dataset.rmPageShellState = 'placeholder'
+    const placeholderBody = document.createElement('div')
+    placeholderBody.className = 'page'
+    placeholderBody.dataset.rmPageNumber = '2'
+    placeholderPageBreak.appendChild(placeholderBody)
+    placeholderBody.getBoundingClientRect = () =>
+      ({
+        top: 120,
+        bottom: 220,
+        left: 10,
+        right: 90
+      }) as DOMRect
+
+    const pages = [
+      { pageNumber: 1, flowIndex: 0, mountedIndex: 0, isMounted: true },
+      { pageNumber: 2, flowIndex: 1, mountedIndex: null, isMounted: false }
+    ]
+    const measureLayout = jest.fn((_container: HTMLDivElement, request: DocumentLayoutMeasurementRequest) => ({
+      layout: {
+        pageCount: 2,
+        pages,
+        flow: [
+          { flowIndex: 0, pageRange: { startPage: 1, endPage: 1 }, kind: 'page-break' as const, isMounted: true },
+          { flowIndex: 1, pageRange: { startPage: 2, endPage: 2 }, kind: 'page-break' as const, isMounted: false }
+        ],
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageBodyBounds: [{ pageNumber: 1, top: 100, bottom: 180, left: 20, right: 100 }],
+        pageChromeMetrics: [],
+        activeRange: request.pageRange ?? { startPage: 1, endPage: 2 },
+        activePages: pages
+      },
+      navigationState: {
+        boundaryEls: [],
+        activeRange: request.pageRange ?? { startPage: 1, endPage: 2 },
+        pageBreakEls: [mountedPageBreak, placeholderPageBreak],
+        flowEls: [mountedPageBreak, placeholderPageBreak]
+      }
+    }))
+
+    const service: DocumentLayoutService = {
+      source: 'incremental-layout-engine',
+      measureLayout,
+      resolveCurrentPage: jest.fn(() => 1),
+      observeLayout: jest.fn(() => () => undefined)
+    }
+    const editorContainerRef = {
+      current: document.createElement('div')
+    } as MutableRefObject<HTMLDivElement | null>
+    editorContainerRef.current.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 200,
+        height: 200
+      }) as DOMRect
+
+    const { result } = renderHook(() =>
+      usePaginationLayoutSnapshot({
+        editor: null,
+        editorContainerRef,
+        layoutService: service,
+        isYjsSynced: false
+      })
+    )
+
+    expect(result.current.layoutSnapshot.mountedPageBodyBounds).toEqual([
+      { pageNumber: 1, top: 100, bottom: 180, left: 20, right: 100 }
+    ])
+    expect(result.current.layoutSnapshot.pageBounds).toEqual([
+      { pageNumber: 1, top: 100, bottom: 180, left: 20, right: 100 },
+      { pageNumber: 2, top: 120, bottom: 220, left: 10, right: 90 }
+    ])
+  })
+
   it('prefers fresh page and spacer bounds over the live layout-service resolver while scrolling', () => {
     const { service, resolveCurrentPage, setResolvedCurrentPage, setVisiblePage } = createSparseLayoutServiceStub({
       pageCount: 30,
@@ -395,6 +487,9 @@ describe('usePaginationLayoutSnapshot', () => {
     const ranges = resolveMountedPagePositionRanges(
       {
         view: {
+          state: {
+            doc: {}
+          },
           posAtCoords: ({ left, top }: { left: number; top: number }) => {
             if (top < 140) {
               return {
@@ -417,6 +512,32 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(ranges).toEqual([{ pageNumber: 2, startPos: 12, endPos: 39 }])
   })
 
+  it('reuses cached mounted page position ranges when doc and bounds are unchanged', () => {
+    const posAtCoords = jest.fn(({ top }: { left: number; top: number }) =>
+      top < 200
+        ? {
+            pos: 12
+          }
+        : {
+            pos: 38
+          }
+    )
+    const doc = {}
+    const editor = {
+      view: {
+        state: {
+          doc
+        },
+        posAtCoords
+      }
+    } as never
+    const bounds = [{ pageNumber: 2, top: 100, bottom: 220, left: 20, right: 140 }]
+
+    expect(resolveMountedPagePositionRanges(editor, bounds)).toEqual([{ pageNumber: 2, startPos: 12, endPos: 38 }])
+    expect(resolveMountedPagePositionRanges(editor, bounds)).toEqual([{ pageNumber: 2, startPos: 12, endPos: 38 }])
+    expect(posAtCoords).toHaveBeenCalledTimes(9)
+  })
+
   it('resolves spacer page position ranges from page-segment metadata', () => {
     const spacer = document.createElement('div')
     spacer.className = 'rm-page-spacer'
@@ -434,6 +555,9 @@ describe('usePaginationLayoutSnapshot', () => {
     const ranges = resolveSpacerPagePositionRanges(
       {
         view: {
+          state: {
+            doc: {}
+          },
           posAtCoords: ({ top }: { left: number; top: number }) =>
             top < 480
               ? {
@@ -453,6 +577,49 @@ describe('usePaginationLayoutSnapshot', () => {
     ])
   })
 
+  it('reuses cached spacer page position ranges when doc and spacer bounds are unchanged', () => {
+    const spacer = document.createElement('div')
+    spacer.className = 'rm-page-spacer'
+    spacer.dataset.rmPageRangeStart = '7'
+    spacer.dataset.rmPageRangeEnd = '8'
+    spacer.dataset.rmPageSegmentHeights = '80,120'
+    spacer.getBoundingClientRect = () =>
+      ({
+        left: 40,
+        right: 160,
+        top: 400,
+        bottom: 600
+      }) as DOMRect
+
+    const posAtCoords = jest.fn(({ top }: { left: number; top: number }) =>
+      top < 480
+        ? {
+            pos: top < 440 ? 70 : 79
+          }
+        : {
+            pos: top < 540 ? 80 : 99
+          }
+    )
+    const editor = {
+      view: {
+        state: {
+          doc: {}
+        },
+        posAtCoords
+      }
+    } as never
+
+    expect(resolveSpacerPagePositionRanges(editor, [spacer])).toEqual([
+      { pageNumber: 7, startPos: 70, endPos: 79 },
+      { pageNumber: 8, startPos: 80, endPos: 99 }
+    ])
+    expect(resolveSpacerPagePositionRanges(editor, [spacer])).toEqual([
+      { pageNumber: 7, startPos: 70, endPos: 79 },
+      { pageNumber: 8, startPos: 80, endPos: 99 }
+    ])
+    expect(posAtCoords).toHaveBeenCalledTimes(6)
+  })
+
   it('resolves spacer page body bounds from page-segment metadata', () => {
     const spacer = document.createElement('div')
     spacer.className = 'rm-page-spacer'
@@ -470,6 +637,22 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(resolveSpacerPageBodyBounds([spacer])).toEqual([
       { pageNumber: 7, top: 400, bottom: 480, left: 40, right: 160 },
       { pageNumber: 8, top: 480, bottom: 600, left: 40, right: 160 }
+    ])
+  })
+
+  it('reuses retained page position ranges only for the requested placeholder pages', () => {
+    expect(
+      resolveRetainedPagePositionRanges(
+        [
+          { pageNumber: 1, startPos: 1, endPos: 9 },
+          { pageNumber: 2, startPos: 10, endPos: 19 },
+          { pageNumber: 3, startPos: 20, endPos: 29 }
+        ],
+        new Set([1, 3, 4])
+      )
+    ).toEqual([
+      { pageNumber: 1, startPos: 1, endPos: 9 },
+      { pageNumber: 3, startPos: 20, endPos: 29 }
     ])
   })
 

@@ -264,12 +264,13 @@ function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLEleme
 
 function resolvePageBodyBounds(
   pageBreakEls: HTMLElement[],
-  options?: { mountedOnly?: boolean }
+  options?: { shellState?: 'all' | 'hydrated' | 'placeholder' }
 ): DocumentLayoutPageBodyBounds[] {
-  const mountedOnly = options?.mountedOnly ?? false
+  const shellState = options?.shellState ?? 'all'
   return pageBreakEls
     .map(pageBreakEl => {
-      if (mountedOnly && resolvePageBreakShellState(pageBreakEl) !== 'hydrated') {
+      const resolvedShellState = resolvePageBreakShellState(pageBreakEl)
+      if (shellState !== 'all' && resolvedShellState !== shellState) {
         return null
       }
 
@@ -296,11 +297,15 @@ function resolvePageBodyBounds(
 }
 
 export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
-  return resolvePageBodyBounds(pageBreakEls, { mountedOnly: true })
+  return resolvePageBodyBounds(pageBreakEls, { shellState: 'hydrated' })
+}
+
+export function resolvePlaceholderPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return resolvePageBodyBounds(pageBreakEls, { shellState: 'placeholder' })
 }
 
 export function resolvePageShellBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
-  return resolvePageBodyBounds(pageBreakEls)
+  return resolvePageBodyBounds(pageBreakEls, { shellState: 'all' })
 }
 
 function readRegionHeight(region: Element | null): number {

@@ -26,6 +26,11 @@ import { runPaginationPluginViewUpdate } from './paginationPluginViewController'
 import { schedulePaginationOverlayReopen } from './overlayReopen'
 import { createWindowedPaginationRenderer } from './windowedRenderer'
 import { getMountedEditorView } from './paginationExtensionLifecycle'
+import {
+  incrementPaginationInstrumentationCounter,
+  recordPaginationInstrumentationEvent
+} from './paginationInstrumentation'
+import { classifyPaginationTransaction } from './paginationTransactionClassifier'
 import type { PagesOptions, PagesStorage } from './types'
 import { getPageBodyMeasurementBands, getExistingPageCount, logPaginationDebug, syncStorageFromOptions } from './utils'
 import {
@@ -67,6 +72,7 @@ export function createPaginationExtensionPlugins(options: {
   let lastKnownDoc: PMNode | null = null
   let lastKnownSelectionHead: number | null = null
   let lastDocChangeOrigin: DocChangeOrigin = null
+  let lastDocChangeAnalysis: ReturnType<typeof classifyPaginationTransaction> | null = null
   let previousAddPagesMeasurement: AddPagesMeasurementSnapshot | null = null
   let runawayGrowthCapPageCount: number | null = null
   let pendingRefreshDrivenStabilization = false
@@ -86,6 +92,18 @@ export function createPaginationExtensionPlugins(options: {
     getRuntimeOptions(targetEditor, extensionOptions, options.defaultOptions)
 
   const requestRefresh = (view: EditorView, source = 'unknown', shouldStabilize = false) => {
+    incrementPaginationInstrumentationCounter('pagination-refresh-request-total')
+    incrementPaginationInstrumentationCounter(`pagination-refresh-request-source:${source}`)
+    if (shouldStabilize) {
+      incrementPaginationInstrumentationCounter('pagination-refresh-request-stabilized')
+    }
+    recordPaginationInstrumentationEvent('pagination-refresh-request', {
+      source,
+      existingPageCount: getExistingPageCount(view),
+      storedPageCount: storage.pageCount,
+      stabilizationAttemptsRemaining: deferredRepaginationScheduler.getStabilizationAttemptsRemaining(),
+      shouldStabilize
+    })
     logPaginationDebug('request-refresh', {
       source,
       existingPageCount: getExistingPageCount(view),
@@ -296,6 +314,18 @@ export function createPaginationExtensionPlugins(options: {
         init: () => buildPageDecorations(),
         apply: (tr, oldValue) => {
           if (tr.docChanged) {
+            lastDocChangeAnalysis = classifyPaginationTransaction({
+              transaction: tr,
+              previousDoc: tr.before ?? null,
+              nextDoc: tr.doc ?? null
+            })
+            incrementPaginationInstrumentationCounter(`pagination-transaction-kind:${lastDocChangeAnalysis.kind}`)
+            if (lastDocChangeAnalysis.touchesTableRegion) {
+              incrementPaginationInstrumentationCounter('pagination-transaction-table-region')
+            }
+            if (lastDocChangeAnalysis.isLayoutNeutral) {
+              incrementPaginationInstrumentationCounter('pagination-transaction-layout-neutral')
+            }
             if (tr.getMeta(options.paginationOwnedDocChangeMeta) === true) {
               lastDocChangeOrigin = 'pagination-owned'
             } else if (consumePaginationHydrationDocChange(editor)) {
@@ -307,6 +337,7 @@ export function createPaginationExtensionPlugins(options: {
             }
           } else if (tr.getMeta(options.refreshMeta)) {
             lastDocChangeOrigin = null
+            lastDocChangeAnalysis = null
             if (tr.getMeta(options.refreshAndStabilizeMeta) === true) {
               pendingRefreshDrivenStabilization = true
             }
@@ -402,7 +433,11 @@ export function createPaginationExtensionPlugins(options: {
       view: () => ({
         update: updatedView => {
           if (lastDocChangeOrigin === 'collaboration-remote' || lastDocChangeOrigin === 'external') {
+            const docChangeAnalysis = lastDocChangeAnalysis
             const shouldStabilizeOnSettle = lastDocChangeOrigin === 'collaboration-remote'
+            const shouldScheduleSettledRefresh =
+              lastDocChangeOrigin === 'collaboration-remote' ||
+              (docChangeAnalysis?.shouldScheduleSettledRefresh ?? true)
             const delayMs =
               lastDocChangeOrigin === 'collaboration-remote'
                 ? COLLABORATION_REPAGINATION_DELAY_MS
@@ -410,16 +445,19 @@ export function createPaginationExtensionPlugins(options: {
             lastKnownDoc = updatedView.state.doc
             lastKnownSelectionHead = updatedView.state.selection.head
             lastDocChangeOrigin = null
+            lastDocChangeAnalysis = null
             if (contentChangeDebounceTimer !== null) {
               clearTimeout(contentChangeDebounceTimer)
             }
-            contentChangeDebounceTimer = setTimeout(() => {
-              contentChangeDebounceTimer = null
-              const mounted = getMountedEditorView(editor)
-              if (mounted && !(mounted as EditorView & { isDestroyed?: boolean }).isDestroyed) {
-                requestRefresh(mounted, 'content-change-settle', shouldStabilizeOnSettle)
-              }
-            }, delayMs)
+            if (shouldScheduleSettledRefresh) {
+              contentChangeDebounceTimer = setTimeout(() => {
+                contentChangeDebounceTimer = null
+                const mounted = getMountedEditorView(editor)
+                if (mounted && !(mounted as EditorView & { isDestroyed?: boolean }).isDestroyed) {
+                  requestRefresh(mounted, 'content-change-settle', shouldStabilizeOnSettle)
+                }
+              }, delayMs)
+            }
             return
           }
 
@@ -457,6 +495,7 @@ export function createPaginationExtensionPlugins(options: {
               runawayGrowthCapPageCount,
               pendingRefreshDrivenStabilization,
               lastDocChangeOrigin,
+              lastDocChangeAnalysis,
               suppressPaginationOwnedDeferredScheduling
             },
             documentHasTables,
@@ -518,6 +557,7 @@ export function createPaginationExtensionPlugins(options: {
           previousAddPagesMeasurement = nextPluginViewState.previousAddPagesMeasurement
           runawayGrowthCapPageCount = nextPluginViewState.runawayGrowthCapPageCount
           pendingRefreshDrivenStabilization = nextPluginViewState.pendingRefreshDrivenStabilization
+          lastDocChangeAnalysis = nextPluginViewState.lastDocChangeAnalysis
         },
         destroy: () => {
           if (contentChangeDebounceTimer !== null) {

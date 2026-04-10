@@ -17,6 +17,7 @@ function createBaseState(overrides?: Partial<PaginationPluginViewRuntimeState>):
     runawayGrowthCapPageCount: 5,
     pendingRefreshDrivenStabilization: false,
     lastDocChangeOrigin: null,
+    lastDocChangeAnalysis: null,
     suppressPaginationOwnedDeferredScheduling: false,
     ...overrides
   }
@@ -123,6 +124,43 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(3)
     expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-grow')
     expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownDoc).toBe(harness.currentDoc)
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
+  it('defers selection-overflow growth refreshes for table documents', () => {
+    const sameDoc = createDoc('same')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: sameDoc,
+        lastKnownSelectionHead: 4
+      },
+      currentDoc: sameDoc,
+      currentSelectionHead: 10,
+      selectionOverflow: { position: 15 },
+      measurementState: { currentPageCount: 2, measuredPageCount: 3 },
+      hasTables: true
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => true,
+      resolveSelectionOverflow: () => harness.selectionOverflow,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 4,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith(4)
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
     expect(nextState.lastKnownDoc).toBe(harness.currentDoc)
     expect(nextState.lastKnownSelectionHead).toBe(10)
   })
