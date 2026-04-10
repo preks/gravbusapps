@@ -898,6 +898,95 @@ describe('usePaginationLayoutSnapshot', () => {
     })
   })
 
+  describe('layout refresh scheduling stability', () => {
+    let requestLayoutCalls: Array<{ reason: string; immediate?: boolean }>
+    const realCreateDocumentLayoutScheduler =
+      jest.requireActual<typeof documentLayoutScheduler>('../documentLayoutScheduler').createDocumentLayoutScheduler
+
+    beforeEach(() => {
+      requestLayoutCalls = []
+      jest.spyOn(documentLayoutScheduler, 'createDocumentLayoutScheduler').mockImplementation(params => {
+        const scheduler = realCreateDocumentLayoutScheduler(params)
+        const originalRequestLayout = scheduler.requestLayout.bind(scheduler)
+        scheduler.requestLayout = options => {
+          requestLayoutCalls.push({ reason: options.reason, immediate: options.immediate })
+          return originalRequestLayout(options)
+        }
+        return scheduler
+      })
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('does not reschedule hydration or layout-service refreshes when only the current page changes', async () => {
+      const { service, setResolvedCurrentPage, setVisiblePage } = createSparseLayoutServiceStub({
+        pageCount: 4,
+        initialResolvedCurrentPage: 1,
+        initialVisiblePage: 1
+      })
+      const container = document.createElement('div')
+      container.getBoundingClientRect = () =>
+        ({
+          top: 0,
+          bottom: 200,
+          height: 200
+        }) as DOMRect
+      const editorContainerRef = {
+        current: container
+      } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 59,
+        posAtCoords: ({ top }: { left: number; top: number }) => {
+          if (top < 100) {
+            return { pos: top < 50 ? 1 : 19 }
+          }
+          if (top < 200) {
+            return { pos: top < 150 ? 20 : 39 }
+          }
+          if (top < 300) {
+            return { pos: top < 250 ? 40 : 59 }
+          }
+          return null
+        }
+      })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          documentId: 'doc-1',
+          isYjsSynced: true
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      requestLayoutCalls = []
+      setVisiblePage(4)
+      setResolvedCurrentPage(1)
+
+      act(() => {
+        editor.emit('selectionUpdate')
+      })
+
+      await act(async () => {
+        for (let i = 0; i < 4; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      expect(requestLayoutCalls.filter(call => call.reason === 'document-hydration')).toEqual([])
+      expect(requestLayoutCalls.filter(call => call.reason === 'layout-service-changed')).toEqual([])
+    })
+  })
+
   describe('chunked layout yields after measurement', () => {
     afterEach(() => {
       jest.restoreAllMocks()

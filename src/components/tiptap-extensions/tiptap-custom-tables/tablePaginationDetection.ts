@@ -107,21 +107,36 @@ function resolveLayoutFragmentSplitTablePositions(
   const tablePositions = new Set<number>()
 
   groupPaginationLayoutTableFragments(layoutTableFragments).forEach(chainFragments => {
-    const hasCrossPagePressure = chainFragments.some(fragment => fragment.pageNumbers.length > 1)
-    if (!hasCrossPagePressure) {
-      return
-    }
-
     if (chainFragments.length === 1) {
       const onlyFragment = chainFragments[0]
-      if (onlyFragment) {
+      if (onlyFragment?.pageNumbers.length && onlyFragment.pageNumbers.length > 1) {
         tablePositions.add(onlyFragment.tablePos)
       }
       return
     }
 
-    chainFragments.forEach(fragment => {
-      tablePositions.add(fragment.tablePos)
+    const pressuredFragmentIndexes = chainFragments.reduce<number[]>((indexes, fragment, fragmentIndex) => {
+      if (fragment.pageNumbers.length > 1) {
+        indexes.push(fragmentIndex)
+      }
+
+      return indexes
+    }, [])
+
+    pressuredFragmentIndexes.forEach(fragmentIndex => {
+      const previousFragment = chainFragments[fragmentIndex - 1]
+      const currentFragment = chainFragments[fragmentIndex]
+      const nextFragment = chainFragments[fragmentIndex + 1]
+
+      if (previousFragment) {
+        tablePositions.add(previousFragment.tablePos)
+      }
+      if (currentFragment) {
+        tablePositions.add(currentFragment.tablePos)
+      }
+      if (nextFragment) {
+        tablePositions.add(nextFragment.tablePos)
+      }
     })
   })
 

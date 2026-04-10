@@ -754,6 +754,7 @@ export function usePaginationLayoutSnapshot({
     targetPage: number
   } | null>(null)
   const firstLayoutIdleMarkedRef = useRef(false)
+  const hydrationRefreshKeyRef = useRef<string | null>(null)
 
   const [layoutSnapshot, setLayoutSnapshot] = useState<DocumentLayoutSnapshot>(() =>
     createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
@@ -797,7 +798,7 @@ export function usePaginationLayoutSnapshot({
           navigationState,
           safeFallbackPage
         )
-        if (Number.isInteger(freshCurrentPage) && freshCurrentPage > 0) {
+        if (freshCurrentPage !== null && Number.isInteger(freshCurrentPage) && freshCurrentPage > 0) {
           return Math.min(freshCurrentPage, safePageCount)
         }
 
@@ -899,7 +900,7 @@ export function usePaginationLayoutSnapshot({
         const retainedPlaceholderPageNumbers = new Set(placeholderSamplingBounds.map(bounds => bounds.pageNumber))
         const retainedPlaceholderPagePositionRanges = docChanged
           ? []
-          : resolveRetainedPagePositionRanges(previousSnapshot.pagePositionRanges, retainedPlaceholderPageNumbers)
+          : resolveRetainedPagePositionRanges(previousSnapshot.pagePositionRanges ?? [], retainedPlaceholderPageNumbers)
         const sampledPlaceholderPagePositionRanges = resolveMountedPagePositionRanges(
           editor,
           placeholderSamplingBounds.filter(
@@ -1057,10 +1058,11 @@ export function usePaginationLayoutSnapshot({
   }, [layoutScheduler])
 
   const scheduleLayoutSnapshotRefresh = useCallback(
-    (reason: DocumentLayoutInvalidationReason, immediate = false, targetPage = currentPage) => {
-      const pageCount = layoutSnapshot.pageCount
+    (reason: DocumentLayoutInvalidationReason, immediate = false, targetPage?: number) => {
+      const pageCount = Math.max(1, layoutSnapshotRef.current.pageCount || lastMeasuredLayoutPageCountRef.current || 1)
+      const resolvedTargetPage = targetPage ?? currentPageRef.current
       const scope = resolveInvalidationScope(reason)
-      const pageRange = resolveInvalidationRange(reason, pageCount, targetPage)
+      const pageRange = resolveInvalidationRange(reason, pageCount, resolvedTargetPage)
       incrementPaginationInstrumentationCounter('layout-snapshot-refresh-scheduled-total')
       incrementPaginationInstrumentationCounter(`layout-snapshot-refresh-reason:${reason}`)
       if (immediate) {
@@ -1073,7 +1075,7 @@ export function usePaginationLayoutSnapshot({
         pageRangeStart: pageRange?.startPage ?? null,
         reason,
         scope,
-        targetPage
+        targetPage: resolvedTargetPage
       })
       const now = Date.now()
       const inOpenBurst = immediate && now < openBurstDeadlineMsRef.current && isBootstrapLayoutReason(reason)
@@ -1083,7 +1085,7 @@ export function usePaginationLayoutSnapshot({
         const mergedReason = pending === null ? reason : mergeBootstrapLayoutReason(pending.reason, reason)
         openBurstPendingRef.current = {
           reason: mergedReason,
-          targetPage
+          targetPage: resolvedTargetPage
         }
         if (openBurstRafRef.current === null) {
           openBurstRafRef.current = requestAnimationFrame(() => {
@@ -1120,7 +1122,7 @@ export function usePaginationLayoutSnapshot({
         pageRange
       })
     },
-    [currentPage, layoutScheduler, layoutSnapshot.pageCount]
+    [layoutScheduler]
   )
 
   const handleScroll = useCallback(
@@ -1212,7 +1214,9 @@ export function usePaginationLayoutSnapshot({
   useEffect(() => {
     navigationStateRef.current = { boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] }
     lastMeasuredLayoutPageCountRef.current = 1
-    setLayoutSnapshot(createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source))
+    const emptySnapshot = createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
+    layoutSnapshotRef.current = emptySnapshot
+    setLayoutSnapshot(emptySnapshot)
     setLayoutNavigationState({ boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] })
     const initialRuntime = layoutScheduler.getState()
     runtimeStateRef.current = initialRuntime
@@ -1220,8 +1224,15 @@ export function usePaginationLayoutSnapshot({
     currentPageRef.current = 1
     setCurrentPage(1)
     setIsInitialLayoutSettled(false)
+    hydrationRefreshKeyRef.current = null
     previousLayoutInputsKeyRef.current = layoutInputsKey
   }, [editorContainerRef, layoutScheduler, resolvedLayoutService.source])
+
+  useEffect(() => {
+    if (!isYjsSynced) {
+      hydrationRefreshKeyRef.current = null
+    }
+  }, [documentId, isYjsSynced, resolvedLayoutService.source])
 
   useEffect(() => {
     if (
@@ -1233,8 +1244,15 @@ export function usePaginationLayoutSnapshot({
     ) {
       return
     }
+
+    const hydrationRefreshKey = documentId ? `${documentId}:${resolvedLayoutService.source}` : null
+    if (hydrationRefreshKeyRef.current === hydrationRefreshKey) {
+      return
+    }
+
+    hydrationRefreshKeyRef.current = hydrationRefreshKey
     scheduleLayoutSnapshotRefresh('document-hydration', true)
-  }, [documentId, isYjsSynced, scheduleLayoutSnapshotRefresh])
+  }, [documentId, isYjsSynced, resolvedLayoutService.source, scheduleLayoutSnapshotRefresh])
 
   useEffect(() => {
     if (!hasInitializedLayoutRef.current) return

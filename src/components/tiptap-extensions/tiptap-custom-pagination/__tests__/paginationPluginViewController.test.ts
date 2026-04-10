@@ -270,6 +270,51 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 
+  it('does not reset controller state for table-metadata-owned layout-neutral doc changes', () => {
+    const previousDoc = createDoc('prev')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: previousDoc,
+        lastKnownSelectionHead: 3,
+        lastDocChangeOrigin: 'table-metadata-owned',
+        lastDocChangeAnalysis: {
+          kind: 'structure',
+          changedRanges: [{ from: 5, to: 8 }],
+          touchesTable: false,
+          touchesTableAdjacentContent: false,
+          touchesTableRegion: false,
+          isLayoutNeutral: true,
+          shouldScheduleSettledRefresh: false
+        }
+      },
+      currentDoc: createDoc('next'),
+      currentSelectionHead: 3,
+      hasTables: true
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => true,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 6,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onResetTableController).not.toHaveBeenCalled()
+    expect(harness.callbacks.onClearGrowthSuppression).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.previousAddPagesMeasurement).toEqual(harness.state.previousAddPagesMeasurement)
+    expect(nextState.runawayGrowthCapPageCount).toBe(harness.state.runawayGrowthCapPageCount)
+  })
+
   it('passes doc-change-reset state into overflow measurement resolution', () => {
     const previousDoc = createDoc('prev')
     const harness = createHarness({

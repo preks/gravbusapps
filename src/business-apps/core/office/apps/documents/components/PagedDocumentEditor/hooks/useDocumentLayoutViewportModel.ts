@@ -40,11 +40,30 @@ export interface DocumentLayoutViewportModel {
   windowKey: string
 }
 
+const EMPTY_PAGE_POSITION_RANGES: DocumentLayoutPagePositionRange[] = []
+
 function createFallbackRange(totalPages: number): DocumentLayoutPageRange {
   return {
     startPage: 1,
     endPage: Math.max(1, totalPages)
   }
+}
+
+function filterPageNumberEntriesForActiveRange<T extends { pageNumber: number }>(
+  entries: T[],
+  activeRange: DocumentLayoutPageRange
+): T[] {
+  if (entries.length === 0) {
+    return entries
+  }
+
+  const firstPageNumber = entries[0]?.pageNumber ?? 1
+  const lastPageNumber = entries[entries.length - 1]?.pageNumber ?? firstPageNumber
+  if (firstPageNumber >= activeRange.startPage && lastPageNumber <= activeRange.endPage) {
+    return entries
+  }
+
+  return entries.filter(entry => entry.pageNumber >= activeRange.startPage && entry.pageNumber <= activeRange.endPage)
 }
 
 export function useDocumentLayoutViewportModel(
@@ -68,15 +87,11 @@ export function useDocumentLayoutViewportModel(
     const mountedPageCount = mountedPageNumbers.length
     const pageBounds = layoutSnapshot.pageBounds
     const mountedPageBodyBounds = layoutSnapshot.mountedPageBodyBounds
-    const activePageBodyBounds = mountedPageBodyBounds.filter(
-      bounds => bounds.pageNumber >= activeRange.startPage && bounds.pageNumber <= activeRange.endPage
-    )
+    const activePageBodyBounds = filterPageNumberEntriesForActiveRange(mountedPageBodyBounds, activeRange)
     const pageSpans = layoutSnapshot.pageSpans
     const retainedPageSpans = layoutSnapshot.retainedPageSpans
-    const pagePositionRanges = layoutSnapshot.pagePositionRanges ?? []
-    const activePagePositionRanges = pagePositionRanges.filter(
-      range => range.pageNumber >= activeRange.startPage && range.pageNumber <= activeRange.endPage
-    )
+    const pagePositionRanges = layoutSnapshot.pagePositionRanges ?? EMPTY_PAGE_POSITION_RANGES
+    const activePagePositionRanges = filterPageNumberEntriesForActiveRange(pagePositionRanges, activeRange)
     const pageChromeMetrics = layoutSnapshot.pageChromeMetrics
     const anchors = layoutSnapshot.anchors
     const tableFragments = layoutSnapshot.tableFragments

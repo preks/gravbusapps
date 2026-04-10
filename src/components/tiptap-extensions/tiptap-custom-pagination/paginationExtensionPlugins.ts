@@ -42,8 +42,15 @@ import { shouldScheduleDeferredRepaginationOnUpdate } from './paginationStabiliz
 import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
 import { hasPendingTableMeasurements } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
 import { createTablePaginationController } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
+import { TABLE_METADATA_OWNED_DOC_CHANGE_META } from '@/components/tiptap-extensions/tiptap-custom-tables/tableMetadataOwnedDocChange'
 
-type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | 'collaboration-remote' | null
+type DocChangeOrigin =
+  | 'external'
+  | 'pagination-owned'
+  | 'hydration-owned'
+  | 'table-metadata-owned'
+  | 'collaboration-remote'
+  | null
 
 export function createPaginationExtensionPlugins(options: {
   editor: Editor
@@ -117,6 +124,16 @@ export function createPaginationExtensionPlugins(options: {
       transaction.setMeta(options.refreshAndStabilizeMeta, true)
     }
     view.dispatch(transaction)
+  }
+
+  const queuePluginViewRefresh = (view: EditorView, source: string) => {
+    queueMicrotask(() => {
+      if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) {
+        return
+      }
+
+      requestRefresh(view, source)
+    })
   }
 
   const runDeferredRepaginationEvaluation = (view: EditorView) => {
@@ -314,11 +331,22 @@ export function createPaginationExtensionPlugins(options: {
         init: () => buildPageDecorations(),
         apply: (tr, oldValue) => {
           if (tr.docChanged) {
-            lastDocChangeAnalysis = classifyPaginationTransaction({
+            const tableMetadataOwnedDocChange = tr.getMeta(TABLE_METADATA_OWNED_DOC_CHANGE_META) === true
+            const classifiedDocChange = classifyPaginationTransaction({
               transaction: tr,
               previousDoc: tr.before ?? null,
               nextDoc: tr.doc ?? null
             })
+            lastDocChangeAnalysis = tableMetadataOwnedDocChange
+              ? {
+                  ...classifiedDocChange,
+                  isLayoutNeutral: true,
+                  shouldScheduleSettledRefresh: false,
+                  touchesTable: false,
+                  touchesTableAdjacentContent: false,
+                  touchesTableRegion: false
+                }
+              : classifiedDocChange
             incrementPaginationInstrumentationCounter(`pagination-transaction-kind:${lastDocChangeAnalysis.kind}`)
             if (lastDocChangeAnalysis.touchesTableRegion) {
               incrementPaginationInstrumentationCounter('pagination-transaction-table-region')
@@ -328,6 +356,8 @@ export function createPaginationExtensionPlugins(options: {
             }
             if (tr.getMeta(options.paginationOwnedDocChangeMeta) === true) {
               lastDocChangeOrigin = 'pagination-owned'
+            } else if (tableMetadataOwnedDocChange) {
+              lastDocChangeOrigin = 'table-metadata-owned'
             } else if (consumePaginationHydrationDocChange(editor)) {
               lastDocChangeOrigin = 'hydration-owned'
             } else if (isYjsInboundSyncTransaction(tr)) {
@@ -533,7 +563,7 @@ export function createPaginationExtensionPlugins(options: {
               storage.pageCount = pageCount
             },
             onRequestRefresh: source => {
-              requestRefresh(updatedView, source)
+              queuePluginViewRefresh(updatedView, source)
             },
             onScheduleDeferredRepagination: minimumAttempts => {
               deferredRepaginationScheduler.schedule(updatedView, minimumAttempts)

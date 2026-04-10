@@ -9,6 +9,7 @@ export type PaginationDocChangeOrigin =
   | 'external'
   | 'pagination-owned'
   | 'hydration-owned'
+  | 'table-metadata-owned'
   | 'collaboration-remote'
   | null
 export type SelectionNavigationDirection = 'forward' | 'backward' | null
@@ -85,10 +86,16 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   const docChangedSinceLastUpdate = options.state.lastKnownDoc !== null && currentDoc !== options.state.lastKnownDoc
   const paginationOwnedDocChange = docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'pagination-owned'
   const hydrationOwnedDocChange = docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'hydration-owned'
+  const tableMetadataOwnedDocChange =
+    docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'table-metadata-owned'
   const collaborationRemoteDocChange =
     docChangedSinceLastUpdate && options.state.lastDocChangeOrigin === 'collaboration-remote'
   const externalDocChange =
-    docChangedSinceLastUpdate && !paginationOwnedDocChange && !hydrationOwnedDocChange && !collaborationRemoteDocChange
+    docChangedSinceLastUpdate &&
+    !paginationOwnedDocChange &&
+    !hydrationOwnedDocChange &&
+    !tableMetadataOwnedDocChange &&
+    !collaborationRemoteDocChange
   const docChangeAnalysis = docChangedSinceLastUpdate ? options.state.lastDocChangeAnalysis : null
   const docChangeAffectsLayout = docChangedSinceLastUpdate && !(docChangeAnalysis?.isLayoutNeutral ?? false)
   const selectionDirection = resolveSelectionNavigationDirection(
@@ -129,7 +136,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
   let resetTableController = false
 
   try {
-    if (docChangedSinceLastUpdate && !paginationOwnedDocChange) {
+    if (docChangedSinceLastUpdate && !paginationOwnedDocChange && !tableMetadataOwnedDocChange) {
       resetTableController = true
       options.onResetTableController()
       nextState.previousAddPagesMeasurement = null
@@ -274,6 +281,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       externalDocChange,
       hasTables: hasTablesCache,
       hydrationOwnedDocChange,
+      tableMetadataOwnedDocChange,
       docChangeKind: docChangeAnalysis?.kind ?? null,
       docChangeTouchesTableRegion: docChangeAnalysis?.touchesTableRegion ?? false,
       layoutNeutralDocChange: docChangeAnalysis?.isLayoutNeutral ?? false,
