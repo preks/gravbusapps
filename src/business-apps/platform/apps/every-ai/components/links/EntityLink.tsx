@@ -224,12 +224,14 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
   if (href) {
     const resolved = resolveEntityLink(href)
     if (resolved?.url) {
+      const forceWorkflowReload = resolved.protocol === 'service_workflow' || resolved.protocol === 'workflow_template'
       return (
         <BaseEntityLinkChip
           url={resolved.url}
           icon={resolved.icon}
           variant={resolved.variant}
           showBorder={resolved.showBorder}
+          forceReload={forceWorkflowReload}
         >
           {children}
         </BaseEntityLinkChip>
