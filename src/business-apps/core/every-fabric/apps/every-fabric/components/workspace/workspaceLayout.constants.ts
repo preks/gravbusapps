@@ -1,5 +1,5 @@
 export const WORKSPACE_CHAT_RAIL_CLASS =
-  'gba:w-full gba:max-w-[42rem] md:gba:max-w-[46rem] xl:gba:max-w-[50rem] 2xl:gba:max-w-[52rem]'
+  'gba:w-full gba:max-w-[42rem] md:gba:max-w-[46rem] xl:gba:max-w-[56rem] 2xl:gba:max-w-[64rem]'
 
 export const WORKSPACE_CHAT_GUTTER_CLASS = 'gba:px-4 sm:gba:px-6 lg:gba:px-8'
 
