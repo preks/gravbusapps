@@ -129,11 +129,13 @@ export class SpreadsheetCollaborationManager {
       }
       collabCells.push(entry)
     }
-    if (collabCells.length === 0) return
+    if (collabCells.length === 0) {
+      console.warn('[CollabManager] emitCellsChanged: all', cells.length, 'cells dropped (no backend row IDs)')
+      return
+    }
     this.enqueueOrSend({
       type: 'cells_changed',
-      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
-      broadcastOnly: true
+      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload
     })
   }
 
@@ -212,6 +214,12 @@ export class SpreadsheetCollaborationManager {
       const parsedRef = cell.cellRef ? parseA1Reference(cell.cellRef) : null
       if (parsedRef) {
         gridUpdates.push({ rowIndex: parsedRef.row, colIndex: parsedRef.col, value: cell.value })
+      } else {
+        // Fallback: resolve coordinates from rowId + column when cellRef is absent
+        const { rowIndex, colIndex } = this.resolveCoordinates(cell.column, remoteRowId)
+        if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+          gridUpdates.push({ rowIndex, colIndex, value: cell.value })
+        }
       }
     }
 

@@ -1565,6 +1565,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // The rowId fallback attempts to re-resolve via contextRef, but contextRef tracks the data prop
     // (not the Univer workbook), so it can be wrong after structural changes. See handleCollaborationOperation.
     const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown, rowId?: string) => {
+      const clearRemoteFlag = () => {
+        isApplyingRemoteUpdateRef.current = false
+      }
       const tryApply = (attempt: number) => {
         const api = univerAPIRef.current
         if (!api) {
@@ -1573,6 +1576,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             return
           }
           console.warn('[UniverSheetGrid] applyRemoteCellUpdate: Univer API unavailable after retries')
+          clearRemoteFlag()
           return
         }
         let resolvedRow = rowIndex
@@ -1626,7 +1630,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         } catch (e) {
           console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
         } finally {
-          isApplyingRemoteUpdateRef.current = false
+          clearRemoteFlag()
         }
       }
       isApplyingRemoteUpdateRef.current = true
