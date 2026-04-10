@@ -77,6 +77,7 @@ export interface SpreadsheetCollaborationState {
   currentUserAvatar: string | undefined
   currentUserIdRef: React.MutableRefObject<string | undefined>
   isCollaborationConnected: boolean
+  isCollaborationJoined: boolean
   collaborationHealth: CollaborationHealth
   socket: Socket | null
   manager: SpreadsheetCollaborationManager
@@ -137,6 +138,7 @@ export function useSpreadsheetCollaboration({
     collaborationHealth,
     socket,
     emitOperation: baseEmitOperation,
+    emitDocumentOperationAsync: baseEmitDocumentOperationAsync,
     emitCursor: baseEmitCursor
   } = useCollaboration({
     entityType: 'spreadsheet',
@@ -152,6 +154,11 @@ export function useSpreadsheetCollaboration({
   useEffect(() => {
     manager.setEmitFunctions(baseEmitOperation, baseEmitCursor as (pos: { path?: string[] }) => void)
   }, [manager, baseEmitOperation, baseEmitCursor])
+
+  useEffect(() => {
+    manager.setDocumentOperationAsync(op => baseEmitDocumentOperationAsync(op))
+    return () => manager.setDocumentOperationAsync(null)
+  }, [manager, baseEmitDocumentOperationAsync])
 
   useEffect(() => {
     manager.setConnectionState(isCollaborationConnected, isCollaborationJoined)
@@ -279,6 +286,7 @@ export function useSpreadsheetCollaboration({
     currentUserAvatar,
     currentUserIdRef,
     isCollaborationConnected,
+    isCollaborationJoined,
     collaborationHealth,
     socket,
     manager,

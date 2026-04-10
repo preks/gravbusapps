@@ -591,6 +591,7 @@ export function transformAvatarFormulasInSnapshot(
 /**
  * Create conversion context for mapping row/column indices to our rowId/columnId.
  * Used by UniverSheetGrid and collaboration for applyRemoteCellUpdate and operation mapping.
+ * `rowIdToIndex` includes every known id alias (_id, id, _rowUuid) so inbound persisted rowIds resolve.
  */
 export function createUniverConversionContext(
   columns: SpreadsheetColumn[],
@@ -613,9 +614,28 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
-    const rowId = typeof row._id === 'string' ? row._id : `row_${index}`
-    rowIdToIndex.set(rowId, index)
-    rowIndexToId.set(index, rowId)
+    const idField = row._id ?? row.id
+    let primaryRowId: string
+    if (idField != null) {
+      const s = typeof idField === 'number' ? String(idField) : String(idField)
+      primaryRowId = s || `row_${index}`
+    } else if (typeof row._rowUuid === 'string' && row._rowUuid) {
+      primaryRowId = row._rowUuid
+    } else {
+      primaryRowId = `row_${index}`
+    }
+    rowIndexToId.set(index, primaryRowId)
+    const aliasKeys = new Set<string>()
+    aliasKeys.add(primaryRowId)
+    aliasKeys.add(`row_${index}`)
+    for (const v of [row._id, row.id, row._rowUuid]) {
+      if (v == null) continue
+      const s = String(v)
+      if (s) aliasKeys.add(s)
+    }
+    for (const k of aliasKeys) {
+      rowIdToIndex.set(k, index)
+    }
   })
   return {
     columnIdToIndex,

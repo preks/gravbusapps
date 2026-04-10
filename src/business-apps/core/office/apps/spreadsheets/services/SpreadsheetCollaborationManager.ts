@@ -18,6 +18,17 @@ const getCanonicalRowId = (row: ViewerRow): string => {
   return ''
 }
 
+/**
+ * True when `remoteRowId` from the wire (persisted / backend UUID from emit) identifies this row.
+ * Emit uses the first UUID among _id, _rowUuid, id; canonical row id prefers _id ?? id. When _id is a
+ * non-UUID client id and the backend UUID lives on id or _rowUuid, canonical-only matching would miss.
+ */
+const rowMatchesRemoteRowId = (row: ViewerRow, remoteRowId: string): boolean => {
+  if (!remoteRowId) return false
+  if (getCanonicalRowId(row) === remoteRowId) return true
+  return [row._id, row.id, row._rowUuid].some(v => v != null && String(v) === remoteRowId)
+}
+
 export interface CellsChangedCell {
   rowId: string
   column: string
@@ -55,6 +66,25 @@ export interface CollaborationCallbacks {
   scheduleRemoteStructuralResync: () => void
   onRemoteColumnUpdate?: (data: Record<string, unknown>) => void
   fetchChangesSince?: (sheetId: string, sinceVersion: number) => Promise<DeltaResponse>
+  /** Safe diagnostics only (counts, ids, reasons) — never cell values or tokens. */
+  onCollabDiagnostic?: (event: string, meta?: Record<string, number | string | boolean | undefined>) => void
+  /** Called when offline pending op queue was trimmed (possible loss). */
+  onPendingQueueTrimmed?: (droppedCount: number) => void
+}
+
+export type PersistCellsToServerResult = {
+  success: boolean
+  version?: number
+  error?: string
+  deferredUiRowIds?: string[]
+}
+
+type DeferredCollabCell = {
+  uiRowId: string
+  columnName: string
+  value: unknown
+  univerRow?: number
+  univerCol?: number
 }
 
 const MAX_PENDING_OPS = 200
@@ -76,12 +106,16 @@ export class SpreadsheetCollaborationManager {
   private callbacks: CollaborationCallbacks
   private emitFn: ((op: DocumentOperation) => void) | null = null
   private emitCursorFn: ((pos: { path?: string[] }) => void) | null = null
+  private documentOpAsync:
+    | ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>)
+    | null = null
   private connected = false
   private joined = false
   private pendingOps: DocumentOperation[] = []
   private pendingCursor: { path?: string[] } | null = null
   private lastKnownVersion = 0
   private reconciling = false
+  private deferredCollabCells: DeferredCollabCell[] = []
 
   constructor(callbacks: CollaborationCallbacks) {
     this.callbacks = callbacks
@@ -94,6 +128,12 @@ export class SpreadsheetCollaborationManager {
   setEmitFunctions(emitOp: (op: DocumentOperation) => void, emitCursor: (pos: { path?: string[] }) => void): void {
     this.emitFn = emitOp
     this.emitCursorFn = emitCursor
+  }
+
+  setDocumentOperationAsync(
+    fn: ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>) | null
+  ): void {
+    this.documentOpAsync = fn
   }
 
   setConnectionState(connected: boolean, joined: boolean): void {
@@ -112,15 +152,133 @@ export class SpreadsheetCollaborationManager {
 
   // --- Sender ---
 
+  /**
+   * Broadcast cell changes to peers only (no DB write). Use after HTTP persist or form row update.
+   */
   emitCellsChanged(
     cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>
   ): void {
+    const { collabCells } = this.buildCollabCellsForEmit(cells, { deferMissingBackendId: false })
+    if (collabCells.length === 0) return
     const sheetId = this.callbacks.getActiveSheetId()
+    this.enqueueOrSend({
+      type: 'cells_changed',
+      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
+      broadcastOnly: true
+    })
+  }
+
+  /**
+   * Persist cell changes through the collaboration gateway (broadcastOnly: false).
+   * Returns server ack result; updates local version when `version` is present.
+   */
+  async persistCellsChangedToServer(
+    cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>
+  ): Promise<PersistCellsToServerResult> {
+    const sheetId = this.callbacks.getActiveSheetId()
+    const { collabCells, deferredUiRowIds } = this.buildCollabCellsForEmit(cells, { deferMissingBackendId: true })
+
+    const MAX_DEFERRED = 400
+    for (const cell of cells) {
+      const ui = String(cell.rowId)
+      if (!this.callbacks.getBackendRowIdForUiRowId(ui)) {
+        this.deferredCollabCells.push({
+          uiRowId: ui,
+          columnName: cell.columnName,
+          value: cell.value,
+          univerRow: cell.univerRow,
+          univerCol: cell.univerCol
+        })
+        while (this.deferredCollabCells.length > MAX_DEFERRED) {
+          this.deferredCollabCells.shift()
+          this.callbacks.onPendingQueueTrimmed?.(1)
+          this.callbacks.onCollabDiagnostic?.('deferred_collab_trim', { maxDeferred: MAX_DEFERRED })
+        }
+      }
+    }
+
+    if (collabCells.length === 0) {
+      this.callbacks.onCollabDiagnostic?.('persist_deferred_no_backend_rows', {
+        deferredCount: this.deferredCollabCells.length
+      })
+      return {
+        success: false,
+        deferredUiRowIds: deferredUiRowIds.length > 0 ? deferredUiRowIds : undefined,
+        error: cells.length > 0 ? 'no_backend_rows' : undefined
+      }
+    }
+
+    const op: DocumentOperation = {
+      type: 'cells_changed',
+      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
+      broadcastOnly: false
+    }
+
+    const send = this.documentOpAsync
+    if (!send) {
+      return { success: false, error: 'no_async_channel', deferredUiRowIds }
+    }
+
+    const result = await send(op)
+    if (result.success && result.version != null) {
+      this.lastKnownVersion = Math.max(this.lastKnownVersion, result.version)
+      this.callbacks.onVersionUpdate(result.version)
+    }
+    if (!result.success) {
+      this.callbacks.onCollabDiagnostic?.('persist_via_socket_failed', {
+        errorCode: result.error ?? 'unknown'
+      })
+    }
+    return {
+      success: result.success,
+      version: result.version,
+      error: result.error,
+      deferredUiRowIds: deferredUiRowIds.length > 0 ? deferredUiRowIds : undefined
+    }
+  }
+
+  /** After local row data gains backend IDs, flush deferred collaboration cells. */
+  tryFlushDeferredCellEmits(): void {
+    if (this.deferredCollabCells.length === 0) return
+    const remaining: DeferredCollabCell[] = []
+    const ready: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }> =
+      []
+    for (const d of this.deferredCollabCells) {
+      const backend = this.callbacks.getBackendRowIdForUiRowId(d.uiRowId)
+      if (backend) {
+        ready.push({
+          rowId: d.uiRowId,
+          columnName: d.columnName,
+          value: d.value,
+          univerRow: d.univerRow,
+          univerCol: d.univerCol
+        })
+      } else {
+        remaining.push(d)
+      }
+    }
+    this.deferredCollabCells = remaining
+    if (remaining.length > 0) {
+      this.callbacks.onCollabDiagnostic?.('deferred_collab_cells_pending', { count: remaining.length })
+    }
+    if (ready.length === 0) return
+    void this.persistCellsChangedToServer(ready)
+  }
+
+  private buildCollabCellsForEmit(
+    cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>,
+    options: { deferMissingBackendId: boolean }
+  ): { collabCells: CellsChangedCell[]; deferredUiRowIds: string[] } {
     const collabCells: CellsChangedCell[] = []
+    const deferredUiRowIds: string[] = []
     for (const cell of cells) {
       const backendRowId = this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId))
       if (!backendRowId) {
-        console.warn('[CollabManager] Skipped emit: no backend row ID for', cell.rowId)
+        if (options.deferMissingBackendId) {
+          deferredUiRowIds.push(String(cell.rowId))
+        } else {
+          this.callbacks.onCollabDiagnostic?.('emit_skipped_no_backend_row', { uiRowCount: 1 })
+        }
         continue
       }
       const entry: CellsChangedCell = { rowId: backendRowId, column: cell.columnName, value: cell.value }
@@ -129,12 +287,7 @@ export class SpreadsheetCollaborationManager {
       }
       collabCells.push(entry)
     }
-    if (collabCells.length === 0) return
-    this.enqueueOrSend({
-      type: 'cells_changed',
-      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
-      broadcastOnly: true
-    })
+    return { collabCells, deferredUiRowIds }
   }
 
   emitCursor(path: string[]): void {
@@ -199,25 +352,42 @@ export class SpreadsheetCollaborationManager {
     if (!d?.sheetId || d.sheetId !== activeSheetId || !Array.isArray(d.cells) || d.cells.length === 0) return
 
     const updatesByRowId = new Map<string, Record<string, unknown>>()
-    const gridUpdates: Array<{ rowIndex: number; colIndex: number; value: unknown }> = []
 
     for (const cell of d.cells) {
-      if (!cell?.rowId || cell.value === undefined) continue
+      if (!cell?.rowId) continue
+      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
       if (cell.column == null) continue
       const remoteRowId = String(cell.rowId)
       const targetColumnName = this.resolveColumnName(cell.column)
       const rowUpdates = updatesByRowId.get(remoteRowId) ?? {}
       rowUpdates[targetColumnName] = cell.value
       updatesByRowId.set(remoteRowId, rowUpdates)
-      const parsedRef = cell.cellRef ? parseA1Reference(cell.cellRef) : null
-      if (parsedRef) {
-        gridUpdates.push({ rowIndex: parsedRef.row, colIndex: parsedRef.col, value: cell.value })
-      }
     }
 
     if (updatesByRowId.size === 0) return
     this.applyDataModelUpdates(updatesByRowId)
-    gridUpdates.forEach(u => this.callbacks.applyRemoteCellUpdate(u.rowIndex, u.colIndex, u.value))
+
+    // Prefer A1 cellRef from the sender's Univer grid (same as cursor). Data-array row indices can drift
+    // after row insert/delete so resolveCoordinates(rowId, column) may target the wrong sheet cell.
+    for (const cell of d.cells) {
+      if (!cell?.rowId) continue
+      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) continue
+      if (cell.column == null) continue
+      const remoteRowId = String(cell.rowId)
+      const targetColumnName = this.resolveColumnName(cell.column)
+      const trimmedRef = typeof cell.cellRef === 'string' ? cell.cellRef.trim() : ''
+      if (trimmedRef) {
+        const a1 = parseA1Reference(trimmedRef)
+        if (a1 && a1.row >= 0 && a1.col >= 0) {
+          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value, remoteRowId)
+          continue
+        }
+      }
+      const { rowIndex, colIndex } = this.resolveCoordinates(targetColumnName, remoteRowId)
+      if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+        this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, cell.value, remoteRowId)
+      }
+    }
   }
 
   // --- Private: Helpers ---
@@ -226,7 +396,10 @@ export class SpreadsheetCollaborationManager {
     if (!this.connected || !this.joined || !this.emitFn) {
       this.pendingOps.push(op)
       if (this.pendingOps.length > MAX_PENDING_OPS) {
+        const dropped = this.pendingOps.length - MAX_PENDING_OPS
         this.pendingOps = this.pendingOps.slice(-MAX_PENDING_OPS)
+        this.callbacks.onPendingQueueTrimmed?.(dropped)
+        this.callbacks.onCollabDiagnostic?.('pending_ops_trim', { dropped })
       }
       return
     }
@@ -280,6 +453,10 @@ export class SpreadsheetCollaborationManager {
 
       if (delta.requiresSnapshot || delta.changes.length === 0) {
         console.warn('[CollabManager] Delta gap too large or log compacted, triggering full resync')
+        this.callbacks.onCollabDiagnostic?.('delta_requires_snapshot', {
+          requiresSnapshot: delta.requiresSnapshot,
+          changeCount: delta.changes.length
+        })
         this.callbacks.scheduleRemoteStructuralResync()
         this.lastKnownVersion = delta.currentVersion
         this.callbacks.onVersionUpdate(delta.currentVersion)
@@ -347,11 +524,10 @@ export class SpreadsheetCollaborationManager {
 
     if (updatesByRowId.size === 0) return
 
-    const changedKeys = this.applyDataModelUpdates(updatesByRowId)
+    this.applyDataModelUpdates(updatesByRowId)
 
     for (const [rowId, updates] of updatesByRowId) {
       for (const [columnName, value] of Object.entries(updates)) {
-        if (!changedKeys.has(`${rowId}:${columnName}`)) continue
         const { rowIndex, colIndex } = this.resolveCoordinates(columnName, rowId)
         if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
           this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, value, rowId)
@@ -374,12 +550,14 @@ export class SpreadsheetCollaborationManager {
     const ctx = createUniverConversionContext(columns, data)
     let rowIndex = ctx.rowIdToIndex.get(remoteRowId)
     if (rowIndex === undefined) {
-      const idx = data.findIndex(row => getCanonicalRowId(row) === remoteRowId)
+      const idx = data.findIndex(row => rowMatchesRemoteRowId(row, remoteRowId))
       if (idx >= 0) rowIndex = idx
     }
     let colIndex = ctx.columnIdToIndex.get(columnKey)
     if (colIndex === undefined) {
-      colIndex = columns.findIndex(c => c.id === columnKey || c.name === columnKey)
+      const visibleColumns = columns.filter(c => c.isVisible !== false)
+      const idx = visibleColumns.findIndex(c => c.id === columnKey || c.name === columnKey)
+      colIndex = idx >= 0 ? idx : undefined
     }
     return { rowIndex, colIndex }
   }
@@ -387,9 +565,24 @@ export class SpreadsheetCollaborationManager {
   private applyDataModelUpdates(updatesByRowId: Map<string, Record<string, unknown>>): Set<string> {
     const changedKeys = new Set<string>()
     const currentData = this.callbacks.getLocalSheetData()
+    const findUpdatesForRow = (row: ViewerRow): Record<string, unknown> | undefined => {
+      const keysToTry: string[] = []
+      const canonical = getCanonicalRowId(row)
+      if (canonical) keysToTry.push(canonical)
+      for (const v of [row._id, row.id, row._rowUuid]) {
+        if (v == null) continue
+        const s = String(v)
+        if (s && !keysToTry.includes(s)) keysToTry.push(s)
+      }
+      for (const k of keysToTry) {
+        const u = updatesByRowId.get(k)
+        if (u) return u
+      }
+      return undefined
+    }
     const nextLocal = currentData.map(row => {
       const canonical = getCanonicalRowId(row)
-      const updates = canonical ? updatesByRowId.get(canonical) : undefined
+      const updates = findUpdatesForRow(row)
       if (!updates) return row
       let hasChange = false
       for (const [col, val] of Object.entries(updates)) {
