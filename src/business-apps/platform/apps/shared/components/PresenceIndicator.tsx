@@ -150,9 +150,12 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
 /**
  * Get relative time string (e.g., "just now", "2 minutes ago")
  */
-function getRelativeTime(date: Date): string {
+function getRelativeTime(date: Date | string | number | undefined): string {
+  if (!date) return 'just now'
+  const resolved = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(resolved.getTime())) return 'just now'
   const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
+  const diffMs = now.getTime() - resolved.getTime()
   const diffMinutes = Math.floor(diffMs / 60000)
 
   if (diffMinutes < 1) return 'just now'
@@ -163,7 +166,7 @@ function getRelativeTime(date: Date): string {
   if (diffHours === 1) return '1 hour ago'
   if (diffHours < 24) return `${diffHours} hours ago`
 
-  return date.toLocaleDateString()
+  return resolved.toLocaleDateString()
 }
 
 export default PresenceIndicator
