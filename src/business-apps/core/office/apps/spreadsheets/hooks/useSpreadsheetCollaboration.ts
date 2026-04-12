@@ -301,11 +301,14 @@ export function useSpreadsheetCollaboration({
       }, 6000)
 
       client.joinDocument('spreadsheet', appId, participants => {
-        const hydrated = (participants as DocumentParticipant[]).map(p => ({
-          ...p,
-          lastActiveAt: p.lastActiveAt ? new Date(p.lastActiveAt) : new Date()
-        }))
-        setRawParticipants(hydrated)
+        const deduped = new Map<string, DocumentParticipant>()
+        for (const p of participants as DocumentParticipant[]) {
+          deduped.set(p.userId, {
+            ...p,
+            lastActiveAt: p.lastActiveAt ? new Date(p.lastActiveAt) : new Date()
+          })
+        }
+        setRawParticipants([...deduped.values()])
         hasJoinedRef.current = true
         isJoiningRef.current = false
         setIsCollaborationJoined(true)
@@ -441,6 +444,10 @@ export function useSpreadsheetCollaboration({
   useEffect(() => {
     manager.setConnectionState(isCollaborationConnected, isCollaborationJoined)
   }, [manager, isCollaborationConnected, isCollaborationJoined])
+
+  useEffect(() => {
+    manager.setCurrentUserId(currentUserIdRef.current ?? null)
+  }, [manager, currentUserName])
 
   // Expose the manager's emitOperation (which queues if not connected)
   const emitOperation = useCallback(

@@ -47,12 +47,20 @@ function getInitials(name: string): string {
  * ```
  */
 export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
-  participants,
+  participants: rawParticipants,
   maxVisible = 3,
   size = 'md',
   showLabel = false,
   className = ''
 }) => {
+  const participants = React.useMemo(() => {
+    const seen = new Map<string, (typeof rawParticipants)[number]>()
+    for (const p of rawParticipants) {
+      if (p.userId && !seen.has(p.userId)) seen.set(p.userId, p)
+    }
+    return [...seen.values()]
+  }, [rawParticipants])
+
   const visibleParticipants = participants.slice(0, maxVisible)
   const remainingCount = Math.max(0, participants.length - maxVisible)
 
@@ -83,7 +91,7 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
 
       <div className="gba:flex gba:items-center gba:-space-x-2">
         {visibleParticipants.map(participant => (
-          <TooltipProvider key={participant.socketId}>
+          <TooltipProvider key={participant.userId}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="gba:inline-block">
@@ -133,7 +141,7 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
               <TooltipContent>
                 <div className="gba:flex gba:flex-col gba:gap-1">
                   {participants.slice(maxVisible).map(p => (
-                    <span key={p.socketId} className="gba:text-sm">
+                    <span key={p.userId} className="gba:text-sm">
                       {p.userName}
                     </span>
                   ))}
