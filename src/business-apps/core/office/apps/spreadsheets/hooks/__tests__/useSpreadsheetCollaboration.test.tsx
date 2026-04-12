@@ -143,6 +143,54 @@ describe('useSpreadsheetCollaboration', () => {
     expect(result.current.headerParticipants[0]?.userId).toBe('user-2')
   })
 
+  it('normalizes and deduplicates join participants across id aliases', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: 'invalid.token.value',
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockOfficeClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([
+        {
+          id: 'owner-1',
+          userName: 'Owner',
+          userColor: '#111111',
+          socketId: 'socket-owner-legacy',
+          cursor: { path: ['sheet-1', 'row-1', 'col-a'] }
+        },
+        {
+          userId: 'owner-1',
+          userName: 'Owner',
+          userColor: '#111111',
+          socketId: 'socket-owner-current'
+        },
+        {
+          odId: 'user-2',
+          userName: 'Participant',
+          userColor: '#222222',
+          socketId: 'socket-user-2'
+        }
+      ])
+    })
+
+    await waitFor(() => {
+      expect(result.current.headerParticipants).toHaveLength(2)
+      expect(result.current.cursorParticipants).toHaveLength(2)
+    })
+
+    expect(result.current.headerParticipants.map(participant => participant.userId)).toEqual(['owner-1', 'user-2'])
+    expect(
+      result.current.cursorParticipants.find(participant => participant.userId === 'owner-1')?.cursor?.path
+    ).toEqual(['sheet-1', 'row-1', 'col-a'])
+  })
+
   it('refreshes the spreadsheet socket token from the global auth event', async () => {
     renderHook(() =>
       useSpreadsheetCollaboration({

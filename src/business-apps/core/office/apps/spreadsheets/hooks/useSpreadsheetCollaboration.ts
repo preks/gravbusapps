@@ -17,24 +17,44 @@ import {
 
 type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
 
+type SocketParticipant = {
+  odId?: string
+  userId?: string
+  id?: string
+  userName?: string
+  userColor?: string
+  socketId?: string
+  avatarUrl?: string
+  avatar?: string
+  cursor?: unknown
+  selection?: unknown
+  lastActiveAt?: string | number | Date
+}
+
 type ParticipantEventData = {
-  userId: string
-  userName: string
-  userColor: string
+  odId?: string
+  userId?: string
+  id?: string
+  userName?: string
+  userColor?: string
   socketId?: string
   avatarUrl?: string
   avatar?: string
 }
 
 type CursorEventData = {
-  userId: string
+  odId?: string
+  userId?: string
+  id?: string
   userName?: string
   userColor?: string
   position: DocumentParticipant['cursor']
 }
 
 type SelectionEventData = {
-  userId: string
+  odId?: string
+  userId?: string
+  id?: string
   userName?: string
   userColor?: string
   selection: DocumentParticipant['selection']
@@ -51,6 +71,64 @@ function safeGetLocalStorageItem(key: string): string | null {
 }
 
 type TokenRefreshEventDetail = string | boolean | { accessToken?: string } | undefined
+
+function resolveParticipantIdentity(
+  participant: Pick<SocketParticipant, 'odId' | 'userId' | 'id' | 'socketId'>
+): string {
+  return String(participant.odId || participant.userId || participant.id || participant.socketId || '').trim()
+}
+
+function resolveLastActiveAt(...dates: Array<Date | string | number | undefined>): Date {
+  for (let index = dates.length - 1; index >= 0; index -= 1) {
+    const value = dates[index]
+    if (!value) continue
+    const resolved = value instanceof Date ? value : new Date(value)
+    if (!Number.isNaN(resolved.getTime())) return resolved
+  }
+
+  return new Date()
+}
+
+function mapSocketParticipantToParticipant(participant: SocketParticipant): DocumentParticipant {
+  return {
+    userId: resolveParticipantIdentity(participant),
+    userName: participant.userName || '',
+    userColor: participant.userColor || '',
+    socketId: participant.socketId || '',
+    avatarUrl: participant.avatarUrl || participant.avatar,
+    cursor: participant.cursor as DocumentParticipant['cursor'],
+    selection: participant.selection as DocumentParticipant['selection'],
+    lastActiveAt: resolveLastActiveAt(participant.lastActiveAt)
+  }
+}
+
+function mergeParticipant(existing: DocumentParticipant, incoming: DocumentParticipant): DocumentParticipant {
+  return {
+    userId: incoming.userId || existing.userId,
+    userName: incoming.userName || existing.userName,
+    userColor: incoming.userColor || existing.userColor,
+    socketId: incoming.socketId || existing.socketId,
+    avatarUrl: incoming.avatarUrl || existing.avatarUrl,
+    cursor: incoming.cursor ?? existing.cursor,
+    selection: incoming.selection ?? existing.selection,
+    lastActiveAt: resolveLastActiveAt(existing.lastActiveAt, incoming.lastActiveAt)
+  }
+}
+
+function normalizeParticipants(participants: SocketParticipant[]): DocumentParticipant[] {
+  const deduped = new Map<string, DocumentParticipant>()
+
+  for (const participant of participants) {
+    const mapped = mapSocketParticipantToParticipant(participant)
+    const key = mapped.userId || mapped.socketId
+    if (!key) continue
+
+    const existing = deduped.get(key)
+    deduped.set(key, existing ? mergeParticipant(existing, mapped) : mapped)
+  }
+
+  return [...deduped.values()]
+}
 
 function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
   return (
@@ -86,15 +164,16 @@ function areCursorParticipantsEquivalent(a: DocumentParticipant[], b: DocumentPa
 }
 
 function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantEventData): DocumentParticipant[] {
-  if (prev.some(p => p.userId === data.userId)) return prev
+  const userId = resolveParticipantIdentity(data)
+  if (!userId || prev.some(p => p.userId === userId)) return prev
 
   return [
     ...prev,
     {
-      userId: data.userId,
-      userName: data.userName,
-      userColor: data.userColor,
-      socketId: data.socketId,
+      userId,
+      userName: data.userName || 'User',
+      userColor: data.userColor || '#4ECDC4',
+      socketId: data.socketId || '',
       avatarUrl: data.avatarUrl || data.avatar,
       lastActiveAt: new Date()
     }
@@ -106,9 +185,12 @@ function removeParticipant(prev: DocumentParticipant[], userId: string): Documen
 }
 
 function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
+  const userId = resolveParticipantIdentity(data)
+  if (!userId) return prev
+
   let found = false
   const next = prev.map(participant => {
-    if (participant.userId !== data.userId) return participant
+    if (participant.userId !== userId) return participant
 
     found = true
     return { ...participant, cursor: data.position, lastActiveAt: new Date() }
@@ -119,7 +201,7 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
   return [
     ...next,
     {
-      userId: data.userId,
+      userId,
       userName: data.userName || 'User',
       userColor: data.userColor || '#4ECDC4',
       socketId: '',
@@ -130,9 +212,12 @@ function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventD
 }
 
 function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
+  const userId = resolveParticipantIdentity(data)
+  if (!userId) return prev
+
   let found = false
   const next = prev.map(participant => {
-    if (participant.userId !== data.userId) return participant
+    if (participant.userId !== userId) return participant
 
     found = true
     return { ...participant, selection: data.selection, lastActiveAt: new Date() }
@@ -143,7 +228,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
   return [
     ...next,
     {
-      userId: data.userId,
+      userId,
       userName: data.userName || 'User',
       userColor: data.userColor || '#4ECDC4',
       socketId: '',
@@ -301,14 +386,7 @@ export function useSpreadsheetCollaboration({
       }, 6000)
 
       client.joinDocument('spreadsheet', appId, participants => {
-        const deduped = new Map<string, DocumentParticipant>()
-        for (const p of participants as DocumentParticipant[]) {
-          deduped.set(p.userId, {
-            ...p,
-            lastActiveAt: p.lastActiveAt ? new Date(p.lastActiveAt) : new Date()
-          })
-        }
-        setRawParticipants([...deduped.values()])
+        setRawParticipants(normalizeParticipants((participants as SocketParticipant[]) || []))
         hasJoinedRef.current = true
         isJoiningRef.current = false
         setIsCollaborationJoined(true)
