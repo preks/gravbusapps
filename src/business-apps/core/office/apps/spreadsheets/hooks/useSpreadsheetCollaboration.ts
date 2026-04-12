@@ -301,7 +301,11 @@ export function useSpreadsheetCollaboration({
       }, 6000)
 
       client.joinDocument('spreadsheet', appId, participants => {
-        setRawParticipants(participants as DocumentParticipant[])
+        const hydrated = (participants as DocumentParticipant[]).map(p => ({
+          ...p,
+          lastActiveAt: p.lastActiveAt ? new Date(p.lastActiveAt) : new Date()
+        }))
+        setRawParticipants(hydrated)
         hasJoinedRef.current = true
         isJoiningRef.current = false
         setIsCollaborationJoined(true)
