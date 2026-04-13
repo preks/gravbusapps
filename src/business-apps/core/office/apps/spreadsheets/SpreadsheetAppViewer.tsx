@@ -87,6 +87,10 @@ const debugOpQueue = (
   console.debug('[SpreadsheetAppViewer][op-queue]', phase, { jobId, ...detail })
 }
 
+// Captured at module init before other screens can overwrite the global
+const _screenBuildInfo: Record<string, unknown> | null =
+  typeof globalThis !== 'undefined' ? ((globalThis as any).__APP_BUILD_INFO__ ?? null) : null
+
 type ViewerRow = Record<string, unknown>
 type CellChange = { rowId: string; columnName: string; value: unknown; sheetId?: string }
 
@@ -2379,6 +2383,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
 
     if (workItems.length === 0) {
+      if (queuedCells.length > 0) {
+        console.warn(
+          '[SpreadsheetAppViewer] cell-flush: all',
+          queuedCells.length,
+          'queued cells filtered out (no valid work items)'
+        )
+      }
       debugLog('cell-flush skipped', {
         flushId,
         queuedCells: queuedCells.length,
@@ -2434,7 +2445,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       debugLog('cell-flush failed', {
         flushId,
         queuedCells: queuedCells.length,
-        dedupedCells: cellsToPersist.length
+        dedupedCells: workItems.reduce((sum, item) => sum + item.cellsToPersist.length, 0)
       })
       sheetPersist.recordError(sheetT('persist-cell-failed'))
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
@@ -2516,7 +2527,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleCellsChange = useCallback(
     (cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>) => {
-      if (!canEditWithLock) return
+      if (!canEditWithLock) {
+        debugLog('handleCellsChange dropped: canEditWithLock=false')
+        return
+      }
       if (entityEnabled) return
       if (cells.length === 0) return
 
@@ -3613,8 +3627,33 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           className="gba:fixed gba:bottom-0 gba:left-0 gba:right-0 gba:z-50 gba:flex gba:flex-col gba:gap-0 gba:bg-zinc-900 gba:px-3 gba:py-1 gba:text-[11px] gba:font-mono gba:text-zinc-300"
           data-testid={`${testId}-snapshot-debug-bar`}
         >
+          {_screenBuildInfo &&
+            (() => {
+              const bi = _screenBuildInfo
+              const publishDate = (bi.publishTime as string) ? new Date(bi.publishTime as string) : null
+              const formattedDate = publishDate
+                ? publishDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+                  ' ' +
+                  publishDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                : '—'
+              return (
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <span className="gba:inline-block gba:w-[52px] gba:font-semibold gba:text-cyan-400">Build</span>
+                  <span>#{(bi.buildNumber as string) || 'dev'}</span>
+                  <span>
+                    Published: <span className="gba:text-zinc-100">{formattedDate}</span>
+                  </span>
+                  <span>
+                    By: <span className="gba:text-zinc-100">{(bi.gitUser as string) || '—'}</span>
+                  </span>
+                  <span>
+                    Screen: <span className="gba:text-zinc-100">{(bi.screen as string) || '—'}</span>
+                  </span>
+                </div>
+              )
+            })()}
           <div className="gba:flex gba:items-center gba:gap-4">
-            <span className="gba:font-semibold gba:text-amber-400">Snapshot</span>
+            <span className="gba:inline-block gba:w-[52px] gba:font-semibold gba:text-amber-400">Snapshot</span>
             <span>
               OK: <span className="gba:text-emerald-400">{snapshotDebugInfo.successCount}</span>
             </span>
@@ -3637,7 +3676,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             <span>Attempts: {snapshotSaveMetricsRef.current.attempts}</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-4">
-            <span className="gba:font-semibold gba:text-blue-400">Socket.IO</span>
+            <span className="gba:inline-block gba:w-[52px] gba:font-semibold gba:text-blue-400">Socket.IO</span>
             <span>
               Status:{' '}
               <span
@@ -3683,7 +3722,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             {socketDebugInfo.lastDisconnectReason && <span>Last DC: {socketDebugInfo.lastDisconnectReason}</span>}
           </div>
           <div className="gba:flex gba:items-center gba:gap-4">
-            <span className="gba:font-semibold gba:text-purple-400">Persist</span>
+            <span className="gba:inline-block gba:w-[52px] gba:font-semibold gba:text-purple-400">Persist</span>
             <span>
               Saving:{' '}
               <span className={sheetPersist.isSaving ? 'gba:text-yellow-400' : 'gba:text-zinc-500'}>

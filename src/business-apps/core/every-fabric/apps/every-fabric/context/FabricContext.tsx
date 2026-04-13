@@ -9,7 +9,7 @@ import type {
   WorkspaceDocument
 } from '../types/enterpriseAgent'
 import type { ArtifactFile, FabricSessionSummary, FabricTaskNode } from '../types/fabric'
-import { useAgentSession } from '../hooks/useAgentSession'
+import { useAgentSession, type ActiveSkillInfo } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'
 import { useFabricArtifacts } from '../hooks/useFabricArtifacts'
 import { useFabricProgress } from '../hooks/useFabricProgress'
@@ -21,6 +21,7 @@ import { deriveActivityFromEvents } from '../utils/messageUtils'
 interface FabricContextValue {
   // Auth
   accessToken: string
+  userInfo: BusinessAppContextProps['userInfo']
 
   // Session list
   sessions: FabricSessionSummary[]
@@ -32,12 +33,16 @@ interface FabricContextValue {
   // Conversation
   messages: ChatMessage[]
   events: AgentStreamEvent[]
+  streamingContent: string
   isStreaming: boolean
   isConnected: boolean
   isWaitingForInput: boolean
 
   // Activity panel
   activityEvents: ActivityEvent[]
+
+  // Active enterprise skill
+  activeSkill: ActiveSkillInfo | null
 
   // Task progress (right panel)
   taskNodes: FabricTaskNode[]
@@ -56,7 +61,8 @@ interface FabricContextValue {
     task: string,
     config?: SessionConfig,
     activeExternalConnectionIds?: string[],
-    activeEnterpriseSkillId?: string
+    activeEnterpriseSkillId?: string,
+    fallbackSkillId?: string
   ) => Promise<string>
   selectSession: (id: string | null) => void
   newSession: () => void
@@ -77,7 +83,7 @@ export interface FabricProviderProps extends BusinessAppContextProps {
   children: React.ReactNode
 }
 
-export const FabricProvider: React.FC<FabricProviderProps> = ({ children, accessToken }) => {
+export const FabricProvider: React.FC<FabricProviderProps> = ({ children, accessToken, userInfo }) => {
   const { urlSessionId, updateUrl } = useSessionUrlState()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
 
@@ -101,9 +107,11 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     session,
     messages,
     events,
+    streamingContent,
     isConnected,
     isStreaming,
     isWaitingForInput,
+    activeSkill,
     startSession: _startSession,
     reply: _reply
   } = useAgentSession(activeSessionId, accessToken)
@@ -116,9 +124,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Task progress derived from session.todos + SSE events
   const { taskNodes, completedCount, totalCount, progressPercent } = useFabricProgress(session, events)
 
-  // Artifacts
+  // Artifacts - pass session for workspace_documents from REST (for completed sessions)
   const { artifacts, workspaceDocs, activeArtifactId, activeArtifact, setActiveArtifactId, refreshArtifacts } =
-    useFabricArtifacts(activeSessionId, events, accessToken)
+    useFabricArtifacts(activeSessionId, events, accessToken, session)
 
   // Activity events for the chronological feed
   const activityEvents = useMemo(() => deriveActivityFromEvents(events), [events])
@@ -130,9 +138,16 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       task: string,
       config?: SessionConfig,
       activeExternalConnectionIds?: string[],
-      activeEnterpriseSkillId?: string
+      activeEnterpriseSkillId?: string,
+      fallbackSkillId?: string
     ) => {
-      const sessionId = await _startSession(task, config, activeExternalConnectionIds, activeEnterpriseSkillId)
+      const sessionId = await _startSession(
+        task,
+        config,
+        activeExternalConnectionIds,
+        activeEnterpriseSkillId,
+        fallbackSkillId
+      )
       setActiveSessionId(sessionId)
       addSession({
         session_id: sessionId,
@@ -181,15 +196,18 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   const value = useMemo(
     (): FabricContextValue => ({
       accessToken,
+      userInfo,
       sessions: sessions as FabricSessionSummary[],
       activeSessionId,
       session,
       messages,
       events,
+      streamingContent,
       isStreaming,
       isConnected,
       isWaitingForInput,
       activityEvents,
+      activeSkill,
       taskNodes,
       completedCount,
       totalCount,
@@ -209,15 +227,18 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     }),
     [
       accessToken,
+      userInfo,
       sessions,
       activeSessionId,
       session,
       messages,
       events,
+      streamingContent,
       isStreaming,
       isConnected,
       isWaitingForInput,
       activityEvents,
+      activeSkill,
       taskNodes,
       completedCount,
       totalCount,

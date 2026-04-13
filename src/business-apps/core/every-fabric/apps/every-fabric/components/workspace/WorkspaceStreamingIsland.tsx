@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
 
 const THINKING_TAIL = 16
+const FADE_OUT_DURATION_MS = 300
 
 const toEpoch = (ts: string): number => {
   const n = Date.parse(ts)
@@ -48,11 +49,38 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
   isStreaming
 }) => {
   const [expanded, setExpanded] = useState(true)
+  const [isVisible, setIsVisible] = useState(false)
+  const [isFadingOut, setIsFadingOut] = useState(false)
   const thinkingScrollRef = useRef<HTMLDivElement>(null)
+  const fadeOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     setExpanded(true)
   }, [sessionId])
+
+  useEffect(() => {
+    if (isStreaming) {
+      if (fadeOutTimerRef.current) {
+        clearTimeout(fadeOutTimerRef.current)
+        fadeOutTimerRef.current = null
+      }
+      setIsFadingOut(false)
+      setIsVisible(true)
+    } else if (isVisible) {
+      setIsFadingOut(true)
+      fadeOutTimerRef.current = setTimeout(() => {
+        setIsVisible(false)
+        setIsFadingOut(false)
+        fadeOutTimerRef.current = null
+      }, FADE_OUT_DURATION_MS)
+    }
+
+    return () => {
+      if (fadeOutTimerRef.current) {
+        clearTimeout(fadeOutTimerRef.current)
+      }
+    }
+  }, [isStreaming, isVisible])
 
   const thinkingText = useMemo(() => {
     const chunks = messages
@@ -77,11 +105,15 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
     el.scrollTop = el.scrollHeight
   }, [thinkingText])
 
-  if (!isStreaming) return null
+  if (!isVisible) return null
+
+  const fadeClass = isFadingOut
+    ? 'gba:animate-out gba:fade-out gba:slide-out-to-bottom-2 gba:duration-300'
+    : 'gba:animate-in gba:fade-in gba:slide-in-from-bottom-2 gba:duration-200'
 
   if (!expanded) {
     return (
-      <div className="gba:pointer-events-auto" data-testid="fabric-workspace-streaming-island">
+      <div className={`gba:pointer-events-auto ${fadeClass}`} data-testid="fabric-workspace-streaming-island">
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -103,7 +135,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
 
   return (
     <div
-      className="gba:pointer-events-auto gba:max-h-52 gba:min-h-0 gba:overflow-hidden gba:rounded-[1.25rem] gba:border gba:border-border/80 gba:bg-background/96 gba:shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+      className={`gba:pointer-events-auto gba:max-h-52 gba:min-h-0 gba:overflow-hidden gba:rounded-[1.25rem] gba:border gba:border-border/80 gba:bg-background/96 gba:shadow-[0_10px_26px_rgba(15,23,42,0.05)] ${fadeClass}`}
       data-testid="fabric-workspace-streaming-island"
     >
       <div className="gba:flex gba:min-h-0 gba:items-center gba:gap-2 gba:border-b gba:border-border/50 gba:px-3 gba:py-2 sm:gba:px-3.5">

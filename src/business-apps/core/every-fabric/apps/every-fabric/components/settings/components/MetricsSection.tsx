@@ -72,8 +72,8 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
         icon={<ChartBarIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />}
         title="Usage & Metrics"
       />
-      <div className="gba:px-4 gba:pb-5">
-        <div className="gba:flex gba:gap-1 gba:mb-3">
+      <div className="gba:px-3 sm:gba:px-4 gba:pb-4 sm:gba:pb-5">
+        <div className="gba:flex gba:gap-1 gba:mb-2.5 sm:gba:mb-3">
           {(['7d', '30d', 'all'] as const).map(r => (
             <button
               key={r}
@@ -93,7 +93,7 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
           <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">Loading metrics...</p>
         ) : (
           <>
-            <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mb-3">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mb-2.5 sm:gba:mb-3">
               <MetricCard label="Total Sessions" value={metrics.totalSessions} />
               <MetricCard
                 label="Tokens Used"

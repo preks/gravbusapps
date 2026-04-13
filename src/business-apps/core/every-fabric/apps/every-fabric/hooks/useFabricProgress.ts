@@ -91,10 +91,26 @@ function subAgentRowStatus(
   return 'running'
 }
 
-function resolveTerminalState(events: AgentStreamEvent[]): {
+function resolveTerminalState(
+  events: AgentStreamEvent[],
+  session: DeepAgentSession | null
+): {
   terminalStatus: AgentTerminalEvent['status'] | undefined
   isSessionClosed: boolean
 } {
+  // REST session status is AUTHORITATIVE - it's the source of truth
+  // SSE events may be stale, incomplete, or contain intermediate states
+  const sessionStatus = session?.status
+  const isSessionTerminal = sessionStatus === 'completed' || sessionStatus === 'failed' || sessionStatus === 'cancelled'
+
+  if (isSessionTerminal) {
+    return {
+      terminalStatus: sessionStatus as AgentTerminalEvent['status'],
+      isSessionClosed: true
+    }
+  }
+
+  // For non-terminal sessions, check SSE events for real-time status
   const lastTerminal = [...events].reverse().find((ev): ev is AgentTerminalEvent => ev.type === 'terminal')
   const terminalStatus = lastTerminal?.status
   const isSessionClosed =
@@ -265,7 +281,7 @@ export const useFabricProgress = (
   events: AgentStreamEvent[]
 ): { taskNodes: FabricTaskNode[]; completedCount: number; totalCount: number; progressPercent: number } => {
   const taskNodes = useMemo((): FabricTaskNode[] => {
-    const { terminalStatus, isSessionClosed } = resolveTerminalState(events)
+    const { terminalStatus, isSessionClosed } = resolveTerminalState(events, session)
     const { completedSteps, runningStepIds, subagentCompletions } = collectStepRuntimeState(events)
     const subAgentsByParentStepId = collectSubAgentsByParentStepId(
       events,

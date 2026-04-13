@@ -1,5 +1,9 @@
-import { lazy } from 'react'
 import type { ArtifactRendererType } from '../../../types/fabric'
+import HtmlArtifactComponent from './HtmlArtifact'
+import CodeArtifactComponent from './CodeArtifact'
+import DocumentArtifactComponent from './DocumentArtifact'
+import SlideArtifactComponent from './SlideArtifact'
+import DiagramArtifactComponent from './DiagramArtifact'
 
 export interface RendererProps {
   file: import('../../../types/fabric').ArtifactFile
@@ -7,13 +11,19 @@ export interface RendererProps {
   viewMode: 'preview' | 'code'
 }
 
-// Lazy-loaded to keep initial bundle lean
-export const renderers: Record<ArtifactRendererType, React.LazyExoticComponent<React.ComponentType<RendererProps>>> = {
-  html: lazy(() => import('./HtmlArtifact')),
-  code: lazy(() => import('./CodeArtifact')),
-  markdown: lazy(() => import('./DocumentArtifact')),
-  document: lazy(() => import('./DocumentArtifact')),
-  slide: lazy(() => import('./SlideArtifact')),
-  diagram: lazy(() => import('./DiagramArtifact')),
-  unknown: lazy(() => import('./DocumentArtifact'))
+/**
+ * Artifact renderers - uses regular imports instead of lazy loading.
+ *
+ * Note: We use direct imports (not React.lazy) to avoid code splitting into chunks.
+ * The remote component loader doesn't support chunk resolution for dynamically loaded screens,
+ * so all code must be inlined into the main bundle.
+ */
+export const renderers: Record<ArtifactRendererType, React.ComponentType<RendererProps>> = {
+  html: HtmlArtifactComponent,
+  code: CodeArtifactComponent,
+  markdown: DocumentArtifactComponent,
+  document: DocumentArtifactComponent,
+  slide: SlideArtifactComponent,
+  diagram: DiagramArtifactComponent,
+  unknown: DocumentArtifactComponent
 }
