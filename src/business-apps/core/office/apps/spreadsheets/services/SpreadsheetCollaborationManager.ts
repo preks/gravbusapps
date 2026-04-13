@@ -100,6 +100,8 @@ type DeferredCollabCell = {
   univerCol?: number
 }
 
+type ResolvedRowIdOverrides = ReadonlyMap<string, string>
+
 const MAX_PENDING_OPS = 200
 
 export type CollaborationOperation = {
@@ -274,14 +276,14 @@ export class SpreadsheetCollaborationManager {
   }
 
   /** After local row data gains backend IDs, flush deferred collaboration cells. */
-  tryFlushDeferredCellEmits(): void {
+  tryFlushDeferredCellEmits(resolvedRowIdOverrides?: ResolvedRowIdOverrides): void {
     if (this.deferredCollabCells.length === 0) return
     const remaining: DeferredCollabCell[] = []
     const ready: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }> =
       []
     for (const d of this.deferredCollabCells) {
-      // Pass univerRow as fallback for row ID lookup
-      const backend = this.callbacks.getBackendRowIdForUiRowId(d.uiRowId, d.univerRow)
+      const backend =
+        resolvedRowIdOverrides?.get(d.uiRowId) ?? this.callbacks.getBackendRowIdForUiRowId(d.uiRowId, d.univerRow)
       if (backend) {
         ready.push({
           rowId: d.uiRowId,
@@ -299,19 +301,52 @@ export class SpreadsheetCollaborationManager {
       this.callbacks.onCollabDiagnostic?.('deferred_collab_cells_pending', { count: remaining.length })
     }
     if (ready.length === 0) return
-    void this.persistCellsChangedToServer(ready)
+    const { collabCells } = this.buildCollabCellsForEmit(ready, {
+      deferMissingBackendId: false,
+      resolvedRowIdOverrides
+    })
+    if (collabCells.length === 0) {
+      this.deferredCollabCells = [...ready.map(cell => ({ ...cell, uiRowId: cell.rowId })), ...remaining]
+      return
+    }
+    const send = this.documentOpAsync
+    if (!send) {
+      this.deferredCollabCells = [...ready.map(cell => ({ ...cell, uiRowId: cell.rowId })), ...remaining]
+      return
+    }
+    const sheetId = this.callbacks.getActiveSheetId()
+    const op: DocumentOperation = {
+      type: 'cells_changed',
+      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
+      broadcastOnly: false
+    }
+    void send(op).then(result => {
+      if (!result.success) {
+        this.deferredCollabCells = [
+          ...ready.map(cell => ({ ...cell, uiRowId: cell.rowId })),
+          ...this.deferredCollabCells
+        ]
+        return
+      }
+      if (result.version != null) {
+        this.lastKnownVersion = Math.max(this.lastKnownVersion, result.version)
+        this.callbacks.onVersionUpdate(result.version)
+      }
+    })
   }
 
   private buildCollabCellsForEmit(
     cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>,
-    options: { deferMissingBackendId: boolean }
+    options: { deferMissingBackendId: boolean; resolvedRowIdOverrides?: ResolvedRowIdOverrides }
   ): { collabCells: CellsChangedCell[]; deferredUiRowIds: string[] } {
     const collabCells: CellsChangedCell[] = []
     const deferredUiRowIds: string[] = []
     for (const cell of cells) {
       // Pass univerRow as fallback for row ID lookup during conflict recovery
       // when the Univer context and localSheetData may be temporarily out of sync
-      const backendRowId = this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId), cell.univerRow)
+      const backendRowId =
+        options.resolvedRowIdOverrides?.get(String(cell.rowId)) ??
+        this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId), cell.univerRow)
       if (!backendRowId) {
         if (options.deferMissingBackendId) {
           deferredUiRowIds.push(String(cell.rowId))

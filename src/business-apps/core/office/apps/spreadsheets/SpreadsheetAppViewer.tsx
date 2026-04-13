@@ -507,6 +507,7 @@ const buildCreatedRowsFromBatch = (
 ): {
   createdRows: Array<Record<string, unknown>>
   flushCells: Array<{ rowId: string; columnName: string; value: unknown }>
+  persistedIdByClientRowId: Map<string, string>
 } => {
   const flushCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
   const persistedIdByClientRowId = new Map<string, string>()
@@ -541,7 +542,7 @@ const buildCreatedRowsFromBatch = (
       ...(persistedId ? { _rowUuid: persistedId } : {})
     }
   })
-  return { createdRows, flushCells }
+  return { createdRows, flushCells, persistedIdByClientRowId }
 }
 
 const persistReconcileCells = async (
@@ -2781,6 +2782,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (useSocketPersist) {
         const persistPromise = collaboration.manager.persistCellsChangedToServer(cells).then(result => {
           if (!result.success) {
+            if (result.error === 'no_backend_rows') {
+              debugLog('collab socket persist deferred', {
+                error: result.error,
+                cellCount: cells.length,
+                deferredUiRowIdCount: result.deferredUiRowIds?.length ?? 0
+              })
+              return
+            }
             pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
             // Socket path did not persist; HTTP fallback uses baseVersion — refresh from API so we do not 409
             // after the other tab (or another client) advanced the sheet version.
@@ -2924,12 +2933,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const returnedRows = Array.isArray(opResult?.result?.rows)
         ? (opResult?.result?.rows as Array<Record<string, unknown>>)
         : []
-      const { createdRows, flushCells } = buildCreatedRowsFromBatch(
+      const { createdRows, flushCells, persistedIdByClientRowId } = buildCreatedRowsFromBatch(
         rowPayloads,
         returnedRows,
         pendingClientRowUpdatesRef.current
       )
       updateLocalRowsAfterCreate(createdRows)
+      collaborationManagerRef.current?.tryFlushDeferredCellEmits(persistedIdByClientRowId)
 
       if (flushCells.length === 0) return
 
@@ -2953,7 +2963,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const saved = onRowAdd
         ? await onRowAdd(app.id, activeSheetId, singlePayload)
         : await SpreadsheetApiService.addRow(app.id, activeSheetId, singlePayload)
-      const persistedId = String(((saved as Record<string, unknown> | null)?.['_id'] as string | undefined) || '')
+      const persistedId =
+        ((saved as Record<string, unknown> | null) &&
+          resolveBackendRowIdForViewerRow((saved as Record<string, unknown>) ?? {}, isUuid)) ||
+        ''
       const pending = singleClientRowId ? pendingClientRowUpdatesRef.current.get(singleClientRowId) : undefined
       if (singleClientRowId && pending) {
         pendingClientRowUpdatesRef.current.delete(singleClientRowId)
@@ -2961,6 +2974,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const mergedPayload = pending ? { ...singlePayload, ...pending } : singlePayload
       const createdRows: Record<string, unknown>[] = [{ ...mergedPayload, ...(saved || {}) }]
       updateLocalRowsAfterCreate(createdRows)
+      if (singleClientRowId && persistedId) {
+        collaborationManagerRef.current?.tryFlushDeferredCellEmits(new Map([[singleClientRowId, persistedId]]))
+      }
 
       // If we had pending pasted cell updates for this just-created row, persist them now.
       if (pending && persistedId) {
@@ -2972,7 +2988,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         if (sheet?.version != null) sheetVersionRef.current = Number(sheet.version)
       }
     },
-    [activeSheetId, app.id, flushPendingCellsForPersistedRow, onRowAdd]
+    [activeSheetId, app.id, flushPendingCellsForPersistedRow, isUuid, onRowAdd]
   )
 
   const processUniverDataChange = useCallback(async () => {

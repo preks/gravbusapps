@@ -61,6 +61,43 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(result.error).toBe('no_backend_rows')
   })
 
+  it('flushes deferred cells once create-row mapping is known', async () => {
+    const send = jest.fn().mockResolvedValue({ success: true, version: 9 })
+    const callbacks = makeCallbacks({
+      getBackendRowIdForUiRowId: () => undefined
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setDocumentOperationAsync(send)
+    manager.setConnectionState(true, true)
+
+    const initial = await manager.persistCellsChangedToServer([
+      { rowId: 'client-row-1', columnName: 'NameA', value: 'typed', univerRow: 0, univerCol: 0 }
+    ])
+
+    expect(initial.success).toBe(false)
+    expect(initial.error).toBe('no_backend_rows')
+
+    manager.tryFlushDeferredCellEmits(new Map([['client-row-1', 'backend-row-1']]))
+    await Promise.resolve()
+
+    expect(send).toHaveBeenCalledWith({
+      type: 'cells_changed',
+      data: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'backend-row-1',
+            column: 'NameA',
+            value: 'typed',
+            cellRef: 'A1'
+          }
+        ]
+      },
+      broadcastOnly: false
+    })
+    expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(9)
+  })
+
   it('handleOperation cells_changed uses visible column index when leading column is hidden', () => {
     const columns: SpreadsheetColumn[] = [
       col({ id: 'hidden', name: 'Hidden', isVisible: false, order: 0 }),
