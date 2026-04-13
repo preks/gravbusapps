@@ -21,6 +21,7 @@ jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: t
 
 let lastPresetContainer: unknown
 let lastSetNumfmtLocalMock: jest.Mock | undefined
+let lastRangeSetValueMock: jest.Mock | undefined
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
@@ -43,6 +44,7 @@ jest.mock(
         getValue: jest.fn(),
         getCellData: jest.fn(() => ({ v: undefined }))
       }
+      lastRangeSetValueMock = range.setValue
       const activeSheet = {
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
         onScroll: () => ({ dispose: jest.fn() }),
@@ -84,7 +86,8 @@ jest.mock(
 describe('UniverSheetGrid read-only behavior', () => {
   const sheet = {
     id: 'sheet-1',
-    name: 'Sheet 1'
+    name: 'Sheet 1',
+    settings: { mergeData: [] }
   } as any
 
   const columns = [
@@ -108,6 +111,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
     lastPresetContainer = undefined
     lastSetNumfmtLocalMock = undefined
+    lastRangeSetValueMock = undefined
   })
 
   afterEach(() => {
@@ -149,6 +153,8 @@ describe('UniverSheetGrid read-only behavior', () => {
   })
 
   it('forces German number-format locale for currency/date/time defaults', () => {
+    jest.useFakeTimers()
+
     render(
       <UniverSheetGrid
         sheet={sheet}
@@ -160,6 +166,10 @@ describe('UniverSheetGrid read-only behavior', () => {
         onDataChange={jest.fn()}
       />
     )
+
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
 
     expect(lastSetNumfmtLocalMock).toHaveBeenCalledWith('de_DE')
   })
@@ -290,6 +300,45 @@ describe('UniverSheetGrid read-only behavior', () => {
         }
       }
     })
+    expect(onCellsChange).toHaveBeenCalled()
+  })
+
+  it('does not drop non-echo local changes that occur during remote apply', async () => {
+    const onCellsChange = jest.fn()
+    const gridRef = React.createRef<UniverSheetGridHandle>()
+
+    render(
+      <UniverSheetGrid
+        ref={gridRef}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    const sheetValueChanged = eventHandlers.SheetValueChanged
+    expect(sheetValueChanged).toBeDefined()
+
+    lastRangeSetValueMock?.mockImplementationOnce(() => {
+      sheetValueChanged?.({
+        payload: {
+          params: {
+            cellValue: { 0: { 0: { v: 'LocalDuringRemote' } } },
+            range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+          }
+        }
+      })
+    })
+
+    await act(async () => {
+      gridRef.current?.applyRemoteCellUpdate(0, 0, { v: 'Remote' })
+      await Promise.resolve()
+    })
+
     expect(onCellsChange).toHaveBeenCalled()
   })
 

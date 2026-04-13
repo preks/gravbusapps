@@ -51,6 +51,16 @@ export class SpreadsheetApiRequestError extends Error {
   }
 }
 
+/** Server sheet version from operations/batch 409 (Nest ConflictException body). */
+export function getSpreadsheetBatchConflictServerVersion(details: unknown): number | undefined {
+  if (!details || typeof details !== 'object') return undefined
+  const o = details as Record<string, unknown>
+  const raw = o.currentVersion
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
+  return undefined
+}
+
 /**
  * Optional external auth token provider.
  * This is required for published screens where the access token may not be in localStorage,

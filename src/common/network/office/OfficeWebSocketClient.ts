@@ -1,4 +1,4 @@
-import { OFFICE_WEB_SOCKET_URL } from '@/common/utils/serviceResolver'
+import { getOfficeWebSocketUrl } from '@/common/utils/serviceResolver'
 import { io, type Socket } from 'socket.io-client'
 
 const OFFICE_CLIENT_VERSION = '1'
@@ -94,16 +94,28 @@ export class OfficeWebSocketClient {
   private socket: Socket | null = null
   private accessToken = ''
   private reconnectAttempts = 0
-  private readonly url: string
-  private readonly options: Required<OfficeWebSocketOptions>
+  /**
+   * When set, used as the socket.io base URL. When omitted, `getOfficeWebSocketUrl()` is evaluated
+   * at connect time (and in connection status) so the client matches runtime document-service config.
+   */
+  private readonly explicitBaseUrl: string | undefined
+  private readonly baseOptions: OfficeWebSocketOptions
   private readonly maxReconnectAttempts: number
 
-  constructor(url: string = OFFICE_WEB_SOCKET_URL, options: OfficeWebSocketOptions = {}) {
-    const target = resolveSocketTarget(url)
+  constructor(baseUrl?: string, options: OfficeWebSocketOptions = {}) {
+    this.explicitBaseUrl = baseUrl
+    this.baseOptions = options
+    this.maxReconnectAttempts = resolveSocketOptions(options, '/socket.io').reconnectionAttempts
+  }
 
-    this.url = target.socketUrl
-    this.options = resolveSocketOptions(options, target.socketPath)
-    this.maxReconnectAttempts = this.options.reconnectionAttempts
+  private resolveConnectBase(): { socketUrl: string; socketPath: string } {
+    const raw = this.explicitBaseUrl ?? getOfficeWebSocketUrl()
+    return resolveSocketTarget(raw)
+  }
+
+  private getConnectOptions(): Required<OfficeWebSocketOptions> {
+    const target = this.resolveConnectBase()
+    return resolveSocketOptions(this.baseOptions, target.socketPath)
   }
 
   setAccessToken(accessToken: string) {
@@ -148,17 +160,19 @@ export class OfficeWebSocketClient {
       return this.socket
     }
 
-    const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
+    const target = this.resolveConnectBase()
+    const options = this.getConnectOptions()
+    const transports = options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
-    this.socket = io(this.url, {
+    this.socket = io(target.socketUrl, {
       auth: toSocketAuth(this.accessToken),
       transports,
-      path: this.options.path,
+      path: options.path,
       reconnection: true,
       reconnectionDelay: 5000,
-      reconnectionDelayMax: this.options.reconnectionDelayMax,
-      reconnectionAttempts: this.options.reconnectionAttempts,
-      timeout: this.options.connectionTimeout,
+      reconnectionDelayMax: options.reconnectionDelayMax,
+      reconnectionAttempts: options.reconnectionAttempts,
+      timeout: options.connectionTimeout,
       upgrade: true,
       rememberUpgrade: true,
       forceNew: false,
@@ -206,13 +220,15 @@ export class OfficeWebSocketClient {
   }
 
   getConnectionStatus(): OfficeSocketConnectionStatus {
+    const options = this.getConnectOptions()
+    const target = this.resolveConnectBase()
     return {
       connected: this.socket?.connected ?? false,
       socketId: this.socket?.id,
       transport: this.socket?.io?.engine?.transport?.name,
       reconnectAttempts: this.reconnectAttempts,
       maxReconnectAttempts: this.maxReconnectAttempts,
-      url: `${this.url}${this.options.path}`
+      url: `${target.socketUrl}${options.path}`
     }
   }
 
@@ -279,9 +295,9 @@ export class OfficeWebSocketClient {
     }
 
     this.socket.emit('join_document', { entityType, entityId }, (response: JoinDocumentResponse) => {
-      if (response?.success && response.participants) {
-        onParticipantsReceived?.(response.participants)
-      }
+      if (!response?.success) return
+      const participants = Array.isArray(response.participants) ? response.participants : []
+      onParticipantsReceived?.(participants)
     })
 
     return true

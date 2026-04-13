@@ -1087,6 +1087,8 @@ spreadsheet-save-just-now = Gerade gespeichert
 
 # Save / persistence indicator (viewer header)
 persist-cell-failed = Zellenänderungen konnten nicht gespeichert werden. Bitte erneut versuchen oder die Seite aktualisieren.
+collab-sync-save-failed = Synchronisierung über Collaboration fehlgeschlagen; Änderungen wurden zur direkten Speicherung eingereiht.
+collab-queue-trimmed-warn = Collaboration-Warteschlange wurde gekürzt. Wenn die Tabelle falsch aussieht, Seite neu laden.
 persist-row-update-failed = Zeilenänderungen konnten nicht gespeichert werden.
 persist-row-delete-failed = Zeile konnte nicht gelöscht werden.
 persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
