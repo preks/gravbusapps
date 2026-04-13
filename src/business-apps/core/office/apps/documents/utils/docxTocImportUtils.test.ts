@@ -64,6 +64,32 @@ describe('docxTocImportUtils', () => {
     expect(toc?.snapshotJson).not.toContain('"text":"Page 88 49"')
   })
 
+  it('parses custom TOC entry style ids inside the field result', () => {
+    const toc = parseDocumentXmlForTableOfContents(
+      minimalDocumentXml(`
+        <w:p>
+          <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+          <w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h </w:instrText></w:r>
+          <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+        </w:p>
+        <w:p>
+          <w:pPr><w:pStyle w:val="MyCustomContents2"/></w:pPr>
+          <w:r><w:t>Custom styled entry</w:t></w:r>
+          <w:r><w:tab/></w:r>
+          <w:r><w:t>12</w:t></w:r>
+        </w:p>
+        <w:p>
+          <w:r><w:fldChar w:fldCharType="end"/></w:r>
+        </w:p>
+      `)
+    )
+
+    expect(toc).not.toBeNull()
+    expect(toc?.snapshotJson).toContain('"text":"Custom styled entry"')
+    expect(toc?.snapshotJson).toContain('"pageNumber":"12"')
+    expect(toc?.snapshotJson).toContain('"level":2')
+  })
+
   it('injects a document-toc block into imported html', () => {
     const toc = parseDocumentXmlForTableOfContents(
       minimalDocumentXml(`
@@ -107,6 +133,22 @@ describe('docxTocImportUtils', () => {
     expect(enhanced).toContain('Details')
     expect(enhanced).toContain('<h1>Overview</h1>')
     expect(enhanced).not.toContain('<a href="#_Toc1">Overview</a> 3')
+  })
+
+  it('falls back to html-only ToC detection with a custom title', () => {
+    const html = [
+      '<h1>Project overview</h1>',
+      '<p><a href="#_Toc1">Overview</a> 3</p>',
+      '<p><a href="#_Toc2">Details</a> 4</p>',
+      '<h1>Overview</h1>'
+    ].join('')
+
+    const enhanced = enhanceImportedHtmlWithTableOfContents(html, null)
+
+    expect(enhanced).toContain('data-document-toc')
+    expect(enhanced).toContain('Overview')
+    expect(enhanced).toContain('Details')
+    expect(enhanced).not.toContain('<p><a href="#_Toc1">Overview</a> 3</p>')
   })
 
   it('strips trailing page numbers from html fallback link text', () => {

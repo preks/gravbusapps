@@ -20,6 +20,7 @@ type ParsedParagraph = {
   hasSeparate: boolean
   hasEnd: boolean
   instrText: string
+  indentLeftTwips: number | null
 }
 
 function elementLocalName(el: Element): string {
@@ -67,6 +68,10 @@ function readParagraphText(paragraph: Element): string {
 function readParagraph(paragraph: Element): ParsedParagraph {
   const pPr = descendantsByLocalName(paragraph, 'pPr')[0]
   const pStyle = pPr ? firstChildByLocalName(pPr, 'pStyle') : null
+  const indentation = pPr ? firstChildByLocalName(pPr, 'ind') : null
+  const indentLeftTwips = indentation
+    ? Number.parseInt(indentation.getAttribute('w:left') ?? indentation.getAttribute('left') ?? '', 10)
+    : NaN
   const fieldChars = descendantsByLocalName(paragraph, 'fldChar')
   const hasBegin = fieldChars.some(
     el => el.getAttribute('w:fldCharType') === 'begin' || el.getAttribute('fldCharType') === 'begin'
@@ -87,7 +92,8 @@ function readParagraph(paragraph: Element): ParsedParagraph {
     hasBegin,
     hasSeparate,
     hasEnd,
-    instrText
+    instrText,
+    indentLeftTwips: Number.isFinite(indentLeftTwips) ? indentLeftTwips : null
   }
 }
 
@@ -146,17 +152,32 @@ function extractTocTextAndPageNumber(
   }
 }
 
-function parseFieldResultEntry(paragraph: ParsedParagraph) {
-  const levelMatch = paragraph.styleId?.match(/^TOC([1-9])$/i)
-  if (!levelMatch) return null
+function inferTocLevelFromParagraph(paragraph: ParsedParagraph): number {
+  const tocStyleLevelMatch = paragraph.styleId?.match(/^TOC([1-9])$/i)
+  if (tocStyleLevelMatch) {
+    return Math.max(1, Math.min(6, Number.parseInt(tocStyleLevelMatch[1] ?? '1', 10)))
+  }
 
-  const level = Math.max(1, Math.min(6, Number.parseInt(levelMatch[1] ?? '1', 10)))
+  const trailingDigitMatch = paragraph.styleId?.match(/(\d+)$/)
+  if (trailingDigitMatch) {
+    return Math.max(1, Math.min(6, Number.parseInt(trailingDigitMatch[1] ?? '1', 10)))
+  }
+
+  if (paragraph.indentLeftTwips && paragraph.indentLeftTwips > 0) {
+    const inferredLevel = Math.round(paragraph.indentLeftTwips / 220)
+    return Math.max(1, Math.min(6, inferredLevel + 1))
+  }
+
+  return 1
+}
+
+function parseFieldResultEntry(paragraph: ParsedParagraph) {
   const [rawText, rawPageNumber] = paragraph.text.split('\t')
   const { text, pageNumber } = extractTocTextAndPageNumber(rawText ?? '', rawPageNumber ?? null)
   if (!text) return null
 
   return {
-    level,
+    level: inferTocLevelFromParagraph(paragraph),
     text,
     pos: -1,
     blockStart: -1,
@@ -368,19 +389,15 @@ function inferTableOfContentsFromHtml(html: string): ImportedDocxTableOfContents
     const bodyChildren = Array.from(doc.body.children)
 
     for (let index = 0; index < bodyChildren.length; index += 1) {
-      const titleCandidate = bodyChildren[index]
-      if (!titleCandidate) continue
-
-      const titleText = normalizeWhitespace(titleCandidate.textContent ?? '')
-      if (!['table of contents', 'contents', 'inhaltsverzeichnis', 'cuprins'].includes(titleText.toLowerCase())) {
-        continue
-      }
-
       const rowElements: Element[] = []
-      for (let cursor = index + 1; cursor < bodyChildren.length; cursor += 1) {
+      for (let cursor = index; cursor < bodyChildren.length; cursor += 1) {
         const candidate = bodyChildren[cursor]
         if (!candidate) break
-        if (candidate.querySelector('a')) {
+        const firstLink = candidate.querySelector('a[href]')
+        const href = firstLink?.getAttribute('href') ?? ''
+        const hasInternalLink = href.startsWith('#')
+
+        if (firstLink && hasInternalLink) {
           rowElements.push(candidate)
           continue
         }
@@ -400,6 +417,12 @@ function inferTableOfContentsFromHtml(html: string): ImportedDocxTableOfContents
       if (entries.length === 0) {
         continue
       }
+
+      const titleCandidate = index > 0 ? bodyChildren[index - 1] : null
+      const titleText =
+        titleCandidate && !titleCandidate.querySelector('a')
+          ? normalizeWhitespace(titleCandidate.textContent ?? '')
+          : ''
 
       return {
         snapshotJson: stringifyDocumentTocSnapshot(

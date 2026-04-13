@@ -23,6 +23,25 @@ function createDocWithHeading(options: { text: string; level?: number; blockStar
   } as never
 }
 
+function createDocWithHeadings(headings: Array<{ text: string; level?: number; blockStart: number }>) {
+  return {
+    descendants: (
+      visit: (node: { type: { name: string }; attrs: { level: number }; textContent: string }, pos: number) => void
+    ) => {
+      headings.forEach(heading => {
+        visit(
+          {
+            type: { name: 'heading' },
+            attrs: { level: heading.level ?? 1 },
+            textContent: heading.text
+          },
+          heading.blockStart
+        )
+      })
+    }
+  } as never
+}
+
 describe('documentTocSnapshot', () => {
   it('builds a stored snapshot with page numbers', () => {
     const snapshot = buildDocumentTocSnapshotFromDoc({
@@ -69,6 +88,21 @@ describe('documentTocSnapshot', () => {
     expect(updated.entries[0]?.pageNumber).toBe('7')
     expect(updated.updateMode).toBe('pageNumbers')
     expect(updated.layoutVersion).toBe(2)
+  })
+
+  it('includes headings that appear before the table of contents block', () => {
+    const snapshot = buildDocumentTocSnapshotFromDoc({
+      doc: createDocWithHeadings([
+        { text: 'Before ToC', blockStart: 5 },
+        { text: 'After ToC', blockStart: 25 }
+      ]),
+      afterPos: 20,
+      maxHeadingLevel: 3,
+      spans: [{ pageNumber: 1, startPos: 0, endPos: 100 }],
+      layoutVersion: 1
+    })
+
+    expect(snapshot.entries.map(entry => entry.text)).toEqual(['Before ToC', 'After ToC'])
   })
 
   it('detects structural drift from stored entries', () => {
