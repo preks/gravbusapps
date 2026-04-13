@@ -3,9 +3,9 @@ import {
   resolvePaginationDeferredSchedulingTriggers,
   resolvePaginationPageCountUpdateDecision,
   resolveSelectionNavigationDirection,
-  runPaginationPluginViewUpdate,
-  type PaginationPluginViewRuntimeState
-} from '../paginationPluginViewController'
+  resolveSelectionOverflowPaginationDecision
+} from '../paginationPluginViewDecisions'
+import { runPaginationPluginViewUpdate, type PaginationPluginViewRuntimeState } from '../paginationPluginViewController'
 
 function createDoc(label: string) {
   return { label } as unknown as PMNode
@@ -149,6 +149,49 @@ describe('resolvePaginationDeferredSchedulingTriggers', () => {
       shouldConsumePendingRefreshDrivenStabilization: true,
       shouldScheduleInitialTableStabilization: true,
       shouldScheduleUpdateDrivenStabilization: true
+    })
+  })
+})
+
+describe('resolveSelectionOverflowPaginationDecision', () => {
+  it('keeps table overflow growth on the deferred stabilization path', () => {
+    expect(
+      resolveSelectionOverflowPaginationDecision({
+        activeEditorType: null,
+        isComposing: false,
+        shouldDeferSelectionOverflowResolution: false,
+        hasSelectionOverflow: true,
+        hasTables: true,
+        currentPageCount: 22,
+        measuredPageCount: 43,
+        docChangedSinceLastUpdate: false,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false
+      })
+    ).toEqual({
+      type: 'schedule-deferred-refresh'
+    })
+  })
+
+  it('requests an immediate overflow refresh for non-table growth', () => {
+    expect(
+      resolveSelectionOverflowPaginationDecision({
+        activeEditorType: null,
+        isComposing: false,
+        shouldDeferSelectionOverflowResolution: false,
+        hasSelectionOverflow: true,
+        hasTables: false,
+        currentPageCount: 22,
+        measuredPageCount: 23,
+        docChangedSinceLastUpdate: false,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false
+      })
+    ).toEqual({
+      type: 'refresh',
+      refreshSource: 'selection-overflow',
+      nextStoredPageCount: 23,
+      shouldClearGrowthSuppression: true
     })
   })
 })

@@ -1,9 +1,9 @@
 import type { EditorView } from '@tiptap/pm/view'
 import {
   LARGE_DOC_PAGE_YIELD_THRESHOLD,
-  resolveDeferredRepaginationLoopTableState,
   runDeferredRepaginationEvaluationLoop
 } from '../deferredRepaginationEvaluationController'
+import { resolveDeferredRepaginationLoopTableState } from '../deferredRepaginationLoopTableState'
 import { writePaginationLayoutTableFragments } from '../layoutTableFragmentsBridge'
 import type { AddPagesMeasurementSnapshot, PaginationMeasuredHeights } from '../paginationPageCountPolicy'
 

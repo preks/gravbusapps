@@ -2,6 +2,13 @@ import type { Node as PMNode } from 'prosemirror-model'
 import type { EditorView } from '@tiptap/pm/view'
 import type { AddPagesMeasurementSnapshot } from './paginationPageCountPolicy'
 import { startPaginationInstrumentationTimer } from './paginationInstrumentation'
+import {
+  resolvePaginationDeferredSchedulingTriggers,
+  resolvePaginationPageCountUpdateDecision,
+  resolveSelectionNavigationDirection,
+  resolveSelectionOverflowPaginationDecision,
+  type SelectionNavigationDirection
+} from './paginationPluginViewDecisions'
 import type { PaginationTransactionClassification } from './paginationTransactionClassifier'
 import type { PagesStorage } from './types'
 
@@ -12,7 +19,6 @@ export type PaginationDocChangeOrigin =
   | 'table-metadata-owned'
   | 'collaboration-remote'
   | null
-export type SelectionNavigationDirection = 'forward' | 'backward' | null
 
 export interface PaginationPluginViewRuntimeState {
   lastKnownDoc: PMNode | null
@@ -23,104 +29,6 @@ export interface PaginationPluginViewRuntimeState {
   lastDocChangeOrigin: PaginationDocChangeOrigin
   lastDocChangeAnalysis: PaginationTransactionClassification | null
   suppressPaginationOwnedDeferredScheduling: boolean
-}
-
-export function resolvePaginationPageCountUpdateDecision(options: {
-  activeEditorType: PagesStorage['activeEditorType']
-  isComposing: boolean
-  isInitialViewUpdate: boolean
-  docChangeAffectsLayout: boolean
-  hasTables: boolean
-  paginationOwnedDocChange: boolean
-  currentPageCount: number
-  measuredPageCount: number
-}) {
-  const {
-    activeEditorType,
-    isComposing,
-    isInitialViewUpdate,
-    docChangeAffectsLayout,
-    hasTables,
-    paginationOwnedDocChange,
-    currentPageCount,
-    measuredPageCount
-  } = options
-
-  const canEvaluatePageCountMismatch =
-    activeEditorType === null && !isComposing && (docChangeAffectsLayout || (isInitialViewUpdate && !hasTables))
-
-  if (!canEvaluatePageCountMismatch) {
-    return {
-      type: 'none' as const
-    }
-  }
-
-  if (measuredPageCount < currentPageCount) {
-    return {
-      type: 'refresh' as const,
-      refreshSource: 'page-count-shrink' as const,
-      nextStoredPageCount: measuredPageCount,
-      shouldClearGrowthSuppression: paginationOwnedDocChange,
-      shouldResetRunawayGrowthCap: true,
-      shouldMarkPendingRefreshDrivenStabilization: docChangeAffectsLayout && hasTables
-    }
-  }
-
-  if (measuredPageCount > currentPageCount) {
-    return {
-      type: 'refresh' as const,
-      refreshSource: 'page-count-grow' as const,
-      nextStoredPageCount: measuredPageCount,
-      shouldClearGrowthSuppression: true,
-      shouldResetRunawayGrowthCap: true,
-      shouldMarkPendingRefreshDrivenStabilization: false
-    }
-  }
-
-  return {
-    type: 'none' as const
-  }
-}
-
-export function resolvePaginationDeferredSchedulingTriggers(options: {
-  activeEditorType: PagesStorage['activeEditorType']
-  isInitialViewUpdate: boolean
-  hasTables: boolean
-  pendingRefreshDrivenStabilization: boolean
-  shouldScheduleDeferredRepaginationOnUpdate: boolean
-}) {
-  const {
-    activeEditorType,
-    isInitialViewUpdate,
-    hasTables,
-    pendingRefreshDrivenStabilization,
-    shouldScheduleDeferredRepaginationOnUpdate
-  } = options
-
-  if (activeEditorType !== null) {
-    return {
-      shouldConsumePendingRefreshDrivenStabilization: false,
-      shouldScheduleInitialTableStabilization: false,
-      shouldScheduleUpdateDrivenStabilization: false
-    }
-  }
-
-  return {
-    shouldConsumePendingRefreshDrivenStabilization: pendingRefreshDrivenStabilization,
-    shouldScheduleInitialTableStabilization: isInitialViewUpdate && hasTables,
-    shouldScheduleUpdateDrivenStabilization: shouldScheduleDeferredRepaginationOnUpdate
-  }
-}
-
-export function resolveSelectionNavigationDirection(
-  lastKnownSelectionHead: number | null,
-  currentSelectionHead: number
-): SelectionNavigationDirection {
-  if (lastKnownSelectionHead == null || currentSelectionHead === lastKnownSelectionHead) {
-    return null
-  }
-
-  return currentSelectionHead > lastKnownSelectionHead ? 'forward' : 'backward'
 }
 
 export function runPaginationPluginViewUpdate<TSelection>(options: {
@@ -285,10 +193,20 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       const selectionOverflow = options.resolveSelectionOverflow(view, selectionDirection)
       if (selectionOverflow) {
         const measurementState = options.resolveMeasurementState(nextState)
-        const shouldDeferSelectionOverflowRefresh =
-          resolveHasTables() && measurementState.measuredPageCount > measurementState.currentPageCount
+        const selectionOverflowDecision = resolveSelectionOverflowPaginationDecision({
+          activeEditorType: storage.activeEditorType,
+          isComposing: (view as EditorView & { composing?: boolean }).composing === true,
+          shouldDeferSelectionOverflowResolution,
+          hasSelectionOverflow: true,
+          hasTables: resolveHasTables(),
+          currentPageCount: measurementState.currentPageCount,
+          measuredPageCount: measurementState.measuredPageCount,
+          docChangedSinceLastUpdate,
+          paginationOwnedDocChange,
+          hydrationOwnedDocChange
+        })
 
-        if (shouldDeferSelectionOverflowRefresh) {
+        if (selectionOverflowDecision.type === 'schedule-deferred-refresh') {
           scheduledDeferredRepagination = true
           options.onScheduleDeferredRepagination(options.getDeferredStabilizationAttemptCount(view))
           nextState.lastKnownSelectionHead = currentSelectionHead
@@ -298,18 +216,20 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
           return nextState
         }
 
-        if (measurementState.measuredPageCount > measurementState.currentPageCount) {
+        if (selectionOverflowDecision.type === 'refresh') {
           options.onLogSelectionOverflowRefresh?.({
             currentPageCount: measurementState.currentPageCount,
             measuredPageCount: measurementState.measuredPageCount,
             selectionHead: currentSelectionHead
           })
-          options.onClearGrowthSuppression()
-          options.onSetStoredPageCount(measurementState.measuredPageCount)
+          if (selectionOverflowDecision.shouldClearGrowthSuppression) {
+            options.onClearGrowthSuppression()
+          }
+          options.onSetStoredPageCount(selectionOverflowDecision.nextStoredPageCount)
           nextState.lastKnownSelectionHead = currentSelectionHead
           exitReason = 'selection-overflow-refresh'
-          requestedRefreshSource = 'selection-overflow'
-          options.onRequestRefresh('selection-overflow')
+          requestedRefreshSource = selectionOverflowDecision.refreshSource
+          options.onRequestRefresh(selectionOverflowDecision.refreshSource)
           return nextState
         }
 
@@ -321,7 +241,10 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
         if (!options.selectionsEqual(nextSelection, options.currentSelection)) {
           options.onDispatchSelection(nextSelection)
         }
-        if (docChangedSinceLastUpdate || paginationOwnedDocChange || hydrationOwnedDocChange) {
+        if (
+          selectionOverflowDecision.type === 'adjust-selection' &&
+          selectionOverflowDecision.shouldScheduleDeferredRepagination
+        ) {
           scheduledDeferredRepagination = true
           options.onScheduleDeferredRepagination()
         }

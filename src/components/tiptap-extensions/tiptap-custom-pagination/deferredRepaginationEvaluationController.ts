@@ -7,15 +7,12 @@ import {
   PAGE_COUNT_HARD_CAP,
   MAX_PAGE_GROWTH_PER_EVALUATION
 } from './paginationPageCountPolicy'
-import {
-  resolveDeferredRepaginationPreflight,
-  resolveTablePaginationHeuristics,
-  shouldDeferTablePaginationEvaluation
-} from './paginationStabilizationPolicy'
+import { resolveDeferredRepaginationPreflight } from './paginationStabilizationPolicy'
 import {
   incrementPaginationInstrumentationCounter,
   startPaginationInstrumentationTimer
 } from './paginationInstrumentation'
+import { resolveDeferredRepaginationLoopTableState } from './deferredRepaginationLoopTableState'
 import {
   createMissingPaginationLayoutTableFragmentsState,
   readPaginationLayoutTableFragmentsState
@@ -45,46 +42,6 @@ export interface DeferredRepaginationEvaluationResult {
 
 function isDestroyedView(view: EditorView) {
   return (view as EditorView & { isDestroyed?: boolean }).isDestroyed === true
-}
-
-export function resolveDeferredRepaginationLoopTableState(options: {
-  hasActiveEditor: boolean
-  hasTables: boolean
-  currentPageCount: number
-  bodyBands: PageBodyMeasurementBand[]
-  stabilizationAttemptsRemaining: number
-  getHasPendingTableMeasurements: () => boolean
-  cappedPageCount: number | null
-  resolvePreflight?: typeof resolveDeferredRepaginationPreflight
-}) {
-  const measuredTablePageCount = new Set(options.bodyBands.map(band => band.pageNumber)).size
-  const tablePaginationHeuristics = resolveTablePaginationHeuristics(options.cappedPageCount, options.hasActiveEditor)
-  const deferTableEvaluation =
-    tablePaginationHeuristics.allowSplit &&
-    shouldDeferTablePaginationEvaluation({
-      hasTables: options.hasTables,
-      currentPageCount: options.currentPageCount,
-      bodyBandCount: measuredTablePageCount
-    })
-  const tableMeasurementsPending =
-    options.hasTables &&
-    (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
-    !deferTableEvaluation &&
-    options.getHasPendingTableMeasurements()
-  const preflight = (options.resolvePreflight ?? resolveDeferredRepaginationPreflight)({
-    cappedPageCount: options.cappedPageCount,
-    hasActiveEditor: options.hasActiveEditor,
-    hasTables: options.hasTables,
-    currentPageCount: options.currentPageCount,
-    bodyBandCount: measuredTablePageCount,
-    stabilizationAttemptsRemaining: options.stabilizationAttemptsRemaining,
-    tableMeasurementsPending
-  })
-
-  return {
-    measuredTablePageCount,
-    preflight
-  }
 }
 
 export function runDeferredRepaginationEvaluationLoop(options: {
