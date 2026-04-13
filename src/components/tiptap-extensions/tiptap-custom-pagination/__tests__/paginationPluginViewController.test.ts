@@ -1,5 +1,7 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import {
+  resolvePaginationDeferredSchedulingTriggers,
+  resolvePaginationPageCountUpdateDecision,
   resolveSelectionNavigationDirection,
   runPaginationPluginViewUpdate,
   type PaginationPluginViewRuntimeState
@@ -91,6 +93,63 @@ describe('resolveSelectionNavigationDirection', () => {
   it('returns forward/backward when the selection moved', () => {
     expect(resolveSelectionNavigationDirection(5, 8)).toBe('forward')
     expect(resolveSelectionNavigationDirection(8, 5)).toBe('backward')
+  })
+})
+
+describe('resolvePaginationPageCountUpdateDecision', () => {
+  it('keeps initial table opens off the immediate page-count refresh path', () => {
+    expect(
+      resolvePaginationPageCountUpdateDecision({
+        activeEditorType: null,
+        isComposing: false,
+        isInitialViewUpdate: true,
+        docChangeAffectsLayout: false,
+        hasTables: true,
+        paginationOwnedDocChange: false,
+        currentPageCount: 22,
+        measuredPageCount: 43
+      })
+    ).toEqual({ type: 'none' })
+  })
+
+  it('marks table doc shrink refreshes for follow-up stabilization after layout-affecting doc changes', () => {
+    expect(
+      resolvePaginationPageCountUpdateDecision({
+        activeEditorType: null,
+        isComposing: false,
+        isInitialViewUpdate: false,
+        docChangeAffectsLayout: true,
+        hasTables: true,
+        paginationOwnedDocChange: true,
+        currentPageCount: 43,
+        measuredPageCount: 22
+      })
+    ).toEqual({
+      type: 'refresh',
+      refreshSource: 'page-count-shrink',
+      nextStoredPageCount: 22,
+      shouldClearGrowthSuppression: true,
+      shouldResetRunawayGrowthCap: true,
+      shouldMarkPendingRefreshDrivenStabilization: true
+    })
+  })
+})
+
+describe('resolvePaginationDeferredSchedulingTriggers', () => {
+  it('separates pending, initial-table, and update-driven stabilization triggers', () => {
+    expect(
+      resolvePaginationDeferredSchedulingTriggers({
+        activeEditorType: null,
+        isInitialViewUpdate: true,
+        hasTables: true,
+        pendingRefreshDrivenStabilization: true,
+        shouldScheduleDeferredRepaginationOnUpdate: true
+      })
+    ).toEqual({
+      shouldConsumePendingRefreshDrivenStabilization: true,
+      shouldScheduleInitialTableStabilization: true,
+      shouldScheduleUpdateDrivenStabilization: true
+    })
   })
 })
 

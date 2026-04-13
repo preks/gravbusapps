@@ -25,6 +25,93 @@ export interface PaginationPluginViewRuntimeState {
   suppressPaginationOwnedDeferredScheduling: boolean
 }
 
+export function resolvePaginationPageCountUpdateDecision(options: {
+  activeEditorType: PagesStorage['activeEditorType']
+  isComposing: boolean
+  isInitialViewUpdate: boolean
+  docChangeAffectsLayout: boolean
+  hasTables: boolean
+  paginationOwnedDocChange: boolean
+  currentPageCount: number
+  measuredPageCount: number
+}) {
+  const {
+    activeEditorType,
+    isComposing,
+    isInitialViewUpdate,
+    docChangeAffectsLayout,
+    hasTables,
+    paginationOwnedDocChange,
+    currentPageCount,
+    measuredPageCount
+  } = options
+
+  const canEvaluatePageCountMismatch =
+    activeEditorType === null && !isComposing && (docChangeAffectsLayout || (isInitialViewUpdate && !hasTables))
+
+  if (!canEvaluatePageCountMismatch) {
+    return {
+      type: 'none' as const
+    }
+  }
+
+  if (measuredPageCount < currentPageCount) {
+    return {
+      type: 'refresh' as const,
+      refreshSource: 'page-count-shrink' as const,
+      nextStoredPageCount: measuredPageCount,
+      shouldClearGrowthSuppression: paginationOwnedDocChange,
+      shouldResetRunawayGrowthCap: true,
+      shouldMarkPendingRefreshDrivenStabilization: docChangeAffectsLayout && hasTables
+    }
+  }
+
+  if (measuredPageCount > currentPageCount) {
+    return {
+      type: 'refresh' as const,
+      refreshSource: 'page-count-grow' as const,
+      nextStoredPageCount: measuredPageCount,
+      shouldClearGrowthSuppression: true,
+      shouldResetRunawayGrowthCap: true,
+      shouldMarkPendingRefreshDrivenStabilization: false
+    }
+  }
+
+  return {
+    type: 'none' as const
+  }
+}
+
+export function resolvePaginationDeferredSchedulingTriggers(options: {
+  activeEditorType: PagesStorage['activeEditorType']
+  isInitialViewUpdate: boolean
+  hasTables: boolean
+  pendingRefreshDrivenStabilization: boolean
+  shouldScheduleDeferredRepaginationOnUpdate: boolean
+}) {
+  const {
+    activeEditorType,
+    isInitialViewUpdate,
+    hasTables,
+    pendingRefreshDrivenStabilization,
+    shouldScheduleDeferredRepaginationOnUpdate
+  } = options
+
+  if (activeEditorType !== null) {
+    return {
+      shouldConsumePendingRefreshDrivenStabilization: false,
+      shouldScheduleInitialTableStabilization: false,
+      shouldScheduleUpdateDrivenStabilization: false
+    }
+  }
+
+  return {
+    shouldConsumePendingRefreshDrivenStabilization: pendingRefreshDrivenStabilization,
+    shouldScheduleInitialTableStabilization: isInitialViewUpdate && hasTables,
+    shouldScheduleUpdateDrivenStabilization: shouldScheduleDeferredRepaginationOnUpdate
+  }
+}
+
 export function resolveSelectionNavigationDirection(
   lastKnownSelectionHead: number | null,
   currentSelectionHead: number
@@ -146,42 +233,48 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       }
     }
 
-    const canEvaluatePageCountMismatch =
+    let pageCountUpdateDecision: ReturnType<typeof resolvePaginationPageCountUpdateDecision> = { type: 'none' }
+    const shouldInspectPageCountMismatch =
       storage.activeEditorType === null &&
       !(view as EditorView & { composing?: boolean }).composing &&
       (docChangeAffectsLayout || (isInitialViewUpdate && !resolveHasTables()))
 
-    if (canEvaluatePageCountMismatch) {
+    if (shouldInspectPageCountMismatch) {
       const measurementState = options.resolveMeasurementState(nextState)
+      pageCountUpdateDecision = resolvePaginationPageCountUpdateDecision({
+        activeEditorType: storage.activeEditorType,
+        isComposing: (view as EditorView & { composing?: boolean }).composing === true,
+        isInitialViewUpdate,
+        docChangeAffectsLayout,
+        hasTables: resolveHasTables(),
+        paginationOwnedDocChange,
+        currentPageCount: measurementState.currentPageCount,
+        measuredPageCount: measurementState.measuredPageCount
+      })
+    }
 
-      if (measurementState.measuredPageCount < measurementState.currentPageCount) {
-        if (paginationOwnedDocChange) {
-          options.onClearGrowthSuppression()
-        }
-
-        nextState.runawayGrowthCapPageCount = null
-        if (docChangeAffectsLayout && resolveHasTables()) {
-          nextState.pendingRefreshDrivenStabilization = true
-        }
-
-        options.onSetStoredPageCount(measurementState.measuredPageCount)
-        nextState.lastKnownSelectionHead = currentSelectionHead
-        exitReason = 'page-count-shrink-refresh'
-        requestedRefreshSource = 'page-count-shrink'
-        options.onRequestRefresh('page-count-shrink')
-        return nextState
-      }
-
-      if (measurementState.measuredPageCount > measurementState.currentPageCount) {
+    if (pageCountUpdateDecision.type === 'refresh') {
+      if (pageCountUpdateDecision.shouldClearGrowthSuppression) {
         options.onClearGrowthSuppression()
-        nextState.runawayGrowthCapPageCount = null
-        options.onSetStoredPageCount(measurementState.measuredPageCount)
-        nextState.lastKnownSelectionHead = currentSelectionHead
-        exitReason = 'page-count-grow-refresh'
-        requestedRefreshSource = 'page-count-grow'
-        options.onRequestRefresh('page-count-grow')
-        return nextState
       }
+
+      if (pageCountUpdateDecision.shouldResetRunawayGrowthCap) {
+        nextState.runawayGrowthCapPageCount = null
+      }
+
+      if (pageCountUpdateDecision.shouldMarkPendingRefreshDrivenStabilization) {
+        nextState.pendingRefreshDrivenStabilization = true
+      }
+
+      options.onSetStoredPageCount(pageCountUpdateDecision.nextStoredPageCount)
+      nextState.lastKnownSelectionHead = currentSelectionHead
+      exitReason =
+        pageCountUpdateDecision.refreshSource === 'page-count-shrink'
+          ? 'page-count-shrink-refresh'
+          : 'page-count-grow-refresh'
+      requestedRefreshSource = pageCountUpdateDecision.refreshSource
+      options.onRequestRefresh(pageCountUpdateDecision.refreshSource)
+      return nextState
     }
 
     if (
@@ -240,31 +333,40 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       }
     }
 
-    if (nextState.pendingRefreshDrivenStabilization && storage.activeEditorType === null) {
+    const hasTablesForDeferredScheduling = isInitialViewUpdate || docChangedSinceLastUpdate ? resolveHasTables() : false
+    const deferredSchedulingTriggers = resolvePaginationDeferredSchedulingTriggers({
+      activeEditorType: storage.activeEditorType,
+      isInitialViewUpdate,
+      hasTables: hasTablesForDeferredScheduling,
+      pendingRefreshDrivenStabilization: nextState.pendingRefreshDrivenStabilization,
+      shouldScheduleDeferredRepaginationOnUpdate:
+        docChangedSinceLastUpdate &&
+        options.shouldScheduleDeferredRepaginationOnUpdate({
+          activeEditorType: storage.activeEditorType,
+          hasTables: hasTablesForDeferredScheduling,
+          externalDocChange,
+          collaborationRemoteDocChange,
+          paginationOwnedDocChange:
+            paginationOwnedDocChange && !options.state.suppressPaginationOwnedDeferredScheduling,
+          hydrationOwnedDocChange,
+          docChangeAnalysis
+        })
+    })
+
+    if (deferredSchedulingTriggers.shouldConsumePendingRefreshDrivenStabilization) {
       nextState.pendingRefreshDrivenStabilization = false
       scheduledDeferredRepagination = true
       options.onScheduleDeferredRepagination(options.getDeferredStabilizationAttemptCount(view))
       shouldRefreshLayoutBounds = true
     }
 
-    if (isInitialViewUpdate && storage.activeEditorType === null && resolveHasTables()) {
+    if (deferredSchedulingTriggers.shouldScheduleInitialTableStabilization) {
       scheduledDeferredRepagination = true
       options.onScheduleDeferredRepagination(options.getDeferredStabilizationAttemptCount(view))
       shouldRefreshLayoutBounds = true
     }
 
-    if (
-      docChangedSinceLastUpdate &&
-      options.shouldScheduleDeferredRepaginationOnUpdate({
-        activeEditorType: storage.activeEditorType,
-        hasTables: resolveHasTables(),
-        externalDocChange,
-        collaborationRemoteDocChange,
-        paginationOwnedDocChange: paginationOwnedDocChange && !options.state.suppressPaginationOwnedDeferredScheduling,
-        hydrationOwnedDocChange,
-        docChangeAnalysis
-      })
-    ) {
+    if (deferredSchedulingTriggers.shouldScheduleUpdateDrivenStabilization) {
       scheduledDeferredRepagination = true
       options.onScheduleDeferredRepagination()
       shouldRefreshLayoutBounds = true
