@@ -1,6 +1,43 @@
-import { analyzeImageWrapContour, resolveContourSlicesForWrapMode } from './wrapContourUtils'
+import { analyzeImageWrapContour, areImageWrapContoursEqual, resolveContourSlicesForWrapMode } from './wrapContourUtils'
 
 describe('wrapContourUtils', () => {
+  it('treats contours with the same geometry as equal', () => {
+    const contour = {
+      polygon: {
+        points: [
+          { x: 0, y: 0 },
+          { x: 0.5, y: 1 },
+          { x: 1, y: 0 },
+          { x: 0, y: 0 }
+        ],
+        source: 'alpha-mask-outer' as const,
+        supportsInnerContours: false
+      },
+      slices: [
+        {
+          top: 0,
+          bottom: 1,
+          spans: [{ start: 0.1, end: 0.9 }]
+        }
+      ],
+      hasInteriorOpenings: false
+    }
+
+    expect(areImageWrapContoursEqual(contour, { ...contour, polygon: { ...contour.polygon } })).toBe(true)
+    expect(
+      areImageWrapContoursEqual(contour, {
+        ...contour,
+        slices: [
+          {
+            top: 0,
+            bottom: 1,
+            spans: [{ start: 0.2, end: 0.9 }]
+          }
+        ]
+      })
+    ).toBe(false)
+  })
+
   it('extracts outer contours and interior openings from alpha data', () => {
     const canvas = document.createElement('canvas')
     const alphaRows = [

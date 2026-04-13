@@ -7,6 +7,7 @@ import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { v4 as uuid } from 'uuid'
 
 import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
+import { TABLE_METADATA_OWNED_DOC_CHANGE_META } from './tableMetadataOwnedDocChange'
 
 function ensureUniqueRowIds(state: EditorState, tr: Transaction, rowNodeName: string): boolean {
   let modified = false
@@ -64,7 +65,12 @@ export function createTableRowIdentityPlugin(rowNodeName: string) {
 
       const tr = newState.tr
       const changed = ensureUniqueRowIds(newState, tr, rowNodeName)
-      return changed ? tr : null
+      if (!changed) {
+        return null
+      }
+
+      tr.setMeta(TABLE_METADATA_OWNED_DOC_CHANGE_META, true)
+      return tr
     }
   })
 }

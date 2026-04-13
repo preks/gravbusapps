@@ -16,6 +16,7 @@ import type {
   DocumentLayoutSnapshot
 } from '../../../types'
 import {
+  resolvePlaceholderPageBodyBounds,
   resolvePageShellBodyBounds,
   yieldToNextAnimationFrame,
   type DocumentLayoutNavigationState,
@@ -32,6 +33,12 @@ import {
   resolveNextDocumentLayoutVersion
 } from '../documentLayoutSnapshotHelpers'
 import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
+import {
+  incrementPaginationInstrumentationCounter,
+  recordPaginationInstrumentationEvent,
+  startPaginationInstrumentationTimer
+} from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationInstrumentation'
+import { classifyPaginationTransaction } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationTransactionClassifier'
 import { PAGINATION_REFRESH_META } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import { resolvePageBodyWrapBands } from '@/components/tiptap-extensions/tiptap-custom-pagination/utils'
 import {
@@ -150,6 +157,50 @@ function resolveHorizontalSample(left: number, right: number): number | null {
   return (left + right) / 2
 }
 
+const pagePositionRangeCache = new WeakMap<object, Map<string, DocumentLayoutPagePositionRange[]>>()
+
+function createPageBodyBoundsCacheKey(bounds: DocumentLayoutPageBodyBounds[], variant: 'mounted' | 'spacer'): string {
+  return `${variant}:${bounds
+    .map(bound =>
+      [
+        bound.pageNumber,
+        bound.left.toFixed(1),
+        bound.right.toFixed(1),
+        bound.top.toFixed(1),
+        bound.bottom.toFixed(1)
+      ].join(':')
+    )
+    .join('|')}`
+}
+
+function resolveCachedPagePositionRanges(doc: object | null, key: string): DocumentLayoutPagePositionRange[] | null {
+  if (doc === null) {
+    return null
+  }
+
+  return pagePositionRangeCache.get(doc)?.get(key) ?? null
+}
+
+function storeCachedPagePositionRanges(
+  doc: object | null,
+  key: string,
+  ranges: DocumentLayoutPagePositionRange[]
+): DocumentLayoutPagePositionRange[] {
+  if (doc === null) {
+    return ranges
+  }
+
+  const nextRanges = ranges.map(range => ({ ...range }))
+  const existingCache = pagePositionRangeCache.get(doc)
+  if (existingCache) {
+    existingCache.set(key, nextRanges)
+  } else {
+    pagePositionRangeCache.set(doc, new Map([[key, nextRanges]]))
+  }
+
+  return nextRanges.map(range => ({ ...range }))
+}
+
 export function resolveMountedPagePositionRanges(
   editor: TiptapEditor | null,
   mountedPageBodyBounds: DocumentLayoutPageBodyBounds[]
@@ -157,6 +208,14 @@ export function resolveMountedPagePositionRanges(
   const view = resolveEditorView(editor)
   if (!view || mountedPageBodyBounds.length === 0) {
     return []
+  }
+
+  const doc = (view as { state?: { doc?: object } }).state?.doc ?? null
+  const cacheKey = createPageBodyBoundsCacheKey(mountedPageBodyBounds, 'mounted')
+  const cachedRanges = resolveCachedPagePositionRanges(doc, cacheKey)
+  if (cachedRanges) {
+    incrementPaginationInstrumentationCounter('layout-page-position-range-cache-hit:mounted')
+    return cachedRanges.map(range => ({ ...range }))
   }
 
   const positionsByPageNumber = new Map<number, number[]>()
@@ -178,7 +237,7 @@ export function resolveMountedPagePositionRanges(
     positionsByPageNumber.set(bounds.pageNumber, existingPositions)
   })
 
-  return Array.from(positionsByPageNumber.entries())
+  const resolvedRanges = Array.from(positionsByPageNumber.entries())
     .map(([pageNumber, positions]) => {
       if (positions.length === 0) {
         return null
@@ -192,6 +251,8 @@ export function resolveMountedPagePositionRanges(
     })
     .filter((range): range is DocumentLayoutPagePositionRange => range !== null)
     .sort((left, right) => left.pageNumber - right.pageNumber)
+
+  return storeCachedPagePositionRanges(doc, cacheKey, resolvedRanges)
 }
 
 function resolveMountedPageSamplingBounds(
@@ -311,53 +372,44 @@ export function resolveSpacerPagePositionRanges(
     return []
   }
 
-  return flowEls
-    .flatMap(flowEl => {
-      if (!flowEl.classList.contains('rm-page-spacer')) {
-        return []
-      }
+  const spacerBounds = resolveSpacerPageBodyBounds(flowEls)
+  if (spacerBounds.length === 0) {
+    return []
+  }
 
-      const pageRange = resolveSpacerPageRange(flowEl)
-      if (!pageRange) {
-        return []
-      }
+  const doc = (view as { state?: { doc?: object } }).state?.doc ?? null
+  const cacheKey = createPageBodyBoundsCacheKey(spacerBounds, 'spacer')
+  const cachedRanges = resolveCachedPagePositionRanges(doc, cacheKey)
+  if (cachedRanges) {
+    incrementPaginationInstrumentationCounter('layout-page-position-range-cache-hit:spacer')
+    return cachedRanges.map(range => ({ ...range }))
+  }
 
-      const pageCount = pageRange.endPage - pageRange.startPage + 1
-      const pageHeights = resolveSpacerPageSegmentHeights(flowEl, pageCount)
-      if (pageHeights.length !== pageCount) {
-        return []
-      }
-
-      const rect = flowEl.getBoundingClientRect()
-      const sampleLeft = resolveHorizontalSample(rect.left, rect.right)
+  const resolvedRanges = spacerBounds
+    .map(bounds => {
+      const sampleLeft = resolveHorizontalSample(bounds.left, bounds.right)
       if (sampleLeft === null) {
-        return []
+        return null
       }
 
-      let currentTop = rect.top
-      return pageHeights
-        .map((pageHeight, index) => {
-          const pageTop = currentTop
-          const pageBottom = currentTop + pageHeight
-          currentTop = pageBottom
+      const verticalSamples = resolveCoordinateSamples(bounds.top, bounds.bottom)
+      const positions = verticalSamples
+        .map(top => resolvePositionAtCoordinates(view, sampleLeft, top))
+        .filter((position): position is number => position !== null)
+      if (positions.length === 0) {
+        return null
+      }
 
-          const verticalSamples = resolveCoordinateSamples(pageTop, pageBottom)
-          const positions = verticalSamples
-            .map(top => resolvePositionAtCoordinates(view, sampleLeft, top))
-            .filter((position): position is number => position !== null)
-          if (positions.length === 0) {
-            return null
-          }
-
-          return {
-            pageNumber: pageRange.startPage + index,
-            startPos: Math.min(...positions),
-            endPos: Math.max(...positions)
-          }
-        })
-        .filter((range): range is DocumentLayoutPagePositionRange => range !== null)
+      return {
+        pageNumber: bounds.pageNumber,
+        startPos: Math.min(...positions),
+        endPos: Math.max(...positions)
+      }
     })
+    .filter((range): range is DocumentLayoutPagePositionRange => range !== null)
     .sort((left, right) => left.pageNumber - right.pageNumber)
+
+  return storeCachedPagePositionRanges(doc, cacheKey, resolvedRanges)
 }
 
 function shouldRetainPreviousPagePositionRanges(scope: DocumentLayoutInvalidationScope): boolean {
@@ -390,6 +442,23 @@ export function mergeDocumentLayoutPagePositionRanges(
   })
 
   return Array.from(merged.values()).sort((left, right) => left.pageNumber - right.pageNumber)
+}
+
+export function resolveRetainedPagePositionRanges(
+  previousRanges: DocumentLayoutPagePositionRange[],
+  pageNumbers: Set<number>
+): DocumentLayoutPagePositionRange[] {
+  if (pageNumbers.size === 0 || previousRanges.length === 0) {
+    return []
+  }
+
+  return previousRanges
+    .filter(range => pageNumbers.has(range.pageNumber))
+    .map(range => ({
+      pageNumber: range.pageNumber,
+      startPos: range.startPos,
+      endPos: range.endPos
+    }))
 }
 
 function createLayoutSnapshot(options: {
@@ -465,17 +534,77 @@ export function shouldRefreshViewportWindow(
   return shouldShiftDocumentVirtualWindow(activeRange, nextPage, pageCount)
 }
 
-function isPendingViewportRefreshForPage(runtimeState: DocumentLayoutRuntimeState, pageNumber: number): boolean {
-  if (runtimeState.pendingScope !== 'viewport') {
+function doesPageRangeCoverPage(range: DocumentLayoutPageRange | null, pageNumber: number): boolean {
+  if (!range) {
     return false
   }
 
-  const pendingRange = runtimeState.pendingRange
-  if (!pendingRange) {
+  return pageNumber >= range.startPage && pageNumber <= range.endPage
+}
+
+function doesPageRangeCoverRange(
+  containerRange: DocumentLayoutPageRange | null,
+  requestedRange: DocumentLayoutPageRange | null
+): boolean {
+  if (!requestedRange) {
+    return containerRange === null
+  }
+
+  if (!containerRange) {
+    return false
+  }
+
+  return requestedRange.startPage >= containerRange.startPage && requestedRange.endPage <= containerRange.endPage
+}
+
+function isPendingViewportRefreshForPage(runtimeState: DocumentLayoutRuntimeState, pageNumber: number): boolean {
+  if (runtimeState.pendingScope !== null) {
+    if (!runtimeState.pendingRange) {
+      return true
+    }
+
+    if (doesPageRangeCoverPage(runtimeState.pendingRange, pageNumber)) {
+      return true
+    }
+  }
+
+  if (runtimeState.status !== 'idle' && doesPageRangeCoverPage(runtimeState.lastRequestedRange, pageNumber)) {
     return true
   }
 
-  return pageNumber >= pendingRange.startPage && pageNumber <= pendingRange.endPage
+  return runtimeState.status === 'idle' && doesPageRangeCoverPage(runtimeState.lastResolvedRange, pageNumber)
+}
+
+function shouldSkipViewportRefreshRequest(options: {
+  runtimeState: DocumentLayoutRuntimeState
+  snapshot: DocumentLayoutSnapshot
+  requestedRange: DocumentLayoutPageRange | null
+}): boolean {
+  const { runtimeState, snapshot, requestedRange } = options
+  if (!requestedRange) {
+    return false
+  }
+
+  const activeSnapshotRange = snapshot.activeRange ?? snapshot.mountedRange
+  if (doesPageRangeCoverRange(activeSnapshotRange, requestedRange)) {
+    return true
+  }
+
+  if (runtimeState.pendingScope !== null) {
+    if (!runtimeState.pendingRange) {
+      return true
+    }
+
+    if (doesPageRangeCoverRange(runtimeState.pendingRange, requestedRange)) {
+      return true
+    }
+  }
+
+  if (runtimeState.status !== 'idle' && doesPageRangeCoverRange(runtimeState.lastRequestedRange, requestedRange)) {
+    return true
+  }
+
+  return runtimeState.status === 'idle' && doesPageRangeCoverRange(runtimeState.lastResolvedRange, requestedRange)
 }
 
 export function resolveCurrentPageFromPageBounds(
@@ -685,8 +814,12 @@ export function usePaginationLayoutSnapshot({
     targetPage: number
   } | null>(null)
   const firstLayoutIdleMarkedRef = useRef(false)
+  const hydrationRefreshKeyRef = useRef<string | null>(null)
 
   const [layoutSnapshot, setLayoutSnapshot] = useState<DocumentLayoutSnapshot>(() =>
+    createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
+  )
+  const layoutSnapshotRef = useRef<DocumentLayoutSnapshot>(
     createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
   )
   /** Last page count from a layout measurement (updated before React state catches up; drives large-doc debounce). */
@@ -703,6 +836,10 @@ export function usePaginationLayoutSnapshot({
   const hasInitializedLayoutRef = useRef(false)
   const previousLayoutInputsKeyRef = useRef<string | undefined>(layoutInputsKey)
   const lastMeasuredDocRef = useRef<object | null>(null)
+
+  useEffect(() => {
+    layoutSnapshotRef.current = layoutSnapshot
+  }, [layoutSnapshot])
 
   const resolveVisibleCurrentPage = useCallback(
     (
@@ -721,7 +858,7 @@ export function usePaginationLayoutSnapshot({
           navigationState,
           safeFallbackPage
         )
-        if (Number.isInteger(freshCurrentPage) && freshCurrentPage > 0) {
+        if (freshCurrentPage !== null && Number.isInteger(freshCurrentPage) && freshCurrentPage > 0) {
           return Math.min(freshCurrentPage, safePageCount)
         }
 
@@ -744,123 +881,190 @@ export function usePaginationLayoutSnapshot({
     async (request: DocumentLayoutMeasurementRequest) => {
       const container = editorContainerRef.current
       if (!container) return
+      incrementPaginationInstrumentationCounter('layout-snapshot-rebuild-total')
+      incrementPaginationInstrumentationCounter(`layout-snapshot-rebuild-reason:${request.reason}`)
+      incrementPaginationInstrumentationCounter(`layout-snapshot-rebuild-scope:${request.scope}`)
+      const finishInstrumentation = startPaginationInstrumentationTimer('layout-snapshot-rebuild', {
+        generation: request.generation,
+        reason: request.reason,
+        scope: request.scope,
+        requestedPageRangeEnd: request.pageRange?.endPage ?? null,
+        requestedPageRangeStart: request.pageRange?.startPage ?? null
+      })
+      let measuredPageCount = 0
+      let mountedPageBodyBoundCount = 0
+      let mountedPageSamplingBoundsCount = 0
+      let mountedPagePositionRangeCount = 0
+      let placeholderPagePositionRangeCount = 0
+      let spacerPagePositionRangeCount = 0
+      let nextSnapshotMountedRangeStart: number | null = null
+      let nextSnapshotMountedRangeEnd: number | null = null
+      let nextSnapshotActiveRangeStart: number | null = null
+      let nextSnapshotActiveRangeEnd: number | null = null
 
-      const measurement =
-        typeof resolvedLayoutService.measureLayoutAsync === 'function'
-          ? await resolvedLayoutService.measureLayoutAsync(container, request)
-          : resolvedLayoutService.measureLayout(container, request)
-      if (!editorContainerRef.current) {
-        return
-      }
-      lastMeasuredLayoutPageCountRef.current = measurement.layout.pageCount
-      navigationStateRef.current = measurement.navigationState
-      setLayoutNavigationState(previous => {
-        const nextNav = measurement.navigationState
-        if (
-          previous.activeRange?.startPage === nextNav.activeRange?.startPage &&
-          previous.activeRange?.endPage === nextNav.activeRange?.endPage &&
-          previous.pageBreakEls === nextNav.pageBreakEls &&
-          previous.flowEls === nextNav.flowEls &&
-          previous.boundaryEls === nextNav.boundaryEls
-        ) {
-          return previous
+      try {
+        const measurement =
+          typeof resolvedLayoutService.measureLayoutAsync === 'function'
+            ? await resolvedLayoutService.measureLayoutAsync(container, request)
+            : resolvedLayoutService.measureLayout(container, request)
+        if (!editorContainerRef.current) {
+          return
         }
-        return nextNav
-      })
-      if (measurement.layout.pageCount >= LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD) {
-        await yieldToNextAnimationFrame()
-        await yieldToNextAnimationFrame()
-      }
-      if (!editorContainerRef.current) {
-        return
-      }
-      const pageShellBodyBounds = resolvePageShellBodyBounds(measurement.navigationState.pageBreakEls)
-      const spacerPageBodyBounds = resolveSpacerPageBodyBounds(measurement.navigationState.flowEls)
-      const mountedPageSamplingBounds = resolveMountedPageSamplingBounds(
-        editor,
-        measurement.layout.mountedPageBodyBounds
-      )
-      const mountedPageNumbers = new Set(mountedPageSamplingBounds.map(bounds => bounds.pageNumber))
-      const placeholderPageBodyBounds = pageShellBodyBounds.filter(bounds => !mountedPageNumbers.has(bounds.pageNumber))
-      const pageBounds = mergeMeasuredPageBodyBounds(pageShellBodyBounds, spacerPageBodyBounds)
-      const mountedPagePositionRanges = resolveMountedPagePositionRanges(editor, mountedPageSamplingBounds)
-      const placeholderPagePositionRanges = resolveMountedPagePositionRanges(editor, placeholderPageBodyBounds)
-      const spacerPagePositionRanges = resolveSpacerPagePositionRanges(editor, measurement.navigationState.flowEls)
-      const measuredPageSpans = mergeMeasuredDocumentLayoutPageSpans({
-        mountedRanges: mountedPagePositionRanges,
-        placeholderRanges: placeholderPagePositionRanges,
-        spacerRanges: spacerPagePositionRanges,
-        pageCount: measurement.layout.pageCount
-      })
-
-      let nextSnapshot = createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
-
-      setLayoutSnapshot(previous => {
-        const nextRetainedPageSpans = mergeRetainedDocumentLayoutPageSpans(
-          previous.retainedPageSpans,
-          measuredPageSpans,
-          measurement.layout.pageCount,
-          shouldRetainPreviousPagePositionRanges(request.scope)
-        )
-        const nextPagePositionRanges = nextRetainedPageSpans.map(({ pageNumber, startPos, endPos }) => ({
-          pageNumber,
-          startPos,
-          endPos
-        }))
+        measuredPageCount = measurement.layout.pageCount
+        mountedPageBodyBoundCount = measurement.layout.mountedPageBodyBounds.length
+        lastMeasuredLayoutPageCountRef.current = measurement.layout.pageCount
+        navigationStateRef.current = measurement.navigationState
+        setLayoutNavigationState(previous => {
+          const nextNav = measurement.navigationState
+          if (
+            previous.activeRange?.startPage === nextNav.activeRange?.startPage &&
+            previous.activeRange?.endPage === nextNav.activeRange?.endPage &&
+            previous.pageBreakEls === nextNav.pageBreakEls &&
+            previous.flowEls === nextNav.flowEls &&
+            previous.boundaryEls === nextNav.boundaryEls
+          ) {
+            return previous
+          }
+          return nextNav
+        })
+        if (measurement.layout.pageCount >= LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD) {
+          await yieldToNextAnimationFrame()
+          await yieldToNextAnimationFrame()
+        }
+        if (!editorContainerRef.current) {
+          return
+        }
+        const mountedPageBodyBounds = measurement.layout.mountedPageBodyBounds
+        const placeholderPageBodyBounds = resolvePlaceholderPageBodyBounds(measurement.navigationState.pageBreakEls)
+        const spacerPageBodyBounds = resolveSpacerPageBodyBounds(measurement.navigationState.flowEls)
         let currentDoc: ProseMirrorNode | null = null
         try {
           currentDoc = editor?.state.doc ?? null
         } catch {
           currentDoc = null
         }
+        const previousSnapshot = layoutSnapshotRef.current
         const docChanged = currentDoc !== lastMeasuredDocRef.current
-        lastMeasuredDocRef.current = currentDoc as object | null
-        const nextDocumentVersion = resolveNextDocumentLayoutVersion({
-          previousSnapshot: previous,
-          scope: request.scope,
-          docChanged
+        const mountedPageSamplingBounds = resolveMountedPageSamplingBounds(editor, mountedPageBodyBounds)
+        mountedPageSamplingBoundsCount = mountedPageSamplingBounds.length
+        const mountedPageNumbers = new Set(mountedPageSamplingBounds.map(bounds => bounds.pageNumber))
+        const placeholderSamplingBounds = placeholderPageBodyBounds.filter(
+          bounds => !mountedPageNumbers.has(bounds.pageNumber)
+        )
+        const pageBounds = mergeMeasuredPageBodyBounds(
+          mergeMeasuredPageBodyBounds(mountedPageBodyBounds, placeholderPageBodyBounds),
+          spacerPageBodyBounds
+        )
+        const mountedPagePositionRanges = resolveMountedPagePositionRanges(editor, mountedPageSamplingBounds)
+        mountedPagePositionRangeCount = mountedPagePositionRanges.length
+        const retainedPlaceholderPageNumbers = new Set(placeholderSamplingBounds.map(bounds => bounds.pageNumber))
+        const retainedPlaceholderPagePositionRanges = docChanged
+          ? []
+          : resolveRetainedPagePositionRanges(previousSnapshot.pagePositionRanges ?? [], retainedPlaceholderPageNumbers)
+        const sampledPlaceholderPagePositionRanges = resolveMountedPagePositionRanges(
+          editor,
+          placeholderSamplingBounds.filter(
+            bounds => !retainedPlaceholderPagePositionRanges.some(range => range.pageNumber === bounds.pageNumber)
+          )
+        )
+        if (retainedPlaceholderPagePositionRanges.length > 0) {
+          incrementPaginationInstrumentationCounter('layout-placeholder-position-range-reused')
+        }
+        const placeholderPagePositionRanges = mergeDocumentLayoutPagePositionRanges(
+          retainedPlaceholderPagePositionRanges,
+          sampledPlaceholderPagePositionRanges,
+          measurement.layout.pageCount
+        )
+        placeholderPagePositionRangeCount = placeholderPagePositionRanges.length
+        const spacerPagePositionRanges = resolveSpacerPagePositionRanges(editor, measurement.navigationState.flowEls)
+        spacerPagePositionRangeCount = spacerPagePositionRanges.length
+        const measuredPageSpans = mergeMeasuredDocumentLayoutPageSpans({
+          mountedRanges: mountedPagePositionRanges,
+          placeholderRanges: placeholderPagePositionRanges,
+          spacerRanges: spacerPagePositionRanges,
+          pageCount: measurement.layout.pageCount
         })
-        const anchors =
-          request.scope === 'viewport'
-            ? previous.anchors
-            : collectDocumentLayoutAnchors(editor, measuredPageSpans, measurement.layout.mountedPageBodyBounds)
-        const tableFragments =
-          request.scope === 'viewport' && !docChanged
-            ? previous.tableFragments
-            : collectDocumentLayoutTableFragments(editor, measuredPageSpans)
 
-        nextSnapshot = createLayoutSnapshot({
-          documentVersion: nextDocumentVersion,
-          layoutVersion: request.generation,
-          pageCount: measurement.layout.pageCount,
-          pages: measurement.layout.pages,
-          flow: measurement.layout.flow,
-          mountedRange: measurement.layout.mountedRange,
-          pageBounds,
-          mountedPageBodyBounds: measurement.layout.mountedPageBodyBounds,
-          pageSpans: measuredPageSpans,
-          retainedPageSpans: nextRetainedPageSpans,
-          pagePositionRanges: nextPagePositionRanges,
-          pageChromeMetrics: measurement.layout.pageChromeMetrics,
-          anchors,
-          tableFragments,
-          activeRange: measurement.layout.activeRange,
-          activePages: measurement.layout.activePages,
-          source: resolvedLayoutService.source
+        let nextSnapshot = createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
+
+        setLayoutSnapshot(previous => {
+          const nextRetainedPageSpans = mergeRetainedDocumentLayoutPageSpans(
+            previous.retainedPageSpans,
+            measuredPageSpans,
+            measurement.layout.pageCount,
+            shouldRetainPreviousPagePositionRanges(request.scope)
+          )
+          const nextPagePositionRanges = nextRetainedPageSpans.map(({ pageNumber, startPos, endPos }) => ({
+            pageNumber,
+            startPos,
+            endPos
+          }))
+          lastMeasuredDocRef.current = currentDoc as object | null
+          const nextDocumentVersion = resolveNextDocumentLayoutVersion({
+            previousSnapshot: previous,
+            scope: request.scope,
+            docChanged
+          })
+          const anchors =
+            request.scope === 'viewport'
+              ? previous.anchors
+              : collectDocumentLayoutAnchors(editor, measuredPageSpans, measurement.layout.mountedPageBodyBounds)
+          const tableFragments =
+            request.scope === 'viewport' && !docChanged
+              ? previous.tableFragments
+              : collectDocumentLayoutTableFragments(editor, measuredPageSpans)
+
+          nextSnapshot = createLayoutSnapshot({
+            documentVersion: nextDocumentVersion,
+            layoutVersion: request.generation,
+            pageCount: measurement.layout.pageCount,
+            pages: measurement.layout.pages,
+            flow: measurement.layout.flow,
+            mountedRange: measurement.layout.mountedRange,
+            pageBounds,
+            mountedPageBodyBounds,
+            pageSpans: measuredPageSpans,
+            retainedPageSpans: nextRetainedPageSpans,
+            pagePositionRanges: nextPagePositionRanges,
+            pageChromeMetrics: measurement.layout.pageChromeMetrics,
+            anchors,
+            tableFragments,
+            activeRange: measurement.layout.activeRange,
+            activePages: measurement.layout.activePages,
+            source: resolvedLayoutService.source
+          })
+
+          return nextSnapshot
         })
 
-        return nextSnapshot
-      })
+        nextSnapshotMountedRangeStart = nextSnapshot.mountedRange?.startPage ?? null
+        nextSnapshotMountedRangeEnd = nextSnapshot.mountedRange?.endPage ?? null
+        nextSnapshotActiveRangeStart = nextSnapshot.activeRange?.startPage ?? null
+        nextSnapshotActiveRangeEnd = nextSnapshot.activeRange?.endPage ?? null
 
-      const fallbackPage = currentPageRef.current ?? 1
-      const nextCurrentPage = resolveVisibleCurrentPage(
-        container,
-        nextSnapshot.pageBounds,
-        measurement.layout.pageCount,
-        fallbackPage
-      )
-      currentPageRef.current = nextCurrentPage
-      setCurrentPage(previous => (previous === nextCurrentPage ? previous : nextCurrentPage))
+        const fallbackPage = currentPageRef.current ?? 1
+        const nextCurrentPage = resolveVisibleCurrentPage(
+          container,
+          nextSnapshot.pageBounds,
+          measurement.layout.pageCount,
+          fallbackPage
+        )
+        currentPageRef.current = nextCurrentPage
+        setCurrentPage(previous => (previous === nextCurrentPage ? previous : nextCurrentPage))
+      } finally {
+        finishInstrumentation({
+          activeRangeEnd: nextSnapshotActiveRangeEnd,
+          activeRangeStart: nextSnapshotActiveRangeStart,
+          measuredPageCount,
+          mountedPageBodyBoundCount,
+          mountedPagePositionRangeCount,
+          mountedPageSamplingBoundsCount,
+          mountedRangeEnd: nextSnapshotMountedRangeEnd,
+          mountedRangeStart: nextSnapshotMountedRangeStart,
+          placeholderPagePositionRangeCount,
+          spacerPagePositionRangeCount
+        })
+      }
     },
     [editor, editorContainerRef, resolveVisibleCurrentPage, resolvedLayoutService]
   )
@@ -914,8 +1118,35 @@ export function usePaginationLayoutSnapshot({
   }, [layoutScheduler])
 
   const scheduleLayoutSnapshotRefresh = useCallback(
-    (reason: DocumentLayoutInvalidationReason, immediate = false, targetPage = currentPage) => {
-      const pageCount = layoutSnapshot.pageCount
+    (reason: DocumentLayoutInvalidationReason, immediate = false, targetPage?: number) => {
+      const pageCount = Math.max(1, layoutSnapshotRef.current.pageCount || lastMeasuredLayoutPageCountRef.current || 1)
+      const resolvedTargetPage = targetPage ?? currentPageRef.current
+      const scope = resolveInvalidationScope(reason)
+      const pageRange = resolveInvalidationRange(reason, pageCount, resolvedTargetPage)
+      if (
+        reason === 'viewport-resize' &&
+        shouldSkipViewportRefreshRequest({
+          runtimeState: runtimeStateRef.current,
+          snapshot: layoutSnapshotRef.current,
+          requestedRange: pageRange
+        })
+      ) {
+        return
+      }
+      incrementPaginationInstrumentationCounter('layout-snapshot-refresh-scheduled-total')
+      incrementPaginationInstrumentationCounter(`layout-snapshot-refresh-reason:${reason}`)
+      if (immediate) {
+        incrementPaginationInstrumentationCounter('layout-snapshot-refresh-immediate')
+      }
+      recordPaginationInstrumentationEvent('layout-snapshot-refresh-scheduled', {
+        immediate,
+        pageCount,
+        pageRangeEnd: pageRange?.endPage ?? null,
+        pageRangeStart: pageRange?.startPage ?? null,
+        reason,
+        scope,
+        targetPage: resolvedTargetPage
+      })
       const now = Date.now()
       const inOpenBurst = immediate && now < openBurstDeadlineMsRef.current && isBootstrapLayoutReason(reason)
 
@@ -924,7 +1155,7 @@ export function usePaginationLayoutSnapshot({
         const mergedReason = pending === null ? reason : mergeBootstrapLayoutReason(pending.reason, reason)
         openBurstPendingRef.current = {
           reason: mergedReason,
-          targetPage
+          targetPage: resolvedTargetPage
         }
         if (openBurstRafRef.current === null) {
           openBurstRafRef.current = requestAnimationFrame(() => {
@@ -933,11 +1164,21 @@ export function usePaginationLayoutSnapshot({
             openBurstPendingRef.current = null
             if (!burst) return
             const snapshotPageCount = lastMeasuredLayoutPageCountRef.current
+            const burstScope = resolveInvalidationScope(burst.reason)
+            const burstPageRange = resolveInvalidationRange(burst.reason, snapshotPageCount, burst.targetPage)
+            recordPaginationInstrumentationEvent('layout-snapshot-open-burst-flush', {
+              pageCount: snapshotPageCount,
+              pageRangeEnd: burstPageRange?.endPage ?? null,
+              pageRangeStart: burstPageRange?.startPage ?? null,
+              reason: burst.reason,
+              scope: burstScope,
+              targetPage: burst.targetPage
+            })
             layoutScheduler.requestLayout({
               immediate: true,
               reason: burst.reason,
-              scope: resolveInvalidationScope(burst.reason),
-              pageRange: resolveInvalidationRange(burst.reason, snapshotPageCount, burst.targetPage)
+              scope: burstScope,
+              pageRange: burstPageRange
             })
           })
         }
@@ -947,11 +1188,11 @@ export function usePaginationLayoutSnapshot({
       layoutScheduler.requestLayout({
         immediate,
         reason,
-        scope: resolveInvalidationScope(reason),
-        pageRange: resolveInvalidationRange(reason, pageCount, targetPage)
+        scope,
+        pageRange
       })
     },
-    [currentPage, layoutScheduler, layoutSnapshot.pageCount]
+    [layoutScheduler]
   )
 
   const handleScroll = useCallback(
@@ -1043,7 +1284,9 @@ export function usePaginationLayoutSnapshot({
   useEffect(() => {
     navigationStateRef.current = { boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] }
     lastMeasuredLayoutPageCountRef.current = 1
-    setLayoutSnapshot(createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source))
+    const emptySnapshot = createEmptyDocumentLayoutSnapshot(resolvedLayoutService.source)
+    layoutSnapshotRef.current = emptySnapshot
+    setLayoutSnapshot(emptySnapshot)
     setLayoutNavigationState({ boundaryEls: [], activeRange: null, pageBreakEls: [], flowEls: [] })
     const initialRuntime = layoutScheduler.getState()
     runtimeStateRef.current = initialRuntime
@@ -1051,8 +1294,15 @@ export function usePaginationLayoutSnapshot({
     currentPageRef.current = 1
     setCurrentPage(1)
     setIsInitialLayoutSettled(false)
+    hydrationRefreshKeyRef.current = null
     previousLayoutInputsKeyRef.current = layoutInputsKey
   }, [editorContainerRef, layoutScheduler, resolvedLayoutService.source])
+
+  useEffect(() => {
+    if (!isYjsSynced) {
+      hydrationRefreshKeyRef.current = null
+    }
+  }, [documentId, isYjsSynced, resolvedLayoutService.source])
 
   useEffect(() => {
     if (
@@ -1064,8 +1314,15 @@ export function usePaginationLayoutSnapshot({
     ) {
       return
     }
+
+    const hydrationRefreshKey = documentId ? `${documentId}:${resolvedLayoutService.source}` : null
+    if (hydrationRefreshKeyRef.current === hydrationRefreshKey) {
+      return
+    }
+
+    hydrationRefreshKeyRef.current = hydrationRefreshKey
     scheduleLayoutSnapshotRefresh('document-hydration', true)
-  }, [documentId, isYjsSynced, scheduleLayoutSnapshotRefresh])
+  }, [documentId, isYjsSynced, resolvedLayoutService.source, scheduleLayoutSnapshotRefresh])
 
   useEffect(() => {
     if (!hasInitializedLayoutRef.current) return
@@ -1095,13 +1352,30 @@ export function usePaginationLayoutSnapshot({
       // Large docs: debounce coalesces rapid structural passes (e.g. pagination-owned RM_PAGES_* transactions).
       const debounceStructuralLayout =
         lastMeasuredLayoutPageCountRef.current >= LARGE_DOC_LAYOUT_DEBOUNCE_PAGE_THRESHOLD
+      const transactionClassification = transaction.docChanged
+        ? classifyPaginationTransaction({
+            transaction,
+            previousDoc: transaction.before ?? null,
+            nextDoc: transaction.doc ?? null
+          })
+        : null
+
+      if (transactionClassification?.isLayoutNeutral) {
+        return
+      }
 
       if (isPaginationRefresh) {
         scheduleLayoutSnapshotRefresh('editor-transaction', !debounceStructuralLayout)
         return
       }
 
-      scheduleLayoutSnapshotRefresh('editor-transaction', !debounceStructuralLayout)
+      const shouldDebounceForLocalTextChange =
+        transactionClassification?.kind === 'local-text' && !transactionClassification.touchesTableRegion
+
+      scheduleLayoutSnapshotRefresh(
+        'editor-transaction',
+        !(debounceStructuralLayout || shouldDebounceForLocalTextChange)
+      )
     }
 
     editor.on('transaction', handleTransaction as never)
