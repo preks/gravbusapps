@@ -561,6 +561,7 @@ export function useSpreadsheetCollaboration({
         if (!payload) return
         currentUserIdRef.current = payload.sub || payload.userId
         setCurrentUserName(payload.name || payload.preferred_username || 'User')
+        manager.setCurrentUserId(currentUserIdRef.current ?? null)
 
         if (authToken && payload.sub) {
           const query = `

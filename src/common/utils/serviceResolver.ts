@@ -7,6 +7,10 @@
  */
 
 import { env } from '@/common/env/EnvUtils'
+import {
+  getDocumentOfficeWebSocketBaseUrl,
+  getDocumentServiceApiUrl
+} from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface ServicePathConfig {
   servicePath: string
@@ -94,10 +98,95 @@ export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL'
   servicePath: '/document',
   apiPath: '/api/v1'
 })
-export const OFFICE_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
-  servicePath: '/document',
-  apiPath: ''
-})
+const officeWsMisconfigWarnings = new Set<string>()
+
+function warnOfficeWebSocketMisconfigOnce(key: string, message: string, meta: Record<string, string>): void {
+  if (officeWsMisconfigWarnings.has(key)) return
+  officeWsMisconfigWarnings.add(key)
+  console.warn(`[collaboration] ${message}`, meta)
+}
+
+/**
+ * Office collaboration WebSocket base URL (engine path is derived by OfficeWebSocketClient).
+ * Resolved on each call so it matches runtime `nw-envs` / document REST configuration, not only values
+ * available at the first `serviceResolver` import.
+ *
+ * When `NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL` disagrees with the spreadsheet REST host (typical after
+ * copying `.env` examples: WS on the Vite port + `/document` while REST hits `localhost:3002`),
+ * the explicit value is ignored in favour of the REST-aligned base so collaboration persist and HTTP
+ * use the same document-service instance.
+ */
+export function getOfficeWebSocketUrl(): string {
+  let derived: string
+  try {
+    derived = getDocumentOfficeWebSocketBaseUrl()
+  } catch {
+    const explicitWs = env('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL')
+    if (explicitWs?.trim()) {
+      const trimmed = explicitWs.trim()
+      return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
+    }
+    return resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
+      servicePath: '/document',
+      apiPath: ''
+    })
+  }
+
+  const explicitWs = env('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL')
+  if (!explicitWs?.trim()) {
+    return derived
+  }
+
+  const trimmed = explicitWs.trim().replace(/\/+$/, '')
+  let explicitOrigin: string
+  let explicitPathname: string
+  try {
+    const parsed = new URL(trimmed)
+    explicitOrigin = parsed.origin
+    explicitPathname = (parsed.pathname.replace(/\/+$/, '') || '/').toLowerCase()
+  } catch {
+    warnOfficeWebSocketMisconfigOnce(
+      'ws-url-parse',
+      'Invalid NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL; using document REST host.',
+      {
+        NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL: trimmed,
+        usingBase: derived
+      }
+    )
+    return derived
+  }
+
+  const derivedOrigin = new URL(derived).origin
+  if (explicitOrigin !== derivedOrigin) {
+    warnOfficeWebSocketMisconfigOnce(
+      'ws-origin-mismatch',
+      'NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL origin does not match the document REST API host; using the REST-aligned WebSocket base.',
+      { explicitWebSocket: trimmed, usingBase: derived }
+    )
+    return derived
+  }
+
+  let apiPathHasDocumentMount = false
+  try {
+    const apiPath = new URL(getDocumentServiceApiUrl()).pathname.replace(/\/+$/, '') || '/'
+    apiPathHasDocumentMount = apiPath.includes('/document/')
+  } catch {
+    // keep false
+  }
+
+  const explicitUsesDocumentPath = explicitPathname.endsWith('/document') || explicitPathname.includes('/document/')
+
+  if (!apiPathHasDocumentMount && explicitUsesDocumentPath) {
+    warnOfficeWebSocketMisconfigOnce(
+      'ws-document-path-without-api-mount',
+      'NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL includes /document but the spreadsheet REST API is not under /document; using the host root for WebSocket (matches bare document-service).',
+      { explicitWebSocket: trimmed, usingBase: derived }
+    )
+    return derived
+  }
+
+  return trimmed
+}
 export const EMPLOYEE_EXPENSE_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_EXPENSE_API_URL', {
   servicePath: '/processes/employee-expense',
   apiPath: ''

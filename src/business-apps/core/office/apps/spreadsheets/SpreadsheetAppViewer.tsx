@@ -2683,6 +2683,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               error: result.error ?? 'unknown',
               cellCount: cells.length
             })
+            // Always warn (not gated): debugLog uses console.debug + localStorage flag — easy to miss in DevTools.
+            console.warn('[SpreadsheetAppViewer] collab socket persist failed', {
+              error: result.error ?? 'unknown',
+              cellCount: cells.length,
+              deferredUiRowIdCount: result.deferredUiRowIds?.length ?? 0
+            })
           } else {
             sheetPersist.recordSuccess(true)
             versioning.markAsSaved()
@@ -2692,7 +2698,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             }
           }
         })
-        socketPersistChainRef.current = socketPersistChainRef.current.then(() => persistPromise)
+        socketPersistChainRef.current = socketPersistChainRef.current
+          .then(() => persistPromise)
+          .catch(err => {
+            console.error('[SpreadsheetAppViewer] collab socket persist threw', err)
+            pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
+            scheduleSheetVersionRefreshFromApi()
+            schedulePendingCellPersist()
+            sheetPersist.recordError(sheetT('collab-sync-save-failed'))
+            toast.error(sheetT('collab-sync-save-failed'))
+          })
         debugLog('cells socket-persist scheduled', { addedCells: cells.length })
       } else {
         pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
