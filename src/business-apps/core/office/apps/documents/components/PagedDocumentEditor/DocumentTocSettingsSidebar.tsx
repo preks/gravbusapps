@@ -206,10 +206,18 @@ export function DocumentTocSettingsSidebar({
           variant="outline"
           className="gba:flex-1"
           onMouseDown={preventEditorBlurOnMouseDown}
-          onClick={() => editor.commands.updateDocumentTableOfContents(tocNodePos)}
-          data-testid={`${testId}-update`}
+          onClick={() => editor.commands.updateDocumentTableOfContentsPageNumbers(tocNodePos)}
+          data-testid={`${testId}-update-page-numbers`}
         >
-          {t('document-toc-context-update')}
+          {t('document-toc-context-update-page-numbers')}
+        </Button>
+        <Button
+          className="gba:flex-1"
+          onMouseDown={preventEditorBlurOnMouseDown}
+          onClick={() => editor.commands.updateDocumentTableOfContentsEntireTable(tocNodePos)}
+          data-testid={`${testId}-update-entire`}
+        >
+          {t('document-toc-context-update-entire')}
         </Button>
       </div>
     </div>
