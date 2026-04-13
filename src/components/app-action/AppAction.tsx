@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback } from 'react'
-import { Button, ActionMenu, Icon } from '@newwork/nw-design-system'
+import { Button, ActionMenu, Icon, useTranslation } from '@newwork/nw-design-system'
 import { DotsThreeVerticalIcon, PlusIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import {
   useAppActionData,
@@ -12,6 +12,7 @@ import {
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ActionOption } from '@newwork/nw-design-system'
+import translations from './_i18n'
 
 /**
  * AppAction variant configurations
@@ -54,13 +55,7 @@ const actionVariants = {
     buttonVariant: 'default',
     lazyLoad: false,
     emptyState: 'hide',
-    autoExecute: true,
-    defaultChildren: (
-      <>
-        <Icon icon={PlusIcon} />
-        Create
-      </>
-    )
+    autoExecute: true
   },
 
   'create-secondary': {
@@ -79,13 +74,7 @@ const actionVariants = {
     buttonVariant: 'default',
     lazyLoad: false,
     emptyState: 'hide',
-    autoExecute: true,
-    defaultChildren: (
-      <>
-        <Icon icon={PencilIcon} />
-        Update
-      </>
-    )
+    autoExecute: true
   },
 
   'update-secondary': {
@@ -104,13 +93,7 @@ const actionVariants = {
     buttonVariant: 'destructive',
     lazyLoad: false,
     emptyState: 'hide',
-    autoExecute: true,
-    defaultChildren: (
-      <>
-        <Icon icon={TrashIcon} />
-        Delete
-      </>
-    )
+    autoExecute: true
   },
 
   'delete-secondary': {
@@ -189,6 +172,7 @@ const AppActionRenderer: React.FC<{
   'data-testid'?: string
 }> = props => {
   const { mode, config, autoExecute, children, disabled, onClick, 'data-testid': customDataTestId } = props
+  const { t } = useTranslation(translations)
 
   // Force immediate loading for trigger mode (no deferred loading)
   const forcedConfig = mode === 'trigger' ? { ...config, deferMainContextRequestsUntilClick: false } : config
@@ -196,6 +180,20 @@ const AppActionRenderer: React.FC<{
   // Unified data fetching
   const dataTestIdPrefix = mode === 'trigger' ? 'AppActionTrigger' : 'AppActionExecuteButton'
   const { combinedData, handleDeferredFetch, shouldShowLoading } = useAppActionData(forcedConfig, dataTestIdPrefix)
+  const translatedMenuActions = React.useMemo<ActionOption[]>(() => {
+    if (shouldShowLoading || combinedData.length > 0 || config.emptyStateBehavior !== 'enable') {
+      return combinedData
+    }
+
+    return [
+      {
+        key: 'app-action-no-actions',
+        label: t('app-action-menu-no-actions'),
+        onClick: () => undefined,
+        disabled: true
+      }
+    ]
+  }, [combinedData, config.emptyStateBehavior, shouldShowLoading, t])
   const executeFirstAction = useCallback(() => {
     if (combinedData[0]) {
       combinedData[0].onClick?.()
@@ -252,7 +250,8 @@ const AppActionRenderer: React.FC<{
     if (shouldShowMenu) {
       return (
         <ActionMenu
-          actions={combinedData}
+          actions={translatedMenuActions}
+          emptyStateBehavior={config.emptyStateBehavior}
           actionsLoading={shouldShowLoading}
           onOpenChange={open => {
             if (open) {
@@ -372,6 +371,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
   const buttonVariant =
     propButtonVariant ?? (variantConfig && 'buttonVariant' in variantConfig ? variantConfig.buttonVariant : undefined)
 
+  const { t } = useTranslation(translations)
   let children: React.ReactNode
   if (propChildren) {
     const isPrimaryVariant =
@@ -392,7 +392,30 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       children = propChildren
     }
   } else {
-    children = variantConfig && 'defaultChildren' in variantConfig ? variantConfig.defaultChildren : undefined
+    if (variant === 'create-primary') {
+      children = (
+        <>
+          <Icon icon={PlusIcon} />
+          {t('app-action-button-create')}
+        </>
+      )
+    } else if (variant === 'update-primary') {
+      children = (
+        <>
+          <Icon icon={PencilIcon} />
+          {t('app-action-button-update')}
+        </>
+      )
+    } else if (variant === 'delete-primary') {
+      children = (
+        <>
+          <Icon icon={TrashIcon} />
+          {t('app-action-button-delete')}
+        </>
+      )
+    } else {
+      children = variantConfig && 'defaultChildren' in variantConfig ? variantConfig.defaultChildren : undefined
+    }
   }
 
   const finalEmptyState = lazyLoad
