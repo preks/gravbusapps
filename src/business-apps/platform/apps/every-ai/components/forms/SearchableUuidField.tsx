@@ -29,6 +29,8 @@ interface SearchableUuidFieldProps {
   onChange: (val: string) => void
   /** Flow module name (e.g. customer-relations, investment-relations). When it includes "investment", IRM hooks are used to resolve labels. */
   moduleName?: string
+  /** JSON Schema for this field (used for `x-dataSource.entity` on custom flow forms). */
+  fieldSchema?: any
 }
 
 export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
@@ -39,7 +41,8 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
   disabled,
   value,
   onChange,
-  moduleName
+  moduleName,
+  fieldSchema
 }) => {
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -50,8 +53,7 @@ export const SearchableUuidField: React.FC<SearchableUuidFieldProps> = ({
     return () => clearTimeout(t)
   }, [search])
 
-  // Determine entity type from field name
-  const entityType: EntityType = getEntityTypeFromFieldName(fieldName)
+  const entityType: EntityType = getEntityTypeFromFieldName(fieldName, fieldSchema)
 
   // Fetch selected employee details if value exists and entity type is employee
   const { state: employeeDetailsState } = useEmployeeDetails(
