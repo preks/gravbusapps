@@ -13,6 +13,10 @@ import {
   shouldDeferTablePaginationEvaluation
 } from './paginationStabilizationPolicy'
 import {
+  incrementPaginationInstrumentationCounter,
+  startPaginationInstrumentationTimer
+} from './paginationInstrumentation'
+import {
   createMissingPaginationLayoutTableFragmentsState,
   readPaginationLayoutTableFragmentsState
 } from './layoutTableFragmentsBridge'
@@ -86,197 +90,229 @@ export function runDeferredRepaginationEvaluationLoop(options: {
   ) => void
   onDispatch: (transaction: Extract<TablePaginationControllerResult, { type: 'dispatch' }>['transaction']) => void
 }): DeferredRepaginationEvaluationResult {
-  if (isDestroyedView(options.view)) {
-    return {
-      handled: false,
-      iterations: 0,
-      structuralActionsPerformed: 0
-    }
-  }
-
-  // Guard against runaway values before evaluation loop runs.
-  const clampedInitial = clampPageCount(options.storage.pageCount)
-  if (options.storage.pageCount !== clampedInitial) {
-    options.storage.pageCount = clampedInitial
-  }
-
+  incrementPaginationInstrumentationCounter('deferred-repagination-loop-total')
+  const finishInstrumentation = startPaginationInstrumentationTimer('deferred-repagination-loop', {
+    evaluationId: options.evaluationId,
+    initialStoredPageCount: options.storage.pageCount
+  })
+  let exitReason: 'destroyed-view' | 'deferred-yield' | 'handled' | 'exhausted-loop' = 'exhausted-loop'
+  let wasHandled = false
+  let wasDeferred = false
   let structuralActionsPerformed = 0
   let loopIteration = 0
-  const basePageCount = clampPageCount(options.storage.pageCount)
 
-  while (!isDestroyedView(options.view)) {
-    loopIteration += 1
-
-    const runtimeOptions = options.getRuntimeOptions()
-    options.syncStorageFromOptions(options.storage, runtimeOptions)
-    options.syncRootPresentation({
-      editorDom: options.view.dom,
-      options: runtimeOptions,
-      storage: options.storage
-    })
-
-    const deferredRepaginationMeasurement = (
-      options.resolveMeasurementState ?? resolveDeferredRepaginationMeasurementState
-    )({
-      view: options.view,
-      storage: options.storage,
-      runtimeOptions,
-      previousAddPagesMeasurement: options.getPreviousAddPagesMeasurement(),
-      cappedPageCount: options.getRunawayGrowthCapPageCount(),
-      docChangedSinceLastUpdate: false,
-      resetDueToDocChange: false,
-      measureHeights: () => options.measureHeights(options.view, options.storage, runtimeOptions)
-    })
-    options.setMeasuredHeights(deferredRepaginationMeasurement.measured)
-
-    // Hard guard: total pages in this evaluation loop must not exceed base + MAX_PAGE_GROWTH_PER_EVALUATION.
-    const loopGrowthCap = basePageCount + MAX_PAGE_GROWTH_PER_EVALUATION
-    if (deferredRepaginationMeasurement.measuredPageCount > loopGrowthCap) {
-      deferredRepaginationMeasurement.measuredPageCount = clampPageCount(loopGrowthCap)
-      deferredRepaginationMeasurement.rawMeasuredPageCount = clampPageCount(loopGrowthCap)
+  try {
+    if (isDestroyedView(options.view)) {
+      exitReason = 'destroyed-view'
+      return {
+        handled: false,
+        iterations: 0,
+        structuralActionsPerformed: 0
+      }
     }
 
-    const currentPageCount = deferredRepaginationMeasurement.currentPageCount
-    const rawMeasuredPageCount = deferredRepaginationMeasurement.rawMeasuredPageCount
-    const measuredPageCount = deferredRepaginationMeasurement.measuredPageCount
-    const runawayPageGrowthResolution = deferredRepaginationMeasurement.runawayPageGrowthResolution
-    const nextAddPagesMeasurement = deferredRepaginationMeasurement.nextAddPagesMeasurement
-    const pageCountReason = deferredRepaginationMeasurement.pageCountReason
-    const lastMeasuredPageGap = deferredRepaginationMeasurement.lastMeasuredPageGap
-    options.setRunawayGrowthCapPageCount(runawayPageGrowthResolution.cappedPageCount)
-    options.storage.pageCount = currentPageCount
+    // Guard against runaway values before evaluation loop runs.
+    const clampedInitial = clampPageCount(options.storage.pageCount)
+    if (options.storage.pageCount !== clampedInitial) {
+      options.storage.pageCount = clampedInitial
+    }
 
-    const hasActiveEditor = options.storage.activeEditorType !== null
-    const hasTables = options.documentHasTables(options.view)
-    const shouldInspectTableLayout = hasTables && !hasActiveEditor
-    const tableBodyBands = shouldInspectTableLayout ? options.getBodyMeasurementBands(options.view.dom) : []
-    const measuredTablePageCount = new Set(tableBodyBands.map(band => band.pageNumber)).size
-    const layoutTableFragmentsState = hasTables
-      ? readPaginationLayoutTableFragmentsState(options.view.dom, options.view.state.doc)
-      : createMissingPaginationLayoutTableFragmentsState()
-    const tablePaginationHeuristics = resolveTablePaginationHeuristics(
-      runawayPageGrowthResolution.cappedPageCount,
-      hasActiveEditor
-    )
-    const deferTableEvaluation =
-      tablePaginationHeuristics.allowSplit &&
-      shouldDeferTablePaginationEvaluation({
+    const basePageCount = clampPageCount(options.storage.pageCount)
+
+    while (!isDestroyedView(options.view)) {
+      loopIteration += 1
+
+      const runtimeOptions = options.getRuntimeOptions()
+      options.syncStorageFromOptions(options.storage, runtimeOptions)
+      options.syncRootPresentation({
+        editorDom: options.view.dom,
+        options: runtimeOptions,
+        storage: options.storage
+      })
+
+      const deferredRepaginationMeasurement = (
+        options.resolveMeasurementState ?? resolveDeferredRepaginationMeasurementState
+      )({
+        view: options.view,
+        storage: options.storage,
+        runtimeOptions,
+        previousAddPagesMeasurement: options.getPreviousAddPagesMeasurement(),
+        cappedPageCount: options.getRunawayGrowthCapPageCount(),
+        docChangedSinceLastUpdate: false,
+        resetDueToDocChange: false,
+        measureHeights: () => options.measureHeights(options.view, options.storage, runtimeOptions)
+      })
+      options.setMeasuredHeights(deferredRepaginationMeasurement.measured)
+
+      // Hard guard: total pages in this evaluation loop must not exceed base + MAX_PAGE_GROWTH_PER_EVALUATION.
+      const loopGrowthCap = basePageCount + MAX_PAGE_GROWTH_PER_EVALUATION
+      if (deferredRepaginationMeasurement.measuredPageCount > loopGrowthCap) {
+        deferredRepaginationMeasurement.measuredPageCount = clampPageCount(loopGrowthCap)
+        deferredRepaginationMeasurement.rawMeasuredPageCount = clampPageCount(loopGrowthCap)
+      }
+
+      const currentPageCount = deferredRepaginationMeasurement.currentPageCount
+      const rawMeasuredPageCount = deferredRepaginationMeasurement.rawMeasuredPageCount
+      const measuredPageCount = deferredRepaginationMeasurement.measuredPageCount
+      const runawayPageGrowthResolution = deferredRepaginationMeasurement.runawayPageGrowthResolution
+      const nextAddPagesMeasurement = deferredRepaginationMeasurement.nextAddPagesMeasurement
+      const pageCountReason = deferredRepaginationMeasurement.pageCountReason
+      const lastMeasuredPageGap = deferredRepaginationMeasurement.lastMeasuredPageGap
+      options.setRunawayGrowthCapPageCount(runawayPageGrowthResolution.cappedPageCount)
+      options.storage.pageCount = currentPageCount
+
+      const hasActiveEditor = options.storage.activeEditorType !== null
+      const hasTables = options.documentHasTables(options.view)
+      const shouldInspectTableLayout = hasTables && !hasActiveEditor
+      const tableBodyBands = shouldInspectTableLayout ? options.getBodyMeasurementBands(options.view.dom) : []
+      const measuredTablePageCount = new Set(tableBodyBands.map(band => band.pageNumber)).size
+      const layoutTableFragmentsState = hasTables
+        ? readPaginationLayoutTableFragmentsState(options.view.dom, options.view.state.doc)
+        : createMissingPaginationLayoutTableFragmentsState()
+      const tablePaginationHeuristics = resolveTablePaginationHeuristics(
+        runawayPageGrowthResolution.cappedPageCount,
+        hasActiveEditor
+      )
+      const deferTableEvaluation =
+        tablePaginationHeuristics.allowSplit &&
+        shouldDeferTablePaginationEvaluation({
+          hasTables,
+          currentPageCount,
+          bodyBandCount: measuredTablePageCount
+        })
+      const tableMeasurementsPending =
+        hasTables &&
+        (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
+        !deferTableEvaluation &&
+        options.hasPendingTableMeasurements(options.view)
+      const stabilizationAttemptsRemaining = options.getStabilizationAttemptsRemaining()
+      const deferredRepaginationPreflight = (options.resolvePreflight ?? resolveDeferredRepaginationPreflight)({
+        cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
+        hasActiveEditor,
         hasTables,
         currentPageCount,
-        bodyBandCount: measuredTablePageCount
+        bodyBandCount: measuredTablePageCount,
+        stabilizationAttemptsRemaining,
+        tableMeasurementsPending
       })
-    const tableMeasurementsPending =
-      hasTables &&
-      (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
-      !deferTableEvaluation &&
-      options.hasPendingTableMeasurements(options.view)
-    const stabilizationAttemptsRemaining = options.getStabilizationAttemptsRemaining()
-    const deferredRepaginationPreflight = (options.resolvePreflight ?? resolveDeferredRepaginationPreflight)({
-      cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
-      hasActiveEditor,
-      hasTables,
-      currentPageCount,
-      bodyBandCount: measuredTablePageCount,
-      stabilizationAttemptsRemaining,
-      tableMeasurementsPending
-    })
 
-    options.onLogDebug('deferred-repagination-evaluation', {
-      evaluationId: options.evaluationId,
-      loopIteration,
-      structuralActionsPerformed,
-      currentPageCount,
-      storedPageCount: options.storage.pageCount,
-      rawMeasuredPageCount,
-      effectiveMeasuredPageCount: measuredPageCount,
-      cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
-      suppressionActive: runawayPageGrowthResolution.suppressionActive,
-      runawayShouldStabilize: runawayPageGrowthResolution.runawayPageGrowthCheck.shouldStabilize,
-      runawayGapShrinkRatio: runawayPageGrowthResolution.runawayPageGrowthCheck.gapShrinkRatio,
-      pageCountReason,
-      lastPageGap: lastMeasuredPageGap,
-      bodyBandCount: tableBodyBands.length,
-      measuredTablePageCount,
-      layoutTableFragmentCount: layoutTableFragmentsState.fragments.length,
-      layoutTableFragmentsStatus: layoutTableFragmentsState.status,
-      layoutTableFragmentsLayoutVersion: layoutTableFragmentsState.layoutVersion,
-      hasTables,
-      deferTableEvaluation: deferredRepaginationPreflight.deferTableEvaluation,
-      tableMeasurementsPending: deferredRepaginationPreflight.tableMeasurementsPending,
-      stabilizationAttemptsRemaining
-    })
+      options.onLogDebug('deferred-repagination-evaluation', {
+        evaluationId: options.evaluationId,
+        loopIteration,
+        structuralActionsPerformed,
+        currentPageCount,
+        storedPageCount: options.storage.pageCount,
+        rawMeasuredPageCount,
+        effectiveMeasuredPageCount: measuredPageCount,
+        cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
+        suppressionActive: runawayPageGrowthResolution.suppressionActive,
+        runawayShouldStabilize: runawayPageGrowthResolution.runawayPageGrowthCheck.shouldStabilize,
+        runawayGapShrinkRatio: runawayPageGrowthResolution.runawayPageGrowthCheck.gapShrinkRatio,
+        pageCountReason,
+        lastPageGap: lastMeasuredPageGap,
+        bodyBandCount: tableBodyBands.length,
+        measuredTablePageCount,
+        layoutTableFragmentCount: layoutTableFragmentsState.fragments.length,
+        layoutTableFragmentsStatus: layoutTableFragmentsState.status,
+        layoutTableFragmentsLayoutVersion: layoutTableFragmentsState.layoutVersion,
+        hasTables,
+        deferTableEvaluation: deferredRepaginationPreflight.deferTableEvaluation,
+        tableMeasurementsPending: deferredRepaginationPreflight.tableMeasurementsPending,
+        stabilizationAttemptsRemaining
+      })
 
-    const passResult = (options.runPass ?? runDeferredRepaginationPass)({
-      view: options.view,
-      evaluationId: options.evaluationId,
-      loopIteration,
-      structuralActionsPerformed,
-      currentPageCount,
-      measuredPageCount,
-      preflight: deferredRepaginationPreflight,
-      nextAddPagesMeasurement,
-      shouldPersistNextAddPagesMeasurement: runawayPageGrowthResolution.cappedPageCount === null,
-      stabilizationAttemptsRemaining,
-      evaluate: measuredPageCountForEvaluation =>
-        options.evaluateTablePagination({
-          view: options.view,
-          currentPageCount,
-          measuredPageCount: measuredPageCountForEvaluation,
-          heuristics: deferredRepaginationPreflight.tablePaginationHeuristics,
-          bodyBands: tableBodyBands,
-          layoutTableFragmentsState
-        }),
-      onLogDebug: options.onLogDebug,
-      onSetPreviousAddPagesMeasurement: options.onSetPreviousAddPagesMeasurement,
-      onClearPreviousAddPagesMeasurement: options.onClearPreviousAddPagesMeasurement,
-      onSetGrowthSuppression: () => {
-        options.onSetGrowthSuppression(currentPageCount)
-      },
-      onClearGrowthSuppression: options.onClearGrowthSuppression,
-      onDecrementStabilizationAttempts: options.onDecrementStabilizationAttempts,
-      onScheduleEvaluation: () => {
-        options.onScheduleEvaluation(options.view)
-      },
-      onRefreshLayoutBounds: () => {
-        options.onRefreshLayoutBounds(options.view.dom)
-      },
-      onResetStabilizationAttempts: options.onResetStabilizationAttempts,
-      onRequestRefresh: (source, nextStoredPageCount) => {
-        options.onRequestRefresh(options.view, source, nextStoredPageCount)
-      },
-      onDispatch: options.onDispatch
-    })
+      const passResult = (options.runPass ?? runDeferredRepaginationPass)({
+        view: options.view,
+        evaluationId: options.evaluationId,
+        loopIteration,
+        structuralActionsPerformed,
+        currentPageCount,
+        measuredPageCount,
+        preflight: deferredRepaginationPreflight,
+        nextAddPagesMeasurement,
+        shouldPersistNextAddPagesMeasurement: runawayPageGrowthResolution.cappedPageCount === null,
+        stabilizationAttemptsRemaining,
+        evaluate: measuredPageCountForEvaluation =>
+          options.evaluateTablePagination({
+            view: options.view,
+            currentPageCount,
+            measuredPageCount: measuredPageCountForEvaluation,
+            heuristics: deferredRepaginationPreflight.tablePaginationHeuristics,
+            bodyBands: tableBodyBands,
+            layoutTableFragmentsState
+          }),
+        onLogDebug: options.onLogDebug,
+        onSetPreviousAddPagesMeasurement: options.onSetPreviousAddPagesMeasurement,
+        onClearPreviousAddPagesMeasurement: options.onClearPreviousAddPagesMeasurement,
+        onSetGrowthSuppression: () => {
+          options.onSetGrowthSuppression(currentPageCount)
+        },
+        onClearGrowthSuppression: options.onClearGrowthSuppression,
+        onDecrementStabilizationAttempts: options.onDecrementStabilizationAttempts,
+        onScheduleEvaluation: () => {
+          options.onScheduleEvaluation(options.view)
+        },
+        onRefreshLayoutBounds: () => {
+          options.onRefreshLayoutBounds(options.view.dom)
+        },
+        onResetStabilizationAttempts: options.onResetStabilizationAttempts,
+        onRequestRefresh: (source, nextStoredPageCount) => {
+          options.onRequestRefresh(options.view, source, nextStoredPageCount)
+        },
+        onDispatch: options.onDispatch
+      })
 
-    structuralActionsPerformed += passResult.structuralActionsDelta
-    if (passResult.shouldContinueLoop) {
-      // Large docs: avoid tens of synchronous iterations in one task (keeps UI/socket responsive).
-      const effectivePageCount = Math.max(basePageCount, currentPageCount, measuredPageCount)
-      if (
-        effectivePageCount >= LARGE_DOC_PAGE_YIELD_THRESHOLD &&
-        loopIteration % LARGE_DOC_YIELD_EVERY_N_ITERATIONS === 0
-      ) {
-        options.onScheduleEvaluation(options.view)
+      structuralActionsPerformed += passResult.structuralActionsDelta
+      if (passResult.shouldContinueLoop) {
+        // Large docs: avoid tens of synchronous iterations in one task (keeps UI/socket responsive).
+        const effectivePageCount = Math.max(basePageCount, currentPageCount, measuredPageCount)
+        if (
+          effectivePageCount >= LARGE_DOC_PAGE_YIELD_THRESHOLD &&
+          loopIteration % LARGE_DOC_YIELD_EVERY_N_ITERATIONS === 0
+        ) {
+          exitReason = 'deferred-yield'
+          wasDeferred = true
+          options.onScheduleEvaluation(options.view)
+          return {
+            handled: false,
+            iterations: loopIteration,
+            structuralActionsPerformed,
+            deferred: true
+          }
+        }
+        continue
+      }
+
+      if (passResult.handled) {
+        exitReason = 'handled'
+        wasHandled = true
         return {
-          handled: false,
+          handled: true,
           iterations: loopIteration,
-          structuralActionsPerformed,
-          deferred: true
+          structuralActionsPerformed
         }
       }
-      continue
     }
-    if (passResult.handled) {
-      return {
-        handled: true,
-        iterations: loopIteration,
-        structuralActionsPerformed
-      }
-    }
-  }
 
-  return {
-    handled: false,
-    iterations: loopIteration,
-    structuralActionsPerformed
+    return {
+      handled: false,
+      iterations: loopIteration,
+      structuralActionsPerformed
+    }
+  } finally {
+    if (wasHandled) {
+      incrementPaginationInstrumentationCounter('deferred-repagination-loop-handled')
+    }
+    if (wasDeferred) {
+      incrementPaginationInstrumentationCounter('deferred-repagination-loop-deferred')
+    }
+    finishInstrumentation({
+      exitReason,
+      handled: wasHandled,
+      deferred: wasDeferred,
+      iterations: loopIteration,
+      structuralActionsPerformed,
+      finalStoredPageCount: options.storage.pageCount
+    })
   }
 }

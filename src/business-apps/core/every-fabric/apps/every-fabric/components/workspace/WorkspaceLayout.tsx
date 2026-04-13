@@ -2,6 +2,7 @@ import {
   ArrowRightIcon,
   ChatCircleDotsIcon,
   ClockCounterClockwiseIcon,
+  GearIcon,
   LayoutIcon,
   PlusIcon,
   XIcon
@@ -13,6 +14,7 @@ import { ArtifactViewer } from './ArtifactViewer'
 import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
+import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
 import { WorkspaceStreamingIsland } from './WorkspaceStreamingIsland'
 import { FabricInput } from '../landing/FabricInput'
 import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
@@ -59,10 +61,14 @@ const parseFollowUps = (message: ChatMessage | undefined): string[] => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpenHistory }) => {
+export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettings: () => void }> = ({
+  onOpenHistory,
+  onOpenSettings
+}) => {
   const {
     session,
     messages,
+    streamingContent,
     accessToken,
     isStreaming,
     isConnected,
@@ -72,6 +78,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
     totalCount,
     progressPercent,
     activityEvents,
+    activeSkill,
     artifacts,
     workspaceDocs,
     activeArtifact,
@@ -208,7 +215,8 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
           </div>
 
           <div
-            className={`gba:fixed gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
+            className={`gba:fixed gba:left-3 sm:gba:left-6 lg:gba:left-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:items-center gba:gap-3 gba:pointer-events-auto`}
+            style={{ top: 'calc(5rem + 2.5rem)' }}
           >
             <button
               onClick={onOpenHistory}
@@ -217,6 +225,20 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
             >
               <ClockCounterClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
               <span className="gba:hidden sm:gba:inline">History</span>
+            </button>
+            <WorkspaceSkillIndicator skill={activeSkill} />
+          </div>
+
+          <div
+            className={`gba:fixed gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
+          >
+            <button
+              onClick={onOpenSettings}
+              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
+              data-testid="fabric-workspace-settings-button"
+            >
+              <GearIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
+              <span className="gba:hidden sm:gba:inline">Settings</span>
             </button>
 
             <button
@@ -343,12 +365,14 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
         <ConversationPanel
           sessionId={session.session_id}
           messages={messages}
+          streamingContent={streamingContent}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
           hasStreamingIsland={isStreaming}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
+          accessToken={accessToken}
         />
 
         {showClarification && (

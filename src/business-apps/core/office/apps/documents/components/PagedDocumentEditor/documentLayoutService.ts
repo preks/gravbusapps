@@ -264,12 +264,13 @@ function resolvePageBodyElementForPageBreak(pageBreakEl: HTMLElement): HTMLEleme
 
 function resolvePageBodyBounds(
   pageBreakEls: HTMLElement[],
-  options?: { mountedOnly?: boolean }
+  options?: { shellState?: 'all' | 'hydrated' | 'placeholder' }
 ): DocumentLayoutPageBodyBounds[] {
-  const mountedOnly = options?.mountedOnly ?? false
+  const shellState = options?.shellState ?? 'all'
   return pageBreakEls
     .map(pageBreakEl => {
-      if (mountedOnly && resolvePageBreakShellState(pageBreakEl) !== 'hydrated') {
+      const resolvedShellState = resolvePageBreakShellState(pageBreakEl)
+      if (shellState !== 'all' && resolvedShellState !== shellState) {
         return null
       }
 
@@ -296,11 +297,15 @@ function resolvePageBodyBounds(
 }
 
 export function resolveMountedPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
-  return resolvePageBodyBounds(pageBreakEls, { mountedOnly: true })
+  return resolvePageBodyBounds(pageBreakEls, { shellState: 'hydrated' })
+}
+
+export function resolvePlaceholderPageBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
+  return resolvePageBodyBounds(pageBreakEls, { shellState: 'placeholder' })
 }
 
 export function resolvePageShellBodyBounds(pageBreakEls: HTMLElement[]): DocumentLayoutPageBodyBounds[] {
-  return resolvePageBodyBounds(pageBreakEls)
+  return resolvePageBodyBounds(pageBreakEls, { shellState: 'all' })
 }
 
 function readRegionHeight(region: Element | null): number {
@@ -354,7 +359,7 @@ export async function resolveMountedPageBodyBoundsBatched(
   const result: DocumentLayoutPageBodyBounds[] = []
   for (let offset = 0; offset < pageBreakEls.length; offset += batchSize) {
     const slice = pageBreakEls.slice(offset, offset + batchSize)
-    result.push(...resolvePageBodyBounds(slice, { mountedOnly: true }))
+    result.push(...resolvePageBodyBounds(slice, { shellState: 'hydrated' }))
     if (offset + batchSize < pageBreakEls.length) {
       await yieldToNextAnimationFrame()
     }
@@ -693,7 +698,7 @@ export function resolveCurrentPageFromLayoutNavigation(
       return resolveLeadingPageForFlowElement(firstFlowEl)
     }
 
-    const lastFlowEl = navigationState.flowEls.at(-1)
+    const lastFlowEl = navigationState.flowEls[navigationState.flowEls.length - 1]
     if (lastFlowEl) {
       const lastFlowRect = lastFlowEl.getBoundingClientRect()
       if (viewportCenterY > lastFlowRect.bottom) {
@@ -773,9 +778,10 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
         const matchesCachedViewportWindow =
           cachedViewportWindow?.activeRange.startPage === activeRange.startPage &&
           cachedViewportWindow?.activeRange.endPage === activeRange.endPage
-        const activePages = matchesCachedViewportWindow
-          ? cachedViewportWindow.activePages
-          : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
+        const activePages =
+          matchesCachedViewportWindow && cachedViewportWindow
+            ? cachedViewportWindow.activePages
+            : resolveActivePages(cachedMeasurement.layout.pages, activeRange)
 
         cachedViewportWindow = {
           activeRange,
@@ -799,16 +805,15 @@ export function createLegacyDomPaginationLayoutService(): DocumentLayoutService 
       }
 
       cachedMeasurement = measureLegacyDomPagination(container, request)
-      cachedMeasurement.layout.activeRange = cachedMeasurement.navigationState.activeRange
-      cachedMeasurement.layout.activePages = resolveActivePages(
-        cachedMeasurement.layout.pages,
-        cachedMeasurement.navigationState.activeRange
-      )
+      const measuredActiveRange =
+        cachedMeasurement.navigationState.activeRange ?? createPageRange(1, cachedMeasurement.layout.pageCount)
+      cachedMeasurement.layout.activeRange = measuredActiveRange
+      cachedMeasurement.layout.activePages = resolveActivePages(cachedMeasurement.layout.pages, measuredActiveRange)
       cachedMeasurement.layout.mountedPageBodyBounds = resolveMountedPageBodyBounds(
         cachedMeasurement.navigationState.pageBreakEls
       )
       cachedViewportWindow = {
-        activeRange: cachedMeasurement.navigationState.activeRange,
+        activeRange: measuredActiveRange,
         activePages: cachedMeasurement.layout.activePages
       }
       return cachedMeasurement

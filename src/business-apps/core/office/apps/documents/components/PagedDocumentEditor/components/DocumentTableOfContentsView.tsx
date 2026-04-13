@@ -2,9 +2,9 @@
  * In-document table of contents (Word-style block): live heading list with optional page numbers.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { NodeViewProps } from '@tiptap/react'
-import { NodeViewWrapper } from '@tiptap/react'
+import { NodeViewWrapper, useEditorState } from '@tiptap/react'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -55,17 +55,11 @@ function resolveFallbackPageNumber(doc: PMNode, pos: number): number {
 
 export function DocumentTableOfContentsView({ editor, node, getPos, selected }: Readonly<NodeViewProps>) {
   const { t } = useTranslation(translations)
-  const [, setRenderTick] = useState(0)
+  const [layoutVersion, setLayoutVersion] = useState(0)
 
   useEffect(() => {
-    const bump = () => setRenderTick(n => n + 1)
-    editor.on('update', bump)
-    const unsubLayout = subscribeDocumentTocLayout(bump)
-    return () => {
-      editor.off('update', bump)
-      unsubLayout()
-    }
-  }, [editor])
+    return subscribeDocumentTocLayout(() => setLayoutVersion(version => version + 1))
+  }, [])
 
   const tocBlockEnd = useMemo(() => {
     const pos = getPos()
@@ -73,20 +67,21 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
     return pos + node.nodeSize
   }, [getPos, node.nodeSize])
 
-  const headings = useMemo(
-    () => getHeadingsForDocumentTableOfContents(editor.state.doc, tocBlockEnd),
-    [editor.state.doc, tocBlockEnd]
-  )
+  const liveDoc = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) => currentEditor?.state.doc ?? null
+  })
+  const doc = liveDoc ?? editor.state.doc
+  const headings = useMemo(() => getHeadingsForDocumentTableOfContents(doc, tocBlockEnd), [doc, tocBlockEnd])
   const visibleHeadings = useMemo(() => {
     const maxLevel = Math.max(1, Math.min(6, Number(node.attrs.maxHeadingLevel ?? 3)))
     return headings.filter(h => h.level <= maxLevel)
   }, [headings, node.attrs.maxHeadingLevel])
 
-  const spans = resolveSpansForPageNumbers()
+  const spans = useMemo(() => resolveSpansForPageNumbers(), [layoutVersion])
 
   const scrollToHeading = useCallback(
     (headingPos: number) => {
-      const doc = editor.state.doc
       const selection = createSafePaginationSelection(doc, headingPos, 1)
       editor.view.dispatch(editor.state.tr.setSelection(selection))
       editor.view.focus()
@@ -108,7 +103,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
         'start'
       )
     },
-    [editor]
+    [doc, editor]
   )
 
   const editable = editor.isEditable
@@ -175,7 +170,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                   if (pageNum !== null) {
                     pageLabel = String(pageNum)
                   } else {
-                    pageLabel = String(resolveFallbackPageNumber(editor.state.doc, h.blockStart))
+                    pageLabel = String(resolveFallbackPageNumber(doc, h.blockStart))
                   }
                 }
                 const titleBaseClass =

@@ -796,6 +796,42 @@ describe('resolveDeferredRepaginationControllerCycle', () => {
       }
     })
   })
+
+  it('widens back to the measured page count when parity mismatch blocks table mutations', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 21,
+      bodyBandCount: 21,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+
+    const result = resolveDeferredRepaginationControllerCycle({
+      currentPageCount: 21,
+      measuredPageCount: 41,
+      structuralActionsPerformed: 0,
+      preflight,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      evaluate: () => ({
+        type: 'none',
+        progress: 'none',
+        reason: 'candidate-parity-mismatch'
+      })
+    })
+
+    expect(result).toMatchObject({
+      shouldApplyGrowthSuppression: false,
+      refreshGateDebug: null,
+      executionPlan: {
+        type: 'refresh',
+        nextStoredPageCount: 41,
+        refreshSource: 'table-pagination-refresh',
+        shouldScheduleEvaluation: true
+      }
+    })
+  })
 })
 
 describe('resolveImmediateTableStabilizationDecision', () => {
@@ -937,6 +973,28 @@ describe('resolveDeferredRepaginationActionPlan', () => {
       type: 'none',
       result: {
         reason: 'no-eligible-candidates'
+      }
+    })
+  })
+
+  it('converts parity mismatch into a recovery refresh when measured pages exceed stored pages', () => {
+    expect(
+      resolveDeferredRepaginationActionPlan({
+        result: {
+          type: 'none',
+          progress: 'none',
+          reason: 'candidate-parity-mismatch'
+        },
+        currentPageCount: 21,
+        measuredPageCount: 41,
+        structuralActionsPerformed: 0
+      })
+    ).toMatchObject({
+      type: 'refresh',
+      shouldScheduleFollowUp: true,
+      result: {
+        pageCount: 41,
+        hasSplitPressure: false
       }
     })
   })
@@ -1215,21 +1273,79 @@ describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
         hasTables: true,
         externalDocChange: false,
         paginationOwnedDocChange: false,
-        hydrationOwnedDocChange: true
+        hydrationOwnedDocChange: true,
+        docChangeAnalysis: null
       })
     ).toBe(true)
   })
 
-  it('does not schedule deferred repagination for non-table documents', () => {
+  it('does not schedule deferred repagination for non-table pagination-owned changes', () => {
     expect(
       shouldScheduleDeferredRepaginationOnUpdate({
         activeEditorType: null,
         hasTables: false,
-        externalDocChange: true,
-        paginationOwnedDocChange: false,
-        hydrationOwnedDocChange: false
+        externalDocChange: false,
+        paginationOwnedDocChange: true,
+        hydrationOwnedDocChange: false,
+        docChangeAnalysis: null
       })
     ).toBe(false)
+  })
+
+  it('does not schedule deferred repagination for external local text changes away from tables', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        hasTables: true,
+        externalDocChange: true,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false,
+        docChangeAnalysis: {
+          kind: 'local-text',
+          changedRanges: [{ from: 5, to: 5 }],
+          touchesTable: false,
+          touchesTableAdjacentContent: false,
+          touchesTableRegion: false,
+          isLayoutNeutral: false,
+          shouldScheduleSettledRefresh: false
+        }
+      })
+    ).toBe(false)
+  })
+
+  it('schedules deferred repagination for external table-adjacent changes in table documents', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        hasTables: true,
+        externalDocChange: true,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false,
+        docChangeAnalysis: {
+          kind: 'structure',
+          changedRanges: [{ from: 5, to: 8 }],
+          touchesTable: false,
+          touchesTableAdjacentContent: true,
+          touchesTableRegion: true,
+          isLayoutNeutral: false,
+          shouldScheduleSettledRefresh: true
+        }
+      })
+    ).toBe(true)
+  })
+
+  it('schedules deferred repagination for collaboration-remote changes', () => {
+    expect(
+      shouldScheduleDeferredRepaginationOnUpdate({
+        activeEditorType: null,
+        hasTables: false,
+        externalDocChange: false,
+        collaborationRemoteDocChange: true,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false,
+        docChangeAnalysis: null
+      })
+    ).toBe(true)
   })
 
   it('does not schedule while a header or footer editor is active', () => {
@@ -1239,7 +1355,8 @@ describe('shouldScheduleDeferredRepaginationOnUpdate', () => {
         hasTables: true,
         externalDocChange: true,
         paginationOwnedDocChange: false,
-        hydrationOwnedDocChange: true
+        hydrationOwnedDocChange: true,
+        docChangeAnalysis: null
       })
     ).toBe(false)
   })

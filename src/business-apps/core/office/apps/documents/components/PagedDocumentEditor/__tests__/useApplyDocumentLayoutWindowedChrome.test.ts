@@ -5,6 +5,7 @@ import {
   restoreChromeRegion,
   useApplyDocumentLayoutWindowedChrome
 } from '../hooks/useApplyDocumentLayoutWindowedChrome'
+import type { DocumentLayoutViewportModel } from '../hooks/useDocumentLayoutViewportModel'
 import { renderHook } from '@testing-library/react'
 import type { MutableRefObject } from 'react'
 
@@ -52,8 +53,49 @@ function createPageBreak(pageNumber: number) {
   return { pageBreak, footer, nextHeader }
 }
 
+function createViewportModel(
+  overrides: Partial<DocumentLayoutViewportModel> &
+    Pick<
+      DocumentLayoutViewportModel,
+      | 'source'
+      | 'totalPages'
+      | 'activeRange'
+      | 'activePageNumbers'
+      | 'activePageCount'
+      | 'mountedRange'
+      | 'mountedPageNumbers'
+      | 'mountedPageCount'
+      | 'hasSparseFlow'
+      | 'isWindowed'
+      | 'containsCurrentPage'
+      | 'rangeLabel'
+      | 'windowKey'
+    >
+): DocumentLayoutViewportModel {
+  return {
+    documentVersion: 1,
+    layoutVersion: 1,
+    pageBounds: [],
+    mountedPageBodyBounds: [],
+    activePageBodyBounds: [],
+    pageSpans: [],
+    retainedPageSpans: [],
+    pagePositionRanges: [],
+    activePagePositionRanges: [],
+    pageChromeMetrics: [],
+    anchors: {
+      comments: [],
+      images: [],
+      links: [],
+      tables: []
+    },
+    tableFragments: [],
+    ...overrides
+  }
+}
+
 describe('resolveEffectiveChromeActivePageNumbers', () => {
-  it('includes page 1 when page 1 remains mounted', () => {
+  it('keeps all mounted pages active for chrome hydration', () => {
     const active = resolveEffectiveChromeActivePageNumbers({
       activePageNumbers: [2],
       mountedPageNumbers: [1, 2]
@@ -62,7 +104,7 @@ describe('resolveEffectiveChromeActivePageNumbers', () => {
     expect(active.has(2)).toBe(true)
   })
 
-  it('does not add page 1 when page 1 is not mounted', () => {
+  it('does not add pages that are outside both active and mounted windows', () => {
     const active = resolveEffectiveChromeActivePageNumbers({
       activePageNumbers: [2],
       mountedPageNumbers: [2]
@@ -169,7 +211,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
           pageBreakEls: [first.pageBreak, second.pageBreak, third.pageBreak],
           flowEls: [first.pageBreak, second.pageBreak, third.pageBreak]
         },
-        viewportModel: {
+        viewportModel: createViewportModel({
           source: 'incremental-layout-engine',
           totalPages: 3,
           activeRange: { startPage: 1, endPage: 1 },
@@ -185,7 +227,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
           containsCurrentPage: true,
           rangeLabel: '1-1',
           windowKey: 'incremental-layout-engine:1-1:1'
-        }
+        })
       })
     )
 
@@ -215,7 +257,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         pageBreakEls: [first.pageBreak, second.pageBreak, third.pageBreak],
         flowEls: [first.pageBreak, second.pageBreak, third.pageBreak]
       },
-      viewportModel: {
+      viewportModel: createViewportModel({
         source: 'incremental-layout-engine' as const,
         totalPages: 4,
         activeRange: { startPage: 1, endPage: 1 },
@@ -231,22 +273,22 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         containsCurrentPage: true,
         rangeLabel: '1-1',
         windowKey: 'incremental-layout-engine:1-1:1'
-      }
+      })
     }
 
     const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
       initialProps: props
     })
 
-    expect(second.footer.region.dataset.layoutChromeMounted).toBe('false')
+    expect(second.footer.region.dataset.layoutChromeMounted).toBeUndefined()
 
     rerender({
       ...props,
-      viewportModel: {
+      viewportModel: createViewportModel({
         ...props.viewportModel,
         totalPages: 3,
         hasSparseFlow: false
-      }
+      })
     })
 
     expect(second.footer.region.dataset.layoutChromeMounted).toBeUndefined()
@@ -273,7 +315,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         pageBreakEls: [first.pageBreak, second.pageBreak, third.pageBreak],
         flowEls: [first.pageBreak, second.pageBreak, third.pageBreak]
       },
-      viewportModel: {
+      viewportModel: createViewportModel({
         source: 'incremental-layout-engine' as const,
         totalPages: 3,
         activeRange: { startPage: 1, endPage: 1 },
@@ -289,7 +331,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         containsCurrentPage: true,
         rangeLabel: '1-1',
         windowKey: 'incremental-layout-engine:1-1:1'
-      }
+      })
     }
 
     const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
@@ -300,13 +342,13 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
 
     rerender({
       ...props,
-      viewportModel: {
+      viewportModel: createViewportModel({
         ...props.viewportModel,
         mountedRange: { startPage: 1, endPage: 3 },
         mountedPageNumbers: [1, 2, 3],
         mountedPageCount: 3,
         hasSparseFlow: false
-      }
+      })
     })
 
     expect(second.footer.region.dataset.layoutChromeMounted).toBeUndefined()
@@ -333,7 +375,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         pageBreakEls: [first.pageBreak, second.pageBreak],
         flowEls: [first.pageBreak, second.pageBreak]
       },
-      viewportModel: {
+      viewportModel: createViewportModel({
         source: 'incremental-layout-engine' as const,
         totalPages: 2,
         activeRange: { startPage: 2, endPage: 2 },
@@ -349,7 +391,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         containsCurrentPage: true,
         rangeLabel: '2-2',
         windowKey: 'incremental-layout-engine:2-2:1'
-      }
+      })
     }
 
     const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
@@ -360,10 +402,10 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
 
     rerender({
       ...props,
-      viewportModel: {
+      viewportModel: createViewportModel({
         ...props.viewportModel,
         mountedRange: { startPage: 1, endPage: 2 }
-      }
+      })
     })
 
     expect(firstPageHeader.region.dataset.layoutChromeMounted).toBeUndefined()
@@ -390,7 +432,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         pageBreakEls: [first.pageBreak, second.pageBreak],
         flowEls: [first.pageBreak, second.pageBreak]
       },
-      viewportModel: {
+      viewportModel: createViewportModel({
         source: 'incremental-layout-engine' as const,
         totalPages: 2,
         activeRange: { startPage: 2, endPage: 2 },
@@ -406,7 +448,7 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
         containsCurrentPage: true,
         rangeLabel: '2-2',
         windowKey: 'incremental-layout-engine:2-2:1'
-      }
+      })
     }
 
     const { rerender } = renderHook(currentProps => useApplyDocumentLayoutWindowedChrome(currentProps), {
@@ -418,10 +460,10 @@ describe('useApplyDocumentLayoutWindowedChrome', () => {
 
     rerender({
       ...props,
-      viewportModel: {
+      viewportModel: createViewportModel({
         ...props.viewportModel,
         mountedRange: { startPage: 1, endPage: 2 }
-      }
+      })
     })
 
     expect(first.footer.region.dataset.layoutChromeMounted).toBeUndefined()

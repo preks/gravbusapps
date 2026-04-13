@@ -249,14 +249,27 @@ function remoteEchoKey(row: number, col: number): string {
   return `${row}:${col}`
 }
 
+// Prioritizes the cellRef (A1 notation) for cursor position, falling back to raw row:/col: entries.
+// A1 references represent the sender's exact visual cell position and don't suffer from
+// row-index drift between the data array and Univer grid.
 function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   if (!path || path.length === 0) return null
-  const rowEntry = path.find(item => item.startsWith('row:'))
+
+  const cellRefEntry = path.find(item => item.startsWith('cellRef:'))
+  if (cellRefEntry) {
+    const parsed = parseA1Reference(cellRefEntry.slice(8))
+    if (parsed) return parsed
+  }
+
   const colEntry = path.find(item => item.startsWith('col:'))
-  if (!rowEntry || !colEntry) return null
-  const row = Number(rowEntry.slice(4))
+  if (!colEntry) return null
   const col = Number(colEntry.slice(4))
-  if (!Number.isFinite(row) || !Number.isFinite(col) || row < 0 || col < 0) return null
+  if (!Number.isFinite(col) || col < 0) return null
+
+  const rowEntry = path.find(item => item.startsWith('row:'))
+  if (!rowEntry) return null
+  const row = Number(rowEntry.slice(4))
+  if (!Number.isFinite(row) || row < 0) return null
   return { row, col }
 }
 
@@ -405,15 +418,30 @@ function buildNewRowsFromCellMatrix(params: {
   })
 }
 
+/**
+ * Extract changed cells from a Univer value-change event.
+ *
+ * Returns univerRow/univerCol alongside the logical rowId/columnName. The Univer grid indices
+ * are the sender's actual visual position and get transmitted as an A1 cellRef in the collaboration
+ * operation. The receiver uses this cellRef to update the correct Univer cell, avoiding a bug where
+ * data-array-index-based resolution wrote to the wrong row after row additions/deletions caused
+ * the data array and Univer grid to drift out of sync.
+ */
 function collectChangedCells(params: {
   cellValue: SheetCellMatrix
   ctx: ConversionContext
   rowOffset: number
   colOffset: number
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
-}): Array<{ rowId: string; columnName: string; value: unknown }> {
+}): Array<{ rowId: string; columnName: string; value: unknown; univerRow: number; univerCol: number }> {
   const { cellValue, ctx, rowOffset, colOffset, shouldSuppress } = params
-  const changedCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
+  const changedCells: Array<{
+    rowId: string
+    columnName: string
+    value: unknown
+    univerRow: number
+    univerCol: number
+  }> = []
   for (const rowKey of Object.keys(cellValue)) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex)) continue
@@ -431,7 +459,13 @@ function collectChangedCells(params: {
       if (columnName === undefined) continue
       const cell = rowCells[colIndex]
       if (shouldSuppress?.(globalRowIndex, globalColIndex, cell) === true) continue
-      changedCells.push({ rowId, columnName, value: cell ?? { v: '' } })
+      changedCells.push({
+        rowId,
+        columnName,
+        value: cell ?? { v: '' },
+        univerRow: globalRowIndex,
+        univerCol: globalColIndex
+      })
     }
   }
   return changedCells
@@ -482,7 +516,7 @@ export interface CellDimensionsPayload {
 }
 
 export interface UniverSheetGridHandle {
-  applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown) => void
+  applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown, rowId?: string) => void
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
   applyRemoteDimensions: (payload: CellDimensionsPayload) => void
@@ -1245,6 +1279,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // Allows the Univer init effect to trigger a cursor position refresh on scroll
     const refreshCursorRectsRef = useRef<(() => void) | null>(null)
     const refreshCommentRectsRef = useRef<(() => void) | null>(null)
+    const updateCellDimensionsRef = useRef<(() => void) | null>(null)
     const [cursorRects, setCursorRects] = useState<
       Record<string, { top: number; left: number; width: number; height: number }>
     >({})
@@ -1316,12 +1351,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           const worksheet = workbook?.getActiveSheet?.()
           if (!worksheet) return null
 
-          // Use the snapshot cache for cell dimensions. Apply zoomRatio so overlays
-          // match the actual rendered size when the user has zoomed the sheet.
+          // Univer's snapshot stores logical (unzoomed) dimensions. Multiply by
+          // zoomRatio to get the rendered pixel size on the canvas.
           const dims = cellDimensionsRef.current
           const zoom = dims?.zoomRatio ?? 1
-          const rowHeaderWidth = dims?.rowHeaderWidth ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
-          const columnHeaderHeight = dims?.columnHeaderHeight ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX
+          const rowHeaderWidth = (dims?.rowHeaderWidth ?? CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX) * zoom
+          const columnHeaderHeight = (dims?.columnHeaderHeight ?? CURSOR_OVERLAY_HEADER_HEIGHT_PX) * zoom
           const getColumnWidth = (c: number): number =>
             (dims?.columnData[c]?.w ?? dims?.defaultColWidth ?? CURSOR_OVERLAY_COL_WIDTH_PX) * zoom
           const getRowHeight = (r: number): number =>
@@ -1353,8 +1388,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             let top = 0
             for (let c = 0; c < startCol; c++) left += getColumnWidth(c)
             for (let r = 0; r < startRow; r++) top += getRowHeight(r)
-            left += scrollState.offsetX ?? 0
-            top += scrollState.offsetY ?? 0
+            // offsetX/offsetY from Univer's viewport are in logical units; scale by zoom
+            left += (scrollState.offsetX ?? 0) * zoom
+            top += (scrollState.offsetY ?? 0) * zoom
             scrollLeftFromState = left
             scrollTopFromState = top
           }
@@ -1367,16 +1403,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               ? scrollTopFromState
               : sheetScrollRef.current.scrollTop
 
-          // Use the topmost canvas to find where the sheet grid starts vertically
-          // (below the Univer toolbar and formula bar). We use canvas.top for the
-          // vertical anchor, but NOT canvas.left — the sheet always fills the container
-          // horizontally from x=0, so the horizontal anchor is just the row index width.
-          // Using canvas.left causes incorrect results because Univer may render the cell
-          // content canvas starting at an offset that varies by version/layout.
+          // The main canvas sits below the Univer toolbar and formula bar.
+          // Use canvas.top for the vertical anchor. The sheet fills the container
+          // horizontally from x=0, so the horizontal anchor is the row header width.
           const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>('canvas'))
-          // Pick the largest canvas by pixel area — that is the main sheet rendering canvas,
-          // which sits below the toolbar and formula bar. Smaller canvases belong to the
-          // formula bar input, overlays, or other internal Univer UI components.
           const mainCanvas = canvases.reduce<HTMLCanvasElement | null>((best, c) => {
             if (!best) return c
             return c.width * c.height > best.width * best.height ? c : best
@@ -1384,14 +1414,35 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
           if (mainCanvas) {
             const canvasBox = mainCanvas.getBoundingClientRect()
-            return {
-              // Vertical: canvas top + column header height + row offsets - viewport scroll
+            const result = {
               top: canvasBox.top - containerBox.top + columnHeaderHeight + cellTop - scrollTop,
-              // Horizontal: row index width + column offsets - viewport scroll
               left: rowHeaderWidth + cellLeft - scrollLeft,
               width: getColumnWidth(col),
               height: getRowHeight(row)
             }
+
+            if ((globalThis as Record<string, unknown>).__debugCursorRect) {
+              console.debug('[resolveCellRect]', {
+                row,
+                col,
+                zoom,
+                rawHeaderW: dims?.rowHeaderWidth,
+                rawHeaderH: dims?.columnHeaderHeight,
+                headerW: rowHeaderWidth,
+                headerH: columnHeaderHeight,
+                cellLeft,
+                cellTop,
+                scrollLeft,
+                scrollTop,
+                canvasTop: canvasBox.top,
+                containerTop: containerBox.top,
+                canvasLeft: canvasBox.left,
+                containerLeft: containerBox.left,
+                result
+              })
+            }
+
+            return result
           }
 
           return null
@@ -1480,37 +1531,110 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       }
     }, [commentOverlays, resolveCellRect])
 
+    // Re-read Univer dimensions and refresh overlays when the browser zoom changes.
+    // Browser zoom alters getBoundingClientRect values but doesn't fire Univer commands,
+    // so overlays drift unless we explicitly recalculate.
+    useEffect(() => {
+      let currentDpr = globalThis.devicePixelRatio ?? 1
+      let mqCleanup: (() => void) | undefined
+      const listen = () => {
+        const mq = globalThis.matchMedia?.(`(resolution: ${currentDpr}dppx)`)
+        if (!mq) return
+        const handler = () => {
+          currentDpr = globalThis.devicePixelRatio ?? 1
+          updateCellDimensionsRef.current?.()
+          refreshCursorRectsRef.current?.()
+          refreshCommentRectsRef.current?.()
+          mqCleanup?.()
+          listen()
+        }
+        mq.addEventListener('change', handler, { once: true })
+        mqCleanup = () => mq.removeEventListener('change', handler)
+      }
+      listen()
+      return () => mqCleanup?.()
+    }, [])
+
     useEffect(() => {
       if (!hoveredCommentId) return
       const stillExists = commentOverlays.some(marker => marker.id === hoveredCommentId)
       if (!stillExists) setHoveredCommentId(null)
     }, [commentOverlays, hoveredCommentId])
 
-    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
-      const api = univerAPIRef.current
-      if (!api) return
-      const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
-      const key = remoteEchoKey(rowIndex, colIndex)
-      remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
-      globalThis.setTimeout(() => {
-        const current = remoteEchoSuppressionRef.current.get(key)
-        if (current?.expiresAt === expiresAt) {
-          remoteEchoSuppressionRef.current.delete(key)
-        }
-      }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
-      isApplyingRemoteUpdateRef.current = true
-      try {
-        const workbook = api.getActiveWorkbook()
-        if (!workbook) return
-        const worksheet = workbook.getActiveSheet()
-        if (!worksheet) return
-        const range = worksheet.getRange(rowIndex, colIndex)
-        if (range) range.setValue(value as any)
-      } catch (e) {
-        console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
-      } finally {
+    // Callers should prefer passing A1-resolved coordinates (from cellRef) directly as rowIndex/colIndex.
+    // The rowId fallback attempts to re-resolve via contextRef, but contextRef tracks the data prop
+    // (not the Univer workbook), so it can be wrong after structural changes. See handleCollaborationOperation.
+    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown, rowId?: string) => {
+      const clearRemoteFlag = () => {
         isApplyingRemoteUpdateRef.current = false
       }
+      const tryApply = (attempt: number) => {
+        const api = univerAPIRef.current
+        if (!api) {
+          if (attempt < 2) {
+            globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+            return
+          }
+          console.warn('[UniverSheetGrid] applyRemoteCellUpdate: Univer API unavailable after retries')
+          clearRemoteFlag()
+          return
+        }
+        let resolvedRow = rowIndex
+        if (rowId && contextRef.current) {
+          const gridIndex = contextRef.current.rowIdToIndex.get(rowId)
+          if (gridIndex !== undefined) {
+            resolvedRow = gridIndex
+          } else {
+            const d = propsRef.current.data
+            const fallback = d.findIndex(r => {
+              const ids = [r._rowUuid, r._id, r.id].map(v => (v == null ? '' : String(v))).filter(Boolean)
+              return ids.includes(rowId)
+            })
+            if (fallback >= 0) resolvedRow = fallback
+          }
+        }
+        const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
+        const key = remoteEchoKey(resolvedRow, colIndex)
+        remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
+        globalThis.setTimeout(() => {
+          const current = remoteEchoSuppressionRef.current.get(key)
+          if (current?.expiresAt === expiresAt) {
+            remoteEchoSuppressionRef.current.delete(key)
+          }
+        }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
+        try {
+          const workbook = api.getActiveWorkbook()
+          if (!workbook) {
+            if (attempt < 2) {
+              globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+              return
+            }
+            console.warn('[UniverSheetGrid] applyRemoteCellUpdate: no active workbook after retries')
+            return
+          }
+          const worksheet = workbook.getActiveSheet()
+          if (!worksheet) {
+            if (attempt < 2) {
+              globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+              return
+            }
+            console.warn('[UniverSheetGrid] applyRemoteCellUpdate: no active worksheet after retries')
+            return
+          }
+          const range = worksheet.getRange(resolvedRow, colIndex)
+          if (range) {
+            range.setValue(value as any)
+          } else {
+            console.warn('[UniverSheetGrid] applyRemoteCellUpdate: getRange returned null', { resolvedRow, colIndex })
+          }
+        } catch (e) {
+          console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
+        } finally {
+          clearRemoteFlag()
+        }
+      }
+      isApplyingRemoteUpdateRef.current = true
+      tryApply(0)
     }, [])
 
     const getWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
@@ -1548,6 +1672,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       (payload: CellDimensionsPayload) => {
         if (payload.sheetId !== sheet.id) return
         const currentColumnData = cellDimensionsRef.current?.columnData ?? {}
+        // Preserve the LOCAL zoom ratio — zoom is a per-client preference that
+        // must not be overwritten by another collaborator's dimension broadcast.
+        const localZoom = cellDimensionsRef.current?.zoomRatio ?? 1
         cellDimensionsRef.current = {
           defaultColWidth: payload.defaultColWidth,
           defaultRowHeight: payload.defaultRowHeight,
@@ -1557,7 +1684,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           rowData: payload.rowData ?? {},
           rowHeaderWidth: payload.rowHeaderWidth,
           columnHeaderHeight: payload.columnHeaderHeight,
-          zoomRatio: payload.zoomRatio
+          zoomRatio: localZoom
         }
         const api = univerAPIRef.current
         const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
@@ -2065,6 +2192,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           return { changed: false, dimensions: null }
         }
       }
+      updateCellDimensionsRef.current = updateCellDimensions
       setTimeout(updateCellDimensions, 200)
 
       const SNAPSHOT_TIMEOUT_MS = 10000
@@ -2180,8 +2308,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         let top = 0
         for (let c = 0; c < startCol; c++) left += getColumnWidth(c)
         for (let r = 0; r < startRow; r++) top += getRowHeight(r)
-        left += scrollState.offsetX ?? 0
-        top += scrollState.offsetY ?? 0
+        left += (scrollState.offsetX ?? 0) * zoom
+        top += (scrollState.offsetY ?? 0) * zoom
         if (Number.isFinite(left) && Number.isFinite(top)) {
           handleSheetScroll(left, top)
         }
@@ -2367,11 +2495,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       )
       const selectionEventKey =
         (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
+      // Emits cursor position using A1 notation (cellRef) as the primary coordinate.
+      // row:/col: entries are kept for backward compatibility.
       const emitCursorByRowCol = (startRow: number, startColumn: number) => {
         activeSelectionRef.current = { row: startRow, col: startColumn }
         const onCursorEmitCb = callbacksRef.current.onCursorEmit
         if (!onCursorEmitCb) return
-        const path = [`row:${startRow}`, `col:${startColumn}`]
+        const a1 = toA1Reference(startRow, startColumn)
+        const path = [`cellRef:${a1}`, `row:${startRow}`, `col:${startColumn}`]
         const signature = path.join('|')
         if (lastEmittedCursorPathRef.current === signature) return
         lastEmittedCursorPathRef.current = signature
@@ -2628,12 +2759,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           {remoteCursorOverlays.map(cursor =>
             (() => {
               const rect = cursorRects[cursor.id]
-              const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + cursor.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
+              const fallbackZoom = cellDimensionsRef.current?.zoomRatio ?? 1
+              const top = rect
+                ? rect.top
+                : CURSOR_OVERLAY_HEADER_HEIGHT_PX * fallbackZoom +
+                  cursor.row * CURSOR_OVERLAY_ROW_HEIGHT_PX * fallbackZoom
               const left = rect
                 ? rect.left
-                : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + cursor.col * CURSOR_OVERLAY_COL_WIDTH_PX
-              const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX
-              const height = rect ? rect.height : CURSOR_OVERLAY_ROW_HEIGHT_PX
+                : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX * fallbackZoom +
+                  cursor.col * CURSOR_OVERLAY_COL_WIDTH_PX * fallbackZoom
+              const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX * fallbackZoom
+              const height = rect ? rect.height : CURSOR_OVERLAY_ROW_HEIGHT_PX * fallbackZoom
               return (
                 <div
                   key={cursor.id}
