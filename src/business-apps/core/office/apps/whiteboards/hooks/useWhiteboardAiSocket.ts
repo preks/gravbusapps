@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { getDocumentServiceApiUrl } from '../../shared/utils/documentServiceUrl'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface WhiteboardAiMessage {
   id: string
