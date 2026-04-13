@@ -18,6 +18,8 @@ whiteboard-manage-shares = Manage Shares
 whiteboard-add-favorite = Add to Favorites
 whiteboard-remove-favorite = Remove from Favorites
 whiteboard-open = Open
+whiteboard-menu-label = Whiteboard
+whiteboard-export = Export
 whiteboard-export-png = Export as PNG
 whiteboard-export-svg = Export as SVG
 whiteboard-back-to-hub = Back to Whiteboards
@@ -94,8 +96,11 @@ time-days-ago-count = { $count ->
 }
 
 # AI Chat
-whiteboard-ai-title = EveryDraw
-whiteboard-ai-toggle = Toggle EveryDraw
-whiteboard-ai-welcome = EveryDraw
-whiteboard-ai-welcome-sub = Describe what you want to draw and I'll create it on the canvas.
+whiteboard-ai-title = Every
+whiteboard-ai-toggle = Toggle Every
+whiteboard-ai-welcome = Every
+whiteboard-ai-welcome-sub = Describe what you want to draw and I'll create it on the canvas. You can also attach an image to recreate.
 whiteboard-ai-placeholder = Describe what to draw...
+whiteboard-ai-attach-image = Attach image
+whiteboard-ai-remove-image = Remove image
+whiteboard-ai-image-too-large = Image is too large. Maximum size is 4 MB.

@@ -21,6 +21,13 @@ export const WhiteboardAiMessage = ({
     return (
       <div className="gba:flex gba:justify-end gba:gap-2.5 gba:px-4 gba:py-3" data-testid={`${testId}-${message.id}`}>
         <div className="gba:max-w-[80%] gba:rounded-2xl gba:rounded-br-sm gba:bg-primary gba:text-primary-foreground gba:px-4 gba:py-3">
+          {message.imageDataUrl && (
+            <img
+              src={message.imageDataUrl}
+              alt="Attached"
+              className="gba:rounded-lg gba:max-w-full gba:max-h-48 gba:object-contain gba:mb-2"
+            />
+          )}
           <p className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap gba:break-words">{message.content}</p>
         </div>
         <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0 gba:mt-0.5">

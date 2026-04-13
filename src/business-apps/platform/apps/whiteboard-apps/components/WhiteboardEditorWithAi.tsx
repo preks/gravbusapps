@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import * as Y from 'yjs'
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useWhiteboardAiSocket } from '../hooks/useWhiteboardAiSocket'
+import { useCurrentUserPicture } from '../../every-ai/hooks/useCurrentUserPicture'
 import { ExcalidrawToolExecutor } from '../services/ExcalidrawToolExecutor'
 import { WhiteboardAiLayout } from './WhiteboardAiLayout'
 import { WhiteboardAiChat } from './WhiteboardAiChat'
@@ -64,9 +65,9 @@ export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
   )
 
   const handleSendMessage = useCallback(
-    (message: string) => {
+    (message: string, imageDataUrl?: string) => {
       const sceneContext = toolExecutorRef.current?.describeScene()
-      sendMessage(message, sceneContext)
+      sendMessage(message, sceneContext, imageDataUrl)
     },
     [sendMessage]
   )
@@ -77,11 +78,17 @@ export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
     userInfo?.givenName ||
     undefined
 
-  const userAvatarUrl = (() => {
-    const thumb = userInfo?.employeeDetails?.pictureThumbnail
-    if (!thumb) return undefined
-    return thumb.startsWith('data:') ? thumb : `data:image/png;base64,${thumb}`
-  })()
+  const { pictureThumbnail: pictureFromGraphql } = useCurrentUserPicture(
+    userInfo?.employeeDetails?.employeeId,
+    accessToken ?? ''
+  )
+
+  const userAvatarUrl = useMemo(() => {
+    const raw = pictureFromGraphql || userInfo?.employeeDetails?.pictureThumbnail
+    if (!raw) return undefined
+    if (raw.startsWith('data:') || /^https?:\/\//i.test(raw)) return raw
+    return `data:image/png;base64,${raw}`
+  }, [pictureFromGraphql, userInfo?.employeeDetails?.pictureThumbnail])
 
   const handleToggleChat = useCallback(() => {
     setChatVisible(prev => !prev)

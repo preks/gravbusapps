@@ -6,6 +6,7 @@ export interface WhiteboardAiMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  imageDataUrl?: string
   toolCalls?: Array<{ name: string; arguments: string }>
   timestamp: number
 }
@@ -158,7 +159,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
   }, [whiteboardId, accessToken, enabled])
 
   const sendMessage = useCallback(
-    (message: string, sceneContext?: string) => {
+    (message: string, sceneContext?: string, imageDataUrl?: string) => {
       if (!socketRef.current || !whiteboardId) return
 
       setSessionTitle(prev => prev ?? deriveTitle(message))
@@ -167,6 +168,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
         id: `msg-${++msgIdCounter.current}`,
         role: 'user',
         content: message,
+        imageDataUrl,
         timestamp: Date.now()
       }
 
@@ -179,7 +181,8 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
       socketRef.current.emit('message', {
         whiteboardId,
         message,
-        sceneContext
+        sceneContext,
+        imageDataUrl
       })
     },
     [whiteboardId]

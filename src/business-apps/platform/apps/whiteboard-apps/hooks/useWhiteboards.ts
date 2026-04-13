@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { WhiteboardApiService } from '../services'
+import { WhiteboardApiService } from '../services/WhiteboardApiService'
 import type { WhiteboardSummary } from '../types'
 
 interface UseWhiteboardsOptions {
