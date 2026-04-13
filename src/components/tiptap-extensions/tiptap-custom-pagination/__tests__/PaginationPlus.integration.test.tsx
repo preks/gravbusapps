@@ -832,6 +832,42 @@ describe('resolveDeferredRepaginationControllerCycle', () => {
       }
     })
   })
+
+  it('widens reopen-like table pagination back to 43 pages when parity mismatch blocks mutations', () => {
+    const preflight = resolveDeferredRepaginationPreflight({
+      cappedPageCount: null,
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 22,
+      bodyBandCount: 22,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      tableMeasurementsPending: false
+    })
+
+    const result = resolveDeferredRepaginationControllerCycle({
+      currentPageCount: 22,
+      measuredPageCount: 43,
+      structuralActionsPerformed: 0,
+      preflight,
+      stabilizationAttemptsRemaining: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS,
+      evaluate: () => ({
+        type: 'none',
+        progress: 'none',
+        reason: 'candidate-parity-mismatch'
+      })
+    })
+
+    expect(result).toMatchObject({
+      shouldApplyGrowthSuppression: false,
+      refreshGateDebug: null,
+      executionPlan: {
+        type: 'refresh',
+        nextStoredPageCount: 43,
+        refreshSource: 'table-pagination-refresh',
+        shouldScheduleEvaluation: true
+      }
+    })
+  })
 })
 
 describe('resolveImmediateTableStabilizationDecision', () => {

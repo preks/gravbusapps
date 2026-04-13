@@ -7,15 +7,12 @@ import {
   PAGE_COUNT_HARD_CAP,
   MAX_PAGE_GROWTH_PER_EVALUATION
 } from './paginationPageCountPolicy'
-import {
-  resolveDeferredRepaginationPreflight,
-  resolveTablePaginationHeuristics,
-  shouldDeferTablePaginationEvaluation
-} from './paginationStabilizationPolicy'
+import { resolveDeferredRepaginationPreflight } from './paginationStabilizationPolicy'
 import {
   incrementPaginationInstrumentationCounter,
   startPaginationInstrumentationTimer
 } from './paginationInstrumentation'
+import { resolveDeferredRepaginationLoopTableState } from './deferredRepaginationLoopTableState'
 import {
   createMissingPaginationLayoutTableFragmentsState,
   readPaginationLayoutTableFragmentsState
@@ -165,36 +162,22 @@ export function runDeferredRepaginationEvaluationLoop(options: {
       const hasTables = options.documentHasTables(options.view)
       const shouldInspectTableLayout = hasTables && !hasActiveEditor
       const tableBodyBands = shouldInspectTableLayout ? options.getBodyMeasurementBands(options.view.dom) : []
-      const measuredTablePageCount = new Set(tableBodyBands.map(band => band.pageNumber)).size
       const layoutTableFragmentsState = hasTables
         ? readPaginationLayoutTableFragmentsState(options.view.dom, options.view.state.doc)
         : createMissingPaginationLayoutTableFragmentsState()
-      const tablePaginationHeuristics = resolveTablePaginationHeuristics(
-        runawayPageGrowthResolution.cappedPageCount,
-        hasActiveEditor
-      )
-      const deferTableEvaluation =
-        tablePaginationHeuristics.allowSplit &&
-        shouldDeferTablePaginationEvaluation({
-          hasTables,
-          currentPageCount,
-          bodyBandCount: measuredTablePageCount
-        })
-      const tableMeasurementsPending =
-        hasTables &&
-        (tablePaginationHeuristics.allowSplit || tablePaginationHeuristics.allowMerge) &&
-        !deferTableEvaluation &&
-        options.hasPendingTableMeasurements(options.view)
       const stabilizationAttemptsRemaining = options.getStabilizationAttemptsRemaining()
-      const deferredRepaginationPreflight = (options.resolvePreflight ?? resolveDeferredRepaginationPreflight)({
-        cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
+      const deferredLoopTableState = resolveDeferredRepaginationLoopTableState({
         hasActiveEditor,
         hasTables,
         currentPageCount,
-        bodyBandCount: measuredTablePageCount,
+        bodyBands: tableBodyBands,
         stabilizationAttemptsRemaining,
-        tableMeasurementsPending
+        getHasPendingTableMeasurements: () => options.hasPendingTableMeasurements(options.view),
+        cappedPageCount: runawayPageGrowthResolution.cappedPageCount,
+        resolvePreflight: options.resolvePreflight
       })
+      const measuredTablePageCount = deferredLoopTableState.measuredTablePageCount
+      const deferredRepaginationPreflight = deferredLoopTableState.preflight
 
       options.onLogDebug('deferred-repagination-evaluation', {
         evaluationId: options.evaluationId,

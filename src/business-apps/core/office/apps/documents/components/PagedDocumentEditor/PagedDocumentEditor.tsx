@@ -994,6 +994,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     useEffect(() => {
       setDocumentTocLayoutHints({
+        layoutVersion: layoutViewportModel.layoutVersion,
         pageBounds: layoutViewportModel.pageBounds,
         mountedPageBodyBounds: layoutViewportModel.mountedPageBodyBounds,
         pagePositionRanges: layoutViewportModel.pagePositionRanges,
@@ -1361,10 +1362,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       () => ({
         blockTitle: t('document-toc-block-title'),
         emptyMessage: t('document-toc-empty'),
-        untitledHeading: t('title-untitled'),
-        duplicateHeadingFilterDocumentTitle: title.trim() || undefined
+        untitledHeading: t('title-untitled')
       }),
-      [t, title]
+      [t]
     )
     const {
       isSaving,

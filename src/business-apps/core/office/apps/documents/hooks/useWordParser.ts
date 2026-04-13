@@ -11,6 +11,7 @@ import mammoth from 'mammoth'
 import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
 import translations from '../_i18n'
 import { enhanceImportedHtmlWithImageLayouts, parseDocxImageLayouts } from '../utils/docxImportUtils'
+import { enhanceImportedHtmlWithTableOfContents, parseDocxTableOfContents } from '../utils/docxTocImportUtils'
 
 type MammothImage = Parameters<Parameters<typeof mammoth.images.imgElement>[0]>[0]
 type MammothMessage = Awaited<ReturnType<typeof mammoth.convertToHtml>>['messages'][number]
@@ -128,10 +129,11 @@ export function useWordParser(): UseWordParserResult {
         const collectedImages: WordImage[] = []
 
         // Convert to HTML with mammoth; in parallel read OOXML image wrap metadata from the same file
-        const [result, imageLayouts] = await Promise.all([
+        const [result, imageLayouts, importedToc] = await Promise.all([
           mammoth.convertToHtml(
             { arrayBuffer },
             {
+              ignoreEmptyParagraphs: false,
               styleMap: STYLE_MAP,
               convertImage: mammoth.images.imgElement(async image => {
                 try {
@@ -159,7 +161,8 @@ export function useWordParser(): UseWordParserResult {
               })
             }
           ),
-          parseDocxImageLayouts(arrayBuffer)
+          parseDocxImageLayouts(arrayBuffer),
+          parseDocxTableOfContents(arrayBuffer)
         ])
 
         setState(prev => ({ ...prev, progress: 70 }))
@@ -171,6 +174,7 @@ export function useWordParser(): UseWordParserResult {
 
         // Clean up HTML; apply OOXML image wrap modes (Mammoth drops floating layout)
         let html = enhanceImportedHtmlWithImageLayouts(result.value, imageLayouts)
+        html = enhanceImportedHtmlWithTableOfContents(html, importedToc)
         // Add basic styling classes for better rendering
         html = html
           .replace(/<table>/g, '<table class="document-table">')
