@@ -14,7 +14,6 @@ import { columnToFormField } from './types'
 import {
   SpreadsheetApiService,
   SpreadsheetApiRequestError,
-  getSpreadsheetBatchConflictServerVersion,
   revalidateSpreadsheetUniverSnapshotAfterIdleTab,
   type SpreadsheetBatchOperation,
   type SpreadsheetBatchOperationResponse
@@ -102,6 +101,14 @@ type CellChange = { rowId: string; columnName: string; value: unknown; sheetId?:
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const isUuidString = (value: string): boolean => UUID_RE.test(value)
+
+const getSpreadsheetBatchConflictServerVersion = (details: unknown): number | undefined => {
+  if (!details || typeof details !== 'object') return undefined
+  const raw = (details as Record<string, unknown>).currentVersion
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
+  return undefined
+}
 
 /**
  * Canonical row identifier. Prefer `_id` (server UUID for persisted rows), fall back to

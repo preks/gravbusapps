@@ -126,6 +126,7 @@ export class SpreadsheetCollaborationManager {
   private joined = false
   private pendingOps: DocumentOperation[] = []
   private pendingCursor: { path?: string[] } | null = null
+  private currentUserId: string | null = null
   private lastKnownVersion = 0
   private reconciling = false
   private deferredCollabCells: DeferredCollabCell[] = []
@@ -170,6 +171,10 @@ export class SpreadsheetCollaborationManager {
 
   setLastKnownVersion(version: number): void {
     this.lastKnownVersion = Math.max(this.lastKnownVersion, version)
+  }
+
+  setCurrentUserId(userId: string | null): void {
+    this.currentUserId = userId ? String(userId) : null
   }
 
   // --- Sender ---
@@ -352,6 +357,11 @@ export class SpreadsheetCollaborationManager {
   handleOperation(payload: CollaborationOperation): void {
     const { operation, version } = payload
     const activeSheetId = this.callbacks.getActiveSheetId()
+
+    if (this.currentUserId && payload.userId === this.currentUserId) {
+      this.collabDiag('collab_receive_skipped', { reason: 'own_user', opType: operation.type })
+      return
+    }
 
     if (operation.type === 'dimension_sync') {
       const d = operation.data as CellDimensionsPayload | undefined

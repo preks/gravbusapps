@@ -446,24 +446,30 @@ export function workbookSnapshotMismatchesViewerRows(
   const snapCellData = worksheet.cellData as UniverSheetCellData | undefined
   const visibleColumns = columns.filter(c => c.isVisible !== false)
   const authoritative = buildCellData(viewerRows, visibleColumns)
+  const rowKeys = new Set<string>([...Object.keys(authoritative), ...Object.keys(snapCellData ?? {})])
 
-  for (const rowKey of Object.keys(authoritative)) {
+  for (const rowKey of rowKeys) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex) || rowIndex < 0) continue
-    const authRow = authoritative[rowIndex]
-    if (!authRow || typeof authRow !== 'object') continue
-    for (const colKey of Object.keys(authRow)) {
-      const colIndex = Number(colKey)
-      if (Number.isNaN(colIndex) || colIndex < 0) continue
-      const authCell = authRow[colIndex]
-      if (!authCell) continue
-      const snapCell = snapCellData?.[rowIndex]?.[colIndex]
-      if (comparableUniverCellPayload(authCell) !== comparableUniverCellPayload(snapCell)) {
-        return true
-      }
+    const authRow = authoritative[rowIndex] ?? {}
+    const snapRow = snapCellData?.[rowIndex] ?? snapCellData?.[String(rowIndex) as unknown as number] ?? {}
+
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const authCell = (authRow as Record<number, UniverCellData | undefined>)[colIndex]
+      const snapCell = (snapRow as Record<number, UniverCellData | undefined>)[colIndex]
+      const comparableAuth = comparableUniverCellPayload(authCell)
+      const comparableSnapshot = comparableUniverCellPayload(snapCell)
+      if (comparableAuth === comparableSnapshot) continue
+      if (comparableAuth === '' && comparableSnapshot === '') continue
+
+      return true
     }
   }
   return false
+}
+
+function shouldClearSnapshotCellValue(cell: UniverCellData | undefined): boolean {
+  return comparableUniverCellPayload(cell) !== ''
 }
 
 /**
@@ -495,21 +501,35 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
   const authoritative = buildCellData(viewerRows, visibleColumns)
   const priorCellData = (worksheet.cellData as UniverSheetCellData | undefined) ?? {}
   const nextCellData: UniverSheetCellData = { ...priorCellData }
+  const rowKeys = new Set<string>([...Object.keys(authoritative), ...Object.keys(priorCellData)])
 
-  for (const rowKey of Object.keys(authoritative)) {
+  for (const rowKey of rowKeys) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex) || rowIndex < 0) continue
-    const authRow = authoritative[rowIndex]
-    if (!authRow || typeof authRow !== 'object') continue
-    const mergedRow: Record<number, UniverCellData> = { ...(nextCellData[rowIndex] ?? {}) }
-    for (const colKey of Object.keys(authRow)) {
-      const colIndex = Number(colKey)
-      if (Number.isNaN(colIndex) || colIndex < 0) continue
-      const ac = authRow[colIndex]
-      if (ac) mergedRow[colIndex] = ac
+    const authRow = authoritative[rowIndex] ?? {}
+    const priorRow = (nextCellData[rowIndex] ?? {}) as Record<number, UniverCellData>
+    const mergedRow: Record<number, UniverCellData> = { ...priorRow }
+
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const authCell = (authRow as Record<number, UniverCellData | undefined>)[colIndex]
+      if (authCell) {
+        mergedRow[colIndex] = authCell
+        continue
+      }
+
+      const priorCell = mergedRow[colIndex]
+      if (shouldClearSnapshotCellValue(priorCell)) {
+        delete mergedRow[colIndex]
+      }
     }
-    nextCellData[rowIndex] = mergedRow
+
+    if (Object.keys(mergedRow).length > 0) {
+      nextCellData[rowIndex] = mergedRow
+    } else {
+      delete nextCellData[rowIndex]
+    }
   }
+
   worksheet.cellData = nextCellData
   return cloned
 }

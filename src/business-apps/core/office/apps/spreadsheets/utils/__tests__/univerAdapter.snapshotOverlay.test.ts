@@ -76,4 +76,39 @@ describe('univerAdapter snapshot row overlay', () => {
     expect(ws?.mergeData).toEqual([{ startRow: 0, startColumn: 0, endRow: 0, endColumn: 1 }])
     expect(workbookSnapshotMismatchesViewerRows(merged, sheetId, viewerRows, columns)).toBe(false)
   })
+
+  it('clears stale snapshot-only values that are absent from authoritative rows', () => {
+    const viewerRows: Record<string, unknown>[] = Array.from({ length: 15 }, () => ({}))
+    viewerRows[12] = { alpha: 'a' }
+
+    const snapshot: Record<string, unknown> = {
+      id: 'wb',
+      name: 'W',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          name: 'S',
+          cellData: {
+            12: {
+              0: { v: 'a' }
+            },
+            13: {
+              0: { v: 'stale-extra' }
+            }
+          }
+        }
+      }
+    }
+
+    expect(workbookSnapshotMismatchesViewerRows(snapshot, sheetId, viewerRows, columns)).toBe(true)
+
+    const merged = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheetId, viewerRows, columns)
+    const ws = (merged.sheets as Record<string, { cellData?: Record<number, Record<number, { v?: unknown }>> }>)[
+      sheetId
+    ]
+
+    expect(ws?.cellData?.[13]?.[0]).toBeUndefined()
+    expect(workbookSnapshotMismatchesViewerRows(merged, sheetId, viewerRows, columns)).toBe(false)
+  })
 })
