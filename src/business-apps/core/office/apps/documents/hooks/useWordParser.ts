@@ -133,6 +133,7 @@ export function useWordParser(): UseWordParserResult {
           mammoth.convertToHtml(
             { arrayBuffer },
             {
+              ignoreEmptyParagraphs: false,
               styleMap: STYLE_MAP,
               convertImage: mammoth.images.imgElement(async image => {
                 try {
