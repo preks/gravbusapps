@@ -7,12 +7,16 @@ jest.mock('@/business-apps/platform/apps/shared/utils/documentServiceUrl', () =>
   getDocumentServiceApiUrl: jest.fn()
 }))
 
+jest.mock('@/common/utils/serviceResolver', () => ({
+  resolveServiceUrl: jest.fn(() => 'http://fallback.example/document')
+}))
+
 import { env } from '@/common/env/EnvUtils'
 import {
   getDocumentOfficeWebSocketBaseUrl,
   getDocumentServiceApiUrl
 } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
-import { getOfficeWebSocketUrl } from '@/common/utils/serviceResolver'
+import { getSpreadsheetCollaborationWebSocketBaseUrl } from '../spreadsheetCollaborationWebSocketUrl'
 
 const envMock = env as jest.MockedFunction<typeof env>
 const getDerivedMock = getDocumentOfficeWebSocketBaseUrl as jest.MockedFunction<
@@ -20,7 +24,7 @@ const getDerivedMock = getDocumentOfficeWebSocketBaseUrl as jest.MockedFunction<
 >
 const getApiMock = getDocumentServiceApiUrl as jest.MockedFunction<typeof getDocumentServiceApiUrl>
 
-describe('getOfficeWebSocketUrl', () => {
+describe('getSpreadsheetCollaborationWebSocketBaseUrl', () => {
   beforeEach(() => {
     envMock.mockReset()
     getDerivedMock.mockReset()
@@ -35,7 +39,7 @@ describe('getOfficeWebSocketUrl', () => {
     getDerivedMock.mockReturnValue('http://localhost:3002')
     getApiMock.mockReturnValue('http://localhost:3002/api/v1')
 
-    expect(getOfficeWebSocketUrl()).toBe('http://localhost:3002')
+    expect(getSpreadsheetCollaborationWebSocketBaseUrl()).toBe('http://localhost:3002')
   })
 
   it('uses derived base when REST is bare /api/v1 but explicit WS includes /document on same host', () => {
@@ -46,7 +50,7 @@ describe('getOfficeWebSocketUrl', () => {
     getDerivedMock.mockReturnValue('http://localhost:3002')
     getApiMock.mockReturnValue('http://localhost:3002/api/v1')
 
-    expect(getOfficeWebSocketUrl()).toBe('http://localhost:3002')
+    expect(getSpreadsheetCollaborationWebSocketBaseUrl()).toBe('http://localhost:3002')
   })
 
   it('keeps explicit URL when API is mounted under /document and explicit matches that mount', () => {
@@ -57,6 +61,6 @@ describe('getOfficeWebSocketUrl', () => {
     getDerivedMock.mockReturnValue('https://app.example.com/document')
     getApiMock.mockReturnValue('https://app.example.com/document/api/v1')
 
-    expect(getOfficeWebSocketUrl()).toBe('https://app.example.com/document')
+    expect(getSpreadsheetCollaborationWebSocketBaseUrl()).toBe('https://app.example.com/document')
   })
 })
