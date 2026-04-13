@@ -10,6 +10,7 @@ export interface ImportedDocxTableOfContents {
   tabLeader: 'dot' | 'none'
   headingLinks: boolean
   maxHeadingLevel: number
+  titleText?: string | null
 }
 
 type ParsedParagraph = {
@@ -106,14 +107,52 @@ function parseTocInstruction(instrText: string) {
   } as const
 }
 
+function extractTocTextAndPageNumber(
+  rawText: string,
+  explicitPageNumber?: string | null
+): { text: string; pageNumber: string | null } {
+  const normalizedText = normalizeWhitespace(rawText)
+  const normalizedExplicitPageNumber = normalizeWhitespace(explicitPageNumber ?? '') || null
+
+  if (!normalizedText) {
+    return {
+      text: '',
+      pageNumber: normalizedExplicitPageNumber
+    }
+  }
+
+  if (normalizedExplicitPageNumber) {
+    const escapedPageNumber = normalizedExplicitPageNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const trailingPageNumberPattern = new RegExp(`(?:\\s|\\t)+${escapedPageNumber}$`)
+    const textWithoutDuplicatedPageNumber = normalizeWhitespace(normalizedText.replace(trailingPageNumberPattern, ''))
+
+    return {
+      text: textWithoutDuplicatedPageNumber || normalizedText,
+      pageNumber: normalizedExplicitPageNumber
+    }
+  }
+
+  const trailingPageNumberMatch = normalizedText.match(/^(.*?)(?:\s+|\t)(\d+)$/)
+  if (!trailingPageNumberMatch) {
+    return {
+      text: normalizedText,
+      pageNumber: null
+    }
+  }
+
+  return {
+    text: normalizeWhitespace(trailingPageNumberMatch[1] ?? ''),
+    pageNumber: trailingPageNumberMatch[2] ?? null
+  }
+}
+
 function parseFieldResultEntry(paragraph: ParsedParagraph) {
   const levelMatch = paragraph.styleId?.match(/^TOC([1-9])$/i)
   if (!levelMatch) return null
 
   const level = Math.max(1, Math.min(6, Number.parseInt(levelMatch[1] ?? '1', 10)))
   const [rawText, rawPageNumber] = paragraph.text.split('\t')
-  const text = normalizeWhitespace(rawText ?? '')
-  const pageNumber = normalizeWhitespace(rawPageNumber ?? '') || null
+  const { text, pageNumber } = extractTocTextAndPageNumber(rawText ?? '', rawPageNumber ?? null)
   if (!text) return null
 
   return {
@@ -123,6 +162,10 @@ function parseFieldResultEntry(paragraph: ParsedParagraph) {
     blockStart: -1,
     pageNumber
   }
+}
+
+function isTocTitleParagraph(paragraph: ParsedParagraph): boolean {
+  return paragraph.styleId?.toLowerCase() === 'tocheading'
 }
 
 export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTableOfContents | null {
@@ -140,6 +183,7 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
     let isTocField = false
     let isReadingResult = false
     let instruction = ''
+    let titleText: string | null = null
     const entries: Array<ReturnType<typeof parseFieldResultEntry>> = []
 
     for (const paragraph of paragraphs) {
@@ -148,6 +192,7 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
         isTocField = false
         isReadingResult = false
         instruction = ''
+        titleText = null
         entries.length = 0
       }
 
@@ -186,11 +231,16 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
           rightAlignPageNumbers: true,
           tabLeader: config.tabLeader,
           headingLinks: config.headingLinks,
-          maxHeadingLevel: config.maxHeadingLevel
+          maxHeadingLevel: config.maxHeadingLevel,
+          titleText
         }
       }
 
       if (isReadingResult && isTocField) {
+        if (isTocTitleParagraph(paragraph) && paragraph.text.trim()) {
+          titleText = paragraph.text.trim()
+          continue
+        }
         entries.push(parseFieldResultEntry(paragraph))
       }
     }
@@ -225,49 +275,183 @@ function buildTocElement(doc: Document, toc: ImportedDocxTableOfContents): HTMLE
   return element
 }
 
+function normalizeTocTitleKey(text: string): string {
+  return normalizeWhitespace(text).toLowerCase()
+}
+
 function doesElementLookLikeTocRow(element: Element, entryText: string): boolean {
   const text = normalizeWhitespace(element.textContent ?? '')
   if (!text) return false
-  return text.startsWith(normalizeWhitespace(entryText))
+  const entryKey = normalizeWhitespace(entryText)
+  if (!entryKey) return false
+  if (text === entryKey || text.startsWith(entryKey) || text.includes(entryKey)) {
+    return true
+  }
+
+  const firstLinkText = normalizeWhitespace(element.querySelector('a')?.textContent ?? '')
+  return firstLinkText === entryKey
 }
 
-export function enhanceImportedHtmlWithTableOfContents(html: string, toc: ImportedDocxTableOfContents | null): string {
-  if (!html || !toc || globalThis.DOMParser === undefined) return html
+function looksLikeTocTitle(element: Element, toc: ImportedDocxTableOfContents): boolean {
+  const text = normalizeTocTitleKey(element.textContent ?? '')
+  if (!text) return false
+
+  const explicitTitle = normalizeTocTitleKey(toc.titleText ?? '')
+  if (explicitTitle && text === explicitTitle) {
+    return true
+  }
+
+  return ['table of contents', 'contents', 'inhaltsverzeichnis', 'cuprins'].includes(text)
+}
+
+function findTocEntryRange(
+  bodyChildren: Element[],
+  entryTexts: string[]
+): { firstRowIndex: number; lastRowIndex: number } | null {
+  if (entryTexts.length === 0) return null
+
+  for (let startIndex = 0; startIndex < bodyChildren.length; startIndex += 1) {
+    if (!doesElementLookLikeTocRow(bodyChildren[startIndex], entryTexts[0] ?? '')) {
+      continue
+    }
+
+    let matchedRows = 1
+    let cursor = startIndex + 1
+    let lastRowIndex = startIndex
+
+    while (matchedRows < entryTexts.length && cursor < bodyChildren.length) {
+      const nextEntryText = entryTexts[matchedRows] ?? ''
+      if (doesElementLookLikeTocRow(bodyChildren[cursor], nextEntryText)) {
+        lastRowIndex = cursor
+        matchedRows += 1
+      } else if (normalizeWhitespace(bodyChildren[cursor]?.textContent ?? '')) {
+        break
+      }
+      cursor += 1
+    }
+
+    if (matchedRows === entryTexts.length) {
+      return {
+        firstRowIndex: startIndex,
+        lastRowIndex
+      }
+    }
+  }
+
+  return null
+}
+
+function parseHtmlFallbackEntry(element: Element) {
+  const firstLink = normalizeWhitespace(element.querySelector('a')?.textContent ?? '')
+  const pageMatch = normalizeWhitespace(element.textContent ?? '').match(/(\d+)\s*$/)
+  const { text, pageNumber } = extractTocTextAndPageNumber(
+    firstLink || normalizeWhitespace(element.textContent ?? ''),
+    pageMatch ? (pageMatch[1] ?? null) : null
+  )
+  if (!text) return null
+
+  return {
+    level: 1,
+    text,
+    pos: -1,
+    blockStart: -1,
+    pageNumber
+  }
+}
+
+function inferTableOfContentsFromHtml(html: string): ImportedDocxTableOfContents | null {
+  if (!html || globalThis.DOMParser === undefined) return null
 
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
     const bodyChildren = Array.from(doc.body.children)
-    const parsedEntries = JSON.parse(toc.snapshotJson) as { entries?: Array<{ text?: string }> }
-    const firstEntryText = parsedEntries.entries?.[0]?.text?.trim()
 
-    if (firstEntryText) {
-      for (let index = 0; index < bodyChildren.length; index += 1) {
-        const child = bodyChildren[index]
-        if (!child || !doesElementLookLikeTocRow(child, firstEntryText)) {
+    for (let index = 0; index < bodyChildren.length; index += 1) {
+      const titleCandidate = bodyChildren[index]
+      if (!titleCandidate) continue
+
+      const titleText = normalizeWhitespace(titleCandidate.textContent ?? '')
+      if (!['table of contents', 'contents', 'inhaltsverzeichnis', 'cuprins'].includes(titleText.toLowerCase())) {
+        continue
+      }
+
+      const rowElements: Element[] = []
+      for (let cursor = index + 1; cursor < bodyChildren.length; cursor += 1) {
+        const candidate = bodyChildren[cursor]
+        if (!candidate) break
+        if (candidate.querySelector('a')) {
+          rowElements.push(candidate)
           continue
         }
-
-        let removeUntil = index
-        for (let entryIndex = 1; entryIndex < (parsedEntries.entries?.length ?? 0); entryIndex += 1) {
-          const candidate = bodyChildren[index + entryIndex]
-          const entryText = parsedEntries.entries?.[entryIndex]?.text ?? ''
-          if (!candidate || !doesElementLookLikeTocRow(candidate, entryText)) {
-            break
-          }
-          removeUntil = index + entryIndex
+        if (rowElements.length > 0) {
+          break
         }
+      }
 
-        const tocElement = buildTocElement(doc, toc)
-        bodyChildren[index]?.before(tocElement)
-        for (let removeIndex = index; removeIndex <= removeUntil; removeIndex += 1) {
-          bodyChildren[removeIndex]?.remove()
-        }
-        return doc.body.innerHTML
+      if (rowElements.length === 0) {
+        continue
+      }
+
+      const entries = rowElements
+        .map(parseHtmlFallbackEntry)
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+
+      if (entries.length === 0) {
+        continue
+      }
+
+      return {
+        snapshotJson: stringifyDocumentTocSnapshot(
+          createDocumentTocSnapshot(entries, {
+            updateMode: 'imported',
+            layoutVersion: null
+          })
+        ),
+        showPageNumbers: entries.some(entry => Boolean(entry.pageNumber)),
+        rightAlignPageNumbers: true,
+        tabLeader: 'dot',
+        headingLinks: true,
+        maxHeadingLevel: 3,
+        titleText
       }
     }
 
-    doc.body.prepend(buildTocElement(doc, toc))
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function enhanceImportedHtmlWithTableOfContents(html: string, toc: ImportedDocxTableOfContents | null): string {
+  if (!html || globalThis.DOMParser === undefined) return html
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const bodyChildren = Array.from(doc.body.children)
+    const resolvedToc = toc ?? inferTableOfContentsFromHtml(html)
+    if (!resolvedToc) return html
+
+    const parsedSnapshot = JSON.parse(resolvedToc.snapshotJson) as { entries?: Array<{ text?: string }> }
+    const entryTexts = (parsedSnapshot.entries ?? []).map(entry => entry.text?.trim() ?? '').filter(Boolean)
+    const matchedRange = findTocEntryRange(bodyChildren, entryTexts)
+    const tocElement = buildTocElement(doc, resolvedToc)
+
+    if (matchedRange) {
+      const titleIndex =
+        matchedRange.firstRowIndex > 0 && looksLikeTocTitle(bodyChildren[matchedRange.firstRowIndex - 1]!, resolvedToc)
+          ? matchedRange.firstRowIndex - 1
+          : matchedRange.firstRowIndex
+
+      bodyChildren[titleIndex]?.before(tocElement)
+      for (let removeIndex = titleIndex; removeIndex <= matchedRange.lastRowIndex; removeIndex += 1) {
+        bodyChildren[removeIndex]?.remove()
+      }
+      return doc.body.innerHTML
+    }
+
+    doc.body.prepend(tocElement)
     return doc.body.innerHTML
   } catch {
     return html
