@@ -44,6 +44,46 @@ const paginationMeasuredWindowCache = new WeakMap<HTMLElement, PaginationMeasure
 const paginationStylePropertyCache = new WeakMap<HTMLElement, Map<string, string>>()
 const documentHasTablesCache = new WeakMap<PMNode, boolean>()
 
+function hashMeasurementValue(value: unknown): string {
+  const text = typeof value === 'string' ? value : value === null || value === undefined ? '' : JSON.stringify(value)
+  let hash = 0
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0
+  }
+
+  return hash.toString(36)
+}
+
+function resolveHeaderFooterMeasurementSignature(storage: PagesStorage, options: PagesOptions): string {
+  return [
+    storage.headerHTML,
+    storage.headerJSON,
+    storage.footerHTML,
+    storage.footerJSON,
+    storage.headerFirstPageHTML,
+    storage.headerFirstPageJSON,
+    storage.footerFirstPageHTML,
+    storage.footerFirstPageJSON,
+    storage.headerOddHTML,
+    storage.headerOddJSON,
+    storage.headerEvenHTML,
+    storage.headerEvenJSON,
+    storage.footerOddHTML,
+    storage.footerOddJSON,
+    storage.footerEvenHTML,
+    storage.footerEvenJSON,
+    options.documentTitle,
+    options.pageNumberRegion,
+    options.pageNumberNumeralStyle,
+    options.pageNumberStartAt,
+    options.pageNumberAlignment,
+    options.pageNumberShowOnFirstPage
+  ]
+    .map(hashMeasurementValue)
+    .join('|')
+}
+
 function sortPageBodyBandsIfNeeded<T extends { pageNumber: number }>(bands: T[]): T[] {
   for (let index = 1; index < bands.length; index += 1) {
     if (bands[index - 1].pageNumber > bands[index].pageNumber) {
@@ -188,7 +228,8 @@ function createMeasuredWindowKey(
     options.pageGap,
     options.differentFirstPage ? 'first' : 'shared',
     options.differentOddEven ? 'odd-even' : 'default',
-    storage.activeEditorType ?? 'body'
+    storage.activeEditorType ?? 'body',
+    resolveHeaderFooterMeasurementSignature(storage, options)
   ].join('|')
 }
 

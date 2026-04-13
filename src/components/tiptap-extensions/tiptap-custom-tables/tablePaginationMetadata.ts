@@ -2,6 +2,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
 import { createPaginationChainId, getTableId } from './tablePaginationIdentity'
+import { TABLE_METADATA_OWNED_DOC_CHANGE_META } from './tableMetadataOwnedDocChange'
 import { getSerializedTableRowGroups } from './tablePaginationUtils'
 
 const tablePaginationMetadataKey = new PluginKey('custom-table-pagination-metadata')
@@ -56,7 +57,12 @@ export function createTablePaginationMetadataPlugin(tableNodeName: string) {
         return false
       })
 
-      return modified ? tr : null
+      if (!modified) {
+        return null
+      }
+
+      tr.setMeta(TABLE_METADATA_OWNED_DOC_CHANGE_META, true)
+      return tr
     }
   })
 }

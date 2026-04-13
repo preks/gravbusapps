@@ -125,7 +125,7 @@ describe('useApplyDocumentLayoutWindowedBreakers', () => {
     document.body.innerHTML = ''
   })
 
-  it('updates mounted-range metadata and parks off-window page shells in place', () => {
+  it('keeps page shells hydrated while they remain in the mounted window', () => {
     const container = document.createElement('div')
     const paginationRoot = document.createElement('div')
     const firstPage = createPageBreak(1)
@@ -168,13 +168,13 @@ describe('useApplyDocumentLayoutWindowedBreakers', () => {
     )
 
     expect(paginationRoot.dataset.rmMountedStartPage).toBe('1')
-    expect(paginationRoot.dataset.rmMountedEndPage).toBe('1')
+    expect(paginationRoot.dataset.rmMountedEndPage).toBe('3')
     expect(firstPage.pageBreak.dataset.rmPageShellState).toBe('hydrated')
-    expect(secondPage.pageBreak.dataset.rmPageShellState).toBe('placeholder')
-    expect(secondPage.breaker.dataset.rmBreakerMode).toBe('placeholder')
-    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBe('false')
-    expect(secondPage.breaker.childNodes).toHaveLength(0)
-    expect(thirdPage.pageBreak.dataset.rmPageShellState).toBe('placeholder')
+    expect(secondPage.pageBreak.dataset.rmPageShellState).toBe('hydrated')
+    expect(secondPage.breaker.dataset.rmBreakerMode).toBeUndefined()
+    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBeUndefined()
+    expect(secondPage.breaker.childNodes).toHaveLength(3)
+    expect(thirdPage.pageBreak.dataset.rmPageShellState).toBe('hydrated')
   })
 
   it('restores parked breakers when they re-enter the hydrated window', () => {
@@ -221,8 +221,8 @@ describe('useApplyDocumentLayoutWindowedBreakers', () => {
       initialProps: props
     })
 
-    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBe('false')
-    expect(secondPage.breaker.childNodes).toHaveLength(0)
+    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBeUndefined()
+    expect(secondPage.breaker.childNodes).toHaveLength(3)
 
     rerender({
       ...props,
@@ -310,7 +310,7 @@ describe('useApplyDocumentLayoutWindowedBreakers', () => {
 
     expect(hydratePageBreakShells).toHaveBeenCalledTimes(1)
     expect(hydratePageBreakShells).toHaveBeenCalledWith([2])
-    expect(thirdPage.pageBreak.dataset.rmPageShellState).toBe('placeholder')
+    expect(thirdPage.pageBreak.dataset.rmPageShellState).toBe('hydrated')
 
     rerender(props)
 
@@ -368,8 +368,10 @@ describe('useApplyDocumentLayoutWindowedBreakers', () => {
       initialProps: props
     })
 
-    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBe('false')
-    expect(hydratePageBreakShells).toHaveBeenCalledTimes(0)
+    expect(secondPage.breaker.dataset.layoutBreakerMounted).toBeUndefined()
+    expect(hydratePageBreakShells).toHaveBeenCalledTimes(1)
+    expect(hydratePageBreakShells).toHaveBeenCalledWith([3])
+    hydratePageBreakShells.mockClear()
 
     rerender({
       ...props,
