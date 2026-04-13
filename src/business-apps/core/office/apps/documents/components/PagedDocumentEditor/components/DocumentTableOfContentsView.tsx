@@ -2,7 +2,7 @@
  * In-document table of contents (Word-style block): live heading list with optional page numbers.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { NodeViewProps } from '@tiptap/react'
 import { NodeViewWrapper, useEditorState } from '@tiptap/react'
 import {
@@ -144,7 +144,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
           data-document-toc=""
           contentEditable={false}
           data-testid="document-table-of-contents"
-          onMouseDown={event => {
+          onMouseDown={(event: MouseEvent) => {
             const target = event.target
             if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
               return

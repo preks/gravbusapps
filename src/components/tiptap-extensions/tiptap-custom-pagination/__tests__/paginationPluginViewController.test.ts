@@ -546,6 +546,37 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps reopen recovery on the deferred table stabilization path when the initial count is stale low', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 22, measuredPageCount: 43 },
+      hasTables: true
+    })
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => true,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith(5)
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
+  })
+
   it('does not schedule deferred repagination on external doc changes when there are no tables', () => {
     const previousDoc = createDoc('prev')
     const harness = createHarness({
