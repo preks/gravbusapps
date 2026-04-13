@@ -53,6 +53,68 @@ function estimateTextBounds(text: string, fontSize: number, lineHeight: number):
   }
 }
 
+function edgeCenter(el: Record<string, unknown>, side: 'left' | 'right' | 'top' | 'bottom'): [number, number] {
+  const x = el.x as number
+  const y = el.y as number
+  const w = el.width as number
+  const h = el.height as number
+  switch (side) {
+    case 'right':
+      return [x + w, y + h / 2]
+    case 'left':
+      return [x, y + h / 2]
+    case 'bottom':
+      return [x + w / 2, y + h]
+    case 'top':
+      return [x + w / 2, y]
+  }
+}
+
+function sideFromDelta(dx: number, dy: number): 'left' | 'right' | 'top' | 'bottom' {
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return dx >= 0 ? 'right' : 'left'
+  }
+  return dy >= 0 ? 'bottom' : 'top'
+}
+
+function computeEdgePoints(
+  startEl: Record<string, unknown>,
+  endEl: Record<string, unknown>
+): [number, number, number, number] {
+  const scx = (startEl.x as number) + (startEl.width as number) / 2
+  const scy = (startEl.y as number) + (startEl.height as number) / 2
+  const ecx = (endEl.x as number) + (endEl.width as number) / 2
+  const ecy = (endEl.y as number) + (endEl.height as number) / 2
+
+  const startSide = sideFromDelta(ecx - scx, ecy - scy)
+  const endSide =
+    startSide === 'right' ? 'left' : startSide === 'left' ? 'right' : startSide === 'bottom' ? 'top' : 'bottom'
+
+  const [sx, sy] = edgeCenter(startEl, startSide)
+  const [ex, ey] = edgeCenter(endEl, endSide)
+  return [sx, sy, ex, ey]
+}
+
+function computeMultiPointEdges(
+  startEl: Record<string, unknown>,
+  endEl: Record<string, unknown>,
+  aiPoints: number[][]
+): [number, number, number, number] {
+  const firstSeg = aiPoints.length >= 2 ? [aiPoints[1][0] - aiPoints[0][0], aiPoints[1][1] - aiPoints[0][1]] : [0, 1]
+  const lastIdx = aiPoints.length - 1
+  const lastSeg =
+    lastIdx >= 1
+      ? [aiPoints[lastIdx][0] - aiPoints[lastIdx - 1][0], aiPoints[lastIdx][1] - aiPoints[lastIdx - 1][1]]
+      : [0, -1]
+
+  const exitSide = sideFromDelta(firstSeg[0], firstSeg[1])
+  const entrySide = sideFromDelta(-lastSeg[0], -lastSeg[1])
+
+  const [sx, sy] = edgeCenter(startEl, exitSide)
+  const [ex, ey] = edgeCenter(endEl, entrySide)
+  return [sx, sy, ex, ey]
+}
+
 export class ExcalidrawToolExecutor {
   private api: ExcalidrawImperativeAPI
   private ydoc: Y.Doc
@@ -158,6 +220,9 @@ export class ExcalidrawToolExecutor {
         newById.set(textEl.id as string, textEl)
       }
     }
+
+    this.fixOverlappingShapes(outputElements)
+    this.autoConnectIfNoArrows(outputElements, newById, paramsMap)
 
     this.resolveArrowBindings(outputElements, existingMap, paramsMap, newById)
 
@@ -285,13 +350,27 @@ export class ExcalidrawToolExecutor {
   }
 
   private buildShape(params: CreateElementParams): Record<string, unknown> {
+    const labelText = params.label || params.text || ''
+    const labelFontSize = params.fontSize ?? 16
+    const minWidth = 160
+    const minHeight = 70
+    let shapeWidth = params.width ?? minWidth
+    let shapeHeight = params.height ?? minHeight
+
+    if (labelText) {
+      const padding = 40
+      const textBounds = estimateTextBounds(labelText, labelFontSize, 1.25)
+      shapeWidth = Math.max(shapeWidth, textBounds.width + padding)
+      shapeHeight = Math.max(shapeHeight, textBounds.height + padding)
+    }
+
     return {
       id: params.id || generateId(),
       type: params.type,
       x: params.x,
       y: params.y,
-      width: params.width ?? 160,
-      height: params.height ?? 80,
+      width: shapeWidth,
+      height: shapeHeight,
       angle: 0,
       strokeColor: params.strokeColor ?? '#1e1e1e',
       backgroundColor: params.backgroundColor ?? 'transparent',
@@ -419,14 +498,23 @@ export class ExcalidrawToolExecutor {
       [0, 0],
       [0, 100]
     ]
-    const lastPoint = points[points.length - 1] ?? [0, 100]
+    let minX = 0,
+      maxX = 0,
+      minY = 0,
+      maxY = 0
+    for (const [px, py] of points) {
+      if (px < minX) minX = px
+      if (px > maxX) maxX = px
+      if (py < minY) minY = py
+      if (py > maxY) maxY = py
+    }
     return {
       id: params.id || generateId(),
       type: params.type,
       x: params.x,
       y: params.y,
-      width: Math.abs(lastPoint[0] ?? 100),
-      height: Math.abs(lastPoint[1] ?? 100),
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
       angle: 0,
       strokeColor: params.strokeColor ?? '#1e1e1e',
       backgroundColor: 'transparent',
@@ -457,6 +545,124 @@ export class ExcalidrawToolExecutor {
     }
   }
 
+  private fixOverlappingShapes(elements: Record<string, unknown>[]): void {
+    const minGap = 40
+    const shapeTypes = new Set(['rectangle', 'ellipse', 'diamond'])
+    const shapes = elements.filter(el => shapeTypes.has(el.type as string))
+    if (shapes.length < 2) return
+
+    const rowTolerance = 20
+    const rows = new Map<number, Record<string, unknown>[]>()
+    for (const s of shapes) {
+      const cy = (s.y as number) + (s.height as number) / 2
+      let assignedRow: number | undefined
+      for (const rowY of rows.keys()) {
+        if (Math.abs(cy - rowY) < rowTolerance) {
+          assignedRow = rowY
+          break
+        }
+      }
+      if (assignedRow !== undefined) {
+        rows.get(assignedRow)!.push(s)
+      } else {
+        rows.set(cy, [s])
+      }
+    }
+
+    for (const rowShapes of rows.values()) {
+      if (rowShapes.length < 2) continue
+      rowShapes.sort((a, b) => (a.x as number) - (b.x as number))
+      for (let i = 1; i < rowShapes.length; i++) {
+        const prev = rowShapes[i - 1]
+        const curr = rowShapes[i]
+        const prevRight = (prev.x as number) + (prev.width as number)
+        const currLeft = curr.x as number
+        const overlap = prevRight + minGap - currLeft
+        if (overlap > 0) {
+          const shift = overlap
+          for (let j = i; j < rowShapes.length; j++) {
+            const el = rowShapes[j]
+            el.x = (el.x as number) + shift
+            const boundTextId = `${el.id}-label`
+            const boundText = elements.find(e => e.id === boundTextId)
+            if (boundText) {
+              boundText.x = (boundText.x as number) + shift
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private autoConnectIfNoArrows(
+    elements: Record<string, unknown>[],
+    newById: Map<string, Record<string, unknown>>,
+    paramsMap: Map<string, CreateElementParams>
+  ): void {
+    const hasArrows = elements.some(el => el.type === 'arrow' || el.type === 'line')
+    if (hasArrows) return
+
+    const shapeTypes = new Set(['rectangle', 'ellipse', 'diamond'])
+    const shapes = elements.filter(el => shapeTypes.has(el.type as string))
+    if (shapes.length < 2) return
+
+    const rowTolerance = 30
+    const rowMap = new Map<number, Record<string, unknown>[]>()
+    for (const s of shapes) {
+      const cy = (s.y as number) + (s.height as number) / 2
+      let rowKey: number | undefined
+      for (const ry of rowMap.keys()) {
+        if (Math.abs(cy - ry) < rowTolerance) {
+          rowKey = ry
+          break
+        }
+      }
+      if (rowKey !== undefined) {
+        rowMap.get(rowKey)!.push(s)
+      } else {
+        rowMap.set(cy, [s])
+      }
+    }
+
+    const sortedRows = [...rowMap.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, nodes]) => {
+        nodes.sort((a, b) => (a.x as number) - (b.x as number))
+        return nodes
+      })
+
+    if (sortedRows.length < 2) return
+
+    for (let r = 0; r < sortedRows.length - 1; r++) {
+      const parentRow = sortedRows[r]
+      const childRow = sortedRows[r + 1]
+      for (const child of childRow) {
+        const childCx = (child.x as number) + (child.width as number) / 2
+        let closest = parentRow[0]
+        let closestDist = Infinity
+        for (const parent of parentRow) {
+          const parentCx = (parent.x as number) + (parent.width as number) / 2
+          const dist = Math.abs(parentCx - childCx)
+          if (dist < closestDist) {
+            closestDist = dist
+            closest = parent
+          }
+        }
+        const arrowParams: CreateElementParams = {
+          type: 'arrow',
+          x: 0,
+          y: 0,
+          startElementId: closest.id as string,
+          endElementId: child.id as string
+        }
+        const arrowEl = this.buildArrow(arrowParams)
+        elements.push(arrowEl)
+        newById.set(arrowEl.id as string, arrowEl)
+        paramsMap.set(arrowEl.id as string, arrowParams)
+      }
+    }
+  }
+
   private resolveArrowBindings(
     allElements: Record<string, unknown>[],
     existingMap: Map<string, ExcalidrawElement>,
@@ -478,26 +684,56 @@ export class ExcalidrawToolExecutor {
       const startEl = startId ? findElement(startId) : undefined
       const endEl = endId ? findElement(endId) : undefined
 
-      if (startEl && endEl) {
-        const sx = (startEl.x as number) + (startEl.width as number) / 2
-        const sy = (startEl.y as number) + (startEl.height as number)
-        const ex = (endEl.x as number) + (endEl.width as number) / 2
-        const ey = endEl.y as number
-
-        el.x = sx
-        el.y = sy
-        el.points = [
+      if (startEl && endEl && startId === endId) {
+        el.x = (startEl.x as number) + (startEl.width as number)
+        el.y = (startEl.y as number) + (startEl.height as number) / 2
+        const loopOffset = 60
+        el.points = params.points ?? [
           [0, 0],
-          [ex - sx, ey - sy]
+          [loopOffset, -loopOffset],
+          [0, -(loopOffset * 2)],
+          [-loopOffset, -loopOffset],
+          [0, 0]
         ]
+      } else if (startEl && endEl) {
+        const aiPoints = params.points
+        const hasMulti = !!aiPoints && aiPoints.length > 2
+        if (hasMulti) {
+          const [sx, sy, ex, ey] = computeMultiPointEdges(startEl, endEl, aiPoints)
+          el.x = sx
+          el.y = sy
+          const totalDx = ex - sx
+          const totalDy = ey - sy
+
+          const origFirst = aiPoints[0]
+          const origLast = aiPoints[aiPoints.length - 1]
+          const origDx = origLast[0] - origFirst[0]
+          const origDy = origLast[1] - origFirst[1]
+          const scaleX = origDx !== 0 ? totalDx / origDx : 1
+          const scaleY = origDy !== 0 ? totalDy / origDy : 1
+
+          el.points = aiPoints.map((p: number[], i: number) => {
+            if (i === 0) return [0, 0]
+            if (i === aiPoints.length - 1) return [totalDx, totalDy]
+            return [(p[0] - origFirst[0]) * scaleX, (p[1] - origFirst[1]) * (origDy !== 0 ? scaleY : 1)]
+          })
+        } else {
+          const [sx, sy, ex, ey] = computeEdgePoints(startEl, endEl)
+          el.x = sx
+          el.y = sy
+          el.points = [
+            [0, 0],
+            [ex - sx, ey - sy]
+          ]
+        }
       } else if (startEl) {
-        const sx = (startEl.x as number) + (startEl.width as number) / 2
-        const sy = (startEl.y as number) + (startEl.height as number)
-        el.x = sx
-        el.y = sy
+        const cx = (startEl.x as number) + (startEl.width as number) / 2
+        const cy = (startEl.y as number) + (startEl.height as number) / 2
+        el.x = cx
+        el.y = cy
       } else if (endEl) {
         const ex = (endEl.x as number) + (endEl.width as number) / 2
-        const ey = endEl.y as number
+        const ey = (endEl.y as number) + (endEl.height as number) / 2
         const ox = (el.x as number) ?? 0
         const oy = (el.y as number) ?? 0
         el.points = [
@@ -506,14 +742,17 @@ export class ExcalidrawToolExecutor {
         ]
       }
 
-      if (startEl) {
-        el.startBinding = { elementId: startId, focus: 0, gap: 4 }
+      const isMultiPoint = Array.isArray(el.points) && (el.points as number[][]).length > 2
+      const isSelfLoop = startId === endId
+
+      if (startEl && !isMultiPoint && !isSelfLoop) {
+        el.startBinding = { elementId: startId, focus: 0, gap: 4, fixedPoint: null }
         const bound = ((startEl as any).boundElements as any[]) || []
         ;(startEl as any).boundElements = [...bound, { id: el.id, type: 'arrow' }]
       }
 
-      if (endEl) {
-        el.endBinding = { elementId: endId, focus: 0, gap: 4 }
+      if (endEl && !isMultiPoint && !isSelfLoop) {
+        el.endBinding = { elementId: endId, focus: 0, gap: 4, fixedPoint: null }
         const bound = ((endEl as any).boundElements as any[]) || []
         ;(endEl as any).boundElements = [...bound, { id: el.id, type: 'arrow' }]
       }

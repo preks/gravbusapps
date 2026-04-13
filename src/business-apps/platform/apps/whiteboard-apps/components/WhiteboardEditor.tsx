@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { NW_FUNNEL_DISPLAY_FONT_FAMILY } from '../utils/registerFunnelDisplayExcalidraw'
+import { NW_FUNNEL_DISPLAY_FONT_FAMILY, patchFontsFromContainer } from '../utils/registerFunnelDisplayExcalidraw'
 import { Excalidraw, MainMenu, exportToBlob, exportToSvg, restoreElements } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import '../styles/excalidrawWhiteLabel.css'
@@ -15,14 +15,20 @@ import { installExcalidrawWhiteLabelDomPatches } from '../utils/excalidrawWhiteL
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import {
+  AiButton,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowLeft, Download, Share2, Image as ImageIcon, Sparkles } from 'lucide-react'
+import { ArrowLeft, Download, Share2, Image as ImageIcon, ChevronDown } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCollaboration } from '../../shared/hooks/useCollaboration'
@@ -63,6 +69,8 @@ function base64ToUint8Array(value: string): Uint8Array {
   }
   return bytes
 }
+
+const VIEWPORT_KEYS = new Set(['scrollX', 'scrollY', 'zoom'])
 
 function serializeAppState(appState: AppState): Record<string, unknown> {
   return {
@@ -368,7 +376,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           }
           if (hasNoAppState && sceneData.appState && typeof sceneData.appState === 'object') {
             for (const [key, value] of Object.entries(sceneData.appState as Record<string, unknown>)) {
-              yAppState.set(key, value)
+              if (!VIEWPORT_KEYS.has(key)) yAppState.set(key, value)
             }
           }
         })
@@ -420,7 +428,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         }
         if (sceneData.appState && typeof sceneData.appState === 'object') {
           for (const [key, value] of Object.entries(sceneData.appState as Record<string, unknown>)) {
-            yAppState.set(key, value)
+            if (!VIEWPORT_KEYS.has(key)) yAppState.set(key, value)
           }
         }
       },
@@ -440,6 +448,14 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     if (!el) return
     return installExcalidrawWhiteLabelDomPatches(el)
   }, [whiteboardId])
+
+  useEffect(() => {
+    if (!excalidrawApi || !excalidrawShellRef.current) return
+    const timer = setTimeout(() => {
+      if (excalidrawShellRef.current) patchFontsFromContainer(excalidrawShellRef.current)
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [excalidrawApi])
 
   useEffect(() => {
     if (!isSynced || !currentUserId) return
@@ -475,8 +491,11 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             : ((initialSceneDataRef.current?.appState as Record<string, unknown> | undefined) ?? undefined)
         const appState = rawAppState
           ? (() => {
-              const { ...shared } = rawAppState
-              return shared as Partial<AppState>
+              const copy = { ...rawAppState }
+              delete copy.scrollX
+              delete copy.scrollY
+              delete copy.zoom
+              return copy as Partial<AppState>
             })()
           : undefined
         excalidrawApi.updateScene(appState ? { elements, appState } : { elements })
@@ -503,33 +522,28 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           excalidrawApi.addFiles(fileRecords)
         }
         if (!hasRestoredViewportRef.current && elements.length > 0) {
-          const hasViewportState =
-            typeof appState?.scrollX === 'number' &&
-            typeof appState?.scrollY === 'number' &&
-            typeof appState?.zoom === 'object' &&
-            appState.zoom !== null
-          if (!hasViewportState) {
-            requestAnimationFrame(() => {
+          hasRestoredViewportRef.current = true
+          const capZoomToOne = () => {
+            const z = excalidrawApi.getAppState().zoom.value
+            if (z > 1 || !Number.isFinite(z)) {
+              excalidrawApi.updateScene({
+                appState: { zoom: { value: 1 as Zoom['value'] } }
+              })
               excalidrawApi.scrollToContent(elements, {
-                fitToViewport: true,
-                viewportZoomFactor: 0.9,
+                fitToViewport: false,
                 animate: false
               })
-              requestAnimationFrame(() => {
-                const currentState = excalidrawApi.getAppState()
-                if (currentState.zoom.value > 1) {
-                  excalidrawApi.updateScene({
-                    appState: { zoom: { value: 1 as Zoom['value'] } }
-                  })
-                  excalidrawApi.scrollToContent(elements, {
-                    fitToViewport: false,
-                    animate: false
-                  })
-                }
-              })
-            })
+            }
           }
-          hasRestoredViewportRef.current = true
+          requestAnimationFrame(() => {
+            excalidrawApi.scrollToContent(elements, {
+              fitToViewport: true,
+              viewportZoomFactor: 0.9,
+              animate: false
+            })
+            requestAnimationFrame(capZoomToOne)
+          })
+          setTimeout(capZoomToOne, 300)
         }
         if (
           elements.length > 0 ||
@@ -724,48 +738,41 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             <PresenceIndicator participants={presenceParticipants} data-testid={`${testId}-presence`} />
           )}
           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handleExportPng} data-testid={`${testId}-export-png`}>
-                  <ImageIcon className="gba:h-4 gba:w-4" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gba:gap-1.5" data-testid={`${testId}-whiteboard-menu`}>
+                  {t('whiteboard-menu-label')}
+                  <ChevronDown className="gba:h-3 gba:w-3 gba:opacity-60" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('whiteboard-export-png')}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handleExportSvg} data-testid={`${testId}-export-svg`}>
-                  <Download className="gba:h-4 gba:w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('whiteboard-export-svg')}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShareDialogOpen(true)}
-                  data-testid={`${testId}-share`}
-                >
-                  <Share2 className="gba:h-4 gba:w-4 gba:mr-1" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="gba:w-52">
+                <DropdownMenuItem onClick={handleExportPng} data-testid={`${testId}-export-png`}>
+                  <ImageIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('whiteboard-export-png')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportSvg} data-testid={`${testId}-export-svg`}>
+                  <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {t('whiteboard-export-svg')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShareDialogOpen(true)} data-testid={`${testId}-share`}>
+                  <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                   {t('whiteboard-share')}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t('whiteboard-share')}</TooltipContent>
-            </Tooltip>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {onToggleAiChat && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button
+                  <AiButton
                     variant={aiChatVisible ? 'default' : 'outline'}
                     size="sm"
+                    active={aiChatVisible}
                     onClick={onToggleAiChat}
                     data-testid={`${testId}-ai-toggle`}
                   >
-                    <Sparkles className="gba:h-4 gba:w-4 gba:mr-1" />
                     AI
-                  </Button>
+                  </AiButton>
                 </TooltipTrigger>
                 <TooltipContent>{t('whiteboard-ai-toggle')}</TooltipContent>
               </Tooltip>

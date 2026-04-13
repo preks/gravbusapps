@@ -9,15 +9,51 @@ const LATIN_UNICODE_RANGE =
 const LATIN_EXT_UNICODE_RANGE =
   'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF'
 
-/** Excalidraw reserves numeric id 4 for custom / former Assistant fonts. */
 export const NW_FUNNEL_DISPLAY_FONT_FAMILY = 4 as const
 export const NW_INTER_FONT_FAMILY = 10 as const
 export const NW_MANROPE_FONT_FAMILY = 11 as const
 export const NW_DM_SANS_FONT_FAMILY = 12 as const
 
 const FONT_FAMILY = ExcalidrawLib.FONT_FAMILY as Record<string, number>
-const maybeFonts = (ExcalidrawLib as unknown as { Fonts?: any }).Fonts
-const canRegisterFonts = Boolean(maybeFonts && typeof maybeFonts.register === 'function')
+
+interface FontDef {
+  family: string
+  id: number
+  metrics: { unitsPerEm: number; ascender: number; descender: number; lineHeight: number }
+  latinWoff2: string
+  latinExtWoff2: string
+}
+
+const NW_FONTS: FontDef[] = [
+  {
+    family: FUNNEL_DISPLAY,
+    id: NW_FUNNEL_DISPLAY_FONT_FAMILY,
+    metrics: { unitsPerEm: 1000, ascender: 950, descender: -280, lineHeight: 1.2 },
+    latinWoff2: 'https://fonts.gstatic.com/s/funneldisplay/v3/B50WF7FGv37QNVWgE0ga--4Pbb6dDYs.woff2',
+    latinExtWoff2: 'https://fonts.gstatic.com/s/funneldisplay/v3/B50WF7FGv37QNVWgE0ga--4Pbb6TDYsmgQ.woff2'
+  },
+  {
+    family: INTER,
+    id: NW_INTER_FONT_FAMILY,
+    metrics: { unitsPerEm: 1000, ascender: 969, descender: -241, lineHeight: 1.25 },
+    latinWoff2: 'https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2',
+    latinExtWoff2: 'https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2'
+  },
+  {
+    family: MANROPE,
+    id: NW_MANROPE_FONT_FAMILY,
+    metrics: { unitsPerEm: 1000, ascender: 1060, descender: -340, lineHeight: 1.28 },
+    latinWoff2: 'https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2',
+    latinExtWoff2: 'https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggmxSuXd.woff2'
+  },
+  {
+    family: DM_SANS,
+    id: NW_DM_SANS_FONT_FAMILY,
+    metrics: { unitsPerEm: 1000, ascender: 1015, descender: -350, lineHeight: 1.3 },
+    latinWoff2: 'https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K4.woff2',
+    latinExtWoff2: 'https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu6-K6h9Q.woff2'
+  }
+]
 
 function ensureFontFace(family: string, latinWoff2: string, latinExtWoff2: string): void {
   if (typeof document === 'undefined') return
@@ -45,71 +81,24 @@ function ensureFontFace(family: string, latinWoff2: string, latinExtWoff2: strin
   document.head.appendChild(style)
 }
 
-function registerModernFont(
-  family: string,
-  id: number,
-  metrics: { unitsPerEm: number; ascender: number; descender: number; lineHeight: number },
-  latinWoff2: string,
-  latinExtWoff2: string
-): void {
-  if (FONT_FAMILY[family] == null) {
-    Object.assign(FONT_FAMILY, { [family]: id })
-  }
-  ensureFontFace(family, latinWoff2, latinExtWoff2)
-  if (!canRegisterFonts) return
-  maybeFonts.register(
-    family,
-    { metrics },
-    {
-      uri: latinWoff2,
-      descriptors: { weight: '400', unicodeRange: LATIN_UNICODE_RANGE }
-    },
-    {
-      uri: latinExtWoff2,
-      descriptors: { weight: '400', unicodeRange: LATIN_EXT_UNICODE_RANGE }
+function bootstrapFonts(): void {
+  for (const font of NW_FONTS) {
+    if (FONT_FAMILY[font.family] == null) {
+      Object.assign(FONT_FAMILY, { [font.family]: font.id })
     }
-  )
-}
+    ensureFontFace(font.family, font.latinWoff2, font.latinExtWoff2)
+  }
 
-/**
- * Registers Google "Funnel Display" (hero / AI assistant title font) with Excalidraw so it
- * appears in the font picker, renders on canvas, and participates in export font-face generation.
- */
-export function registerFunnelDisplayFont(): void {
-  registerModernFont(
-    FUNNEL_DISPLAY,
-    NW_FUNNEL_DISPLAY_FONT_FAMILY,
-    { unitsPerEm: 1000, ascender: 950, descender: -280, lineHeight: 1.2 },
-    'https://fonts.gstatic.com/s/funneldisplay/v3/B50WF7FGv37QNVWgE0ga--4Pbb6dDYs.woff2',
-    'https://fonts.gstatic.com/s/funneldisplay/v3/B50WF7FGv37QNVWgE0ga--4Pbb6TDYsmgQ.woff2'
-  )
-
-  registerModernFont(
-    INTER,
-    NW_INTER_FONT_FAMILY,
-    { unitsPerEm: 1000, ascender: 969, descender: -241, lineHeight: 1.25 },
-    'https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2',
-    'https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2'
-  )
-
-  registerModernFont(
-    MANROPE,
-    NW_MANROPE_FONT_FAMILY,
-    { unitsPerEm: 1000, ascender: 1060, descender: -340, lineHeight: 1.28 },
-    'https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2',
-    'https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggmxSuXd.woff2'
-  )
-
-  registerModernFont(
-    DM_SANS,
-    NW_DM_SANS_FONT_FAMILY,
-    { unitsPerEm: 1000, ascender: 1015, descender: -350, lineHeight: 1.3 },
-    'https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K4.woff2',
-    'https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu6-K6h9Q.woff2'
-  )
-
-  // Hide hand-drawn Excalifont from picker unless deprecated fonts are explicitly shown.
-  if (canRegisterFonts) {
+  const maybeFonts = (ExcalidrawLib as unknown as { Fonts?: any }).Fonts
+  if (maybeFonts && typeof maybeFonts.register === 'function') {
+    for (const font of NW_FONTS) {
+      maybeFonts.register(
+        font.family,
+        { metrics: font.metrics },
+        { uri: font.latinWoff2, descriptors: { weight: '400', unicodeRange: LATIN_UNICODE_RANGE } },
+        { uri: font.latinExtWoff2, descriptors: { weight: '400', unicodeRange: LATIN_EXT_UNICODE_RANGE } }
+      )
+    }
     const excalifont = maybeFonts.registered.get(FONT_FAMILY.Excalifont) as
       | { metadata?: Record<string, unknown> }
       | undefined
@@ -119,11 +108,77 @@ export function registerFunnelDisplayFont(): void {
   }
 }
 
+bootstrapFonts()
+
+/**
+ * Patch the internal Fonts registry after the Excalidraw component has mounted.
+ * In the production build, `Fonts` is not exported so module-level registration
+ * only mutates FONT_FAMILY and injects @font-face CSS. This function reaches
+ * the internal registry through the React fiber tree and completes registration
+ * so custom fonts appear in the picker and Excalifont is hidden.
+ */
+export function patchFontsFromContainer(container: HTMLElement): void {
+  const excalidrawEl = container.querySelector('.excalidraw')
+  if (!excalidrawEl) return
+
+  const fiberKey = Object.keys(excalidrawEl).find(
+    k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$')
+  )
+  if (!fiberKey) return
+
+  let fiber = (excalidrawEl as any)[fiberKey]
+
+  let fontsMap: Map<number, { metadata: Record<string, unknown>; fontFaces: unknown[] }> | null = null
+
+  while (fiber) {
+    const inst = fiber.stateNode
+    if (inst?.fonts?.constructor?.registered instanceof Map) {
+      fontsMap = inst.fonts.constructor.registered
+      break
+    }
+    fiber = fiber.return
+  }
+
+  if (!fontsMap) return
+
+  for (const font of NW_FONTS) {
+    if (fontsMap.has(font.id)) continue
+    fontsMap.set(font.id, {
+      metadata: {
+        metrics: font.metrics
+      },
+      fontFaces: [
+        {
+          fontFace: new FontFace(font.family, `url(${font.latinWoff2})`, {
+            display: 'swap',
+            style: 'normal',
+            weight: '400',
+            unicodeRange: LATIN_UNICODE_RANGE
+          }),
+          urls: [font.latinWoff2]
+        },
+        {
+          fontFace: new FontFace(font.family, `url(${font.latinExtWoff2})`, {
+            display: 'swap',
+            style: 'normal',
+            weight: '400',
+            unicodeRange: LATIN_EXT_UNICODE_RANGE
+          }),
+          urls: [font.latinExtWoff2]
+        }
+      ]
+    })
+  }
+
+  const excalifontEntry = fontsMap.get(FONT_FAMILY.Excalifont)
+  if (excalifontEntry?.metadata) {
+    excalifontEntry.metadata = { ...excalifontEntry.metadata, deprecated: true }
+  }
+}
+
 export const NW_PROFESSIONAL_DEFAULT_FONTS = [
   NW_FUNNEL_DISPLAY_FONT_FAMILY,
   NW_INTER_FONT_FAMILY,
   NW_MANROPE_FONT_FAMILY,
   NW_DM_SANS_FONT_FAMILY
 ] as const
-
-registerFunnelDisplayFont()
