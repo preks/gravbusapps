@@ -15,14 +15,14 @@ export const ConfigurationSection: React.FC<ConfigurationSectionProps> = ({ sett
       icon={<GearIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />}
       title="Configuration"
     />
-    <div className="gba:px-3 gba:pb-2">
+    <div className="gba:px-3 sm:gba:px-4 gba:pb-2 sm:gba:pb-3">
       <ToggleRow
         label="Memory"
         description="Remember preferences and context across sessions"
         enabled={settings.enableMemory}
         onToggle={() => updateSetting('enableMemory', !settings.enableMemory)}
       />
-      <div className="gba:px-4 gba:py-3">
+      <div className="gba:px-3 sm:gba:px-4 gba:py-2.5 sm:gba:py-3">
         <p className="gba:text-sm gba:font-medium gba:text-foreground">Reflection Mode</p>
         <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
           Controls whether the agent reviews its work before finishing

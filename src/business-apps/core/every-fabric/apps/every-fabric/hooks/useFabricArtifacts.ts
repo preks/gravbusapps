@@ -14,7 +14,12 @@ import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
  *
  * The active artifact is the one currently open in ArtifactViewer.
  */
-export const useFabricArtifacts = (sessionId: string | null, events: AgentStreamEvent[], accessToken: string) => {
+export const useFabricArtifacts = (
+  sessionId: string | null,
+  events: AgentStreamEvent[],
+  accessToken: string,
+  session?: { workspace_documents?: WorkspaceDocument[] } | null
+) => {
   const client = useEnterpriseAgentClient(accessToken)
   const [restArtifacts, setRestArtifacts] = useState<ArtifactFile[]>([])
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null)
@@ -68,13 +73,18 @@ export const useFabricArtifacts = (sessionId: string | null, events: AgentStream
       }))
   }, [events, sessionId, client])
 
-  // Workspace documents from the terminal event (created by document creation tools)
+  // Workspace documents from terminal event (SSE) or REST session metadata
   const workspaceDocs = useMemo((): WorkspaceDocument[] => {
+    // First try SSE terminal event (real-time)
     const terminalEvent = events.find(
       (e): e is Extract<AgentStreamEvent, { type: 'terminal' }> => e.type === 'terminal' && e.status === 'completed'
     )
-    return terminalEvent?.workspace_documents ?? []
-  }, [events])
+    if (terminalEvent?.workspace_documents?.length) {
+      return terminalEvent.workspace_documents
+    }
+    // Fall back to REST session metadata (authoritative for completed sessions)
+    return session?.workspace_documents ?? []
+  }, [events, session])
 
   // Merge SSE artifacts with REST artifacts, deduplicating by artifact key
   const artifacts = useMemo((): ArtifactFile[] => {

@@ -10,12 +10,19 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
 
   const startSession = useCallback(
-    (task: string, config?: SessionConfig, activeExternalConnectionIds?: string[], activeEnterpriseSkillId?: string) =>
+    (
+      task: string,
+      config?: SessionConfig,
+      activeExternalConnectionIds?: string[],
+      activeEnterpriseSkillId?: string,
+      fallbackSkillId?: string
+    ) =>
       client.post<{ session_id: string }>('/deep-agent/sessions', {
         task,
         config,
         active_external_connection_ids: activeExternalConnectionIds,
-        active_enterprise_skill_id: activeEnterpriseSkillId
+        active_enterprise_skill_id: activeEnterpriseSkillId,
+        fallback_skill_id: fallbackSkillId
       }),
     [client]
   )

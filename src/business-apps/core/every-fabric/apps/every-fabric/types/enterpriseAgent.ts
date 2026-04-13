@@ -170,7 +170,7 @@ export interface StructuredInputRequestEvent {
 export interface InputFieldSchema {
   field_id: string
   label: string
-  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'number'
+  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'number' | 'employee_search'
   description?: string
   required: boolean
   default_value?: any
@@ -178,6 +178,30 @@ export interface InputFieldSchema {
   placeholder?: string
   ai_generated?: boolean
   validation_pattern?: string
+  metadata?: Record<string, any>
+}
+
+export interface SkillLoadedEvent {
+  type: 'skill_loaded'
+  seq: number
+  event_id: string
+  timestamp: string
+  skill: {
+    skill_id: string
+    name: string
+    category: string
+    description: string
+    icon?: string
+  }
+  was_auto_detected: boolean
+}
+
+export interface SkillDetectionSkippedEvent {
+  type: 'skill_detection_skipped'
+  seq: number
+  event_id: string
+  timestamp: string
+  reason: string
 }
 
 export type AgentStreamEvent =
@@ -192,6 +216,8 @@ export type AgentStreamEvent =
   | AgentSubagentCompletedEvent
   | AgentArtifactCreatedEvent
   | StructuredInputRequestEvent
+  | SkillLoadedEvent
+  | SkillDetectionSkippedEvent
 
 export interface ReflectionResult {
   complete: boolean

@@ -36,7 +36,7 @@ export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, 
 
   return (
     <div
-      className={`gba:fixed gba:top-16 sm:gba:top-20 gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:z-50 gba:w-[min(32rem,calc(100vw-2rem))] gba:transition-all gba:duration-200 ${
+      className={`gba:fixed gba:top-16 sm:gba:top-20 gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:z-50 gba:w-[min(20rem,calc(100vw-2rem))] sm:gba:w-[20rem] lg:gba:w-[22rem] xl:gba:w-[24rem] gba:transition-all gba:duration-200 ${
         isOpen
           ? 'gba:opacity-100 gba:translate-y-0 gba:pointer-events-auto'
           : 'gba:opacity-0 -gba:translate-y-2 gba:pointer-events-none'
@@ -44,7 +44,7 @@ export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, 
       data-testid="fabric-settings-panel"
     >
       <div className="gba:rounded-[1.75rem] gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-md gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
-        <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-4 gba:border-b gba:border-border/60">
+        <div className="gba:flex gba:items-center gba:justify-between gba:px-4 sm:gba:px-5 gba:py-3 sm:gba:py-4 gba:border-b gba:border-border/60">
           <div className="gba:flex gba:items-center gba:gap-2.5">
             <GearIcon className="gba:h-[18px] gba:w-[18px] gba:text-foreground" />
             <span className="gba:text-[15px] gba:font-semibold gba:text-foreground">Agent Settings</span>
@@ -60,18 +60,18 @@ export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, 
           </Button>
         </div>
 
-        <div className="gba:max-h-[min(36rem,75vh)] gba:overflow-y-auto">
+        <div className="gba:max-h-[70vh] sm:gba:max-h-[min(42rem,80vh)] gba:overflow-y-auto">
           <ConfigurationSection settings={settings} updateSetting={updateSetting} />
-          <div className="gba:mx-5 gba:border-t gba:border-border/40" />
+          <div className="gba:mx-4 sm:gba:mx-5 gba:border-t gba:border-border/40" />
           <MemorySection client={client} isOpen={isOpen} />
-          <div className="gba:mx-5 gba:border-t gba:border-border/40" />
+          <div className="gba:mx-4 sm:gba:mx-5 gba:border-t gba:border-border/40" />
           <SkillsSection
             client={client}
             isOpen={isOpen}
             defaultSkillId={settings.defaultSkillId}
             onSetDefaultSkill={handleSetDefaultSkill}
           />
-          <div className="gba:mx-5 gba:border-t gba:border-border/40" />
+          <div className="gba:mx-4 sm:gba:mx-5 gba:border-t gba:border-border/40" />
           <MetricsSection client={client} isOpen={isOpen} />
         </div>
       </div>
