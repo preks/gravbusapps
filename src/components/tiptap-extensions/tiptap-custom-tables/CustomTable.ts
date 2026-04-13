@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { CustomTableView } from './CustomTableView'
+import { createLinkedTableResizePlugin } from './tableLinkedResizePlugin'
 import { createTablePaginationMetadataPlugin } from './tablePaginationMetadata'
 import { createTableRowIdentityPlugin } from './tableRowIdentityPlugin'
 import {
@@ -383,8 +384,19 @@ export const CustomTable = TiptapTable.extend<CustomTableOptions>({
   },
 
   addProseMirrorPlugins() {
+    const isResizable = this.options.resizable && this.editor.isEditable
+
     return [
       ...(this.parent?.() ?? []),
+      ...(isResizable
+        ? [
+            createLinkedTableResizePlugin({
+              tableNodeName: this.name,
+              cellMinWidth: this.options.cellMinWidth,
+              defaultCellMinWidth: this.options.cellMinWidth
+            })
+          ]
+        : []),
       createTableRowIdentityPlugin('tableRow'),
       createTablePaginationMetadataPlugin(this.name)
     ]
