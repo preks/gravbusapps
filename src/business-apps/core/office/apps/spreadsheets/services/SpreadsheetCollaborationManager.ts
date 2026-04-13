@@ -379,7 +379,8 @@ export class SpreadsheetCollaborationManager {
       if (trimmedRef) {
         const a1 = parseA1Reference(trimmedRef)
         if (a1 && a1.row >= 0 && a1.col >= 0) {
-          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value, remoteRowId)
+          // Omit rowId so the grid uses sender A1 row/col; rowIdToIndex can drift from Univer order.
+          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value)
           continue
         }
       }

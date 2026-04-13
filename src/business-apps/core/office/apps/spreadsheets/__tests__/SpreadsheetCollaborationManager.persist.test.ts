@@ -163,6 +163,6 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(42, 1, 'typed', 'row-0')
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(42, 1, 'typed')
   })
 })
