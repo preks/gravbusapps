@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { DocumentLayoutPageRange } from '../../../types'
+import { refreshPageMinHeight } from '@/components/tiptap-extensions/tiptap-custom-pagination/dom'
 import { resolvePageBreakElements, type DocumentLayoutNavigationState } from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 
@@ -35,6 +36,27 @@ function resolvePaginationRoot(container: HTMLDivElement): HTMLElement | null {
   }
 
   return (container.querySelector('[data-rm-pagination="true"]') as HTMLElement | null) ?? null
+}
+
+function resolvePaginationPresentationRoot(
+  paginationRoot: HTMLElement | null,
+  fallbackContainer: HTMLDivElement
+): HTMLElement | null {
+  if (!(paginationRoot instanceof HTMLElement)) {
+    return null
+  }
+
+  const chromeRoot = paginationRoot.closest('[data-rm-pagination-chrome="true"]')
+  if (chromeRoot instanceof HTMLElement && chromeRoot.parentElement instanceof HTMLElement) {
+    return chromeRoot.parentElement
+  }
+
+  const proseMirrorRoot = paginationRoot.closest('.ProseMirror')
+  if (proseMirrorRoot instanceof HTMLElement) {
+    return proseMirrorRoot
+  }
+
+  return paginationRoot.parentElement instanceof HTMLElement ? paginationRoot.parentElement : fallbackContainer
 }
 
 function hasParkedPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
@@ -253,9 +275,14 @@ export function useApplyDocumentLayoutWindowedBreakers({
       }
 
       const paginationRoot = resolvePaginationRoot(container)
+      const presentationRoot = resolvePaginationPresentationRoot(paginationRoot, container)
 
       if (!viewportModel.isWindowed) {
+        let didMutateBreakers = false
         pageBreakersRef.current.forEach(pageBreakEl => {
+          if (hasParkedPageBreaker(pageBreakEl, parkedBreakersRef.current)) {
+            didMutateBreakers = true
+          }
           restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
         })
         syncMountedRangeMetadata(paginationRoot, null, viewportModel.totalPages)
@@ -271,9 +298,14 @@ export function useApplyDocumentLayoutWindowedBreakers({
             ;(
               editor?.commands as { hydratePageBreakShells?: (pageNumbers: number[]) => boolean } | undefined
             )?.hydratePageBreakShells?.(placeholderPageNumbers)
+            didMutateBreakers = true
           }
         } else {
           hydrationRequestKeyRef.current = null
+        }
+
+        if (didMutateBreakers && presentationRoot) {
+          refreshPageMinHeight(presentationRoot)
         }
 
         return
@@ -284,11 +316,13 @@ export function useApplyDocumentLayoutWindowedBreakers({
       const mountedPages = new Set(effectiveMountedState.mountedPageNumbers)
       const desiredHydratedPages = resolveDesiredHydratedPageNumbers(mountedPages, viewportModel.totalPages)
       const pageNumbersToHydrate: number[] = []
+      let didMutateBreakers = false
 
       pageBreakersRef.current.forEach((pageBreakEl, pageNumber) => {
         if (desiredHydratedPages.has(pageNumber)) {
           if (hasParkedPageBreaker(pageBreakEl, parkedBreakersRef.current)) {
             restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
+            didMutateBreakers = true
           } else if (isPlaceholderPageBreaker(pageBreakEl)) {
             pageNumbersToHydrate.push(pageNumber)
           }
@@ -296,6 +330,7 @@ export function useApplyDocumentLayoutWindowedBreakers({
         }
 
         parkPageBreaker(pageBreakEl, parkedBreakersRef.current)
+        didMutateBreakers = true
       })
 
       if (pageNumbersToHydrate.length > 0) {
@@ -305,9 +340,14 @@ export function useApplyDocumentLayoutWindowedBreakers({
           ;(
             editor?.commands as { hydratePageBreakShells?: (pageNumbers: number[]) => boolean } | undefined
           )?.hydratePageBreakShells?.(pageNumbersToHydrate)
+          didMutateBreakers = true
         }
       } else {
         hydrationRequestKeyRef.current = null
+      }
+
+      if (didMutateBreakers && presentationRoot) {
+        refreshPageMinHeight(presentationRoot)
       }
     })
 

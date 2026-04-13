@@ -472,6 +472,11 @@ export function createPaginationExtensionPlugins(options: {
               lastDocChangeOrigin === 'collaboration-remote'
                 ? COLLABORATION_REPAGINATION_DELAY_MS
                 : LOCAL_REPAGINATION_DELAY_MS
+            previousAddPagesMeasurement = null
+            runawayGrowthCapPageCount = null
+            pendingRefreshDrivenStabilization = false
+            tablePaginationController.reset()
+            clearPaginationOwnedGrowthSuppression(editor)
             lastKnownDoc = updatedView.state.doc
             lastKnownSelectionHead = updatedView.state.selection.head
             lastDocChangeOrigin = null

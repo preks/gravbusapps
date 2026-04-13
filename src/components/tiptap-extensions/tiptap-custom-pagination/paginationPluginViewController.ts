@@ -146,11 +146,12 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
       }
     }
 
-    if (
+    const canEvaluatePageCountMismatch =
       storage.activeEditorType === null &&
       !(view as EditorView & { composing?: boolean }).composing &&
-      docChangeAffectsLayout
-    ) {
+      (docChangeAffectsLayout || (isInitialViewUpdate && !resolveHasTables()))
+
+    if (canEvaluatePageCountMismatch) {
       const measurementState = options.resolveMeasurementState(nextState)
 
       if (measurementState.measuredPageCount < measurementState.currentPageCount) {
@@ -159,7 +160,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
         }
 
         nextState.runawayGrowthCapPageCount = null
-        if (resolveHasTables()) {
+        if (docChangeAffectsLayout && resolveHasTables()) {
           nextState.pendingRefreshDrivenStabilization = true
         }
 
@@ -173,6 +174,7 @@ export function runPaginationPluginViewUpdate<TSelection>(options: {
 
       if (measurementState.measuredPageCount > measurementState.currentPageCount) {
         options.onClearGrowthSuppression()
+        nextState.runawayGrowthCapPageCount = null
         options.onSetStoredPageCount(measurementState.measuredPageCount)
         nextState.lastKnownSelectionHead = currentSelectionHead
         exitReason = 'page-count-grow-refresh'

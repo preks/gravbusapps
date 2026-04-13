@@ -423,6 +423,101 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 
+  it('refreshes via page-count-grow on the initial view update when a non-table document opens with a stale low page count', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 41, measuredPageCount: 42 },
+      hasTables: false
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(42)
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-grow')
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
+  it('refreshes via page-count-shrink on the initial view update when a non-table document opens with a stale high page count', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 42, measuredPageCount: 41 },
+      hasTables: false
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(41)
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-shrink')
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
+  it('keeps the initial non-table view update passive when the measured page count already matches', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 41, measuredPageCount: 41 },
+      hasTables: false
+    })
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
+  })
+
   it('schedules initial stabilization for first view update with tables', () => {
     const harness = createHarness({
       state: {
