@@ -109,6 +109,7 @@ export class SpreadsheetCollaborationManager {
   private documentOpAsync:
     | ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>)
     | null = null
+  private currentUserId: string | null = null
   private connected = false
   private joined = false
   private pendingOps: DocumentOperation[] = []
@@ -134,6 +135,10 @@ export class SpreadsheetCollaborationManager {
     fn: ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>) | null
   ): void {
     this.documentOpAsync = fn
+  }
+
+  setCurrentUserId(userId: string | null): void {
+    this.currentUserId = userId
   }
 
   setConnectionState(connected: boolean, joined: boolean): void {
@@ -284,6 +289,11 @@ export class SpreadsheetCollaborationManager {
       const entry: CellsChangedCell = { rowId: backendRowId, column: cell.columnName, value: cell.value }
       if (cell.univerRow != null && cell.univerCol != null) {
         entry.cellRef = toA1Reference(cell.univerRow, cell.univerCol)
+      } else {
+        const { rowIndex, colIndex } = this.resolveCoordinates(cell.columnName, backendRowId)
+        if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+          entry.cellRef = toA1Reference(rowIndex, colIndex)
+        }
       }
       collabCells.push(entry)
     }
@@ -315,6 +325,8 @@ export class SpreadsheetCollaborationManager {
   // --- Receiver ---
 
   handleOperation(payload: CollaborationOperation): void {
+    if (this.currentUserId && payload.userId === this.currentUserId) return
+
     const { operation, version } = payload
     const activeSheetId = this.callbacks.getActiveSheetId()
 

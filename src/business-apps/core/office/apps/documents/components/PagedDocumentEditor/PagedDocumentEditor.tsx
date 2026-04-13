@@ -75,6 +75,10 @@ import {
   replyToDocumentComment,
   updateDocumentComment
 } from '../../utils/documentOfficeOperations'
+import {
+  incrementPaginationInstrumentationCounter,
+  recordPaginationInstrumentationEvent
+} from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationInstrumentation'
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
@@ -83,6 +87,19 @@ const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
 const DOCUMENT_DISABLE_PAGINATION_STORAGE_KEY = 'document-editor:disable-pagination'
 const DOCUMENT_TABLE_DEBUG_STORAGE_KEY = 'document-editor:debug-table-doc-id'
 const PAGINATION_DEBUG_FLAG = '__RM_PAGINATION_DEBUG'
+const EMPTY_PAGES_EDITOR_STATE: ActivePagesEditorState = {
+  activeEditor: null,
+  activeEditorType: null,
+  activePageNumber: null
+}
+
+function isSamePagesEditorState(left: ActivePagesEditorState, right: ActivePagesEditorState): boolean {
+  return (
+    left.activeEditor === right.activeEditor &&
+    left.activeEditorType === right.activeEditorType &&
+    left.activePageNumber === right.activePageNumber
+  )
+}
 
 function readDocumentDebugFlag(searchParam: string, storageKey: string): boolean {
   if (globalThis.window === undefined) return false
@@ -232,6 +249,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const translateRef = useRef(t)
     translateRef.current = t
     const translateStable = useCallback((key: string) => translateRef.current(key), [])
+    const pagedDocumentEditorRenderCountRef = useRef(0)
+    pagedDocumentEditorRenderCountRef.current += 1
+    const pagedDocumentEditorRenderCount = pagedDocumentEditorRenderCountRef.current
     const officeClient = useOfficeClient(accessTokenProp)
     // Editor state
     const [title, setTitle] = useState(document?.title || initialTitle || t('title-untitled-document'))
@@ -243,11 +263,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const editorContainerRef = useRef<HTMLDivElement | null>(null)
     const editorChromeRef = useRef<HTMLDivElement | null>(null)
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>({
-      activeEditor: null,
-      activeEditorType: null,
-      activePageNumber: null
-    })
+    const [pagesEditorState, setPagesEditorState] = useState<ActivePagesEditorState>(EMPTY_PAGES_EDITOR_STATE)
     const editorRef = useRef<any>(null) // Store editor instance
     const lastRemoteUpdateMsRef = useRef(0)
     const isApplyingRemoteContentRef = useRef(false)
@@ -329,11 +345,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [targetDocumentTableDebugEnabled])
 
     useEffect(() => {
-      setPagesEditorState({
-        activeEditor: null,
-        activeEditorType: null,
-        activePageNumber: null
-      })
+      setPagesEditorState(prevState =>
+        isSamePagesEditorState(prevState, EMPTY_PAGES_EDITOR_STATE) ? prevState : EMPTY_PAGES_EDITOR_STATE
+      )
       setHeaderFooterSettingsSessionOpen(false)
       setHeaderFooterPanelFallback(null)
     }, [document?.id])
@@ -369,6 +383,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       globalThis.window.addEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
       return () => globalThis.window.removeEventListener(DOCUMENT_TOC_OPEN_FORMAT_EVENT, handleOpenTocSidebar)
     }, [])
+
+    useEffect(() => {
+      incrementPaginationInstrumentationCounter('paged-document-editor-render-total')
+      recordPaginationInstrumentationEvent('paged-document-editor-render', {
+        activeEditorType: pagesEditorState.activeEditorType,
+        hasUnsavedChanges,
+        headerFooterSettingsSessionOpen,
+        navigationPanelOpen: showNavigationPanel,
+        renderCount: pagedDocumentEditorRenderCount,
+        rightSidebar,
+        tocSidebarOpen: tocSidebarNodePos !== null
+      })
+    })
 
     useEffect(() => {
       tocSidebarNodePosRef.current = tocSidebarNodePos
@@ -877,7 +904,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Layout snapshot drives page count/current page, while header/footer editor state can temporarily override page UI.
     const handlePagesActiveEditorChange = useCallback((state: ActivePagesEditorState) => {
-      setPagesEditorState(state)
+      setPagesEditorState(prevState => (isSamePagesEditorState(prevState, state) ? prevState : state))
     }, [])
     const handleOpenCommentThread = useCallback(
       (commentId: string) => {
@@ -928,7 +955,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       documentTitle: document?.title,
       initialTitle,
       isYjsSynced,
-      setPagesEditorState
+      setPagesEditorState: handlePagesActiveEditorChange
     })
 
     const handleCloseHeaderFooterSidebar = useCallback(() => {

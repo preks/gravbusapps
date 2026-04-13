@@ -115,8 +115,8 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
   return (
     <>
       <SectionHeader icon={<BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />} title="Memory" />
-      <div className="gba:px-4 gba:pb-3">
-        <div className="gba:flex gba:gap-1 gba:mb-3">
+      <div className="gba:px-3 sm:gba:px-4 gba:pb-2.5 sm:gba:pb-3">
+        <div className="gba:flex gba:gap-1 gba:mb-2.5 sm:gba:mb-3">
           {MEMORY_NAMESPACES.map(ns => (
             <button
               key={ns}
@@ -132,7 +132,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
           ))}
         </div>
 
-        <div className="gba:flex gba:gap-2 gba:mb-3">
+        <div className="gba:flex gba:gap-2 gba:mb-2.5 sm:gba:mb-3">
           <div className="gba:relative gba:flex-1">
             <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/50" />
             <Input
@@ -156,7 +156,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
         </div>
 
         {showAddForm && (
-          <div className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:p-3 gba:mb-3 gba:space-y-2">
+          <div className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:p-2.5 sm:gba:p-3 gba:mb-2.5 sm:gba:mb-3 gba:space-y-2">
             <Input
               value={newMemoryKey}
               onChange={e => setNewMemoryKey(e.target.value)}
@@ -193,7 +193,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
           </div>
         )}
 
-        <div className="gba:space-y-1.5 gba:max-h-48 gba:overflow-y-auto">{renderMemoryList()}</div>
+        <div className="gba:space-y-1.5">{renderMemoryList()}</div>
       </div>
     </>
   )

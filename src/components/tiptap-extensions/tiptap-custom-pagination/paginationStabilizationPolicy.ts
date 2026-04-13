@@ -1,4 +1,5 @@
 import type { PagesStorage } from './types'
+import type { PaginationTransactionClassification } from './paginationTransactionClassifier'
 import type { TablePaginationControllerResult } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
 
 interface TablePaginationHeuristicsResolution {
@@ -339,6 +340,20 @@ export function resolveDeferredRepaginationActionPlan(options: {
     }
   }
 
+  if (result.reason === 'candidate-parity-mismatch' && measuredPageCount > currentPageCount) {
+    return {
+      type: 'refresh',
+      result: {
+        type: 'refresh',
+        pageCount: measuredPageCount,
+        hasSplitPressure: false,
+        progress: 'refresh',
+        scheduleEvaluation: true
+      },
+      shouldScheduleFollowUp: true
+    }
+  }
+
   return {
     type: 'none',
     result
@@ -630,6 +645,7 @@ export function shouldScheduleDeferredRepaginationOnUpdate(options: {
   collaborationRemoteDocChange?: boolean
   paginationOwnedDocChange: boolean
   hydrationOwnedDocChange: boolean
+  docChangeAnalysis: PaginationTransactionClassification | null
 }) {
   const {
     activeEditorType,
@@ -637,19 +653,24 @@ export function shouldScheduleDeferredRepaginationOnUpdate(options: {
     externalDocChange,
     collaborationRemoteDocChange,
     paginationOwnedDocChange,
-    hydrationOwnedDocChange
+    hydrationOwnedDocChange,
+    docChangeAnalysis
   } = options
 
   if (activeEditorType !== null) {
     return false
   }
 
-  if (externalDocChange || collaborationRemoteDocChange) {
+  if (collaborationRemoteDocChange) {
     return true
   }
 
   if (!hasTables) {
     return false
+  }
+
+  if (externalDocChange) {
+    return docChangeAnalysis?.touchesTableRegion ?? true
   }
 
   return paginationOwnedDocChange || hydrationOwnedDocChange

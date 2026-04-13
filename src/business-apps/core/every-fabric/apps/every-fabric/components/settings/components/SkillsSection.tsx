@@ -99,7 +99,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
                 {isDefault && (
                   <span className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-[10px] gba:font-semibold gba:shrink-0">
                     <StarIcon className="gba:h-2.5 gba:w-2.5" weight="fill" />
-                    Default
+                    Fallback
                   </span>
                 )}
               </div>
@@ -122,7 +122,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
                     ? 'gba:text-primary gba:bg-primary/10'
                     : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
                 }`}
-                title={isDefault ? 'Remove as default' : 'Set as default'}
+                title={isDefault ? 'Remove as fallback' : 'Set as fallback'}
                 data-testid={`settings-skill-default-${skill.skill_id}`}
               >
                 <StarIcon className="gba:h-3.5 gba:w-3.5" weight={isDefault ? 'fill' : 'regular'} />
@@ -185,6 +185,10 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
         title="Enterprise Skills"
       />
       <div className="gba:px-4 gba:pb-3">
+        <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">
+          Skills are automatically detected based on your task. Set a fallback skill to use when auto-detection doesn't
+          find a confident match.
+        </p>
         {categories.length > 0 && (
           <div className="gba:flex gba:gap-1 gba:mb-3 gba:flex-wrap">
             <button
@@ -213,7 +217,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
           </div>
         )}
 
-        <div className="gba:space-y-1.5 gba:max-h-64 gba:overflow-y-auto">{renderSkillList()}</div>
+        <div className="gba:space-y-1.5">{renderSkillList()}</div>
       </div>
     </>
   )
