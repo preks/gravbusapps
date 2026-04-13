@@ -114,6 +114,12 @@
   letter-spacing: 0.01em !important;
 }
 
+/* ── Hide hand-drawn Excalifont from font picker ── */
+
+.nw-whiteboard-excalidraw .excalidraw [data-testid='font-family-hand-drawn'] {
+  display: none !important;
+}
+
 /* ── DOM-patched vendor rows ── */
 .nw-whiteboard-excalidraw .nw-wb-hide-vendor {
   display: none !important;

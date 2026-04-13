@@ -24,7 +24,7 @@ import {
 import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
-import { WhiteboardApiService } from '../services'
+import { WhiteboardApiService } from '../services/WhiteboardApiService'
 import { sendWhiteboardShareNotification } from './sendWhiteboardShareNotification'
 import translations from '../_i18n'
 
