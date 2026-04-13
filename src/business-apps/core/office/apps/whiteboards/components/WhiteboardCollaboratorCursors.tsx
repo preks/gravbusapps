@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import type { DocumentParticipant } from '../../shared/services/CollaborationClient'
+import type { DocumentParticipant } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
 
 interface CollaboratorState {
   user: {

@@ -10,7 +10,7 @@ import type {
   ExcalidrawElement,
   Zoom
 } from '@excalidraw/excalidraw/types'
-import { useCurrentUserPicture } from '../../every-ai/hooks/useCurrentUserPicture'
+import { useCurrentUserPicture } from '@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture'
 import { installExcalidrawWhiteLabelDomPatches } from '../utils/excalidrawWhiteLabelDom'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -31,16 +31,16 @@ import {
 import { ArrowLeft, Download, Share2, Image as ImageIcon, ChevronDown } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { useCollaboration } from '../../shared/hooks/useCollaboration'
-import { SocketIoYjsProvider } from '../../shared/services/SocketIoYjsProvider'
-import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
+import { useCollaboration } from '@/business-apps/platform/apps/shared/hooks/useCollaboration'
+import { SocketIoYjsProvider } from '@/business-apps/platform/apps/shared/services/SocketIoYjsProvider'
+import { PresenceIndicator } from '@/business-apps/platform/apps/shared/components/PresenceIndicator'
 import { WhiteboardCollaboratorCursors } from './WhiteboardCollaboratorCursors'
 import { ShareWhiteboardDialog } from './ShareWhiteboardDialog'
 import { RenameWhiteboardDialog } from './RenameWhiteboardDialog'
 import { WhiteboardApiService } from '../services'
 import translations from '../_i18n'
 import type { WhiteboardSummary } from '../types'
-import type { DocumentParticipant } from '../../shared/services/CollaborationClient'
+import type { DocumentParticipant } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
 
 /** Yjs transaction origin for local Excalidraw edits — observer ignores these to avoid feedback loops. */
 const WB_YJS_ORIGIN = 'nw-whiteboard-local'

@@ -30,7 +30,7 @@
 @import 'react-quill/dist/quill.snow.css';
 @import '@univerjs/preset-sheets-core/lib/index.css';
 @import '../node_modules/@excalidraw/excalidraw/dist/prod/index.css';
-@import '../src/business-apps/platform/apps/whiteboard-apps/styles/excalidrawWhiteLabel.css';
+@import '../src/business-apps/core/office/apps/whiteboards/styles/excalidrawWhiteLabel.css';
 
 @import './business-apps/core/content/windows/content-entry-window/quillTable.css';
 
