@@ -10,6 +10,7 @@ export interface CrmNoteData {
   version: number
   noteText: string
   noteTitle: string
+  noteType: 'UNKNOWN_NOTE_TYPE' | 'GENERAL_NOTE' | 'NEXT_STEP_NOTE'
   createdAt: string
   createdBy: string
   authorEmployee?: {
@@ -34,6 +35,7 @@ export const GET_CRM_NOTES = (): string => {
         createdBy
         noteText
         noteTitle
+        noteType
         authorEmployee {
           id
           firstName
@@ -49,7 +51,7 @@ export const useGetCrmNotes = (context: BusinessAppContextProps) => {
   const graphQLClient = useGraphQLClient(context.accessToken)
 
   const fetchCrmNotes = async (variables: CrmNoteQueryVariables) => {
-    const query = GET_CRM_NOTES(variables)
+    const query = GET_CRM_NOTES()
     try {
       const result = await graphQLClient.request<CrmNoteResponse>(query, variables)
       return result

@@ -7,6 +7,7 @@ import {
   type FunctionAssistantMode,
   type FunctionAssistantQuestionOption
 } from '@/common/network/functions/FunctionsServiceClient'
+import { hasImplementedHandler, hasMeaningfulSchema } from '../utils/functionDraftGuards'
 
 export type AssistantChatMessage =
   | { id: string; role: 'assistant' | 'system'; kind: 'text'; content: string }
@@ -154,6 +155,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
   const client = useMemo(() => (accessToken ? new FunctionsServiceClient(accessToken) : null), [accessToken])
   const [input, setInput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isFixingTest, setIsFixingTest] = useState(false)
+  const [fixTestError, setFixTestError] = useState<string | null>(null)
 
   const [sessionId, setSessionId] = useState(() => uid('session'))
   const [messages, setMessages] = useState<AssistantChatMessage[]>(() => [])
@@ -326,7 +329,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
     if (useCase === 'webhook') {
       return [
         'Use case: Webhook handler',
-        'Goal: Validate webhook signature (secret from context.config), parse payload, and trigger an action (call API / start workflow).',
+        'Goal: Validate webhook signature (key from context.config), parse payload, and trigger an action (call API / start workflow).',
         'Ask only required questions (provider docs, signature scheme, required headers, payload fields, expected response).'
       ].join('\n')
     }
@@ -360,7 +363,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         '',
         'Pagination: event.pageSize (default 100), event.cursor (string offset, starts null/0).',
         'When nextCursor is null, the import is complete.',
-        'Use context.config for API keys, URLs, and credentials (never hardcode secrets).',
+        'Use context.config for API keys, URLs, and credentials (never hardcode credentials).',
         'Ask which data source (Oracle, SAP, Salesforce, REST API, database, CSV/file, etc.),',
         'then ask for connection details (API URL, auth method, entity/table, optional query/filter).',
         'The output MUST set connectorEnabled: true in the draft response.',
@@ -380,7 +383,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         'Item kinds: "page" (text/HTML content like Confluence/wiki) or "file" (binary files like PDF, DOCX).',
         'Pagination: event.pageSize (default 50), event.cursor (string, starts null).',
         'When nextCursor is null, the import is complete.',
-        'Use context.config for API keys, URLs, and credentials (never hardcode secrets).',
+        'Use context.config for API keys, URLs, and credentials (never hardcode credentials).',
         'Ask which data source (Confluence, SharePoint, Google Drive, S3, Notion, etc.),',
         'then ask for connection details (API URL, auth method, space/folder, optional query/filter).',
         'The output MUST set connectorEnabled: true AND connectorKind: "unstructured" in the draft response.',
@@ -1032,6 +1035,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
       const thinkingId = uid('thinking')
       const startedAt = Date.now()
       setIsGenerating(true)
+      setIsFixingTest(true)
+      setFixTestError(null)
       const errorText = String(args?.lastError || '').trim()
       const resultText = String(args?.lastResult || '').trim()
       const frontendError = errorText || (resultText ? 'Non-200 response or failed test (see result).' : '')
@@ -1059,7 +1064,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
         const res = await client.functionAssistantIterate({
           instruction:
             args?.instruction ||
-            'Fix the current function so that it passes the sandbox test for the given payload and configured credentials (context.config). Do not log or return secrets.',
+            'Fix the current function so that it passes the sandbox test for the given payload and configured credentials (context.config). Do not log or return credential material.',
           source,
           inputSchema: args?.inputSchema,
           outputSchema: args?.outputSchema,
@@ -1069,6 +1074,14 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
           frontendResult: resultText || undefined,
           maxFixIterations: 2
         })
+
+        if (
+          !hasImplementedHandler(String(res?.source || '')) ||
+          !hasMeaningfulSchema(res?.inputSchema) ||
+          !hasMeaningfulSchema(res?.outputSchema)
+        ) {
+          throw new Error('AI returned an incomplete fix. The current function was not changed.')
+        }
 
         // Auto-apply fixes to the editor; user can undo in the editor UI.
         onApply(res)
@@ -1123,6 +1136,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
           ]
         })
       } catch (e) {
+        const summary = summarizeAssistantError(e)
+        setFixTestError(summary)
         setMessages(prev => {
           const withoutThinking = prev.filter(m => m.id !== thinkingId)
           return [
@@ -1131,12 +1146,13 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
               id: uid('assistant'),
               role: 'assistant',
               kind: 'error',
-              content: summarizeAssistantError(e)
+              content: summary
             }
           ]
         })
       } finally {
         setIsGenerating(false)
+        setIsFixingTest(false)
       }
     },
     [buildImplementationSummary, client, isGenerating, onApply]
@@ -1146,6 +1162,8 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
     input,
     setInput,
     isGenerating,
+    isFixingTest,
+    fixTestError,
     messages,
     activityLines,
     clarifyWizard,

@@ -66,6 +66,16 @@ function warnIfNewerCursorRulesAvailable() {
   }
 }
 
+function syncPlatformAssets() {
+  try {
+    execSync('node ./scripts/sync-platform-assets.mjs', { stdio: 'inherit' })
+  } catch {
+    console.warn(
+      'WARNING: sync-platform-assets failed. Default chat background may 404. Run: npm run sync:platform-assets'
+    )
+  }
+}
+
 function syncCursorRules() {
   if (!isCursorRulesDeclared()) {
     return
@@ -120,6 +130,7 @@ function startDevServer(port) {
   console.log(`\nStarting dev server on port ${port}...\n`)
 
   installDependencies()
+  syncPlatformAssets()
   syncCursorRules()
   warnIfNewerCursorRulesAvailable()
 
@@ -149,8 +160,28 @@ function startDevServer(port) {
   })
 }
 
+function parseExplicitPort() {
+  const portArg = process.argv[2]
+  if (!portArg) return null
+
+  const port = Number(portArg)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    console.error(`Invalid port: "${portArg}". Must be an integer between 1 and 65535.`)
+    process.exit(1)
+  }
+  return port
+}
+
 async function main() {
   try {
+    const explicitPort = parseExplicitPort()
+
+    if (explicitPort) {
+      console.log(`Using explicitly requested port ${explicitPort}.`)
+      startDevServer(explicitPort)
+      return
+    }
+
     const availablePort = await detect(DEFAULT_PORT)
 
     // If the default port is available, use it directly

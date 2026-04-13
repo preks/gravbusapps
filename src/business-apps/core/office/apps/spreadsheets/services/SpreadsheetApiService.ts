@@ -407,7 +407,9 @@ export const SpreadsheetApiService = {
         permission: mapPermission(app.permission as string | undefined),
         isShared: app.isShared as boolean | undefined,
         isOwner: !app.isShared,
-        sharedBy: app.sharedBy as string | undefined
+        sharedBy: app.sharedBy as string | undefined,
+        sharedWithCount: (app.sharedCount as number | undefined) ?? (app.sharedWithCount as number | undefined),
+        sharedPreviewUserIds: (app.sharedPreviewUserIds as string[] | undefined) ?? []
       }
     })
   },
@@ -1350,7 +1352,10 @@ export const SpreadsheetApiService = {
       return result.success
     } catch (error) {
       console.error('[SpreadsheetApiService] Failed to restore version:', error)
-      return false
+      if (error instanceof SpreadsheetApiRequestError) {
+        throw error
+      }
+      throw new Error('Failed to restore version')
     }
   },
 

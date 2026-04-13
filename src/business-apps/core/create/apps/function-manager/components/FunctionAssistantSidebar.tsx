@@ -31,8 +31,11 @@ export interface FunctionAssistantSidebarProps {
   existing?: FunctionAssistantExistingSnapshot
   onApply: (draft: FunctionAssistantDraftResponse) => void
   onOpenDefinitionTab?: (tab: FunctionDefinitionTab) => void
+  /** Leave the editor and open Function Manager → Credentials. */
+  onOpenTenantCredentials?: () => void
   fixTestRequest?: (AssistantFixTestArgs & { nonce: string }) | null
   onFixTestRequestHandled?: () => void
+  onFixTestStateChange?: (state: { isFixing: boolean; error: string | null }) => void
   onClose?: () => void
   'data-testid'?: string
 }
@@ -85,8 +88,10 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
   existing,
   onApply,
   onOpenDefinitionTab,
+  onOpenTenantCredentials,
   fixTestRequest,
   onFixTestRequestHandled,
+  onFixTestStateChange,
   onClose,
   'data-testid': testId = 'function-assistant-sidebar'
 }) => {
@@ -96,6 +101,8 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
     input,
     setInput,
     isGenerating,
+    isFixingTest,
+    fixTestError,
     messages,
     activityLines,
     clarifyWizard,
@@ -131,6 +138,10 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
     fixTest(args)
     onFixTestRequestHandled?.()
   }, [fixTest, fixTestRequest?.nonce, onFixTestRequestHandled])
+
+  React.useEffect(() => {
+    onFixTestStateChange?.({ isFixing: isFixingTest, error: fixTestError })
+  }, [fixTestError, isFixingTest, onFixTestStateChange])
 
   const hasUserMessage = messages.some(m => m.role === 'user')
 
@@ -176,6 +187,7 @@ export const FunctionAssistantSidebar: React.FC<FunctionAssistantSidebarProps> =
             userInfo={userInfo}
             userAvatarSrc={userAvatarSrc}
             onOpenDefinitionTab={onOpenDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             onRetryLast={retryLast}
             canRetryLast={canRetryLast}
             clarifyWizard={clarifyWizard}

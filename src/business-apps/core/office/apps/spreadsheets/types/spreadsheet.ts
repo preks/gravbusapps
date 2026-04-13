@@ -31,6 +31,13 @@ export interface ParsedExcelFile {
   metadata: ExcelMetadata
 }
 
+export interface SpreadsheetMergeRange {
+  startRow: number
+  startColumn: number
+  endRow: number
+  endColumn: number
+}
+
 /**
  * A single parsed sheet from the Excel file
  */
@@ -39,6 +46,7 @@ export interface ParsedSheet {
   index: number
   columns: ParsedColumn[]
   rows: Record<string, unknown>[] // row may include _height for row height preservation
+  mergeData?: SpreadsheetMergeRange[]
   rowCount: number
   isEmpty: boolean
 }
@@ -416,6 +424,8 @@ export interface SheetSettings {
   allowAdd: boolean
   allowEdit: boolean
   allowDelete: boolean
+  /** Preserved merged-cell ranges from imported spreadsheets. */
+  mergeData?: SpreadsheetMergeRange[]
   /** Explicit row ordering (array of backend row UUIDs). When present, rows are sorted by this order on load. */
   rowOrder?: string[]
   allowExport: boolean
@@ -483,6 +493,8 @@ export interface SpreadsheetAppViewerProps {
     updates: Partial<SpreadsheetSheet>
   ) => Promise<SpreadsheetSheet | null>
   onBack?: () => void
+  /** Header breadcrumb (Spreadsheets home): spreadsheet hub only. Falls back to onBack when omitted. */
+  onNavigateToSpreadsheetHub?: () => void
   onShare?: () => void
   onEdit?: () => void
   isEditing?: boolean
@@ -631,6 +643,8 @@ export interface SpreadsheetAppSummary {
   isShared?: boolean
   isOwner?: boolean
   sharedWithCount?: number
+  /** Recipient user ids for hub avatars (from list API); full share rows load on demand */
+  sharedPreviewUserIds?: string[]
   // Permission info from backend
   permission?: AppPermission
   sharedBy?: string

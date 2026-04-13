@@ -119,7 +119,7 @@ const buildCommonAddressFields = (params: {
   countryRef: params.countryId || '',
   poBox: false,
   notes: params.comment || '',
-  employeeDocument: params.employeeDocument?.id || ''
+  employeeDocument: params.employeeDocument?.id || null
 })
 
 export const buildInsertPayload = (params: {

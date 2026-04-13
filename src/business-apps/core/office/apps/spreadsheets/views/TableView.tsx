@@ -6,12 +6,14 @@
 
 import React, { useCallback, memo, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
 import type {
   DocumentParticipant,
   DocumentOperation
 } from '../../../../../platform/apps/shared/services/CollaborationClient'
 import { UniverSheetGrid, type UniverSheetGridHandle, type CellDimensionsPayload } from '../components/UniverSheetGrid'
+import translations from '../_i18n'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -85,6 +87,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   onDimensionsChange,
   gridRef
 }) {
+  const { t } = useTranslation(translations)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const gridReadyRef = useRef(false)
   const [showFallback, setShowFallback] = useState(false)
@@ -209,9 +212,7 @@ export const TableView = memo<TableViewProps>(function TableView({
       />
       {showFallback && (
         <div className="gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:p-4 gba:overflow-auto">
-          <div className="gba:mb-3 gba:text-sm gba:text-muted-foreground">
-            Interactive grid is still loading. Showing safe table fallback.
-          </div>
+          <div className="gba:mb-3 gba:text-sm gba:text-muted-foreground">{t('view-table-fallback-loading')}</div>
           <div className="gba:overflow-auto gba:border gba:rounded-md">
             <table className="gba:min-w-full gba:text-sm">
               <thead className="gba:bg-muted/40">

@@ -30,3 +30,27 @@ export function isScreenChanged(previousHash, currentHash) {
 export function mergeTouchedHashes(remoteHashes, touchedHashes) {
   return { ...remoteHashes, ...touchedHashes }
 }
+
+/**
+ * Merge bundle-top-dependencies.json baseline with touched entry keys (same shallow merge as hashes).
+ * Preserves non-touched screen keys; refreshes _meta.generatedAt.
+ * @param {Record<string, unknown>} remote
+ * @param {Record<string, unknown>} touched
+ */
+export function mergeTouchedBundleDeps(remote = {}, touched = {}) {
+  const rMeta = remote._meta
+  const tMeta = touched._meta
+  const { _meta: _r, ...rRest } = remote
+  const { _meta: _t, ...tRest } = touched
+  const merged = { ...rRest, ...tRest }
+  const maintainerNote =
+    (rMeta && rMeta.maintainerNote) ||
+    (tMeta && tMeta.maintainerNote) ||
+    'Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies.'
+  merged._meta = {
+    schemaVersion: (tMeta && tMeta.schemaVersion) ?? (rMeta && rMeta.schemaVersion) ?? 1,
+    generatedAt: new Date().toISOString(),
+    maintainerNote
+  }
+  return merged
+}

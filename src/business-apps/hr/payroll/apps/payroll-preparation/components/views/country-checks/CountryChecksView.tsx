@@ -18,7 +18,10 @@ export const CountryChecksView: React.FC<CountryChecksViewProps> = ({ employees,
   }
 
   return (
-    <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+    <div
+      className="gba:text-center gba:py-12 gba:text-muted-foreground"
+      data-testid="payroll-prep-country-checks-unsupported"
+    >
       Country-specific checks are available for Germany (DE) and Romania (RO).
     </div>
   )

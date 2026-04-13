@@ -24,6 +24,8 @@ import translations from '../_i18n'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 
+const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
+
 const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
   const {
@@ -260,7 +262,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
-      <div className="gba:bg-white gba:max-w-3xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
+      <div className="gba:bg-white gba:max-w-3xl gba:w-full">
         <div className="gba:flex gba:items-center gba:gap-2 gba:py-6">
           <img src={flowSmall} alt="Flow Small" className="gba:w-6 gba:h-6" style={{ filter: 'brightness(0)' }} />
           <h2 className="gba:text-xl gba:font-semibold">
@@ -289,7 +291,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
         <div className="gba:border-t" />
 
-        <div className="gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:py-6 gba:space-y-4">
           <div className="gba:space-y-2">
             <div className="gba:text-sm gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.employmentType', 'Employment Type')}*
@@ -379,7 +381,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               </div>
               <DateInput
                 type="date"
-                value={startDate}
+                value={getDateInputValue(startDate)}
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const stringValue = typeof value === 'string' ? value : ''
                   setStartDate(stringValue)
@@ -410,7 +412,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               </div>
               <DateInput
                 type="date"
-                value={probationEndDate}
+                value={getDateInputValue(probationEndDate)}
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const stringValue = typeof value === 'string' ? value : ''
                   setProbationEndDate(stringValue)
@@ -443,7 +445,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               </div>
               <DateInput
                 type="date"
-                value={endDate}
+                value={getDateInputValue(endDate)}
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const stringValue = typeof value === 'string' ? value : ''
                   setEndDate(stringValue)

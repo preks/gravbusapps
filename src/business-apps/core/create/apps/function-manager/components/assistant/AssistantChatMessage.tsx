@@ -110,6 +110,7 @@ export interface AssistantChatMessageProps {
   userAvatarSrc?: string
   onApplyDraftDirect?: (draft: any) => void
   onOpenDefinitionTab?: (tab: FunctionDefinitionTab) => void
+  onOpenTenantCredentials?: () => void
   onRetryLast?: () => void
   canRetryLast?: boolean
   onQuickInsert?: (text: string) => void
@@ -253,6 +254,7 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
   userAvatarSrc,
   onApplyDraftDirect,
   onOpenDefinitionTab,
+  onOpenTenantCredentials,
   onRetryLast,
   canRetryLast,
   onQuickInsert,
@@ -472,6 +474,17 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
                 >
                   Settings
                 </Button>
+                {onOpenTenantCredentials ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onOpenTenantCredentials()}
+                    data-testid={`${testId}-draft-open-credentials`}
+                  >
+                    Credentials
+                  </Button>
+                ) : null}
                 <Button
                   type="button"
                   size="sm"

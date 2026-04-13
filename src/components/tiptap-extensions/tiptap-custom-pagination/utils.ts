@@ -571,6 +571,33 @@ function readRuntimeLayoutMode(element: HTMLElement | null, key: string): string
   return typeof value === 'string' ? value : ''
 }
 
+function resolveVisibleBodyProjectionMeasurementElement(
+  editorDom: HTMLElement,
+  element: HTMLElement
+): HTMLElement | null {
+  const nodePos = element.dataset.imageNodePos
+  if (!nodePos) {
+    return null
+  }
+
+  const projectedElements = Array.from(
+    editorDom.querySelectorAll<HTMLElement>(`.rm-page-body-layer [data-image-node-pos="${nodePos}"]`)
+  )
+
+  const projectedExclusion =
+    projectedElements.find(candidate => candidate.dataset.imagePageProjectionExclusion === 'true') ?? null
+  if (projectedExclusion && projectedExclusion !== element) {
+    return projectedExclusion
+  }
+
+  const projectedAnchor = projectedElements.find(candidate => candidate.dataset.imagePageAnchor === 'true') ?? null
+  if (projectedAnchor && projectedAnchor !== element) {
+    return projectedAnchor
+  }
+
+  return null
+}
+
 function readMeasuredElementHeight(element: HTMLElement | null): number {
   if (!element) return 0
   if (readRuntimeLayoutMode(element, 'imageMeasurementMode') === 'overlay') {
@@ -1513,15 +1540,16 @@ export function resolvePageBodyWrapBands(
 }
 
 function getMeasuredElementBottomInEditor(editorDom: HTMLElement, element: HTMLElement): number {
-  if (readRuntimeLayoutMode(element, 'imageMeasurementMode') === 'overlay') {
-    return getElementBottomInEditor(editorDom, element)
+  const measurementElement = resolveVisibleBodyProjectionMeasurementElement(editorDom, element) ?? element
+  if (readRuntimeLayoutMode(measurementElement, 'imageMeasurementMode') === 'overlay') {
+    return getElementBottomInEditor(editorDom, measurementElement)
   }
 
-  const layoutHeight = getElementLayoutHeight(element)
-  const visualBottom = readRuntimeLayoutMetric(element, 'imageVisualBottom')
+  const layoutHeight = getElementLayoutHeight(measurementElement)
+  const visualBottom = readRuntimeLayoutMetric(measurementElement, 'imageVisualBottom')
   return Math.max(
-    getElementBottomInEditor(editorDom, element),
-    getElementTopInEditor(editorDom, element) + (visualBottom > 0 ? visualBottom : layoutHeight)
+    getElementBottomInEditor(editorDom, measurementElement),
+    getElementTopInEditor(editorDom, measurementElement) + (visualBottom > 0 ? visualBottom : layoutHeight)
   )
 }
 
@@ -1750,13 +1778,10 @@ export function calculatePageCount(
   const currentPageCount = getExistingPageCountFromPaginationElement(paginationElement)
   const lastContentElement = getLastContentElement(editorDom)
   const lastContentBottom = lastContentElement ? getMeasuredElementBottomInEditor(editorDom, lastContentElement) : null
-  const documentBottom =
-    lastContentBottom === null
-      ? (() => {
-          const measuredDocumentBottom = getDocumentContentBottom(view)
-          return measuredDocumentBottom > 0 ? measuredDocumentBottom : null
-        })()
-      : null
+  const documentBottom = (() => {
+    const measuredDocumentBottom = getDocumentContentBottom(view)
+    return measuredDocumentBottom > 0 ? measuredDocumentBottom : null
+  })()
   const contentBottomCandidates = [lastContentBottom, documentBottom].filter((value): value is number => value !== null)
   const contentBottom = contentBottomCandidates.length > 0 ? Math.max(...contentBottomCandidates) : null
   const selectionIsRange = view.state.selection.from !== view.state.selection.to
@@ -1793,6 +1818,16 @@ export function calculatePageCount(
           effectiveContentHeight: Math.max(1, fallbackLastBand.bottom - fallbackLastBand.top)
         }
       : null)
+  const expectedLastPageBodyHeight =
+    lastPageMeasurement !== null && lastPageMeasurement.pageNumber === currentPageCount
+      ? getPageBodyHeightForCount(pageFormat, layoutOptions, currentPageCount)
+      : null
+  const expectedLastPageBodyBottom =
+    lastPageMeasurement === null
+      ? null
+      : expectedLastPageBodyHeight === null
+        ? lastPageMeasurement.bottom
+        : lastPageMeasurement.top + expectedLastPageBodyHeight
   const pageContentHeight =
     lastPageMeasurement === null
       ? getMinimumMeasuredBodyHeight(pageFormat, currentPageCount, layoutOptions)
@@ -1813,22 +1848,52 @@ export function calculatePageCount(
         selectionBottom,
         measuredBottom,
         pageContentHeight,
-        lastPageBodyBottom: lastPageMeasurement?.bottom ?? null,
+        lastPageBodyBottom: expectedLastPageBodyBottom,
         lastPageGap: null,
         lowerBound: null
       })
       return resultPageCount
     }
 
-    const lastPageGap = measuredBottom - lastPageMeasurement.bottom
-
-    const gapResolution = resolvePageCountFromLastPageGap({
+    const pageCountMeasuredBottom = documentBottom ?? measuredBottom
+    let resolvedPageContentHeight = pageContentHeight
+    let resolvedLastPageBodyBottom = lastPageMeasurement.bottom
+    let resolvedLastPageGap = pageCountMeasuredBottom - lastPageMeasurement.bottom
+    let gapResolution = resolvePageCountFromLastPageGap({
       currentPageCount,
-      lastPageGap,
-      pageContentHeight,
+      lastPageGap: resolvedLastPageGap,
+      pageContentHeight: resolvedPageContentHeight,
       pageFormatHeight: pageFormat.height,
       pageGap
     })
+
+    const stretchedLastPageOverflow =
+      expectedLastPageBodyBottom === null ? 0 : lastPageMeasurement.bottom - expectedLastPageBodyBottom
+
+    if (
+      gapResolution.reason === 'keep-existing' &&
+      expectedLastPageBodyBottom !== null &&
+      stretchedLastPageOverflow > PAGE_COUNT_ADD_HYSTERESIS_PX
+    ) {
+      const recoveryLastPageGap = pageCountMeasuredBottom - expectedLastPageBodyBottom
+      if (recoveryLastPageGap > PAGE_COUNT_ADD_HYSTERESIS_PX) {
+        const recoveryPageContentHeight = Math.max(pageContentHeight, expectedLastPageBodyHeight ?? pageContentHeight)
+        const recoveryResolution = resolvePageCountFromLastPageGap({
+          currentPageCount,
+          lastPageGap: recoveryLastPageGap,
+          pageContentHeight: recoveryPageContentHeight,
+          pageFormatHeight: pageFormat.height,
+          pageGap
+        })
+
+        if (recoveryResolution.reason === 'add-pages') {
+          gapResolution = recoveryResolution
+          resolvedPageContentHeight = recoveryPageContentHeight
+          resolvedLastPageBodyBottom = expectedLastPageBodyBottom
+          resolvedLastPageGap = recoveryLastPageGap
+        }
+      }
+    }
 
     if (gapResolution.reason === 'add-pages') {
       emitDebug({
@@ -1839,10 +1904,10 @@ export function calculatePageCount(
         contentBottom,
         documentBottom,
         selectionBottom,
-        measuredBottom,
-        pageContentHeight,
-        lastPageBodyBottom: lastPageMeasurement.bottom,
-        lastPageGap,
+        measuredBottom: pageCountMeasuredBottom,
+        pageContentHeight: resolvedPageContentHeight,
+        lastPageBodyBottom: resolvedLastPageBodyBottom,
+        lastPageGap: resolvedLastPageGap,
         lowerBound: gapResolution.lowerBound
       })
       return gapResolution.resultPageCount
@@ -1857,10 +1922,10 @@ export function calculatePageCount(
         contentBottom,
         documentBottom,
         selectionBottom,
-        measuredBottom,
-        pageContentHeight,
-        lastPageBodyBottom: lastPageMeasurement.bottom,
-        lastPageGap,
+        measuredBottom: pageCountMeasuredBottom,
+        pageContentHeight: resolvedPageContentHeight,
+        lastPageBodyBottom: resolvedLastPageBodyBottom,
+        lastPageGap: resolvedLastPageGap,
         lowerBound: gapResolution.lowerBound
       })
       return currentPageCount
@@ -1874,10 +1939,10 @@ export function calculatePageCount(
       contentBottom,
       documentBottom,
       selectionBottom,
-      measuredBottom,
-      pageContentHeight,
-      lastPageBodyBottom: lastPageMeasurement.bottom,
-      lastPageGap,
+      measuredBottom: pageCountMeasuredBottom,
+      pageContentHeight: resolvedPageContentHeight,
+      lastPageBodyBottom: resolvedLastPageBodyBottom,
+      lastPageGap: resolvedLastPageGap,
       lowerBound: gapResolution.lowerBound
     })
     return gapResolution.resultPageCount

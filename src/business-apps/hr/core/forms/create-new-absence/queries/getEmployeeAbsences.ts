@@ -197,6 +197,22 @@ export const employeeAbsenceCalendarRangeQuery = `
   }
 `
 
+export const absenceTypePriorityQuery = `
+  query GetAbsenceTypePriority($typeRef: String!) {
+    CatalogEntry(
+      where: {
+        id: { _eq: $typeRef }
+        isDeleted: { _eq: false }
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "AbsenceType" } }
+      }
+      limit: 1
+    ) {
+      id
+      objectValue
+    }
+  }
+`
+
 /** Latest snapshot for one employee + absence type in an overlapping period window. */
 export const latestEntitlementSnapshotForRangeQuery = `
   query GetLatestEntitlementSnapshotForRange(

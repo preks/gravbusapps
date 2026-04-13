@@ -33,7 +33,7 @@ import {
 import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../_i18n'
 
@@ -89,7 +89,7 @@ const sendShareNotification = async (
   }
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const timestamp = Date.now()
     const blinkGroupId = `doc_share_${timestamp}_${payload.initiatorId}`
 
@@ -173,7 +173,7 @@ const sendShareNotification = async (
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

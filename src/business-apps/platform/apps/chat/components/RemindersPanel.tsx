@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Button, Badge, Card, Tooltip, TooltipContent, TooltipTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -39,8 +40,27 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
   const notifiedReminders = useRef<Set<string>>(new Set())
   const reminderTimers = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
+  // --- Create form state ---
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createTitle, setCreateTitle] = useState('')
+  const [createMessage, setCreateMessage] = useState('')
+  const [createDateTime, setCreateDateTime] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const createDateTimeRef = useRef(createDateTime)
+  createDateTimeRef.current = createDateTime
+  const createFormWasOpenRef = useRef(false)
+
   // Use Keycloak ID (userInfo.id) to match reminder creation in FlowBot
   const userId = useMemo(() => userInfo?.id || '', [userInfo?.id])
+  const authHeaders = useMemo(
+    () => ({
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }),
+    [accessToken]
+  )
 
   // Use refs for callbacks to avoid re-creating dependent functions
   const onReminderDueRef = useRef(onReminderDue)
@@ -94,14 +114,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     setError(null)
 
     try {
-      let baseUrl = window.location.origin
-
-      // If platform is running on localhost, connect to DEV environment
-      // This handles the case where Reminders is loaded from CDN but platform is running locally
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
-      }
+      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
 
       // Skip if no user ID
       if (!userId) {
@@ -118,11 +131,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
         'tag.userId': userId
       })
 
-      const response = await fetch(`${baseUrl}/flow-engine/api/flows/user/${userId}/initiated?${searchParams}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await fetch(`${baseUrl}/flows/user/${userId}/initiated?${searchParams}`, {
+        headers: authHeaders
       })
 
       if (!response.ok) {
@@ -210,7 +220,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, userId, notifyReminder])
+  }, [accessToken, userId, notifyReminder, authHeaders])
 
   useEffect(() => {
     // Only load if we have accessToken and userId
@@ -244,49 +254,221 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
     onOverdueCountChangeRef.current(overdueCount)
   }, [reminders])
 
-  const handleMarkAsDone = async (workflowId: string) => {
-    try {
-      let baseUrl = window.location.origin
+  // Default datetime and focus title when the create form opens (not on every datetime edit)
+  useEffect(() => {
+    if (showCreateForm && !createFormWasOpenRef.current) {
+      createFormWasOpenRef.current = true
+      if (!createDateTimeRef.current) {
+        const now = dayjs()
+        const rounded = now
+          .add(1, 'hour')
+          .minute(Math.ceil(now.minute() / 15) * 15)
+          .second(0)
+        setCreateDateTime(rounded.format('YYYY-MM-DDTHH:mm'))
+      }
+      const focusId = window.setTimeout(() => titleInputRef.current?.focus(), 50)
+      return () => window.clearTimeout(focusId)
+    }
+    if (!showCreateForm) {
+      createFormWasOpenRef.current = false
+    }
+  }, [showCreateForm])
 
-      // If platform is running on localhost, connect to DEV environment
-      const isLocalPlatform = baseUrl.includes('localhost')
-      if (isLocalPlatform) {
-        baseUrl = 'https://newwork-dev.newwork.com'
+  // --------- Create reminder via flow-engine execute-dynamic ---------
+  const handleCreateReminder = async () => {
+    setCreateError(null)
+
+    const trimmedTitle = createTitle.trim()
+    if (!trimmedTitle) {
+      setCreateError(t ? t('reminders-titleRequired') : 'Please enter a title')
+      return
+    }
+    if (!createDateTime) {
+      setCreateError(t ? t('reminders-dateTimeRequired') : 'Please select a date and time')
+      return
+    }
+
+    setIsCreating(true)
+
+    try {
+      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
+
+      const reminderDate = dayjs(createDateTime)
+      const reminderDateTimeISO = reminderDate.toISOString()
+      const reminderDateTimeFormatted = reminderDate.format('LLLL') // e.g. "Monday, January 8, 2026 9:19 PM"
+
+      // Calculate minutes from now until the reminder is due
+      const minutesFromNow = Math.max(1, Math.round(reminderDate.diff(dayjs(), 'minute', true)))
+
+      const tags: Record<string, string> = {
+        app: 'reminder',
+        userId,
+        reminderTitle: trimmedTitle,
+        reminderMessage: createMessage.trim(),
+        reminderDateTime: reminderDateTimeISO,
+        reminderDateTimeFormatted,
+        createdAt: new Date().toISOString()
       }
 
-      // Step 1: Get the task ID from workflow's step_0
-      const stepDataResponse = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/steps/step_0/data?limit=1`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+      const requestPayload = {
+        templateDefinition: {
+          type: 'TEMPLATE' as const,
+          name: `Reminder: ${trimmedTitle}`,
+          description: `Reminder set for ${reminderDateTimeFormatted}`,
+          version: 1,
+          steps: [
+            {
+              type: 'TASK',
+              title: trimmedTitle,
+              message: createMessage.trim() || `Reminder: ${trimmedTitle}`,
+              form: [],
+              links: [],
+              assignment: {
+                assignmentMode: 'ASSIGN',
+                targets: null,
+                allowReassignment: false
+              },
+              dueInMinutes: minutesFromNow
+            }
+          ],
+          tags
+        },
+        initiatorId: userId,
+        stepAssignments: {
+          step_0: {
+            assignment: {
+              assignmentMode: 'ASSIGN',
+              targets: {
+                users: [userId],
+                capabilities: [],
+                organizationalUnits: [],
+                companies: [],
+                siteLocations: [],
+                costCenters: [],
+                matrixTeams: []
+              },
+              allowReassignment: false
+            }
+          }
         }
+      }
+
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(requestPayload)
       })
 
-      if (!stepDataResponse.ok) {
-        throw new Error('Failed to get reminder task')
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(errorText || response.statusText)
       }
 
-      const stepData = await stepDataResponse.json()
+      // Reset form
+      setCreateTitle('')
+      setCreateMessage('')
+      setCreateDateTime('')
+      setShowCreateForm(false)
 
-      if (!stepData.data || stepData.data.length === 0) {
-        throw new Error('No task found for reminder')
+      // Refresh the list so the new reminder shows immediately
+      await loadReminders()
+    } catch (err) {
+      setCreateError(
+        (t ? t('reminders-createFailed') : 'Failed to create reminder') +
+          ': ' +
+          (err instanceof Error ? err.message : 'Unknown error')
+      )
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleMarkAsDone = async (workflowId: string) => {
+    try {
+      const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
+
+      // Strategy 1: Try to get task ID from the step_0 data endpoint
+      let taskId: string | null = null
+
+      try {
+        const stepDataResponse = await fetch(`${baseUrl}/flows/${workflowId}/steps/step_0/data?limit=1`, {
+          headers: authHeaders
+        })
+
+        if (stepDataResponse.ok) {
+          const stepData = await stepDataResponse.json()
+          if (stepData.data && stepData.data.length > 0) {
+            taskId = stepData.data[0].taskId ?? null
+          }
+        }
+      } catch {
+        // Step data endpoint failed, try fallback
       }
 
-      const taskId = stepData.data[0].taskId
-
+      // Strategy 2: Fallback — look up user's assigned tasks and match by flowId
       if (!taskId) {
-        throw new Error('Task ID not found in reminder workflow')
+        try {
+          const searchParams = new URLSearchParams({
+            includeAssigned: 'true',
+            includeClaimable: 'true',
+            limit: '50',
+            offset: '0',
+            search: workflowId
+          })
+
+          const tasksResponse = await fetch(`${baseUrl}/tasks/user/${encodeURIComponent(userId)}?${searchParams}`, {
+            headers: authHeaders
+          })
+
+          if (tasksResponse.ok) {
+            const tasksData = await tasksResponse.json()
+            const tasks = tasksData?.tasks ?? tasksData?.data?.tasks ?? (Array.isArray(tasksData) ? tasksData : [])
+            const matchingTask = tasks.find(
+              (t: any) =>
+                String(t.flowId || '').trim() === workflowId || String(t.workflowId || '').trim() === workflowId
+            )
+            if (matchingTask) {
+              taskId = matchingTask.id ?? matchingTask.taskId ?? null
+            }
+          }
+        } catch {
+          // Fallback task lookup failed
+        }
       }
 
-      // Step 2: Complete the task
-      const completeResponse = await fetch(`${baseUrl}/flow-engine/api/tasks/${taskId}/complete`, {
+      // Strategy 3: Last resort — try to complete the flow directly via progress/complete
+      if (!taskId) {
+        try {
+          const completeFlowResponse = await fetch(`${baseUrl}/flows/${workflowId}/progress/complete`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ userId })
+          })
+
+          if (completeFlowResponse.ok) {
+            // Flow completed directly — skip task completion
+            const timer = reminderTimers.current.get(workflowId)
+            if (timer) {
+              clearTimeout(timer)
+              reminderTimers.current.delete(workflowId)
+            }
+            setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
+            notifiedReminders.current.delete(workflowId)
+            return
+          }
+        } catch {
+          // Direct flow completion failed
+        }
+
+        throw new Error('Could not find the task for this reminder. It may have already been completed.')
+      }
+
+      const completeResponse = await fetch(`${baseUrl}/tasks/${taskId}/complete`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           userId: userId,
+          action: 'COMPLETE',
           formData: {},
           comment: 'Reminder completed from EveryAI'
         })
@@ -328,14 +510,141 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
             </Badge>
           )}
         </h2>
-        {onClose && (
-          <Button variant="ghost" size="icon" onClick={onClose} data-testid="reminders-panel-close">
-            <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <div className="gba:flex gba:items-center gba:gap-1">
+          {/* + Create Reminder button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setShowCreateForm(prev => !prev)
+              setCreateError(null)
+            }}
+            data-testid="reminders-create-button"
+            title={t ? t('reminders-newReminder') : 'New Reminder'}
+            className={showCreateForm ? 'gba:bg-accent' : ''}
+          >
+            <svg
+              className={`gba:h-5 gba:w-5 gba:transition-transform gba:duration-200 ${showCreateForm ? 'gba:rotate-45' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </Button>
-        )}
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} data-testid="reminders-panel-close">
+              <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Inline create form */}
+      {showCreateForm && (
+        <div
+          className="gba:mb-4 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:p-4 gba:space-y-3 gba:animate-in gba:fade-in gba:slide-in-from-top-2 gba:duration-200"
+          data-testid="reminders-create-form"
+        >
+          <div className="gba:text-sm gba:font-semibold gba:mb-1">
+            {t ? t('reminders-newReminder') : 'New Reminder'}
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+              {t ? t('reminders-title') : 'Title'}
+            </label>
+            <input
+              ref={titleInputRef}
+              type="text"
+              className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:placeholder:text-muted-foreground/60 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+              placeholder={t ? t('reminders-titlePlaceholder') : 'What should you be reminded of?'}
+              value={createTitle}
+              onChange={e => setCreateTitle(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleCreateReminder()
+                }
+              }}
+              disabled={isCreating}
+              data-testid="reminders-create-title"
+            />
+          </div>
+
+          {/* Message (optional) */}
+          <div>
+            <label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+              {t ? t('reminders-message') : 'Message (optional)'}
+            </label>
+            <textarea
+              className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:placeholder:text-muted-foreground/60 gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+              placeholder={t ? t('reminders-messagePlaceholder') : 'Additional details...'}
+              rows={2}
+              value={createMessage}
+              onChange={e => setCreateMessage(e.target.value)}
+              disabled={isCreating}
+              data-testid="reminders-create-message"
+            />
+          </div>
+
+          {/* Date & Time */}
+          <div>
+            <label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
+              {t ? t('reminders-dateTime') : 'Date & Time'}
+            </label>
+            <input
+              type="datetime-local"
+              className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+              value={createDateTime}
+              onChange={e => setCreateDateTime(e.target.value)}
+              min={dayjs().format('YYYY-MM-DDTHH:mm')}
+              disabled={isCreating}
+              data-testid="reminders-create-datetime"
+            />
+          </div>
+
+          {/* Error */}
+          {createError && (
+            <div className="gba:text-xs gba:text-destructive" data-testid="reminders-create-error">
+              {createError}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:pt-1">
+            <Button
+              size="sm"
+              onClick={handleCreateReminder}
+              disabled={isCreating}
+              data-testid="reminders-create-submit"
+            >
+              {isCreating
+                ? t
+                  ? t('reminders-creating')
+                  : 'Creating...'
+                : t
+                  ? t('reminders-create')
+                  : 'Create Reminder'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setShowCreateForm(false)
+                setCreateError(null)
+              }}
+              disabled={isCreating}
+              data-testid="reminders-create-cancel"
+            >
+              {t ? t('reminders-cancel') : 'Cancel'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Content Area - Scrollable grid of reminders */}
       <div className="gba:flex-1 gba:overflow-y-auto">
@@ -388,7 +697,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({
               {t ? t('reminders-noUpcoming') : 'No upcoming reminders'}
             </div>
             <div className="gba:text-xs gba:text-muted-foreground">
-              {t ? t('reminders-goToEveryAI') : 'Go to the EveryAI tab and ask to set a reminder'}
+              {t ? t('reminders-goToEveryAI') : 'Create a reminder using the + button above'}
             </div>
           </div>
         ) : (

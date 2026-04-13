@@ -32,6 +32,12 @@ export interface EmployeeSkillLink {
   level?: number | string | null
   validFrom?: string | null
   validTo?: string | null
+  verificationDocumentId?: string | null
+  verificationDocument?: {
+    id?: string | null
+    type?: string | null
+    validTo?: string | null
+  } | null
   skill: SkillRecord
 }
 

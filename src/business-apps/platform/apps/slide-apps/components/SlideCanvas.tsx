@@ -533,9 +533,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           }
         })
 
-        if (closestXSnap) {
-          snappedX = closestXSnap.snapTo
-          guides.push({ type: 'vertical', position: closestXSnap.guideX })
+        const xSnap = closestXSnap as { distance: number; snapTo: number; guideX: number } | null
+        if (xSnap) {
+          snappedX = xSnap.snapTo
+          guides.push({ type: 'vertical', position: xSnap.guideX })
         }
 
         // Check horizontal snap points (Y axis)
@@ -558,9 +559,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           }
         })
 
-        if (closestYSnap) {
-          snappedY = closestYSnap.snapTo
-          guides.push({ type: 'horizontal', position: closestYSnap.guideY })
+        const ySnap = closestYSnap as { distance: number; snapTo: number; guideY: number } | null
+        if (ySnap) {
+          snappedY = ySnap.snapTo
+          guides.push({ type: 'horizontal', position: ySnap.guideY })
         }
 
         return {
@@ -1026,66 +1028,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       <Check className="gba:w-4 gba:h-4" />
                     </button>
                   </div>
-                  {/* Voice feedback panel */}
-                  {inlineEditing.voiceInput?.isListening && (
-                    <div
-                      className="gba:bg-background gba:rounded-xl gba:shadow-xl gba:border gba:border-border"
-                      style={{
-                        position: 'absolute',
-                        top: -120 / scale,
-                        left: '50%',
-                        transform: `translateX(-50%) scale(${1 / scale})`,
-                        transformOrigin: 'bottom center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '12px 16px',
-                        minWidth: 200,
-                        maxWidth: 400,
-                        zIndex: 10000
-                      }}
-                      onClick={e => e.stopPropagation()}
-                      onMouseDown={e => e.stopPropagation()}
-                    >
-                      {/* Recording status with volume bars */}
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:w-full">
-                        <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:bg-destructive/10 gba:rounded-md">
-                          <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse" />
-                          <span className="gba:text-xs gba:font-semibold gba:text-destructive">REC</span>
-                        </div>
-
-                        {/* Volume indicator bars */}
-                        <div className="gba:flex gba:items-end gba:gap-0.5 gba:h-5">
-                          {[0.15, 0.3, 0.5, 0.7, 0.85].map((threshold, i) => {
-                            const volume = inlineEditing.voiceInput?.volume || 0
-                            const isActive = volume > threshold
-                            return (
-                              <div
-                                key={i}
-                                className={`gba:w-1 gba:rounded-sm gba:transition-colors ${isActive ? 'gba:bg-green-500' : 'gba:bg-border'}`}
-                                style={{ height: 6 + i * 3 }}
-                              />
-                            )
-                          })}
-                        </div>
-
-                        <span className="gba:text-[11px] gba:text-muted-foreground gba:ml-auto">Speak now...</span>
-                      </div>
-
-                      {/* Interim transcript */}
-                      {inlineEditing.voiceInput?.interimTranscript && (
-                        <div className="gba:w-full gba:px-2.5 gba:py-2 gba:bg-muted gba:rounded-md gba:text-sm gba:text-foreground gba:italic gba:leading-relaxed gba:max-h-[60px] gba:overflow-hidden">
-                          "{inlineEditing.voiceInput.interimTranscript}"
-                        </div>
-                      )}
-
-                      {/* Hint */}
-                      <div className="gba:text-[11px] gba:text-muted-foreground">
-                        Click mic button or outside to stop
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div
@@ -1106,7 +1048,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                 >
                   <TextWithLinks
                     content={(element as TextElement).content}
-                    links={(element as TextElement).links}
+                    links={(element as TextElement).links ?? []}
                     isPresenting={isPresenting}
                     onLinkClick={onLinkClick}
                   />

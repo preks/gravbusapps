@@ -170,6 +170,12 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   exportFilenamePrefix?: string
   showAllCurrencyOption?: boolean
   defaultCurrency?: string
+  /** Called whenever the user changes list-tab filters — use to persist filter state externally. */
+  onFilterChange?: (filters: Record<string, any>) => void
+  initialSorting?: Array<{ id: string; desc: boolean }>
+  onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  initialVisibleColumns?: string[]
+  onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -415,7 +421,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     enableExport = false,
     exportFilenamePrefix = 'opportunities',
     showAllCurrencyOption = true,
-    defaultCurrency = 'ALL'
+    defaultCurrency = 'ALL',
+    onFilterChange: onFilterChangeProp,
+    initialSorting: initialSortingProp,
+    onSortingChange: onSortingChangeProp,
+    initialVisibleColumns: initialVisibleColumnsProp,
+    onVisibleColumnsChange: onVisibleColumnsChangeProp
   } = props
   const { accessToken } = context
 
@@ -425,7 +436,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // List View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
   const baseVisibleColumns = useMemo(
@@ -443,8 +456,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     []
   )
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
-    initializeVisibleColumns(baseVisibleColumns, extendVisibleColumns)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    () => initialVisibleColumnsProp ?? initializeVisibleColumns(baseVisibleColumns, extendVisibleColumns)
   )
 
   // Board View State
@@ -680,10 +693,30 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChangeProp?.(filters)
+    },
+    [onFilterChangeProp]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChangeProp?.(newColumns)
+    },
+    [onVisibleColumnsChangeProp]
+  )
 
   const handleRowClick = useCallback(
     (opportunity: TOpportunity) => {
@@ -879,10 +912,10 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         )}
         sorting={currentSection === 'list' ? sorting : undefined}
         sortableColumns={listSortableColumns}
-        onSortingChange={currentSection === 'list' ? setSorting : undefined}
+        onSortingChange={currentSection === 'list' ? handleSortingChange : undefined}
         availableColumns={currentSection === 'list' ? availableColumns : undefined}
         visibleColumns={currentSection === 'list' ? visibleColumns : undefined}
-        onVisibleColumnsChange={currentSection === 'list' ? setVisibleColumns : undefined}
+        onVisibleColumnsChange={currentSection === 'list' ? handleVisibleColumnsChange : undefined}
         primaryAction={primaryActionElement}
         secondaryActions={currentSection === 'board' ? boardSecondaryActions : listSecondaryActions}
         toolbarDensity="default"
@@ -903,7 +936,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
               totalCount={totalCount}
               columns={columns.filter(col => visibleColumns.includes(col.id as string))}
               sorting={sorting}
-              onSortingChange={setSorting}
+              onSortingChange={handleSortingChange}
               pagination={pagination}
               onPaginationChange={setPagination}
               actions={rowActions}

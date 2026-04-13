@@ -1,16 +1,24 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface LiveClockProps {
   className?: string
   timeClassName?: string
   dateClassName?: string
+  greetingClassName?: string
+  greeting?: string
 }
 
-export const LiveClock: React.FC<LiveClockProps> = ({ className, timeClassName, dateClassName }) => {
-  const [time, setTime] = useState<string>('')
+export const LiveClock: React.FC<LiveClockProps> = ({
+  className,
+  timeClassName,
+  dateClassName,
+  greetingClassName,
+  greeting
+}) => {
+  const [timeParts, setTimeParts] = useState<{ hhmm: string; period: string }>({ hhmm: '', period: '' })
   const [date, setDate] = useState<string>('')
 
   useEffect(() => {
@@ -19,19 +27,23 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className, timeClassName, 
       const locale = getCurrentActiveUserLocale() || navigator.language || 'en-US'
       const use12h = String(locale).toLowerCase().startsWith('en')
 
-      // Prefer our formatter when available, otherwise fall back to locale-based rendering
-      const formattedTime = String(formatDate(now, 'time.short') || '')
-      const isIsoLike = (v: string) => v.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(v)
+      const raw = now.toLocaleTimeString(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: use12h
+      })
 
-      const humanTime = isIsoLike(formattedTime)
-        ? now.toLocaleTimeString(locale, {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: use12h
-          })
-        : formattedTime
+      if (use12h) {
+        const match = raw.match(/^([\d:]+)\s*(AM|PM|am|pm)$/)
+        if (match) {
+          setTimeParts({ hhmm: match[1], period: match[2] })
+        } else {
+          setTimeParts({ hhmm: raw, period: '' })
+        }
+      } else {
+        setTimeParts({ hhmm: raw, period: '' })
+      }
 
-      // Always render date as long, localized text (Friday, December 05, 2025)
       const humanDate = now.toLocaleDateString(locale, {
         weekday: 'long',
         year: 'numeric',
@@ -39,7 +51,6 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className, timeClassName, 
         day: '2-digit'
       })
 
-      setTime(humanTime)
       setDate(humanDate)
     }
 
@@ -50,15 +61,21 @@ export const LiveClock: React.FC<LiveClockProps> = ({ className, timeClassName, 
 
   return (
     <div className={className}>
-      <div
-        className={`gba:text-5xl gba:font-bold gba:leading-none gba:mb-1 ${timeClassName || ''}`}
-        data-testid="timeclock-time"
-      >
-        {time}
-      </div>
       <div className={`gba:text-sm ${dateClassName || ''}`} data-testid="timeclock-date">
         {date}
       </div>
+      <div
+        className={`gba:text-5xl gba:font-bold gba:leading-none gba:mt-1 ${timeClassName || ''}`}
+        data-testid="timeclock-time"
+      >
+        {timeParts.hhmm}
+        {timeParts.period && <span className="gba:text-lg gba:font-medium gba:ml-1">{timeParts.period}</span>}
+      </div>
+      {greeting && (
+        <div className={`gba:text-sm gba:mt-2 ${greetingClassName || ''}`} data-testid="timeclock-greeting">
+          {greeting}
+        </div>
+      )}
     </div>
   )
 }

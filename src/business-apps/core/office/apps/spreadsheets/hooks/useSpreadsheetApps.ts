@@ -137,15 +137,42 @@ function updateSheetRowsForRowDelete(sheets: SpreadsheetSheet[], sheetId: string
 
 async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
   const PAGE_SIZE = 100
+  const MAX_PAGES = 100
   const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
+  const seenAppIds = new Set<string>()
+  const seenPageSignatures = new Set<string>()
   let page = 1
   let hasMore = true
 
-  while (hasMore) {
+  while (hasMore && page <= MAX_PAGES) {
     const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
-    allApps.push(...pageItems)
-    hasMore = pageItems.length === PAGE_SIZE
+    const pageSignature = pageItems.map(app => app.id).join(',')
+
+    if (pageItems.length > 0 && seenPageSignatures.has(pageSignature)) {
+      console.warn('[useSpreadsheetApps] Detected repeated list page; stopping pagination early', {
+        page,
+        pageSize: pageItems.length
+      })
+      break
+    }
+
+    seenPageSignatures.add(pageSignature)
+
+    const uniquePageItems = pageItems.filter(app => {
+      if (seenAppIds.has(app.id)) return false
+      seenAppIds.add(app.id)
+      return true
+    })
+
+    allApps.push(...uniquePageItems)
+    hasMore = pageItems.length === PAGE_SIZE && uniquePageItems.length > 0
     page++
+  }
+
+  if (hasMore) {
+    console.warn('[useSpreadsheetApps] Stopped list pagination after reaching safety page limit', {
+      maxPages: MAX_PAGES
+    })
   }
 
   return allApps
@@ -171,6 +198,78 @@ async function persistSheetRows(appId: string, sheetId: string, data: Record<str
         error: updateErr instanceof Error ? updateErr.message : String(updateErr)
       })
       await SpreadsheetApiService.addRow(appId, sheetId, stripLocalRowId(row))
+    }
+  }
+}
+
+function remapUniverSnapshotSheetId(
+  snapshot: Record<string, unknown>,
+  sourceSheetId: string,
+  targetSheetId: string
+): Record<string, unknown> {
+  const cloned = structuredClone(snapshot) as Record<string, unknown>
+  const sheets = cloned.sheets as Record<string, unknown> | undefined
+  if (sheets) {
+    const sourceWorksheet = sheets[sourceSheetId]
+    if (sourceWorksheet && sheets[targetSheetId] == null) {
+      const worksheet = sourceWorksheet as Record<string, unknown>
+      delete sheets[sourceSheetId]
+      sheets[targetSheetId] = {
+        ...worksheet,
+        id: targetSheetId
+      }
+    } else if (sheets[targetSheetId] && typeof sheets[targetSheetId] === 'object') {
+      sheets[targetSheetId] = {
+        ...(sheets[targetSheetId] as Record<string, unknown>),
+        id: targetSheetId
+      }
+    }
+  }
+
+  if (Array.isArray(cloned.sheetOrder)) {
+    cloned.sheetOrder = (cloned.sheetOrder as unknown[]).map(sheetId =>
+      sheetId === sourceSheetId ? targetSheetId : sheetId
+    )
+  }
+
+  return cloned
+}
+
+async function copyUniverSnapshotsAfterDuplicate(sourceAppId: string, duplicatedApp: SpreadsheetApp): Promise<void> {
+  const sourceApp = await SpreadsheetApiService.getApp(sourceAppId)
+  if (!sourceApp) return
+
+  const sourceSheets = sourceApp.sheets || []
+  const duplicatedSheets = duplicatedApp.sheets || []
+  const pairCount = Math.min(sourceSheets.length, duplicatedSheets.length)
+
+  for (let i = 0; i < pairCount; i++) {
+    const sourceSheet = sourceSheets[i]
+    const duplicatedSheet = duplicatedSheets[i]
+    if (!sourceSheet?.id || !duplicatedSheet?.id) continue
+
+    try {
+      const sourceSnapshotData = await SpreadsheetApiService.getUniverSnapshot(sourceAppId, sourceSheet.id)
+      if (!sourceSnapshotData.snapshot || typeof sourceSnapshotData.snapshot !== 'object') continue
+
+      const targetSnapshotState = await SpreadsheetApiService.getUniverSnapshot(duplicatedApp.id, duplicatedSheet.id)
+      const expectedVersion = Number(targetSnapshotState.version ?? 0)
+      const remappedSnapshot = remapUniverSnapshotSheetId(
+        sourceSnapshotData.snapshot,
+        sourceSheet.id,
+        duplicatedSheet.id
+      )
+
+      await SpreadsheetApiService.saveUniverSnapshot(duplicatedApp.id, duplicatedSheet.id, {
+        version: expectedVersion,
+        snapshot: remappedSnapshot
+      })
+    } catch (error) {
+      console.warn('[useSpreadsheetApps] duplicate snapshot copy skipped for one sheet', {
+        sourceSheetId: sourceSheet.id,
+        duplicatedSheetId: duplicatedSheet.id,
+        error: error instanceof Error ? error.message : String(error)
+      })
     }
   }
 }
@@ -410,6 +509,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       try {
         const duplicatedApp = await SpreadsheetApiService.duplicateApp(id)
         if (duplicatedApp) {
+          await copyUniverSnapshotsAfterDuplicate(id, duplicatedApp)
           toast.success('App duplicated')
           await loadApps()
         }

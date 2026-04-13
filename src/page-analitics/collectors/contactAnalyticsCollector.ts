@@ -9,6 +9,7 @@ import {
 } from '../types/analytics-context'
 import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { compactRecord, limitArray, normalizeEmail, normalizePhone } from './collectorUtils'
+import { mapCrmNoteRawToAnalyticsActivity } from '@/common/data/customer/types/customerNoteTypes'
 
 const GET_CONTACT_ANALYTICS = `
   query GetContactAnalytics($id: uuid!) {
@@ -176,6 +177,7 @@ const GET_CONTACT_NOTES = `
       id
       noteTitle
       noteText
+      noteType
       createdAt
       createdBy
     }
@@ -403,15 +405,13 @@ function buildContactActivities(params: { activities: any[]; tasks: any[]; notes
   })
 
   const mappedNotes = limitArray(notes, 3).map(note => {
+    const mapped = mapCrmNoteRawToAnalyticsActivity(note)
     return {
-      id: note.id,
-      type: 'note',
-      title: note.noteTitle || 'Note',
-      occurredAt: note.createdAt || undefined,
-      meta: compactRecord({
-        author: note.createdBy,
-        text: note.noteText
-      })
+      id: mapped.id,
+      type: mapped.type,
+      title: mapped.title,
+      occurredAt: mapped.occurredAt,
+      meta: compactRecord(mapped.meta)
     } as AnalyticsActivity
   })
 

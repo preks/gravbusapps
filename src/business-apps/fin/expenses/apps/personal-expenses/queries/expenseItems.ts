@@ -278,7 +278,7 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
-        status: {_in: ["PAID", "CLOSED"]},
+        status: {_eq: "PAID"},
         currencyRef: {_eq: $currencyRef},
         expenseDate: {
           _gte: $startDate,
@@ -322,7 +322,7 @@ export const GET_EXPENSE_ITEM_STATS_OVERVIEW = `
         employeeId: { _eq: $employeeId },
         isDeleted: { _eq: false },
         expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
-        status: { _in: ["PAID", "CLOSED"] },
+        status: { _eq: "PAID" },
         currencyRef: { _eq: $currencyRef },
         expenseDate: { _gte: $currentStart, _lte: $currentEnd }
       }
@@ -333,7 +333,7 @@ export const GET_EXPENSE_ITEM_STATS_OVERVIEW = `
         employeeId: { _eq: $employeeId },
         isDeleted: { _eq: false },
         expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
-        status: { _in: ["PAID", "CLOSED"] },
+        status: { _eq: "PAID" },
         currencyRef: { _eq: $currencyRef },
         expenseDate: { _gte: $previousStart, _lte: $previousEnd }
       }

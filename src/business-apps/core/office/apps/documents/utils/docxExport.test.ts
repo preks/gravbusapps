@@ -35,6 +35,25 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<wp:anchor')
   })
 
+  it('emits picture border line properties when a border is configured', async () => {
+    const html = [
+      '<figure data-node-type="custom-image"',
+      ' data-image-border-visible="true"',
+      ' data-image-border-color="#1F4E79"',
+      ' data-image-border-width-pt="2.25"',
+      ' data-image-border-dash="dash-dot">',
+      '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII=" width="240" height="120" />',
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Border doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<a:ln w="28575">')
+    expect(documentXml).toContain('<a:srgbClr val="1F4E79"/>')
+    expect(documentXml).toContain('<a:prstDash val="dashDot"/>')
+  })
+
   it('exports each wrap mode with the matching WordprocessingML wrapping element', async () => {
     const base64Image =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII='
@@ -42,7 +61,8 @@ describe('docxExport image layout', () => {
       `<figure data-node-type="custom-image" data-image-wrap="tight"><img src="${base64Image}" width="120" height="80" /></figure>`,
       `<figure data-node-type="custom-image" data-image-wrap="through"><img src="${base64Image}" width="120" height="80" /></figure>`,
       `<figure data-node-type="custom-image" data-image-wrap="top-bottom"><img src="${base64Image}" width="120" height="80" /></figure>`,
-      `<figure data-node-type="custom-image" data-image-wrap="square-left"><img src="${base64Image}" width="120" height="80" /></figure>`
+      `<figure data-node-type="custom-image" data-image-wrap="square" data-image-wrap-text-side="right"><img src="${base64Image}" width="120" height="80" /></figure>`,
+      `<figure data-node-type="custom-image" data-image-wrap="square" data-image-wrap-text-side="left" data-image-align="right"><img src="${base64Image}" width="120" height="80" /></figure>`
     ].join('')
 
     const blob = await buildDocxBlob('Wrap doc', html)
@@ -52,6 +72,7 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<wp:wrapThrough wrapText="bothSides">')
     expect(documentXml).toContain('<wp:wrapTopAndBottom/>')
     expect(documentXml).toContain('<wp:wrapSquare wrapText="right"/>')
+    expect(documentXml).toContain('<wp:wrapSquare wrapText="left"/>')
     expect(documentXml).toContain('<wp:wrapPolygon edited="0">')
     expect(documentXml).toContain('<wp:start x="0" y="0"/>')
     expect(documentXml).toContain('<wp:lineTo x="21600" y="21600"/>')

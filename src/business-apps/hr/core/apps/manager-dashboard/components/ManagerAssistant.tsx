@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneRightIcon, XIcon, StarIcon } from '@phosphor-icons/react'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { UserInfo } from '../types/employee.types'
 
 // AI suggestions - keeping existing predefined prompts
@@ -85,7 +86,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       const form = new FormData()
       form.append('session_id', sessionId) // use existing session or empty for new
       form.append('user_input_text', userMessage)
-      form.append('llm_model', 'gpt-4.1') // Use the correct model version
+      form.append('model_kind', 'default')
       form.append('use_web_search_tool', 'false')
 
       // Add current page context - use correct structure for manager dashboard
@@ -96,7 +97,8 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       }
       form.append('current_page_context', JSON.stringify(pageContext))
 
-      const response = await fetch('/flowbot/api/agent/v2/chat', {
+      const flowbotBaseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${flowbotBaseUrl}/flowbot/api/agent/v2/chat`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

@@ -1,4 +1,1 @@
-export interface ColumnConfig {
-  id: string
-  label: string
-}
+export type { ColumnConfig } from '../../../../common/types/columnTypes'

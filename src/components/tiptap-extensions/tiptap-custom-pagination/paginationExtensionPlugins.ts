@@ -4,6 +4,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { createDeferredRepaginationScheduler } from './deferredRepaginationScheduler'
 import { createPaginationChromeDecorationSet, renderPaginationChromeWidget } from './paginationDecorationController'
+import { buildSquareWrapDecorations } from './squareWrapDecorationController'
 import {
   applyMeasuredPageHeightsToView,
   createSafePaginationSelection,
@@ -25,6 +26,11 @@ import { runPaginationPluginViewUpdate } from './paginationPluginViewController'
 import { schedulePaginationOverlayReopen } from './overlayReopen'
 import { createWindowedPaginationRenderer } from './windowedRenderer'
 import { getMountedEditorView } from './paginationExtensionLifecycle'
+import {
+  incrementPaginationInstrumentationCounter,
+  recordPaginationInstrumentationEvent
+} from './paginationInstrumentation'
+import { classifyPaginationTransaction } from './paginationTransactionClassifier'
 import type { PagesOptions, PagesStorage } from './types'
 import { getPageBodyMeasurementBands, getExistingPageCount, logPaginationDebug, syncStorageFromOptions } from './utils'
 import {
@@ -36,8 +42,15 @@ import { shouldScheduleDeferredRepaginationOnUpdate } from './paginationStabiliz
 import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
 import { hasPendingTableMeasurements } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationDetection'
 import { createTablePaginationController } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationController'
+import { TABLE_METADATA_OWNED_DOC_CHANGE_META } from '@/components/tiptap-extensions/tiptap-custom-tables/tableMetadataOwnedDocChange'
 
-type DocChangeOrigin = 'external' | 'pagination-owned' | 'hydration-owned' | 'collaboration-remote' | null
+type DocChangeOrigin =
+  | 'external'
+  | 'pagination-owned'
+  | 'hydration-owned'
+  | 'table-metadata-owned'
+  | 'collaboration-remote'
+  | null
 
 export function createPaginationExtensionPlugins(options: {
   editor: Editor
@@ -46,6 +59,7 @@ export function createPaginationExtensionPlugins(options: {
   defaultOptions: PagesOptions
   paginationKey: PluginKey<DecorationSet>
   hardBreakKey: PluginKey<DecorationSet>
+  squareWrapKey: PluginKey<DecorationSet>
   refreshMeta: string
   refreshAndStabilizeMeta: string
   paginationOwnedDocChangeMeta: string
@@ -65,11 +79,17 @@ export function createPaginationExtensionPlugins(options: {
   let lastKnownDoc: PMNode | null = null
   let lastKnownSelectionHead: number | null = null
   let lastDocChangeOrigin: DocChangeOrigin = null
+  let lastDocChangeAnalysis: ReturnType<typeof classifyPaginationTransaction> | null = null
   let previousAddPagesMeasurement: AddPagesMeasurementSnapshot | null = null
   let runawayGrowthCapPageCount: number | null = null
   let pendingRefreshDrivenStabilization = false
   let deferredRepaginationPassId = 0
   let headerPageCountPassId = 0
+  let contentChangeDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  let lastBuiltDecorationPageCount: number | null = null
+  let pendingChromePresentationRefresh = false
+  const COLLABORATION_REPAGINATION_DELAY_MS = 800
+  const LOCAL_REPAGINATION_DELAY_MS = 500
   let suppressPaginationOwnedDeferredScheduling = false
   const tablePaginationController = createTablePaginationController(options.paginationOwnedDocChangeMeta)
   const getDeferredStabilizationAttemptCount = (view: EditorView) =>
@@ -78,16 +98,42 @@ export function createPaginationExtensionPlugins(options: {
   const getEditorRuntimeOptions = (targetEditor: Editor) =>
     getRuntimeOptions(targetEditor, extensionOptions, options.defaultOptions)
 
-  const requestRefresh = (view: EditorView, source = 'unknown') => {
+  const requestRefresh = (view: EditorView, source = 'unknown', shouldStabilize = false) => {
+    incrementPaginationInstrumentationCounter('pagination-refresh-request-total')
+    incrementPaginationInstrumentationCounter(`pagination-refresh-request-source:${source}`)
+    if (shouldStabilize) {
+      incrementPaginationInstrumentationCounter('pagination-refresh-request-stabilized')
+    }
+    recordPaginationInstrumentationEvent('pagination-refresh-request', {
+      source,
+      existingPageCount: getExistingPageCount(view),
+      storedPageCount: storage.pageCount,
+      stabilizationAttemptsRemaining: deferredRepaginationScheduler.getStabilizationAttemptsRemaining(),
+      shouldStabilize
+    })
     logPaginationDebug('request-refresh', {
       source,
       existingPageCount: getExistingPageCount(view),
       storedPageCount: storage.pageCount,
-      stabilizationAttemptsRemaining: deferredRepaginationScheduler.getStabilizationAttemptsRemaining()
+      stabilizationAttemptsRemaining: deferredRepaginationScheduler.getStabilizationAttemptsRemaining(),
+      shouldStabilize
     })
     deferredRepaginationScheduler.clear()
     const transaction = view.state.tr.setMeta(options.refreshMeta, true)
+    if (shouldStabilize) {
+      transaction.setMeta(options.refreshAndStabilizeMeta, true)
+    }
     view.dispatch(transaction)
+  }
+
+  const queuePluginViewRefresh = (view: EditorView, source: string) => {
+    queueMicrotask(() => {
+      if ((view as EditorView & { isDestroyed?: boolean }).isDestroyed) {
+        return
+      }
+
+      requestRefresh(view, source)
+    })
   }
 
   const runDeferredRepaginationEvaluation = (view: EditorView) => {
@@ -249,8 +295,10 @@ export function createPaginationExtensionPlugins(options: {
     })
   }
 
-  const buildPageDecorations = (): DecorationSet =>
-    createPaginationChromeDecorationSet({
+  const buildPageDecorations = (): DecorationSet => {
+    lastBuiltDecorationPageCount = clampPageCount(storage.pageCount)
+    pendingChromePresentationRefresh = false
+    return createPaginationChromeDecorationSet({
       doc: editor.state.doc,
       renderWidget: view => {
         const runtimeOptions = getEditorRuntimeOptions(editor)
@@ -274,6 +322,7 @@ export function createPaginationExtensionPlugins(options: {
         })
       }
     })
+  }
 
   return [
     new Plugin({
@@ -282,8 +331,33 @@ export function createPaginationExtensionPlugins(options: {
         init: () => buildPageDecorations(),
         apply: (tr, oldValue) => {
           if (tr.docChanged) {
+            const tableMetadataOwnedDocChange = tr.getMeta(TABLE_METADATA_OWNED_DOC_CHANGE_META) === true
+            const classifiedDocChange = classifyPaginationTransaction({
+              transaction: tr,
+              previousDoc: tr.before ?? null,
+              nextDoc: tr.doc ?? null
+            })
+            lastDocChangeAnalysis = tableMetadataOwnedDocChange
+              ? {
+                  ...classifiedDocChange,
+                  isLayoutNeutral: true,
+                  shouldScheduleSettledRefresh: false,
+                  touchesTable: false,
+                  touchesTableAdjacentContent: false,
+                  touchesTableRegion: false
+                }
+              : classifiedDocChange
+            incrementPaginationInstrumentationCounter(`pagination-transaction-kind:${lastDocChangeAnalysis.kind}`)
+            if (lastDocChangeAnalysis.touchesTableRegion) {
+              incrementPaginationInstrumentationCounter('pagination-transaction-table-region')
+            }
+            if (lastDocChangeAnalysis.isLayoutNeutral) {
+              incrementPaginationInstrumentationCounter('pagination-transaction-layout-neutral')
+            }
             if (tr.getMeta(options.paginationOwnedDocChangeMeta) === true) {
               lastDocChangeOrigin = 'pagination-owned'
+            } else if (tableMetadataOwnedDocChange) {
+              lastDocChangeOrigin = 'table-metadata-owned'
             } else if (consumePaginationHydrationDocChange(editor)) {
               lastDocChangeOrigin = 'hydration-owned'
             } else if (isYjsInboundSyncTransaction(tr)) {
@@ -293,12 +367,18 @@ export function createPaginationExtensionPlugins(options: {
             }
           } else if (tr.getMeta(options.refreshMeta)) {
             lastDocChangeOrigin = null
+            lastDocChangeAnalysis = null
             if (tr.getMeta(options.refreshAndStabilizeMeta) === true) {
               pendingRefreshDrivenStabilization = true
             }
           }
 
           if (tr.getMeta(options.refreshMeta)) {
+            if (lastBuiltDecorationPageCount === clampPageCount(storage.pageCount)) {
+              pendingChromePresentationRefresh = true
+              return oldValue
+            }
+
             return buildPageDecorations()
           }
 
@@ -382,6 +462,40 @@ export function createPaginationExtensionPlugins(options: {
       },
       view: () => ({
         update: updatedView => {
+          if (lastDocChangeOrigin === 'collaboration-remote' || lastDocChangeOrigin === 'external') {
+            const docChangeAnalysis = lastDocChangeAnalysis
+            const shouldStabilizeOnSettle = lastDocChangeOrigin === 'collaboration-remote'
+            const shouldScheduleSettledRefresh =
+              lastDocChangeOrigin === 'collaboration-remote' ||
+              (docChangeAnalysis?.shouldScheduleSettledRefresh ?? true)
+            const delayMs =
+              lastDocChangeOrigin === 'collaboration-remote'
+                ? COLLABORATION_REPAGINATION_DELAY_MS
+                : LOCAL_REPAGINATION_DELAY_MS
+            previousAddPagesMeasurement = null
+            runawayGrowthCapPageCount = null
+            pendingRefreshDrivenStabilization = false
+            tablePaginationController.reset()
+            clearPaginationOwnedGrowthSuppression(editor)
+            lastKnownDoc = updatedView.state.doc
+            lastKnownSelectionHead = updatedView.state.selection.head
+            lastDocChangeOrigin = null
+            lastDocChangeAnalysis = null
+            if (contentChangeDebounceTimer !== null) {
+              clearTimeout(contentChangeDebounceTimer)
+            }
+            if (shouldScheduleSettledRefresh) {
+              contentChangeDebounceTimer = setTimeout(() => {
+                contentChangeDebounceTimer = null
+                const mounted = getMountedEditorView(editor)
+                if (mounted && !(mounted as EditorView & { isDestroyed?: boolean }).isDestroyed) {
+                  requestRefresh(mounted, 'content-change-settle', shouldStabilizeOnSettle)
+                }
+              }, delayMs)
+            }
+            return
+          }
+
           const runtimeOptions = getEditorRuntimeOptions(editor)
           syncStorageFromOptions(storage, runtimeOptions)
           getPaginationOverlayManager({
@@ -389,6 +503,7 @@ export function createPaginationExtensionPlugins(options: {
             getRuntimeOptions: () => getEditorRuntimeOptions(editor),
             getStorage: () => storage
           }).recoverStaleOverlayState(updatedView.dom)
+
           windowedRenderer.syncRootPresentation({
             editorDom: updatedView.dom,
             options: runtimeOptions,
@@ -397,6 +512,14 @@ export function createPaginationExtensionPlugins(options: {
           const measured = applyMeasuredPageHeightsToView(updatedView, storage, runtimeOptions)
           measuredHeaderHeights = measured.headerHeights
           measuredFooterHeights = measured.footerHeights
+          if (pendingChromePresentationRefresh) {
+            pendingChromePresentationRefresh = false
+            windowedRenderer.refreshPresentation({
+              editorDom: updatedView.dom,
+              options: runtimeOptions,
+              storage
+            })
+          }
           const nextPluginViewState = runPaginationPluginViewUpdate({
             view: updatedView,
             storage,
@@ -407,6 +530,7 @@ export function createPaginationExtensionPlugins(options: {
               runawayGrowthCapPageCount,
               pendingRefreshDrivenStabilization,
               lastDocChangeOrigin,
+              lastDocChangeAnalysis,
               suppressPaginationOwnedDeferredScheduling
             },
             documentHasTables,
@@ -444,7 +568,7 @@ export function createPaginationExtensionPlugins(options: {
               storage.pageCount = pageCount
             },
             onRequestRefresh: source => {
-              requestRefresh(updatedView, source)
+              queuePluginViewRefresh(updatedView, source)
             },
             onScheduleDeferredRepagination: minimumAttempts => {
               deferredRepaginationScheduler.schedule(updatedView, minimumAttempts)
@@ -468,8 +592,13 @@ export function createPaginationExtensionPlugins(options: {
           previousAddPagesMeasurement = nextPluginViewState.previousAddPagesMeasurement
           runawayGrowthCapPageCount = nextPluginViewState.runawayGrowthCapPageCount
           pendingRefreshDrivenStabilization = nextPluginViewState.pendingRefreshDrivenStabilization
+          lastDocChangeAnalysis = nextPluginViewState.lastDocChangeAnalysis
         },
         destroy: () => {
+          if (contentChangeDebounceTimer !== null) {
+            clearTimeout(contentChangeDebounceTimer)
+            contentChangeDebounceTimer = null
+          }
           deferredRepaginationScheduler.destroy()
           windowedRenderer.destroy()
         }
@@ -481,7 +610,7 @@ export function createPaginationExtensionPlugins(options: {
         init: (_, state) => buildHardBreakDecorations(state.doc),
         apply(tr, oldValue) {
           if (shouldRebuildHardBreakDecorations(tr)) {
-            return buildHardBreakDecorations(tr.doc)
+            return oldValue.map(tr.mapping, tr.doc)
           }
 
           return oldValue
@@ -490,6 +619,27 @@ export function createPaginationExtensionPlugins(options: {
       props: {
         decorations(state) {
           return options.hardBreakKey.getState(state) ?? DecorationSet.empty
+        }
+      }
+    }),
+    new Plugin({
+      key: options.squareWrapKey,
+      state: {
+        init: (_, state) => buildSquareWrapDecorations(state.doc),
+        apply(tr, oldValue) {
+          if (tr.getMeta(options.refreshMeta)) {
+            return buildSquareWrapDecorations(tr.doc)
+          }
+          if (tr.docChanged) {
+            return oldValue.map(tr.mapping, tr.doc)
+          }
+
+          return oldValue
+        }
+      },
+      props: {
+        decorations(state) {
+          return options.squareWrapKey.getState(state) ?? DecorationSet.empty
         }
       }
     })

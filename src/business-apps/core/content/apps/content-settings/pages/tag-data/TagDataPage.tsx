@@ -1,86 +1,78 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TagTable } from './components/TagTable'
+import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
-  useCatalogEntries,
-  useCreateCatalogEntry,
-  useUpdateCatalogEntry,
-  useDeleteCatalogEntry,
-  type CatalogEntry
-} from '@/common/data/catalog'
+  buildInsertContentTagMutation,
+  buildUpdateContentTagMutation,
+  buildDeleteContentTagMutation
+} from '@/common/data/content/queries/contentQueries'
+import type { ContentTag } from '@/common/data/content/types/contentTypes'
 
 export interface TagDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onBack?: () => void
 }
 
-const CATALOG_IDENTIFIER = 'ContentTag'
-const CATALOG_VERSION = 'v1'
-
 const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const [tags, setTags] = useState<CatalogEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken })
-  const { createCatalogEntry } = useCreateCatalogEntry({ accessToken: context.accessToken })
-  const { updateCatalogEntry } = useUpdateCatalogEntry({ accessToken: context.accessToken })
-  const { deleteCatalogEntry } = useDeleteCatalogEntry({ accessToken: context.accessToken })
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const { options: tags, isLoading, error: fetchError, refetch } = useContentTagOptions(context.accessToken)
 
-  const loadTags = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
-        limit: 100,
-        offset: 0
-      })
-      setTags(result.entries)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tags')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [fetchCatalogEntriesByIdentifier])
+  const error = mutationError || (fetchError ? fetchError.message : null)
 
-  useEffect(() => {
-    loadTags()
-  }, [loadTags])
-
-  const handleCreate = async (data: any) => {
-    await createCatalogEntry({
-      catalogIdentifier: CATALOG_IDENTIFIER,
-      catalogVersion: CATALOG_VERSION,
-      entry: {
-        code: data.code,
-        value: data.value,
-        displayOrder: data.displayOrder,
-        additionalValue1: data.color, // Color hex
-        translations: []
+  const handleCreate = useCallback(
+    async (data: { name: string }) => {
+      setMutationError(null)
+      try {
+        await graphqlClient.request<{ InsertContentTagOne: ContentTag }>(buildInsertContentTagMutation(), {
+          name: data.name
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to create tag'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadTags()
-  }
+    },
+    [graphqlClient, refetch]
+  )
 
-  const handleUpdate = async (id: string, data: any) => {
-    await updateCatalogEntry({
-      entryId: id,
-      entry: {
-        code: data.code,
-        value: data.value,
-        displayOrder: data.displayOrder,
-        additionalValue1: data.color,
-        translations: []
+  const handleUpdate = useCallback(
+    async (id: string, data: { name: string }) => {
+      setMutationError(null)
+      try {
+        await graphqlClient.request<{ UpdateContentTagByPk: ContentTag }>(buildUpdateContentTagMutation(), {
+          id,
+          name: data.name
+        })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to update tag'
+        setMutationError(message)
+        throw err
       }
-    })
-    await loadTags()
-  }
+    },
+    [graphqlClient, refetch]
+  )
 
-  const handleDelete = async (id: string) => {
-    await deleteCatalogEntry({ entryId: id })
-    await loadTags()
-  }
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setMutationError(null)
+      try {
+        await graphqlClient.request(buildDeleteContentTagMutation(), { id })
+        await refetch()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete tag'
+        setMutationError(message)
+        throw err
+      }
+    },
+    [graphqlClient, refetch]
+  )
 
   if (isLoading && tags.length === 0) {
     return (
@@ -106,7 +98,7 @@ const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...
           onCreate={handleCreate}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          onRetry={loadTags}
+          onRetry={refetch}
           prefixDataTestId={`${prefixDataTestId}-table`}
         />
       </div>

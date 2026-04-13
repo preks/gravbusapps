@@ -16,3 +16,20 @@ filter-expense-items-description = Apply filters to narrow down the expense item
 
 # Expense Requests Tab
 personal-expenses-update-request-action = Update Request
+
+# Expense dashboard — quick action card buttons
+dashboard-quick-action-plan-button = Plan a new Business Trip
+dashboard-quick-action-expense-item-button = New Expense
+dashboard-quick-action-request-button = New Request
+
+# Expense dashboard — first widget trend (vs previous period)
+dashboard-stat-trend-increase-vs-last-year = increase from last year
+dashboard-stat-trend-decrease-vs-last-year = decrease from last year
+dashboard-stat-trend-increase-vs-last-quarter = increase from last quarter
+dashboard-stat-trend-decrease-vs-last-quarter = decrease from last quarter
+dashboard-stat-trend-increase-vs-last-month = increase from last month
+dashboard-stat-trend-decrease-vs-last-month = decrease from last month
+
+# Expense Items Tab
+expense-items-date-label = Date
+delete-selection-discard-error-draft = You can only discard items with status "Draft" or "Assigned".

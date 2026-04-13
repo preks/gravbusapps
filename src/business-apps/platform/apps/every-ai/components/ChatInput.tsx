@@ -180,11 +180,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     async (query: string): Promise<EntityReference[]> => {
       if (!accessToken) return []
       DocumentApiService.setAccessToken(accessToken)
-      const docs = await DocumentApiService.listDocuments({
+      const response = await DocumentApiService.listDocuments({
         search: query || undefined,
         limit: 5,
         includeShared: true
       })
+      const docs = response.items ?? []
       const lowerQuery = query.toLowerCase()
       return docs
         .filter(doc => !query || (doc.title || '').toLowerCase().includes(lowerQuery))

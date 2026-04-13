@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type {
   EntityDataSource,
   EntityDataResult,
@@ -74,7 +74,7 @@ export interface UseEntityDataSourceResult {
  * Get the flow engine API URL
  */
 function getApiUrl(): string {
-  return env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+  return CUSTOM_FLOW_ENGINE_API_URL
 }
 
 /**
@@ -190,7 +190,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
 
     try {
       const apiUrl = getApiUrl()
-      const url = `${apiUrl}/api/entities?includeFields=true`
+      const url = `${apiUrl}/entities?includeFields=true`
 
       const response = await fetch(url, {
         method: 'GET',
@@ -334,7 +334,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
         }
 
         const queryString = params.toString()
-        const url = `${apiUrl}/api/datasource/${dataSource.entityType}${queryString ? `?${queryString}` : ''}`
+        const url = `${apiUrl}/datasource/${dataSource.entityType}${queryString ? `?${queryString}` : ''}`
 
         const response = await fetch(url, {
           method: 'GET',

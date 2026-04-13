@@ -24,8 +24,6 @@ export interface AbsenceEntitlementObjectSettings {
   entitlement_type: string
   full_time_amount: string
   full_time_frequency: string
-  advance_generation_amount: string
-  advance_generation_time_unit: string
 }
 
 export interface AbsenceEntitlementObjectValue extends JSONObject {
@@ -52,9 +50,7 @@ export const defaultAbsenceEntitlementObjectSettings: AbsenceEntitlementObjectSe
   year_start_date: '01.01',
   entitlement_type: 'YEARLY',
   full_time_amount: '40',
-  full_time_frequency: 'WEEK',
-  advance_generation_amount: '1',
-  advance_generation_time_unit: 'MONTHS'
+  full_time_frequency: 'WEEK'
 }
 
 export const defaultAbsenceEntitlementDetailSettings: AbsenceEntitlementDetailSettings = {
@@ -117,8 +113,6 @@ export const getAbsenceEntitlementEditorState = (
     entitlement_type,
     full_time_amount,
     full_time_frequency,
-    advance_generation_amount,
-    advance_generation_time_unit,
     ...extraObjectValue
   } = objectValue
 
@@ -186,14 +180,6 @@ export const getAbsenceEntitlementEditorState = (
         full_time_frequency: toStringValue(
           full_time_frequency,
           defaultAbsenceEntitlementObjectSettings.full_time_frequency
-        ),
-        advance_generation_amount: toStringValue(
-          advance_generation_amount,
-          defaultAbsenceEntitlementObjectSettings.advance_generation_amount
-        ),
-        advance_generation_time_unit: toStringValue(
-          advance_generation_time_unit,
-          defaultAbsenceEntitlementObjectSettings.advance_generation_time_unit
         )
       },
       detailEntries: [],
@@ -213,14 +199,6 @@ export const getAbsenceEntitlementEditorState = (
       full_time_frequency: toStringValue(
         full_time_frequency,
         defaultAbsenceEntitlementObjectSettings.full_time_frequency
-      ),
-      advance_generation_amount: toStringValue(
-        advance_generation_amount,
-        defaultAbsenceEntitlementObjectSettings.advance_generation_amount
-      ),
-      advance_generation_time_unit: toStringValue(
-        advance_generation_time_unit,
-        defaultAbsenceEntitlementObjectSettings.advance_generation_time_unit
       )
     },
     detailEntries,
@@ -242,8 +220,6 @@ export const buildAbsenceEntitlementObjectValue = (
   entitlement_type: settings.entitlement_type.trim(),
   full_time_amount: toNumberValue(settings.full_time_amount),
   full_time_frequency: settings.full_time_frequency.trim(),
-  advance_generation_amount: toNumberValue(settings.advance_generation_amount),
-  advance_generation_time_unit: settings.advance_generation_time_unit.trim(),
   details: detailEntries.map(detailEntry => ({
     ...detailEntry.extraValue,
     carryover: detailEntry.settings.carryover,

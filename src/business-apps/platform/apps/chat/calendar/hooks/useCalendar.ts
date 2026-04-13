@@ -8,7 +8,7 @@ import 'dayjs/locale/ro'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { ChatClient } from '@/common/network/chat/ChatClient'
 import type {
-  CalendarView,
+  CalendarTimeScope,
   CalendarEvent,
   Meeting,
   DateRange,
@@ -18,20 +18,23 @@ import type {
   InvitationStatus,
   MeetingParticipant
 } from '../types'
-import { getWeekRange, getMonthRange, getDayRange } from '../types'
+import { getDateRangeForTimeScope } from '../types'
 
 dayjs.extend(localizedFormat)
 
 interface UseCalendarOptions {
   accessToken: string
+  timeScope: CalendarTimeScope
   /** External calendar events to merge with internal events */
   externalEvents?: CalendarEvent[]
+  selectedCalendarIds?: string[]
+  includePersonal?: boolean
 }
 
 interface UseCalendarReturn {
   // State
   currentDate: Date
-  view: CalendarView
+  timeScope: CalendarTimeScope
   events: CalendarEvent[]
   pendingInvitations: Meeting[]
   selectedEvent: CalendarEvent | null
@@ -43,7 +46,6 @@ interface UseCalendarReturn {
 
   // Navigation
   setCurrentDate: (date: Date) => void
-  setView: (view: CalendarView) => void
   goToToday: () => void
   goToPrevious: () => void
   goToNext: () => void
@@ -60,16 +62,44 @@ interface UseCalendarReturn {
   // Refresh
   refresh: () => Promise<void>
   refreshInvitations: () => Promise<void>
+  applyCalendarColorLocally: (args: { calendarId?: string; color: string; isPersonal?: boolean }) => void
 
   // Computed
   dateRange: DateRange
   viewTitle: string
 }
 
-export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOptions): UseCalendarReturn => {
+type CalendarEventResponse = Omit<CalendarEvent, 'start' | 'end' | 'recurrenceEndDate'> & {
+  start: string | Date
+  end: string | Date
+  recurrenceEndDate?: string | Date
+}
+
+const parseOptionalDate = (value?: string | Date): Date | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  const parsedDate = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate
+}
+
+const normalizeCalendarEvent = (event: CalendarEventResponse): CalendarEvent => ({
+  ...event,
+  start: event.start instanceof Date ? event.start : new Date(event.start),
+  end: event.end instanceof Date ? event.end : new Date(event.end),
+  recurrenceEndDate: parseOptionalDate(event.recurrenceEndDate)
+})
+
+export const useCalendar = ({
+  accessToken,
+  timeScope,
+  externalEvents = [],
+  selectedCalendarIds = [],
+  includePersonal = true
+}: UseCalendarOptions): UseCalendarReturn => {
   const { locale } = useLocale()
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
-  const [view, setView] = useState<CalendarView>('day')
   const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<Meeting[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
@@ -78,70 +108,55 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
 
   const apiClient = useChatClient(accessToken)
 
-  // Calculate date range based on view
-  const dateRange = useMemo((): DateRange => {
-    switch (view) {
-      case 'day':
-        return getDayRange(currentDate)
-      case 'week':
-        return getWeekRange(currentDate)
-      case 'month':
-        return getMonthRange(currentDate)
-      default:
-        return getWeekRange(currentDate)
-    }
-  }, [currentDate, view])
+  const dateRange = useMemo((): DateRange => getDateRangeForTimeScope(currentDate, timeScope), [currentDate, timeScope])
 
-  // Generate view title
   const viewTitle = useMemo((): string => {
     const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
 
-    switch (view) {
+    switch (timeScope) {
       case 'day': {
-        // German and Romanian use day before month with leading zero (e.g., "Freitag, 09. Januar 2026")
         const dayFormat = baseLocale === 'de' || baseLocale === 'ro' ? 'dddd, DD. MMMM YYYY' : 'dddd, MMMM D, YYYY'
         return dayjs(currentDate).locale(baseLocale).format(dayFormat)
       }
+      case 'threeDay':
+      case 'workWeek':
       case 'week': {
-        const weekStart = dayjs(dateRange.start).locale(baseLocale)
-        const weekEnd = dayjs(dateRange.end).locale(baseLocale)
+        const rangeStart = dayjs(dateRange.start).locale(baseLocale)
+        const rangeEnd = dayjs(dateRange.end).locale(baseLocale)
 
-        // German and Romanian use day before month with leading zero
         if (baseLocale === 'de' || baseLocale === 'ro') {
-          if (weekStart.month() === weekEnd.month()) {
-            return `${weekStart.format('DD.')} - ${weekEnd.format('DD. MMMM YYYY')}`
+          if (rangeStart.month() === rangeEnd.month()) {
+            return `${rangeStart.format('DD.')} - ${rangeEnd.format('DD. MMMM YYYY')}`
           }
-          return `${weekStart.format('DD. MMM')} - ${weekEnd.format('DD. MMM YYYY')}`
+          return `${rangeStart.format('DD. MMM')} - ${rangeEnd.format('DD. MMM YYYY')}`
         }
 
-        // English format
-        if (weekStart.month() === weekEnd.month()) {
-          return `${weekStart.format('MMMM D')} - ${weekEnd.format('D, YYYY')}`
+        if (rangeStart.month() === rangeEnd.month()) {
+          return `${rangeStart.format('MMMM D')} - ${rangeEnd.format('D, YYYY')}`
         }
-        return `${weekStart.format('MMM D')} - ${weekEnd.format('MMM D, YYYY')}`
+        return `${rangeStart.format('MMM D')} - ${rangeEnd.format('MMM D, YYYY')}`
       }
       case 'month':
         return dayjs(currentDate).locale(baseLocale).format('MMMM YYYY')
       default:
         return dayjs(currentDate).locale(baseLocale).format('MMMM YYYY')
     }
-  }, [currentDate, view, dateRange, locale])
+  }, [currentDate, timeScope, dateRange, locale])
 
-  // Load internal events for current date range (stable callback for manual refresh)
   const loadEvents = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await apiClient.getCalendarEvents<{ events: CalendarEvent[] }>(
+      const response = await apiClient.getCalendarEventsFiltered<{ events: CalendarEventResponse[] }>(
         dateRange.start.toISOString(),
-        dateRange.end.toISOString()
+        dateRange.end.toISOString(),
+        {
+          calendarIds: selectedCalendarIds,
+          includePersonal
+        }
       )
-      const loadedEvents = (response.events || []).map(evt => ({
-        ...evt,
-        start: new Date(evt.start),
-        end: new Date(evt.end)
-      }))
+      const loadedEvents = (response.events || []).map(normalizeCalendarEvent)
 
       setInternalEvents(
         loadedEvents.map(evt => ({
@@ -155,9 +170,8 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     } finally {
       setIsLoading(false)
     }
-  }, [apiClient, dateRange])
+  }, [apiClient, dateRange, selectedCalendarIds, includePersonal])
 
-  // Load events only when date range actually changes (stable deps to avoid request storm)
   const rangeStartMs = dateRange.start.getTime()
   const rangeEndMs = dateRange.end.getTime()
   useEffect(() => {
@@ -168,14 +182,13 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     const start = new Date(rangeStartMs)
     const end = new Date(rangeEndMs)
     apiClient
-      .getCalendarEvents<{ events: CalendarEvent[] }>(start.toISOString(), end.toISOString())
+      .getCalendarEventsFiltered<{ events: CalendarEventResponse[] }>(start.toISOString(), end.toISOString(), {
+        calendarIds: selectedCalendarIds,
+        includePersonal
+      })
       .then(response => {
         if (cancelled) return
-        const loadedEvents = (response.events || []).map(evt => ({
-          ...evt,
-          start: new Date(evt.start),
-          end: new Date(evt.end)
-        }))
+        const loadedEvents = (response.events || []).map(normalizeCalendarEvent)
         setInternalEvents(
           loadedEvents.map(evt => ({
             ...evt,
@@ -196,9 +209,8 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     return () => {
       cancelled = true
     }
-  }, [apiClient, rangeStartMs, rangeEndMs])
+  }, [apiClient, rangeStartMs, rangeEndMs, selectedCalendarIds, includePersonal])
 
-  // Merge internal + external events (does not re-fetch when external events change)
   const events = useMemo(() => {
     const rangeStart = dateRange.start.getTime()
     const rangeEnd = dateRange.end.getTime()
@@ -208,13 +220,23 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
       return evtStart < rangeEnd && evtEnd > rangeStart
     })
 
-    // Filter out cancelled/deleted meetings and sort by start time
-    return [...internalEvents, ...filteredExternal]
+    const seenEventKeys = new Set<string>()
+    const dedupedEvents = [...internalEvents, ...filteredExternal].filter(event => {
+      const eventKey = `${event.source ?? 'internal'}:${event.id}:${event.calendarId ?? event.sourceId ?? ''}`
+
+      if (seenEventKeys.has(eventKey)) {
+        return false
+      }
+
+      seenEventKeys.add(eventKey)
+      return true
+    })
+
+    return dedupedEvents
       .filter(event => event.status !== 'cancelled')
       .sort((a, b) => a.start.getTime() - b.start.getTime())
   }, [internalEvents, externalEvents, dateRange])
 
-  // Load pending invitations
   const loadInvitations = useCallback(async () => {
     try {
       const response = await apiClient.getPendingInvitations<{ meetings: Meeting[] }>()
@@ -224,22 +246,24 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     }
   }, [apiClient])
 
-  // Load invitations on mount
   useEffect(() => {
     loadInvitations()
   }, [loadInvitations])
 
-  // Navigation functions
   const goToToday = useCallback(() => {
     setCurrentDate(new Date())
   }, [])
 
   const goToPrevious = useCallback(() => {
     const newDate = new Date(currentDate)
-    switch (view) {
+    switch (timeScope) {
       case 'day':
         newDate.setDate(currentDate.getDate() - 1)
         break
+      case 'threeDay':
+        newDate.setDate(currentDate.getDate() - 3)
+        break
+      case 'workWeek':
       case 'week':
         newDate.setDate(currentDate.getDate() - 7)
         break
@@ -248,14 +272,18 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
         break
     }
     setCurrentDate(newDate)
-  }, [currentDate, view])
+  }, [currentDate, timeScope])
 
   const goToNext = useCallback(() => {
     const newDate = new Date(currentDate)
-    switch (view) {
+    switch (timeScope) {
       case 'day':
         newDate.setDate(currentDate.getDate() + 1)
         break
+      case 'threeDay':
+        newDate.setDate(currentDate.getDate() + 3)
+        break
+      case 'workWeek':
       case 'week':
         newDate.setDate(currentDate.getDate() + 7)
         break
@@ -264,9 +292,8 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
         break
     }
     setCurrentDate(newDate)
-  }, [currentDate, view])
+  }, [currentDate, timeScope])
 
-  // Meeting operations
   const createMeeting = useCallback(
     async (data: CreateMeetingData): Promise<Meeting> => {
       const response = await apiClient.createMeeting<{ meeting: Meeting }>(data)
@@ -298,10 +325,8 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     async (meetingId: string, response: InvitationResponse): Promise<void> => {
       await apiClient.respondToInvitation<{ participant: MeetingParticipant }>(meetingId, response)
 
-      // Refresh both events and invitations
       await Promise.all([loadEvents(), loadInvitations()])
 
-      // Update selected event if it's the same meeting
       if (selectedEvent?.id === meetingId) {
         setSelectedEvent(prev =>
           prev
@@ -328,40 +353,50 @@ export const useCalendar = ({ accessToken, externalEvents = [] }: UseCalendarOpt
     await loadInvitations()
   }, [loadInvitations])
 
+  const applyCalendarColorLocally = useCallback(
+    ({ calendarId, color, isPersonal = false }: { calendarId?: string; color: string; isPersonal?: boolean }) => {
+      const matchesCalendar = (targetCalendarId?: string) => {
+        if (isPersonal) {
+          return !targetCalendarId
+        }
+
+        return Boolean(calendarId) && targetCalendarId === calendarId
+      }
+
+      setInternalEvents(currentEvents =>
+        currentEvents.map(event => (matchesCalendar(event.calendarId) ? { ...event, color } : event))
+      )
+      setPendingInvitations(currentMeetings =>
+        currentMeetings.map(meeting => (matchesCalendar(meeting.calendarId) ? { ...meeting, color } : meeting))
+      )
+      setSelectedEvent(currentEvent =>
+        currentEvent && matchesCalendar(currentEvent.calendarId) ? { ...currentEvent, color } : currentEvent
+      )
+    },
+    []
+  )
+
   return {
-    // State
     currentDate,
-    view,
+    timeScope,
     events,
     pendingInvitations,
     selectedEvent,
     isLoading,
     error,
-
-    // API client
     apiClient,
-
-    // Navigation
     setCurrentDate,
-    setView,
     goToToday,
     goToPrevious,
     goToNext,
-
-    // Event selection
     selectEvent,
-
-    // Meeting operations
     createMeeting,
     updateMeeting,
     cancelMeeting,
     respondToInvitation,
-
-    // Refresh
     refresh,
     refreshInvitations,
-
-    // Computed
+    applyCalendarColorLocally,
     dateRange,
     viewTitle
   }

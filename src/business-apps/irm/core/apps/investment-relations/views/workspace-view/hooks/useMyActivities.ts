@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   type InvestmentActivity,
@@ -130,6 +131,9 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   const graphqlClient = useGraphQLClient(context.accessToken)
   const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
 
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:my-activity-preferences:v1')
+
   // Fetch activity statistics early to maintain hook order
   const activityStatistics = useInvestmentActivityStatistics(context)
 
@@ -142,17 +146,19 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   // Pagination state
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
-  // Sorting state - default by createdAt descending
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  // Sorting state — initialized from localStorage
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSorting ?? [{ id: 'createdAt', desc: true }]
+  )
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Filter state
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  // Filter state — initialized from localStorage
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
 
-  // Column visibility state - exclude ownerEmployee since these are MY activities
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  // Column visibility state — initialized from localStorage
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumns ?? [])
 
   // Use centralized filter groups hook
   const filterGroups = useFilterGroups(context, 'InvestmentActivity', INVESTMENT_ACTIVITY_DESCRIPTORS, { limit: 100 })
@@ -174,15 +180,15 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     }
   }, [filterGroups])
 
-  // Initialize visible columns (excluding ownerEmployee)
+  // Initialize visible columns from defaults only when nothing is stored
   useEffect(() => {
-    if (visibleColumns.length === 0) {
+    if (visibleColumns.length === 0 && !initialVisibleColumns) {
       const defaultColumns = activityAvailableColumns
         .filter(col => col.id !== 'ownerEmployee.displayName')
         .map(col => col.id)
       setVisibleColumns(defaultColumns)
     }
-  }, [visibleColumns.length])
+  }, [visibleColumns.length, initialVisibleColumns])
 
   // Load activities with full reference data
   const loadActivities = useCallback(async () => {
@@ -296,14 +302,36 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   // Handle search change
   const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 })) // Reset to first page on search
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  // Handle filter change
-  const handleFilterChange = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 })) // Reset to first page on filter change
-  }, [])
+  // Handle filter change — also persist
+  const handleFilterChange = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      saveFilters(filters)
+    },
+    [saveFilters]
+  )
+
+  // Handle sorting change — also persist
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      saveSorting(newSorting)
+    },
+    [saveSorting]
+  )
+
+  // Handle visible columns change — also persist
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      saveVisibleColumns(newColumns)
+    },
+    [saveVisibleColumns]
+  )
 
   // Create columns - hide owner since these are MY activities
   const columns = useMemo(() => createActivityColumns({ showOwnerEmployee: false }) as any, [])
@@ -328,12 +356,12 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     pagination,
     onPaginationChange: setPagination,
     sorting,
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     sortableColumns,
     columns,
     availableColumns,
     visibleColumns,
-    onVisibleColumnsChange: setVisibleColumns,
+    onVisibleColumnsChange: handleVisibleColumnsChange,
     searchTerm,
     onSearchChange: handleSearchChange,
     selectedFilters,

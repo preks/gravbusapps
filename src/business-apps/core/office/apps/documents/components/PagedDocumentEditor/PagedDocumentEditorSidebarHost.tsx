@@ -8,6 +8,7 @@ import { HeaderFooterSettingsSidebar, type HeaderFooterSettingsSidebarProps } fr
 import { TableSettingsSidebar, type SelectedTableSidebarState } from './TableSettingsSidebar'
 import { ImageSettingsSidebar, type SelectedImageSidebarState } from './ImageSettingsSidebar'
 import { DocumentTocSettingsSidebar } from './DocumentTocSettingsSidebar'
+import { SignatureSettingsSidebar, type SelectedSignatureSidebarState } from './SignatureSettingsSidebar'
 import type { RightSidebar } from './hooks/usePagedDocumentInteractionDialogs'
 
 type TranslateFn = (key: string) => string
@@ -49,6 +50,10 @@ export interface PagedDocumentEditorSidebarHostProps {
   onQuickPageNumberPlacement: HeaderFooterSettingsSidebarProps['onQuickPageNumberPlacement']
   onRemovePageNumber: HeaderFooterSettingsSidebarProps['onRemovePageNumber']
   onCloseHeaderFooterSidebar: () => void
+  /** Keeps the settings panel mounted while the inline overlay is briefly torn down (layout toggles, margins). */
+  headerFooterSettingsSessionOpen: boolean
+  resolvedHeaderFooterType: 'header' | 'footer'
+  resolvedHeaderFooterPageNumber: number
   selectedTableSidebar: SelectedTableSidebarState
   tableContextSubtitle?: string
   onCloseTableSidebar: () => void
@@ -56,6 +61,12 @@ export interface PagedDocumentEditorSidebarHostProps {
   imageContextSubtitle?: string
   onCloseImageSidebar: () => void
   onReplaceImage: (imagePos: number | null) => void
+  selectedSignatureSidebar: SelectedSignatureSidebarState
+  signatureContextSubtitle?: string
+  onCloseSignatureSidebar: () => void
+  onReplaceSignature: () => void
+  /** True when this signature is in interactive crop mode (handles on canvas). */
+  signatureCropActive?: boolean
   tocSidebarNodePos: number | null
   onCloseTocSidebar: () => void
   showInlineCommentPopover: boolean
@@ -102,6 +113,9 @@ export function PagedDocumentEditorSidebarHost({
   onQuickPageNumberPlacement,
   onRemovePageNumber,
   onCloseHeaderFooterSidebar,
+  headerFooterSettingsSessionOpen,
+  resolvedHeaderFooterType,
+  resolvedHeaderFooterPageNumber,
   selectedTableSidebar,
   tableContextSubtitle,
   onCloseTableSidebar,
@@ -109,6 +123,11 @@ export function PagedDocumentEditorSidebarHost({
   imageContextSubtitle,
   onCloseImageSidebar,
   onReplaceImage,
+  selectedSignatureSidebar,
+  signatureContextSubtitle,
+  onCloseSignatureSidebar,
+  onReplaceSignature,
+  signatureCropActive = false,
   tocSidebarNodePos,
   onCloseTocSidebar,
   showInlineCommentPopover,
@@ -177,35 +196,36 @@ export function PagedDocumentEditorSidebarHost({
           documentId={documentId}
           documentTitle={title}
           onClose={() => setRightSidebar('closed')}
-          currentUserId={currentUserId || undefined}
           headerHeight={headerHeight}
           data-testid="document-ai-edit-panel"
         />
       )}
 
-      {showHeaderFooterSidebar && editor && pagesEditorState.activeEditor && pagesEditorState.activeEditorType && (
-        <HeaderFooterSettingsSidebar
-          editor={editor}
-          overlayEditor={pagesEditorState.activeEditor}
-          type={pagesEditorState.activeEditorType}
-          pageNumber={pagesEditorState.activePageNumber ?? 1}
-          differentFirstPage={differentFirstPage}
-          differentOddEven={differentOddEven}
-          headerTopMarginPx={headerTopMarginPx}
-          footerBottomMarginPx={footerBottomMarginPx}
-          marginUnit={marginUnit}
-          showDocumentBody={showDocumentBody}
-          onShowDocumentBodyChange={onShowDocumentBodyChange}
-          onPersistPagesFromEditor={onPersistPagesFromEditor}
-          onOpenPageNumbers={onOpenPageNumbers}
-          onQuickPageNumberPlacement={onQuickPageNumberPlacement}
-          onRemovePageNumber={onRemovePageNumber}
-          headerHeight={headerHeight}
-          rightOffset={documentRightPanelOffset}
-          onClose={onCloseHeaderFooterSidebar}
-          data-testid="document-header-footer-settings-sidebar"
-        />
-      )}
+      {showHeaderFooterSidebar &&
+        editor &&
+        (pagesEditorState.activeEditor != null || headerFooterSettingsSessionOpen) && (
+          <HeaderFooterSettingsSidebar
+            editor={editor}
+            overlayEditor={pagesEditorState.activeEditor}
+            type={resolvedHeaderFooterType}
+            pageNumber={resolvedHeaderFooterPageNumber}
+            differentFirstPage={differentFirstPage}
+            differentOddEven={differentOddEven}
+            headerTopMarginPx={headerTopMarginPx}
+            footerBottomMarginPx={footerBottomMarginPx}
+            marginUnit={marginUnit}
+            showDocumentBody={showDocumentBody}
+            onShowDocumentBodyChange={onShowDocumentBodyChange}
+            onPersistPagesFromEditor={onPersistPagesFromEditor}
+            onOpenPageNumbers={onOpenPageNumbers}
+            onQuickPageNumberPlacement={onQuickPageNumberPlacement}
+            onRemovePageNumber={onRemovePageNumber}
+            headerHeight={headerHeight}
+            rightOffset={documentRightPanelOffset}
+            onClose={onCloseHeaderFooterSidebar}
+            data-testid="document-header-footer-settings-sidebar"
+          />
+        )}
 
       {selectedTableSidebar.open &&
         selectedTableSidebar.tablePos != null &&
@@ -231,6 +251,20 @@ export function PagedDocumentEditorSidebarHost({
           onClose={onCloseImageSidebar}
           onReplace={onReplaceImage}
           data-testid="document-image-settings-sidebar"
+        />
+      )}
+
+      {(selectedSignatureSidebar.editor || activeEditor) && (
+        <SignatureSettingsSidebar
+          editor={selectedSignatureSidebar.editor || activeEditor}
+          signature={selectedSignatureSidebar}
+          contextSubtitle={signatureContextSubtitle}
+          signatureCropActive={signatureCropActive}
+          headerHeight={headerHeight}
+          rightOffset={documentRightPanelOffset}
+          onClose={onCloseSignatureSidebar}
+          onReplace={onReplaceSignature}
+          data-testid="document-signature-settings-sidebar"
         />
       )}
 

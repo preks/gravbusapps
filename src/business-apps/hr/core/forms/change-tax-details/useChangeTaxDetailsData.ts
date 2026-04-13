@@ -94,7 +94,10 @@ export function useChangeTaxDetailsData(
           requestAtTaxOffice: Boolean(emp?.additionalProperties?.requestAtTaxOffice ?? false),
           employeeTaxOffice: String(emp?.additionalProperties?.employeeTaxOffice ?? ''),
           individualFreeAmount: String(emp?.additionalProperties?.individualFreeAmount ?? ''),
-          healthInsuranceDocumentTypeId: null,
+          healthInsuranceDocumentTypeId:
+            typeof emp?.healthInsuranceDocument === 'object' && emp?.healthInsuranceDocument?.type
+              ? String(emp.healthInsuranceDocument.type)
+              : null,
           healthInsuranceDocumentValidTo: '',
           uploadNewHealthInsuranceDocument: false
         }

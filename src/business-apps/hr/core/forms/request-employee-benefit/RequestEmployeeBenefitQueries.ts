@@ -16,7 +16,7 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
 `
 
 export const GET_COUNTRY_CURRENCY_QUERY = `query GetCountry($id: String!) {
-  CatalogEntry(where: { id: { _eq: $id } }) {
+  CatalogEntry(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
     id
     objectValue
   }

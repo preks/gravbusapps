@@ -1,7 +1,7 @@
 import { useCallback, useMemo, type MutableRefObject } from 'react'
 import { useEditor, type Editor as TiptapEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
+import { StarterKit } from '@tiptap/starter-kit'
+import { Collaboration } from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { TextAlign } from '@tiptap/extension-text-align'
 import { Underline } from '@tiptap/extension-underline'
@@ -40,6 +40,20 @@ const COLLABORATION_EDITOR_SEED_HTML = '<p></p>'
 
 type TranslateFn = (key: string) => string
 
+export function createDocumentImageExtension(accessToken: string) {
+  return DocumentImage.configure({
+    inline: true,
+    allowBase64: true,
+    getAccessToken: () => accessToken,
+    isProtectedSrc: isDocumentImageProtectedSrc,
+    resolveProtectedSrc: resolveProtectedDocumentImageSrc,
+    minSize: 40,
+    HTMLAttributes: {
+      class: 'editor-image'
+    }
+  })
+}
+
 function createSharedDocumentExtensions(accessToken: string): any[] {
   return [
     TextAlign.configure({
@@ -63,16 +77,7 @@ function createSharedDocumentExtensions(accessToken: string): any[] {
       },
       isAllowedUri: (url, ctx) => !!ctx.defaultValidate(url) && isAllowedHref(url)
     }),
-    DocumentImage.configure({
-      inline: true,
-      getAccessToken: () => accessToken,
-      isProtectedSrc: isDocumentImageProtectedSrc,
-      resolveProtectedSrc: resolveProtectedDocumentImageSrc,
-      minSize: 40,
-      HTMLAttributes: {
-        class: 'editor-image'
-      }
-    }),
+    createDocumentImageExtension(accessToken),
     Signature,
     Table.configure({
       resizable: true,
@@ -116,6 +121,8 @@ export interface UsePagedDocumentEditorInstanceParams {
   documentId?: string
   documentTitle?: string
   initialTitle?: string
+  collaborationBindingSeed?: number
+  onCollaborationFirstRender?: () => void
   editorContent: string
   editorEditable: boolean
   ydoc: import('yjs').Doc
@@ -142,6 +149,8 @@ export function usePagedDocumentEditorInstance({
   documentId,
   documentTitle,
   initialTitle,
+  collaborationBindingSeed = 0,
+  onCollaborationFirstRender,
   editorContent,
   editorEditable,
   ydoc,
@@ -165,12 +174,18 @@ export function usePagedDocumentEditorInstance({
   const isCollaborationMode = Boolean(documentId)
 
   const collaborationExtension = useMemo(
-    () => (documentId ? Collaboration.configure({ document: ydoc }) : null),
-    [documentId, ydoc]
+    () =>
+      documentId
+        ? Collaboration.configure({
+            document: ydoc,
+            onFirstRender: onCollaborationFirstRender
+          })
+        : null,
+    [documentId, collaborationBindingSeed, onCollaborationFirstRender, ydoc]
   )
   const yjsCursorExtension = useMemo(
     () => (documentId ? createYjsCursorExtension(awareness) : null),
-    [documentId, awareness]
+    [documentId, collaborationBindingSeed, awareness]
   )
 
   const headerFooterExtensions = useMemo(
@@ -322,6 +337,7 @@ export function usePagedDocumentEditorInstance({
     isCollaborationMode
       ? [
           documentId,
+          collaborationBindingSeed,
           editorEditable,
           extensions,
           handlePaste,

@@ -15,7 +15,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Zap,
@@ -33,6 +34,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import type { SpreadsheetAutomation, AutomationType, AutomationTrigger } from '../../types/automation'
+import translations from '../../_i18n'
 
 export interface AutomationCardProps {
   automation: SpreadsheetAutomation
@@ -69,13 +71,13 @@ function getAutomationTypeIcon(type: AutomationType) {
 /**
  * Get label for automation type
  */
-function getAutomationTypeLabel(type: AutomationType): string {
+function getAutomationTypeLabel(type: AutomationType, t: (key: string) => string): string {
   const labels: Record<AutomationType, string> = {
-    row_workflow: 'Row Workflow',
-    bulk_collection: 'Form Collection',
-    excel_collection: 'Spreadsheet Collection',
-    sheet_approval: 'Sheet Approval',
-    line_approval: 'Line Approval'
+    row_workflow: t('automation-type-row-workflow'),
+    bulk_collection: t('automation-type-bulk-collection'),
+    excel_collection: t('automation-type-excel-collection'),
+    sheet_approval: t('automation-type-sheet-approval'),
+    line_approval: t('automation-type-line-approval')
   }
   return labels[type] || type
 }
@@ -83,13 +85,13 @@ function getAutomationTypeLabel(type: AutomationType): string {
 /**
  * Get label for trigger type
  */
-function getTriggerLabel(trigger: AutomationTrigger): string {
+function getTriggerLabel(trigger: AutomationTrigger, t: (key: string) => string): string {
   const labels: Record<AutomationTrigger, string> = {
-    manual: 'Manual',
-    onRowAdd: 'On Row Add',
-    onFieldChange: 'On Field Change',
-    scheduled: 'Scheduled',
-    onApprovalRequest: 'On Approval Request'
+    manual: t('automation-trigger-manual'),
+    onRowAdd: t('automation-trigger-on-row-add'),
+    onFieldChange: t('automation-trigger-on-field-change'),
+    scheduled: t('automation-trigger-scheduled'),
+    onApprovalRequest: t('automation-trigger-on-approval-request')
   }
   return labels[trigger] || trigger
 }
@@ -127,6 +129,7 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
   compact = false,
   'data-testid': testId
 }) => {
+  const { t } = useTranslation(translations)
   const Icon = getAutomationTypeIcon(automation.type)
 
   if (compact) {
@@ -142,10 +145,10 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
           <div>
             <span className="gba:font-medium gba:text-foreground">{automation.name}</span>
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-              <span>{getAutomationTypeLabel(automation.type)}</span>
+              <span>{getAutomationTypeLabel(automation.type, t)}</span>
               {!automation.isEnabled && (
                 <Badge variant="outline" className="gba:text-xs">
-                  Disabled
+                  {t('automations-hub-disabled')}
                 </Badge>
               )}
             </div>
@@ -181,14 +184,14 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
                 <h3 className="gba:font-semibold gba:text-foreground gba:truncate">{automation.name}</h3>
                 {!automation.isEnabled && (
                   <Badge variant="outline" className="gba:text-xs">
-                    Disabled
+                    {t('automations-hub-disabled')}
                   </Badge>
                 )}
               </div>
               <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-sm gba:text-muted-foreground">
-                <span>{getAutomationTypeLabel(automation.type)}</span>
+                <span>{getAutomationTypeLabel(automation.type, t)}</span>
                 <span className="gba:text-muted-foreground/50">•</span>
-                <span>{getTriggerLabel(automation.trigger)}</span>
+                <span>{getTriggerLabel(automation.trigger, t)}</span>
               </div>
               {automation.description && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:line-clamp-1">
@@ -199,17 +202,17 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
                 {automation.lastRunAt && (
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3" />
-                    Last run: {formatRelativeTime(automation.lastRunAt)}
+                    {t('automations-hub-last-run')}: {formatRelativeTime(automation.lastRunAt)}
                   </span>
                 )}
                 <span className="gba:flex gba:items-center gba:gap-1">
                   <History className="gba:w-3 gba:h-3" />
-                  {automation.runCount} executions
+                  {t('automations-hub-executions-count', { count: automation.runCount })}
                 </span>
                 {activeWorkflows > 0 && (
                   <span className="gba:flex gba:items-center gba:gap-1 gba:text-info">
                     <RefreshCw className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    {activeWorkflows} active
+                    {t('automations-hub-active-count', { count: activeWorkflows })}
                   </span>
                 )}
               </div>
@@ -219,7 +222,11 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
           {/* Right: Actions */}
           <div className="gba:flex gba:items-center gba:gap-2">
             {onToggle && (
-              <Switch checked={automation.isEnabled} onCheckedChange={onToggle} aria-label="Toggle automation" />
+              <Switch
+                checked={automation.isEnabled}
+                onCheckedChange={onToggle}
+                aria-label={t('automations-toggle-aria')}
+              />
             )}
 
             {automation.trigger === 'manual' && onRun && (
@@ -229,7 +236,7 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
                 ) : (
                   <Play className="gba:w-4 gba:h-4 gba:mr-1" />
                 )}
-                Run
+                {t('automations-hub-run')}
               </Button>
             )}
 
@@ -244,13 +251,13 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
                   {onEdit && (
                     <DropdownMenuItem onClick={onEdit}>
                       <Pencil className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Edit
+                      {t('automations-hub-edit')}
                     </DropdownMenuItem>
                   )}
                   {onDuplicate && (
                     <DropdownMenuItem onClick={onDuplicate}>
                       <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Duplicate
+                      {t('automations-hub-duplicate')}
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
@@ -258,7 +265,7 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={onDelete} className="gba:text-destructive">
                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Delete
+                        {t('automations-hub-delete')}
                       </DropdownMenuItem>
                     </>
                   )}

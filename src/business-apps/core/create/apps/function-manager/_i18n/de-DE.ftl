@@ -7,6 +7,10 @@ page-description = Verwalten Sie versionierte Funktionen fuer Agenten und Flows
 # Section
 section-label = Funktionen
 
+# Top-level list tabs (CreateLayout hero TabSwitch)
+tab-functions = Funktionen
+tab-credentials = Zugangsdaten
+
 # Actions
 new-function = Neue Funktion
 edit = Bearbeiten

@@ -99,8 +99,8 @@ export class ContentArticleAnalyzerService {
         title: entry.title,
         preview: entry.preview,
         content: entry.content,
-        contentGroupRef: entry.contentGroupRef,
-        contentTypeRef: entry.contentTypeRef,
+        contentGroup: entry.contentGroup,
+        contentTypeId: entry.contentType?.id,
         createdAt: entry.createdAt,
         creatorEmployeeId: entry.creatorEmployeeId,
         contentEntryReactionCounts: entry.contentEntryReactionCounts || []

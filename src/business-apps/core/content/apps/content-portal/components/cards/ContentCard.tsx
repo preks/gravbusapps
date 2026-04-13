@@ -12,7 +12,7 @@ import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reac
 import { EmployeeHoverCard } from '@/common/components/employee'
 import { ContentArticleAnalyzer } from '@/business-apps/core/content/components/ContentArticleAnalyzer'
 import { ContentImage } from '../shared/ContentImage'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, resolveContentTypeName } from '@/common/data/content/constants/contentConstants'
 import dayjs from 'dayjs'
 import translations from '../../_i18n'
 
@@ -83,8 +83,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
     item.descendantContentEntriesAggregate?.aggregate?.count || item.childContentEntriesAggregate?.aggregate?.count || 0
   const reactionCount = item.contentEntryReactionCounts?.reduce((sum, r) => sum + (r.count || 0), 0) || 0
 
-  const isNewsOrKnowledge =
-    item.contentGroupRef === ContentGroup.NEWS || item.contentGroupRef === ContentGroup.KNOWLEDGE
+  const isNewsOrKnowledge = item.contentGroup === ContentGroup.NEWS || item.contentGroup === ContentGroup.KNOWLEDGE
 
   return (
     <div className={`gba:relative gba:w-full ${className}`}>
@@ -129,9 +128,9 @@ const ContentCard: React.FC<ContentCardProps> = ({
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-2 gba:text-xs">
             <div className="gba:flex gba:items-center gba:gap-2">
               <span className="gba:text-muted-foreground">{formattedDate}</span>
-              {variant === 'knowledge' && item.contentType?.value && (
+              {variant === 'knowledge' && resolveContentTypeName(item.contentType) && (
                 <Badge variant="outline" className="gba:text-xs">
-                  {item.contentType.value}
+                  {resolveContentTypeName(item.contentType)}
                 </Badge>
               )}
             </div>

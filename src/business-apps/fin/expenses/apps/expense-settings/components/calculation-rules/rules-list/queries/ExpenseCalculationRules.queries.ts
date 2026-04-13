@@ -23,7 +23,7 @@ export const GET_CALCULATION_TYPES = (): string => {
   return `
   query getCalculationTypes($activeUserLocale: String!) {
     calculationType: CatalogEntry(
-      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "ExpenseCalculationType" } } }
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "ExpenseCalculationType" } }, isDeleted: { _eq: false } }
       orderBy: { value: ASC }
     ) {
       value
@@ -43,7 +43,7 @@ export const GET_CALCULATION_TYPES = (): string => {
 export const GET_FORM_CATALOGS = (): string => {
   return `
   query getFormCatalogs($activeUserLocale: String!) {
-    CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}}, orderBy: {value: ASC}) {
+    CalculationTypes: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseCalculationType"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
       code
       value
       id
@@ -53,7 +53,7 @@ export const GET_FORM_CATALOGS = (): string => {
       }
       catalog { defaultLocale }
     }
-    Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}, orderBy: {value: ASC}) {
+    Currencies: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: { _eq: false }}, orderBy: {value: ASC}) {
       code
       value
       id
@@ -63,7 +63,7 @@ export const GET_FORM_CATALOGS = (): string => {
       }
       catalog { defaultLocale }
     }
-    Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } } }, orderBy: { value: ASC }) {
+    Countries: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "Country" } }, isDeleted: { _eq: false } }, orderBy: { value: ASC }) {
       code
       id
       value

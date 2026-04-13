@@ -51,7 +51,8 @@ function stripHtmlToText(value: string): string {
 
 function isStandalonePageNumberTemplate(value: string | null | undefined): boolean {
   if (!value) return false
-  return stripHtmlToText(value) === '{page}'
+  const t = stripHtmlToText(value)
+  return t === '{page}' || t === '{page} of {total}'
 }
 
 function clearStandalonePageNumberTemplates(pages: DocumentPagesFormatting): DocumentPagesFormatting {

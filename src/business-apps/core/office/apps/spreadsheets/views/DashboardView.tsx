@@ -5,9 +5,10 @@
  */
 
 import React, { memo } from 'react'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { BarChart3 } from 'lucide-react'
 import type { SpreadsheetSheet } from '../types'
+import translations from '../_i18n'
 
 const eurCurrencyFormatter = new Intl.NumberFormat(undefined, {
   style: 'currency',
@@ -24,6 +25,7 @@ export interface DashboardViewProps {
  * DashboardView - KPI cards and data summary
  */
 export const DashboardView = memo<DashboardViewProps>(function DashboardView({ sheet, data, testId }) {
+  const { t } = useTranslation(translations)
   // Calculate KPIs
   const numericColumns = sheet.columns.filter(c => ['number', 'currency', 'percentage'].includes(c.type))
 
@@ -36,7 +38,10 @@ export const DashboardView = memo<DashboardViewProps>(function DashboardView({ s
     return {
       label: col.label,
       value: col.type === 'currency' ? eurCurrencyFormatter.format(sum) : sum.toLocaleString(),
-      subValue: col.type === 'currency' ? `Avg: ${eurCurrencyFormatter.format(avg)}` : `Avg: ${avg.toFixed(2)}`,
+      subValue:
+        col.type === 'currency'
+          ? t('view-dashboard-avg-currency', { value: eurCurrencyFormatter.format(avg) })
+          : t('view-dashboard-avg', { value: avg.toFixed(2) }),
       type: col.type
     }
   })
@@ -59,21 +64,21 @@ export const DashboardView = memo<DashboardViewProps>(function DashboardView({ s
         <div className="gba:flex gba:items-center gba:justify-center gba:h-64 gba:bg-muted/20 gba:rounded-lg">
           <div className="gba:text-center">
             <BarChart3 className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-3" />
-            <p className="gba:text-muted-foreground">Charts visualization coming soon</p>
+            <p className="gba:text-muted-foreground">{t('view-dashboard-charts-coming-soon')}</p>
           </div>
         </div>
       </Card>
 
       {/* Data summary */}
       <Card className="gba:p-6">
-        <h3 className="gba:font-semibold gba:text-foreground gba:mb-4">Data Summary</h3>
+        <h3 className="gba:font-semibold gba:text-foreground gba:mb-4">{t('view-dashboard-data-summary')}</h3>
         <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
           <div>
-            <p className="gba:text-sm gba:text-muted-foreground">Total Records</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('view-dashboard-total-records')}</p>
             <p className="gba:text-xl gba:font-semibold">{data.length}</p>
           </div>
           <div>
-            <p className="gba:text-sm gba:text-muted-foreground">Columns</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('view-dashboard-columns')}</p>
             <p className="gba:text-xl gba:font-semibold">{sheet.columns.length}</p>
           </div>
         </div>

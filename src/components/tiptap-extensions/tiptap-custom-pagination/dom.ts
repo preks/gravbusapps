@@ -534,6 +534,16 @@ export function ensurePagesStyles(targetDocument: Document) {
     .rm-pages-root .rm-page-break {
       position: relative;
     }
+    .rm-pages-root :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, pre):has([data-image-flow-mode="float"]) {
+      display: flow-root;
+    }
+    .rm-pages-root :where(p, h1, h2, h3, h4, h5, h6, li, blockquote):has([data-image-flow-mode="float"]) {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+    .rm-pages-root .ProseMirror-widget:has(> .rm-square-wrap-decoration) {
+      display: contents;
+    }
     .rm-pages-root .rm-page-spacer {
       position: relative;
       float: left;
@@ -549,6 +559,23 @@ export function ensurePagesStyles(targetDocument: Document) {
       height: 0;
       overflow: visible;
     }
+    .rm-pages-root .page[data-layout-window-active="false"] {
+      contain: layout style paint;
+      content-visibility: auto;
+      contain-intrinsic-size: var(--rm-page-width) var(--rm-page-body-intrinsic-height, 0px);
+    }
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .ProseMirror :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root.ProseMirror:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
+      position: relative;
+      z-index: 1;
+    }
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-header-region :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-footer-region :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-first-page-header :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents),
+    .rm-pages-root:has(.rm-page-image-overlay-layer[data-rm-image-layer="behind"] > *) .rm-page-overlay :where(p, ol, ul, li, h1, h2, h3, h4, h5, h6, blockquote, pre, table, .tableWrapper, td, th, .document-table-of-contents) {
+      position: static;
+      z-index: auto;
+    }
     .rm-pages-root .rm-page-body-layer {
       position: absolute;
       left: calc(-1 * var(--rm-page-margin-left));
@@ -557,6 +584,17 @@ export function ensurePagesStyles(targetDocument: Document) {
       pointer-events: none;
       background: transparent;
       z-index: 1;
+    }
+    .rm-pages-root .rm-page-body-layer[data-layout-window-active="false"],
+    .rm-pages-root .rm-page-image-overlay-layer[data-layout-window-active="false"] {
+      contain: layout style paint;
+      content-visibility: auto;
+      contain-intrinsic-size:
+        calc(var(--rm-page-width) + var(--rm-page-margin-left) + var(--rm-page-margin-right))
+        var(--rm-page-body-intrinsic-height, 0px);
+    }
+    .rm-pages-root .rm-page-body-layer > * {
+      pointer-events: auto;
     }
     .rm-pages-root .rm-page-image-overlay-layer {
       position: absolute;
@@ -575,6 +613,12 @@ export function ensurePagesStyles(targetDocument: Document) {
       z-index: 4;
     }
     .rm-pages-root .rm-page-image-overlay-layer > * {
+      pointer-events: auto;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] > * {
+      pointer-events: none;
+    }
+    .rm-pages-root .rm-page-image-overlay-layer[data-rm-image-layer="behind"] [data-image-handle="true"] {
       pointer-events: auto;
     }
     .rm-pages-root .breaker {
@@ -608,19 +652,14 @@ export function ensurePagesStyles(targetDocument: Document) {
       user-select: none;
       -webkit-user-select: none;
     }
+    /* Page 1 header lives outside page breaks (sibling of .rm-pages-wrapper). Match stacking with
+       .breaker (z-index: 2) and body layers (z-index: 1) so overlapping chrome does not sit above
+       the header. Use the same pointer-events model as .rm-page-header-region — no shell-wide none. */
     .rm-pages-root .rm-first-page-header {
       width: calc(100% + var(--rm-page-margin-left) + var(--rm-page-margin-right));
       margin-left: calc(-1 * var(--rm-page-margin-left));
       margin-right: calc(-1 * var(--rm-page-margin-right));
-      z-index: 1;
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header > .rm-page-header {
-      pointer-events: none;
-    }
-    .rm-pages-root .rm-first-page-header .rm-page-header-content,
-    .rm-pages-root .rm-first-page-header .rm-page-number-slot {
-      pointer-events: auto;
+      z-index: 3;
     }
     .rm-pages-root .rm-page-header,
     .rm-pages-root .rm-page-footer {
@@ -1108,15 +1147,58 @@ export function applyRootStyles(targetNode: HTMLElement, pageFormat: PageFormat,
 }
 
 export function refreshPageMinHeight(targetNode: HTMLElement) {
-  const paginationElement = resolvePaginationRootElement(targetNode)
-  const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
-  if (!lastPaginationChild) return
+  const apply = () => {
+    const paginationElement = resolvePaginationRootElement(targetNode)
+    const lastPaginationChild = paginationElement?.lastElementChild as HTMLElement | null
+    if (!lastPaginationChild) return
 
-  const measuredTarget = lastPaginationChild.classList.contains('rm-page-break')
-    ? ((lastPaginationChild.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
-    : lastPaginationChild
-  const minHeight = measuredTarget.offsetTop + measuredTarget.offsetHeight
-  targetNode.style.minHeight = `${minHeight + 2}px`
+    const pageBreak = lastPaginationChild.classList.contains('rm-page-break') ? lastPaginationChild : null
+    const measuredTarget = pageBreak
+      ? ((pageBreak.querySelector('.breaker') as HTMLElement | null) ?? lastPaginationChild)
+      : lastPaginationChild
+
+    // Walk the offsetParent chain to accumulate the total vertical offset from targetNode.
+    // measuredTarget.offsetTop is relative to its offsetParent (e.g. .rm-page-break), not targetNode.
+    let totalOffset = measuredTarget.offsetTop + measuredTarget.offsetHeight
+    let currentParent: HTMLElement | null = measuredTarget.offsetParent as HTMLElement | null
+    while (currentParent && currentParent !== targetNode) {
+      totalOffset += currentParent.offsetTop
+      currentParent = currentParent.offsetParent as HTMLElement | null
+    }
+
+    const candidates: number[] = [totalOffset]
+    const rootRect = targetNode.getBoundingClientRect()
+    const scrollTop = targetNode.scrollTop
+
+    const pushRectBottomIfLaidOut = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect()
+      if (rect.bottom <= rect.top) return
+      candidates.push(rect.bottom - rootRect.top + scrollTop)
+    }
+
+    pushRectBottomIfLaidOut(measuredTarget)
+    if (pageBreak instanceof HTMLElement) {
+      const pageNumber = pageBreak.dataset.rmPageNumber
+      if (pageNumber) {
+        const footer = pageBreak.querySelector(
+          `.rm-page-footer-region[data-rm-page-number="${pageNumber}"]`
+        ) as HTMLElement | null
+        if (footer) {
+          pushRectBottomIfLaidOut(footer)
+        }
+      }
+    }
+
+    const minHeight = Math.max(...candidates)
+    // Ceil subpixels; extra padding covers focus/caret reflow and border rounding so the paper
+    // background still covers the last footer after layout settles.
+    targetNode.style.minHeight = `${Math.ceil(minHeight) + 8}px`
+  }
+
+  apply()
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(apply)
+  }
 }
 
 function blockInactiveRegion(event: Event, region: HTMLElement) {
@@ -1276,10 +1358,14 @@ export function createPageBreakElement(params: {
     options.headerHeight,
     options.footerHeight
   ).bodyHeight
+  const pageBodyIntrinsicHeight = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   const bodyLayer = document.createElement('div')
   bodyLayer.className = 'rm-page-body-layer'
   bodyLayer.dataset.rmPageBody = 'true'
+  bodyLayer.dataset.rmPageBodyPresentation = 'visible'
   bodyLayer.dataset.rmPageNumber = String(pageNumber)
+  page.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  bodyLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
   bodyLayer.style.height = `var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px)`
   bodyLayer.style.top = `calc(-1 * var(--rm-page-body-${pageNumber}, ${defaultBodyHeight}px))`
   const behindImageLayer = createPageImageOverlayLayer({
@@ -1297,6 +1383,9 @@ export function createPageBreakElement(params: {
     pageBodyHeight: defaultBodyHeight,
     layer: 'front'
   })
+  behindImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  floatingImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
+  frontImageLayer.style.setProperty('--rm-page-body-intrinsic-height', pageBodyIntrinsicHeight)
   page.append(behindImageLayer, bodyLayer, floatingImageLayer, frontImageLayer)
 
   const breaker =

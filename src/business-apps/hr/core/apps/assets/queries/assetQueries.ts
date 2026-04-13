@@ -57,16 +57,6 @@ export const ASSET_FIELDS = `
   requireSanitization
   sanitizationMethodRef
   sanitizationExecutionDate
-  disposalOutcome {
-    id
-    code
-    value
-  }
-  sanitizationMethod {
-    id
-    code
-    value
-  }
   responsibleEmployee {
     id
     displayName

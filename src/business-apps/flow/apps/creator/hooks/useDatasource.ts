@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 export type SortDirection =
   | 'ASC'
@@ -62,7 +62,7 @@ export const useDatasource = () => {
   const [error, setError] = useState<string | null>(null)
 
   const getApiUrl = useCallback(() => {
-    return env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    return CUSTOM_FLOW_ENGINE_API_URL
   }, [])
 
   const list = useCallback(
@@ -87,7 +87,7 @@ export const useDatasource = () => {
 
         // Entity type is now in the path
         const queryString = params.toString()
-        const url = `${apiUrl}/api/datasource/${entityType}${queryString ? `?${queryString}` : ''}`
+        const url = `${apiUrl}/datasource/${entityType}${queryString ? `?${queryString}` : ''}`
 
         const response = await fetch(url, {
           method: 'GET',

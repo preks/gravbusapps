@@ -22,6 +22,7 @@ export const GET_HEALTH_INSURANCE_TYPE_DISTRIBUTION = `
     CatalogEntry(
       where: {
         type: { _eq: "HealthInsuranceType" }
+        isDeleted: { _eq: false }
       }
     ) {
       id

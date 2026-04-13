@@ -17,6 +17,7 @@ function createBaseState(overrides?: Partial<PaginationPluginViewRuntimeState>):
     runawayGrowthCapPageCount: 5,
     pendingRefreshDrivenStabilization: false,
     lastDocChangeOrigin: null,
+    lastDocChangeAnalysis: null,
     suppressPaginationOwnedDeferredScheduling: false,
     ...overrides
   }
@@ -94,7 +95,7 @@ describe('resolveSelectionNavigationDirection', () => {
 })
 
 describe('runPaginationPluginViewUpdate', () => {
-  it('refreshes when overflow measurement shows page growth', () => {
+  it('refreshes via page-count-grow when measurement detects page growth', () => {
     const harness = createHarness({
       state: {
         lastKnownDoc: createDoc('prev'),
@@ -121,8 +122,45 @@ describe('runPaginationPluginViewUpdate', () => {
 
     expect(harness.callbacks.onClearGrowthSuppression).toHaveBeenCalledTimes(2)
     expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(3)
-    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('selection-overflow')
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-grow')
     expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownDoc).toBe(harness.currentDoc)
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
+  it('defers selection-overflow growth refreshes for table documents', () => {
+    const sameDoc = createDoc('same')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: sameDoc,
+        lastKnownSelectionHead: 4
+      },
+      currentDoc: sameDoc,
+      currentSelectionHead: 10,
+      selectionOverflow: { position: 15 },
+      measurementState: { currentPageCount: 2, measuredPageCount: 3 },
+      hasTables: true
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => true,
+      resolveSelectionOverflow: () => harness.selectionOverflow,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 4,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith(4)
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
     expect(nextState.lastKnownDoc).toBe(harness.currentDoc)
     expect(nextState.lastKnownSelectionHead).toBe(10)
   })
@@ -232,6 +270,51 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 
+  it('does not reset controller state for table-metadata-owned layout-neutral doc changes', () => {
+    const previousDoc = createDoc('prev')
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: previousDoc,
+        lastKnownSelectionHead: 3,
+        lastDocChangeOrigin: 'table-metadata-owned',
+        lastDocChangeAnalysis: {
+          kind: 'structure',
+          changedRanges: [{ from: 5, to: 8 }],
+          touchesTable: false,
+          touchesTableAdjacentContent: false,
+          touchesTableRegion: false,
+          isLayoutNeutral: true,
+          shouldScheduleSettledRefresh: false
+        }
+      },
+      currentDoc: createDoc('next'),
+      currentSelectionHead: 3,
+      hasTables: true
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => true,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 6,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onResetTableController).not.toHaveBeenCalled()
+    expect(harness.callbacks.onClearGrowthSuppression).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.previousAddPagesMeasurement).toEqual(harness.state.previousAddPagesMeasurement)
+    expect(nextState.runawayGrowthCapPageCount).toBe(harness.state.runawayGrowthCapPageCount)
+  })
+
   it('passes doc-change-reset state into overflow measurement resolution', () => {
     const previousDoc = createDoc('prev')
     const harness = createHarness({
@@ -337,6 +420,101 @@ describe('runPaginationPluginViewUpdate', () => {
     expect(resolveSelectionOverflow).not.toHaveBeenCalled()
     expect(harness.callbacks.onDispatchSelection).not.toHaveBeenCalled()
     expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes via page-count-grow on the initial view update when a non-table document opens with a stale low page count', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 41, measuredPageCount: 42 },
+      hasTables: false
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(42)
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-grow')
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
+  it('refreshes via page-count-shrink on the initial view update when a non-table document opens with a stale high page count', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 42, measuredPageCount: 41 },
+      hasTables: false
+    })
+
+    const nextState = runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).toHaveBeenCalledWith(41)
+    expect(harness.callbacks.onRequestRefresh).toHaveBeenCalledWith('page-count-shrink')
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRefreshLayoutBounds).not.toHaveBeenCalled()
+    expect(nextState.lastKnownSelectionHead).toBe(10)
+  })
+
+  it('keeps the initial non-table view update passive when the measured page count already matches', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 41, measuredPageCount: 41 },
+      hasTables: false
+    })
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => false,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
+    expect(harness.callbacks.onScheduleDeferredRepagination).not.toHaveBeenCalled()
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })
 

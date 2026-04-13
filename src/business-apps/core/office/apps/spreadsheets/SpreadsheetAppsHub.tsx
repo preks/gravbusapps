@@ -109,6 +109,20 @@ type HubView = 'list' | 'upload' | 'viewer' | 'editor'
 type SidebarSection = SpreadsheetSection
 const TASK_DEBUG_PREFIX = '[SpreadsheetTasksDebug]'
 
+const isTaskDebugEnabled = (): boolean => {
+  try {
+    return globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
+  } catch {
+    return false
+  }
+}
+
+const taskDebugLog = (...args: unknown[]) => {
+  if (isTaskDebugEnabled()) {
+    console.debug(...args)
+  }
+}
+
 function maskIdentifier(id: string | null | undefined): string {
   const normalized = String(id || '').trim()
   if (!normalized) return 'n/a'
@@ -263,7 +277,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
 }): Promise<{ pendingIds: Set<string>; completedIds: Set<string> }> {
   const { accessToken, currentUserId } = params
   if (!accessToken || !currentUserId) {
-    console.warn(`${TASK_DEBUG_PREFIX} Skipping task fetch due to missing auth/user`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Skipping task fetch due to missing auth/user`, {
       hasAccessToken: Boolean(accessToken),
       hasUserId: Boolean(currentUserId)
     })
@@ -272,7 +286,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
 
   const apiBase = getFlowEngineApiBaseUrl().replace(/\/+$/, '')
   const headers: HeadersInit = { Authorization: `Bearer ${accessToken}` }
-  console.info(`${TASK_DEBUG_PREFIX} Fetching task app ids`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Fetching task app ids`, {
     apiBase,
     userId: maskIdentifier(currentUserId)
   })
@@ -285,7 +299,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     method: 'GET',
     headers
   })
-  console.info(`${TASK_DEBUG_PREFIX} Task API responses`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Task API responses`, {
     openStatus: openTaskResponse.status,
     openOk: openTaskResponse.ok,
     completedStatus: completedTaskResponse.status,
@@ -313,7 +327,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     (!Array.isArray(openTasks) || openTasks.length === 0) &&
     (!Array.isArray(completedTasks) || completedTasks.length === 0)
   ) {
-    console.info(`${TASK_DEBUG_PREFIX} No open/completed tasks returned`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} No open/completed tasks returned`, {
       openTasks: Array.isArray(openTasks) ? openTasks.length : 0,
       completedTasks: Array.isArray(completedTasks) ? completedTasks.length : 0
     })
@@ -339,7 +353,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
   if (Array.isArray(completedTasks)) {
     completedTasks.forEach(task => collectFromTask(task, completedIds, completedFlowIds))
   }
-  console.info(`${TASK_DEBUG_PREFIX} Parsed task payload`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Parsed task payload`, {
     openTasks: Array.isArray(openTasks) ? openTasks.length : 0,
     completedTasks: Array.isArray(completedTasks) ? completedTasks.length : 0,
     pendingFlowIds: pendingFlowIds.size,
@@ -353,7 +367,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     completedIds.forEach(id => {
       if (pendingIds.has(id)) completedIds.delete(id)
     })
-    console.info(`${TASK_DEBUG_PREFIX} Resolved copy app ids without flow lookup`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Resolved copy app ids without flow lookup`, {
       pendingIds: pendingIds.size,
       completedIds: completedIds.size,
       pendingSamples: summarizeIdSet(pendingIds),
@@ -367,7 +381,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     headers
   })
   if (!flowsResponse.ok) {
-    console.warn(`${TASK_DEBUG_PREFIX} Flow list request failed, returning task-derived ids only`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Flow list request failed, returning task-derived ids only`, {
       status: flowsResponse.status
     })
     completedIds.forEach(id => {
@@ -382,7 +396,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
   }
   const flows = flowsPayload.flows || flowsPayload.data?.flows || []
   if (!Array.isArray(flows) || flows.length === 0) {
-    console.warn(`${TASK_DEBUG_PREFIX} Flow list is empty, returning task-derived ids only`)
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Flow list is empty, returning task-derived ids only`)
     completedIds.forEach(id => {
       if (pendingIds.has(id)) completedIds.delete(id)
     })
@@ -413,7 +427,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
     if (pendingIds.has(id)) completedIds.delete(id)
   })
 
-  console.info(`${TASK_DEBUG_PREFIX} Final task app id resolution`, {
+  taskDebugLog(`${TASK_DEBUG_PREFIX} Final task app id resolution`, {
     totalFlows: flows.length,
     pendingIds: pendingIds.size,
     completedIds: completedIds.size,
@@ -427,7 +441,7 @@ async function fetchPendingExcelCollectionCopyAppIds(params: {
 /**
  * Format relative time
  */
-function formatRelativeTime(dateString: string, t: TranslationFn): string {
+function formatRelativeTime(dateString: string, t: TranslationFn, locale: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -440,7 +454,7 @@ function formatRelativeTime(dateString: string, t: TranslationFn): string {
   if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
@@ -450,18 +464,18 @@ function formatRelativeTime(dateString: string, t: TranslationFn): string {
 /**
  * Format date for table display
  */
-function formatDate(dateString: string, t: TranslationFn): string {
+function formatDate(dateString: string, t: TranslationFn, locale: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffDays === 0) {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
   }
   if (diffDays === 1) return t('time-yesterday')
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric'
@@ -476,7 +490,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   userInfo,
   'data-testid': testId = 'spreadsheet-apps-hub'
 }) => {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
 
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
@@ -571,7 +585,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
 
-  const { ownerInfoMap, sharedUsersMap, invalidateSharedUsersForApp } = useSpreadsheetAppsHubUserLookup({
+  const { ownerInfoMap, sharedUsersMap } = useSpreadsheetAppsHubUserLookup({
     apps,
     currentUserId,
     graphqlClient,
@@ -629,7 +643,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           currentUserId: flowTaskUserId
         })
         if (disposed) return
-        console.info(`${TASK_DEBUG_PREFIX} Refresh cycle complete`, {
+        taskDebugLog(`${TASK_DEBUG_PREFIX} Refresh cycle complete`, {
           pendingIds: next.pendingIds.size,
           completedIds: next.completedIds.size,
           pendingSamples: summarizeIdSet(next.pendingIds),
@@ -639,7 +653,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         setCompletedTaskAppIds(prev => (areStringSetsEqual(prev, next.completedIds) ? prev : next.completedIds))
       } catch {
         if (disposed) return
-        console.error(`${TASK_DEBUG_PREFIX} Refresh cycle failed; clearing cached task ids`)
+        taskDebugLog(`${TASK_DEBUG_PREFIX} Refresh cycle failed; clearing cached task ids`)
         setPendingTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
         setCompletedTaskAppIds(prev => (prev.size === 0 ? prev : new Set<string>()))
       }
@@ -694,7 +708,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
   useEffect(() => {
     if (currentView !== 'list') return
-    console.info(`${TASK_DEBUG_PREFIX} Hub task state snapshot`, {
+    taskDebugLog(`${TASK_DEBUG_PREFIX} Hub task state snapshot`, {
       activeSection,
       taskStatusFilter,
       filteredApps: filteredApps.length,
@@ -736,10 +750,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleSharesChanged = useCallback(async () => {
     await refreshApps()
-    if (selectedAppForManageShares) {
-      invalidateSharedUsersForApp(selectedAppForManageShares.id)
-    }
-  }, [refreshApps, selectedAppForManageShares, invalidateSharedUsersForApp])
+  }, [refreshApps])
 
   const finishCreatedAppNavigation = useCallback(
     async (createdApp: SpreadsheetApp, preferredView: 'viewer' | 'editor' = 'editor') => {
@@ -1110,8 +1121,20 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       return
     }
 
-    // Default behavior inside spreadsheets: navigate to spreadsheets hub route.
-    navigateTo(Navigation.OFFICE_SPREADSHEETS)
+    // Full page navigation matches prod host routing and avoids dev-only history + popstate gaps.
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
+  }, [])
+
+  /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
+  const handleSpreadsheetHubHome = useCallback(() => {
+    try {
+      sessionStorage.removeItem('space_return_url')
+    } catch (e) {
+      console.warn('Failed to clear space_return_url:', e)
+    }
+    // Same as handleBack default: fullPage avoids host nwNavigate only updating the URL while the
+    // viewer stays mounted (first click short URL, second click reload → hub).
+    navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
   }, [])
 
   const handleStartUpload = useCallback(() => {
@@ -1234,6 +1257,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           <SpreadsheetAppViewer
             app={app}
             onBack={handleBack}
+            onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
             onShare={() => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
@@ -1281,6 +1305,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleRefreshShares,
       handleShare,
       handleShareApp,
+      handleSpreadsheetHubHome,
       handleUnshare,
       selectedAppForShare,
       setShareDialogOpen,
@@ -1316,11 +1341,25 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const renderCurrentView = () => {
     if (currentView === 'viewer' && currentApp) {
-      return renderViewerContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderViewerContent(currentApp)}
+        </div>
+      )
     }
 
     if (currentView === 'editor' && currentApp) {
-      return renderEditorContent(currentApp)
+      return (
+        <div
+          className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
+          data-testid={testId}
+        >
+          {renderEditorContent(currentApp)}
+        </div>
+      )
     }
 
     const heroNewButton = (
@@ -1563,7 +1602,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           data-testid="spreadsheet-apps-hub-retry"
                         >
                           <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Retry
+                          {t('action-retry')}
                         </Button>
                       </Card>
                     </div>
@@ -1816,7 +1855,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                                 {/* Modified */}
                                 <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                  {formatDate(app.updatedAt, t)}
+                                  {formatDate(app.updatedAt, t, locale)}
                                 </div>
 
                                 {/* Modified By */}
@@ -1840,7 +1879,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                                 {/* Created */}
                                 <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
-                                  {formatDate(app.createdAt, t)}
+                                  {formatDate(app.createdAt, t, locale)}
                                 </div>
 
                                 {/* Rows */}
@@ -1981,7 +2020,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                     variant="success"
                                     className="gba:absolute gba:bottom-2 gba:right-2 gba:text-[10px]"
                                   >
-                                    Submitted
+                                    {t('badge-submitted')}
                                   </Badge>
                                 )}
                               </div>
@@ -1992,7 +2031,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   {app.name}
                                 </h3>
                                 <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                                  <span>{formatRelativeTime(app.updatedAt, t)}</span>
+                                  <span>{formatRelativeTime(app.updatedAt, t, locale)}</span>
                                   <span>
                                     {app.rowCount} {t('rows-label')}
                                   </span>
@@ -2021,11 +2060,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => handleEditApp(app.id)}>
                                       <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      Settings
+                                      {t('action-settings')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleDuplicateApp(app.id)}>
                                       <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      Duplicate
+                                      {t('action-duplicate')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleExportApp(app.id)}>
                                       <Download className="gba:w-4 gba:h-4 gba:mr-2" />

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, toast } from '@newwork/nw-design-system'
-import { CloudDownload } from 'lucide-react'
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, toast } from '@newwork/nw-design-system'
+import { CloudDownload, HardDrive, CheckCircle2, ArrowRight } from 'lucide-react'
 import { DocumentExternalSourceService } from '@/business-apps/core/office/apps/documents/services/DocumentExternalSourceService'
 import type {
   UnstructuredConnectorSummary,
@@ -12,14 +12,16 @@ import { UnstructuredPreview } from '@/business-apps/core/office/apps/documents/
 import { UnstructuredImportConfig } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredImportConfig'
 import { UnstructuredSyncProgress } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredSyncProgress'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { AddFromDriveStep } from './AddFromDriveStep'
 
-type Step = 'select' | 'preview' | 'config' | 'progress'
+type Step = 'select' | 'browse-drive' | 'preview' | 'config' | 'progress'
 
 export interface DriveExternalImportSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   accessToken: string
   currentFolderId: string | null
+  spaceId?: string
   onAfterImport?: () => void
   'data-testid'?: string
 }
@@ -29,6 +31,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
   onOpenChange,
   accessToken,
   currentFolderId,
+  spaceId,
   onAfterImport,
   'data-testid': testId = 'drive-external-import-sheet'
 }) => {
@@ -42,6 +45,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
   const [isLoadingSharedConnections, setIsLoadingSharedConnections] = useState(false)
   const [sharedConnectionsError, setSharedConnectionsError] = useState<string | null>(null)
+  const [myDriveSelected, setMyDriveSelected] = useState(false)
 
   const [previewItems, setPreviewItems] = useState<UnstructuredPreviewItem[]>([])
   const [estimatedTotal, setEstimatedTotal] = useState<number | undefined>()
@@ -220,6 +224,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
         limit,
         keepConnected,
         refreshMode: keepConnected ? refreshMode : undefined,
+        destinationSpaceId: spaceId || undefined,
         destinationFolderId: currentFolderId || undefined
       })
       if (!result) {
@@ -242,7 +247,16 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
     } finally {
       setIsImporting(false)
     }
-  }, [selectedConnector, selectedConnectionId, limit, keepConnected, refreshMode, startPolling, currentFolderId])
+  }, [
+    selectedConnector,
+    selectedConnectionId,
+    limit,
+    keepConnected,
+    refreshMode,
+    startPolling,
+    spaceId,
+    currentFolderId
+  ])
 
   const handleCancel = useCallback(async () => {
     if (!runId) return
@@ -255,6 +269,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
 
   const resetState = useCallback(() => {
     setStep('select')
+    setMyDriveSelected(false)
     setSelectedConnector(null)
     setSharedConnections([])
     setSelectedConnectionId(null)
@@ -292,15 +307,39 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
     }
   }, [])
 
-  const sheetWidth = step === 'preview' ? 'gba:sm:max-w-2xl' : 'gba:sm:max-w-lg'
+  const sheetWidth = step === 'preview' || step === 'browse-drive' ? 'gba:sm:max-w-2xl' : 'gba:sm:max-w-lg'
+
+  const handleSelectMyDrive = useCallback(() => {
+    setMyDriveSelected(true)
+    setSelectedConnector(null)
+  }, [])
+
+  const handleSelectConnector = useCallback((connector: UnstructuredConnectorSummary) => {
+    setMyDriveSelected(false)
+    setSelectedConnector(connector)
+  }, [])
+
+  const handleBrowseDriveComplete = useCallback(() => {
+    onAfterImport?.()
+    handleOpenChange(false)
+  }, [onAfterImport, handleOpenChange])
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className={sheetWidth} data-testid={testId}>
         <SheetHeader>
           <SheetTitle className="gba:flex gba:items-center gba:gap-2">
-            <CloudDownload className="gba:w-4 gba:h-4" />
-            Import from external source
+            {step === 'browse-drive' ? (
+              <>
+                <HardDrive className="gba:w-4 gba:h-4" />
+                Add from my Drive
+              </>
+            ) : (
+              <>
+                <CloudDownload className="gba:w-4 gba:h-4" />
+                Import from external source
+              </>
+            )}
           </SheetTitle>
         </SheetHeader>
 
@@ -314,19 +353,79 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
           )}
 
           {step === 'select' && (
-            <UnstructuredConnectorSelector
-              connectors={connectors}
-              selectedId={selectedConnector?.id ?? null}
-              onSelect={setSelectedConnector}
-              connectionOptions={sharedConnections}
-              selectedConnectionId={selectedConnectionId}
-              onConnectionChange={setSelectedConnectionId}
-              isLoadingConnections={isLoadingSharedConnections}
-              connectionError={sharedConnectionsError}
-              onNext={() => void handlePreview()}
-              isLoading={isLoadingConnectors}
-              error={connectorError}
-              data-testid={`${testId}-selector`}
+            <>
+              {spaceId && (
+                <div className="gba:mb-4" data-testid={`${testId}-my-drive-section`}>
+                  <button
+                    type="button"
+                    className={`gba:relative gba:w-full gba:text-left gba:rounded-xl gba:border gba:p-4 gba:transition-all ${
+                      myDriveSelected
+                        ? 'gba:border-primary gba:bg-accent gba:ring-1 gba:ring-primary'
+                        : 'gba:border-border gba:hover:border-primary/40 gba:hover:bg-accent/50'
+                    }`}
+                    onClick={handleSelectMyDrive}
+                    data-testid={`${testId}-my-drive-option`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:shrink-0">
+                        <HardDrive className="gba:w-5 gba:h-5 gba:text-primary" />
+                      </div>
+                      <div className="gba:min-w-0 gba:flex-1">
+                        <div className="gba:text-sm gba:font-semibold">My NEWWORK Drive</div>
+                        <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                          Browse your personal Drive and add files to this space
+                        </div>
+                      </div>
+                      {myDriveSelected && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-primary gba:shrink-0" />}
+                    </div>
+                  </button>
+
+                  {myDriveSelected && (
+                    <div className="gba:flex gba:justify-end gba:mt-3">
+                      <Button size="sm" onClick={() => setStep('browse-drive')} data-testid={`${testId}-my-drive-next`}>
+                        Browse <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="gba:relative gba:my-4">
+                    <div className="gba:absolute gba:inset-0 gba:flex gba:items-center">
+                      <div className="gba:w-full gba:border-t gba:border-border/50" />
+                    </div>
+                    <div className="gba:relative gba:flex gba:justify-center">
+                      <span className="gba:bg-background gba:px-3 gba:text-xs gba:text-muted-foreground">
+                        or import from an external source
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <UnstructuredConnectorSelector
+                connectors={connectors}
+                selectedId={selectedConnector?.id ?? null}
+                onSelect={handleSelectConnector}
+                connectionOptions={sharedConnections}
+                selectedConnectionId={selectedConnectionId}
+                onConnectionChange={setSelectedConnectionId}
+                isLoadingConnections={isLoadingSharedConnections}
+                connectionError={sharedConnectionsError}
+                onNext={() => void handlePreview()}
+                isLoading={isLoadingConnectors}
+                error={connectorError}
+                data-testid={`${testId}-selector`}
+              />
+            </>
+          )}
+
+          {step === 'browse-drive' && spaceId && (
+            <AddFromDriveStep
+              accessToken={accessToken}
+              spaceId={spaceId}
+              targetFolderId={currentFolderId}
+              onBack={() => setStep('select')}
+              onComplete={handleBrowseDriveComplete}
+              data-testid={`${testId}-browse-drive`}
             />
           )}
 

@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { Bot, FileText, StickyNote, Clock, Globe, Inbox, MessageCircle } from 'lucide-react'
+import { Bot, FileText, StickyNote, PenTool, Clock, Globe, Inbox, MessageCircle } from 'lucide-react'
 import { useCurrentUserPicture } from '../every-ai/hooks/useCurrentUserPicture'
 import {
   HeroSection,
@@ -114,6 +114,16 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       isComingSoon: true,
       badge: 'Coming Soon',
       accentColor: 'offline'
+    },
+    {
+      id: 'whiteboards',
+      title: 'Whiteboards',
+      description: 'Collaborate on an infinite canvas with shapes, diagrams, and sticky notes in real time.',
+      icon: PenTool,
+      href: '/platform/every-office/whiteboards',
+      badge: 'New',
+      badgeVariant: 'success',
+      accentColor: 'info'
     }
   ]
 
