@@ -1,7 +1,7 @@
 // Centralized spreadsheet collaboration logic: emit, receive, echo suppression, operation queuing.
 
 import type { DocumentOperation } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
-import type { CellDimensionsPayload } from '../components/UniverSheetGrid'
+import type { ApplyRemoteCellUpdateOptions, CellDimensionsPayload } from '../components/UniverSheetGrid'
 import type { SpreadsheetColumn } from '../types'
 import { createUniverConversionContext, parseA1Reference, toA1Reference } from '../utils/univerAdapter'
 
@@ -57,15 +57,28 @@ export interface CollaborationCallbacks {
   getActiveSheetId: () => string
   getColumns: () => SpreadsheetColumn[]
   getLocalSheetData: () => ViewerRow[]
-  getBackendRowIdForUiRowId: (uiRowId: string) => string | undefined
+  /**
+   * Resolve backend row ID from UI row ID.
+   * @param uiRowId - The row ID from the UI/Univer context
+   * @param univerRow - Optional row index from Univer grid (used as fallback when row ID lookup fails)
+   */
+  getBackendRowIdForUiRowId: (uiRowId: string, univerRow?: number) => string | undefined
   commitLocalSheetData: (data: ViewerRow[], options?: { persisted?: boolean }) => void
-  applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown, rowId?: string) => void
+  applyRemoteCellUpdate: (
+    rowIndex: number,
+    colIndex: number,
+    value: unknown,
+    rowId?: string,
+    options?: ApplyRemoteCellUpdateOptions
+  ) => void
   applyRemoteDimensions?: (payload: CellDimensionsPayload) => void
   onVersionUpdate: (version: number) => void
   scheduleSheetVersionRefreshFromApi: () => void
   scheduleRemoteStructuralResync: () => void
   onRemoteColumnUpdate?: (data: Record<string, unknown>) => void
   fetchChangesSince?: (sheetId: string, sinceVersion: number) => Promise<DeltaResponse>
+  /** When set, fast-path collaboration diagnostics (only runs if this returns true). */
+  isCollabDiagEnabled?: () => boolean
   /** Safe diagnostics only (counts, ids, reasons) — never cell values or tokens. */
   onCollabDiagnostic?: (event: string, meta?: Record<string, number | string | boolean | undefined>) => void
   /** Called when offline pending op queue was trimmed (possible loss). */
@@ -109,7 +122,6 @@ export class SpreadsheetCollaborationManager {
   private documentOpAsync:
     | ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>)
     | null = null
-  private currentUserId: string | null = null
   private connected = false
   private joined = false
   private pendingOps: DocumentOperation[] = []
@@ -117,9 +129,18 @@ export class SpreadsheetCollaborationManager {
   private lastKnownVersion = 0
   private reconciling = false
   private deferredCollabCells: DeferredCollabCell[] = []
+  private collabDiagSeq = 0
 
   constructor(callbacks: CollaborationCallbacks) {
     this.callbacks = callbacks
+  }
+
+  /** Debug-only: counts / reasons only (gated by {@link CollaborationCallbacks.isCollabDiagEnabled}). */
+  private collabDiag(event: string, meta?: Record<string, number | string | boolean | undefined>): void {
+    const gate = this.callbacks.isCollabDiagEnabled
+    if (typeof gate !== 'function' || !gate()) return
+    this.collabDiagSeq += 1
+    this.callbacks.onCollabDiagnostic?.(event, { seq: this.collabDiagSeq, ...meta })
   }
 
   updateCallbacks(callbacks: CollaborationCallbacks): void {
@@ -135,10 +156,6 @@ export class SpreadsheetCollaborationManager {
     fn: ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>) | null
   ): void {
     this.documentOpAsync = fn
-  }
-
-  setCurrentUserId(userId: string | null): void {
-    this.currentUserId = userId
   }
 
   setConnectionState(connected: boolean, joined: boolean): void {
@@ -165,6 +182,10 @@ export class SpreadsheetCollaborationManager {
   ): void {
     const { collabCells } = this.buildCollabCellsForEmit(cells, { deferMissingBackendId: false })
     if (collabCells.length === 0) return
+    this.collabDiag('collab_broadcast_enqueue', {
+      cellCount: collabCells.length,
+      withA1Ref: collabCells.filter(c => typeof c.cellRef === 'string' && c.cellRef.trim().length > 0).length
+    })
     const sheetId = this.callbacks.getActiveSheetId()
     this.enqueueOrSend({
       type: 'cells_changed',
@@ -186,7 +207,8 @@ export class SpreadsheetCollaborationManager {
     const MAX_DEFERRED = 400
     for (const cell of cells) {
       const ui = String(cell.rowId)
-      if (!this.callbacks.getBackendRowIdForUiRowId(ui)) {
+      // Pass univerRow as fallback for row ID lookup
+      if (!this.callbacks.getBackendRowIdForUiRowId(ui, cell.univerRow)) {
         this.deferredCollabCells.push({
           uiRowId: ui,
           columnName: cell.columnName,
@@ -224,15 +246,19 @@ export class SpreadsheetCollaborationManager {
       return { success: false, error: 'no_async_channel', deferredUiRowIds }
     }
 
+    this.collabDiag('collab_persist_attempt', {
+      cellCount: collabCells.length,
+      deferredUiInBatch: deferredUiRowIds.length
+    })
     const result = await send(op)
+    this.collabDiag('collab_persist_result', {
+      success: result.success,
+      version: result.version != null ? result.version : undefined,
+      errorCode: result.success ? undefined : (result.error ?? 'unknown')
+    })
     if (result.success && result.version != null) {
       this.lastKnownVersion = Math.max(this.lastKnownVersion, result.version)
       this.callbacks.onVersionUpdate(result.version)
-    }
-    if (!result.success) {
-      this.callbacks.onCollabDiagnostic?.('persist_via_socket_failed', {
-        errorCode: result.error ?? 'unknown'
-      })
     }
     return {
       success: result.success,
@@ -249,7 +275,8 @@ export class SpreadsheetCollaborationManager {
     const ready: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }> =
       []
     for (const d of this.deferredCollabCells) {
-      const backend = this.callbacks.getBackendRowIdForUiRowId(d.uiRowId)
+      // Pass univerRow as fallback for row ID lookup
+      const backend = this.callbacks.getBackendRowIdForUiRowId(d.uiRowId, d.univerRow)
       if (backend) {
         ready.push({
           rowId: d.uiRowId,
@@ -277,7 +304,9 @@ export class SpreadsheetCollaborationManager {
     const collabCells: CellsChangedCell[] = []
     const deferredUiRowIds: string[] = []
     for (const cell of cells) {
-      const backendRowId = this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId))
+      // Pass univerRow as fallback for row ID lookup during conflict recovery
+      // when the Univer context and localSheetData may be temporarily out of sync
+      const backendRowId = this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId), cell.univerRow)
       if (!backendRowId) {
         if (options.deferMissingBackendId) {
           deferredUiRowIds.push(String(cell.rowId))
@@ -289,11 +318,6 @@ export class SpreadsheetCollaborationManager {
       const entry: CellsChangedCell = { rowId: backendRowId, column: cell.columnName, value: cell.value }
       if (cell.univerRow != null && cell.univerCol != null) {
         entry.cellRef = toA1Reference(cell.univerRow, cell.univerCol)
-      } else {
-        const { rowIndex, colIndex } = this.resolveCoordinates(cell.columnName, backendRowId)
-        if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
-          entry.cellRef = toA1Reference(rowIndex, colIndex)
-        }
       }
       collabCells.push(entry)
     }
@@ -304,6 +328,7 @@ export class SpreadsheetCollaborationManager {
     const pos = { path }
     if (!this.connected || !this.joined) {
       this.pendingCursor = pos
+      this.collabDiag('collab_cursor_queued', { connected: this.connected, joined: this.joined })
       return
     }
     this.emitCursorFn?.(pos)
@@ -325,8 +350,6 @@ export class SpreadsheetCollaborationManager {
   // --- Receiver ---
 
   handleOperation(payload: CollaborationOperation): void {
-    if (this.currentUserId && payload.userId === this.currentUserId) return
-
     const { operation, version } = payload
     const activeSheetId = this.callbacks.getActiveSheetId()
 
@@ -361,7 +384,18 @@ export class SpreadsheetCollaborationManager {
   private handleCellsChanged(data: unknown): void {
     const d = data as CellsChangedPayload | undefined
     const activeSheetId = this.callbacks.getActiveSheetId()
-    if (!d?.sheetId || d.sheetId !== activeSheetId || !Array.isArray(d.cells) || d.cells.length === 0) return
+    if (!d?.sheetId) {
+      this.collabDiag('collab_receive_skipped', { reason: 'no_sheet_id' })
+      return
+    }
+    if (d.sheetId !== activeSheetId) {
+      this.collabDiag('collab_receive_skipped', { reason: 'other_sheet' })
+      return
+    }
+    if (!Array.isArray(d.cells) || d.cells.length === 0) {
+      this.collabDiag('collab_receive_skipped', { reason: 'empty_cells' })
+      return
+    }
 
     const updatesByRowId = new Map<string, Record<string, unknown>>()
 
@@ -376,8 +410,16 @@ export class SpreadsheetCollaborationManager {
       updatesByRowId.set(remoteRowId, rowUpdates)
     }
 
-    if (updatesByRowId.size === 0) return
+    if (updatesByRowId.size === 0) {
+      this.collabDiag('collab_receive_skipped', { reason: 'no_valid_cell_payloads', wireCellCount: d.cells.length })
+      return
+    }
     this.applyDataModelUpdates(updatesByRowId)
+
+    let withA1Applied = 0
+    let withCoordsApplied = 0
+    let skippedApply = 0
+    let invalidA1Ref = 0
 
     // Prefer A1 cellRef from the sender's Univer grid (same as cursor). Data-array row indices can drift
     // after row insert/delete so resolveCoordinates(rowId, column) may target the wrong sheet cell.
@@ -391,16 +433,43 @@ export class SpreadsheetCollaborationManager {
       if (trimmedRef) {
         const a1 = parseA1Reference(trimmedRef)
         if (a1 && a1.row >= 0 && a1.col >= 0) {
-          // Omit rowId so the grid uses sender A1 row/col; rowIdToIndex can drift from Univer order.
-          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value)
+          this.callbacks.applyRemoteCellUpdate(a1.row, a1.col, cell.value, remoteRowId, { useSenderA1Row: true })
+          withA1Applied += 1
           continue
         }
+        invalidA1Ref += 1
       }
       const { rowIndex, colIndex } = this.resolveCoordinates(targetColumnName, remoteRowId)
       if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
         this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, cell.value, remoteRowId)
+        withCoordsApplied += 1
+      } else {
+        skippedApply += 1
       }
     }
+
+    const refsOnWire: string[] = []
+    for (const cell of d.cells) {
+      if (typeof cell?.cellRef === 'string') {
+        const t = cell.cellRef.trim()
+        if (t) refsOnWire.push(t)
+      }
+    }
+    const cellRefsCsv =
+      refsOnWire.length === 0
+        ? 'none'
+        : `${refsOnWire.slice(0, 32).join(',')}${refsOnWire.length > 32 ? ',…' : ''}`.slice(0, 220)
+
+    this.collabDiag('collab_receive_cells_changed', {
+      wireCellCount: d.cells.length,
+      distinctRowIds: updatesByRowId.size,
+      withA1Applied,
+      withCoordsApplied,
+      skippedApply,
+      invalidA1Ref,
+      cellRefsOnWireCount: refsOnWire.length,
+      cellRefsCsv
+    })
   }
 
   // --- Private: Helpers ---
@@ -408,6 +477,22 @@ export class SpreadsheetCollaborationManager {
   private enqueueOrSend(op: DocumentOperation): void {
     if (!this.connected || !this.joined || !this.emitFn) {
       this.pendingOps.push(op)
+      const broadcastOnly = Boolean((op as { broadcastOnly?: boolean }).broadcastOnly)
+      const cellCount =
+        op.type === 'cells_changed' &&
+        op.data &&
+        typeof op.data === 'object' &&
+        Array.isArray((op.data as CellsChangedPayload).cells)
+          ? (op.data as CellsChangedPayload).cells.length
+          : undefined
+      this.collabDiag('collab_op_queued_offline', {
+        opType: op.type,
+        pendingLen: this.pendingOps.length,
+        broadcastOnly,
+        connected: this.connected,
+        joined: this.joined,
+        cellCount
+      })
       if (this.pendingOps.length > MAX_PENDING_OPS) {
         const dropped = this.pendingOps.length - MAX_PENDING_OPS
         this.pendingOps = this.pendingOps.slice(-MAX_PENDING_OPS)
@@ -416,6 +501,21 @@ export class SpreadsheetCollaborationManager {
       }
       return
     }
+    if (op.type === 'cells_changed' && op.data && typeof op.data === 'object') {
+      const cells = (op.data as CellsChangedPayload).cells
+      const cellCount = Array.isArray(cells) ? cells.length : 0
+      const withA1Ref = Array.isArray(cells)
+        ? cells.filter(c => typeof c?.cellRef === 'string' && String(c.cellRef).trim().length > 0).length
+        : 0
+      this.collabDiag('collab_op_send_immediate', {
+        opType: op.type,
+        broadcastOnly: Boolean((op as { broadcastOnly?: boolean }).broadcastOnly),
+        cellCount,
+        withA1Ref
+      })
+    } else {
+      this.collabDiag('collab_op_send_immediate', { opType: op.type })
+    }
     this.emitFn(op)
   }
 
@@ -423,6 +523,9 @@ export class SpreadsheetCollaborationManager {
     if (!this.emitFn) return
     const ops = this.pendingOps
     this.pendingOps = []
+    if (ops.length > 0) {
+      this.collabDiag('collab_pending_flush', { opCount: ops.length })
+    }
     ops.forEach(op => this.emitFn!(op))
 
     if (this.pendingCursor && this.emitCursorFn) {
