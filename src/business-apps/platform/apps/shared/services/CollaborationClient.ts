@@ -239,8 +239,8 @@ export class CollaborationClient {
         })
       }
 
-      if (response?.success && response?.participants) {
-        onParticipantsReceived?.(response.participants)
+      if (response?.success === true) {
+        onParticipantsReceived?.(Array.isArray(response.participants) ? response.participants : [])
       } else if (response?.success === false) {
         console.warn('[CollaborationClient] join_document failed:', response?.error ?? 'unknown')
       } else if (!response) {
@@ -307,6 +307,49 @@ export class CollaborationClient {
       }
     })
     return true
+  }
+
+  /**
+   * Send document_operation and await ack (success + optional sheet version).
+   * Used when spreadsheet cell edits must be persisted via the collaboration gateway.
+   */
+  sendDocumentOperationAsync(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string,
+    operation: DocumentOperation,
+    timeoutMs = 15000
+  ): Promise<{ success: boolean; version?: number; error?: string }> {
+    return new Promise(resolve => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: 'not_connected' })
+        return
+      }
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        resolve({ success: false, error: 'timeout' })
+      }, timeoutMs)
+      this.socket.emit('document_operation', { entityType, entityId, operation }, (response: unknown) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        if (response == null) {
+          resolve({ success: false, error: 'empty_ack' })
+          return
+        }
+        const r = response as { success?: boolean; version?: number; error?: string }
+        if (r.success === false) {
+          resolve({ success: false, error: String(r?.error ?? 'ack_failure') })
+          return
+        }
+        const v = r.version
+        resolve({
+          success: true,
+          version: typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : undefined
+        })
+      })
+    })
   }
 
   /**

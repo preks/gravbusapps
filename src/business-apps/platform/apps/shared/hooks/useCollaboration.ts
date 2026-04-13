@@ -149,6 +149,8 @@ export interface UseCollaborationOptions {
 
 export type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
 
+export type DocumentOperationAckResult = { success: boolean; version?: number; error?: string }
+
 export interface UseCollaborationReturn {
   participants: DocumentParticipant[]
   isConnected: boolean
@@ -156,6 +158,7 @@ export interface UseCollaborationReturn {
   collaborationHealth: CollaborationHealth
   socket: Socket | null
   emitOperation: (operation: DocumentOperation) => void
+  emitDocumentOperationAsync: (operation: DocumentOperation) => Promise<DocumentOperationAckResult>
   emitCursor: (position: { line?: number; column?: number; offset?: number; path?: string[] }) => void
   emitSelection: (
     selection: {
@@ -209,6 +212,11 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   const isJoiningRef = useRef(false)
   const joinAckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const onOperationReceivedRef = useRef(onOperationReceived)
+  const onErrorRef = useRef(onError)
+  onOperationReceivedRef.current = onOperationReceived
+  onErrorRef.current = onError
+
   // Get auth token - prefer passed accessToken, then try localStorage
   const getAuthToken = useCallback((): string | null => {
     // Use passed accessToken first
@@ -247,7 +255,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     const token = getAuthToken()
     if (!token) {
       console.error('[useCollaboration] No auth token available')
-      onError?.(new Error('No authentication token available'))
+      onErrorRef.current?.(new Error('No authentication token available'))
       return
     }
 
@@ -328,9 +336,16 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     }
     client.onUserLeft(handleUserLeft)
 
-    // Handle operation applied
+    // Handle operation applied (read handler from ref so callback identity does not recreate the socket)
     const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {
-      onOperationReceived?.(data)
+      if (isCollabDebug()) {
+        console.log('[useCollaboration] operation_applied (received)', {
+          opType: data.operation?.type,
+          version: data.version,
+          fromUserId: data.userId
+        })
+      }
+      onOperationReceivedRef.current?.(data)
     }
     client.onOperationApplied(handleOperationApplied)
 
@@ -359,7 +374,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       clientRef.current = null
       setSocket(null)
     }
-  }, [enabled, entityType, entityId, getAuthToken, onOperationReceived, onError])
+  }, [enabled, entityType, entityId, getAuthToken])
 
   // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
   // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
@@ -390,6 +405,48 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       clientRef.current.sendDocumentOperation(entityType, entityId, operation, onOperationAckFailure)
     },
     [entityType, entityId, onOperationAckFailure]
+  )
+
+  const emitDocumentOperationAsync = useCallback(
+    async (operation: DocumentOperation): Promise<DocumentOperationAckResult> => {
+      const client = clientRef.current
+      if (!client?.isConnected()) {
+        return { success: false, error: 'not_connected' }
+      }
+
+      if (!hasJoinedRef.current) {
+        if (!isJoiningRef.current) {
+          isJoiningRef.current = true
+          if (joinAckTimeoutRef.current) clearTimeout(joinAckTimeoutRef.current)
+          joinAckTimeoutRef.current = setTimeout(() => {
+            isJoiningRef.current = false
+          }, 6000)
+          client.joinDocument(entityType, entityId, (rawParticipants: SocketParticipant[]) => {
+            setParticipants(rawParticipants.map(mapSocketParticipantToParticipant))
+            hasJoinedRef.current = true
+            isJoiningRef.current = false
+            setHasJoined(true)
+            if (joinAckTimeoutRef.current) {
+              clearTimeout(joinAckTimeoutRef.current)
+              joinAckTimeoutRef.current = null
+            }
+          })
+        }
+        const deadline = Date.now() + 8000
+        while (Date.now() < deadline) {
+          if (hasJoinedRef.current) break
+          await new Promise<void>(resolve => {
+            setTimeout(resolve, 40)
+          })
+        }
+        if (!hasJoinedRef.current) {
+          return { success: false, error: 'not_joined' }
+        }
+      }
+
+      return client.sendDocumentOperationAsync(entityType, entityId, operation)
+    },
+    [entityId, entityType, setParticipants]
   )
 
   // Emit cursor position — pass-through to the socket
@@ -442,6 +499,7 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     collaborationHealth,
     socket,
     emitOperation,
+    emitDocumentOperationAsync,
     emitCursor,
     emitSelection,
     emitTypingStart,
