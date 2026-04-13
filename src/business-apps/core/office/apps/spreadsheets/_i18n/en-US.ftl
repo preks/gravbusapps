@@ -1087,6 +1087,8 @@ spreadsheet-save-just-now = Saved just now
 
 # Save / persistence indicator (viewer header)
 persist-cell-failed = Could not save cell changes. Try again or refresh the page.
+collab-sync-save-failed = Could not sync through collaboration; your edits were queued to save directly.
+collab-queue-trimmed-warn = Collaboration backlog was trimmed. If the sheet looks wrong, refresh the page.
 persist-row-update-failed = Could not save row changes.
 persist-row-delete-failed = Could not delete the row.
 persist-rows-add-failed = Could not save new rows.

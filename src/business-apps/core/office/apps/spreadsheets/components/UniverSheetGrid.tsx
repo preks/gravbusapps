@@ -34,6 +34,20 @@ import {
   type UniverWorkbookSnapshot
 } from '../utils/univerAdapter'
 
+const isSpreadsheetGridRemoteApplyDebug = (): boolean => {
+  try {
+    return globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Gated remote-apply tracing: indices / A1 only — never log cell values. */
+const debugRemoteApply = (phase: string, detail: Record<string, number | string | boolean | undefined>) => {
+  if (!isSpreadsheetGridRemoteApplyDebug()) return
+  console.debug('[UniverSheetGrid][remote-apply]', phase, detail)
+}
+
 // Match Univer's standard defaults for consistent cursor sizing before snapshot is read
 const CURSOR_OVERLAY_ROW_HEIGHT_PX = 23
 const CURSOR_OVERLAY_COL_WIDTH_PX = 73
@@ -515,8 +529,19 @@ export interface CellDimensionsPayload {
   zoomRatio: number
 }
 
+/** When set from live collab with a sender `cellRef`, row index must not be replaced by `rowIdToIndex`. */
+export type ApplyRemoteCellUpdateOptions = {
+  useSenderA1Row?: boolean
+}
+
 export interface UniverSheetGridHandle {
-  applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown, rowId?: string) => void
+  applyRemoteCellUpdate: (
+    rowIndex: number,
+    colIndex: number,
+    value: unknown,
+    rowId?: string,
+    options?: ApplyRemoteCellUpdateOptions
+  ) => void
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
   applyRemoteDimensions: (payload: CellDimensionsPayload) => void
@@ -1563,79 +1588,185 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
     // Callers should prefer passing A1-resolved coordinates (from cellRef) directly as rowIndex/colIndex.
     // The rowId fallback attempts to re-resolve via contextRef, but contextRef tracks the data prop
-    // (not the Univer workbook), so it can be wrong after structural changes. See handleCollaborationOperation.
-    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown, rowId?: string) => {
-      const clearRemoteFlag = () => {
-        isApplyingRemoteUpdateRef.current = false
-      }
-      const tryApply = (attempt: number) => {
-        const api = univerAPIRef.current
-        if (!api) {
-          if (attempt < 2) {
-            globalThis.setTimeout(() => tryApply(attempt + 1), 150)
-            return
-          }
-          console.warn('[UniverSheetGrid] applyRemoteCellUpdate: Univer API unavailable after retries')
-          clearRemoteFlag()
-          return
-        }
-        let resolvedRow = rowIndex
-        if (rowId && contextRef.current) {
-          const gridIndex = contextRef.current.rowIdToIndex.get(rowId)
-          if (gridIndex !== undefined) {
-            resolvedRow = gridIndex
-          } else {
-            const d = propsRef.current.data
-            const fallback = d.findIndex(r => {
-              const ids = [r._rowUuid, r._id, r.id].map(v => (v == null ? '' : String(v))).filter(Boolean)
-              return ids.includes(rowId)
+    // (not the Univer workbook), so it can be wrong vs the sender's cellRef — use `useSenderA1Row` from collab.
+    const applyRemoteCellUpdate = useCallback(
+      (rowIndex: number, colIndex: number, value: unknown, rowId?: string, options?: ApplyRemoteCellUpdateOptions) => {
+        const tryApply = (attempt: number) => {
+          try {
+            const api = univerAPIRef.current
+            if (!api) {
+              if (attempt < 2) {
+                debugRemoteApply('schedule_retry', {
+                  reason: 'no_api',
+                  attempt,
+                  row0: rowIndex,
+                  col0: colIndex,
+                  a1: toA1Reference(rowIndex, colIndex)
+                })
+                globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+                return
+              }
+              console.warn('[UniverSheetGrid] applyRemoteCellUpdate: Univer API unavailable after retries')
+              debugRemoteApply('give_up', { reason: 'no_api', row0: rowIndex, col0: colIndex })
+              return
+            }
+            let resolvedRow = rowIndex
+            if (!options?.useSenderA1Row && rowId && contextRef.current) {
+              const gridIndex = contextRef.current.rowIdToIndex.get(rowId)
+              if (gridIndex !== undefined) {
+                resolvedRow = gridIndex
+              } else {
+                const d = propsRef.current.data
+                const fallback = d.findIndex(r => {
+                  const ids = [r._rowUuid, r._id, r.id].map(v => (v == null ? '' : String(v))).filter(Boolean)
+                  return ids.includes(rowId)
+                })
+                if (fallback >= 0) resolvedRow = fallback
+              }
+            }
+            const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
+            const key = remoteEchoKey(resolvedRow, colIndex)
+            remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
+            globalThis.setTimeout(() => {
+              const current = remoteEchoSuppressionRef.current.get(key)
+              if (current?.expiresAt === expiresAt) {
+                remoteEchoSuppressionRef.current.delete(key)
+              }
+            }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
+
+            const workbook = api.getActiveWorkbook()
+            if (!workbook) {
+              if (attempt < 2) {
+                debugRemoteApply('schedule_retry', {
+                  reason: 'no_workbook',
+                  attempt,
+                  row0: resolvedRow,
+                  col0: colIndex,
+                  a1: toA1Reference(resolvedRow, colIndex)
+                })
+                globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+                return
+              }
+              console.warn('[UniverSheetGrid] applyRemoteCellUpdate: no active workbook after retries')
+              debugRemoteApply('give_up', { reason: 'no_workbook', row0: resolvedRow, col0: colIndex })
+              return
+            }
+            const worksheet = workbook.getActiveSheet()
+            if (!worksheet) {
+              if (attempt < 2) {
+                debugRemoteApply('schedule_retry', {
+                  reason: 'no_worksheet',
+                  attempt,
+                  row0: resolvedRow,
+                  col0: colIndex,
+                  a1: toA1Reference(resolvedRow, colIndex)
+                })
+                globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+                return
+              }
+              console.warn('[UniverSheetGrid] applyRemoteCellUpdate: no active worksheet after retries')
+              debugRemoteApply('give_up', { reason: 'no_worksheet', row0: resolvedRow, col0: colIndex })
+              return
+            }
+            debugRemoteApply('sync_path', {
+              attempt,
+              row0: resolvedRow,
+              col0: colIndex,
+              a1: toA1Reference(resolvedRow, colIndex),
+              usedRowId: Boolean(rowId && !options?.useSenderA1Row)
             })
-            if (fallback >= 0) resolvedRow = fallback
-          }
-        }
-        const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
-        const key = remoteEchoKey(resolvedRow, colIndex)
-        remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
-        globalThis.setTimeout(() => {
-          const current = remoteEchoSuppressionRef.current.get(key)
-          if (current?.expiresAt === expiresAt) {
-            remoteEchoSuppressionRef.current.delete(key)
-          }
-        }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
-        try {
-          const workbook = api.getActiveWorkbook()
-          if (!workbook) {
-            if (attempt < 2) {
-              globalThis.setTimeout(() => tryApply(attempt + 1), 150)
+            const range = worksheet.getRange(resolvedRow, colIndex)
+            if (!range) {
+              console.warn('[UniverSheetGrid] applyRemoteCellUpdate: getRange returned null', { resolvedRow, colIndex })
+              debugRemoteApply('sync_getRange_null', {
+                row0: resolvedRow,
+                col0: colIndex,
+                a1: toA1Reference(resolvedRow, colIndex),
+                attempt
+              })
               return
             }
-            console.warn('[UniverSheetGrid] applyRemoteCellUpdate: no active workbook after retries')
-            return
+            // Defer setValue so React/state updates from commitLocalSheetData (same collab tick) and
+            // any microtasks Univer schedules from prior cells run first — avoids sporadic blank cells
+            // under fast remote bursts (same refs applied, withA1Applied=1, but UI missing a value).
+            const rowForApply = resolvedRow
+            const colForApply = colIndex
+            const valueForApply = value
+            debugRemoteApply('queue_setValue_microtask', {
+              row0: rowForApply,
+              col0: colForApply,
+              a1: toA1Reference(rowForApply, colForApply),
+              attempt
+            })
+            queueMicrotask(() => {
+              isApplyingRemoteUpdateRef.current = true
+              try {
+                debugRemoteApply('microtask_begin', {
+                  row0: rowForApply,
+                  col0: colForApply,
+                  a1: toA1Reference(rowForApply, colForApply)
+                })
+                const apiQ = univerAPIRef.current
+                if (!apiQ) {
+                  debugRemoteApply('microtask_skip', { reason: 'no_api', row0: rowForApply, col0: colForApply })
+                  return
+                }
+                const wbQ = apiQ.getActiveWorkbook()
+                if (!wbQ) {
+                  debugRemoteApply('microtask_skip', { reason: 'no_workbook', row0: rowForApply, col0: colForApply })
+                  return
+                }
+                const wsQ = wbQ.getActiveSheet?.()
+                if (!wsQ) {
+                  debugRemoteApply('microtask_skip', { reason: 'no_worksheet', row0: rowForApply, col0: colForApply })
+                  return
+                }
+                const rQ = wsQ.getRange(rowForApply, colForApply)
+                if (!rQ) {
+                  debugRemoteApply('microtask_skip', {
+                    reason: 'getRange_null',
+                    row0: rowForApply,
+                    col0: colForApply,
+                    a1: toA1Reference(rowForApply, colForApply)
+                  })
+                  return
+                }
+                debugRemoteApply('setValue_call', {
+                  row0: rowForApply,
+                  col0: colForApply,
+                  a1: toA1Reference(rowForApply, colForApply)
+                })
+                rQ.setValue(valueForApply as any)
+                debugRemoteApply('setValue_done', {
+                  row0: rowForApply,
+                  col0: colForApply,
+                  a1: toA1Reference(rowForApply, colForApply)
+                })
+              } catch (e) {
+                console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
+                debugRemoteApply('microtask_error', {
+                  row0: rowForApply,
+                  col0: colForApply,
+                  message: e instanceof Error ? e.message : 'unknown'
+                })
+              } finally {
+                isApplyingRemoteUpdateRef.current = false
+                debugRemoteApply('microtask_finally', { row0: rowForApply, col0: colForApply })
+              }
+            })
+          } catch (e) {
+            console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
+            debugRemoteApply('tryApply_throw', {
+              row0: rowIndex,
+              col0: colIndex,
+              message: e instanceof Error ? e.message : 'unknown'
+            })
           }
-          const worksheet = workbook.getActiveSheet()
-          if (!worksheet) {
-            if (attempt < 2) {
-              globalThis.setTimeout(() => tryApply(attempt + 1), 150)
-              return
-            }
-            console.warn('[UniverSheetGrid] applyRemoteCellUpdate: no active worksheet after retries')
-            return
-          }
-          const range = worksheet.getRange(resolvedRow, colIndex)
-          if (range) {
-            range.setValue(value as any)
-          } else {
-            console.warn('[UniverSheetGrid] applyRemoteCellUpdate: getRange returned null', { resolvedRow, colIndex })
-          }
-        } catch (e) {
-          console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
-        } finally {
-          clearRemoteFlag()
         }
-      }
-      isApplyingRemoteUpdateRef.current = true
-      tryApply(0)
-    }, [])
+        tryApply(0)
+      },
+      []
+    )
 
     const getWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
       const api = univerAPIRef.current
@@ -2392,7 +2523,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }) => {
           if (readOnlyRef.current) return
-          if (isApplyingRemoteUpdateRef.current) return
           const payload = params?.payload
           let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
           if (!cellValue) {

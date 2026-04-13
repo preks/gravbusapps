@@ -392,6 +392,148 @@ export function buildWorkbookSnapshot(
   }
 }
 
+function cloneWorkbookSnapshotJson(workbookSnapshot: Record<string, unknown>): Record<string, unknown> {
+  try {
+    return structuredClone(workbookSnapshot) as Record<string, unknown>
+  } catch {
+    return JSON.parse(JSON.stringify(workbookSnapshot)) as Record<string, unknown>
+  }
+}
+
+function getWorksheetFromWorkbookSnapshot(
+  workbookSnapshot: Record<string, unknown>,
+  sheetId: string
+): Record<string, unknown> | undefined {
+  const sheets = workbookSnapshot.sheets as Record<string, Record<string, unknown>> | undefined
+  if (!sheets || typeof sheets !== 'object') return undefined
+  if (sheets[sheetId] != null) return sheets[sheetId] as Record<string, unknown>
+  const order = workbookSnapshot.sheetOrder as string[] | undefined
+  if (Array.isArray(order) && order[0] && sheets[order[0]] != null) {
+    return sheets[order[0]] as Record<string, unknown>
+  }
+  const first = Object.values(sheets)[0]
+  return first as Record<string, unknown> | undefined
+}
+
+const comparableUniverCellPayload = (cell: UniverCellData | undefined): string => {
+  if (!cell || typeof cell !== 'object') return ''
+  if ('v' in cell && cell.v !== undefined) {
+    try {
+      return `v:${JSON.stringify(cell.v)}`
+    } catch {
+      return `v:${String(cell.v)}`
+    }
+  }
+  if ('f' in cell && typeof cell.f === 'string' && cell.f.length > 0) {
+    return `f:${cell.f}`
+  }
+  return ''
+}
+
+/**
+ * Returns true when persisted Univer cellData disagrees with row-authoritative values
+ * derived from viewer rows (same rules as {@link buildWorkbookSnapshot}).
+ */
+export function workbookSnapshotMismatchesViewerRows(
+  workbookSnapshot: Record<string, unknown> | null,
+  sheetId: string,
+  viewerRows: Record<string, unknown>[],
+  columns: SpreadsheetColumn[]
+): boolean {
+  if (!workbookSnapshot || typeof workbookSnapshot !== 'object') return false
+  const worksheet = getWorksheetFromWorkbookSnapshot(workbookSnapshot, sheetId)
+  if (!worksheet) return false
+  const snapCellData = worksheet.cellData as UniverSheetCellData | undefined
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  const authoritative = buildCellData(viewerRows, visibleColumns)
+  const rowKeys = new Set<string>([...Object.keys(authoritative), ...Object.keys(snapCellData ?? {})])
+
+  for (const rowKey of rowKeys) {
+    const rowIndex = Number(rowKey)
+    if (Number.isNaN(rowIndex) || rowIndex < 0) continue
+    const authRow = authoritative[rowIndex] ?? {}
+    const snapRow = snapCellData?.[rowIndex] ?? snapCellData?.[String(rowIndex) as unknown as number] ?? {}
+
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const authCell = (authRow as Record<number, UniverCellData | undefined>)[colIndex]
+      const snapCell = (snapRow as Record<number, UniverCellData | undefined>)[colIndex]
+      const comparableAuth = comparableUniverCellPayload(authCell)
+      const comparableSnapshot = comparableUniverCellPayload(snapCell)
+      if (comparableAuth === comparableSnapshot) continue
+      if (comparableAuth === '' && comparableSnapshot === '') continue
+
+      return true
+    }
+  }
+  return false
+}
+
+function shouldClearSnapshotCellValue(cell: UniverCellData | undefined): boolean {
+  return comparableUniverCellPayload(cell) !== ''
+}
+
+/**
+ * Deep-clones a workbook snapshot and overwrites worksheet cellData with row-authoritative
+ * values from viewer rows (preserves merges, dimensions, and other snapshot-only state).
+ */
+export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+  workbookSnapshot: Record<string, unknown>,
+  sheetId: string,
+  viewerRows: Record<string, unknown>[],
+  columns: SpreadsheetColumn[]
+): Record<string, unknown> {
+  const cloned = cloneWorkbookSnapshotJson(workbookSnapshot)
+  const sheets = cloned.sheets as Record<string, Record<string, unknown>> | undefined
+  if (!sheets || typeof sheets !== 'object') return cloned
+
+  let worksheet: Record<string, unknown> | undefined = sheets[sheetId] as Record<string, unknown> | undefined
+  if (!worksheet) {
+    const order = cloned.sheetOrder as string[] | undefined
+    if (Array.isArray(order) && order[0] && sheets[order[0]]) {
+      worksheet = sheets[order[0]] as Record<string, unknown>
+    } else {
+      worksheet = Object.values(sheets)[0] as Record<string, unknown> | undefined
+    }
+  }
+  if (!worksheet) return cloned
+
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  const authoritative = buildCellData(viewerRows, visibleColumns)
+  const priorCellData = (worksheet.cellData as UniverSheetCellData | undefined) ?? {}
+  const nextCellData: UniverSheetCellData = { ...priorCellData }
+  const rowKeys = new Set<string>([...Object.keys(authoritative), ...Object.keys(priorCellData)])
+
+  for (const rowKey of rowKeys) {
+    const rowIndex = Number(rowKey)
+    if (Number.isNaN(rowIndex) || rowIndex < 0) continue
+    const authRow = authoritative[rowIndex] ?? {}
+    const priorRow = (nextCellData[rowIndex] ?? {}) as Record<number, UniverCellData>
+    const mergedRow: Record<number, UniverCellData> = { ...priorRow }
+
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const authCell = (authRow as Record<number, UniverCellData | undefined>)[colIndex]
+      if (authCell) {
+        mergedRow[colIndex] = authCell
+        continue
+      }
+
+      const priorCell = mergedRow[colIndex]
+      if (shouldClearSnapshotCellValue(priorCell)) {
+        delete mergedRow[colIndex]
+      }
+    }
+
+    if (Object.keys(mergedRow).length > 0) {
+      nextCellData[rowIndex] = mergedRow
+    } else {
+      delete nextCellData[rowIndex]
+    }
+  }
+
+  worksheet.cellData = nextCellData
+  return cloned
+}
+
 /**
  * Whether the persisted Univer snapshot's tracking-header row already shows the titles we derive from column config.
  * When this is false, Univer was bootstrapped from a stale snapshot and will ignore corrected row state until the grid remounts.
@@ -591,6 +733,7 @@ export function transformAvatarFormulasInSnapshot(
 /**
  * Create conversion context for mapping row/column indices to our rowId/columnId.
  * Used by UniverSheetGrid and collaboration for applyRemoteCellUpdate and operation mapping.
+ * `rowIdToIndex` includes every known id alias (_id, id, _rowUuid) so inbound persisted rowIds resolve.
  */
 export function createUniverConversionContext(
   columns: SpreadsheetColumn[],
@@ -613,9 +756,28 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
-    const rowId = typeof row._id === 'string' ? row._id : `row_${index}`
-    rowIdToIndex.set(rowId, index)
-    rowIndexToId.set(index, rowId)
+    const idField = row._id ?? row.id
+    let primaryRowId: string
+    if (idField != null) {
+      const s = typeof idField === 'number' ? String(idField) : String(idField)
+      primaryRowId = s || `row_${index}`
+    } else if (typeof row._rowUuid === 'string' && row._rowUuid) {
+      primaryRowId = row._rowUuid
+    } else {
+      primaryRowId = `row_${index}`
+    }
+    rowIndexToId.set(index, primaryRowId)
+    const aliasKeys = new Set<string>()
+    aliasKeys.add(primaryRowId)
+    aliasKeys.add(`row_${index}`)
+    for (const v of [row._id, row.id, row._rowUuid]) {
+      if (v == null) continue
+      const s = String(v)
+      if (s) aliasKeys.add(s)
+    }
+    for (const k of aliasKeys) {
+      rowIdToIndex.set(k, index)
+    }
   })
   return {
     columnIdToIndex,

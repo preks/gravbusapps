@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Socket } from 'socket.io-client'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { OfficeWebSocketClient } from '@/common/network/office/OfficeWebSocketClient'
+import { getSpreadsheetCollaborationWebSocketBaseUrl } from '../utils/spreadsheetCollaborationWebSocketUrl'
 import type {
   DocumentParticipant,
   DocumentOperation
@@ -369,103 +370,119 @@ export function useSpreadsheetCollaboration({
       clientRef.current = null
       return
     }
+    try {
+      const client = clientRef.current ?? new OfficeWebSocketClient(getSpreadsheetCollaborationWebSocketBaseUrl())
+      clientRef.current = client
+      client.setAccessToken(accessToken)
+      setSocket(client.connect(accessToken))
 
-    const client = clientRef.current ?? new OfficeWebSocketClient()
-    clientRef.current = client
-    client.setAccessToken(accessToken)
-    setSocket(client.connect(accessToken))
+      const joinRoomIfNeeded = () => {
+        if (hasJoinedRef.current || isJoiningRef.current) return
+        if (!client.getSocket()?.connected) return
 
-    const joinRoomIfNeeded = () => {
-      if (hasJoinedRef.current || isJoiningRef.current) return
-      if (!client.getSocket()?.connected) return
+        isJoiningRef.current = true
+        clearJoinAckTimeout()
+        joinAckTimeoutRef.current = setTimeout(() => {
+          isJoiningRef.current = false
+        }, 6000)
 
-      isJoiningRef.current = true
-      clearJoinAckTimeout()
-      joinAckTimeoutRef.current = setTimeout(() => {
+        client.joinDocument('spreadsheet', appId, participants => {
+          setRawParticipants(normalizeParticipants((participants as SocketParticipant[]) || []))
+          hasJoinedRef.current = true
+          isJoiningRef.current = false
+          setIsCollaborationJoined(true)
+          clearJoinAckTimeout()
+        })
+      }
+
+      const unsubscribeConnect = client.onConnect(() => {
+        setIsCollaborationConnected(true)
+        setCollaborationHealth('connected')
+        setSocket(client.getSocket())
+        joinRoomIfNeeded()
+      })
+
+      const unsubscribeDisconnect = client.onDisconnect(() => {
+        setIsCollaborationConnected(false)
+        setIsCollaborationJoined(false)
+        setCollaborationHealth('reconnecting')
+        setSocket(null)
+        setRawParticipants([])
+        hasJoinedRef.current = false
         isJoiningRef.current = false
-      }, 6000)
-
-      client.joinDocument('spreadsheet', appId, participants => {
-        setRawParticipants(normalizeParticipants((participants as SocketParticipant[]) || []))
-        hasJoinedRef.current = true
-        isJoiningRef.current = false
-        setIsCollaborationJoined(true)
         clearJoinAckTimeout()
       })
-    }
 
-    const unsubscribeConnect = client.onConnect(() => {
-      setIsCollaborationConnected(true)
-      setCollaborationHealth('connected')
-      setSocket(client.getSocket())
-      joinRoomIfNeeded()
-    })
+      const unsubscribeConnectError = client.onConnectError(error => {
+        setCollaborationHealth(client.isHealthy() ? 'reconnecting' : 'failed')
+        onErrorStable(error)
+      })
 
-    const unsubscribeDisconnect = client.onDisconnect(() => {
-      setIsCollaborationConnected(false)
-      setIsCollaborationJoined(false)
-      setCollaborationHealth('reconnecting')
-      setSocket(null)
-      setRawParticipants([])
-      hasJoinedRef.current = false
-      isJoiningRef.current = false
-      clearJoinAckTimeout()
-    })
+      const unsubscribeUserJoined = client.onUserJoined(data => {
+        setRawParticipants(prev => addParticipantIfMissing(prev, data))
+      })
 
-    const unsubscribeConnectError = client.onConnectError(error => {
-      setCollaborationHealth(client.isHealthy() ? 'reconnecting' : 'failed')
-      onErrorStable(error)
-    })
+      const unsubscribeUserLeft = client.onUserLeft(data => {
+        setRawParticipants(prev => removeParticipant(prev, data.userId))
+      })
 
-    const unsubscribeUserJoined = client.onUserJoined(data => {
-      setRawParticipants(prev => addParticipantIfMissing(prev, data))
-    })
+      const unsubscribeOperationApplied = client.onOperationApplied(data => {
+        onOperationReceivedStable(data as CollaborationOperation)
+      })
 
-    const unsubscribeUserLeft = client.onUserLeft(data => {
-      setRawParticipants(prev => removeParticipant(prev, data.userId))
-    })
+      const unsubscribeCursorUpdate = client.onCursorUpdate(data => {
+        setRawParticipants(prev => updateParticipantCursor(prev, data))
+      })
 
-    const unsubscribeOperationApplied = client.onOperationApplied(data => {
-      onOperationReceivedStable(data as CollaborationOperation)
-    })
+      const unsubscribeSelectionUpdate = client.onSelectionUpdate(data => {
+        setRawParticipants(prev => updateParticipantSelection(prev, data))
+      })
 
-    const unsubscribeCursorUpdate = client.onCursorUpdate(data => {
-      setRawParticipants(prev => updateParticipantCursor(prev, data))
-    })
-
-    const unsubscribeSelectionUpdate = client.onSelectionUpdate(data => {
-      setRawParticipants(prev => updateParticipantSelection(prev, data))
-    })
-
-    if (client.getSocket()?.connected) {
-      setIsCollaborationConnected(true)
-      setCollaborationHealth('connected')
-      setSocket(client.getSocket())
-      joinRoomIfNeeded()
-    }
-
-    return () => {
-      clearJoinAckTimeout()
-      unsubscribeSelectionUpdate()
-      unsubscribeCursorUpdate()
-      unsubscribeOperationApplied()
-      unsubscribeUserLeft()
-      unsubscribeUserJoined()
-      unsubscribeConnectError()
-      unsubscribeDisconnect()
-      unsubscribeConnect()
-
-      if (hasJoinedRef.current) {
-        client.leaveDocument('spreadsheet', appId)
+      if (client.getSocket()?.connected) {
+        setIsCollaborationConnected(true)
+        setCollaborationHealth('connected')
+        setSocket(client.getSocket())
+        joinRoomIfNeeded()
       }
+
+      return () => {
+        clearJoinAckTimeout()
+        unsubscribeSelectionUpdate()
+        unsubscribeCursorUpdate()
+        unsubscribeOperationApplied()
+        unsubscribeUserLeft()
+        unsubscribeUserJoined()
+        unsubscribeConnectError()
+        unsubscribeDisconnect()
+        unsubscribeConnect()
+
+        if (hasJoinedRef.current) {
+          client.leaveDocument('spreadsheet', appId)
+        }
+        hasJoinedRef.current = false
+        isJoiningRef.current = false
+        setIsCollaborationJoined(false)
+        setIsCollaborationConnected(false)
+        setSocket(null)
+        setRawParticipants([])
+        client.disconnect()
+        clientRef.current = null
+      }
+    } catch (error) {
+      const resolvedError =
+        error instanceof Error ? error : new Error('[SpreadsheetCollaboration] Failed to initialize collaboration')
+      setRawParticipants([])
+      setIsCollaborationConnected(false)
+      setIsCollaborationJoined(false)
+      setCollaborationHealth('failed')
+      setSocket(null)
       hasJoinedRef.current = false
       isJoiningRef.current = false
-      setIsCollaborationJoined(false)
-      setIsCollaborationConnected(false)
-      setSocket(null)
-      setRawParticipants([])
-      client.disconnect()
+      clearJoinAckTimeout()
+      clientRef.current?.disconnect()
       clientRef.current = null
+      onErrorStable(resolvedError)
+      return
     }
   }, [accessToken, appId, clearJoinAckTimeout, onErrorStable, onOperationReceivedStable])
 
@@ -561,6 +578,7 @@ export function useSpreadsheetCollaboration({
         if (!payload) return
         currentUserIdRef.current = payload.sub || payload.userId
         setCurrentUserName(payload.name || payload.preferred_username || 'User')
+        manager.setCurrentUserId(currentUserIdRef.current ?? null)
 
         if (authToken && payload.sub) {
           const query = `

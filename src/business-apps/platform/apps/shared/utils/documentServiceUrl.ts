@@ -58,3 +58,18 @@ export const getDocumentServiceApiUrl = (): string => {
 
   throw new Error('Document service URL is not configured')
 }
+
+/**
+ * Base URL for the office collaboration WebSocket client when `NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL` is unset.
+ * Matches the host (and `/document` prefix when the REST API is mounted there) used by
+ * {@link getDocumentServiceApiUrl} so collaboration persist and spreadsheet REST hit the same backend.
+ */
+export function getDocumentOfficeWebSocketBaseUrl(): string {
+  const apiUrl = getDocumentServiceApiUrl()
+  const parsed = new URL(apiUrl)
+  const pathname = parsed.pathname.replace(/\/+$/, '') || '/'
+  if (pathname.includes('/document/')) {
+    return `${parsed.origin}/document`
+  }
+  return parsed.origin
+}

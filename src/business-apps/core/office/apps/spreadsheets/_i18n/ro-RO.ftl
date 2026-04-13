@@ -481,6 +481,8 @@ spreadsheet-save-just-now = Salvat chiar acum
 
 # Save / persistence indicator (viewer header)
 persist-cell-failed = Modificările celulelor nu au putut fi salvate. Încearcă din nou sau reîmprospătează pagina.
+collab-sync-save-failed = Nu s-a putut sincroniza prin colaborare; modificările au fost puse la coadă pentru salvare directă.
+collab-queue-trimmed-warn = Coada de colaborare a fost scurtată. Dacă foaia pare incorectă, reîmprospătează pagina.
 persist-row-update-failed = Modificările rândului nu au putut fi salvate.
 persist-row-delete-failed = Rândul nu a putut fi șters.
 persist-rows-add-failed = Rândurile noi nu au putut fi salvate.
