@@ -328,7 +328,6 @@ export const navigateTo = (
     // Parse URL and add cache-busting parameter
     try {
       const urlObj = new URL(baseTargetUrl, window.location.origin)
-      // Add cache-busting parameter to force content refresh via SPA navigation
       urlObj.searchParams.set('_refresh', Date.now().toString())
       const urlToNavigate = urlObj.pathname + urlObj.search + (urlObj.hash || '')
 
