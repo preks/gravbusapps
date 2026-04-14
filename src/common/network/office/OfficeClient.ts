@@ -1,6 +1,6 @@
 import { RestClient, type RequestOptions } from '../rest/RestClient'
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
-import { getDocumentServiceApiUrl } from '@/common/utils/serviceResolver'
+import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
 import { OfficeBoardsClient } from './OfficeBoardsClient'
 import { OfficeDriveClient } from './OfficeDriveClient'
 import { OfficeEmailsClient } from './OfficeEmailsClient'
@@ -30,7 +30,7 @@ export class OfficeClient extends RestClient {
   readonly spreadsheets: OfficeSpreadsheetsClient
 
   constructor() {
-    super(getDocumentServiceApiUrl(), {})
+    super(DOCUMENT_API_URL, {})
     this.boards = new OfficeBoardsClient(this)
     this.drive = new OfficeDriveClient(this)
     this.emails = new OfficeEmailsClient(this)
@@ -47,8 +47,7 @@ export class OfficeClient extends RestClient {
   }
 
   getBaseUrl(): string {
-    const url = getDocumentServiceApiUrl()
-    return url.endsWith('/') ? url.slice(0, -1) : url
+    return DOCUMENT_API_URL.endsWith('/') ? DOCUMENT_API_URL.slice(0, -1) : DOCUMENT_API_URL
   }
 
   // --- Overview ---

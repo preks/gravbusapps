@@ -98,18 +98,6 @@ export const DOCUMENT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_W
   servicePath: '/document',
   apiPath: ''
 })
-
-export function getDocumentServiceApiUrl(): string {
-  return DOCUMENT_API_URL
-}
-
-export function getDocumentOfficeWebSocketBaseUrl(): string {
-  return DOCUMENT_WEB_SOCKET_URL
-}
-
-export function getOfficeWebSocketUrl(): string {
-  return DOCUMENT_WEB_SOCKET_URL
-}
 export const EMPLOYEE_EXPENSE_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_EXPENSE_API_URL', {
   servicePath: '/processes/employee-expense',
   apiPath: ''
