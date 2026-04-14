@@ -90,6 +90,18 @@ function descendantsByLocalName(root: Element, localName: string): Element[] {
   return Array.from(root.getElementsByTagName('*')).filter(el => elementLocalName(el) === localName)
 }
 
+function readAttributeValue(element: Element | null, localName: string): string | null {
+  if (!element) return null
+
+  const direct = element.getAttribute(localName)
+  if (direct != null && direct !== '') return direct
+
+  const namespaced = element.getAttribute(`w:${localName}`)
+  if (namespaced != null && namespaced !== '') return namespaced
+
+  return null
+}
+
 function readExtentPx(container: Element | null): { widthPx: number | null; heightPx: number | null } {
   if (!container) return { widthPx: null, heightPx: null }
   const extent = descendantsByLocalName(container, 'extent')[0]
@@ -98,6 +110,30 @@ function readExtentPx(container: Element | null): { widthPx: number | null; heig
     widthPx: emuToPx(extent.getAttribute('cx')),
     heightPx: emuToPx(extent.getAttribute('cy'))
   }
+}
+
+function halfPointsToPx(halfPoints: number): number {
+  return Math.round((halfPoints * 96) / 144)
+}
+
+function bodyChildElements(root: Element): Element[] {
+  const body = descendantsByLocalName(root, 'body')[0]
+  return body ? Array.from(body.children) : []
+}
+
+function paragraphHasManualPageBreak(paragraph: Element): boolean {
+  return descendantsByLocalName(paragraph, 'br').some(
+    breakEl => readAttributeValue(breakEl, 'type')?.trim().toLowerCase() === 'page'
+  )
+}
+
+function paragraphHasVisibleContent(paragraph: Element): boolean {
+  const textNodes = descendantsByLocalName(paragraph, 't')
+  if (textNodes.some(textNode => (textNode.textContent ?? '').trim().length > 0)) {
+    return true
+  }
+
+  return descendantsByLocalName(paragraph, 'drawing').length > 0
 }
 
 function readHorizontalAlign(anchor: Element): ImageAlignment {
@@ -423,15 +459,212 @@ export function parseDocumentXmlForPageFormatting(xml: string): DocumentFormatti
   }
 }
 
+export function parseDocumentXmlForPageBreakIndexes(xml: string): number[] {
+  if (!xml || globalThis.DOMParser === undefined) {
+    return []
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'application/xml')
+    if (doc.getElementsByTagName('parsererror').length > 0) {
+      return []
+    }
+
+    const pageBreakIndexes: number[] = []
+    let flowIndex = 0
+
+    for (const child of bodyChildElements(doc.documentElement)) {
+      const localName = elementLocalName(child)
+
+      if (localName === 'p') {
+        const hasManualPageBreak = paragraphHasManualPageBreak(child)
+        const hasVisibleContent = paragraphHasVisibleContent(child)
+
+        if (hasManualPageBreak) {
+          pageBreakIndexes.push(hasVisibleContent ? flowIndex + 1 : flowIndex)
+        }
+
+        flowIndex += 1
+        continue
+      }
+
+      if (localName === 'tbl') {
+        flowIndex += 1
+      }
+    }
+
+    return pageBreakIndexes
+  } catch {
+    return []
+  }
+}
+
+export function parseStylesXmlForTypography(xml: string): Partial<DocumentFormatting> | undefined {
+  if (!xml || globalThis.DOMParser === undefined) {
+    return undefined
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'application/xml')
+    if (doc.getElementsByTagName('parsererror').length > 0) {
+      return undefined
+    }
+
+    const styles = descendantsByLocalName(doc.documentElement, 'style')
+    const normalStyle =
+      styles.find(style => {
+        const styleType = readAttributeValue(style, 'type')?.trim().toLowerCase()
+        const styleId = readAttributeValue(style, 'styleId')?.trim()
+        const isDefaultParagraph = styleType === 'paragraph' && readAttributeValue(style, 'default') === '1'
+
+        return isDefaultParagraph || (styleType === 'paragraph' && styleId === 'Normal')
+      }) ?? null
+
+    if (!normalStyle) {
+      return undefined
+    }
+
+    const rPr = firstChildByLocalName(normalStyle, 'rPr')
+    const pPr = firstChildByLocalName(normalStyle, 'pPr')
+    const fonts = rPr ? firstChildByLocalName(rPr, 'rFonts') : null
+    const fontSize = rPr ? firstChildByLocalName(rPr, 'sz') : null
+    const spacing = pPr ? firstChildByLocalName(pPr, 'spacing') : null
+
+    const fontFamily = readAttributeValue(fonts, 'ascii') ?? readAttributeValue(fonts, 'hAnsi') ?? undefined
+    const fontSizeHalfPoints = Number.parseInt(readAttributeValue(fontSize, 'val') ?? '', 10)
+    const spacingLine = Number.parseInt(readAttributeValue(spacing, 'line') ?? '', 10)
+    const spacingRule = readAttributeValue(spacing, 'lineRule')?.trim().toLowerCase()
+
+    const typography: Partial<DocumentFormatting> = {}
+
+    if (fontFamily) {
+      typography.fontFamily = fontFamily
+    }
+
+    if (Number.isFinite(fontSizeHalfPoints) && fontSizeHalfPoints > 0) {
+      typography.fontSize = halfPointsToPx(fontSizeHalfPoints)
+    }
+
+    if (Number.isFinite(spacingLine) && spacingLine > 0 && (!spacingRule || spacingRule === 'auto')) {
+      typography.lineHeight = Math.round((spacingLine / 240) * 100) / 100
+    }
+
+    return Object.keys(typography).length > 0 ? typography : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export async function parseDocxPageFormatting(arrayBuffer: ArrayBuffer): Promise<DocumentFormatting | undefined> {
   try {
     const zip = await JSZip.loadAsync(arrayBuffer)
-    const entry = zip.file('word/document.xml')
-    if (!entry) return undefined
-    const xml = await entry.async('string')
-    return parseDocumentXmlForPageFormatting(xml)
+    const documentEntry = zip.file('word/document.xml')
+    const stylesEntry = zip.file('word/styles.xml')
+
+    const [documentXml, stylesXml] = await Promise.all([
+      documentEntry?.async('string') ?? Promise.resolve(undefined),
+      stylesEntry?.async('string') ?? Promise.resolve(undefined)
+    ])
+
+    const pageFormatting = documentXml ? parseDocumentXmlForPageFormatting(documentXml) : undefined
+    const typographyFormatting = stylesXml ? parseStylesXmlForTypography(stylesXml) : undefined
+
+    if (!pageFormatting && !typographyFormatting) {
+      return undefined
+    }
+
+    return {
+      ...pageFormatting,
+      ...typographyFormatting,
+      pages: pageFormatting?.pages
+    }
   } catch {
     return undefined
+  }
+}
+
+export async function parseDocxPageBreaks(arrayBuffer: ArrayBuffer): Promise<number[]> {
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer)
+    const documentEntry = zip.file('word/document.xml')
+    if (!documentEntry) {
+      return []
+    }
+
+    const xml = await documentEntry.async('string')
+    return parseDocumentXmlForPageBreakIndexes(xml)
+  } catch {
+    return []
+  }
+}
+
+function isImportedFlowBlock(node: Element): node is HTMLElement {
+  return node instanceof HTMLElement && !node.hasAttribute('data-page-break')
+}
+
+function isEmptyParagraphElement(element: HTMLElement): boolean {
+  if (element.tagName.toLowerCase() !== 'p') {
+    return false
+  }
+
+  const text = element.textContent?.replace(/\u00a0/g, ' ').trim() ?? ''
+  if (text.length > 0) {
+    return false
+  }
+
+  const childElements = Array.from(element.children)
+  return childElements.every(child => child.tagName.toLowerCase() === 'br')
+}
+
+function createImportedPageBreakElement(targetDocument: Document): HTMLElement {
+  const container = targetDocument.createElement('div')
+  container.setAttribute('data-page-break', '')
+  container.className = 'page-break'
+  container.setAttribute('contenteditable', 'false')
+
+  const line = targetDocument.createElement('div')
+  line.className = 'page-break-line'
+
+  const label = targetDocument.createElement('span')
+  label.className = 'page-break-label'
+  label.textContent = 'Page Break'
+
+  container.append(line, label)
+  return container
+}
+
+export function enhanceImportedHtmlWithPageBreaks(html: string, pageBreakIndexes: number[]): string {
+  if (!html || pageBreakIndexes.length === 0 || globalThis.DOMParser === undefined) {
+    return html
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+
+    for (const breakIndex of [...pageBreakIndexes].sort((left, right) => left - right)) {
+      const flowBlocks = Array.from(doc.body.children).filter(isImportedFlowBlock)
+      const target = flowBlocks[breakIndex] ?? null
+      const pageBreakElement = createImportedPageBreakElement(doc)
+
+      if (target && isEmptyParagraphElement(target)) {
+        target.replaceWith(pageBreakElement)
+        continue
+      }
+
+      if (target) {
+        target.before(pageBreakElement)
+        continue
+      }
+
+      doc.body.appendChild(pageBreakElement)
+    }
+
+    return doc.body.innerHTML
+  } catch {
+    return html
   }
 }
 
