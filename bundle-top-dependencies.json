@@ -5051,9 +5051,9 @@
     ]
   },
   "core/office/apps/spaces": {
-    "bitbucketBuildNumber": 10736,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10736/",
-    "chunkJsBytes": 956005,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 956000,
     "top": [
       {
         "kind": "bucket",
@@ -5622,117 +5622,283 @@
     ]
   },
   "crm/campaigns/forms/campaign-form": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 164186,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 164181,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91692,
-        "gzip": 22301
+        "gzip": 22301,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15388,
+            "gzip": 3432
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 79840,
-        "gzip": 25576
+        "gzip": 25576,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12152,
+            "gzip": 3440
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
+            "rendered": 8699,
+            "gzip": 2246
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41449,
-        "gzip": 10113
+        "gzip": 10113,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27265,
+            "gzip": 5036
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 27080,
-        "gzip": 6899
+        "gzip": 6899,
+        "leaves": [
+          {
+            "name": "src/common/data/catalog/queries/catalogQueries.ts",
+            "rendered": 10904,
+            "gzip": 1723
+          },
+          {
+            "name": "src/common/data/catalog/mappers/catalogMappers.ts",
+            "rendered": 5212,
+            "gzip": 1391
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15731,
-        "gzip": 3721
+        "gzip": 3721,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15731,
+            "gzip": 3721
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 12797,
-        "gzip": 3794
+        "gzip": 3794,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/graphql/GraphQLClient.ts",
+            "rendered": 1869,
+            "gzip": 701
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 10445,
-        "gzip": 2806
+        "gzip": 2806,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/campaigns/forms/campaign-form/components/CampaignFormComponent.tsx",
+            "rendered": 6476,
+            "gzip": 1377
+          },
+          {
+            "name": "src/business-apps/crm/campaigns/forms/campaign-form/context/CampaignFormContext.tsx",
+            "rendered": 3186,
+            "gzip": 1073
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 6184,
-        "gzip": 2045
+        "gzip": 2045,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/windowUtils.ts",
+            "rendered": 661,
+            "gzip": 299
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/error-alert",
         "rendered": 5795,
-        "gzip": 2217
+        "gzip": 2217,
+        "leaves": [
+          {
+            "name": "src/components/error-alert/ErrorAlert.tsx",
+            "rendered": 3153,
+            "gzip": 919
+          },
+          {
+            "name": "src/components/error-alert/_i18n/de-DE.ftl?raw",
+            "rendered": 932,
+            "gzip": 445
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 941,
-        "gzip": 393
+        "gzip": 393,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 941,
+            "gzip": 393
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 254
+        "gzip": 254,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 254
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 412,
-        "gzip": 215
+        "gzip": 215,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 412,
+            "gzip": 215
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/crm",
         "rendered": 165,
-        "gzip": 133
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/crm/campaigns/forms/campaign-form.ts",
+            "rendered": 165,
+            "gzip": 133
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
-        "gzip": 58
+        "gzip": 58,
+        "leaves": [
+          {
+            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
+            "rendered": 38,
+            "gzip": 58
+          }
+        ]
       }
     ]
   },
@@ -6209,371 +6375,912 @@
     ]
   },
   "crm/core/apps/customer-settings": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 656115,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 691828,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 453397,
-        "gzip": 222098
+        "rendered": 456420,
+        "gzip": 222896,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
+            "rendered": 232900,
+            "gzip": 125445
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
+            "rendered": 58390,
+            "gzip": 42107
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 246609,
-        "gzip": 57440
+        "gzip": 57438,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/setting-pages/pipelines/components/StagesForm.tsx",
+            "rendered": 22864,
+            "gzip": 4739
+          },
+          {
+            "name": "src/common/components/common-relations/setting-pages/folder-templates/components/FolderTreeEditor.tsx",
+            "rendered": 19896,
+            "gzip": 4202
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91926,
-        "gzip": 22350
+        "gzip": 22350,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15438,
+            "gzip": 3444
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/business-apps/crm",
+        "rendered": 78323,
+        "gzip": 23067,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/apps/customer-settings/CustomerSettings.tsx",
+            "rendered": 9826,
+            "gzip": 1835
+          },
+          {
+            "name": "src/business-apps/crm/core/apps/customer-settings/pages/task-template-data/hooks/useSalesTaskTemplateSettings.ts",
+            "rendered": 7302,
+            "gzip": 1921
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41541,
-        "gzip": 10133
+        "gzip": 10133,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27347,
+            "gzip": 5052
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 39892,
-        "gzip": 10097
+        "rendered": 40179,
+        "gzip": 10250,
+        "leaves": [
+          {
+            "name": "src/common/data/catalog/queries/catalogQueries.ts",
+            "rendered": 10904,
+            "gzip": 1723
+          },
+          {
+            "name": "src/common/data/customer/hooks/useCustomerRelatedEntities.ts",
+            "rendered": 9565,
+            "gzip": 2101
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 27693,
-        "gzip": 7536
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/crm",
-        "rendered": 22486,
-        "gzip": 6605
+        "gzip": 7536,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/catalogs/CatalogManagerClient.ts",
+            "rendered": 8482,
+            "gzip": 1699
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15767,
-        "gzip": 3734
+        "gzip": 3734,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15767,
+            "gzip": 3734
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 8598,
-        "gzip": 2910
+        "gzip": 2910,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/navigationUtils.ts",
+            "rendered": 2372,
+            "gzip": 865
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/layout",
         "rendered": 6475,
-        "gzip": 1683
+        "gzip": 1682,
+        "leaves": [
+          {
+            "name": "src/components/layout/settings-layout/SettingsLayout.tsx",
+            "rendered": 6475,
+            "gzip": 1682
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/data-filter",
         "rendered": 977,
-        "gzip": 430
+        "gzip": 430,
+        "leaves": [
+          {
+            "name": "src/components/data-filter/DebouncedInput.tsx",
+            "rendered": 977,
+            "gzip": 430
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 735,
-        "gzip": 402
+        "gzip": 402,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 416,
+            "gzip": 219
+          },
+          {
+            "name": "src/common/hooks/useDebounce.ts",
+            "rendered": 319,
+            "gzip": 183
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 255
+        "gzip": 255,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 255
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/crm",
         "rendered": 171,
-        "gzip": 136
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/crm/core/apps/customer-settings.ts",
+            "rendered": 171,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/constants",
+        "rendered": 150,
+        "gzip": 124,
+        "leaves": [
+          {
+            "name": "src/common/constants/commonCatalogs.ts",
+            "rendered": 150,
+            "gzip": 124
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/runtime",
-        "rendered": 38,
-        "gzip": 58
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       }
     ]
   },
   "crm/core/apps/data-import": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 546199,
+    "bitbucketBuildNumber": 10741,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10741/",
+    "chunkJsBytes": 548554,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 430713,
-        "gzip": 214276
+        "gzip": 214276,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
+            "rendered": 232900,
+            "gzip": 125445
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
+            "rendered": 58390,
+            "gzip": 42107
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 89884,
-        "gzip": 24094
+        "rendered": 94538,
+        "gzip": 25323,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/apps/data-import/hooks/useEntityImport.ts",
+            "rendered": 31307,
+            "gzip": 7000
+          },
+          {
+            "name": "src/common/components/common-relations/apps/data-import/components/ConversionResultStep.tsx",
+            "rendered": 12417,
+            "gzip": 2328
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 79866,
-        "gzip": 19389
+        "rendered": 79910,
+        "gzip": 19402,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 11816,
+            "gzip": 1879
+          },
+          {
+            "name": "src/common/data/relations/types/accountTypes.ts",
+            "rendered": 9668,
+            "gzip": 1562
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41535,
-        "gzip": 10131
+        "gzip": 10131,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27341,
+            "gzip": 5050
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 25011,
-        "gzip": 7455
+        "gzip": 7455,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/rest/RestClient.ts",
+            "rendered": 5489,
+            "gzip": 1597
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15765,
-        "gzip": 3733
+        "gzip": 3733,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15765,
+            "gzip": 3733
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 10025,
-        "gzip": 3499
+        "gzip": 3499,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/navigationUtils.ts",
+            "rendered": 2372,
+            "gzip": 865
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 9120,
-        "gzip": 5484
+        "gzip": 5484,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/apps/data-import/config/crmDataImportConfig.tsx",
+            "rendered": 1763,
+            "gzip": 705
+          },
+          {
+            "name": "src/business-apps/crm/core/apps/data-import/views/opportunity-import-view/OpportunityImportView.tsx",
+            "rendered": 599,
+            "gzip": 313
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/layout",
         "rendered": 6457,
-        "gzip": 1681
+        "gzip": 1681,
+        "leaves": [
+          {
+            "name": "src/components/layout/settings-layout/SettingsLayout.tsx",
+            "rendered": 6457,
+            "gzip": 1681
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5951,
-        "gzip": 1110
+        "gzip": 1110,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5951,
+            "gzip": 1110
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 255
+        "gzip": 255,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 255
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 416,
-        "gzip": 218
+        "gzip": 218,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 416,
+            "gzip": 218
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/crm",
         "rendered": 153,
-        "gzip": 131
+        "gzip": 131,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/crm/core/apps/data-import.ts",
+            "rendered": 153,
+            "gzip": 131
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
-        "gzip": 58
+        "gzip": 58,
+        "leaves": [
+          {
+            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
+            "rendered": 38,
+            "gzip": 58
+          }
+        ]
       }
     ]
   },
   "crm/core/forms/account-form": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 425393,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 425388,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 158630,
-        "gzip": 47339
+        "gzip": 47339,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/avatar-upload/internal/AvatarUploadContent.js",
+            "rendered": 16092,
+            "gzip": 2543
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12116,
+            "gzip": 3424
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 136119,
-        "gzip": 33171
+        "gzip": 33171,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/leadTypes.ts",
+            "rendered": 12746,
+            "gzip": 1974
+          },
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 10976,
+            "gzip": 1770
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91926,
-        "gzip": 22344
+        "gzip": 22344,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15440,
+            "gzip": 3444
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 70712,
-        "gzip": 17482
+        "gzip": 17482,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/selects/contact-select/ContactSelect.tsx",
+            "rendered": 15938,
+            "gzip": 3217
+          },
+          {
+            "name": "src/common/components/common-relations/form-segments/account-information-segment/AccountInformationSegment.tsx",
+            "rendered": 14074,
+            "gzip": 2693
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "browser-image-compression",
         "rendered": 56611,
-        "gzip": 20526
+        "gzip": 20526,
+        "leaves": [
+          {
+            "name": "node_modules/browser-image-compression/dist/browser-image-compression.mjs",
+            "rendered": 56611,
+            "gzip": 20526
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41541,
-        "gzip": 10130
+        "gzip": 10130,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27347,
+            "gzip": 5049
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "react-easy-crop",
         "rendered": 39725,
-        "gzip": 8275
+        "gzip": 8275,
+        "leaves": [
+          {
+            "name": "node_modules/react-easy-crop/index.module.mjs",
+            "rendered": 39725,
+            "gzip": 8275
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 35935,
-        "gzip": 10186
+        "gzip": 10186,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/files/FileClient.ts",
+            "rendered": 8002,
+            "gzip": 1949
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "normalize-wheel",
         "rendered": 18897,
-        "gzip": 7307
+        "gzip": 7307,
+        "leaves": [
+          {
+            "name": "src/UserAgent_DEPRECATED.js",
+            "rendered": 7862,
+            "gzip": 2713
+          },
+          {
+            "name": "src/normalizeWheel.js",
+            "rendered": 7045,
+            "gzip": 2733
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15767,
-        "gzip": 3738
+        "gzip": 3738,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15767,
+            "gzip": 3738
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 12840,
-        "gzip": 3404
+        "gzip": 3404,
+        "leaves": [
+          {
+            "name": "src/components/app-action-form/AppActionForm.tsx",
+            "rendered": 11414,
+            "gzip": 2635
+          },
+          {
+            "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
+            "rendered": 482,
+            "gzip": 251
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 10341,
-        "gzip": 3300
+        "gzip": 3300,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/formMappingUtils.ts",
+            "rendered": 2746,
+            "gzip": 684
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/employee-select",
         "rendered": 10331,
-        "gzip": 2773
+        "gzip": 2773,
+        "leaves": [
+          {
+            "name": "src/components/employee-select/useEmployeeSelect.ts",
+            "rendered": 6551,
+            "gzip": 1642
+          },
+          {
+            "name": "src/components/employee-select/EmployeeSelect.tsx",
+            "rendered": 3780,
+            "gzip": 1131
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/error-alert",
         "rendered": 5829,
-        "gzip": 2243
+        "gzip": 2243,
+        "leaves": [
+          {
+            "name": "src/components/error-alert/ErrorAlert.tsx",
+            "rendered": 3155,
+            "gzip": 921
+          },
+          {
+            "name": "src/components/error-alert/_i18n/de-DE.ftl?raw",
+            "rendered": 934,
+            "gzip": 449
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 5472,
-        "gzip": 1762
+        "gzip": 1762,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/forms/account-form/AccountForm.tsx",
+            "rendered": 5472,
+            "gzip": 1762
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "tslib",
         "rendered": 2049,
-        "gzip": 996
+        "gzip": 996,
+        "leaves": [
+          {
+            "name": "node_modules/tslib/tslib.es6.mjs",
+            "rendered": 2049,
+            "gzip": 996
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 254
+        "gzip": 254,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 254
+          }
+        ]
       }
     ]
   },
@@ -7062,256 +7769,641 @@
     ]
   },
   "crm/core/forms/lead-convert-form": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 502121,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 502116,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 162406,
-        "gzip": 48682
+        "gzip": 48682,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/avatar-upload/internal/AvatarUploadContent.js",
+            "rendered": 16092,
+            "gzip": 2543
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12116,
+            "gzip": 3424
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 159804,
-        "gzip": 40752
+        "gzip": 40752,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/selects/contact-select/ContactSelect.tsx",
+            "rendered": 15938,
+            "gzip": 3217
+          },
+          {
+            "name": "src/common/components/common-relations/form-segments/account-information-segment/AccountInformationSegment.tsx",
+            "rendered": 14074,
+            "gzip": 2692
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 159150,
-        "gzip": 39544
+        "gzip": 39544,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/leadTypes.ts",
+            "rendered": 12746,
+            "gzip": 1974
+          },
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 11816,
+            "gzip": 1879
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91926,
-        "gzip": 22344
+        "gzip": 22344,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15440,
+            "gzip": 3444
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "browser-image-compression",
         "rendered": 56611,
-        "gzip": 20526
+        "gzip": 20526,
+        "leaves": [
+          {
+            "name": "node_modules/browser-image-compression/dist/browser-image-compression.mjs",
+            "rendered": 56611,
+            "gzip": 20526
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41541,
-        "gzip": 10130
+        "gzip": 10130,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27347,
+            "gzip": 5049
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "react-easy-crop",
         "rendered": 39725,
-        "gzip": 8275
+        "gzip": 8275,
+        "leaves": [
+          {
+            "name": "node_modules/react-easy-crop/index.module.mjs",
+            "rendered": 39725,
+            "gzip": 8275
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 35933,
-        "gzip": 10181
+        "gzip": 10181,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/files/FileClient.ts",
+            "rendered": 8002,
+            "gzip": 1949
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 19907,
-        "gzip": 4149
+        "gzip": 4149,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/forms/lead-convert-form/LeadConvertForm.tsx",
+            "rendered": 19907,
+            "gzip": 4149
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "normalize-wheel",
         "rendered": 18897,
-        "gzip": 7307
+        "gzip": 7307,
+        "leaves": [
+          {
+            "name": "src/UserAgent_DEPRECATED.js",
+            "rendered": 7862,
+            "gzip": 2713
+          },
+          {
+            "name": "src/normalizeWheel.js",
+            "rendered": 7045,
+            "gzip": 2733
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15767,
-        "gzip": 3738
+        "gzip": 3738,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15767,
+            "gzip": 3738
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 12876,
-        "gzip": 3427
+        "gzip": 3427,
+        "leaves": [
+          {
+            "name": "src/components/app-action-form/AppActionForm.tsx",
+            "rendered": 11418,
+            "gzip": 2637
+          },
+          {
+            "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
+            "rendered": 484,
+            "gzip": 254
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/employee-select",
         "rendered": 10331,
-        "gzip": 2772
+        "gzip": 2772,
+        "leaves": [
+          {
+            "name": "src/components/employee-select/useEmployeeSelect.ts",
+            "rendered": 6551,
+            "gzip": 1642
+          },
+          {
+            "name": "src/components/employee-select/EmployeeSelect.tsx",
+            "rendered": 3780,
+            "gzip": 1130
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 7595,
-        "gzip": 2616
+        "gzip": 2616,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/dateFormatter.ts",
+            "rendered": 1239,
+            "gzip": 423
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/error-alert",
         "rendered": 5795,
-        "gzip": 2217
+        "gzip": 2217,
+        "leaves": [
+          {
+            "name": "src/components/error-alert/ErrorAlert.tsx",
+            "rendered": 3153,
+            "gzip": 919
+          },
+          {
+            "name": "src/components/error-alert/_i18n/de-DE.ftl?raw",
+            "rendered": 932,
+            "gzip": 445
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/company-select",
         "rendered": 4414,
-        "gzip": 1261
+        "gzip": 1261,
+        "leaves": [
+          {
+            "name": "src/components/company-select/CompanySelect.tsx",
+            "rendered": 4414,
+            "gzip": 1261
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "tslib",
         "rendered": 2049,
-        "gzip": 996
+        "gzip": 996,
+        "leaves": [
+          {
+            "name": "node_modules/tslib/tslib.es6.mjs",
+            "rendered": 2049,
+            "gzip": 996
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       }
     ]
   },
   "crm/core/forms/lead-form": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 289291,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 289286,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 128532,
-        "gzip": 30457
+        "gzip": 30457,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/leadTypes.ts",
+            "rendered": 12746,
+            "gzip": 1974
+          },
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 10976,
+            "gzip": 1770
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 106321,
-        "gzip": 34029
+        "gzip": 34029,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12146,
+            "gzip": 3427
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/autocomplete/AutocompleteInput.js",
+            "rendered": 9196,
+            "gzip": 2890
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91696,
-        "gzip": 22306
+        "gzip": 22306,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15392,
+            "gzip": 3437
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 49999,
-        "gzip": 11314
+        "gzip": 11314,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/form-segments/lead-company-segment/LeadCompanySegment.tsx",
+            "rendered": 15128,
+            "gzip": 1840
+          },
+          {
+            "name": "src/common/components/common-relations/form-segments/lead-information-segment/LeadInformationSegment.tsx",
+            "rendered": 8069,
+            "gzip": 1219
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41453,
-        "gzip": 10116
+        "gzip": 10116,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27269,
+            "gzip": 5039
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 21979,
-        "gzip": 6403
+        "gzip": 6403,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/graphql/queryHelpers.ts",
+            "rendered": 7183,
+            "gzip": 1924
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15731,
-        "gzip": 3721
+        "gzip": 3721,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15731,
+            "gzip": 3721
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 12864,
-        "gzip": 3428
+        "gzip": 3428,
+        "leaves": [
+          {
+            "name": "src/components/app-action-form/AppActionForm.tsx",
+            "rendered": 11406,
+            "gzip": 2635
+          },
+          {
+            "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
+            "rendered": 484,
+            "gzip": 255
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/employee-select",
         "rendered": 10299,
-        "gzip": 2766
+        "gzip": 2766,
+        "leaves": [
+          {
+            "name": "src/components/employee-select/useEmployeeSelect.ts",
+            "rendered": 6525,
+            "gzip": 1639
+          },
+          {
+            "name": "src/components/employee-select/EmployeeSelect.tsx",
+            "rendered": 3774,
+            "gzip": 1127
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 9696,
-        "gzip": 2988
+        "gzip": 2988,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/formMappingUtils.ts",
+            "rendered": 2746,
+            "gzip": 684
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/error-alert",
         "rendered": 5795,
-        "gzip": 2217
+        "gzip": 2217,
+        "leaves": [
+          {
+            "name": "src/components/error-alert/ErrorAlert.tsx",
+            "rendered": 3153,
+            "gzip": 919
+          },
+          {
+            "name": "src/components/error-alert/_i18n/de-DE.ftl?raw",
+            "rendered": 932,
+            "gzip": 445
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 4679,
-        "gzip": 1554
+        "gzip": 1554,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/forms/lead-form/LeadForm.tsx",
+            "rendered": 4679,
+            "gzip": 1554
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 941,
-        "gzip": 393
+        "gzip": 393,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 941,
+            "gzip": 393
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 254
+        "gzip": 254,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 254
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 412,
-        "gzip": 215
+        "gzip": 215,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 412,
+            "gzip": 215
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/constants",
         "rendered": 193,
-        "gzip": 148
+        "gzip": 148,
+        "leaves": [
+          {
+            "name": "src/common/constants/commonCatalogs.ts",
+            "rendered": 193,
+            "gzip": 148
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       }
     ]
   },
@@ -7443,129 +8535,319 @@
     ]
   },
   "crm/core/forms/opportunity-form": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 329253,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 329248,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 153456,
-        "gzip": 37868
+        "gzip": 37868,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/leadTypes.ts",
+            "rendered": 12746,
+            "gzip": 1974
+          },
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 11816,
+            "gzip": 1879
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 131624,
-        "gzip": 40493
+        "gzip": 40493,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12114,
+            "gzip": 3419
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/date-input/DateInput.js",
+            "rendered": 8875,
+            "gzip": 2384
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91696,
-        "gzip": 22306
+        "gzip": 22306,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15392,
+            "gzip": 3437
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 48078,
-        "gzip": 12778
+        "gzip": 12778,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/form-segments/opportunity-information-segment/OpportunityInformationSegment.tsx",
+            "rendered": 10486,
+            "gzip": 1912
+          },
+          {
+            "name": "src/common/components/common-relations/form-segments/account-segment/AccountSegment.tsx",
+            "rendered": 7621,
+            "gzip": 2045
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41453,
-        "gzip": 10113
+        "gzip": 10113,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27269,
+            "gzip": 5036
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 21979,
-        "gzip": 6403
+        "gzip": 6403,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/graphql/queryHelpers.ts",
+            "rendered": 7183,
+            "gzip": 1924
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15731,
-        "gzip": 3722
+        "gzip": 3722,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15731,
+            "gzip": 3722
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 12864,
-        "gzip": 3427
+        "gzip": 3427,
+        "leaves": [
+          {
+            "name": "src/components/app-action-form/AppActionForm.tsx",
+            "rendered": 11406,
+            "gzip": 2634
+          },
+          {
+            "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
+            "rendered": 484,
+            "gzip": 255
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/employee-select",
         "rendered": 10299,
-        "gzip": 2767
+        "gzip": 2767,
+        "leaves": [
+          {
+            "name": "src/components/employee-select/useEmployeeSelect.ts",
+            "rendered": 6525,
+            "gzip": 1639
+          },
+          {
+            "name": "src/components/employee-select/EmployeeSelect.tsx",
+            "rendered": 3774,
+            "gzip": 1128
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 9696,
-        "gzip": 2988
+        "gzip": 2988,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/formMappingUtils.ts",
+            "rendered": 2746,
+            "gzip": 684
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 6997,
-        "gzip": 1996
+        "gzip": 1996,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/forms/opportunity-form/OpportunityForm.tsx",
+            "rendered": 6997,
+            "gzip": 1996
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/error-alert",
         "rendered": 5795,
-        "gzip": 2217
+        "gzip": 2217,
+        "leaves": [
+          {
+            "name": "src/components/error-alert/ErrorAlert.tsx",
+            "rendered": 3153,
+            "gzip": 919
+          },
+          {
+            "name": "src/components/error-alert/_i18n/de-DE.ftl?raw",
+            "rendered": 932,
+            "gzip": 445
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/company-select",
         "rendered": 4402,
-        "gzip": 1257
+        "gzip": 1257,
+        "leaves": [
+          {
+            "name": "src/components/company-select/CompanySelect.tsx",
+            "rendered": 4402,
+            "gzip": 1257
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 941,
-        "gzip": 393
+        "gzip": 393,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 941,
+            "gzip": 393
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 254
+        "gzip": 254,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 254
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 412,
-        "gzip": 215
+        "gzip": 215,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 412,
+            "gzip": 215
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/crm",
         "rendered": 169,
-        "gzip": 135
+        "gzip": 135,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/crm/core/forms/opportunity-form.ts",
+            "rendered": 169,
+            "gzip": 135
+          }
+        ]
       }
     ]
   },
@@ -9156,256 +10438,676 @@
     ]
   },
   "crm/core/records/account-record": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 818354,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 818349,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 488508,
-        "gzip": 148602
+        "gzip": 148602,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/data-toolbar/internal/components/ToolbarFilterChips.js",
+            "rendered": 28647,
+            "gzip": 5393
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12120,
+            "gzip": 3425
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 234488,
-        "gzip": 59982
+        "gzip": 59982,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/record-sections/task-section/TaskSection.tsx",
+            "rendered": 27710,
+            "gzip": 6273
+          },
+          {
+            "name": "src/common/components/docusign/DocuSignSignatureModal.tsx",
+            "rendered": 25777,
+            "gzip": 5655
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 185006,
-        "gzip": 42819
+        "gzip": 42819,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/leadTypes.ts",
+            "rendered": 12746,
+            "gzip": 1974
+          },
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 10976,
+            "gzip": 1770
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91936,
-        "gzip": 22359
+        "gzip": 22359,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15446,
+            "gzip": 3449
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "react-resizable-panels",
         "rendered": 81275,
-        "gzip": 18123
+        "gzip": 18123,
+        "leaves": [
+          {
+            "name": "node_modules/react-resizable-panels/dist/react-resizable-panels.browser.esm.js",
+            "rendered": 81275,
+            "gzip": 18123
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/document-section",
         "rendered": 64162,
-        "gzip": 15895
+        "gzip": 15895,
+        "leaves": [
+          {
+            "name": "src/components/document-section/components/DocumentSectionModals.tsx",
+            "rendered": 9900,
+            "gzip": 1979
+          },
+          {
+            "name": "src/components/document-section/DocumentSection.tsx",
+            "rendered": 8103,
+            "gzip": 1765
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 41686,
-        "gzip": 12217
+        "gzip": 12217,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/files/FileClient.ts",
+            "rendered": 8002,
+            "gzip": 1949
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41545,
-        "gzip": 10142
+        "gzip": 10142,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27351,
+            "gzip": 5060
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 36702,
-        "gzip": 11504
+        "gzip": 11504,
+        "leaves": [
+          {
+            "name": "src/common/utils/communicationChannelRenderer.tsx",
+            "rendered": 4658,
+            "gzip": 1086
+          },
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4326,
+            "gzip": 1065
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 34694,
-        "gzip": 9340
+        "gzip": 9340,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/records/account-record/views/home-view/HomeView.tsx",
+            "rendered": 12066,
+            "gzip": 2296
+          },
+          {
+            "name": "src/business-apps/crm/core/records/account-record/AccountRecord.tsx",
+            "rendered": 9944,
+            "gzip": 2586
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "vaul",
         "rendered": 22507,
-        "gzip": 7069
+        "gzip": 7069,
+        "leaves": [
+          {
+            "name": "node_modules/vaul/dist/index.mjs",
+            "rendered": 22507,
+            "gzip": 7069
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 18784,
-        "gzip": 5812
+        "gzip": 5812,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFlowItems.ts",
+            "rendered": 7088,
+            "gzip": 1931
+          },
+          {
+            "name": "src/common/hooks/useAppActionData.ts",
+            "rendered": 5842,
+            "gzip": 1632
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15769,
-        "gzip": 3737
+        "gzip": 3737,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15769,
+            "gzip": 3737
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 13490,
-        "gzip": 1803
+        "gzip": 1803,
+        "leaves": [
+          {
+            "name": "src/common/types/FlowRegistryTypes.ts",
+            "rendered": 13342,
+            "gzip": 1690
+          },
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action",
         "rendered": 11340,
-        "gzip": 2885
+        "gzip": 2885,
+        "leaves": [
+          {
+            "name": "src/components/app-action/AppAction.tsx",
+            "rendered": 10562,
+            "gzip": 2323
+          },
+          {
+            "name": "src/components/app-action/_i18n/de-DE.ftl?raw",
+            "rendered": 241,
+            "gzip": 167
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/integrations",
         "rendered": 10670,
-        "gzip": 2856
+        "gzip": 2856,
+        "leaves": [
+          {
+            "name": "src/common/integrations/docusign/useDocuSign.ts",
+            "rendered": 6478,
+            "gzip": 1556
+          },
+          {
+            "name": "src/common/integrations/docusign/useDigitalReferral.ts",
+            "rendered": 4192,
+            "gzip": 1300
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/employee-select",
         "rendered": 10333,
-        "gzip": 2775
+        "gzip": 2775,
+        "leaves": [
+          {
+            "name": "src/components/employee-select/useEmployeeSelect.ts",
+            "rendered": 6551,
+            "gzip": 1643
+          },
+          {
+            "name": "src/components/employee-select/EmployeeSelect.tsx",
+            "rendered": 3782,
+            "gzip": 1132
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/multi-employee-select",
         "rendered": 5428,
-        "gzip": 1582
+        "gzip": 1582,
+        "leaves": [
+          {
+            "name": "src/components/multi-employee-select/MultiEmployeeSelect.tsx",
+            "rendered": 5428,
+            "gzip": 1582
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-menu",
         "rendered": 3054,
-        "gzip": 926
+        "gzip": 926,
+        "leaves": [
+          {
+            "name": "src/components/app-action-menu/AppActionMenu.tsx",
+            "rendered": 3054,
+            "gzip": 926
+          }
+        ]
       }
     ]
   },
   "crm/core/records/contact-record": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 819482,
+    "bitbucketBuildNumber": 10738,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
+    "chunkJsBytes": 819477,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 488508,
-        "gzip": 148602
+        "gzip": 148602,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/data-toolbar/internal/components/ToolbarFilterChips.js",
+            "rendered": 28647,
+            "gzip": 5393
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 12120,
+            "gzip": 3425
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 234488,
-        "gzip": 59980
+        "gzip": 59980,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/record-sections/task-section/TaskSection.tsx",
+            "rendered": 27710,
+            "gzip": 6273
+          },
+          {
+            "name": "src/common/components/docusign/DocuSignSignatureModal.tsx",
+            "rendered": 25777,
+            "gzip": 5655
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 184113,
-        "gzip": 42676
+        "gzip": 42676,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/leadTypes.ts",
+            "rendered": 12746,
+            "gzip": 1974
+          },
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 10976,
+            "gzip": 1770
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/catalog-select",
         "rendered": 91936,
-        "gzip": 22359
+        "gzip": 22359,
+        "leaves": [
+          {
+            "name": "src/components/catalog-select/internal/CatalogSelectView.tsx",
+            "rendered": 15446,
+            "gzip": 3449
+          },
+          {
+            "name": "src/components/catalog-select/internal/catalogSelectBootstrap.ts",
+            "rendered": 13616,
+            "gzip": 2856
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "react-resizable-panels",
         "rendered": 81275,
-        "gzip": 18123
+        "gzip": 18123,
+        "leaves": [
+          {
+            "name": "node_modules/react-resizable-panels/dist/react-resizable-panels.browser.esm.js",
+            "rendered": 81275,
+            "gzip": 18123
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/document-section",
         "rendered": 64162,
-        "gzip": 15895
+        "gzip": 15895,
+        "leaves": [
+          {
+            "name": "src/components/document-section/components/DocumentSectionModals.tsx",
+            "rendered": 9900,
+            "gzip": 1979
+          },
+          {
+            "name": "src/components/document-section/DocumentSection.tsx",
+            "rendered": 8103,
+            "gzip": 1765
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 41686,
-        "gzip": 12217
+        "gzip": 12217,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/files/FileClient.ts",
+            "rendered": 8002,
+            "gzip": 1949
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41545,
-        "gzip": 10142
+        "gzip": 10142,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27351,
+            "gzip": 5060
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
         "rendered": 37356,
-        "gzip": 9562
+        "gzip": 9562,
+        "leaves": [
+          {
+            "name": "src/business-apps/crm/core/records/contact-record/ContactRecord.tsx",
+            "rendered": 15056,
+            "gzip": 3283
+          },
+          {
+            "name": "src/business-apps/crm/core/records/contact-record/views/home-view/HomeView.tsx",
+            "rendered": 8520,
+            "gzip": 1530
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 36030,
-        "gzip": 11400
+        "gzip": 11400,
+        "leaves": [
+          {
+            "name": "src/common/utils/communicationChannelRenderer.tsx",
+            "rendered": 4658,
+            "gzip": 1086
+          },
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4326,
+            "gzip": 1065
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "vaul",
         "rendered": 22507,
-        "gzip": 7069
+        "gzip": 7069,
+        "leaves": [
+          {
+            "name": "node_modules/vaul/dist/index.mjs",
+            "rendered": 22507,
+            "gzip": 7069
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 18784,
-        "gzip": 5812
+        "gzip": 5812,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFlowItems.ts",
+            "rendered": 7088,
+            "gzip": 1931
+          },
+          {
+            "name": "src/common/hooks/useAppActionData.ts",
+            "rendered": 5842,
+            "gzip": 1632
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15769,
-        "gzip": 3737
+        "gzip": 3737,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15769,
+            "gzip": 3737
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 13490,
-        "gzip": 1803
+        "gzip": 1803,
+        "leaves": [
+          {
+            "name": "src/common/types/FlowRegistryTypes.ts",
+            "rendered": 13342,
+            "gzip": 1690
+          },
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action",
         "rendered": 11340,
-        "gzip": 2885
+        "gzip": 2885,
+        "leaves": [
+          {
+            "name": "src/components/app-action/AppAction.tsx",
+            "rendered": 10562,
+            "gzip": 2323
+          },
+          {
+            "name": "src/components/app-action/_i18n/de-DE.ftl?raw",
+            "rendered": 241,
+            "gzip": 167
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/integrations",
         "rendered": 10670,
-        "gzip": 2856
+        "gzip": 2856,
+        "leaves": [
+          {
+            "name": "src/common/integrations/docusign/useDocuSign.ts",
+            "rendered": 6478,
+            "gzip": 1556
+          },
+          {
+            "name": "src/common/integrations/docusign/useDigitalReferral.ts",
+            "rendered": 4192,
+            "gzip": 1300
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/employee-select",
         "rendered": 10333,
-        "gzip": 2775
+        "gzip": 2775,
+        "leaves": [
+          {
+            "name": "src/components/employee-select/useEmployeeSelect.ts",
+            "rendered": 6551,
+            "gzip": 1643
+          },
+          {
+            "name": "src/components/employee-select/EmployeeSelect.tsx",
+            "rendered": 3782,
+            "gzip": 1132
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/multi-employee-select",
         "rendered": 5428,
-        "gzip": 1582
+        "gzip": 1582,
+        "leaves": [
+          {
+            "name": "src/components/multi-employee-select/MultiEmployeeSelect.tsx",
+            "rendered": 5428,
+            "gzip": 1582
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-menu",
         "rendered": 3054,
-        "gzip": 925
+        "gzip": 925,
+        "leaves": [
+          {
+            "name": "src/components/app-action-menu/AppActionMenu.tsx",
+            "rendered": 3054,
+            "gzip": 925
+          }
+        ]
       }
     ]
   },
@@ -28139,117 +29841,278 @@
     ]
   },
   "irm/core/apps/data-import": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 568825,
+    "bitbucketBuildNumber": 10741,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10741/",
+    "chunkJsBytes": 571763,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 430713,
-        "gzip": 214276
+        "gzip": 214276,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
+            "rendered": 232900,
+            "gzip": 125445
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
+            "rendered": 58390,
+            "gzip": 42107
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 91298,
-        "gzip": 24649
+        "rendered": 96192,
+        "gzip": 25955,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/apps/data-import/hooks/useEntityImport.ts",
+            "rendered": 31307,
+            "gzip": 7000
+          },
+          {
+            "name": "src/common/components/common-relations/apps/data-import/components/ConversionResultStep.tsx",
+            "rendered": 12417,
+            "gzip": 2328
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 82610,
-        "gzip": 19815
+        "rendered": 82654,
+        "gzip": 19828,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 11816,
+            "gzip": 1879
+          },
+          {
+            "name": "src/common/data/relations/types/accountTypes.ts",
+            "rendered": 9668,
+            "gzip": 1562
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41535,
-        "gzip": 10131
+        "gzip": 10131,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27341,
+            "gzip": 5050
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 37725,
-        "gzip": 14835
+        "rendered": 38819,
+        "gzip": 15162,
+        "leaves": [
+          {
+            "name": "src/business-apps/irm/core/apps/data-import/views/liquid-fund-investment-import-view/config/liquidFundInvestmentImportConfig.ts",
+            "rendered": 4206,
+            "gzip": 815
+          },
+          {
+            "name": "src/business-apps/irm/core/apps/data-import/config/commonInvestmentFields.ts",
+            "rendered": 3678,
+            "gzip": 808
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 25011,
-        "gzip": 7455
+        "gzip": 7455,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/rest/RestClient.ts",
+            "rendered": 5489,
+            "gzip": 1597
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15765,
-        "gzip": 3733
+        "gzip": 3733,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15765,
+            "gzip": 3733
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 10025,
-        "gzip": 3499
+        "gzip": 3499,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/navigationUtils.ts",
+            "rendered": 2372,
+            "gzip": 865
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/layout",
         "rendered": 6457,
-        "gzip": 1681
+        "gzip": 1681,
+        "leaves": [
+          {
+            "name": "src/components/layout/settings-layout/SettingsLayout.tsx",
+            "rendered": 6457,
+            "gzip": 1681
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5951,
-        "gzip": 1110
+        "gzip": 1110,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5951,
+            "gzip": 1110
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 255
+        "gzip": 255,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 255
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 416,
-        "gzip": 218
+        "gzip": 218,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 416,
+            "gzip": 218
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/irm",
         "rendered": 153,
-        "gzip": 131
+        "gzip": 131,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/irm/core/apps/data-import.ts",
+            "rendered": 153,
+            "gzip": 131
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
-        "gzip": 58
+        "gzip": 58,
+        "leaves": [
+          {
+            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
+            "rendered": 38,
+            "gzip": 58
+          }
+        ]
       }
     ]
   },
@@ -37065,20 +38928,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10736,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10736/",
-    "chunkJsBytes": 973519,
+    "bitbucketBuildNumber": 10741,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10741/",
+    "chunkJsBytes": 1015047,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 597417,
-        "gzip": 33384,
+        "rendered": 642262,
+        "gzip": 40541,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 597417,
-            "gzip": 33384
+            "rendered": 642262,
+            "gzip": 40541
           }
         ]
       },
@@ -42805,7 +44668,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-14T06:55:16.928Z",
+    "generatedAt": "2026-04-14T07:42:45.668Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
