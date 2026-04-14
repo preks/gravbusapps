@@ -2297,19 +2297,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   )}
                   analyzingRequestText={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:ai_builder.analyzing_request',
-                    'AI is analyzing your request and exploring the codebase...'
+                    'Screen Builder is analyzing your request and exploring the codebase...'
                   )}
                   tipText={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:ai_builder.tip_message',
                     'Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
                   )}
-                  emptyTitle={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:ai_builder.welcome_title',
-                    'Build Screens with AI'
-                  )}
+                  emptyTitle={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.welcome_title', 'Screen Builder')}
                   emptyDescription={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:ai_builder.welcome_description',
-                    "Describe what you want to build and I'll create it following NEWWORK patterns"
+                    'Describe what you want to build and Screen Builder will create it following NEWWORK patterns'
                   )}
                   showFileExplorer={showFileExplorer}
                   onToggleFileExplorer={toggleFileExplorer}
@@ -2378,19 +2375,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                 )}
                 analyzingRequestText={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:ai_builder.analyzing_request',
-                  'AI is analyzing your request and exploring the codebase...'
+                  'Screen Builder is analyzing your request and exploring the codebase...'
                 )}
                 tipText={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:ai_builder.tip_message',
                   'Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
                 )}
-                emptyTitle={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:ai_builder.welcome_title',
-                  'Build Screens with AI'
-                )}
+                emptyTitle={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.welcome_title', 'Screen Builder')}
                 emptyDescription={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:ai_builder.welcome_description',
-                  "Describe what you want to build and I'll create it following NEWWORK patterns"
+                  'Describe what you want to build and Screen Builder will create it following NEWWORK patterns'
                 )}
                 showFileExplorer={showFileExplorer}
                 onToggleFileExplorer={toggleFileExplorer}

@@ -20,7 +20,7 @@ interface EmployeeRecord {
   pictureThumbnail?: string
 }
 
-export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
+export const ScreenBuilder: React.FC<BusinessAppContextProps> = context => {
   const [repositoryId, setRepositoryId] = useState<string>('')
   const [configLoading, setConfigLoading] = useState(true)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -126,12 +126,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       return
     }
     const firstPath = files[0].webkitRelativePath || files[0].name || 'imported-app'
-    const defaultTargetPath =
-      firstPath
-        .split('/')
-        .filter(Boolean)[0]
-        ?.trim()
-        .replace(/\s+/g, '-') || 'imported-app'
+    const defaultTargetPath = firstPath.split('/').filter(Boolean)[0]?.trim().replace(/\s+/g, '-') || 'imported-app'
 
     setPendingImportFiles(files)
     setImportDialogError(null)
@@ -163,18 +158,17 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
     setIsImportingFolderAsNewApp(true)
     setImportDialogError(null)
     try {
-      const createdBy: SessionUser =
-        currentUser ?? {
-          id: String(context.userInfo?.id ?? 'unknown-user'),
-          employeeId: String(context.userInfo?.employeeDetails?.employeeId ?? ''),
-          firstName: String(context.userInfo?.givenName ?? ''),
-          lastName: String(context.userInfo?.familyName ?? ''),
-          displayName:
-            [context.userInfo?.givenName, context.userInfo?.familyName].filter(Boolean).join(' ') || 'Unknown User',
-          email: typeof context.userInfo?.userName === 'string' ? context.userInfo.userName : undefined,
-          pictureThumbnail: userPictureThumbnail ?? undefined,
-          consentToStorePii: true
-        }
+      const createdBy: SessionUser = currentUser ?? {
+        id: String(context.userInfo?.id ?? 'unknown-user'),
+        employeeId: String(context.userInfo?.employeeDetails?.employeeId ?? ''),
+        firstName: String(context.userInfo?.givenName ?? ''),
+        lastName: String(context.userInfo?.familyName ?? ''),
+        displayName:
+          [context.userInfo?.givenName, context.userInfo?.familyName].filter(Boolean).join(' ') || 'Unknown User',
+        email: typeof context.userInfo?.userName === 'string' ? context.userInfo.userName : undefined,
+        pictureThumbnail: userPictureThumbnail ?? undefined,
+        consentToStorePii: true
+      }
       const createdByPayload = {
         ...createdBy,
         consentToStorePii: createdBy.consentToStorePii ?? true

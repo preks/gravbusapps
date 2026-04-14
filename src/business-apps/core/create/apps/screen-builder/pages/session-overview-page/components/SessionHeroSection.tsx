@@ -27,7 +27,7 @@ export const SessionHeroSection: React.FC<SessionHeroSectionProps> = ({
               NEWWORK
             </span>
             <h1 className="gba:font-funnel-display gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:tracking-tight gba:text-white gba:font-semibold">
-              AI <span className="gba:text-white/90">Builder</span>
+              Screen <span className="gba:text-white/90">Builder</span>
             </h1>
           </div>
         </div>
@@ -55,7 +55,7 @@ export const SessionHeroSection: React.FC<SessionHeroSectionProps> = ({
           className="gba:text-base gba:text-white/70 gba:max-w-xl gba:mx-auto gba:leading-relaxed"
           data-testid={`${testId}-subtitle`}
         >
-          Create and iterate on application screens with AI assistance. Start a new session or continue where you left
+          Create and iterate on application screens with Screen Builder. Start a new session or continue where you left
           off.
         </p>
       </div>

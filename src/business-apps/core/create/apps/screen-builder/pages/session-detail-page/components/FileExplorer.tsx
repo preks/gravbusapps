@@ -18,11 +18,7 @@ interface FileExplorerProps {
   onFileClick?: (path: string) => void
 }
 
-export const FileExplorer: React.FC<FileExplorerProps> = ({
-  repoId,
-  sessionId,
-  onFileClick
-}) => {
+export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, onFileClick }) => {
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())

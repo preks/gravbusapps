@@ -92,7 +92,7 @@ export const SessionQuickActions: React.FC<SessionQuickActionsProps> = ({
                 onChange={e => onSearchChange(e.target.value)}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setTimeout(() => setIsFocused(false), 150)}
-                placeholder="Search your AI Builder sessions..."
+                placeholder="Search your Screen Builder sessions..."
                 className="gba:pl-10 gba:pr-12 gba:border-0 gba:bg-transparent gba:text-base focus:gba:ring-0"
                 data-testid={`${testId}-search-input`}
               />
