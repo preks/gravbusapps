@@ -4,6 +4,7 @@
  */
 
 import JSZip from 'jszip'
+import type { DocumentFormatting, PageSizeId } from '../types'
 import type {
   ImageAlignment,
   ImageBorderDash,
@@ -24,6 +25,7 @@ import {
   normalizeImageBorderDash,
   normalizeImageBorderWidthPt
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
+import { PAGE_SIZE_LABELS, twipsToCm, twipsToPx } from './pageLayoutUtils'
 
 const PX_TO_EMU = 9525
 const POINT_TO_OOXML_LINE_WIDTH = 12700
@@ -302,6 +304,134 @@ export async function parseDocxImageLayouts(arrayBuffer: ArrayBuffer): Promise<D
     return parseDocumentXmlForImageLayouts(xml)
   } catch {
     return []
+  }
+}
+
+function readNumericAttribute(element: Element | null, localName: string): number | null {
+  if (!element) return null
+
+  const attributeNames = [localName, `w:${localName}`]
+  for (const attributeName of attributeNames) {
+    const rawValue = element.getAttribute(attributeName)
+    const parsedValue = Number.parseInt(rawValue ?? '', 10)
+    if (Number.isFinite(parsedValue) && parsedValue >= 0) {
+      return parsedValue
+    }
+  }
+
+  return null
+}
+
+function resolveImportedPageSize(
+  widthCm: number,
+  heightCm: number
+): {
+  pageSize: PageSizeId
+  customPageWidthCm?: number
+  customPageHeightCm?: number
+} {
+  const toleranceCm = 0.2
+  const presetMatch = (
+    Object.entries(PAGE_SIZE_LABELS) as Array<[PageSizeId, { widthCm: number; heightCm: number }]>
+  ).find(([pageSize, preset]) => {
+    if (pageSize === 'CUSTOM') {
+      return false
+    }
+
+    return Math.abs(preset.widthCm - widthCm) <= toleranceCm && Math.abs(preset.heightCm - heightCm) <= toleranceCm
+  })
+
+  if (presetMatch) {
+    return { pageSize: presetMatch[0] }
+  }
+
+  return {
+    pageSize: 'CUSTOM',
+    customPageWidthCm: widthCm,
+    customPageHeightCm: heightCm
+  }
+}
+
+export function parseDocumentXmlForPageFormatting(xml: string): DocumentFormatting | undefined {
+  if (!xml || globalThis.DOMParser === undefined) {
+    return undefined
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'application/xml')
+    if (doc.getElementsByTagName('parsererror').length > 0) {
+      return undefined
+    }
+
+    const sectionProperties = descendantsByLocalName(doc.documentElement, 'sectPr')[0]
+    const pageSize = sectionProperties ? firstChildByLocalName(sectionProperties, 'pgSz') : null
+    const pageMargins = sectionProperties ? firstChildByLocalName(sectionProperties, 'pgMar') : null
+    if (!pageSize || !pageMargins) {
+      return undefined
+    }
+
+    const widthTwips = readNumericAttribute(pageSize, 'w')
+    const heightTwips = readNumericAttribute(pageSize, 'h')
+    const topTwips = readNumericAttribute(pageMargins, 'top')
+    const rightTwips = readNumericAttribute(pageMargins, 'right')
+    const bottomTwips = readNumericAttribute(pageMargins, 'bottom')
+    const leftTwips = readNumericAttribute(pageMargins, 'left')
+    if (
+      widthTwips === null ||
+      heightTwips === null ||
+      topTwips === null ||
+      rightTwips === null ||
+      bottomTwips === null ||
+      leftTwips === null
+    ) {
+      return undefined
+    }
+
+    const declaredOrientation = (pageSize.getAttribute('w:orient') ?? pageSize.getAttribute('orient') ?? '')
+      .trim()
+      .toLowerCase()
+    const orientation = declaredOrientation === 'landscape' || widthTwips > heightTwips ? 'landscape' : 'portrait'
+    const portraitWidthCm = twipsToCm(Math.min(widthTwips, heightTwips))
+    const portraitHeightCm = twipsToCm(Math.max(widthTwips, heightTwips))
+    const resolvedPageSize = resolveImportedPageSize(portraitWidthCm, portraitHeightCm)
+    const headerDistanceTwips = readNumericAttribute(pageMargins, 'header')
+    const footerDistanceTwips = readNumericAttribute(pageMargins, 'footer')
+
+    return {
+      pageSize: resolvedPageSize.pageSize,
+      customPageWidthCm: resolvedPageSize.customPageWidthCm,
+      customPageHeightCm: resolvedPageSize.customPageHeightCm,
+      orientation,
+      marginUnit: 'cm',
+      margins: {
+        top: twipsToCm(topTwips),
+        right: twipsToCm(rightTwips),
+        bottom: twipsToCm(bottomTwips),
+        left: twipsToCm(leftTwips)
+      },
+      pages:
+        headerDistanceTwips !== null || footerDistanceTwips !== null
+          ? {
+              headerTopMargin: headerDistanceTwips !== null ? twipsToPx(headerDistanceTwips) : undefined,
+              footerBottomMargin: footerDistanceTwips !== null ? twipsToPx(footerDistanceTwips) : undefined
+            }
+          : undefined
+    }
+  } catch {
+    return undefined
+  }
+}
+
+export async function parseDocxPageFormatting(arrayBuffer: ArrayBuffer): Promise<DocumentFormatting | undefined> {
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer)
+    const entry = zip.file('word/document.xml')
+    if (!entry) return undefined
+    const xml = await entry.async('string')
+    return parseDocumentXmlForPageFormatting(xml)
+  } catch {
+    return undefined
   }
 }
 

@@ -1643,6 +1643,67 @@ describe('measureHeaderFooterContentHeights', () => {
     expect(measured.footerHeights.get(1)).toBe(24)
   })
 
+  it('treats empty mounted header and footer chrome as zero reserved content height', () => {
+    const editorDom = document.createElement('div')
+    const headerRegion = document.createElement('div')
+    const footerRegion = document.createElement('div')
+    const headerShell = document.createElement('div')
+    const footerShell = document.createElement('div')
+    const headerLayout = document.createElement('div')
+    const footerLayout = document.createElement('div')
+    const headerContent = document.createElement('div')
+    const footerContent = document.createElement('div')
+
+    headerRegion.dataset.rmEditorType = 'header'
+    headerRegion.dataset.rmPageNumber = '1'
+    headerRegion.dataset.rmHasVisibleContent = 'false'
+    footerRegion.dataset.rmEditorType = 'footer'
+    footerRegion.dataset.rmPageNumber = '1'
+    footerRegion.dataset.rmHasVisibleContent = 'false'
+    headerShell.className = 'rm-page-header'
+    footerShell.className = 'rm-page-footer'
+    headerLayout.className = 'rm-page-region-layout'
+    footerLayout.className = 'rm-page-region-layout'
+    headerContent.dataset.rmPageNumberBody = 'true'
+    headerContent.dataset.rmEmpty = 'true'
+    footerContent.dataset.rmPageNumberBody = 'true'
+    footerContent.dataset.rmEmpty = 'true'
+
+    setMeasuredHeight(headerLayout, 40)
+    setMeasuredHeight(footerLayout, 36)
+
+    headerLayout.appendChild(headerContent)
+    footerLayout.appendChild(footerContent)
+    headerShell.appendChild(headerLayout)
+    footerShell.appendChild(footerLayout)
+    headerRegion.appendChild(headerShell)
+    footerRegion.appendChild(footerShell)
+    editorDom.append(headerRegion, footerRegion)
+    document.body.appendChild(editorDom)
+
+    const measured = measureHeaderFooterContentHeights(
+      editorDom,
+      1,
+      {
+        width: 800,
+        height: 1000,
+        margins: {
+          top: 96,
+          right: 96,
+          bottom: 96,
+          left: 96
+        }
+      },
+      {
+        headerTopMargin: 48,
+        footerBottomMargin: 48
+      }
+    )
+
+    expect(measured.headerHeights.get(1)).toBe(0)
+    expect(measured.footerHeights.get(1)).toBe(0)
+  })
+
   it('falls back to placeholder breaker height hints when off-window regions are not mounted', () => {
     const editorDom = document.createElement('div')
     const paginationRoot = document.createElement('div')

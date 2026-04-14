@@ -10,7 +10,11 @@ import { useTranslation } from '@newwork/nw-design-system'
 import mammoth from 'mammoth'
 import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
 import translations from '../_i18n'
-import { enhanceImportedHtmlWithImageLayouts, parseDocxImageLayouts } from '../utils/docxImportUtils'
+import {
+  enhanceImportedHtmlWithImageLayouts,
+  parseDocxImageLayouts,
+  parseDocxPageFormatting
+} from '../utils/docxImportUtils'
 import { enhanceImportedHtmlWithTableOfContents, parseDocxTableOfContents } from '../utils/docxTocImportUtils'
 
 type MammothImage = Parameters<Parameters<typeof mammoth.images.imgElement>[0]>[0]
@@ -129,7 +133,7 @@ export function useWordParser(): UseWordParserResult {
         const collectedImages: WordImage[] = []
 
         // Convert to HTML with mammoth; in parallel read OOXML image wrap metadata from the same file
-        const [result, imageLayouts, importedToc] = await Promise.all([
+        const [result, imageLayouts, importedToc, importedFormatting] = await Promise.all([
           mammoth.convertToHtml(
             { arrayBuffer },
             {
@@ -162,7 +166,8 @@ export function useWordParser(): UseWordParserResult {
             }
           ),
           parseDocxImageLayouts(arrayBuffer),
-          parseDocxTableOfContents(arrayBuffer)
+          parseDocxTableOfContents(arrayBuffer),
+          parseDocxPageFormatting(arrayBuffer)
         ])
 
         setState(prev => ({ ...prev, progress: 70 }))
@@ -187,7 +192,8 @@ export function useWordParser(): UseWordParserResult {
           html,
           plainText: textResult.value,
           messages: convertMessages(result.messages),
-          images: collectedImages
+          images: collectedImages,
+          formatting: importedFormatting
         }
 
         setState({

@@ -1,4 +1,8 @@
-import { enhanceImportedHtmlWithImageLayouts, parseDocumentXmlForImageLayouts } from './docxImportUtils'
+import {
+  enhanceImportedHtmlWithImageLayouts,
+  parseDocumentXmlForImageLayouts,
+  parseDocumentXmlForPageFormatting
+} from './docxImportUtils'
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 const WP_NS = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
@@ -123,6 +127,37 @@ describe('parseDocumentXmlForImageLayouts', () => {
 
   it('returns empty array for invalid XML', () => {
     expect(parseDocumentXmlForImageLayouts('not xml')).toEqual([])
+  })
+})
+
+describe('parseDocumentXmlForPageFormatting', () => {
+  it('parses Word section page size, orientation, margins, and header/footer distances', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="${W_NS}">
+  <w:body>
+    <w:p><w:r><w:t>Layout</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>
+      <w:pgMar w:top="567" w:right="1134" w:bottom="1701" w:left="2268" w:header="600" w:footer="840"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`
+
+    expect(parseDocumentXmlForPageFormatting(xml)).toEqual({
+      pageSize: 'A4',
+      orientation: 'landscape',
+      marginUnit: 'cm',
+      margins: {
+        top: 1,
+        right: 2,
+        bottom: 3,
+        left: 4
+      },
+      pages: {
+        headerTopMargin: 40,
+        footerBottomMargin: 56
+      }
+    })
   })
 })
 

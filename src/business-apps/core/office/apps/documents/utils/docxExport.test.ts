@@ -125,4 +125,28 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<w:tab/>')
     expect(documentXml).toContain('<w:pStyle w:val="Heading1"/>')
   })
+
+  it('writes live page setup values into the DOCX section properties', async () => {
+    const blob = await buildDocxBlob('Layout doc', '<p>Layout</p>', {
+      pageSize: 'A4',
+      orientation: 'landscape',
+      marginUnit: 'cm',
+      margins: {
+        top: 1,
+        right: 2,
+        bottom: 3,
+        left: 4
+      },
+      pages: {
+        headerTopMargin: 40,
+        footerBottomMargin: 56
+      }
+    })
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>')
+    expect(documentXml).toContain(
+      '<w:pgMar w:top="567" w:right="1134" w:bottom="1701" w:left="2268" w:header="600" w:footer="840" w:gutter="0"/>'
+    )
+  })
 })

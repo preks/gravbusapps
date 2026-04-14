@@ -29,6 +29,8 @@ import {
   DEFAULT_IMAGE_BORDER_WIDTH_PT,
   type ImageBorderDash
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
+import type { DocumentFormatting } from '../types'
+import { getDocxPageSetupFromFormatting } from './pageLayoutUtils'
 import { buildWordTocFieldXmlFromElement } from './docxTocExportUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
@@ -586,7 +588,14 @@ function convertTable(tableEl: HTMLElement, parts: string[], ctx: DocxBuildConte
   parts.push('</w:tbl>')
 }
 
-function buildDocumentXml(bodyXml: string): string {
+function buildDocumentXml(bodyXml: string, formatting?: DocumentFormatting | null): string {
+  const pageSetup = getDocxPageSetupFromFormatting(formatting)
+  const pageSizeXml =
+    pageSetup.orientation === 'landscape'
+      ? `<w:pgSz w:w="${pageSetup.pageWidthTwips}" w:h="${pageSetup.pageHeightTwips}" w:orient="landscape"/>`
+      : `<w:pgSz w:w="${pageSetup.pageWidthTwips}" w:h="${pageSetup.pageHeightTwips}"/>`
+  const pageMarginXml = `<w:pgMar w:top="${pageSetup.marginTopTwips}" w:right="${pageSetup.marginRightTwips}" w:bottom="${pageSetup.marginBottomTwips}" w:left="${pageSetup.marginLeftTwips}" w:header="${pageSetup.headerDistanceTwips}" w:footer="${pageSetup.footerDistanceTwips}" w:gutter="0"/>`
+
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -601,7 +610,7 @@ function buildDocumentXml(bodyXml: string): string {
   mc:Ignorable="w14 wp14">
 <w:body>
 ${bodyXml}
-<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>
+<w:sectPr>${pageSizeXml}${pageMarginXml}</w:sectPr>
 </w:body>
 </w:document>`
 }
@@ -682,8 +691,16 @@ ${defaults}
 /**
  * Build a proper .docx (Office Open XML) Blob from sanitized HTML content.
  */
-export async function buildDocxBlob(title: string, htmlContent: string): Promise<Blob> {
-  const safeHtml = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true, allowDataUriInImg: true })
+export async function buildDocxBlob(
+  title: string,
+  htmlContent: string,
+  formatting?: DocumentFormatting | null
+): Promise<Blob> {
+  const safeHtml = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    preserveVisualStyles: true,
+    allowDataUriInImg: true
+  })
   const ctx = newContext()
 
   const tempDiv = document.createElement('div')
@@ -707,7 +724,7 @@ export async function buildDocxBlob(title: string, htmlContent: string): Promise
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`
   )
-  zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n')))
+  zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n'), formatting))
   zip.file('word/styles.xml', buildStylesXml())
   zip.file('word/numbering.xml', buildNumberingXml())
   zip.file('word/_rels/document.xml.rels', buildRelsXml(ctx))
