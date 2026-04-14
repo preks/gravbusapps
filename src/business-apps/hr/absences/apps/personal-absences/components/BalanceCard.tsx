@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@newwork/nw-design-system'
 import { SparkleIcon } from '@phosphor-icons/react'
 import type { AbsenceRow } from '../types/personalAbsences'
@@ -7,8 +6,19 @@ type TFunction = (key: string) => string
 
 interface EntitlementDisplay {
   type: string
+  typeRef?: string
+  typeMatchKeys?: string[]
+  labelMode?: 'with-total' | 'approved-only'
   used: number
   total: number
+}
+
+const normalizeTypeMatchKey = (value?: string | null) => value?.trim().toLowerCase() || null
+
+const buildTypeMatchKeys = (...values: Array<string | undefined | null>) => {
+  const keys = values.map(value => normalizeTypeMatchKey(value)).filter((value): value is string => Boolean(value))
+
+  return Array.from(new Set(keys))
 }
 
 interface BalanceCardProps {
@@ -40,8 +50,18 @@ export function BalanceCard({
   onRequestWellnessAnalysis,
   t
 }: Readonly<BalanceCardProps>) {
-  const getInApprovalDays = (entType: string) =>
-    pendingRequests.filter(r => r.type === entType).reduce((sum, r) => sum + (r.workingDays ?? 0), 0)
+  const getInApprovalDays = (entitlement: EntitlementDisplay) => {
+    const entitlementKeys = entitlement.typeMatchKeys?.length
+      ? entitlement.typeMatchKeys
+      : buildTypeMatchKeys(entitlement.typeRef, entitlement.type)
+
+    return pendingRequests
+      .filter(request => {
+        const requestKeys = buildTypeMatchKeys(request.typeRef, request.typeId, request.type)
+        return entitlementKeys.some(key => requestKeys.includes(key))
+      })
+      .reduce((sum, request) => sum + (request.workingDays ?? 0), 0)
+  }
 
   return (
     <Card>
@@ -61,11 +81,12 @@ export function BalanceCard({
               style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}
             >
               {displayEntitlements.map(ent => {
-                const inApprovalDays = getInApprovalDays(ent.type)
+                const inApprovalDays = getInApprovalDays(ent)
                 const total = ent.total > 0 ? ent.total : 1
                 const usedFlex = Math.max(0, ent.used)
                 const inApprovalFlex = Math.max(0, inApprovalDays)
                 const remainingFlex = Math.max(0, total - usedFlex - inApprovalFlex)
+                const showTotalLabel = ent.labelMode !== 'approved-only'
                 return (
                   <div
                     key={`display-${ent.type}-${ent.used}-${ent.total}`}
@@ -75,10 +96,15 @@ export function BalanceCard({
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <span className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mr-2">{ent.type}</span>
                       <span className="gba:font-semibold gba:whitespace-nowrap">
-                        {Math.round(ent.used)}{' '}
-                        <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
-                          / {Math.round(ent.total)}
-                        </span>{' '}
+                        {Math.round(ent.used)}
+                        {showTotalLabel && (
+                          <>
+                            {' '}
+                            <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">
+                              / {Math.round(ent.total)}
+                            </span>
+                          </>
+                        )}{' '}
                         <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">{t('days')}</span>
                       </span>
                     </div>

@@ -481,6 +481,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   accessToken={accessToken}
                   employeeId={employeeId}
                   selectedTypeRef={formValuesState.selectedType}
+                  prevalidate={prevalidate}
                   data-testid="absence-date-range-input"
                 />
               </div>
