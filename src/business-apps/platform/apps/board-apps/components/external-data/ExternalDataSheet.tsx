@@ -261,11 +261,12 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
         setEstimatedTotal(result.estimatedTotal)
         setSelectedFields(result.schema.map((s: { name: string }) => s.name))
       } else {
-        toast.error('Preview failed')
+        toast.error('Preview returned no data')
         setStep('select')
       }
-    } catch {
-      toast.error('Preview failed')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Preview failed'
+      toast.error(msg.length > 200 ? `${msg.slice(0, 200)}...` : msg)
       setStep('select')
     } finally {
       setIsLoadingPreview(false)
@@ -341,8 +342,9 @@ export const ExternalDataSheet: React.FC<ExternalDataSheetProps> = ({
       setCompletedAt(undefined)
       setStep('progress')
       startPolling(result.runId)
-    } catch {
-      toast.error('Failed to start import')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to start import'
+      toast.error(msg.length > 200 ? `${msg.slice(0, 200)}...` : msg)
     } finally {
       setIsImporting(false)
     }

@@ -91,6 +91,10 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   const helpUrl = useMemo(() => getProviderHelpUrl(provider), [provider])
   const showUrlField = provider?.kind === 'mcp' || !!url
   const showAuthSection = provider?.kind === 'mcp'
+  const lightningDomainHint = useMemo(() => {
+    const domainValue = fieldValues['DOMAIN'] || ''
+    return /\.lightning\.force\.com/i.test(domainValue)
+  }, [fieldValues])
 
   useEffect(() => {
     if (!editorState) return
@@ -130,6 +134,13 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   const handleSave = async () => {
     if (!editorState || !provider) return
     setFormError(null)
+
+    const missingRequired = providerFields.filter(field => field.required && !(fieldValues[field.key] || '').trim())
+    if (missingRequired.length > 0) {
+      setFormError(t('connect-validation-required-fields'))
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -284,7 +295,10 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
                   key={field.key}
                   className={`gba:space-y-2${field.fieldType === 'textarea' ? ' gba:col-span-2' : ''}`}
                 >
-                  <Label>{getFieldLabel(t, field.key)}</Label>
+                  <Label>
+                    {getFieldLabel(t, field.key)}
+                    {field.required ? <span className="gba:text-destructive gba:ml-0.5">*</span> : null}
+                  </Label>
                   {field.fieldType === 'textarea' ? (
                     <Textarea
                       rows={3}
@@ -316,6 +330,15 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
                 </div>
               ))}
             </div>
+          ) : null}
+
+          {lightningDomainHint ? (
+            <p
+              className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/20 gba:rounded-lg gba:px-3 gba:py-2"
+              data-testid="newwork-connect-lightning-hint"
+            >
+              {t('connect-validation-lightning-domain')}
+            </p>
           ) : null}
 
           <div className="gba:space-y-3">
