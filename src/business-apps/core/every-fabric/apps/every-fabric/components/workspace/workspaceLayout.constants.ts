@@ -24,6 +24,8 @@ export const WORKSPACE_TOP_CONTROLS_OFFSET_CLASS = 'gba:top-20 sm:gba:top-20 lg:
 
 export const WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS = 'gba:top-36 sm:gba:top-36 lg:gba:top-[9.5rem]'
 
+export const WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX = 1500
+
 export const WORKSPACE_RIGHT_RAIL_WIDTH_CLASS = 'gba:w-[min(22rem,calc(100%-2rem))] 2xl:gba:w-[24rem]'
 
 /** Non-desktop right rail: clears fixed bottom composer (no follow-ups) */
