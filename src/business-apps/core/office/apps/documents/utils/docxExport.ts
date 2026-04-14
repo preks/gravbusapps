@@ -4,7 +4,6 @@
  */
 
 import DOMPurify from 'dompurify'
-import JSZip from 'jszip'
 import {
   analyzeImageWrapContour,
   convertWrapPolygonToWordCoordinates,
@@ -34,6 +33,7 @@ import { getDocxPageSetupFromFormatting, getPrintStyleConfigFromFormatting } fro
 import { buildWordTocFieldXmlFromElement } from './docxTocExportUtils'
 import { DEFAULT_DOCUMENT_TOC_STYLES, type DocumentTocStyles, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
+import { createJSZip } from './jsZipCompat'
 
 function escapeXml(text: string): string {
   return (text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -866,7 +866,7 @@ export async function buildDocxBlob(
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')
   const tocSettings = resolveDocxTocStyleSettings(tempDiv)
 
-  const zip = new JSZip()
+  const zip = createJSZip()
   zip.file('[Content_Types].xml', buildContentTypesXml(ctx))
   zip.file(
     '_rels/.rels',

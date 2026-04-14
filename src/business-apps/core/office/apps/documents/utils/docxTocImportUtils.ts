@@ -1,6 +1,5 @@
 // DOCX table-of-contents import helpers for Word field results.
 
-import JSZip from 'jszip'
 import { createDocumentTocSnapshot, stringifyDocumentTocSnapshot } from './documentTocSnapshot'
 import {
   DEFAULT_DOCUMENT_TOC_STYLES,
@@ -8,6 +7,7 @@ import {
   normalizeDocumentTocTextStyle,
   stringifyDocumentTocStyles
 } from './documentTocStyleUtils'
+import { JSZipCompat } from './jsZipCompat'
 
 export interface ImportedDocxTableOfContents {
   snapshotJson: string
@@ -360,7 +360,7 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
 
 export async function parseDocxTableOfContents(arrayBuffer: ArrayBuffer): Promise<ImportedDocxTableOfContents | null> {
   try {
-    const zip = await JSZip.loadAsync(arrayBuffer)
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
     const entry = zip.file('word/document.xml')
     if (!entry) return null
     return parseDocumentXmlForTableOfContents(await entry.async('string'))

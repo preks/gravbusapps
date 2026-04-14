@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { buildDocxBlob } from './docxExport'
+import { JSZipCompat, resolveJsZipConstructor } from './jsZipCompat'
 
 async function readDocumentXml(blob: Blob) {
   const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
@@ -8,7 +9,7 @@ async function readDocumentXml(blob: Blob) {
     reader.onerror = () => reject(reader.error)
     reader.readAsArrayBuffer(blob)
   })
-  const zip = await JSZip.loadAsync(arrayBuffer)
+  const zip = await JSZipCompat.loadAsync(arrayBuffer)
   return zip.file('word/document.xml')?.async('string')
 }
 
@@ -19,11 +20,16 @@ async function readStylesXml(blob: Blob) {
     reader.onerror = () => reject(reader.error)
     reader.readAsArrayBuffer(blob)
   })
-  const zip = await JSZip.loadAsync(arrayBuffer)
+  const zip = await JSZipCompat.loadAsync(arrayBuffer)
   return zip.file('word/styles.xml')?.async('string')
 }
 
 describe('docxExport image layout', () => {
+  it('resolves JSZip constructors from raw and default-wrapped module shapes', () => {
+    expect(resolveJsZipConstructor(JSZip)).toBe(JSZip)
+    expect(resolveJsZipConstructor({ default: JSZip })).toBe(JSZip)
+  })
+
   it('preserves image crop and rotation in generated drawing xml', async () => {
     const html = [
       '<figure data-node-type="custom-image"',
