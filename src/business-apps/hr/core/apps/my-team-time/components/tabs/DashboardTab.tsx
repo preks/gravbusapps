@@ -11,18 +11,19 @@ import {
   AvatarFallback
 } from '@newwork/nw-design-system'
 import {
-  PiUsers,
-  PiClock,
-  PiCalendar,
-  PiFirstAid,
-  PiWarning,
-  PiTimer,
-  PiClipboardText,
-  PiCaretLeft,
-  PiCaretRight,
-  PiArrowUp,
-  PiArrowDown
-} from 'react-icons/pi'
+  UsersThreeIcon,
+  ClockIcon,
+  CalendarIcon,
+  BriefcaseIcon,
+  HeartbeatIcon,
+  WarningIcon,
+  TimerIcon,
+  FileTextIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  ArrowUpIcon,
+  ArrowDownIcon
+} from '@phosphor-icons/react'
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
@@ -30,52 +31,113 @@ import { useTeamOperationalStatus } from '../../hooks/useTeamOperationalStatus'
 import { useTeamPendingActions } from '../../hooks/useTeamPendingActions'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_TEAM_ABSENCES_CALENDAR_RANGE } from '../../queries/queries'
 import { TeamMember, TeamAbsenceToday, CapacityRow } from '../../types/types'
-import { formatMinutes, toDateString, toLocalDateKey, isWorkingDay } from '../../utils/timeUtils'
+import {
+  formatMinutes,
+  toDateString,
+  toLocalDateKey,
+  isWorkingDay,
+  getPlannedMinutesForDate
+} from '../../utils/timeUtils'
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  expandDateRange,
+  fetchTeamDetailedAbsences,
+  fetchTeamHolidayData,
+  getActiveLocale,
+  isSickAbsence,
+  isWorkAbsence
+} from '../../utils/teamTimeDomain'
 
 type PanelType =
+  | 'team-size'
   | 'working-now'
   | 'not-clocked-in'
   | 'on-leave'
+  | 'work-away'
   | 'sick-today'
   | 'overtime-mtd'
   | 'anomalies'
   | 'pending'
+  | 'forecast-day'
   | null
+
+type KpiTone = 'success' | 'warning' | 'info' | 'destructive' | 'muted'
+
+const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
+  getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.${key}`, fallback, vars)
+
+const KPI_TONE_CLASSES: Record<KpiTone, { icon: string; value: string }> = {
+  success: {
+    icon: 'gba:bg-success/10 gba:text-success',
+    value: 'gba:text-success'
+  },
+  warning: {
+    icon: 'gba:bg-warning/10 gba:text-warning',
+    value: 'gba:text-warning'
+  },
+  info: {
+    icon: 'gba:bg-info/10 gba:text-info',
+    value: 'gba:text-info'
+  },
+  destructive: {
+    icon: 'gba:bg-destructive/10 gba:text-destructive',
+    value: 'gba:text-destructive'
+  },
+  muted: {
+    icon: 'gba:bg-muted gba:text-muted-foreground',
+    value: 'gba:text-foreground'
+  }
+}
+
+const DAY_LABELS = Array.from({ length: 7 }, (_, index) =>
+  new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(2024, 0, index + 1))
+)
+
+const formatShortDayCount = (count: number): string => t('days_short', '{{count}}d', { count })
+
+const getUniqueAbsencesByEmployee = (absences: TeamAbsenceToday[]): TeamAbsenceToday[] => {
+  return Array.from(new Map(absences.map(absence => [absence.employeeId, absence])).values())
+}
+
+const formatAbsencePeriod = (absence: Pick<TeamAbsenceToday, 'startDate' | 'endDate'>): string => {
+  if (!absence.startDate || !absence.endDate) {
+    return ''
+  }
+
+  const startLabel = new Date(absence.startDate).toLocaleDateString()
+  const endLabel = new Date(absence.endDate).toLocaleDateString()
+  return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`
+}
 
 interface KpiCardProps {
   icon: React.ReactNode
   label: string
   value: number | string
-  color: string
+  tone: KpiTone
   active: boolean
   onClick: () => void
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, color, active, onClick }) => (
+const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, tone, active, onClick }) => (
   <Card
-    className={`gba:shadow-sm gba:cursor-pointer gba:transition-all hover:gba:shadow-md gba:border ${
+    className={`gba:cursor-pointer gba:border gba:transition-colors hover:gba:bg-muted/20 ${
       active ? 'gba:ring-2 gba:ring-primary gba:border-primary' : 'gba:border-border'
     }`}
     onClick={onClick}
-    data-testid={`kpi-card-${label.toLowerCase().replaceAll(/\s+/g, '-')}`}
+    data-testid={`kpi-card-${label.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <CardContent className="gba:p-3">
       <div className="gba:flex gba:items-center gba:gap-2.5">
         <div
-          className="gba:w-8 gba:h-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:text-base gba:flex-shrink-0"
-          style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+          className={`gba:flex gba:h-8 gba:w-8 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:text-base ${KPI_TONE_CLASSES[tone].icon}`}
         >
           {icon}
         </div>
         <div className="gba:min-w-0">
-          <div className="gba:text-xl gba:font-bold gba:leading-tight" style={{ color }}>
-            {value}
-          </div>
-          <div className="gba:text-[11px] gba:text-muted-foreground gba:leading-tight gba:truncate">{label}</div>
+          <div className={`gba:text-xl gba:font-bold gba:leading-tight ${KPI_TONE_CLASSES[tone].value}`}>{value}</div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:truncate">{label}</div>
         </div>
       </div>
     </CardContent>
@@ -155,12 +217,17 @@ const SortHeader: React.FC<{
   onSort: (key: SortKey) => void
 }> = ({ label, sortKeyValue, sortKey, sortDir, onSort }) => (
   <th
-    className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:cursor-pointer gba:select-none hover:gba:text-foreground gba:transition-colors gba:whitespace-nowrap"
+    className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:cursor-pointer gba:select-none hover:gba:text-foreground gba:transition-colors gba:whitespace-nowrap"
     onClick={() => onSort(sortKeyValue)}
   >
     <span className="gba:flex gba:items-center gba:gap-1">
       {label}
-      {sortKey === sortKeyValue && (sortDir === 'asc' ? <PiArrowUp size={12} /> : <PiArrowDown size={12} />)}
+      {sortKey === sortKeyValue &&
+        (sortDir === 'asc' ? (
+          <ArrowUpIcon className="gba:h-3 gba:w-3" />
+        ) : (
+          <ArrowDownIcon className="gba:h-3 gba:w-3" />
+        ))}
     </span>
   </th>
 )
@@ -184,16 +251,16 @@ const getProgressColor = (pct: number): string => {
   return 'var(--nw-destructive)'
 }
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
 export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const {
     status,
+    todayAttendance,
+    todayAbsences,
     monthAttendance,
     isLoading: statusLoading
   } = useTeamOperationalStatus(props.accessToken, members, memberIds)
-  const { pendingAbsences, isLoading: pendingLoading } = useTeamPendingActions(props)
+  const { pendingActions, isLoading: pendingLoading } = useTeamPendingActions(props, members)
 
   const {
     rows: capacityRows,
@@ -209,8 +276,15 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
   const graphqlClient = useGraphQLClient(props.accessToken)
   const [forecastAbsences, setForecastAbsences] = useState<TeamAbsenceToday[]>([])
+  const [forecastHolidayDatesByEmployeeId, setForecastHolidayDatesByEmployeeId] = useState<Map<string, Set<string>>>(
+    new Map()
+  )
+  const [forecastHolidayNamesByEmployeeId, setForecastHolidayNamesByEmployeeId] = useState<
+    Map<string, Record<string, string>>
+  >(new Map())
   const [forecastLoading, setForecastLoading] = useState(false)
   const [activePanel, setActivePanel] = useState<PanelType>(null)
+  const [selectedForecastDay, setSelectedForecastDay] = useState<string | null>(null)
 
   const [forecastMonth, setForecastMonth] = useState(() => {
     const d = new Date()
@@ -238,20 +312,34 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       const endDow = monthEnd.getDay()
       if (endDow !== 0) calEnd.setDate(monthEnd.getDate() + (7 - endDow))
 
-      const result = await graphqlClient.request<any>(GET_TEAM_ABSENCES_CALENDAR_RANGE, {
-        employeeIds: memberIds,
-        from: toDateString(calStart),
-        to: toDateString(calEnd)
-      })
+      const from = toDateString(calStart)
+      const to = toDateString(calEnd)
+      const locale = getActiveLocale()
+
+      const [detailedAbsences, holidayData] = await Promise.all([
+        fetchTeamDetailedAbsences(graphqlClient, memberIds, from, to, locale),
+        fetchTeamHolidayData(graphqlClient, memberIds, from, to, locale)
+      ])
+
       setForecastAbsences(
-        (result?.EmployeeAbsenceCalendarView ?? []).map((r: any) => ({
-          employeeId: r.employeeId,
-          typeRef: r.typeRef,
-          status: r.status,
-          dayDate: r.dayDate,
-          employeeAbsenceId: r.employeeAbsenceId
-        }))
+        detailedAbsences.flatMap(absence =>
+          expandDateRange(absence.startDate, absence.endDate, from, to).map(dayDate => ({
+            employeeId: absence.employeeId,
+            typeRef: absence.typeRef,
+            status: absence.status,
+            dayDate,
+            employeeAbsenceId: absence.id,
+            typeLabel: absence.typeLabel,
+            parentEntryId: absence.parentEntryId,
+            startDate: absence.startDate,
+            endDate: absence.endDate,
+            employeeName: absence.employeeName,
+            pictureThumbnail: absence.pictureThumbnail
+          }))
+        )
       )
+      setForecastHolidayDatesByEmployeeId(holidayData.datesByEmployeeId)
+      setForecastHolidayNamesByEmployeeId(holidayData.namesByEmployeeId)
     } catch {
       // secondary data, don't block
     } finally {
@@ -270,9 +358,17 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   }
 
   const getForecastCell = (date: string): { available: number; total: number; pct: number } => {
-    const total = members.filter(m => isWorkingDay(date, m.workingHours)).length
+    const total = members.filter(member => {
+      if (!isWorkingDay(date, member.workingHours)) {
+        return false
+      }
+
+      return !forecastHolidayDatesByEmployeeId.get(member.id)?.has(date)
+    }).length
     const absentIds = new Set(
-      forecastAbsences.filter(a => a.dayDate === date && a.status === 'APPROVED').map(a => a.employeeId)
+      forecastAbsences
+        .filter(absence => absence.dayDate === date && absence.status === 'APPROVED' && !isWorkAbsence(absence))
+        .map(absence => absence.employeeId)
     )
     const available = Math.max(0, total - absentIds.size)
     const pct = total > 0 ? Math.round((available / total) * 100) : 100
@@ -356,23 +452,110 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
   })
 
   const monthLabel = currentMonth.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
+  const pendingActionCount = pendingActions.length
+  const todayAttendanceByEmployee = new Map(todayAttendance.map(entry => [entry.employeeId, entry]))
+  const latestClosedAttendanceByEmployee = new Map<string, (typeof monthAttendance)[number]>()
+
+  monthAttendance.forEach(entry => {
+    if (!entry.endTime || latestClosedAttendanceByEmployee.has(entry.employeeId)) {
+      return
+    }
+
+    latestClosedAttendanceByEmployee.set(entry.employeeId, entry)
+  })
+
+  const leaveAbsences = getUniqueAbsencesByEmployee(
+    todayAbsences.filter(absence => !isSickAbsence(absence) && !isWorkAbsence(absence))
+  )
+  const workAbsences = getUniqueAbsencesByEmployee(todayAbsences.filter(absence => isWorkAbsence(absence)))
+  const sickAbsences = getUniqueAbsencesByEmployee(todayAbsences.filter(absence => isSickAbsence(absence)))
+  const overtimeRows = [...capacityRows]
+    .filter(row => row.overtimeMinutes > 0)
+    .sort((left, right) => right.overtimeMinutes - left.overtimeMinutes)
+  const selectedForecastDateLabel = selectedForecastDay
+    ? new Date(`${selectedForecastDay}T00:00:00`).toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    : ''
+  const forecastAvailableMembers = selectedForecastDay
+    ? members.filter(member => {
+        if (!isWorkingDay(selectedForecastDay, member.workingHours)) {
+          return false
+        }
+
+        if (forecastHolidayDatesByEmployeeId.get(member.id)?.has(selectedForecastDay)) {
+          return false
+        }
+
+        return !forecastAbsences.some(
+          absence =>
+            absence.employeeId === member.id &&
+            absence.dayDate === selectedForecastDay &&
+            absence.status === 'APPROVED' &&
+            !isWorkAbsence(absence)
+        )
+      })
+    : []
+  const forecastUnavailableMembers = selectedForecastDay
+    ? members.flatMap(member => {
+        if (!isWorkingDay(selectedForecastDay, member.workingHours)) {
+          return []
+        }
+
+        const holidayLabel = forecastHolidayNamesByEmployeeId.get(member.id)?.[selectedForecastDay]
+        if (holidayLabel) {
+          return [{ member, reason: holidayLabel }]
+        }
+
+        const absence = forecastAbsences.find(
+          item =>
+            item.employeeId === member.id &&
+            item.dayDate === selectedForecastDay &&
+            item.status === 'APPROVED' &&
+            !isWorkAbsence(item)
+        )
+
+        if (!absence) {
+          return []
+        }
+
+        const periodLabel = formatAbsencePeriod(absence)
+        return [
+          {
+            member,
+            reason: periodLabel
+              ? `${absence.typeLabel || absence.typeRef} · ${periodLabel}`
+              : absence.typeLabel || absence.typeRef
+          }
+        ]
+      })
+    : []
 
   const getPanelTitle = (): string => {
     switch (activePanel) {
+      case 'team-size':
+        return t('total_subordinate_employees', 'Total Subordinate Employees')
       case 'working-now':
         return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now')
       case 'not-clocked-in':
         return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In')
       case 'on-leave':
         return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave_today', 'On Leave Today')
+      case 'work-away':
+        return t('work_away_today', 'Work Away Today')
       case 'sick-today':
         return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today')
       case 'overtime-mtd':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_this_month', 'Overtime This Month')
+        return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_mtd', 'Overtime MTD')
       case 'anomalies':
         return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.active_anomalies', 'Active Anomalies')
       case 'pending':
         return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions')
+      case 'forecast-day':
+        return t('forecast_day_details', 'Capacity Forecast Details')
       default:
         return ''
     }
@@ -380,6 +563,8 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
   const getPanelDescription = (): string => {
     switch (activePanel) {
+      case 'team-size':
+        return t('desc_total_subordinates', 'Direct reports included in this dashboard')
       case 'working-now':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:my_team_time.desc_working_now',
@@ -393,8 +578,10 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       case 'on-leave':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:my_team_time.desc_on_leave',
-          'On approved leave today (excluding sick)'
+          'On approved leave today (excluding sick and WORK absences)'
         )
+      case 'work-away':
+        return t('desc_work_away', 'Employees marked with WORK absences such as remote work or business trips')
       case 'sick-today':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:my_team_time.desc_sick_today',
@@ -413,8 +600,10 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
       case 'pending':
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:my_team_time.desc_pending',
-          'Absence requests awaiting your approval'
+          'Absence requests and time corrections awaiting your review'
         )
+      case 'forecast-day':
+        return selectedForecastDateLabel
       default:
         return ''
     }
@@ -422,20 +611,26 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
   const getPanelIcon = (): React.ReactNode => {
     switch (activePanel) {
+      case 'team-size':
+        return <UsersThreeIcon size={20} />
       case 'working-now':
-        return <PiUsers size={20} />
+        return <UsersThreeIcon size={20} />
       case 'not-clocked-in':
-        return <PiClock size={20} />
+        return <ClockIcon size={20} />
       case 'on-leave':
-        return <PiCalendar size={20} />
+        return <CalendarIcon size={20} />
+      case 'work-away':
+        return <BriefcaseIcon size={20} />
       case 'sick-today':
-        return <PiFirstAid size={20} />
+        return <HeartbeatIcon size={20} />
       case 'overtime-mtd':
-        return <PiTimer size={20} />
+        return <TimerIcon size={20} />
       case 'anomalies':
-        return <PiWarning size={20} />
+        return <WarningIcon size={20} />
       case 'pending':
-        return <PiClipboardText size={20} />
+        return <FileTextIcon size={20} />
+      case 'forecast-day':
+        return <CalendarIcon size={20} />
       default:
         return undefined
     }
@@ -443,58 +638,221 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
   const renderPanelContent = () => {
     switch (activePanel) {
+      case 'team-size':
+        return <MemberList members={members} emptyText={t('no_subordinates_found', 'No direct reports found.')} />
       case 'working-now':
         return (
-          <MemberList
-            members={status.workingNow}
-            emptyText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:my_team_time.no_one_clocked_in',
-              'No one is clocked in right now.'
+          <div className="gba:divide-y gba:divide-border">
+            {status.workingNow.length === 0 ? (
+              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:my_team_time.no_one_clocked_in',
+                  'No one is clocked in right now.'
+                )}
+              </div>
+            ) : (
+              status.workingNow.map(member => {
+                const entry = todayAttendanceByEmployee.get(member.id)
+                const plannedMinutes = isWorkingDay(todayStr, member.workingHours)
+                  ? formatMinutes(getPlannedMinutesForDate(todayStr, member.workingHours))
+                  : '—'
+
+                return (
+                  <div key={member.id} className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:py-3">
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                      <EmployeeAvatar
+                        firstName={member.firstName}
+                        lastName={member.lastName}
+                        pictureThumbnail={member.pictureThumbnail}
+                      />
+                      <div className="gba:min-w-0">
+                        <EmployeeName id={member.id} firstName={member.firstName} lastName={member.lastName} />
+                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                          {t('clocked_in_at', 'Clocked in at')}{' '}
+                          {entry?.startTime
+                            ? new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="gba:text-right gba:text-xs gba:text-muted-foreground">
+                      {t('planned_today', 'Planned today')}: {entry?.plannedTime || plannedMinutes}
+                    </div>
+                  </div>
+                )
+              })
             )}
-          />
+          </div>
         )
       case 'not-clocked-in':
         return (
-          <MemberList
-            members={status.notClockedIn}
-            emptyText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:my_team_time.everyone_clocked_in',
-              'Everyone expected today has clocked in.'
+          <div className="gba:divide-y gba:divide-border">
+            {status.notClockedIn.length === 0 ? (
+              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:my_team_time.everyone_clocked_in',
+                  'Everyone expected today has clocked in.'
+                )}
+              </div>
+            ) : (
+              status.notClockedIn.map(member => {
+                const lastEntry = latestClosedAttendanceByEmployee.get(member.id)
+                const sinceLabel = lastEntry?.endTime
+                  ? `${new Date(lastEntry.attendanceDate).toLocaleDateString()} ${new Date(
+                      lastEntry.endTime
+                    ).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}`
+                  : t('no_recent_clock_out', 'No recent clock-out recorded')
+
+                return (
+                  <div key={member.id} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
+                    <EmployeeAvatar
+                      firstName={member.firstName}
+                      lastName={member.lastName}
+                      pictureThumbnail={member.pictureThumbnail}
+                    />
+                    <div className="gba:min-w-0">
+                      <EmployeeName id={member.id} firstName={member.firstName} lastName={member.lastName} />
+                      <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                        {t('clocked_out_since', 'Clocked out since')} {sinceLabel}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
             )}
-          />
+          </div>
         )
       case 'on-leave':
         return (
-          <MemberList
-            members={status.onLeaveToday}
-            emptyText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:my_team_time.no_one_on_leave',
-              'No one is on leave today.'
+          <div className="gba:divide-y gba:divide-border">
+            {leaveAbsences.length === 0 ? (
+              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:my_team_time.no_one_on_leave',
+                  'No one is on leave today.'
+                )}
+              </div>
+            ) : (
+              leaveAbsences.map(absence => (
+                <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
+                  <EmployeeAvatar
+                    firstName={absence.employeeName?.split(' ')[0]}
+                    lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
+                    pictureThumbnail={absence.pictureThumbnail}
+                  />
+                  <div className="gba:min-w-0">
+                    <EmployeeName
+                      id={absence.employeeId}
+                      firstName={absence.employeeName?.split(' ')[0]}
+                      lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
+                    />
+                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                      {absence.typeLabel || absence.typeRef}{' '}
+                      {formatAbsencePeriod(absence) ? `· ${formatAbsencePeriod(absence)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
-          />
+          </div>
+        )
+      case 'work-away':
+        return (
+          <div className="gba:divide-y gba:divide-border">
+            {workAbsences.length === 0 ? (
+              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+                {t('no_one_work_away', 'No one has a WORK absence today.')}
+              </div>
+            ) : (
+              workAbsences.map(absence => (
+                <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
+                  <EmployeeAvatar
+                    firstName={absence.employeeName?.split(' ')[0]}
+                    lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
+                    pictureThumbnail={absence.pictureThumbnail}
+                  />
+                  <div className="gba:min-w-0">
+                    <EmployeeName
+                      id={absence.employeeId}
+                      firstName={absence.employeeName?.split(' ')[0]}
+                      lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
+                    />
+                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                      {absence.typeLabel || absence.typeRef}{' '}
+                      {formatAbsencePeriod(absence) ? `· ${formatAbsencePeriod(absence)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         )
       case 'sick-today':
         return (
-          <MemberList
-            members={status.sickToday}
-            emptyText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:my_team_time.no_one_sick',
-              'No one is on sick leave today.'
+          <div className="gba:divide-y gba:divide-border">
+            {sickAbsences.length === 0 ? (
+              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:my_team_time.no_one_sick',
+                  'No one is on sick leave today.'
+                )}
+              </div>
+            ) : (
+              sickAbsences.map(absence => (
+                <div key={absence.employeeAbsenceId} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
+                  <EmployeeAvatar
+                    firstName={absence.employeeName?.split(' ')[0]}
+                    lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
+                    pictureThumbnail={absence.pictureThumbnail}
+                  />
+                  <div className="gba:min-w-0">
+                    <EmployeeName
+                      id={absence.employeeId}
+                      firstName={absence.employeeName?.split(' ')[0]}
+                      lastName={absence.employeeName?.split(' ').slice(1).join(' ')}
+                    />
+                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                      {absence.typeLabel || absence.typeRef}{' '}
+                      {formatAbsencePeriod(absence) ? `· ${formatAbsencePeriod(absence)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
-          />
+          </div>
         )
       case 'overtime-mtd':
+        if (overtimeRows.length === 0) {
+          return (
+            <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+              {t('no_team_overtime', 'No overtime recorded this month.')}
+            </div>
+          )
+        }
         return (
-          <div className="gba:text-center gba:py-6">
-            <div className="gba:text-4xl gba:font-bold gba:text-warning gba:mb-2">
-              {formatMinutes(status.overtimeMinutesMTD)}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:my_team_time.total_team_overtime',
-                'Total team overtime this month'
-              )}
-            </div>
+          <div className="gba:divide-y gba:divide-border">
+            {overtimeRows.map(row => (
+              <div key={row.employee.id} className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:py-3">
+                <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                  <EmployeeAvatar
+                    firstName={row.employee.firstName}
+                    lastName={row.employee.lastName}
+                    pictureThumbnail={row.employee.pictureThumbnail}
+                  />
+                  <EmployeeName
+                    id={row.employee.id}
+                    firstName={row.employee.firstName}
+                    lastName={row.employee.lastName}
+                  />
+                </div>
+                <span className="gba:text-sm gba:font-medium gba:text-warning">
+                  {formatMinutes(row.overtimeMinutes)}
+                </span>
+              </div>
+            ))}
           </div>
         )
       case 'anomalies':
@@ -513,7 +871,12 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                 className="gba:py-2.5 gba:px-3 gba:rounded-md gba:bg-destructive/5 gba:border gba:border-destructive/20"
               >
                 <div className="gba:flex gba:items-center gba:justify-between">
-                  <span className="gba:font-medium gba:text-sm">{anomaly.employeeName}</span>
+                  <EmployeeName
+                    id={anomaly.employeeId}
+                    firstName={anomaly.employeeName.split(' ')[0]}
+                    lastName={anomaly.employeeName.split(' ').slice(1).join(' ')}
+                    className="gba:font-medium gba:text-sm"
+                  />
                   <span className="gba:text-xs gba:text-muted-foreground">{anomaly.date}</span>
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{anomaly.description}</div>
@@ -529,7 +892,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
             </div>
           )
         }
-        if (pendingAbsences.length === 0) {
+        if (pendingActions.length === 0) {
           return (
             <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
               {getTranslationFromI18nKeyAndLabel(
@@ -541,34 +904,86 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
         }
         return (
           <div className="gba:divide-y gba:divide-border">
-            {pendingAbsences.map(absence => (
-              <div key={absence.id} className="gba:flex gba:items-center gba:justify-between gba:py-3">
+            {pendingActions.map(action => (
+              <div key={action.id} className="gba:flex gba:items-center gba:justify-between gba:py-3">
                 <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
                   <EmployeeAvatar
-                    firstName={absence.employee.firstName}
-                    lastName={absence.employee.lastName}
-                    pictureThumbnail={absence.employee.pictureThumbnail}
+                    firstName={action.employee.firstName}
+                    lastName={action.employee.lastName}
+                    pictureThumbnail={action.employee.pictureThumbnail}
                   />
                   <div className="gba:min-w-0">
                     <EmployeeName
-                      id={absence.employee.id}
-                      firstName={absence.employee.firstName}
-                      lastName={absence.employee.lastName}
+                      id={action.employee.id}
+                      firstName={action.employee.firstName}
+                      lastName={action.employee.lastName}
                       className="gba:font-medium gba:text-sm gba:truncate"
                     />
                     <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                      {absence.type.value} &middot;{' '}
-                      {absence.effectiveDays
-                        ? `${absence.effectiveDays}d`
-                        : `${new Date(absence.startDate).toLocaleDateString()} – ${new Date(absence.endDate).toLocaleDateString()}`}
+                      {action.kind === 'absence'
+                        ? `${action.typeLabel || t('absence_request', 'Absence request')} · ${
+                            action.effectiveDays
+                              ? formatShortDayCount(action.effectiveDays)
+                              : `${new Date(action.startDate || '').toLocaleDateString()} – ${new Date(action.endDate || '').toLocaleDateString()}`
+                          }`
+                        : `${t('time_correction_request', 'Time correction request')} · ${new Date(
+                            action.attendanceDate || action.createdAt
+                          ).toLocaleDateString()}`}
                     </div>
                   </div>
                 </div>
                 <Badge variant="outline" className="gba:text-warning gba:border-warning gba:flex-shrink-0 gba:ml-2">
-                  Pending
+                  {t('pending', 'Pending')}
                 </Badge>
               </div>
             ))}
+          </div>
+        )
+      case 'forecast-day':
+        if (!selectedForecastDay) {
+          return null
+        }
+
+        return (
+          <div className="gba:space-y-4">
+            <div>
+              <div className="gba:mb-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
+                {t('expected_available', 'Expected available')}
+              </div>
+              {forecastAvailableMembers.length === 0 ? (
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {t('no_one_available', 'No one available.')}
+                </div>
+              ) : (
+                <MemberList members={forecastAvailableMembers} emptyText="" />
+              )}
+            </div>
+            <div>
+              <div className="gba:mb-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
+                {t('expected_off', 'Expected off')}
+              </div>
+              {forecastUnavailableMembers.length === 0 ? (
+                <div className="gba:text-sm gba:text-muted-foreground">
+                  {t('no_one_off', 'No one is off that day.')}
+                </div>
+              ) : (
+                <div className="gba:divide-y gba:divide-border">
+                  {forecastUnavailableMembers.map(({ member, reason }) => (
+                    <div key={member.id} className="gba:flex gba:items-center gba:gap-3 gba:py-3">
+                      <EmployeeAvatar
+                        firstName={member.firstName}
+                        lastName={member.lastName}
+                        pictureThumbnail={member.pictureThumbnail}
+                      />
+                      <div className="gba:min-w-0">
+                        <EmployeeName id={member.id} firstName={member.firstName} lastName={member.lastName} />
+                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{reason}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )
       default:
@@ -612,7 +1027,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                 sortDir={sortDir}
                 onSort={handleSort}
               />
-              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
+              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:whitespace-nowrap">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.target', 'Target')}
               </th>
               <SortHeader
@@ -636,14 +1051,14 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                 sortDir={sortDir}
                 onSort={handleSort}
               />
-              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
+              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:whitespace-nowrap">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pto_used', 'PTO Used')}
               </th>
-              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:whitespace-nowrap">
+              <th className="gba:py-2.5 gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:whitespace-nowrap">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_days', 'Sick Days')}
               </th>
               <SortHeader
-                label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.balance', 'Balance')}
+                label={t('overall_balance', 'Overall Balance')}
                 sortKeyValue="balance"
                 sortKey={sortKey}
                 sortDir={sortDir}
@@ -690,8 +1105,8 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                 <td className="gba:py-3 gba:px-3">
                   <HighlightCell value={row.deficitMinutes} threshold={120} format={formatMinutes} />
                 </td>
-                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{row.ptoUsedDays}d</td>
-                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{row.sickDays}d</td>
+                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{formatShortDayCount(row.ptoUsedDays)}</td>
+                <td className="gba:py-3 gba:px-3 gba:text-muted-foreground">{formatShortDayCount(row.sickDays)}</td>
                 <td className="gba:py-3 gba:px-3">
                   <span className={getBalanceClass(row.netBalanceMinutes)}>{formatMinutes(row.netBalanceMinutes)}</span>
                 </td>
@@ -712,80 +1127,106 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
   return (
     <div className="gba:space-y-6" data-testid="my-team-time-dashboard">
-      <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-7 gba:gap-3">
+      <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:lg:grid-cols-5 gba:xl:grid-cols-9 gba:gap-3">
         <KpiCard
-          icon={<PiUsers />}
+          icon={<UsersThreeIcon />}
+          label={t('total_subordinate_employees', 'Total Subordinate Employees')}
+          value={members.length}
+          tone="muted"
+          active={activePanel === 'team-size'}
+          onClick={() => togglePanel('team-size')}
+        />
+        <KpiCard
+          icon={<UsersThreeIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.working_now', 'Working Now')}
           value={status.workingNow.length}
-          color="var(--nw-success)"
+          tone="success"
           active={activePanel === 'working-now'}
           onClick={() => togglePanel('working-now')}
         />
         <KpiCard
-          icon={<PiClock />}
+          icon={<ClockIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.not_clocked_in', 'Not Clocked In')}
           value={status.notClockedIn.length}
-          color={status.notClockedIn.length > 0 ? 'var(--nw-warning)' : 'var(--nw-muted-foreground)'}
+          tone={status.notClockedIn.length > 0 ? 'warning' : 'muted'}
           active={activePanel === 'not-clocked-in'}
           onClick={() => togglePanel('not-clocked-in')}
         />
         <KpiCard
-          icon={<PiCalendar />}
+          icon={<CalendarIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.on_leave', 'On Leave')}
           value={status.onLeaveToday.length}
-          color="var(--nw-info)"
+          tone="info"
           active={activePanel === 'on-leave'}
           onClick={() => togglePanel('on-leave')}
         />
         <KpiCard
-          icon={<PiFirstAid />}
+          icon={<BriefcaseIcon />}
+          label={t('work_away', 'Work Away')}
+          value={workAbsences.length}
+          tone={workAbsences.length > 0 ? 'warning' : 'muted'}
+          active={activePanel === 'work-away'}
+          onClick={() => togglePanel('work-away')}
+        />
+        <KpiCard
+          icon={<HeartbeatIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.sick_today', 'Sick Today')}
           value={status.sickToday.length}
-          color={status.sickToday.length > 0 ? 'var(--nw-destructive)' : 'var(--nw-muted-foreground)'}
+          tone={status.sickToday.length > 0 ? 'destructive' : 'muted'}
           active={activePanel === 'sick-today'}
           onClick={() => togglePanel('sick-today')}
         />
         <KpiCard
-          icon={<PiTimer />}
+          icon={<TimerIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.overtime_mtd', 'Overtime MTD')}
           value={formatMinutes(status.overtimeMinutesMTD)}
-          color={status.overtimeMinutesMTD > 0 ? 'var(--nw-warning)' : 'var(--nw-muted-foreground)'}
+          tone={status.overtimeMinutesMTD > 0 ? 'warning' : 'muted'}
           active={activePanel === 'overtime-mtd'}
           onClick={() => togglePanel('overtime-mtd')}
         />
         <KpiCard
-          icon={<PiWarning />}
+          icon={<WarningIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.anomalies', 'Anomalies')}
           value={status.anomalies.length}
-          color={status.anomalies.length > 0 ? 'var(--nw-destructive)' : 'var(--nw-muted-foreground)'}
+          tone={status.anomalies.length > 0 ? 'destructive' : 'muted'}
           active={activePanel === 'anomalies'}
           onClick={() => togglePanel('anomalies')}
         />
         <KpiCard
-          icon={<PiClipboardText />}
+          icon={<FileTextIcon />}
           label={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.pending_actions', 'Pending Actions')}
-          value={pendingLoading ? '…' : pendingAbsences.length}
-          color={pendingAbsences.length > 0 ? 'var(--nw-warning)' : 'var(--nw-muted-foreground)'}
+          value={pendingLoading ? '…' : pendingActionCount}
+          tone={pendingActionCount > 0 ? 'warning' : 'muted'}
           active={activePanel === 'pending'}
           onClick={() => togglePanel('pending')}
         />
       </div>
 
-      <Card className="gba:shadow-sm" data-testid="capacity-forecast-weekly">
+      <Card data-testid="capacity-forecast-weekly">
         <CardHeader className="gba:pb-2">
           <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
             <CardTitle className="gba:text-base gba:font-semibold">
               {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.capacity_forecast', 'Capacity Forecast')}
             </CardTitle>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <Button variant="outline" size="sm" onClick={prevForecastMonth}>
-                <PiCaretLeft />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={prevForecastMonth}
+                aria-label={t('previous_month', 'Previous month')}
+              >
+                <CaretLeftIcon className="gba:h-4 gba:w-4" />
               </Button>
-              <span className="gba:px-3 gba:text-sm gba:font-medium gba:min-w-[140px] gba:text-center">
+              <span className="gba:min-w-32 gba:px-3 gba:text-center gba:text-sm gba:font-medium">
                 {forecastMonthLabel}
               </span>
-              <Button variant="outline" size="sm" onClick={nextForecastMonth}>
-                <PiCaretRight />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={nextForecastMonth}
+                aria-label={t('next_month', 'Next month')}
+              >
+                <CaretRightIcon className="gba:h-4 gba:w-4" />
               </Button>
             </div>
           </div>
@@ -800,7 +1241,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
               <table className="gba:w-full gba:border-collapse">
                 <thead>
                   <tr>
-                    <th className="gba:py-2 gba:px-2 gba:text-xs gba:font-medium gba:text-muted-foreground gba:text-left gba:w-[130px]">
+                    <th className="gba:w-32 gba:px-2 gba:py-2 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground">
                       {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.week', 'Week')}
                     </th>
                     {DAY_LABELS.map(day => (
@@ -832,7 +1273,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                         if ((isWeekend && total === 0) || isOutsideMonth) {
                           return (
                             <td key={day.date} className="gba:py-1.5 gba:px-1">
-                              <div className="gba:rounded gba:h-[38px] gba:flex gba:items-center gba:justify-center gba:bg-muted/30 gba:text-muted-foreground gba:text-xs">
+                              <div className="gba:flex gba:h-10 gba:items-center gba:justify-center gba:rounded gba:bg-muted/30 gba:text-xs gba:text-muted-foreground">
                                 {isOutsideMonth ? '' : '—'}
                               </div>
                             </td>
@@ -841,11 +1282,16 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
                         return (
                           <td key={day.date} className="gba:py-1.5 gba:px-1">
-                            <div
-                              className={`gba:rounded gba:h-[38px] gba:flex gba:flex-col gba:items-center gba:justify-center gba:relative gba:overflow-hidden ${
+                            <button
+                              type="button"
+                              className={`gba:relative gba:flex gba:h-10 gba:flex-col gba:items-center gba:justify-center gba:overflow-hidden gba:rounded ${
                                 isPast ? 'gba:opacity-50' : ''
-                              } ${isToday ? 'gba:ring-1 gba:ring-primary' : ''}`}
+                              } ${isToday ? 'gba:ring-1 gba:ring-primary' : ''} gba:w-full gba:bg-transparent gba:border-0 gba:p-0`}
                               title={`${day.date}: ${available}/${total} available (${pct}%)`}
+                              onClick={() => {
+                                setSelectedForecastDay(day.date)
+                                setActivePanel('forecast-day')
+                              }}
                             >
                               <div
                                 className="gba:absolute gba:inset-0 gba:rounded"
@@ -862,7 +1308,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                               >
                                 {pct}%
                               </span>
-                            </div>
+                            </button>
                           </td>
                         )
                       })}
@@ -875,7 +1321,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
         </CardContent>
       </Card>
 
-      <Card className="gba:shadow-sm" data-testid="capacity-balance-table">
+      <Card data-testid="capacity-balance-table">
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
             <CardTitle className="gba:text-base gba:font-semibold">
@@ -885,14 +1331,17 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
               )}
             </CardTitle>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <Button variant="outline" size="sm" onClick={prevMonth}>
-                <PiCaretLeft />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={prevMonth}
+                aria-label={t('previous_month', 'Previous month')}
+              >
+                <CaretLeftIcon className="gba:h-4 gba:w-4" />
               </Button>
-              <span className="gba:px-3 gba:text-sm gba:font-medium gba:min-w-[140px] gba:text-center">
-                {monthLabel}
-              </span>
-              <Button variant="outline" size="sm" onClick={nextMonth}>
-                <PiCaretRight />
+              <span className="gba:min-w-32 gba:px-3 gba:text-center gba:text-sm gba:font-medium">{monthLabel}</span>
+              <Button variant="outline" size="sm" onClick={nextMonth} aria-label={t('next_month', 'Next month')}>
+                <CaretRightIcon className="gba:h-4 gba:w-4" />
               </Button>
             </div>
           </div>

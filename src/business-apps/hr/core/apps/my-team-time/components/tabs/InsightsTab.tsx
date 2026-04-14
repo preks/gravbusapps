@@ -1,17 +1,17 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
 import {
-  PiWarning,
-  PiHeartbeat,
-  PiShieldCheck,
-  PiTimer,
-  PiScales,
-  PiSunHorizon,
-  PiCalendarCheck,
-  PiClockClockwise,
-  PiUsersThree,
-  PiArrowRight
-} from 'react-icons/pi'
+  WarningIcon,
+  HeartbeatIcon,
+  ShieldCheckIcon,
+  TimerIcon,
+  TrendUpIcon,
+  SunIcon,
+  CalendarCheckIcon,
+  ClockCounterClockwiseIcon,
+  UsersThreeIcon,
+  ArrowRightIcon
+} from '@phosphor-icons/react'
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
@@ -36,6 +36,7 @@ import {
 import { formatMinutes, toDateString, toLocalDateKey, getPlannedMinutesForDate } from '../../utils/timeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InsightsAbsenceAnalytics } from './InsightsAbsenceAnalytics'
+import { fetchTeamDetailedAbsences, getActiveLocale, isVacationAbsence } from '../../utils/teamTimeDomain'
 
 const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.insights.${key}`, fallback, vars)
@@ -46,6 +47,31 @@ const OVERTIME_LEGAL_CAP_RATIO = 0.25
 const BALANCE_EPSILON = 0.01
 const MISSING_ENTRIES_WARNING_RATIO = 0.25
 const MISSING_ENTRIES_CRITICAL_RATIO = 0.5
+
+type InsightTone = 'success' | 'warning' | 'destructive' | 'info' | 'muted'
+
+const INSIGHT_TONE_CLASSES: Record<InsightTone, { icon: string; value: string }> = {
+  success: {
+    icon: 'gba:bg-success/10 gba:text-success',
+    value: 'gba:text-success'
+  },
+  warning: {
+    icon: 'gba:bg-warning/10 gba:text-warning',
+    value: 'gba:text-warning'
+  },
+  destructive: {
+    icon: 'gba:bg-destructive/10 gba:text-destructive',
+    value: 'gba:text-destructive'
+  },
+  info: {
+    icon: 'gba:bg-info/10 gba:text-info',
+    value: 'gba:text-info'
+  },
+  muted: {
+    icon: 'gba:bg-muted gba:text-muted-foreground',
+    value: 'gba:text-foreground'
+  }
+}
 
 const getEmployeeSchedule = (wh?: WeeklyWorkingHours) => {
   if (!wh) return { dailyMinutes: 480, workingDaysPerWeek: 5, weeklyMinutes: 2400 }
@@ -154,15 +180,15 @@ const computeKpis = (
 const getKpiColor = (
   value: number,
   thresholds: { good: number; warn: number; direction: 'higher' | 'lower' }
-): string => {
+): InsightTone => {
   if (thresholds.direction === 'higher') {
-    if (value >= thresholds.good) return 'var(--nw-success)'
-    if (value >= thresholds.warn) return 'var(--nw-warning)'
-    return 'var(--nw-destructive)'
+    if (value >= thresholds.good) return 'success'
+    if (value >= thresholds.warn) return 'warning'
+    return 'destructive'
   }
-  if (value <= thresholds.good) return 'var(--nw-success)'
-  if (value <= thresholds.warn) return 'var(--nw-warning)'
-  return 'var(--nw-destructive)'
+  if (value <= thresholds.good) return 'success'
+  if (value <= thresholds.warn) return 'warning'
+  return 'destructive'
 }
 
 // ─── KPI Card ──────────────────────────────────────────────────────────────────
@@ -172,30 +198,29 @@ interface InsightKpiCardProps {
   label: string
   value: string
   subtitle: string
-  color: string
+  tone: InsightTone
 }
 
-const InsightKpiCard: React.FC<InsightKpiCardProps> = ({ icon, label, value, subtitle, color }) => (
+const InsightKpiCard: React.FC<InsightKpiCardProps> = ({ icon, label, value, subtitle, tone }) => (
   <Card
-    className="gba:shadow-sm gba:border gba:border-border"
-    data-testid={`insight-kpi-${label.toLowerCase().replaceAll(/\s+/g, '-')}`}
+    className="gba:border gba:border-border"
+    data-testid={`insight-kpi-${label.toLowerCase().replace(/\s+/g, '-')}`}
   >
     <CardContent className="gba:p-3">
       <div className="gba:flex gba:items-center gba:gap-2.5">
         <div
-          className="gba:w-8 gba:h-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:text-base gba:flex-shrink-0"
-          style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+          className={`gba:flex gba:h-8 gba:w-8 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:text-base ${INSIGHT_TONE_CLASSES[tone].icon}`}
         >
           {icon}
         </div>
         <div className="gba:min-w-0">
-          <div className="gba:text-xl gba:font-bold gba:leading-tight" style={{ color }}>
+          <div className={`gba:text-xl gba:font-bold gba:leading-tight ${INSIGHT_TONE_CLASSES[tone].value}`}>
             {value}
           </div>
-          <div className="gba:text-[11px] gba:text-muted-foreground gba:leading-tight gba:truncate">{label}</div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:truncate">{label}</div>
         </div>
       </div>
-      <div className="gba:text-[10px] gba:text-muted-foreground gba:mt-1.5 gba:leading-snug">{subtitle}</div>
+      <div className="gba:mt-1.5 gba:text-xs gba:leading-snug gba:text-muted-foreground">{subtitle}</div>
     </CardContent>
   </Card>
 )
@@ -260,10 +285,27 @@ const impactDesc = (lvl: ImpactLevel): string => {
 
 const IMPACT_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, none: 4 }
 
-const getCoverageRiskColor = (risk: CoverageRisk): string => {
-  if (risk === 'high') return 'var(--nw-destructive)'
-  if (risk === 'medium') return 'var(--nw-warning)'
-  return 'var(--nw-success)'
+const getCoverageRiskTextClass = (risk: CoverageRisk): string => {
+  if (risk === 'high') return 'gba:text-destructive'
+  if (risk === 'medium') return 'gba:text-warning'
+  return 'gba:text-success'
+}
+
+const getCoverageRiskFillClass = (risk: CoverageRisk): string => {
+  if (risk === 'high') return 'gba:bg-destructive'
+  if (risk === 'medium') return 'gba:bg-warning'
+  return 'gba:bg-success'
+}
+
+const getComplianceTypeLabel = (type: ComplianceAlert['type']): string => {
+  switch (type) {
+    case 'overtime_cap':
+      return t('compliance_type_overtime_cap', 'overtime cap')
+    case 'missing_logs':
+      return t('compliance_type_missing_logs', 'missing logs')
+    default:
+      return type
+  }
 }
 
 const renderCoverageCardContent = (
@@ -293,7 +335,7 @@ const renderCoverageCardContent = (
   return (
     <div className="gba:space-y-2">
       <div className="gba:flex gba:items-baseline gba:gap-3">
-        <span className="gba:text-2xl gba:font-bold" style={{ color: getCoverageRiskColor(coverageData.overallRisk) }}>
+        <span className={`gba:text-2xl gba:font-bold ${getCoverageRiskTextClass(coverageData.overallRisk)}`}>
           {coverageData.avgCoverage}%
         </span>
         <span className="gba:text-xs gba:text-muted-foreground">{t('avg_coverage', 'avg coverage')}</span>
@@ -315,7 +357,7 @@ const renderCoverageCardContent = (
           key={c.capabilityId}
           className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate"
         >
-          <PiWarning
+          <WarningIcon
             className={
               c.risk === 'high' ? 'gba:text-destructive gba:flex-shrink-0' : 'gba:text-warning gba:flex-shrink-0'
             }
@@ -329,12 +371,12 @@ const renderCoverageCardContent = (
       ))}
       {coverageData.highImpactCount > 0 && (
         <div className="gba:text-xs gba:text-info gba:flex gba:items-center gba:gap-1 gba:mt-1">
-          <PiArrowRight size={12} />
+          <ArrowRightIcon size={12} />
           {coverageData.highImpactCount} {t('high_impact_scenarios', 'high-impact scenarios')}
         </div>
       )}
       {coverageData.matrixTeams.length > 0 && (
-        <div className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
+        <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
           {t('org_units_matrix', '{{orgUnits}} org units · {{matrixTeams}} matrix teams', {
             orgUnits: coverageData.orgUnits.length,
             matrixTeams: coverageData.matrixTeams.length
@@ -346,28 +388,25 @@ const renderCoverageCardContent = (
 }
 
 const CapabilityCoverageRow: React.FC<{ cap: CapabilityCoverage }> = ({ cap }) => {
-  const capabilityRiskColor = getCoverageRiskColor(cap.risk)
-
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
       <div className="gba:flex-1 gba:flex gba:items-center gba:gap-2">
         <span className="gba:text-xs">{cap.capabilityName}</span>
         {cap.absentMembers > 0 && (
-          <span className="gba:text-[10px] gba:text-destructive">
+          <span className="gba:text-xs gba:text-destructive">
             {cap.absentMembers} {t('off', 'off')}
           </span>
         )}
       </div>
       <div className="gba:w-16 gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
         <div
-          className="gba:h-full gba:rounded-full"
+          className={`gba:h-full gba:rounded-full ${getCoverageRiskFillClass(cap.risk)}`}
           style={{
-            width: `${cap.coverage}%`,
-            backgroundColor: capabilityRiskColor
+            width: `${cap.coverage}%`
           }}
         />
       </div>
-      <span className="gba:text-[11px] gba:w-8 gba:text-right gba:font-medium" style={{ color: capabilityRiskColor }}>
+      <span className={`gba:w-8 gba:text-right gba:text-xs gba:font-medium ${getCoverageRiskTextClass(cap.risk)}`}>
         {cap.coverage}%
       </span>
     </div>
@@ -441,9 +480,10 @@ const buildMatrixImpactScenarios = (
         const cId = cd?.capability?.id
         const cName = cd?.capability?.name || t('unknown', 'Unknown')
         const cap = capabilities.find(cc => cc.capabilityId === cId)
-        if (!cap) return { capabilityName: cName, newCoverage: 0, newRisk: 'high' as CoverageRisk }
+        if (!cap) return { capabilityId: cId, capabilityName: cName, newCoverage: 0, newRisk: 'high' as CoverageRisk }
         const newCov = calcCoverage(cap.totalMembers, cap.absentMembers + 1)
         return {
+          capabilityId: cId,
           capabilityName: cName,
           newCoverage: Math.max(0, newCov),
           newRisk: calcCoverageRisk(Math.max(0, newCov))
@@ -494,8 +534,12 @@ const parseCoverageResult = (result: any): CoverageOverview => {
       if (!matrixMap.has(key))
         matrixMap.set(key, { id: key, name: mu.matrixUnit.name, employees: [], absentEmployees: [] })
       const m = matrixMap.get(key)!
-      m.employees.push(emp)
-      if (absentIds.has(emp.id)) m.absentEmployees.push(emp)
+      if (!m.employees.some(existingEmployee => existingEmployee.id === emp.id)) {
+        m.employees.push(emp)
+      }
+      if (absentIds.has(emp.id) && !m.absentEmployees.some(absentEmployee => absentEmployee.id === emp.id)) {
+        m.absentEmployees.push(emp)
+      }
     })
   })
 
@@ -518,7 +562,7 @@ const parseCoverageResult = (result: any): CoverageOverview => {
       risk: calcCoverageRisk(mCov),
       members: matrix.employees.map((e: any) => `${e.firstName} ${e.lastName}`),
       absentMembers: matrix.absentEmployees.map((e: any) => `${e.firstName} ${e.lastName}`),
-      capabilities: capabilities.toSorted((a, b) => a.coverage - b.coverage),
+      capabilities: [...capabilities].sort((a, b) => a.coverage - b.coverage),
       impactScenarios
     }
   })
@@ -547,6 +591,7 @@ const parseCoverageResult = (result: any): CoverageOverview => {
           .filter(s => s.impactLevel !== 'low')
           .sort((a, b) => (IMPACT_ORDER[a.impactLevel] ?? 4) - (IMPACT_ORDER[b.impactLevel] ?? 4))
         return {
+          matrixTeamId: matrix.id,
           matrixTeamName: matrix.name,
           coverage: matrixCov,
           risk: calcCoverageRisk(matrixCov),
@@ -598,7 +643,8 @@ const parseCoverageResult = (result: any): CoverageOverview => {
 
 const computeSustainabilitySignals = (
   rows: CapacityRow[],
-  workingDaysMap: Map<string, number>
+  workingDaysMap: Map<string, number>,
+  recentPtoEmployeeIds: Set<string> | null
 ): SustainabilitySignal[] =>
   rows
     .map(row => {
@@ -630,7 +676,9 @@ const computeSustainabilitySignals = (
         )
         riskLevel = riskLevel === 'medium' ? 'high' : 'medium'
       }
-      if (row.ptoUsedDays === 0) signals.push(t('no_pto_month', 'No PTO taken this month'))
+      if (recentPtoEmployeeIds && !recentPtoEmployeeIds.has(row.employee.id)) {
+        signals.push(t('no_pto_last_three_months', 'No PTO taken in last 3 months'))
+      }
       if (row.missingEntries > 3)
         signals.push(t('missing_entries_count', '{{count}} missing time entries', { count: row.missingEntries }))
 
@@ -648,7 +696,7 @@ const computeSustainabilitySignals = (
       }
     })
     .filter(s => s.signals.length > 0)
-    .toSorted((a, b) => {
+    .sort((a, b) => {
       const order: Record<BurnoutRisk, number> = { high: 0, medium: 1, low: 2 }
       return order[a.riskLevel] - order[b.riskLevel]
     })
@@ -722,7 +770,7 @@ const computeComplianceAlerts = (rows: CapacityRow[], workingDaysMap: Map<string
       })
     }
   })
-  return alerts.toSorted((a, b) => {
+  return [...alerts].sort((a, b) => {
     if (a.severity === 'critical' && b.severity !== 'critical') return -1
     if (a.severity !== 'critical' && b.severity === 'critical') return 1
     return 0
@@ -744,6 +792,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   >([])
   const [coverageData, setCoverageData] = useState<CoverageOverview | null>(null)
   const [coverageLoading, setCoverageLoading] = useState(true)
+  const [recentPtoEmployeeIds, setRecentPtoEmployeeIds] = useState<Set<string> | null>(null)
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null)
 
   const memberIdsRef = useRef<string[]>([])
@@ -768,6 +817,34 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
         )
       })
       .catch(() => {})
+  }, [graphqlClient, stableMemberIds])
+
+  useEffect(() => {
+    if (!graphqlClient || stableMemberIds.length === 0) {
+      setRecentPtoEmployeeIds(null)
+      return
+    }
+
+    const today = new Date()
+    const lookbackStart = new Date(today)
+    lookbackStart.setMonth(lookbackStart.getMonth() - 3)
+
+    fetchTeamDetailedAbsences(
+      graphqlClient,
+      stableMemberIds,
+      toDateString(lookbackStart),
+      toDateString(today),
+      getActiveLocale()
+    )
+      .then(absences => {
+        const employeeIdsWithRecentPto = new Set(
+          absences
+            .filter(absence => absence.status === 'APPROVED' && isVacationAbsence(absence))
+            .map(absence => absence.employeeId)
+        )
+        setRecentPtoEmployeeIds(employeeIdsWithRecentPto)
+      })
+      .catch(() => setRecentPtoEmployeeIds(null))
   }, [graphqlClient, stableMemberIds])
 
   const supervisorId = props.userInfo?.employeeDetails?.employeeId
@@ -800,8 +877,8 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   // ── Sustainability signals & compliance alerts ──────────────────────────────
 
   const sustainabilitySignals = useMemo(
-    () => computeSustainabilitySignals(rows, workingDaysMap),
-    [rows, workingDaysMap]
+    () => computeSustainabilitySignals(rows, workingDaysMap, recentPtoEmployeeIds),
+    [rows, workingDaysMap, recentPtoEmployeeIds]
   )
 
   const complianceAlerts = useMemo(() => computeComplianceAlerts(rows, workingDaysMap), [rows, workingDaysMap])
@@ -813,7 +890,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
     return coverageData.matrixTeams
       .flatMap(mt => mt.capabilities)
       .filter((c, i, arr) => c.risk !== 'low' && arr.findIndex(x => x.capabilityId === c.capabilityId) === i)
-      .toSorted((a, b) => a.coverage - b.coverage)
+      .sort((a, b) => a.coverage - b.coverage)
       .slice(0, 2)
   }, [coverageData])
 
@@ -828,7 +905,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       case 'compliance':
         return t('compliance_monitor', 'Compliance Monitor')
       case 'coverage':
-        return t('skills_coverage_details', 'Skills Coverage Details')
+        return t('capability_coverage_details', 'Capability Coverage Details')
       default:
         return ''
     }
@@ -837,11 +914,11 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   const getDrawerIcon = (): React.ReactNode => {
     switch (activeDrawer) {
       case 'sustainability':
-        return <PiHeartbeat />
+        return <HeartbeatIcon />
       case 'compliance':
-        return <PiShieldCheck />
+        return <ShieldCheckIcon />
       case 'coverage':
-        return <PiUsersThree />
+        return <UsersThreeIcon />
       default:
         return null
     }
@@ -875,43 +952,43 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       {/* KPI Cards Row */}
       <div className="gba:grid gba:grid-cols-5 gba:gap-3" data-testid="insights-kpis">
         <InsightKpiCard
-          icon={<PiTimer />}
+          icon={<TimerIcon />}
           label={t('overtime_load_ratio', 'Overtime Load Ratio')}
           value={`${kpis.overtimeLoadRatio.toFixed(1)}%`}
-          subtitle={t('overtime_vs_worked', 'Overtime vs total worked time')}
-          color={getKpiColor(kpis.overtimeLoadRatio, { good: 5, warn: 15, direction: 'lower' })}
+          subtitle={t('overtime_vs_worked', 'Share of worked time booked as overtime')}
+          tone={getKpiColor(kpis.overtimeLoadRatio, { good: 5, warn: 15, direction: 'lower' })}
         />
         <InsightKpiCard
-          icon={<PiScales />}
+          icon={<TrendUpIcon />}
           label={t('time_load_balance', 'Time Load Balance')}
           value={`${kpis.timeLoadBalanceIndex.toFixed(0)}%`}
-          subtitle={t('overtime_fairness', 'Overtime distribution fairness')}
-          color={getKpiColor(kpis.timeLoadBalanceIndex, { good: 70, warn: 40, direction: 'higher' })}
+          subtitle={t('overtime_fairness', 'How evenly overtime is distributed across the team')}
+          tone={getKpiColor(kpis.timeLoadBalanceIndex, { good: 70, warn: 40, direction: 'higher' })}
         />
         <InsightKpiCard
-          icon={<PiSunHorizon />}
+          icon={<SunIcon />}
           label={t('pto_health', 'PTO Health Index')}
           value={kpis.ptoHealthIndex === null ? t('na', 'N/A') : `${kpis.ptoHealthIndex.toFixed(0)}%`}
-          subtitle={t('leave_vs_accrual', 'Leave usage vs expected accrual')}
-          color={
+          subtitle={t('leave_vs_accrual', 'Taken vacation compared with expected year progress')}
+          tone={
             kpis.ptoHealthIndex === null
-              ? 'var(--nw-muted-foreground)'
+              ? 'muted'
               : getKpiColor(kpis.ptoHealthIndex, { good: 60, warn: 30, direction: 'higher' })
           }
         />
         <InsightKpiCard
-          icon={<PiCalendarCheck />}
+          icon={<CalendarCheckIcon />}
           label={t('absence_stability', 'Absence Stability')}
           value={`${kpis.absenceStabilityRate.toFixed(0)}%`}
-          subtitle={t('predictability', 'Predictability of absences')}
-          color={getKpiColor(kpis.absenceStabilityRate, { good: 90, warn: 75, direction: 'higher' })}
+          subtitle={t('predictability', 'Share of scheduled days without sick absence')}
+          tone={getKpiColor(kpis.absenceStabilityRate, { good: 90, warn: 75, direction: 'higher' })}
         />
         <InsightKpiCard
-          icon={<PiClockClockwise />}
+          icon={<ClockCounterClockwiseIcon />}
           label={t('attendance_reliability', 'Attendance Reliability')}
           value={`${kpis.attendanceReliabilityRate.toFixed(0)}%`}
-          subtitle={t('time_log_completeness', 'Completeness of time logs')}
-          color={getKpiColor(kpis.attendanceReliabilityRate, { good: 90, warn: 75, direction: 'higher' })}
+          subtitle={t('time_log_completeness', 'Share of expected workdays with time entries')}
+          tone={getKpiColor(kpis.attendanceReliabilityRate, { good: 90, warn: 75, direction: 'higher' })}
         />
       </div>
 
@@ -919,13 +996,13 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       <div className="gba:grid gba:grid-cols-3 gba:gap-4">
         {/* Panel 1: Sustainability & Burnout */}
         <Card
-          className="gba:shadow-sm gba:cursor-pointer gba:transition-all hover:gba:shadow-md gba:border gba:border-border"
+          className="gba:cursor-pointer gba:border gba:border-border gba:transition-colors hover:gba:bg-muted/20"
           onClick={() => toggleDrawer('sustainability')}
           data-testid="sustainability-panel"
         >
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-sm gba:font-semibold gba:flex gba:items-center gba:gap-2">
-              <PiHeartbeat className="gba:text-info" />
+              <HeartbeatIcon className="gba:text-info" />
               {t('sustainability_burnout', 'Sustainability & Burnout')}
             </CardTitle>
           </CardHeader>
@@ -962,14 +1039,14 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     key={s.employeeId}
                     className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate"
                   >
-                    <PiWarning className="gba:text-warning gba:flex-shrink-0" size={12} />
+                    <WarningIcon className="gba:text-warning gba:flex-shrink-0" size={12} />
                     <span className="gba:font-medium gba:text-foreground">{s.employeeName}</span>
                     <span>– {s.signals[0]}</span>
                   </div>
                 ))}
                 {sustainabilitySignals.length > 2 && (
                   <div className="gba:text-xs gba:text-info gba:flex gba:items-center gba:gap-1 gba:mt-1">
-                    <PiArrowRight size={12} />
+                    <ArrowRightIcon size={12} />
                     {sustainabilitySignals.length - 2} {t('more', 'more')}
                   </div>
                 )}
@@ -980,13 +1057,13 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
 
         {/* Panel 2: Compliance */}
         <Card
-          className="gba:shadow-sm gba:cursor-pointer gba:transition-all hover:gba:shadow-md gba:border gba:border-border"
+          className="gba:cursor-pointer gba:border gba:border-border gba:transition-colors hover:gba:bg-muted/20"
           onClick={() => toggleDrawer('compliance')}
           data-testid="compliance-panel"
         >
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-sm gba:font-semibold gba:flex gba:items-center gba:gap-2">
-              <PiShieldCheck className="gba:text-info" />
+              <ShieldCheckIcon className="gba:text-info" />
               {t('compliance_monitor', 'Compliance Monitor')}
             </CardTitle>
           </CardHeader>
@@ -1016,12 +1093,12 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     </Badge>
                   )}
                 </div>
-                {complianceAlerts.slice(0, 2).map((a, i) => (
+                {complianceAlerts.slice(0, 2).map(a => (
                   <div
-                    key={`${a.employeeId}-${i}`}
+                    key={`${a.employeeId}-${a.type}-${a.description}`}
                     className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:truncate"
                   >
-                    <PiWarning
+                    <WarningIcon
                       className={
                         a.severity === 'critical'
                           ? 'gba:text-destructive gba:flex-shrink-0'
@@ -1030,12 +1107,12 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                       size={12}
                     />
                     <span className="gba:font-medium gba:text-foreground">{a.employeeName}</span>
-                    <span>– {a.type.replaceAll('_', ' ')}</span>
+                    <span>– {getComplianceTypeLabel(a.type)}</span>
                   </div>
                 ))}
                 {complianceAlerts.length > 2 && (
                   <div className="gba:text-xs gba:text-info gba:flex gba:items-center gba:gap-1 gba:mt-1">
-                    <PiArrowRight size={12} />
+                    <ArrowRightIcon size={12} />
                     {complianceAlerts.length - 2} {t('more', 'more')}
                   </div>
                 )}
@@ -1044,16 +1121,16 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
           </CardContent>
         </Card>
 
-        {/* Panel 3: Skills Coverage */}
+        {/* Panel 3: Capability Coverage */}
         <Card
-          className="gba:shadow-sm gba:cursor-pointer gba:transition-all hover:gba:shadow-md gba:border gba:border-border"
+          className="gba:cursor-pointer gba:border gba:border-border gba:transition-colors hover:gba:bg-muted/20"
           onClick={() => toggleDrawer('coverage')}
           data-testid="skills-coverage-panel"
         >
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-sm gba:font-semibold gba:flex gba:items-center gba:gap-2">
-              <PiUsersThree className="gba:text-info" />
-              {t('skills_coverage', 'Skills Coverage')}
+              <UsersThreeIcon className="gba:text-info" />
+              {t('capability_coverage', 'Capability Coverage')}
             </CardTitle>
           </CardHeader>
           <CardContent className="gba:pt-0">
@@ -1100,7 +1177,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                   className="gba:flex gba:items-start gba:justify-between gba:py-3 gba:px-3 gba:rounded-lg gba:border gba:border-border"
                 >
                   <div className="gba:flex gba:items-start gba:gap-3">
-                    <div className="gba:w-7 gba:h-7 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[10px] gba:font-medium gba:mt-0.5">
+                    <div className="gba:mt-0.5 gba:flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-xs gba:font-medium">
                       {signal.employeeName
                         .split(' ')
                         .map(n => n[0])
@@ -1111,10 +1188,10 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                       <div className="gba:space-y-0.5 gba:mt-1">
                         {signal.signals.map(s => (
                           <div
-                            key={s}
+                            key={`${signal.employeeId}-${s}`}
                             className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1"
                           >
-                            <PiWarning className="gba:text-warning gba:flex-shrink-0" size={11} />
+                            <WarningIcon className="gba:text-warning gba:flex-shrink-0" size={11} />
                             {s}
                           </div>
                         ))}
@@ -1138,9 +1215,9 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                 {t('no_compliance_alerts', 'No compliance alerts. All clear.')}
               </div>
             ) : (
-              complianceAlerts.map((alert, idx) => (
+              complianceAlerts.map(alert => (
                 <div
-                  key={`${alert.employeeId}-${alert.type}-${idx}`}
+                  key={`${alert.employeeId}-${alert.type}-${alert.description}`}
                   className={`gba:py-3 gba:px-3 gba:rounded-lg gba:border ${
                     alert.severity === 'critical'
                       ? 'gba:border-destructive/30 gba:bg-destructive/5'
@@ -1151,13 +1228,13 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     <div>
                       <span className="gba:font-medium gba:text-sm">{alert.employeeName}</span>
                       <span className="gba:text-muted-foreground gba:text-xs gba:ml-2">
-                        {alert.type.replaceAll('_', ' ')}
+                        {getComplianceTypeLabel(alert.type)}
                       </span>
                     </div>
                     {getSeverityBadge(alert.severity)}
                   </div>
                   <p className="gba:text-xs gba:text-foreground gba:mb-1">{alert.description}</p>
-                  <p className="gba:text-[11px] gba:text-muted-foreground gba:italic">
+                  <p className="gba:text-xs gba:text-muted-foreground gba:italic">
                     {t('recommendation', 'Recommendation')}: {alert.recommendation}
                   </p>
                 </div>
@@ -1171,7 +1248,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
             <div className="gba:text-sm gba:text-muted-foreground">
               {t(
                 'coverage_description',
-                'Coverage analysis by organizational unit structure with matrix team impact analysis.'
+                'Coverage analysis by capability, with summarized org-unit status and matrix-team impact.'
               )}
             </div>
 
@@ -1193,7 +1270,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                   </div>
                   <div className="gba:text-right">
                     <div className="gba:text-lg gba:font-bold">{ou.coverage}%</div>
-                    <div className="gba:text-[10px] gba:text-muted-foreground">
+                    <div className="gba:text-xs gba:text-muted-foreground">
                       {t('current_coverage', 'Current Coverage')}
                     </div>
                   </div>
@@ -1201,7 +1278,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
 
                 {/* Team members badges */}
                 <div>
-                  <div className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mb-1">
+                  <div className="gba:mb-1 gba:text-xs gba:font-medium gba:text-muted-foreground">
                     {t('team_members', 'Team Members')}
                   </div>
                   <div className="gba:flex gba:flex-wrap gba:gap-1">
@@ -1213,63 +1290,6 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                   </div>
                 </div>
 
-                {/* Impacted matrix teams */}
-                {ou.impactedMatrixTeams.length > 0 && (
-                  <div>
-                    <div className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mb-1.5">
-                      {t('matrix_impacted', 'Matrix Teams Impacted When Someone is Off')}
-                    </div>
-                    {ou.impactedMatrixTeams.map(mt => (
-                      <div
-                        key={mt.matrixTeamName}
-                        className="gba:py-2.5 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:mb-2"
-                      >
-                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <span className="gba:text-sm gba:font-medium">{mt.matrixTeamName}</span>
-                            {getImpactBadge(mt.risk)}
-                          </div>
-                          <div className="gba:text-right">
-                            <span className="gba:text-sm gba:font-semibold">
-                              {mt.coverage}% {t('coverage_label', 'Coverage')}
-                            </span>
-                            <div className="gba:text-[10px] gba:text-muted-foreground">
-                              {t('members_from_ou', '{{count}} members from this org unit', {
-                                count: mt.orgUnitMembersInMatrix.length
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mb-1.5">
-                          {mt.orgUnitMembersInMatrix.map(m => (
-                            <Badge key={m} variant="secondary" className="gba:text-[10px]">
-                              {m}
-                            </Badge>
-                          ))}
-                        </div>
-                        {mt.impactScenarios.length > 0 && (
-                          <div>
-                            <div className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">
-                              {t('impact_if_absent', 'Impact if someone from {{name}} is absent', { name: ou.name })}
-                            </div>
-                            <div className="gba:space-y-1">
-                              {mt.impactScenarios.map(sc => (
-                                <div key={sc.employeeName} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                                  <span className="gba:font-medium">{sc.employeeName}</span>
-                                  {getImpactBadge(sc.impactLevel)}
-                                  <span className="gba:text-muted-foreground">
-                                    → {sc.newCoverage}% {t('coverage_label', 'Coverage')}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
                 <div className="gba:border-b gba:border-border" />
               </div>
             ))}
@@ -1277,7 +1297,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
             {/* Matrix Teams section with capabilities */}
             {coverageData.matrixTeams.length > 0 && (
               <div>
-                <div className="gba:text-xs gba:font-semibold gba:uppercase gba:text-muted-foreground gba:mb-2">
+                <div className="gba:mb-2 gba:text-xs gba:font-semibold gba:text-muted-foreground">
                   {t('matrix_capabilities', 'Matrix Team Capabilities')}
                 </div>
                 {coverageData.matrixTeams.map(mt => (
@@ -1302,7 +1322,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                     {/* Impact scenarios */}
                     {mt.impactScenarios.length > 0 && (
                       <div>
-                        <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:mb-1">
+                        <div className="gba:mb-1 gba:text-xs gba:font-medium gba:text-muted-foreground">
                           {t('what_if_off', 'What if someone is off?')}
                         </div>
                         <div className="gba:space-y-1">
@@ -1320,14 +1340,12 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
                                     .map(ac => (
                                       <div
                                         key={ac.capabilityId}
-                                        className="gba:text-[10px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1"
+                                        className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground"
                                       >
                                         <span
-                                          className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:flex-shrink-0"
-                                          style={{
-                                            backgroundColor:
-                                              ac.newRisk === 'high' ? 'var(--nw-destructive)' : 'var(--nw-warning)'
-                                          }}
+                                          className={`gba:h-1.5 gba:w-1.5 gba:flex-shrink-0 gba:rounded-full ${
+                                            ac.newRisk === 'high' ? 'gba:bg-destructive' : 'gba:bg-warning'
+                                          }`}
                                         />
                                         {ac.capabilityName}: {ac.newCoverage}%
                                       </div>

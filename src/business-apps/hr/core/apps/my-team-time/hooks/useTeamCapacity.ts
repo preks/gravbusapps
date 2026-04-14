@@ -3,6 +3,14 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../queries/queries'
 import { TeamMember, TeamAttendanceEntry, CapacityRow } from '../types/types'
 import { toLocalDateKey, getPlannedMinutesForDate, parseDurationToMinutes } from '../utils/timeUtils'
+import {
+  fetchTeamDetailedAbsences,
+  fetchTeamHolidayData,
+  getActiveLocale,
+  isSickAbsence,
+  isVacationAbsence,
+  isWorkAbsence
+} from '../utils/teamTimeDomain'
 
 interface UseTeamCapacityReturn {
   rows: CapacityRow[]
@@ -52,30 +60,39 @@ export const useTeamCapacity = (
       const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
       const fromStr = toLocalDateKey(monthStart)
       const toStr = toLocalDateKey(monthEnd)
+      const locale = getActiveLocale()
 
-      const queries: Promise<any>[] = [
-        graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
-          employeeIds: memberIds,
-          from: fromStr,
-          to: toStr
-        })
-      ]
-
-      if (!canUseSharedAttendance) {
-        queries.push(
-          graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
+      const monthAttendancePromise = canUseSharedAttendance
+        ? Promise.resolve(sharedMonthAttendance ?? [])
+        : graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
             employeeIds: memberIds,
             dateFrom: fromStr,
             dateTo: toStr
           })
-        )
-      }
+      const cumulativeAttendancePromise = graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
+        employeeIds: memberIds,
+        dateFrom: '2000-01-01',
+        dateTo: toStr
+      })
 
-      const results = await Promise.all(queries)
-      const absenceNetRows: any[] = results[0]?.DailyAbsenceNetView ?? []
+      const [absenceNetResult, detailedAbsences, holidayData, monthAttendanceResult, cumulativeAttendanceResult] =
+        await Promise.all([
+          graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
+            employeeIds: memberIds,
+            from: fromStr,
+            to: toStr
+          }),
+          fetchTeamDetailedAbsences(graphqlClient, memberIds, fromStr, toStr, locale),
+          fetchTeamHolidayData(graphqlClient, memberIds, fromStr, toStr, locale),
+          monthAttendancePromise,
+          cumulativeAttendancePromise
+        ])
+
+      const absenceNetRows: any[] = absenceNetResult?.DailyAbsenceNetView ?? []
       const attendanceRows: any[] = canUseSharedAttendance
-        ? sharedMonthAttendance!
-        : (results[1]?.EmployeeAttendance ?? [])
+        ? (monthAttendanceResult as TeamAttendanceEntry[])
+        : (((monthAttendanceResult as any)?.EmployeeAttendance ?? []) as TeamAttendanceEntry[])
+      const cumulativeAttendanceRows: any[] = cumulativeAttendanceResult?.EmployeeAttendance ?? []
 
       const today = new Date()
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -86,13 +103,6 @@ export const useTeamCapacity = (
       const currentMembers = membersRef.current
       const capacityRows: CapacityRow[] = currentMembers.map(member => {
         let contractTargetMinutes = 0
-        const cursor = new Date(monthStart)
-        while (cursor <= monthEnd) {
-          contractTargetMinutes += getPlannedMinutesForDate(toLocalDateKey(cursor), member.workingHours)
-          cursor.setDate(cursor.getDate() + 1)
-        }
-
-        const empAttendance = attendanceRows.filter((r: any) => r.employeeId === member.id)
         const empAbsenceNet = absenceNetRows.filter((r: any) => r.employeeId === member.id)
         const timeOffByDay = new Map<string, number>()
         empAbsenceNet.forEach((r: any) => {
@@ -100,6 +110,29 @@ export const useTeamCapacity = (
           if (value <= 0) return
           timeOffByDay.set(r.dayDate, Math.min(1, (timeOffByDay.get(r.dayDate) ?? 0) + value))
         })
+        const holidayDates = holidayData.datesByEmployeeId.get(member.id) ?? new Set<string>()
+        const cursor = new Date(monthStart)
+        while (cursor <= monthEnd) {
+          const dateKey = toLocalDateKey(cursor)
+          const plannedMinutes = getPlannedMinutesForDate(dateKey, member.workingHours)
+          const dailyAbsences = detailedAbsences.filter(
+            (absence: any) =>
+              absence.employeeId === member.id &&
+              absence.status === 'APPROVED' &&
+              dateKey >= absence.startDate &&
+              dateKey <= absence.endDate
+          )
+          const hasNonWorkAbsence = dailyAbsences.some((absence: any) => !isWorkAbsence(absence))
+          const dayFraction = hasNonWorkAbsence ? Math.min(timeOffByDay.get(dateKey) ?? 1, 1) : 0
+
+          if (!holidayDates.has(dateKey)) {
+            contractTargetMinutes += plannedMinutes * (1 - dayFraction)
+          }
+          cursor.setDate(cursor.getDate() + 1)
+        }
+
+        const empAttendance = attendanceRows.filter((r: any) => r.employeeId === member.id)
+        const cumulativeAttendance = cumulativeAttendanceRows.filter((r: any) => r.employeeId === member.id)
 
         let workedMinutes = 0
         let missingEntries = 0
@@ -112,7 +145,20 @@ export const useTeamCapacity = (
         while (targetCursor <= endDate) {
           const dateStr = toLocalDateKey(targetCursor)
           const planned = getPlannedMinutesForDate(dateStr, member.workingHours)
-          const timeOffFraction = Math.min(timeOffByDay.get(dateStr) ?? 0, 1)
+          if (holidayDates.has(dateStr)) {
+            targetCursor.setDate(targetCursor.getDate() + 1)
+            continue
+          }
+
+          const dayAbsences = detailedAbsences.filter(
+            (absence: any) =>
+              absence.employeeId === member.id &&
+              absence.status === 'APPROVED' &&
+              dateStr >= absence.startDate &&
+              dateStr <= absence.endDate
+          )
+          const nonWorkAbsence = dayAbsences.find((absence: any) => !isWorkAbsence(absence))
+          const timeOffFraction = nonWorkAbsence ? Math.min(timeOffByDay.get(dateStr) ?? 1, 1) : 0
           const expectedMinutes = planned * (1 - timeOffFraction)
 
           targetUpToNow += expectedMinutes
@@ -128,18 +174,34 @@ export const useTeamCapacity = (
 
         let ptoUsedDays = 0
         let sickDays = 0
-        empAbsenceNet.forEach((r: any) => {
-          const value = Number(r.netSignedEps ?? r.netConsumed) || 0
-          if (value <= 0) return
-          const typeRef = (r.typeRef || '').toUpperCase()
-          if (typeRef.includes('ILLNESS') || typeRef.includes('SICK')) {
-            sickDays += value
-          } else if (typeRef.includes('VACATION') || typeRef.includes('HOLIDAY')) {
-            ptoUsedDays += value
-          }
-        })
+        const monthlyCursor = new Date(monthStart)
+        while (monthlyCursor <= monthEnd) {
+          const dateKey = toLocalDateKey(monthlyCursor)
+          const dayAbsences = detailedAbsences.filter(
+            (absence: any) =>
+              absence.employeeId === member.id &&
+              absence.status === 'APPROVED' &&
+              dateKey >= absence.startDate &&
+              dateKey <= absence.endDate
+          )
+          const nonWorkAbsence = dayAbsences.find((absence: any) => !isWorkAbsence(absence))
 
-        const netBalanceMinutes = workedMinutes - targetUpToNow
+          if (nonWorkAbsence) {
+            const dayFraction = Math.min(timeOffByDay.get(dateKey) ?? 1, 1)
+            if (isSickAbsence(nonWorkAbsence)) {
+              sickDays += dayFraction
+            } else if (isVacationAbsence(nonWorkAbsence)) {
+              ptoUsedDays += dayFraction
+            }
+          }
+
+          monthlyCursor.setDate(monthlyCursor.getDate() + 1)
+        }
+
+        const netBalanceMinutes = cumulativeAttendance.reduce(
+          (sum: number, attendanceEntry: any) => sum + parseDurationToMinutes(attendanceEntry.differenceTime),
+          0
+        )
 
         return {
           employee: member,

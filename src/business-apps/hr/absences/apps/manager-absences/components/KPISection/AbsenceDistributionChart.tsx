@@ -4,18 +4,23 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AbsenceDistributionChartProps {
-  pieChartData: { name: string; value: number }[]
+  pieChartData: { code: string; name: string; value: number; parentEntryId?: string }[]
   totalAbsenceDays: number
   vacationShare: string
   groupColors: { [key: string]: string }
+  vacationGroupId: string
 }
 
 export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> = ({
   pieChartData,
   vacationShare,
-  groupColors
+  groupColors,
+  vacationGroupId
 }) => {
   const currentYear = new Date().getFullYear()
+  const formatDayValue = (value: number): string => {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2)
+  }
 
   const currentYearVacationShare = pieChartData.length > 0 ? vacationShare : '0'
 
@@ -23,18 +28,12 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
     const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0)
     const percent = currentYearTotal > 0 ? ((entry.value / currentYearTotal) * 100).toFixed(1) : '0.0'
 
-    // Check if this is the vacation entry by looking for the translated vacation name
-    const vacationName = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:absence_management_hub_manager.vacation',
-      'Vacation'
-    )
-
-    if (entry.name === vacationName) {
+    if (entry.payload?.parentEntryId === vacationGroupId) {
       return (
         <text
           x={entry.cx + entry.outerRadius * 1.3 * Math.cos((-entry.midAngle * Math.PI) / 180) + 15}
           y={entry.cy + entry.outerRadius * 1.3 * Math.sin((-entry.midAngle * Math.PI) / 180) + 15}
-          fill={groupColors[entry.name] || 'var(--nw-chart-3)'}
+          fill={groupColors[entry.payload?.code || ''] || 'var(--nw-chart-3)'}
           textAnchor="middle"
           dominantBaseline="central"
           fontSize={14}
@@ -94,7 +93,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
               fontWeight="bold"
             >
               {pieChartData.map(entry => (
-                <Cell key={`cell-${entry.name}`} fill={groupColors[entry.name] || undefined} />
+                <Cell key={`cell-${entry.code}`} fill={groupColors[entry.code] || undefined} />
               ))}
             </Pie>
             <RechartsTooltip
@@ -102,11 +101,12 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                 if (active && payload && payload.length) {
                   const data = payload[0]
                   const name = data.name
-                  const value = data.value
-                  const color = groupColors[name as string] || undefined
+                  const numericValue = Number(data.value || 0)
+                  const formattedValue = formatDayValue(numericValue)
+                  const code = String(data.payload?.code || '')
+                  const color = groupColors[code] || undefined
                   const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0)
-                  const percentage =
-                    currentYearTotal > 0 ? (((value as number) / currentYearTotal) * 100).toFixed(1) : '0.0'
+                  const percentage = currentYearTotal > 0 ? ((numericValue / currentYearTotal) * 100).toFixed(1) : '0.0'
 
                   return (
                     <div className="gba:bg-card gba:rounded-lg gba:shadow-lg gba:p-3 gba:text-sm gba:border gba:border-border">
@@ -122,7 +122,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                           'lowcoder:absence_management_hub_manager.dashboard.days',
                           'days'
                         )}{' '}
-                        {value}
+                        {formattedValue}
                       </div>
                       <div className="gba:text-muted-foreground">
                         {getTranslationFromI18nKeyAndLabel(
@@ -144,7 +144,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
             <div key={entry.name} className="gba:flex gba:items-center gba:gap-2">
               <div
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
-                style={{ backgroundColor: groupColors[entry.name] || undefined }}
+                style={{ backgroundColor: groupColors[entry.code] || undefined }}
               />
               <span className="gba:text-xs gba:text-muted-foreground">{entry.name}</span>
             </div>
