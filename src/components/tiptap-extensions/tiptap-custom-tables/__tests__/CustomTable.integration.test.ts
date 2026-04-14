@@ -5,6 +5,7 @@ import {
   normalizeDocumentHtmlForEditor,
   sanitizePaginationRuntimeHtml
 } from '@/business-apps/core/office/apps/documents/utils/documentContentUtils'
+import { insertWordLikeTable } from '@/business-apps/core/office/apps/documents/utils/initialInsertedTableLayout'
 import { Table, TableCell, TableHeader, TableRow } from '..'
 
 function waitForEditorPlugins() {
@@ -99,6 +100,47 @@ function setFirstTableColumnWidth(editor: Editor, width: number) {
   }
 
   editor.view.dispatch(tr)
+}
+
+type DocumentContentNode = NonNullable<ReturnType<Editor['getJSON']>['content']>[number]
+type TableCellJson = DocumentContentNode & {
+  attrs?: {
+    colwidth?: number[]
+  }
+}
+type TableRowJson = DocumentContentNode & {
+  content?: TableCellJson[]
+}
+type TableJson = DocumentContentNode & {
+  type: 'table'
+  attrs?: {
+    tableWidth?: unknown
+  }
+  content?: TableRowJson[]
+}
+
+function isTableJson(node: DocumentContentNode): node is TableJson {
+  return node.type === 'table'
+}
+
+function getTopLevelTables(editor: Editor): TableJson[] {
+  return (editor.getJSON().content ?? []).filter(isTableJson)
+}
+
+function getFirstTableJson(editor: Editor) {
+  return getTopLevelTables(editor)[0]
+}
+
+function getFirstCellWidth(table: TableJson | undefined) {
+  return table?.content?.[0]?.content?.[0]?.attrs?.colwidth?.[0] ?? null
+}
+
+function getFirstRowWidths(table: TableJson | undefined): Array<number | null> {
+  return (table?.content?.[0]?.content ?? []).map((cell: TableCellJson) => cell.attrs?.colwidth?.[0] ?? null)
+}
+
+function getPositiveWidths(widths: Array<number | null>): number[] {
+  return widths.filter((width): width is number => typeof width === 'number' && width > 0)
 }
 
 describe('CustomTable pagination structure', () => {
@@ -234,12 +276,80 @@ describe('CustomTable pagination structure', () => {
       editor.view.dom.ownerDocument.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
       await waitForEditorPlugins()
 
-      const tables = editor.getJSON().content ?? []
-      const leadingWidth = tables[0]?.content?.[0]?.content?.[0]?.attrs?.colwidth?.[0]
-      const continuationWidth = tables[1]?.content?.[0]?.content?.[0]?.attrs?.colwidth?.[0]
+      const tables = getTopLevelTables(editor)
+      const leadingWidth = getFirstCellWidth(tables[0])
+      const continuationWidth = getFirstCellWidth(tables[1])
 
       expect(leadingWidth).toBe(180)
       expect(continuationWidth).toBe(180)
+    } finally {
+      editor.destroy()
+    }
+  })
+
+  it('seeds even column widths for newly inserted tables', () => {
+    const editor = createEditor('<p></p>')
+
+    try {
+      const inserted = insertWordLikeTable({
+        editor,
+        paginationConfig: {
+          pageFormat: {
+            name: 'A4',
+            width: 794,
+            height: 1123,
+            margins: {
+              top: 96,
+              right: 96,
+              bottom: 96,
+              left: 96
+            }
+          },
+          pageWidth: 794,
+          pageHeight: 1123,
+          marginTop: 96,
+          marginRight: 96,
+          marginBottom: 96,
+          marginLeft: 96
+        },
+        rows: 2,
+        cols: 3,
+        withHeaderRow: false
+      })
+
+      expect(inserted).toBe(true)
+
+      const table = getFirstTableJson(editor)
+      const widths = getFirstRowWidths(table)
+      const numericWidths = getPositiveWidths(widths)
+
+      expect(widths).toHaveLength(3)
+      expect(numericWidths).toHaveLength(3)
+      expect(numericWidths.reduce((sum, width) => sum + width, 0)).toBe(602)
+      expect(Math.max(...numericWidths) - Math.min(...numericWidths)).toBeLessThanOrEqual(1)
+      expect(table?.attrs?.tableWidth ?? null).toBeNull()
+    } finally {
+      editor.destroy()
+    }
+  })
+
+  it('migrates legacy manual table widths into explicit column widths', async () => {
+    const editor = createEditor(
+      '<table data-table-width="14cm" data-table-width-mode="manual"><tbody><tr><td>A</td><td>B</td></tr></tbody></table>',
+      { resizable: true, renderWrapper: true }
+    )
+
+    try {
+      await waitForEditorPlugins()
+
+      const table = getFirstTableJson(editor)
+      const widths = getFirstRowWidths(table)
+      const numericWidths = getPositiveWidths(widths)
+
+      expect(widths).toHaveLength(2)
+      expect(numericWidths).toHaveLength(2)
+      expect(Math.max(...numericWidths) - Math.min(...numericWidths)).toBeLessThanOrEqual(1)
+      expect(table?.attrs?.tableWidth ?? null).toBeNull()
     } finally {
       editor.destroy()
     }

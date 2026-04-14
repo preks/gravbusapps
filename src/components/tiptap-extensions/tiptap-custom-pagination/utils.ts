@@ -414,6 +414,48 @@ export function resolvePageNumberSlot(
   }
 }
 
+export function isEmptyHeaderFooterHtml(html: string | null | undefined) {
+  if (!html) return true
+
+  const container = document.createElement('div')
+  container.innerHTML = html
+  if ((container.textContent ?? '').length > 0) return false
+
+  return container.querySelector('img, table, hr, iframe, svg, video, audio, canvas, object, embed') === null
+}
+
+export function hasVisibleHeaderFooterContent(
+  storage: PagesStorage,
+  options: PagesOptions,
+  type: HeaderFooterEditorType,
+  page: number,
+  total: number
+): boolean {
+  const displayContent = resolveDisplayContent(
+    storage,
+    options,
+    type,
+    page,
+    total,
+    options.headerFooterExtensions ?? []
+  )
+  return !isEmptyHeaderFooterHtml(displayContent.html) || resolvePageNumberSlot(options, type, page) !== null
+}
+
+export function resolveDefaultHeaderFooterMeasurement(
+  storage: PagesStorage,
+  options: PagesOptions,
+  type: HeaderFooterEditorType,
+  page: number,
+  total: number
+): number {
+  if (!hasVisibleHeaderFooterContent(storage, options, type, page, total)) {
+    return 0
+  }
+
+  return type === 'header' ? options.headerHeight : options.footerHeight
+}
+
 export function buildRenderableContent(
   source: PagesHeaderFooterSource | undefined,
   page: number,
@@ -1118,9 +1160,18 @@ function getLastMeasurableChild(root: HTMLElement): HTMLElement | null {
 function readHeaderFooterRegionHeight(regionLayout: HTMLElement | null) {
   if (!regionLayout) return 0
 
+  const region = regionLayout.closest('[data-rm-editor-type]') as HTMLElement | null
+  if (region?.dataset.rmHasVisibleContent === 'false') {
+    return 0
+  }
+
   let measuredHeight = readMeasuredElementHeight(regionLayout)
   const contentRoot = regionLayout.querySelector('[data-rm-page-number-body="true"]') as HTMLElement | null
   if (!contentRoot) return measuredHeight
+
+  if (contentRoot.dataset.rmEmpty === 'true' && regionLayout.dataset.rmPageNumberActive !== 'true') {
+    return 0
+  }
 
   measuredHeight = Math.max(measuredHeight, getElementLayoutHeight(contentRoot))
 

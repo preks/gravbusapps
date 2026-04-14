@@ -12,6 +12,17 @@ async function readDocumentXml(blob: Blob) {
   return zip.file('word/document.xml')?.async('string')
 }
 
+async function readStylesXml(blob: Blob) {
+  const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as ArrayBuffer)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsArrayBuffer(blob)
+  })
+  const zip = await JSZip.loadAsync(arrayBuffer)
+  return zip.file('word/styles.xml')?.async('string')
+}
+
 describe('docxExport image layout', () => {
   it('preserves image crop and rotation in generated drawing xml', async () => {
     const html = [
@@ -124,5 +135,58 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('Overview')
     expect(documentXml).toContain('<w:tab/>')
     expect(documentXml).toContain('<w:pStyle w:val="Heading1"/>')
+  })
+
+  it('writes live page setup values into the DOCX section properties', async () => {
+    const blob = await buildDocxBlob('Layout doc', '<p>Layout</p>', {
+      pageSize: 'A4',
+      orientation: 'landscape',
+      marginUnit: 'cm',
+      margins: {
+        top: 1,
+        right: 2,
+        bottom: 3,
+        left: 4
+      },
+      pages: {
+        headerTopMargin: 40,
+        footerBottomMargin: 56
+      }
+    })
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>')
+    expect(documentXml).toContain(
+      '<w:pgMar w:top="567" w:right="1134" w:bottom="1701" w:left="2268" w:header="600" w:footer="840" w:gutter="0"/>'
+    )
+  })
+
+  it('writes body typography and zero paragraph spacing into styles xml', async () => {
+    const blob = await buildDocxBlob('Typography doc', '<p>Text</p>', {
+      fontFamily: '"Aptos", Arial, sans-serif',
+      fontSize: 16,
+      lineHeight: 1.15
+    })
+    const stylesXml = await readStylesXml(blob)
+
+    expect(stylesXml).toContain('<w:style w:type="paragraph" w:default="1" w:styleId="Normal">')
+    expect(stylesXml).toContain('<w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/>')
+    expect(stylesXml).toContain('<w:sz w:val="24"/>')
+    expect(stylesXml).toContain('<w:spacing w:before="0" w:after="0" w:line="276" w:lineRule="auto"/>')
+    expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="Heading1">')
+    expect(stylesXml).toContain('<w:spacing w:before="0" w:after="320" w:line="288" w:lineRule="auto"/>')
+  })
+
+  it('uses tighter table paragraph typography to match editor table density', async () => {
+    const blob = await buildDocxBlob('Table doc', '<table><tr><th>Head</th><td>Cell</td></tr></table>', {
+      fontFamily: '"Aptos", Arial, sans-serif',
+      fontSize: 16,
+      lineHeight: 1.15
+    })
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('<w:spacing w:before="0" w:after="0" w:line="312" w:lineRule="auto"/>')
+    expect(documentXml).toContain('<w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="21"/><w:b/>')
+    expect(documentXml).toContain('<w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="21"/>')
   })
 })

@@ -12,7 +12,7 @@ import {
   resolveWindowedPaginationRendererState,
   renderHeaderFooterDisplayContent
 } from '../dom'
-import { createStorageFromOptions, resolvePageFormat, setStoredVariantContent } from '../utils'
+import { createStorageFromOptions, getPageLayoutHeights, resolvePageFormat, setStoredVariantContent } from '../utils'
 
 function createTestOptions() {
   return {
@@ -434,6 +434,31 @@ describe('createPaginationWrapper', () => {
         '--rm-page-body-2'
       )
     })
+  })
+
+  it('uses margin-only fallback heights for placeholder shells when header and footer are empty', () => {
+    const options = createTestOptions()
+    const storage = createStorageFromOptions(options)
+    const pageFormat = resolvePageFormat(options.pageFormat)
+    const pageBreak = createPageBreakElement({
+      pageNumber: 2,
+      totalPages: 3,
+      pageFormat,
+      options,
+      storage,
+      extensions: [],
+      activeRange: { startPage: 1, endPage: 1 }
+    })
+
+    const expectedLayout = getPageLayoutHeights(pageFormat, storage, 0, 0)
+    const breaker = pageBreak.querySelector('.breaker') as HTMLElement
+
+    expect(pageBreak.dataset.rmPageShellState).toBe('placeholder')
+    expect(breaker.dataset.rmBreakerPlaceholderHeight).toBe(
+      String(expectedLayout.footerReserved + storage.pageGap + expectedLayout.headerReserved)
+    )
+    expect(breaker.dataset.rmBreakerFooterHeight).toBe(String(expectedLayout.footerReserved))
+    expect(breaker.dataset.rmBreakerNextHeaderHeight).toBe(String(expectedLayout.headerReserved))
   })
 
   it('keeps all page shells mounted and only hydrates the requested middle window', () => {
