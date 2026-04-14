@@ -3,13 +3,7 @@ import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TypeTable } from './components/TypeTable'
 import { useContentTypeOptions } from '@/common/data/content/hooks/useContentTypeOptions'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  buildInsertContentTypeMutation,
-  buildUpdateContentTypeMutation,
-  buildDeleteContentTypeMutation
-} from '@/common/data/content/queries/contentQueries'
-import type { ContentType } from '@/common/data/content/types/contentTypes'
+import { useContentClient } from '@/common/network/content'
 
 export interface TypeDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -18,9 +12,8 @@ export interface TypeDataPageProps extends BusinessAppContextProps {
 
 const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
   const [mutationError, setMutationError] = useState<string | null>(null)
-
-  const graphqlClient = useGraphQLClient(context.accessToken)
   const { options: types, isLoading, error: fetchError, refetch } = useContentTypeOptions(context.accessToken)
+  const contentClient = useContentClient(context.accessToken)
 
   const error = mutationError || (fetchError ? fetchError.message : null)
 
@@ -28,7 +21,7 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
     async (data: { name: string; contentGroup: string }) => {
       setMutationError(null)
       try {
-        await graphqlClient.request<{ InsertContentTypeOne: ContentType }>(buildInsertContentTypeMutation(), {
+        await contentClient.createContentType({
           name: data.name,
           contentGroup: data.contentGroup
         })
@@ -39,15 +32,20 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch]
   )
 
   const handleUpdate = useCallback(
     async (id: string, data: { name: string; contentGroup: string }) => {
       setMutationError(null)
       try {
-        await graphqlClient.request<{ UpdateContentTypeByPk: ContentType }>(buildUpdateContentTypeMutation(), {
+        const typeToUpdate = types.find(type => type.id === id)
+        if (typeToUpdate?.version == null) {
+          throw new Error('Failed to update content type: version is missing')
+        }
+        await contentClient.updateContentType({
           id,
+          version: typeToUpdate.version,
           name: data.name,
           contentGroup: data.contentGroup
         })
@@ -58,14 +56,18 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch, types]
   )
 
   const handleDelete = useCallback(
     async (id: string) => {
       setMutationError(null)
       try {
-        await graphqlClient.request(buildDeleteContentTypeMutation(), { id })
+        const typeToDelete = types.find(type => type.id === id)
+        if (typeToDelete?.version == null) {
+          throw new Error('Failed to delete content type: version is missing')
+        }
+        await contentClient.deleteContentType(id, typeToDelete.version)
         await refetch()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete content type'
@@ -73,7 +75,7 @@ const TypeDataPage: React.FC<TypeDataPageProps> = ({ prefixDataTestId, onBack, .
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch, types]
   )
 
   if (isLoading && types.length === 0) {

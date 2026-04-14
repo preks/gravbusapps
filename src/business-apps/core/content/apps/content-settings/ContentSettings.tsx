@@ -41,6 +41,18 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
 
   const cards = [
     {
+      title: t('content.types', 'Content Types'),
+      description: t('content.types_description', 'Define different types of content entries'),
+      icon: FileTextIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('content.manage_types', 'Manage Types'),
+          onClick: () => setInlinePage({ key: 'types' })
+        }
+      ]
+    },
+    {
       title: t('content.categories', 'Content Categories'),
       description: t('content.categories_description', 'Organize articles and content with hierarchical categories'),
       icon: FolderIcon,
@@ -73,18 +85,6 @@ const ContentSettings: React.FC<ContentSettingsProps> = ({ className, prefixData
         {
           label: t('content.manage_reactions', 'Manage Reactions'),
           onClick: () => setInlinePage({ key: 'reactions' })
-        }
-      ]
-    },
-    {
-      title: t('content.types', 'Content Types'),
-      description: t('content.types_description', 'Define different types of content entries'),
-      icon: FileTextIcon,
-      iconSize: 'md' as const,
-      entries: [
-        {
-          label: t('content.manage_types', 'Manage Types'),
-          onClick: () => setInlinePage({ key: 'types' })
         }
       ]
     }
