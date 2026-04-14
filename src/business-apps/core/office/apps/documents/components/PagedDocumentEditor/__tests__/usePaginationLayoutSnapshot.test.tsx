@@ -7,6 +7,7 @@ import {
   PAGINATION_OWNED_DOC_CHANGE_META,
   PAGINATION_REFRESH_META
 } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
+import * as paginationTransactionClassifierModule from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationTransactionClassifier'
 import * as documentLayoutServiceModule from '../documentLayoutService'
 import type { DocumentLayoutService } from '../documentLayoutService'
 import * as documentLayoutScheduler from '../documentLayoutScheduler'
@@ -823,6 +824,105 @@ describe('usePaginationLayoutSnapshot', () => {
       const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
       expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
       expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(true)
+    })
+
+    it('skips eager layout scheduling for local table-region editor transactions even below the large-doc threshold', async () => {
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD - 1
+      const { service } = createLayoutServiceStub(pageCount)
+      const container = document.createElement('div')
+      const editorContainerRef = { current: container } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 1,
+        posAtCoords: () => ({ pos: 1 })
+      })
+      const classifySpy = jest
+        .spyOn(paginationTransactionClassifierModule, 'classifyPaginationTransaction')
+        .mockReturnValue({
+          kind: 'structure',
+          changedRanges: [{ from: 5, to: 5 }],
+          touchesTable: false,
+          touchesTableAdjacentContent: true,
+          touchesTableRegion: true,
+          isLayoutNeutral: false,
+          shouldScheduleSettledRefresh: true
+        })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      const editorTxCallCountBefore = requestLayoutCalls.filter(call => call.reason === 'editor-transaction').length
+
+      act(() => {
+        editor.emit('transaction', {
+          transaction: createMockTransaction(true)
+        })
+      })
+
+      const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
+      expect(editorTxCalls).toHaveLength(editorTxCallCountBefore)
+
+      classifySpy.mockRestore()
+    })
+
+    it('keeps debounced editor-transaction scheduling for table-region edits when collaboration is enabled', async () => {
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD - 1
+      const { service } = createLayoutServiceStub(pageCount)
+      const container = document.createElement('div')
+      const editorContainerRef = { current: container } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 1,
+        posAtCoords: () => ({ pos: 1 })
+      })
+      const classifySpy = jest
+        .spyOn(paginationTransactionClassifierModule, 'classifyPaginationTransaction')
+        .mockReturnValue({
+          kind: 'structure',
+          changedRanges: [{ from: 5, to: 5 }],
+          touchesTable: false,
+          touchesTableAdjacentContent: true,
+          touchesTableRegion: true,
+          isLayoutNeutral: false,
+          shouldScheduleSettledRefresh: true
+        })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: true
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        editor.emit('transaction', {
+          transaction: createMockTransaction(true)
+        })
+      })
+
+      const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
+      expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
+      expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(false)
+
+      classifySpy.mockRestore()
     })
 
     it('debounces structural layout for editor transactions when page count is at or above the large-doc threshold', async () => {
