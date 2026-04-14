@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { PaperPlaneRightIcon, PaperclipIcon, PlugIcon, StopIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowUpIcon, PlusIcon, PlugsIcon, SpinnerGapIcon, StopIcon, XIcon } from '@phosphor-icons/react'
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { ActiveConnectorChips } from '../connectors/ActiveConnectorChips'
@@ -89,6 +89,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   const [value, setValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Sync external prefill (chip selection) into the textarea
   useEffect(() => {
@@ -142,19 +143,41 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     [handleSubmit]
   )
 
+  const handleAddClick = useCallback(() => {
+    if (fileInputRef.current) {
+      // Clear the current value so picking the same file twice still triggers change.
+      fileInputRef.current.value = ''
+      fileInputRef.current.click()
+    }
+  }, [])
+
+  const handlePlaceholderFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    // Placeholder only: do not persist, preview, or upload selected files yet.
+    event.target.value = ''
+  }, [])
+
   const canSend = !!value.trim() && !isDisabled && !isSubmitting && !(isRunning && !isReplyMode)
 
   // ── Landing variant ────────────────────────────────────────────────────────
   if (isLanding) {
     return (
       <div className="gba:w-full" data-testid="fabric-input-landing">
-        <div className="gba:rounded-4xl gba:border gba:border-border/80 gba:bg-card/98 gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/15 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="gba:hidden"
+          onChange={handlePlaceholderFileChange}
+          data-testid="fabric-input-file-upload"
+        />
+        <div className="gba:rounded-4xl gba:border gba:border-foreground/15 gba:bg-card/98 gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
           <Textarea
             ref={textareaRef}
             value={value}
             onChange={e => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={resolvedPlaceholder}
+            disabled={isSubmitting}
             rows={3}
             autoFocus={autoFocus}
             className="gba:min-h-[118px] gba:resize-none gba:border-0 gba:focus-visible:ring-0 gba:rounded-none gba:bg-transparent gba:px-5 gba:pt-5 gba:pb-2 gba:pr-36 gba:text-[1.05rem] gba:leading-8 gba:placeholder:text-muted-foreground/62"
@@ -167,28 +190,31 @@ export const FabricInput: React.FC<FabricInputProps> = ({
           )}
 
           {/* Toolbar */}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:border-t gba:border-border/60">
-            {/* Left: action icons */}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3">
             <button
-              className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-              title="Attach files"
-              data-testid="fabric-input-attach"
+              type="button"
+              onClick={handleAddClick}
+              className="gba:flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
+              title="Add"
+              data-testid="fabric-input-add"
             >
-              <PaperclipIcon className="gba:h-3.5 gba:w-3.5" />
+              <PlusIcon className="gba:h-4 gba:w-4" weight="bold" />
             </button>
 
             {onConnectorsClick && (
               <button
                 onClick={onConnectorsClick}
-                className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                className="gba:flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
                 title="Connectors"
                 data-testid="fabric-input-connectors"
               >
-                <PlugIcon className="gba:h-3.5 gba:w-3.5" />
+                <PlugsIcon className="gba:h-4 gba:w-4" weight="bold" />
               </button>
             )}
 
-            <span className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50">⌘ Enter to send</span>
+            <span className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50">
+              {isSubmitting ? 'Starting session...' : '⌘ Enter to send'}
+            </span>
 
             {/* Send button */}
             <Button
@@ -198,7 +224,11 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               disabled={!canSend}
               data-testid="fabric-input-send"
             >
-              <PaperPlaneRightIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
+              {isSubmitting ? (
+                <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" weight="bold" />
+              ) : (
+                <ArrowUpIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+              )}
             </Button>
           </div>
         </div>
@@ -209,7 +239,15 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   // ── Workspace variant — floating island card ──────────────────────────────
   return (
     <div className="gba:w-full" data-testid="fabric-input-workspace">
-      <div className="gba:rounded-[1.75rem] gba:border gba:border-border gba:bg-card/95 gba:backdrop-blur-md gba:overflow-hidden gba:shadow-[0_6px_18px_rgba(15,23,42,0.035)] gba:transition-all gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="gba:hidden"
+        onChange={handlePlaceholderFileChange}
+        data-testid="fabric-input-file-upload"
+      />
+      <div className="gba:rounded-[1.75rem] gba:border gba:border-foreground/15 gba:bg-card/95 gba:backdrop-blur-md gba:overflow-hidden gba:shadow-[0_6px_18px_rgba(15,23,42,0.035)] gba:transition-all gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
         <Textarea
           ref={textareaRef}
           value={value}
@@ -228,23 +266,25 @@ export const FabricInput: React.FC<FabricInputProps> = ({
         )}
 
         {/* Toolbar */}
-        <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2.5 gba:border-t gba:border-border/80">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2.5">
           <button
-            className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-            title="Attach files"
-            data-testid="fabric-input-attach"
+            type="button"
+            onClick={handleAddClick}
+            className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
+            title="Add"
+            data-testid="fabric-input-add"
           >
-            <PaperclipIcon className="gba:h-3.5 gba:w-3.5" />
+            <PlusIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
           </button>
 
           {onConnectorsClick && (
             <button
               onClick={onConnectorsClick}
-              className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+              className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
               title="Connectors"
               data-testid="fabric-input-connectors"
             >
-              <PlugIcon className="gba:h-3.5 gba:w-3.5" />
+              <PlugsIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
             </button>
           )}
 
@@ -280,7 +320,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               disabled={!canSend}
               data-testid="fabric-input-send"
             >
-              <PaperPlaneRightIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
+              <ArrowUpIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
             </Button>
           )}
         </div>

@@ -1,22 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CONTENT_REACTION_IDENTIFIER } from '@/common/data/content/constants/contentCatalogs'
 import { ReactionTable } from './components/ReactionTable'
-import {
-  useCatalogEntries,
-  useCreateCatalogEntry,
-  useUpdateCatalogEntry,
-  useDeleteCatalogEntry,
-  type CatalogEntry
-} from '@/common/data/catalog'
+import { useCatalogEntries, type CatalogEntry } from '@/common/data/catalog'
+import { useContentClient, type ContentReactionPayload } from '@/common/network/content'
 
 export interface ReactionDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onBack?: () => void
 }
-
-const CATALOG_IDENTIFIER = 'ContentReaction'
-const CATALOG_VERSION = 'v1'
 
 const ReactionDataPage: React.FC<ReactionDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
   const [reactions, setReactions] = useState<CatalogEntry[]>([])
@@ -24,15 +17,13 @@ const ReactionDataPage: React.FC<ReactionDataPageProps> = ({ prefixDataTestId, o
   const [error, setError] = useState<string | null>(null)
 
   const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken })
-  const { createCatalogEntry } = useCreateCatalogEntry({ accessToken: context.accessToken })
-  const { updateCatalogEntry } = useUpdateCatalogEntry({ accessToken: context.accessToken })
-  const { deleteCatalogEntry } = useDeleteCatalogEntry({ accessToken: context.accessToken })
+  const contentClient = useContentClient(context.accessToken)
 
   const loadReactions = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
+      const result = await fetchCatalogEntriesByIdentifier(CONTENT_REACTION_IDENTIFIER, {
         limit: 100,
         offset: 0
       })
@@ -50,89 +41,36 @@ const ReactionDataPage: React.FC<ReactionDataPageProps> = ({ prefixDataTestId, o
     loadReactions()
   }, [loadReactions])
 
-  const handleCreate = async (data: any) => {
-    // Check if data is an array (multiple skin tone variants)
+  const handleCreate = async (data: ContentReactionPayload | ContentReactionPayload[]) => {
     if (Array.isArray(data)) {
-      // Create all variants
       for (const variant of data) {
-        await createCatalogEntry(CATALOG_IDENTIFIER, CATALOG_VERSION, {
-          type: variant.type,
-          code: variant.code,
-          parentEntryId: variant.parentEntryId || undefined,
-          value: variant.value,
-          description: variant.description,
-          additionalValue1: variant.additionalValue1,
-          additionalValue2: variant.additionalValue2,
-          additionalValue3: variant.additionalValue3,
-          alternativeCode: variant.alternativeCode,
-          displayOrder: variant.displayOrder,
-          objectValue: variant.objectValue,
-          valueTranslations: {},
-          additionalValue1Translations: {},
-          additionalValue2Translations: {},
-          additionalValue3Translations: {}
-        })
+        await contentClient.createContentReaction(variant)
       }
     } else {
-      // Single entry
-      await createCatalogEntry(CATALOG_IDENTIFIER, CATALOG_VERSION, {
-        type: data.type,
-        code: data.code,
-        parentEntryId: data.parentEntryId || undefined,
-        value: data.value,
-        description: data.description,
-        additionalValue1: data.additionalValue1,
-        additionalValue2: data.additionalValue2,
-        additionalValue3: data.additionalValue3,
-        alternativeCode: data.alternativeCode,
-        displayOrder: data.displayOrder,
-        objectValue: data.objectValue,
-        valueTranslations: {},
-        additionalValue1Translations: {},
-        additionalValue2Translations: {},
-        additionalValue3Translations: {}
-      })
+      await contentClient.createContentReaction(data)
     }
     await loadReactions()
   }
 
-  const handleUpdate = async (id: string, data: any) => {
-    await updateCatalogEntry(CATALOG_IDENTIFIER, CATALOG_VERSION, id, {
-      type: data.type,
-      code: data.code,
-      parentEntryId: data.parentEntryId || undefined,
-      value: data.value,
-      description: data.description,
-      additionalValue1: data.additionalValue1,
-      additionalValue2: data.additionalValue2,
-      additionalValue3: data.additionalValue3,
-      alternativeCode: data.alternativeCode,
-      displayOrder: data.displayOrder,
-      objectValue: data.objectValue,
-      valueTranslations: {},
-      additionalValue1Translations: {},
-      additionalValue2Translations: {},
-      additionalValue3Translations: {}
-    })
+  const handleUpdate = async (id: string, data: ContentReactionPayload) => {
+    await contentClient.updateContentReaction(id, data)
     await loadReactions()
   }
 
   const handleDelete = async (id: string) => {
     // First, find all children of this parent
-    const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
+    const result = await fetchCatalogEntriesByIdentifier(CONTENT_REACTION_IDENTIFIER, {
       limit: 1000,
       offset: 0
     })
 
     const children = result.entries.filter(entry => entry.parentEntryId === id)
 
-    // Delete all children first
     for (const child of children) {
-      await deleteCatalogEntry(CATALOG_IDENTIFIER, CATALOG_VERSION, child.id)
+      await contentClient.deleteContentReaction(child.id)
     }
 
-    // Then delete the parent
-    await deleteCatalogEntry(CATALOG_IDENTIFIER, CATALOG_VERSION, id)
+    await contentClient.deleteContentReaction(id)
 
     await loadReactions()
   }

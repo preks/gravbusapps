@@ -18,6 +18,11 @@ import QuestionView from './views/question-view'
 import EngagementView from './views/engagement-view'
 import { EveryPagesHero } from './components/shared/EveryPagesHero'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import {
+  CONTENT_REACTION_IDENTIFIER,
+  CONTENT_REACTION_UPVOTE_ENTRY_ID,
+  CONTENT_REACTION_DOWNVOTE_ENTRY_ID
+} from '@/common/data/content/constants/contentCatalogs'
 import { usePortalTranslation } from './hooks/usePortalTranslation'
 import { AiTranslationButton } from '@/common/components/content'
 import { useUserEngagement } from './hooks/useUserEngagement'
@@ -25,8 +30,6 @@ import { useUserEngagement } from './hooks/useUserEngagement'
 export interface ContentPortalProps extends BusinessAppContextProps {
   tab?: string
 }
-
-const CATALOG_IDENTIFIER = 'ContentReaction'
 
 const ContentPortal: React.FC<ContentPortalProps> = context => {
   const { t } = useTranslation(translations)
@@ -47,7 +50,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   useEffect(() => {
     const loadReactions = async () => {
       try {
-        const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
+        const result = await fetchCatalogEntriesByIdentifier(CONTENT_REACTION_IDENTIFIER, {
           limit: 100,
           offset: 0
         })
@@ -64,9 +67,9 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
             allowedCodes.push(unifiedCode)
 
             // Also map +1/-1 by their special keys for VoteButtons
-            if (entry.id === 'ContentReaction:v1:+1') {
+            if (entry.id === CONTENT_REACTION_UPVOTE_ENTRY_ID) {
               catalogMap['+1'] = entry.id
-            } else if (entry.id === 'ContentReaction:v1:-1') {
+            } else if (entry.id === CONTENT_REACTION_DOWNVOTE_ENTRY_ID) {
               catalogMap['-1'] = entry.id
             }
           }

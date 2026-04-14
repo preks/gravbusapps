@@ -47,8 +47,7 @@ export class OfficeClient extends RestClient {
   }
 
   getBaseUrl(): string {
-    const url = DOCUMENT_API_URL
-    return url.endsWith('/') ? url.slice(0, -1) : url
+    return DOCUMENT_API_URL.endsWith('/') ? DOCUMENT_API_URL.slice(0, -1) : DOCUMENT_API_URL
   }
 
   // --- Overview ---

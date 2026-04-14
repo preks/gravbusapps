@@ -4,7 +4,7 @@ import { getRuntimeEnvsForIframe } from '@/common/env/EnvUtils'
 import { Loader2, AlertCircle, Upload, Download, CheckCircle, X } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { getSafeHref } from '@/business-apps/core/create/apps/ai-builder/utils/helpers'
+import { getSafeHref } from '@/business-apps/core/create/apps/screen-builder/utils/helpers'
 import { ScreenBuildingLoader } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/components/widgets/ScreenBuildingLoader'
 
 interface UniqueFileSummary {
