@@ -141,9 +141,7 @@ function summarizeMergeCandidate(candidate: MergeableTableFragmentsCandidate) {
   }
 }
 
-function createLayoutFragmentChainSummaries(
-  layoutTableFragments: readonly PaginationLayoutTableFragmentsState['fragments']
-) {
+function createLayoutFragmentChainSummaries(layoutTableFragments: PaginationLayoutTableFragmentsState['fragments']) {
   const summaries = new Map<string, LayoutFragmentChainSummary>()
 
   layoutTableFragments.forEach(fragment => {
@@ -183,6 +181,10 @@ function shouldUseLayoutSatisfiedOutcome(options: {
   if (options.splitCandidate) {
     const summary = options.layoutFragmentChains.get(options.splitCandidate.paginationChainKey)
     if (!summary?.hasSplitFragments) {
+      return false
+    }
+
+    if (options.splitCandidate.mode !== 'split') {
       return false
     }
 
@@ -337,33 +339,56 @@ function getMergeCandidateKey(candidate: MergeableTableFragmentsCandidate) {
   return `${candidate.paginationChainKey}:${candidate.firstTablePos}:${candidate.secondTablePos}`
 }
 
+function getEligibleSplitCandidates(
+  splitCandidates: TableOverflowSplitCandidate[],
+  chainStateByKey: Map<string, TablePaginationChainState>,
+  preferredSplitChainKey: string | null
+) {
+  const eligibleCandidates = splitCandidates
+    .map((candidate, originalIndex) => ({
+      candidate,
+      originalIndex
+    }))
+    .filter(({ candidate }) => {
+      const chainState = getChainState(chainStateByKey, candidate.paginationChainKey)
+      return getSplitCandidateKey(candidate) !== chainState.rejectedSplitKey
+    })
+
+  const preferredCandidates =
+    preferredSplitChainKey == null
+      ? []
+      : eligibleCandidates.filter(({ candidate }) => candidate.paginationChainKey === preferredSplitChainKey)
+
+  return (preferredCandidates.length > 0 ? preferredCandidates : eligibleCandidates).sort((left, right) => {
+    if (left.candidate.splitRowIndex !== right.candidate.splitRowIndex) {
+      return left.candidate.splitRowIndex - right.candidate.splitRowIndex
+    }
+
+    if (
+      left.candidate.paginationChainKey === right.candidate.paginationChainKey &&
+      left.candidate.mode !== right.candidate.mode
+    ) {
+      return left.candidate.mode === 'rebalance' ? -1 : 1
+    }
+
+    if (left.candidate.tablePos !== right.candidate.tablePos) {
+      return left.candidate.tablePos - right.candidate.tablePos
+    }
+
+    if (left.candidate.paginationChainKey !== right.candidate.paginationChainKey) {
+      return left.candidate.paginationChainKey.localeCompare(right.candidate.paginationChainKey)
+    }
+
+    return left.originalIndex - right.originalIndex
+  })
+}
+
 function pickSplitCandidate(
   splitCandidates: TableOverflowSplitCandidate[],
   chainStateByKey: Map<string, TablePaginationChainState>,
   preferredSplitChainKey: string | null
 ) {
-  const preferredCandidate =
-    preferredSplitChainKey == null
-      ? null
-      : (splitCandidates.find(candidate => {
-          if (candidate.paginationChainKey !== preferredSplitChainKey) {
-            return false
-          }
-
-          const chainState = getChainState(chainStateByKey, candidate.paginationChainKey)
-          return getSplitCandidateKey(candidate) !== chainState.rejectedSplitKey
-        }) ?? null)
-
-  if (preferredCandidate) {
-    return preferredCandidate
-  }
-
-  return (
-    splitCandidates.find(candidate => {
-      const chainState = getChainState(chainStateByKey, candidate.paginationChainKey)
-      return getSplitCandidateKey(candidate) !== chainState.rejectedSplitKey
-    }) ?? null
-  )
+  return getEligibleSplitCandidates(splitCandidates, chainStateByKey, preferredSplitChainKey)[0]?.candidate ?? null
 }
 
 function pickMergeCandidate(
@@ -371,10 +396,30 @@ function pickMergeCandidate(
   chainStateByKey: Map<string, TablePaginationChainState>
 ) {
   return (
-    mergeCandidates.find(candidate => {
-      const chainState = getChainState(chainStateByKey, candidate.paginationChainKey)
-      return getMergeCandidateKey(candidate) !== chainState.rejectedMergeKey
-    }) ?? null
+    mergeCandidates
+      .map((candidate, originalIndex) => ({
+        candidate,
+        originalIndex
+      }))
+      .filter(({ candidate }) => {
+        const chainState = getChainState(chainStateByKey, candidate.paginationChainKey)
+        return getMergeCandidateKey(candidate) !== chainState.rejectedMergeKey
+      })
+      .sort((left, right) => {
+        if (left.candidate.firstTablePos !== right.candidate.firstTablePos) {
+          return left.candidate.firstTablePos - right.candidate.firstTablePos
+        }
+
+        if (left.candidate.secondTablePos !== right.candidate.secondTablePos) {
+          return left.candidate.secondTablePos - right.candidate.secondTablePos
+        }
+
+        if (left.candidate.paginationChainKey !== right.candidate.paginationChainKey) {
+          return left.candidate.paginationChainKey.localeCompare(right.candidate.paginationChainKey)
+        }
+
+        return left.originalIndex - right.originalIndex
+      })[0]?.candidate ?? null
   )
 }
 
@@ -713,6 +758,7 @@ export function createTablePaginationController(paginationOwnedDocChangeMeta: st
           }
 
           if (
+            liveCandidate.mode === 'split' &&
             chainState.lastSuccessfulSplitKey === outcome.candidateKey &&
             chainState.lastSuccessfulSplitPageCount === currentPageCount
           ) {
