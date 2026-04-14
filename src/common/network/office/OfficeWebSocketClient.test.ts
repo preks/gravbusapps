@@ -1,5 +1,5 @@
 jest.mock('@/common/utils/serviceResolver', () => ({
-  getOfficeWebSocketUrl: () => 'http://localhost:3002/document'
+  DOCUMENT_WEB_SOCKET_URL: 'http://localhost:3002/document'
 }))
 
 import { OfficeWebSocketClient } from './OfficeWebSocketClient'
