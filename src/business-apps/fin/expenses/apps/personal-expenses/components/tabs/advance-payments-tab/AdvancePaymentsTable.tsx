@@ -1,1087 +1,125 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { useDebounce } from '@/common/hooks/useDebounce'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { DataTable, DataDisplay, useTranslation } from '@newwork/nw-design-system'
-import type { ColumnDef, CellContext } from '@tanstack/react-table'
-import { Badge, Button } from '@newwork/nw-design-system'
-import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
-import personalTranslations from '../../../_i18n'
-import { message } from 'antd'
-import { AppAction } from '@/components/app-action'
-import { startProcess } from '@/common/utils/start-process'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments'
-import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
-import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
 import ExpensePlanDetails from '../expense-plans-tab/details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/details/ExpenseRequestDetails'
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
-import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
-import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
-import { toast } from 'sonner'
-import { resolveSelectedCurrencyCode, applyCurrencyChange } from '../../../utils/tableUtils'
-import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
-import { createPersonalAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
-import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
-import {
-  advancePaymentAvailableColumns,
-  advancePaymentDefaultVisibleColumnIds
-} from './config/advancePaymentAvailableColumns'
+import { DetailsSheet } from '../../shared/TableSharedComponents'
+import { AdvancePaymentsDataBody } from './components/AdvancePaymentsDataBody'
+import { AdvancePaymentGenerateDocumentDialog } from './components/GenerateDocumentDialog'
+import { useAdvancePaymentsTableModel } from './hooks/useAdvancePaymentsTableModel'
+import type { AdvancePaymentsTableProps } from './types/advancePaymentsTable.types'
 
-const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
+export type { AdvancePaymentsTableProps } from './types/advancePaymentsTable.types'
 
-export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
-  search?: string
-  onSearchChange?: (search: string) => void
-  activeFilter?: string[]
-  onFilterChange?: (filter: string[]) => void
-  onClearFilters?: () => void
-  filterGroups?: any[]
-  handleFilterChange?: (filterId: string, selected: boolean) => void
-  filterLabelMap?: Record<string, string>
-  amountRange?: { min?: number; max?: number } | null
-  advanceRange?: { min?: number; max?: number } | null
-  setAmountRange?: (range: { min?: number; max?: number } | null) => void
-  setAdvanceRange?: (range: { min?: number; max?: number } | null) => void
-  selectedFilters?: string[]
-  removeFilter?: (filterId: string) => void
-  tableRefreshTrigger?: number
-}
-
-function AdvancePaymentExpensePlanCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  return (
-    <div className="gba:font-medium gba:text-sm gba:truncate" data-testid="advance-payment-expense-plan-cell">
-      {record.expensePlan?.title ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
-    </div>
-  )
-}
-
-function AdvancePaymentPlanNumberCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  return (
-    <div className="gba:text-sm gba:truncate" data-testid="advance-payment-plan-number-cell">
-      {record.expensePlan?.code ?? 'N/A'}
-    </div>
-  )
-}
-
-function AdvancePaymentStatusCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  const statusConfig = getAdvancePaymentStatusDisplay(record.status)
-  return (
-    <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="advance-payment-status-cell">
-      {statusConfig.label}
-    </Badge>
-  )
-}
-
-function AdvancePaymentAmountCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  const plan = record.expensePlan
-  const amount = plan?.totalAmount
-  const currencyCode = plan?.currency?.code ?? 'EUR'
-  return (
-    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="advance-payment-amount-cell">
-      {amount != null && amount !== undefined
-        ? formatCurrencyDisplay(amount, currencyCode)
-        : formatCurrencyDisplay(0, 'EUR')}
-    </div>
-  )
-}
-
-function AdvancePaymentAdvanceCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  return (
-    <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate" data-testid="advance-payment-advance-cell">
-      {formatCurrencyDisplay(record.amount, record.currency?.code ?? 'EUR')}
-    </div>
-  )
-}
-
-function AdvancePaymentMethodCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  const pm = record.paymentMethod
-  let label: string
-  if (!pm) {
-    label = 'N/A'
-  } else if (typeof pm === 'object' && pm !== null && 'value' in pm) {
-    label = getCatalogValue(pm)
-  } else if (typeof pm === 'string' && pm === 'DIRECT_DEPOSIT') {
-    label = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-      'Direct Deposit'
-    )
-  } else if (typeof pm === 'string' && pm === 'CASH_PAYMENT') {
-    label = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-      'Cash Payment'
-    )
-  } else {
-    label = 'N/A'
+function resolveExpensePlanTypeLabel(selectedExpensePlan: unknown): string | undefined {
+  const sp = selectedExpensePlan as {
+    requestType?: { value?: string } | unknown
+    type?: { value?: string } | unknown
   }
-  return (
-    <div className="gba:text-sm gba:truncate" data-testid="advance-payment-method-cell">
-      {label}
-    </div>
-  )
-}
-
-function renderAdvExpensePlanCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentExpensePlanCell record={info.row.original} />
-}
-function renderAdvPlanNumberCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentPlanNumberCell record={info.row.original} />
-}
-function renderAdvStatusCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentStatusCell record={info.row.original} />
-}
-function renderAdvAmountCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentAmountCell record={info.row.original} />
-}
-function renderAdvAdvanceCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentAdvanceCell record={info.row.original} />
-}
-function renderAdvMethodCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentMethodCell record={info.row.original} />
+  const requestTypeValue =
+    sp.requestType && typeof sp.requestType === 'object' && 'value' in sp.requestType
+      ? (sp.requestType as { value?: string }).value
+      : undefined
+  const typeValue =
+    sp.type && typeof sp.type === 'object' && 'value' in sp.type ? (sp.type as { value?: string }).value : undefined
+  if (requestTypeValue) return requestTypeValue
+  if (typeValue) return typeValue
+  if (sp.requestType) return String(sp.requestType)
+  if (sp.type) return String(sp.type)
+  return undefined
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
-  const contextProps = useMemo(
-    () => ({
-      accessToken: props.accessToken,
-      userInfo: props.userInfo
-    }),
-    [props.accessToken, props.userInfo]
-  )
-
-  // Pre-register common advance payment details bundle so the details sidebar shows translated labels on first render
-  useTranslation(advancePaymentDetailsTranslations)
-  const { t: tPersonal } = useTranslation(personalTranslations)
-
-  const { items, isLoading, error, totalCount, fetchItems } = useGetAdvancePayments(contextProps)
-  const {
-    currencyStats,
-    selectedCurrencyRef,
-    isReady: isCurrencyReady
-  } = useAdvancePaymentCurrencies(contextProps, props.selectedFilters || [], props.onFilterChange as any)
-  const [searchText, setSearchText] = useState<string>(props.search ?? '')
-  const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null)
-  const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null)
-  const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null)
-  const [generateDocOpen, setGenerateDocOpen] = useState(false)
-  const [generateDocRecord, setGenerateDocRecord] = useState<AdvancePayment | null>(null)
-
-  // State for approver and supervisor data
-  const [approverData, setApproverData] = useState<{
-    expensePlanApprover?: string
-    advancePaymentApprover?: string
-    expensePlanApprovalDate?: string
-    advancePaymentApprovalDate?: string
-  }>({})
-  const [supervisorName, setSupervisorName] = useState<string | undefined>(undefined)
-
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const savedPageBeforeSearchRef = useRef<number | null>(null)
-  const currentPageRef = useRef<number>(1)
-
-  const [sortField, setSortField] = useState<string>('createdAt')
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
-
-  const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter])
-  const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange])
-  const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange])
-  const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap])
-
-  // Add debounced versions for filter debouncing (200ms debounce for responsive feel)
-  const debouncedStatusFilter = useDebounce(currentStatusFilter, 200)
-  const debouncedAmountRange = useDebounce(currentAmountRange, 200)
-  const debouncedAdvanceRange = useDebounce(currentAdvanceRange, 200)
-  const debouncedSearchText = useDebounce(searchText, 200)
-
-  // Set access token for DocumentApiService once when component mounts or token changes
-  useEffect(() => {
-    if (contextProps.accessToken) {
-      DocumentApiService.setAccessToken(contextProps.accessToken)
-    }
-  }, [contextProps.accessToken])
-
-  // Initialize GraphQL client
-  const graphqlClient = useGraphQLClient(contextProps.accessToken)
-
-  // Helper: Fetch approval comment from GraphQL
-  const fetchApprovalComment = useCallback(
-    async (
-      entityId: string,
-      entityType: 'ExpensePlan' | 'AdvancePayment'
-    ): Promise<{
-      approver?: string
-      date?: string
-    }> => {
-      const commentEntity = `${entityType}Comment`
-      const idField = entityType === 'ExpensePlan' ? 'expensePlanId' : 'advancePaymentId'
-
-      try {
-        // Try APPROVE_COMMENT first
-        const approveQuery = `
-          query Get${commentEntity}Approval($entityId: uuid!) {
-            ${commentEntity}(
-              where: { 
-                ${idField}: { _eq: $entityId }
-                commentType: { _eq: "APPROVE_COMMENT" }
-              }
-              orderBy: { commentDate: DESC }
-              limit: 1
-            ) {
-              authorEmployee {
-                fullName
-                firstName
-                lastName
-              }
-              commentDate
-            }
-          }
-        `
-        const approveResult = await graphqlClient.request<{
-          [key: string]: Array<{
-            authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
-            commentDate?: string
-          }>
-        }>(approveQuery, { entityId })
-
-        let comment = approveResult?.[commentEntity]?.[0]
-
-        // Fallback to SYSTEM_COMMENT only for ExpensePlan
-        if (!comment && entityType === 'ExpensePlan') {
-          const systemQuery = `
-            query Get${commentEntity}System($entityId: uuid!) {
-              ${commentEntity}(
-                where: { 
-                  ${idField}: { _eq: $entityId }
-                  commentType: { _eq: "SYSTEM_COMMENT" }
-                  comment: { _ilike: "%to: APPROVED%" }
-                }
-                orderBy: { commentDate: DESC }
-                limit: 1
-              ) {
-                authorEmployee {
-                  fullName
-                  firstName
-                  lastName
-                }
-                commentDate
-              }
-            }
-          `
-          const systemResult = await graphqlClient.request<{
-            [key: string]: Array<{
-              authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
-              commentDate?: string
-            }>
-          }>(systemQuery, { entityId })
-
-          comment = systemResult?.[commentEntity]?.[0]
-        }
-
-        if (comment) {
-          const author = comment.authorEmployee
-          const approver = author
-            ? author.fullName || `${author.firstName || ''} ${author.lastName || ''}`.trim()
-            : undefined
-          return { approver, date: comment.commentDate }
-        }
-      } catch (error) {
-        console.error(`Error fetching ${entityType} approval:`, error)
-      }
-
-      return {}
-    },
-    [graphqlClient]
-  )
-
-  // Fetch approver and supervisor data when generate dialog opens
-  useEffect(() => {
-    if (!generateDocOpen || !generateDocRecord || !contextProps.accessToken) {
-      setApproverData({})
-      setSupervisorName(undefined)
-      return
-    }
-
-    const fetchApprovalData = async () => {
-      try {
-        const plan = generateDocRecord.expensePlan
-        const planId = plan?.id
-        const advPaymentId = generateDocRecord.id
-        const employeeId = plan?.employee?.id
-
-        // Fetch expense plan approval
-        const expensePlanApproval = planId ? await fetchApprovalComment(planId, 'ExpensePlan') : {}
-
-        // Fetch advance payment approval (only APPROVE_COMMENT, no SYSTEM_COMMENT fallback)
-        let advancePaymentApproval = advPaymentId ? await fetchApprovalComment(advPaymentId, 'AdvancePayment') : {}
-
-        // If advance payment has no explicit approval, use expense plan approval
-        if (!advancePaymentApproval.approver) {
-          advancePaymentApproval = expensePlanApproval
-        }
-
-        setApproverData({
-          expensePlanApprover: expensePlanApproval.approver,
-          advancePaymentApprover: advancePaymentApproval.approver,
-          expensePlanApprovalDate: expensePlanApproval.date,
-          advancePaymentApprovalDate: advancePaymentApproval.date
-        })
-
-        // Fetch supervisor name
-        if (employeeId) {
-          const employeeQuery = `
-            query GetEmployeeSupervisor($employeeId: uuid!) {
-              Employee(where: { id: { _eq: $employeeId } }) {
-                employeePosition {
-                  supervisorEmployeeId
-                }
-              }
-            }
-          `
-          const employeeResult = await graphqlClient.request<{
-            Employee: Array<{ employeePosition?: { supervisorEmployeeId?: string } }>
-          }>(employeeQuery, { employeeId })
-
-          const supervisorId = employeeResult?.Employee?.[0]?.employeePosition?.supervisorEmployeeId
-          if (supervisorId) {
-            const supervisorQuery = `
-              query GetSupervisor($supervisorId: uuid!) {
-                Employee(where: { id: { _eq: $supervisorId } }) {
-                  fullName
-                  firstName
-                  lastName
-                }
-              }
-            `
-            const supervisorResult = await graphqlClient.request<{
-              Employee: Array<{ fullName?: string; firstName?: string; lastName?: string }>
-            }>(supervisorQuery, { supervisorId })
-
-            const supervisor = supervisorResult?.Employee?.[0]
-            if (supervisor) {
-              const name = supervisor.fullName || `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim()
-              setSupervisorName(name)
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching approval data:', error)
-        // Gracefully handle errors - leave fields empty
-        setApproverData({})
-        setSupervisorName(undefined)
-      }
-    }
-
-    fetchApprovalData()
-  }, [generateDocOpen, generateDocRecord, contextProps.accessToken, graphqlClient])
-
-  const advancePaymentsFilterConfig = useMemo(
-    () => createPersonalAdvancePaymentFilterConfig({ filterLabelMap }),
-    [filterLabelMap]
-  )
-
-  // filters object for DataDisplay chips (from current state)
-  const filtersObject = useMemo((): Record<string, unknown> => {
-    const statusIds = currentStatusFilter.filter(
-      s => !s.startsWith('currency:') && s !== 'amountRange' && s !== 'advanceRange'
-    )
-    const obj: Record<string, unknown> = {}
-    if (statusIds.length > 0) obj.statusIds = statusIds
-    if (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) {
-      obj.amount = { ...currentAmountRange }
-    }
-    if (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined)) {
-      obj.advance = { ...currentAdvanceRange }
-    }
-    return obj
-  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange])
-
-  // When DataDisplay filter sheet applies changes, sync back to parent/hook state
-  const handleFilterChangeFromDisplay = useCallback(
-    (filters: Record<string, unknown>) => {
-      const statusIds = (filters.statusIds as string[] | undefined) || []
-      const amt = filters.amount as { min?: number; max?: number } | undefined
-      const adv = filters.advance as { min?: number; max?: number } | undefined
-      const hasAmount = amt && (amt.min !== undefined || amt.max !== undefined)
-      const hasAdvance = adv && (adv.min !== undefined || adv.max !== undefined)
-      const currencyTokens = (props.selectedFilters || []).filter(f => f.startsWith('currency:'))
-      const rangeMarkers: string[] = []
-      if (hasAmount) rangeMarkers.push('amountRange')
-      if (hasAdvance) rangeMarkers.push('advanceRange')
-      if (props.onFilterChange) {
-        props.onFilterChange([...statusIds, ...currencyTokens, ...rangeMarkers])
-      }
-      props.setAmountRange?.(hasAmount ? (amt ?? null) : null)
-      props.setAdvanceRange?.(hasAdvance ? (adv ?? null) : null)
-      setCurrentPage(1)
-    },
-    [props.selectedFilters, props.onFilterChange, props.setAmountRange, props.setAdvanceRange]
-  )
-
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...advancePaymentDefaultVisibleColumnIds])
-
-  const selectedCurrencyCode = useMemo(
-    () => resolveSelectedCurrencyCode(props.selectedFilters || [], currencyStats),
-    [props.selectedFilters, currencyStats]
-  )
-
-  const handleCurrencyChange = useCallback(
-    (code: string) => {
-      if (props.onFilterChange) {
-        applyCurrencyChange(code, props.selectedFilters || [], currencyStats, props.onFilterChange)
-      }
-      setCurrentPage(1)
-    },
-    [props.selectedFilters, currencyStats, props.onFilterChange]
-  )
-
-  const entityDataMapForDoc = useMemo((): Record<string, Record<string, unknown>> => {
-    if (!generateDocRecord) return {}
-    const plan = generateDocRecord.expensePlan
-    const currencyCode =
-      generateDocRecord.currency?.code ??
-      (typeof generateDocRecord.currencyRef === 'string' && generateDocRecord.currencyRef
-        ? generateDocRecord.currencyRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
-        : '')
-
-    const map: Record<string, Record<string, unknown>> = {
-      adv_payment: {
-        ...(generateDocRecord as unknown as Record<string, unknown>),
-        currencyCode,
-        approvedBy: approverData.advancePaymentApprover || '',
-        approvalDate: approverData.advancePaymentApprovalDate || ''
-      }
-    }
-
-    if (plan) {
-      map.expense_plan = {
-        ...(plan as unknown as Record<string, unknown>),
-        approvedBy: approverData.expensePlanApprover || '',
-        approvalDate: approverData.expensePlanApprovalDate || ''
-      }
-
-      const emp = plan.employee
-      if (emp) {
-        const pos = emp.employeePosition
-        map.employee_position = {
-          firstName: emp.firstName ?? '',
-          lastName: emp.lastName ?? '',
-          fullName: emp.fullName ?? `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(),
-          jobPosition: pos?.jobPosition ? { name: pos.jobPosition.name ?? '' } : { name: '' },
-          organizationalUnit: pos?.organizationalUnit ? { name: pos.organizationalUnit.name ?? '' } : { name: '' },
-          supervisorName: supervisorName || ''
-        }
-      }
-      const trips = plan.expenseRequestTrip ?? []
-      const destinationTrip = trips.find((t: { pointType?: string | null }) => t?.pointType === 'DESTINATION_POINT')
-      const tripForDoc = destinationTrip ?? trips[0]
-      const travelRegionValue =
-        tripForDoc?.travelRegion && typeof tripForDoc.travelRegion === 'object' && 'value' in tripForDoc.travelRegion
-          ? (tripForDoc.travelRegion as { value?: string }).value
-          : undefined
-      const countryValue =
-        tripForDoc?.country && typeof tripForDoc.country === 'object' && 'value' in tripForDoc.country
-          ? (tripForDoc.country as { value?: string }).value
-          : undefined
-      const countryRef = tripForDoc?.countryRef ?? ''
-      const countryCode =
-        countryValue ??
-        (typeof countryRef === 'string' && countryRef
-          ? countryRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
-          : '')
-      map.expense_request_trip = {
-        address: tripForDoc?.address ?? '',
-        pointType: tripForDoc?.pointType ?? '',
-        countryRef,
-        countryCode,
-        tripDateTime: tripForDoc?.tripDateTime ?? '',
-        tripOrder: tripForDoc?.tripOrder ?? '',
-        tripDirection: tripForDoc?.tripDirection ?? '',
-        travelRegion: travelRegionValue != null ? { value: travelRegionValue } : { value: '' },
-        country: countryValue != null ? { value: countryValue } : { value: '' },
-        destinationCountry: destinationTrip ? (countryValue ?? '') : '',
-        destinationAddress: destinationTrip ? (tripForDoc?.address ?? '') : ''
-      }
-    }
-    return map
-  }, [generateDocRecord, approverData, supervisorName])
-
-  const prevFilterSignatureRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    const signature = JSON.stringify({
-      status: currentStatusFilter,
-      amountRange: currentAmountRange,
-      advanceRange: currentAdvanceRange,
-      selectedFilters: props.selectedFilters || []
-    })
-
-    const previous = prevFilterSignatureRef.current
-    if (previous !== null && previous !== signature) {
-      setCurrentPage(1)
-    }
-
-    prevFilterSignatureRef.current = signature
-  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, props.selectedFilters])
-
-  useEffect(() => {
-    currentPageRef.current = currentPage
-  }, [currentPage])
-
-  const prevDebouncedSearchRef = useRef<string>('')
-
-  useEffect(() => {
-    const trimmedDebounced = (debouncedSearchText || '').trim()
-    const trimmedPrev = (prevDebouncedSearchRef.current || '').trim()
-
-    if (trimmedPrev === trimmedDebounced) {
-      prevDebouncedSearchRef.current = debouncedSearchText
-      return
-    }
-
-    if (trimmedPrev === '' && trimmedDebounced !== '') {
-      savedPageBeforeSearchRef.current ??= currentPageRef.current
-      setCurrentPage(1)
-    } else if (trimmedPrev !== '' && trimmedDebounced === '') {
-      setCurrentPage(1)
-      savedPageBeforeSearchRef.current = null
-    } else if (trimmedDebounced !== '' && trimmedPrev !== trimmedDebounced) {
-      setCurrentPage(1)
-    }
-
-    prevDebouncedSearchRef.current = debouncedSearchText
-  }, [debouncedSearchText])
-
-  const fetchParams = useMemo(
-    () => ({
-      searchText: debouncedSearchText,
-      currentPage,
-      pageSize,
-      currentStatusFilter: debouncedStatusFilter,
-      currentAmountRange: debouncedAmountRange,
-      currentAdvanceRange: debouncedAdvanceRange,
-      sortField,
-      sortOrder,
-      selectedCurrencyRef
-    }),
-    [
-      debouncedSearchText,
-      currentPage,
-      pageSize,
-      debouncedStatusFilter,
-      debouncedAmountRange,
-      debouncedAdvanceRange,
-      sortField,
-      sortOrder,
-      selectedCurrencyRef
-    ]
-  )
-
-  useEffect(() => {
-    if (props.search !== undefined && props.search !== searchText) {
-      setSearchText(props.search)
-    }
-  }, [props.search, searchText])
-
-  useEffect(() => {
-    const hasAccessToken = !!contextProps.accessToken
-    const hasEmployeeId = !!contextProps.userInfo?.employeeDetails?.employeeId
-    if (hasAccessToken && hasEmployeeId && isCurrencyReady) {
-      fetchItems({
-        searchTerm: fetchParams.searchText,
-        page: fetchParams.currentPage,
-        pageSize: fetchParams.pageSize,
-        statusFilter: fetchParams.currentStatusFilter,
-        amountRange: fetchParams.currentAmountRange,
-        advanceRange: fetchParams.currentAdvanceRange,
-        sortField: fetchParams.sortField,
-        sortOrder: fetchParams.sortOrder,
-        currencyRef: fetchParams.selectedCurrencyRef
-      })
-    } else if (!hasAccessToken || !hasEmployeeId) {
-      console.warn('Cannot fetch advance payments: Missing accessToken or employeeId')
-    }
-  }, [
-    contextProps.accessToken,
-    contextProps.userInfo?.employeeDetails?.employeeId,
-    fetchItems,
-    fetchParams,
-    isCurrencyReady
-  ])
-
-  useEffect(() => {
-    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-        fetchItems({
-          searchTerm: fetchParams.searchText,
-          page: fetchParams.currentPage,
-          pageSize: fetchParams.pageSize,
-          statusFilter: fetchParams.currentStatusFilter,
-          amountRange: fetchParams.currentAmountRange,
-          advanceRange: fetchParams.currentAdvanceRange,
-          sortField: fetchParams.sortField,
-          sortOrder: fetchParams.sortOrder,
-          currencyRef: fetchParams.selectedCurrencyRef,
-          force: true // Force refresh to bypass cache
-        })
-      }
-    }
-  }, [
-    props.tableRefreshTrigger,
-    contextProps.accessToken,
-    contextProps.userInfo?.employeeDetails?.employeeId,
-    fetchItems,
-    fetchParams
-  ])
-
-  // Create a memoized setSearch function to prevent re-renders
-  // Note: Pagination reset is handled by the debounced search effect to prevent race conditions
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchText(value)
-
-      // Notify parent component of search change
-      if (props.onSearchChange) {
-        props.onSearchChange(value)
-      }
-    },
-    [props.onSearchChange]
-  )
-
-  // Handle adding a new advance payment
-  const handleAddAdvancePayment = useCallback(() => {
-    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
-    if (!employeeId) {
-      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      message.warning('User information not loaded yet. Please wait a moment and try again.')
-      return
-    }
-
-    startProcess({
-      domain: 'employee-expense',
-      processName: 'changeAdvancePayment',
-      payload: {
-        employeeId: employeeId
-      },
-      builderType: 'NATIVE_SCREEN'
-    })
-  }, [contextProps.userInfo?.employeeDetails?.employeeId])
-
-  // Handle clicking on a row to view details
-  const handleSelectItem = useCallback((item: AdvancePayment) => {
-    setSelectedItem(item)
-  }, [])
-
-  const sorting = useMemo(
-    () => (sortOrder ? [{ id: sortField || 'createdAt', desc: sortOrder === 'descend' }] : []),
-    [sortField, sortOrder]
-  )
-  const handleSortingChange = useCallback(
-    (newSorting: Array<{ id: string; desc: boolean }>) => {
-      const entry = newSorting[0]
-      const field = entry?.id || 'createdAt'
-      let order: 'ascend' | 'descend' = 'descend'
-      if (entry) {
-        order = entry.desc ? 'descend' : 'ascend'
-      }
-      if (field === sortField && order === sortOrder) return
-      setSortField(field)
-      setSortOrder(order)
-      setCurrentPage(1)
-    },
-    [sortField, sortOrder]
-  )
-  const pagination = useMemo(() => ({ pageIndex: currentPage - 1, pageSize }), [currentPage, pageSize])
-  const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
-    setCurrentPage(newPagination.pageIndex + 1)
-    setPageSize(newPagination.pageSize)
-  }, [])
-  const emptyMessage = tPersonal('table-empty-filtered')
-
-  // Handle closing the details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null)
-    setSelectedExpensePlan(null)
-    setSelectedExpenseRequest(null)
-  }, [])
-
-  // Handle viewing expense plan details
-  const handleViewExpensePlanDetails = useCallback((record: AdvancePayment) => {
-    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-      expensePlanId: record.expensePlan && record.expensePlan.id ? record.expensePlan.id : '',
-      referrer: '/platform/fin/expenses/personal-expenses?tab=advance-payments'
-    })
-    navigateTo(url)
-  }, [])
-
-  // Handle viewing expense request details
-  const handleViewExpenseRequestDetails = useCallback((record: AdvancePayment) => {
-    // For advance payments, we need to get the expense request from the expense plan
-    const firstRequestId = record.expensePlan?.expenseRequest?.[0]?.id ?? ''
-    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: firstRequestId,
-      referrer: '/platform/fin/expenses/personal-expenses?tab=advance-payments'
-    })
-    navigateTo(url)
-  }, [])
-
-  const columns = useMemo<ColumnDef<AdvancePayment>[]>(
-    () => [
-      {
-        id: 'expensePlan',
-        accessorFn: (row: AdvancePayment) => row.expensePlan?.title,
-        header: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.initial_expense_plan_select_label',
-          'Expense Plan'
-        ),
-        size: 200,
-        cell: renderAdvExpensePlanCell
-      },
-      {
-        id: 'planNumber',
-        accessorFn: (row: AdvancePayment) => row.expensePlan?.code,
-        header: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
-          'Plan Number'
-        ),
-        size: 120,
-        cell: renderAdvPlanNumberCell
-      },
-      {
-        id: 'status',
-        accessorKey: 'status',
-        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status'),
-        size: 100,
-        cell: renderAdvStatusCell
-      },
-      {
-        id: 'amount',
-        accessorFn: (row: AdvancePayment) => row.expensePlan?.totalAmount,
-        header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount'),
-        size: 120,
-        meta: { align: 'right' as const },
-        cell: renderAdvAmountCell
-      },
-      {
-        id: 'advance',
-        accessorKey: 'amount',
-        header: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.advance',
-          'Advance'
-        ),
-        size: 120,
-        meta: { align: 'right' as const },
-        cell: renderAdvAdvanceCell
-      },
-      {
-        id: 'paymentMethod',
-        accessorKey: 'paymentMethod',
-        header: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-          'Payment Method'
-        ),
-        size: 140,
-        cell: renderAdvMethodCell
-      }
-    ],
-    []
-  )
-
-  const rowActions = useCallback(
-    (row: { original: AdvancePayment }) => {
-      const record = row.original
-      return (
-        <RowActionsWrapper>
-          <AppAction
-            variant="table-row"
-            customActions={[
-              {
-                category: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_list.flows_button.navigations',
-                  'Navigations'
-                ),
-                key: 'view-advance-payment',
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.view_advance_payment_details',
-                  'View Advance Payment Details'
-                ),
-                onClick: (e?: React.MouseEvent) => {
-                  e?.stopPropagation()
-                  handleSelectItem(record)
-                }
-              },
-              ...(record.expensePlanId
-                ? [
-                    {
-                      category: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_list.flows_button.navigations',
-                        'Navigations'
-                      ),
-                      key: 'view-plan-details',
-                      label: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                        'View Plan Details'
-                      ),
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation()
-                        handleViewExpensePlanDetails(record)
-                      }
-                    }
-                  ]
-                : []),
-              ...(record.expensePlan?.expenseRequest &&
-              (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 &&
-              (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null
-                ? [
-                    {
-                      category: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_list.flows_button.navigations',
-                        'Navigations'
-                      ),
-                      key: 'view-request-details',
-                      label: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                        'View Request Details'
-                      ),
-                      onClick: (e?: React.MouseEvent) => {
-                        e?.stopPropagation()
-                        handleViewExpenseRequestDetails(record)
-                      }
-                    }
-                  ]
-                : []),
-              {
-                category: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_list.flows_button.navigations',
-                  'Navigations'
-                ),
-                key: 'generate-document',
-                label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.generate_document', 'Generate document'),
-                onClick: (e?: React.MouseEvent) => {
-                  e?.stopPropagation()
-                  setGenerateDocRecord(record)
-                  setGenerateDocOpen(true)
-                }
-              }
-            ]}
-            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-action`}
-            accessToken={contextProps.accessToken}
-            data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
-          >
-            <RowActionsIcon />
-          </AppAction>
-        </RowActionsWrapper>
-      )
-    },
-    [contextProps.accessToken, handleSelectItem, handleViewExpensePlanDetails, handleViewExpenseRequestDetails]
-  )
-
-  const primaryAction = useMemo(
-    () => (
-      <Button
-        onClick={handleAddAdvancePayment}
-        size="sm"
-        variant="default"
-        data-testid="add-advance-payment-button"
-        type="button"
-      >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.btn_add',
-          'Add'
-        )}
-      </Button>
-    ),
-    [handleAddAdvancePayment]
-  )
-
-  const secondaryActions = useMemo(
-    () =>
-      currencyStats.length > 0 ? (
-        <CurrencyDropdown
-          currencyStats={currencyStats}
-          selectedCurrencyCode={selectedCurrencyCode}
-          onCurrencyChange={handleCurrencyChange}
-          testIdPrefix="advance-payments"
-        />
-      ) : undefined,
-    [currencyStats, selectedCurrencyCode, handleCurrencyChange]
-  )
+  const model = useAdvancePaymentsTableModel(props)
 
   return (
     <div ref={ref}>
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'list',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:advance_lists.my_advance_payments.title',
-              'My Advance Payments'
-            ),
-            metadata: { count: totalCount, isLoading }
-          }
-        ]}
-        currentSection="list"
-        searchValue={searchText}
-        searchPlaceholder={
-          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-          '...'
-        }
-        onSearchChange={handleSearchChange}
-        filters={filtersObject}
-        filterConfiguration={advancePaymentsFilterConfig}
-        onFilterChange={handleFilterChangeFromDisplay}
-        sorting={sorting}
-        sortableColumns={advancePaymentSortableColumns}
-        onSortingChange={handleSortingChange}
-        primaryAction={primaryAction}
-        secondaryActions={secondaryActions}
-        availableColumns={advancePaymentAvailableColumns}
-        visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
-        toolbarDensity="default"
-        enableLiveFiltering={true}
-        filterSheetTitle={tPersonal('filter-advance-payments-title')}
-        filterSheetDescription={tPersonal('filter-advance-payments-description')}
-      >
-        <DataTable<AdvancePayment>
-          data={items || []}
-          columns={columns.filter(col =>
-            visibleColumns.includes((col as ColumnDef<AdvancePayment> & { id?: string }).id ?? '')
-          )}
-          loading={isLoading}
-          error={error || undefined}
-          totalCount={totalCount}
-          sorting={sorting}
-          onSortingChange={handleSortingChange}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          enablePagination
-          enableSorting
-          enableSelection={false}
-          enableColumnPinning
-          enableResizing={false}
-          tableLayout="fixed"
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          showPageNumbers
-          maxVisiblePages={7}
-          emptyMessage={emptyMessage}
-          actions={rowActions}
-          onRowClick={handleSelectItem}
-          data-testid={DATA_TEST_ID_PREFIX}
-        />
-      </DataDisplay>
+      <AdvancePaymentsDataBody {...model.dataBodyProps} />
 
       <DetailsSheet
-        open={!!selectedItem}
-        onOpenChange={open => !open && handleCloseDetails()}
+        open={!!model.selectedItem}
+        onOpenChange={open => !open && model.handleCloseDetails()}
         title={
-          selectedItem?.expensePlan?.title ||
+          model.selectedItem?.expensePlan?.title ||
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:personal_expenses.advance_payment_details',
             'Advance Payment Details'
           )
         }
         testId="advance-payment-details-sheet"
-        onClose={handleCloseDetails}
+        onClose={model.handleCloseDetails}
       >
-        {selectedItem ? <AdvancePaymentDetails payment={selectedItem} {...contextProps} /> : null}
+        {model.selectedItem ? (
+          <AdvancePaymentDetails
+            payment={model.selectedItem}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+          />
+        ) : null}
       </DetailsSheet>
 
       <DetailsSheet
-        open={!!selectedExpensePlan}
-        onOpenChange={open => !open && handleCloseDetails()}
+        open={!!model.selectedExpensePlan}
+        onOpenChange={open => !open && model.handleCloseDetails()}
         title={
-          selectedExpensePlan?.title ||
+          (model.selectedExpensePlan as { title?: string } | null)?.title ||
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:approve_expense_plan.expense_subtitle_details',
             'Expense Plan Details'
           )
         }
         testId="expense-plan-details-sheet"
-        onClose={handleCloseDetails}
+        onClose={model.handleCloseDetails}
       >
-        {selectedExpensePlan ? (
+        {model.selectedExpensePlan ? (
           <ExpensePlanDetails
-            selectedItem={selectedExpensePlan}
-            onClose={handleCloseDetails}
+            selectedItem={model.selectedExpensePlan}
+            onClose={model.handleCloseDetails}
             accessToken={props.accessToken}
             userInfo={props.userInfo}
-            planTypeLabel={
-              (selectedExpensePlan.requestType && (selectedExpensePlan.requestType as any).value) ||
-              (selectedExpensePlan.type && (selectedExpensePlan.type as any).value) ||
-              (selectedExpensePlan.requestType
-                ? String(selectedExpensePlan.requestType)
-                : selectedExpensePlan.type
-                  ? String(selectedExpensePlan.type)
-                  : undefined)
-            }
+            planTypeLabel={resolveExpensePlanTypeLabel(model.selectedExpensePlan)}
           />
         ) : null}
       </DetailsSheet>
 
       <DetailsSheet
-        open={!!selectedExpenseRequest}
-        onOpenChange={open => !open && handleCloseDetails()}
+        open={!!model.selectedExpenseRequest}
+        onOpenChange={open => !open && model.handleCloseDetails()}
         title={
-          selectedExpenseRequest?.title ||
+          (model.selectedExpenseRequest as { title?: string } | null)?.title ||
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
             'Expense Request Details'
           )
         }
         testId="expense-request-details-sheet"
-        onClose={handleCloseDetails}
+        onClose={model.handleCloseDetails}
       >
-        {selectedExpenseRequest ? (
+        {model.selectedExpenseRequest ? (
           <ExpenseRequestDetails
-            selectedItem={selectedExpenseRequest}
-            onClose={handleCloseDetails}
+            selectedItem={model.selectedExpenseRequest}
+            onClose={model.handleCloseDetails}
             accessToken={props.accessToken}
             userInfo={props.userInfo}
           />
         ) : null}
       </DetailsSheet>
 
-      <GenerateDocumentDialog
-        open={generateDocOpen}
-        accessToken={contextProps.accessToken}
+      <AdvancePaymentGenerateDocumentDialog
+        open={model.generateDocOpen}
+        record={model.generateDocRecord}
+        accessToken={model.accessToken}
         onOpenChange={open => {
-          setGenerateDocOpen(open)
+          model.setGenerateDocOpen(open)
           if (!open) {
-            setGenerateDocRecord(null)
-            setApproverData({})
-            setSupervisorName(undefined)
+            model.setGenerateDocRecord(null)
           }
         }}
-        entityDataMap={entityDataMapForDoc}
-        defaultTitle={
-          generateDocRecord?.expensePlan?.title ||
-          generateDocRecord?.expensePlan?.code ||
-          generateDocRecord?.code ||
-          'Advance payment'
-        }
-        onSuccess={async documentId => {
-          if (!contextProps.accessToken) return
-          DocumentApiService.setAccessToken(contextProps.accessToken)
-          try {
-            const doc = await DocumentApiService.getDocument(documentId, contextProps.accessToken)
-            if (doc?.content != null) {
-              await exportToWord(doc.title || 'Document', doc.content)
-              toast.success('Document downloaded')
-            }
-          } catch (err) {
-            console.error('Failed to download document:', err)
-            toast.error('Failed to download document')
-          }
-        }}
-        data-testid={`${DATA_TEST_ID_PREFIX}-generate-document-dialog`}
       />
     </div>
   )
 })
+
+AdvancePaymentsTable.displayName = 'AdvancePaymentsTable'
 
 export default React.memo(AdvancePaymentsTable)
