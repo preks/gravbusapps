@@ -25,3 +25,6 @@ export const CAMPAIGN_TYPE = 'CustomerCampaignType:v1'
 export const TASK_TYPE = 'SalesTaskType:v1'
 export const TASK_PRIORITY = 'SalesTaskPriority:v1'
 export const ACTIVITY_TYPE = 'SalesActivityType:v1'
+
+/** Ideal customer profiles for AI lead scoring (catalog entries hold criteria in `objectValue`). */
+export const IDEAL_CUSTOMER_PROFILES_CATALOG = 'CRMIdealCustomerProfiles'
