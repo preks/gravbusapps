@@ -353,13 +353,20 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                 }))
               }
             >
-              {progressExpanded ? <ChevronDown className="gba:w-3 gba:h-3" /> : <ChevronRight className="gba:w-3 gba:h-3" />}
+              {progressExpanded ? (
+                <ChevronDown className="gba:w-3 gba:h-3" />
+              ) : (
+                <ChevronRight className="gba:w-3 gba:h-3" />
+              )}
               <span>Progress ({progressLines.length} steps)</span>
             </button>
             {progressExpanded && (
               <div className="gba:mt-1 gba:space-y-1">
                 {progressLines.map((line, index) => (
-                  <div key={`${progressToggleKey}-progress-${index}`} className="gba:text-[11px] gba:text-muted-foreground">
+                  <div
+                    key={`${progressToggleKey}-progress-${index}`}
+                    className="gba:text-[11px] gba:text-muted-foreground"
+                  >
                     {line}
                   </div>
                 ))}
@@ -554,7 +561,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             </TooltipProvider>
           )}
           <div>
-            <h3 className="gba:text-sm gba:font-semibold">AI Assistant</h3>
+            <h3 className="gba:text-sm gba:font-semibold">Screen Builder</h3>
             <p className="gba:text-xs gba:text-muted-foreground">{isProcessing ? 'Thinking...' : 'Ready to help'}</p>
           </div>
         </div>
@@ -575,9 +582,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-gradient-to-br gba:from-purple-500 gba:to-blue-500 gba:flex gba:items-center gba:justify-center gba:mb-4">
               <Sparkles className="gba:w-8 gba:h-8 gba:text-white" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{emptyTitle ?? 'Start Building with AI'}</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{emptyTitle ?? 'Screen Builder'}</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
-              {emptyDescription ?? 'Describe what you want to build, and the AI will help you create it.'}
+              {emptyDescription ?? 'Describe what you want to build, and Screen Builder will help you create it.'}
             </p>
             {examplePrompts && examplePrompts.length > 0 && (
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center gba:mt-4">
@@ -713,7 +720,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                                     <span className="gba:text-xs gba:font-medium gba:text-primary">
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:ai_builder.ai_response',
-                                        'AI Response'
+                                        'Screen Builder'
                                       )}
                                     </span>
                                     <span className="gba:text-xs gba:text-muted-foreground">
@@ -931,7 +938,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           <DialogHeader>
             <DialogTitle>Edit prompt</DialogTitle>
             <DialogDescription>
-              This will restore the state before the prompt and re-run the AI with your changes.
+              This will restore the state before the prompt and re-run Screen Builder with your changes.
             </DialogDescription>
           </DialogHeader>
           <Textarea

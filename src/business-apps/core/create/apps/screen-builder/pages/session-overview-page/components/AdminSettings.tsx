@@ -716,7 +716,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           <p className="gba:text-sm gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:ai_builder.admin.no_configs_help',
-              'Add a repository to get started with AI Builder'
+              'Add a repository to get started with Screen Builder'
             )}
           </p>
         </CardContent>

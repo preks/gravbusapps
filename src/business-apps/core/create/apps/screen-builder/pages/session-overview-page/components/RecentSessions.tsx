@@ -138,7 +138,7 @@ export const RecentSessions: React.FC<RecentSessionsProps> = ({
                       )
                     : getTranslationFromI18nKeyAndLabel(
                         'lowcoder:ai_builder.sessions.create_first_help',
-                        'Create your first session to start building screens with AI'
+                        'Create your first session to start building screens with Screen Builder'
                       )}
                 </p>
               </div>

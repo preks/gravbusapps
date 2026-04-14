@@ -220,7 +220,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CREATE_CONNECT]: 'core/create/apps/newwork-connect',
   [Navigation.CREATE_FUNCTION_MANAGER]: 'core/create/apps/function-manager',
   [Navigation.CREATE_PROMPT_MANAGER]: 'core/create/apps/prompt-manager',
-  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/ai-builder',
+  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/screen-builder',
   [Navigation.CREATE_AI_BUILDER]: 'core/create/apps/ai-orchestrator',
   [Navigation.CREATE_AI_BUILDER_ADMIN]: 'core/create/apps/ai-builder-admin',
   [Navigation.CREATE_AI_ORCHESTRATOR_ADMIN]: 'core/create/apps/ai-builder-admin',

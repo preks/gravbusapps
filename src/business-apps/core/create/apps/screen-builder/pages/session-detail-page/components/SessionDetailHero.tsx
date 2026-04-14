@@ -50,7 +50,7 @@ export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
                     className="gba:font-funnel-display gba:text-3xl gba:sm:text-4xl gba:font-semibold gba:text-white gba:tracking-tight"
                     data-testid={`${testId}-title`}
                   >
-                    AI <span className="gba:font-normal">Builder</span>
+                    Screen <span className="gba:font-normal">Builder</span>
                   </h1>
                   <Badge
                     variant="aiGenerated"
