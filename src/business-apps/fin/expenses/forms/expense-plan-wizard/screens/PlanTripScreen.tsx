@@ -800,6 +800,20 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   showDateTimeFields={index < destinations.length - 1}
                   dateTimeLimits={destinationLimits[destination.id] ?? {}}
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
+                  locationFormLabels={{
+                    inputFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.destination_input_label',
+                      'Destination'
+                    ),
+                    dateFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.departure_date',
+                      'Departure Date'
+                    ),
+                    timeFieldLabel: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.departure_time',
+                      'Departure Time'
+                    )
+                  }}
                 />
               </LocationContainer>
             </div>
