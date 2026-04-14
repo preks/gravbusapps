@@ -5,6 +5,7 @@ import type { MemoryEntry, MemoryNamespace } from '../agentSettings.types'
 import { MEMORY_NAMESPACES } from '../agentSettings.types'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { SectionHeader } from './SettingsShared'
+import { MemoryListSkeleton } from './SkeletonLoader'
 
 interface MemorySectionProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
@@ -78,7 +79,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
 
   const renderMemoryList = () => {
     if (isLoading) {
-      return <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">Loading...</p>
+      return <MemoryListSkeleton />
     }
 
     if (filteredMemories.length === 0) {

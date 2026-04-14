@@ -21,6 +21,14 @@ export interface DeepAgentSession {
   structured_input_request?: StructuredInputRequestEvent | null
 }
 
+export interface StartSessionResponse {
+  session_id: string
+  status?: DeepAgentSession['status']
+  user_id?: string
+  workspace_id?: string
+  session: DeepAgentSession
+}
+
 export interface TodoItem {
   id: string
   text: string
@@ -29,7 +37,7 @@ export interface TodoItem {
   duration_ms?: number
 }
 
-export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool'
+export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool' | 'status' | 'response_stream'
 
 export interface AgentChunkEvent {
   type: 'agent_chunk'
@@ -42,6 +50,7 @@ export interface AgentChunkEvent {
   tool_name?: string
   tool_input?: Record<string, unknown>
   step_id?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface AgentTerminalEvent {
@@ -288,6 +297,7 @@ export interface EnterpriseSkill {
 export type ChatMessageType =
   | 'user_input'
   | 'agent_thinking'
+  | 'agent_status'
   | 'plan'
   | 'tool_call'
   | 'tool_result'
