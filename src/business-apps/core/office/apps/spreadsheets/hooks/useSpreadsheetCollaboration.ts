@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import type { Socket } from 'socket.io-client'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { OfficeWebSocketClient } from '@/common/network/office/OfficeWebSocketClient'
-import { getSpreadsheetCollaborationWebSocketBaseUrl } from '../utils/spreadsheetCollaborationWebSocketUrl'
+import { DOCUMENT_WEB_SOCKET_URL } from '@/common/utils/serviceResolver'
 import type {
   DocumentParticipant,
   DocumentOperation
@@ -371,7 +371,7 @@ export function useSpreadsheetCollaboration({
       return
     }
     try {
-      const client = clientRef.current ?? new OfficeWebSocketClient(getSpreadsheetCollaborationWebSocketBaseUrl())
+      const client = clientRef.current ?? new OfficeWebSocketClient(DOCUMENT_WEB_SOCKET_URL)
       clientRef.current = client
       client.setAccessToken(accessToken)
       setSocket(client.connect(accessToken))
