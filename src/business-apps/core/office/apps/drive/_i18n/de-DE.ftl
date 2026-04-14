@@ -45,6 +45,7 @@ empty-trash-desc = Gelöschte Elemente erscheinen hier 30 Tage lang
 action-open = Öffnen
 action-move = Verschieben nach...
 action-rename = Umbenennen
+rename-dialog-error = Element konnte nicht umbenannt werden. Bitte versuchen Sie es erneut.
 action-star = Zu Favoriten hinzufügen
 action-unstar = Aus Favoriten entfernen
 action-trash = In den Papierkorb legen

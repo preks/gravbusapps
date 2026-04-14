@@ -45,6 +45,7 @@ empty-trash-desc = Elementele pe care le ștergi vor apărea aici timp de 30 de 
 action-open = Deschide
 action-move = Mută în...
 action-rename = Redenumește
+rename-dialog-error = Elementul nu a putut fi redenumit. Te rugăm să încerci din nou.
 action-star = Adaugă la favorite
 action-unstar = Elimină din favorite
 action-trash = Mută la coșul de gunoi
