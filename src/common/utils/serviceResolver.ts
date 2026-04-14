@@ -7,7 +7,6 @@
  */
 
 import { env } from '@/common/env/EnvUtils'
-import { getDocumentOfficeWebSocketBaseUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface ServicePathConfig {
   servicePath: string
@@ -17,6 +16,25 @@ export interface ServicePathConfig {
 function isLocalhostRuntime(): boolean {
   const host = globalThis.window?.location?.hostname
   return host === 'localhost' || host === '127.0.0.1'
+}
+
+function isDocumentLocalRuntime(): boolean {
+  const host = globalThis.window?.location?.hostname
+  return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+}
+
+function trimTrailingSlash(value: string): string {
+  const trimmed = value.trim()
+  return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
+}
+
+function isLocalUrl(url: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(\/|$)/i.test(url.trim())
+}
+
+function buildDocumentApiUrlFromBase(baseUrl: string): string {
+  const trimmed = trimTrailingSlash(baseUrl)
+  return trimmed.endsWith('/document/api/v1') ? trimmed : `${trimmed}/document/api/v1`
 }
 
 function buildFullPath(servicePath: string, apiPath: string): string {
@@ -91,10 +109,76 @@ export const CUSTOMER_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOME
   servicePath: '/processes/customer-relations',
   apiPath: ''
 })
+/**
+ * Central document service API resolution.
+ *
+ * Resolution priority:
+ * 1. Explicit debug URL
+ * 2. Local runtime document-service URL / local base URL / local default
+ * 3. Published document service URL
+ * 4. Published base URL + `/document/api/v1`
+ */
+export function getDocumentServiceApiUrl(): string {
+  const debugUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL')
+  if (debugUrl) {
+    return trimTrailingSlash(debugUrl)
+  }
+
+  if (isDocumentLocalRuntime()) {
+    const publicUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_URL')
+    if (publicUrl && isLocalUrl(publicUrl)) {
+      return trimTrailingSlash(publicUrl)
+    }
+
+    const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+    if (baseUrl && isLocalUrl(baseUrl)) {
+      return buildDocumentApiUrlFromBase(baseUrl)
+    }
+
+    const localUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_LOCAL_URL') || 'http://localhost:3002/api/v1'
+    return trimTrailingSlash(localUrl)
+  }
+
+  const explicitApiUrl = env('NEXT_PUBLIC_DOCUMENT_API_URL')
+  if (explicitApiUrl) {
+    return trimTrailingSlash(explicitApiUrl)
+  }
+
+  const publicUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_URL')
+  if (publicUrl) {
+    return trimTrailingSlash(publicUrl)
+  }
+
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  if (baseUrl) {
+    return buildDocumentApiUrlFromBase(baseUrl)
+  }
+
+  throw new Error('Document service URL is not configured')
+}
+
+/**
+ * Legacy import-time document API URL. Prefer `getDocumentServiceApiUrl()` when the client can resolve
+ * at runtime instead of module import time.
+ */
 export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL', {
   servicePath: '/document',
   apiPath: '/api/v1'
 })
+
+/**
+ * Document-office WebSocket base URL (engine path is derived by `OfficeWebSocketClient`).
+ * Derived from the central document API resolution so REST and collaboration stay aligned.
+ */
+export function getDocumentOfficeWebSocketBaseUrl(): string {
+  const apiUrl = getDocumentServiceApiUrl()
+  const parsed = new URL(apiUrl)
+  const pathname = parsed.pathname.replace(/\/+$/, '') || '/'
+  if (pathname.includes('/document/')) {
+    return `${parsed.origin}/document`
+  }
+  return parsed.origin
+}
 /**
  * Office collaboration WebSocket base URL (engine path is derived by OfficeWebSocketClient).
  * Resolved on each call so it matches runtime `nw-envs` / document REST configuration, not only values
@@ -106,8 +190,7 @@ export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL'
 export function getOfficeWebSocketUrl(): string {
   const explicitWs = env('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL')
   if (explicitWs?.trim()) {
-    const trimmed = explicitWs.trim()
-    return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
+    return trimTrailingSlash(explicitWs)
   }
   try {
     return getDocumentOfficeWebSocketBaseUrl()
