@@ -121,7 +121,7 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
         <div className="gba:mb-3" data-testid="time-interventions-header" ref={headerRef}>
           <div className="gba:flex gba:items-start gba:gap-2">
             <div
-              className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-ai/10 gba:text-ai"
+              className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground"
               data-testid="time-interventions-assistant-icon"
             >
               <Icon icon={isExpanded ? LightningIcon : WarningCircleIcon} />

@@ -29,16 +29,6 @@ interface TimeTrackingProps {
   onNavigateToEveryAI?: () => void
 }
 
-const DAY_KEYS = [
-  'sundayHours',
-  'mondayHours',
-  'tuesdayHours',
-  'wednesdayHours',
-  'thursdayHours',
-  'fridayHours',
-  'saturdayHours'
-] as const
-
 const TimeTracking: React.FC<TimeTrackingProps> = ({
   employee,
   employeeId,
@@ -82,7 +72,6 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
   }, [locationPrimaryLabel])
 
   const monthlyWorkedMinutes = monthlyWorkedUntilYesterdayMinutes + todayRecordedMinutes
-  const weeklyPlannedHours = workingHours ? DAY_KEYS.reduce((sum, key) => sum + (workingHours[key] ?? 0), 0) : 40
 
   return (
     <div data-testid="monthly-summary-container">
@@ -121,13 +110,12 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
               onReviewClick={onNavigateToEveryAI}
             />
           </div>
-          {(isClockedIn || hasTodayAttendanceRecord) && (
-            <LocationCard
-              locationLabel={locationPrimaryLabel}
-              confirmLocationLabel={confirmLocationLabel}
-              onOpenLocationModal={() => setIsLocationModalOpen(true)}
-            />
-          )}
+          <LocationCard
+            isActive={isClockedIn || hasTodayAttendanceRecord}
+            locationLabel={locationPrimaryLabel}
+            confirmLocationLabel={confirmLocationLabel}
+            onOpenLocationModal={() => setIsLocationModalOpen(true)}
+          />
         </div>
       </div>
 
@@ -138,7 +126,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
       >
         <ThisWeekCard
           allMonthEntries={allMonthEntries}
-          weeklyPlannedHours={weeklyPlannedHours}
+          workingHours={workingHours}
           todayRecordedMinutes={todayRecordedMinutes}
         />
         <TodaysLogCard entries={entries} />

@@ -1,4 +1,5 @@
-tab_timesheet = Zeiterfassung
+tab_timesheet = Meine Zeit
+tab_history = Zeiterfassung
 tab_everyai_assistant = EveryAI Assistent
 greeting_morning = Guten Morgen, { $name }
 greeting_afternoon = Guten Tag, { $name }
@@ -9,6 +10,8 @@ this_week_stat = Diese Woche
 this_month_stat = Dieser Monat
 of_planned = von { $planned }
 location_label = STANDORT
+location_not_clocked_in = Nicht eingestempelt
+location_placeholder = Bitte stempeln Sie ein, um den Standort zu bestimmen
 todays_log = HEUTIGES PROTOKOLL
 clocked_in_log = Eingestempelt
 clocked_out_log = Ausgestempelt
