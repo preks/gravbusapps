@@ -608,7 +608,7 @@ describe('tablePaginationController', () => {
     expect(mockedSplitTableAtRow).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to structural split dispatch on an already split chain when fragment parity mismatches', () => {
+  it('contains already split chains when fragment parity mismatches', () => {
     const controller = createTablePaginationController('owned')
     const view = createView()
     const legacySplitCandidate = {
@@ -659,15 +659,72 @@ describe('tablePaginationController', () => {
           }
         ])
       })
-    ).toMatchObject({
-      type: 'dispatch',
-      progress: 'structural',
-      dispatchType: 'split',
-      candidateKey: 'chain-fragment-split-mismatch:split:22:4',
-      scheduleEvaluation: true
+    ).toEqual({
+      type: 'none',
+      progress: 'none',
+      reason: 'candidate-parity-mismatch'
     })
 
-    expect(mockedSplitTableAtRow).toHaveBeenCalledWith(view.state, view.state.tr, 22, 4)
+    expect(mockedSplitTableAtRow).not.toHaveBeenCalled()
+  })
+
+  it('does not accept page-count refreshes while fragment parity mismatches', () => {
+    const controller = createTablePaginationController('owned')
+    const view = createView()
+    const legacySplitCandidate = {
+      mode: 'split' as const,
+      tablePos: 22,
+      splitRowIndex: 4,
+      paginationChainKey: 'chain-fragment-refresh-mismatch',
+      paginationSplitId: 'pagination-split-fragment'
+    }
+    const fragmentSplitCandidate = {
+      mode: 'split' as const,
+      tablePos: 40,
+      splitRowIndex: 3,
+      paginationChainKey: 'chain-fragment-refresh-mismatch',
+      paginationSplitId: 'pagination-split-fragment'
+    }
+
+    mockedFindSplitCandidates.mockReturnValue([legacySplitCandidate])
+    mockedFindFragmentSplitCandidates.mockReturnValue([fragmentSplitCandidate])
+    mockedFindMergeCandidates.mockReturnValue([])
+
+    expect(
+      controller.evaluate({
+        view,
+        currentPageCount: 41,
+        measuredPageCount: 21,
+        heuristics: { allowMerge: true, allowSplit: true },
+        bodyBands: [],
+        layoutTableFragmentsState: createLayoutTableFragmentsState([
+          {
+            tablePos: 22,
+            pageNumbers: [20],
+            rowCount: 4,
+            paginationChainKey: 'chain-fragment-refresh-mismatch',
+            paginationSplitId: 'pagination-split-fragment',
+            fragmentIndex: 0,
+            fragmentCount: 2
+          },
+          {
+            tablePos: 40,
+            pageNumbers: [21],
+            rowCount: 4,
+            paginationChainKey: 'chain-fragment-refresh-mismatch',
+            paginationSplitId: 'pagination-split-fragment',
+            fragmentIndex: 1,
+            fragmentCount: 2
+          }
+        ])
+      })
+    ).toEqual({
+      type: 'none',
+      progress: 'none',
+      reason: 'candidate-parity-mismatch'
+    })
+
+    expect(mockedSplitTableAtRow).not.toHaveBeenCalled()
   })
 
   it('settles a parity-matched rebalance chain after one successful structural pass even if the candidate key shifts', () => {

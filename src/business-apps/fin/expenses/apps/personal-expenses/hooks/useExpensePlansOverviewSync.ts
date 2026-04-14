@@ -6,7 +6,7 @@ export interface UseExpensePlansOverviewSyncParams {
   currentPage: number
   setCurrentPage: (page: number | ((prev: number) => number)) => void
   pageSize: number
-  sortField: string
+  sortField: string | null
   sortOrder: 'ascend' | 'descend' | null
   fetchOverview: (
     filters: Record<string, unknown>,

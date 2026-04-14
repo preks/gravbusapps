@@ -121,6 +121,7 @@ export function createExpensePlanColumns(): ColumnDef<ExpensePlan>[] {
       accessorKey: 'planDate',
       header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
       size: 110,
+      sortDescFirst: true,
       cell: renderPlanDateCell
     },
     {

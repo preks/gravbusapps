@@ -1,4 +1,4 @@
-import { resolveImageOverlayFigureStyle } from './imageOverlayUtils'
+import { areImageOverlayMountsEqual, resolveImageOverlayFigureStyle } from './imageOverlayUtils'
 
 describe('imageOverlayUtils', () => {
   it('keeps fixed floating images page-positioned instead of paragraph-positioned', () => {
@@ -238,5 +238,33 @@ describe('imageOverlayUtils', () => {
     expect(style.left).toBe(440)
     expect(style.top).toBe(36)
     expect(style.transform).toBe('translateX(-50%)')
+  })
+
+  it('treats overlay mounts with the same geometry and layer as equal', () => {
+    const layer = document.createElement('div')
+    const leftMount = {
+      layer,
+      pageNumber: 2,
+      anchorLeft: 100,
+      anchorTop: 40,
+      anchorWidth: 120,
+      anchorHeight: 80,
+      anchorLeftInLayer: 20,
+      anchorTopInLayer: 10,
+      blockLeftInLayer: 12,
+      blockTopInLayer: 8,
+      blockTop: 8,
+      blockLeft: 12,
+      blockWidth: 240,
+      wrapperOffsetLeft: 3,
+      wrapperOffsetTop: 4
+    }
+    const rightMount = {
+      ...leftMount
+    }
+
+    expect(areImageOverlayMountsEqual(leftMount, rightMount)).toBe(true)
+    expect(areImageOverlayMountsEqual(leftMount, { ...rightMount, pageNumber: 3 })).toBe(false)
+    expect(areImageOverlayMountsEqual(leftMount, { ...rightMount, layer: document.createElement('div') })).toBe(false)
   })
 })

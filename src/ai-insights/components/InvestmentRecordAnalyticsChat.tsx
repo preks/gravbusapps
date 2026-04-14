@@ -78,7 +78,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
       const form = new FormData()
       form.append('session_id', sessionId || '')
       form.append('user_input_text', userMessage)
-      form.append('llm_model', 'gpt-4.1')
+      form.append('model_kind', 'default')
       form.append('use_web_search_tool', 'false')
       form.append('current_page_context', JSON.stringify(pageContext))
 

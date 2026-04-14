@@ -1,9 +1,14 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
+import type { PaginationLayoutTableFragment } from '../../tiptap-custom-pagination/layoutTableFragmentsBridge'
 import {
   findAdjacentPaginationTableFragments,
+  findOverflowingTableSplitCandidatesFromLayoutFragments,
   findOverflowingTableSplitCandidates,
   hasPendingTableMeasurements
 } from '../tablePaginationDetection'
+
+type DescendantsCallback = Parameters<ProseMirrorNode['descendants']>[0]
+type DescendantsNode = Pick<ProseMirrorNode, 'descendants'>
 
 function createMockNode(
   typeName: string,
@@ -25,13 +30,13 @@ function createMockNode(
         offset += child.nodeSize
       })
     },
-    descendants: (callback: (child: ProseMirrorNode, pos: number) => boolean | void) => {
+    descendants: (callback: DescendantsCallback) => {
       let pos = 0
 
-      children.forEach(child => {
-        const result = callback(child, pos)
-        if (result !== false && typeof (child as { descendants?: typeof callback }).descendants === 'function') {
-          ;(child as { descendants: typeof callback }).descendants(callback)
+      children.forEach((child, index) => {
+        const result = callback(child, pos, node as ProseMirrorNode, index)
+        if (result !== false && typeof (child as Partial<DescendantsNode>).descendants === 'function') {
+          ;(child as DescendantsNode).descendants(callback)
         }
         pos += child.nodeSize
       })
@@ -46,6 +51,22 @@ function createTable(splitId: string | null, nodeSize = 12, chainId = splitId ??
     ...createMockNode(
       'table',
       [],
+      splitId ? { paginationChainId: chainId, paginationSplitId: splitId } : { paginationChainId: chainId }
+    ),
+    nodeSize
+  } as ProseMirrorNode
+}
+
+function createTableWithRows(
+  rows: ProseMirrorNode[],
+  splitId: string | null,
+  nodeSize = 12,
+  chainId = splitId ?? 'pagination-chain-single'
+) {
+  return {
+    ...createMockNode(
+      'table',
+      rows,
       splitId ? { paginationChainId: chainId, paginationSplitId: splitId } : { paginationChainId: chainId }
     ),
     nodeSize
@@ -529,6 +550,150 @@ describe('tablePaginationDetection', () => {
         } as never)
       ).toBe(false)
       expect(rowsAccessCount).toBe(1)
+    } finally {
+      editorDom.remove()
+    }
+  })
+
+  it('narrows fragment-guided split scans to pressured fragments and immediate neighbors', () => {
+    const createSimpleTable = () =>
+      createTableWithRows(
+        [createRow([createCell('tableCell')]), createRow([createCell('tableCell')])],
+        null,
+        10,
+        'pagination-chain-fragment-guided'
+      )
+
+    const firstTable = createSimpleTable()
+    const secondTable = createSimpleTable()
+    const thirdTable = createSimpleTable()
+    const fourthTable = createSimpleTable()
+    const doc = createMockNode('doc', [firstTable, secondTable, thirdTable, fourthTable])
+
+    const editorDom = document.createElement('div')
+    const tableElements = Array.from({ length: 4 }, () => document.createElement('table'))
+    const rowElements = tableElements.map(() => [document.createElement('tr'), document.createElement('tr')])
+
+    tableElements.forEach((tableDom, index) => {
+      const tbody = document.createElement('tbody')
+      tbody.append(...rowElements[index])
+      tableDom.appendChild(tbody)
+      editorDom.appendChild(tableDom)
+    })
+
+    document.body.appendChild(editorDom)
+
+    setRect(editorDom, { top: 0, bottom: 520 })
+    setRect(tableElements[0], { top: 10, bottom: 80 })
+    setRect(rowElements[0][0], { top: 10, bottom: 35 })
+    setRect(rowElements[0][1], { top: 50, bottom: 80 })
+    setRect(tableElements[1], { top: 110, bottom: 250 })
+    setRect(rowElements[1][0], { top: 110, bottom: 145 })
+    setRect(rowElements[1][1], { top: 180, bottom: 250 })
+    setRect(tableElements[2], { top: 230, bottom: 300 })
+    setRect(rowElements[2][0], { top: 230, bottom: 255 })
+    setRect(rowElements[2][1], { top: 270, bottom: 300 })
+    setRect(tableElements[3], { top: 330, bottom: 470 })
+    setRect(rowElements[3][0], { top: 330, bottom: 365 })
+    setRect(rowElements[3][1], { top: 400, bottom: 470 })
+
+    const layoutTableFragments: PaginationLayoutTableFragment[] = [
+      {
+        tablePos: 0,
+        pageNumbers: [1],
+        rowCount: 2,
+        paginationChainKey: 'pagination-chain-fragment-guided',
+        paginationSplitId: null,
+        fragmentIndex: 0,
+        fragmentCount: 4
+      },
+      {
+        tablePos: 10,
+        pageNumbers: [2, 3],
+        rowCount: 2,
+        paginationChainKey: 'pagination-chain-fragment-guided',
+        paginationSplitId: null,
+        fragmentIndex: 1,
+        fragmentCount: 4
+      },
+      {
+        tablePos: 20,
+        pageNumbers: [3],
+        rowCount: 2,
+        paginationChainKey: 'pagination-chain-fragment-guided',
+        paginationSplitId: null,
+        fragmentIndex: 2,
+        fragmentCount: 4
+      },
+      {
+        tablePos: 30,
+        pageNumbers: [4],
+        rowCount: 2,
+        paginationChainKey: 'pagination-chain-fragment-guided',
+        paginationSplitId: null,
+        fragmentIndex: 3,
+        fragmentCount: 4
+      }
+    ]
+
+    const view = {
+      dom: editorDom,
+      state: {
+        doc
+      },
+      nodeDOM: (pos: number) => {
+        switch (pos) {
+          case 0:
+            return tableElements[0]
+          case 1:
+            return rowElements[0][0]
+          case 5:
+            return rowElements[0][1]
+          case 10:
+            return tableElements[1]
+          case 11:
+            return rowElements[1][0]
+          case 15:
+            return rowElements[1][1]
+          case 20:
+            return tableElements[2]
+          case 21:
+            return rowElements[2][0]
+          case 25:
+            return rowElements[2][1]
+          case 30:
+            return tableElements[3]
+          case 31:
+            return rowElements[3][0]
+          case 35:
+            return rowElements[3][1]
+          default:
+            return null
+        }
+      }
+    } as never
+
+    try {
+      expect(
+        findOverflowingTableSplitCandidatesFromLayoutFragments(
+          view,
+          [
+            { pageNumber: 1, top: 0, bottom: 100 },
+            { pageNumber: 2, top: 100, bottom: 200 },
+            { pageNumber: 3, top: 200, bottom: 320 },
+            { pageNumber: 4, top: 320, bottom: 430 }
+          ],
+          layoutTableFragments
+        )
+      ).toEqual([
+        {
+          mode: 'split',
+          tablePos: 10,
+          splitRowIndex: 1,
+          paginationChainKey: 'pagination-chain-fragment-guided',
+          paginationSplitId: null
+        }
+      ])
     } finally {
       editorDom.remove()
     }

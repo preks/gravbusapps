@@ -22,6 +22,7 @@ export interface CustomerNote {
   version?: number
   noteTitle?: string
   noteText?: string
+  noteType?: 'UNKNOWN_NOTE_TYPE' | 'GENERAL_NOTE' | 'NEXT_STEP_NOTE' | null
   reminderDate?: string
   authorEmployee?: {
     id: string

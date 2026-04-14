@@ -25,7 +25,8 @@ export interface InvestmentNote extends Note {
 export const InvestmentNoteFields = {
   ...NoteFields,
   investment: 'investment',
-  investmentId: 'investmentId'
+  investmentId: 'investmentId',
+  noteType: ''
 } as const
 
 export const InvestmentNoteFormFields = {

@@ -106,7 +106,7 @@ function getAlignmentStyle(align: TableAlignment) {
   }
 }
 
-export function getTableStyle(width: string, align: TableAlignment, mode: TableWidthMode) {
+export function getTableStyle(width: string | null, align: TableAlignment, mode: TableWidthMode) {
   const alignmentStyle = getAlignmentStyle(align)
 
   if (mode === 'auto-fit-window') {
@@ -117,10 +117,14 @@ export function getTableStyle(width: string, align: TableAlignment, mode: TableW
     return `width: max-content; max-width: 100%; ${alignmentStyle}`
   }
 
-  return `width: ${width}; ${alignmentStyle}`
+  if (!width) {
+    return `width: auto; max-width: 100%; ${alignmentStyle}`
+  }
+
+  return `width: ${width}; max-width: 100%; ${alignmentStyle}`
 }
 
-export function getTableWrapperStyle(width: string, align: TableAlignment, mode: TableWidthMode) {
+export function getTableWrapperStyle(width: string | null, align: TableAlignment, mode: TableWidthMode) {
   const alignmentStyle = getAlignmentStyle(align)
 
   if (mode === 'auto-fit-window') {
@@ -128,7 +132,11 @@ export function getTableWrapperStyle(width: string, align: TableAlignment, mode:
   }
 
   if (mode === 'auto-fit-content') {
-    return `width: max-content; max-width: 100%; ${alignmentStyle}`
+    return `width: 100%; max-width: 100%; ${alignmentStyle}`
+  }
+
+  if (!width) {
+    return `width: 100%; max-width: 100%; ${alignmentStyle}`
   }
 
   return `width: ${width}; max-width: 100%; ${alignmentStyle}`

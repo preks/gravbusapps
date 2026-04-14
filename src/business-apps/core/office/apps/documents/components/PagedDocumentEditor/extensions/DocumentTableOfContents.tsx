@@ -1,14 +1,18 @@
 /**
- * In-document table of contents block (Word-style). Syncs a JSON snapshot for HTML export / persistence.
+ * In-document table of contents block (Word-style). Stores explicit field results.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core'
-import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state'
+import type { EditorState } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
-import { getHeadingsForDocumentTableOfContents } from '../../../utils/navigationPanelUtils'
+import {
+  buildDocumentTocSnapshotFromDoc,
+  parseDocumentTocSnapshot,
+  stringifyDocumentTocSnapshot,
+  updateDocumentTocSnapshotPageNumbers
+} from '../../../utils/documentTocSnapshot'
+import { getDocumentTocLayoutHints } from '../../../utils/tocLayoutBridge'
 import { DocumentTableOfContentsView } from '../components/DocumentTableOfContentsView'
-
-const documentTocSnapshotKey = new PluginKey('documentTableOfContentsSnapshot')
 
 export interface DocumentTableOfContentsOptions {
   HTMLAttributes: Record<string, unknown>
@@ -67,6 +71,8 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     documentTableOfContents: {
       insertDocumentTableOfContents: () => ReturnType
+      updateDocumentTableOfContentsEntireTable: (pos?: number) => ReturnType
+      updateDocumentTableOfContentsPageNumbers: (pos?: number) => ReturnType
       updateDocumentTableOfContents: (pos?: number) => ReturnType
       removeDocumentTableOfContents: (pos?: number) => ReturnType
       setDocumentTableOfContentsOptions: (
@@ -77,22 +83,42 @@ declare module '@tiptap/core' {
   }
 }
 
-function parseSnapshotLines(snapshotJson: string): { level: number; text: string }[] {
-  try {
-    const parsed = JSON.parse(snapshotJson || '[]') as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed
-      .filter(
-        (e): e is { level: number; text: string } =>
-          Boolean(e) && typeof e === 'object' && typeof (e as { level?: unknown }).level === 'number'
-      )
-      .map(e => ({
-        level: e.level,
-        text: typeof e.text === 'string' ? e.text : ''
-      }))
-  } catch {
-    return []
+function resolveSpansForSnapshot() {
+  const hints = getDocumentTocLayoutHints()
+  if (!hints) return undefined
+  if (hints.pageSpans && hints.pageSpans.length > 0) {
+    return hints.pageSpans
   }
+  if (hints.retainedPageSpans && hints.retainedPageSpans.length > 0) {
+    return hints.retainedPageSpans
+  }
+  return hints.pagePositionRanges
+}
+
+function buildStoredSnapshotJson(state: EditorState, tocPos: number, maxHeadingLevel: number) {
+  const node = state.doc.nodeAt(tocPos)
+  if (!node) return null
+  const hints = getDocumentTocLayoutHints()
+  const snapshot = buildDocumentTocSnapshotFromDoc({
+    doc: state.doc,
+    afterPos: tocPos + node.nodeSize,
+    maxHeadingLevel,
+    spans: resolveSpansForSnapshot(),
+    layoutVersion: hints?.layoutVersion ?? null
+  })
+  return stringifyDocumentTocSnapshot(snapshot)
+}
+
+function buildUpdatedPageNumbersSnapshotJson(state: EditorState, snapshotJson: string) {
+  const hints = getDocumentTocLayoutHints()
+  const snapshot = parseDocumentTocSnapshot(snapshotJson)
+  const withUpdatedPageNumbers = updateDocumentTocSnapshotPageNumbers({
+    snapshot,
+    doc: state.doc,
+    spans: resolveSpansForSnapshot(),
+    layoutVersion: hints?.layoutVersion ?? null
+  })
+  return stringifyDocumentTocSnapshot(withUpdatedPageNumbers)
 }
 
 export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOptions>({
@@ -166,11 +192,14 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    const lines = parseSnapshotLines(node.attrs.snapshotJson as string)
+    const lines = parseDocumentTocSnapshot(node.attrs.snapshotJson as string).entries
     const lineNodes = lines.map((e, i) => [
       'div',
       { class: `document-toc-export-line document-toc-level-${e.level}`, 'data-toc-line': String(i) },
-      ['span', { class: 'document-toc-export-text' }, e.text]
+      ['span', { class: 'document-toc-export-text' }, e.text],
+      ...(e.pageNumber
+        ? [['span', { class: 'document-toc-export-page-number', 'data-toc-page-number': e.pageNumber }, e.pageNumber]]
+        : [])
     ])
 
     return [
@@ -192,58 +221,52 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
     return ReactNodeViewRenderer(DocumentTableOfContentsView)
   },
 
-  addProseMirrorPlugins() {
-    const typeName = this.name
-    return [
-      new Plugin({
-        key: documentTocSnapshotKey,
-        appendTransaction(trs, _oldState, newState) {
-          if (!trs.some(tr => tr.docChanged)) {
-            return null
-          }
-          let tr = newState.tr
-          let modified = false
-          newState.doc.descendants((node, pos) => {
-            if (node.type.name !== typeName) {
-              return
-            }
-            const afterPos = pos + node.nodeSize
-            const maxLevel = normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel)
-            const headings = getHeadingsForDocumentTableOfContents(newState.doc, afterPos).filter(
-              h => h.level <= maxLevel
-            )
-            const nextJson = JSON.stringify(headings.map(h => ({ level: h.level, text: h.text, pos: h.pos })))
-            if (nextJson !== node.attrs.snapshotJson) {
-              tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, snapshotJson: nextJson })
-              modified = true
-            }
-          })
-          return modified ? tr : null
-        }
-      })
-    ]
-  },
-
   addCommands() {
     return {
       insertDocumentTableOfContents:
         () =>
-        ({ chain }) =>
-          chain().focus().insertContent({ type: this.name, attrs: DEFAULT_DOCUMENT_TOC_ATTRS }).run(),
-      updateDocumentTableOfContents:
+        ({ state, dispatch, editor }) => {
+          const nodeType = state.schema.nodes[this.name]
+          if (!nodeType) return false
+          const insertPos = state.selection.from
+          dispatch?.(state.tr.insert(insertPos, nodeType.create(DEFAULT_DOCUMENT_TOC_ATTRS)))
+          return editor.commands.updateDocumentTableOfContentsEntireTable(insertPos)
+        },
+      updateDocumentTableOfContentsEntireTable:
         (pos?: number) =>
         ({ state, dispatch }) => {
           const tocPos = resolveDocumentTocPos(state, pos)
           if (tocPos === null) return false
           const node = state.doc.nodeAt(tocPos)
           if (!node || node.type.name !== this.name) return false
-          const afterPos = tocPos + node.nodeSize
-          const maxLevel = normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel)
-          const headings = getHeadingsForDocumentTableOfContents(state.doc, afterPos).filter(h => h.level <= maxLevel)
-          const nextJson = JSON.stringify(headings.map(h => ({ level: h.level, text: h.text, pos: h.pos })))
+
+          const nextJson = buildStoredSnapshotJson(state, tocPos, normalizeMaxHeadingLevel(node.attrs.maxHeadingLevel))
+          if (!nextJson) return false
+
           dispatch?.(state.tr.setNodeMarkup(tocPos, undefined, { ...node.attrs, snapshotJson: nextJson }))
           return true
         },
+      updateDocumentTableOfContentsPageNumbers:
+        (pos?: number) =>
+        ({ state, dispatch, editor }) => {
+          const tocPos = resolveDocumentTocPos(state, pos)
+          if (tocPos === null) return false
+          const node = state.doc.nodeAt(tocPos)
+          if (!node || node.type.name !== this.name) return false
+
+          const snapshot = parseDocumentTocSnapshot(node.attrs.snapshotJson as string)
+          if (snapshot.entries.length === 0) {
+            return editor.commands.updateDocumentTableOfContentsEntireTable(tocPos)
+          }
+
+          const nextJson = buildUpdatedPageNumbersSnapshotJson(state, node.attrs.snapshotJson as string)
+          dispatch?.(state.tr.setNodeMarkup(tocPos, undefined, { ...node.attrs, snapshotJson: nextJson }))
+          return true
+        },
+      updateDocumentTableOfContents:
+        (pos?: number) =>
+        ({ editor }) =>
+          editor.commands.updateDocumentTableOfContentsEntireTable(pos),
       removeDocumentTableOfContents:
         (pos?: number) =>
         ({ state, dispatch }) => {
@@ -256,7 +279,7 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
         },
       setDocumentTableOfContentsOptions:
         (attrs, pos?: number) =>
-        ({ state, dispatch, editor }) => {
+        ({ state, dispatch }) => {
           const tocPos = resolveDocumentTocPos(state, pos)
           if (tocPos === null) return false
           const node = state.doc.nodeAt(tocPos)
@@ -269,7 +292,6 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
             maxHeadingLevel: normalizeMaxHeadingLevel(attrs.maxHeadingLevel ?? node.attrs.maxHeadingLevel)
           }
           dispatch?.(state.tr.setNodeMarkup(tocPos, undefined, nextAttrs))
-          editor.commands.updateDocumentTableOfContents(tocPos)
           return true
         }
     }

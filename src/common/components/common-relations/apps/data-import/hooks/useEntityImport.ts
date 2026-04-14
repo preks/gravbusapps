@@ -342,7 +342,8 @@ function toInvestmentBatchPayload(
   entities: Record<string, any>[],
   investmentType: string,
   ownerEmployeeId: string | undefined,
-  defaultInvestmentGroupRef: string
+  defaultInvestmentGroupRef: string,
+  forcedInvestmentTypeRef?: string
 ): { investmentRequests: Record<string, any>[] } {
   const investmentRequests = entities.map(entity => {
     const normalized = normalizeEntityForImport(entity)
@@ -355,6 +356,7 @@ function toInvestmentBatchPayload(
       investment: {
         ...investmentData,
         investmentGroupRef: investmentData.investmentGroupRef || defaultInvestmentGroupRef,
+        investmentTypeRef: forcedInvestmentTypeRef || investmentData.investmentTypeRef,
         investmentStatusRef: investmentData.investmentStatusRef || 'InvestmentStatus:v1:ACTIVE',
         ownerEmployee: resolvedOwnerEmployeeId || investmentData.ownerEmployee
       },
@@ -605,6 +607,7 @@ export function useEntityImport<T = ConvertedEntity>(
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const graphQLClient = useGraphQLClient(accessToken)
   const investmentGroupRefCacheRef = useRef<Map<string, string>>(new Map())
+  const forcedInvestmentTypeRefRef = useRef<string | undefined>(undefined)
 
   const resolveDefaultInvestmentGroupRef = useCallback(async (): Promise<string | undefined> => {
     if (config.domain !== 'investment') return undefined
@@ -747,8 +750,15 @@ export function useEntityImport<T = ConvertedEntity>(
       setIsLoading(true)
       setError(null)
       setImportResult(null)
+      forcedInvestmentTypeRefRef.current = undefined
 
       try {
+        if (enforcedFieldsJson) {
+          const enforced = JSON.parse(enforcedFieldsJson) as Record<string, string>
+          forcedInvestmentTypeRefRef.current =
+            enforced['investment.investmentTypeRef'] || enforced['investmentTypeRef'] || undefined
+        }
+
         // Remove enforced fields from the mappings so they are not double-counted
         const enforcedKeys = enforcedFieldsJson
           ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
@@ -865,7 +875,8 @@ export function useEntityImport<T = ConvertedEntity>(
           entitiesWithOwner as Record<string, any>[],
           investmentPayloadKey,
           ownerEmployeeId,
-          defaultInvestmentGroupRef
+          defaultInvestmentGroupRef,
+          forcedInvestmentTypeRefRef.current
         )
 
         const response = await restClient.post('/investment-relations/createInvestments', payload, {

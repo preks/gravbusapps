@@ -141,6 +141,8 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       descriptors: INVESTMENT_ACCOUNT_DESCRIPTORS,
       columnLabels: {
         name: 'Account Name',
+        accountPriority: 'Priority',
+        addresses: 'Location',
         industryClass: 'Industry',
         legalForm: 'Legal Form',
         companySize: 'Size',

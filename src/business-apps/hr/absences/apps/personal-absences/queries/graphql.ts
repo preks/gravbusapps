@@ -12,6 +12,7 @@ export const GET_EMPLOYEE_ABSENCES = `
             endDate
             startDate
             status
+            typeRef
             type {
                 id
                 value   
