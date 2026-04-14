@@ -6687,9 +6687,9 @@
     ]
   },
   "crm/core/apps/data-import": {
-    "bitbucketBuildNumber": 10738,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
-    "chunkJsBytes": 546194,
+    "bitbucketBuildNumber": 10741,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10741/",
+    "chunkJsBytes": 548554,
     "top": [
       {
         "kind": "bucket",
@@ -6712,13 +6712,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 89884,
-        "gzip": 24094,
+        "rendered": 94538,
+        "gzip": 25323,
         "leaves": [
           {
             "name": "src/common/components/common-relations/apps/data-import/hooks/useEntityImport.ts",
-            "rendered": 30805,
-            "gzip": 6923
+            "rendered": 31307,
+            "gzip": 7000
           },
           {
             "name": "src/common/components/common-relations/apps/data-import/components/ConversionResultStep.tsx",
@@ -6730,8 +6730,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 79866,
-        "gzip": 19389,
+        "rendered": 79910,
+        "gzip": 19402,
         "leaves": [
           {
             "name": "src/common/data/relations/types/opportunityTypes.ts",
@@ -29841,117 +29841,278 @@
     ]
   },
   "irm/core/apps/data-import": {
-    "bitbucketBuildNumber": 10726,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10726/",
-    "chunkJsBytes": 568825,
+    "bitbucketBuildNumber": 10741,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10741/",
+    "chunkJsBytes": 571763,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 430713,
-        "gzip": 214276
+        "gzip": 214276,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
+            "rendered": 232900,
+            "gzip": 125445
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
+            "rendered": 58390,
+            "gzip": 42107
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 91298,
-        "gzip": 24649
+        "rendered": 96192,
+        "gzip": 25955,
+        "leaves": [
+          {
+            "name": "src/common/components/common-relations/apps/data-import/hooks/useEntityImport.ts",
+            "rendered": 31307,
+            "gzip": 7000
+          },
+          {
+            "name": "src/common/components/common-relations/apps/data-import/components/ConversionResultStep.tsx",
+            "rendered": 12417,
+            "gzip": 2328
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 82610,
-        "gzip": 19815
+        "rendered": 82654,
+        "gzip": 19828,
+        "leaves": [
+          {
+            "name": "src/common/data/relations/types/opportunityTypes.ts",
+            "rendered": 11816,
+            "gzip": 1879
+          },
+          {
+            "name": "src/common/data/relations/types/accountTypes.ts",
+            "rendered": 9668,
+            "gzip": 1562
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41535,
-        "gzip": 10131
+        "gzip": 10131,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27341,
+            "gzip": 5050
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 37725,
-        "gzip": 14835
+        "rendered": 38819,
+        "gzip": 15162,
+        "leaves": [
+          {
+            "name": "src/business-apps/irm/core/apps/data-import/views/liquid-fund-investment-import-view/config/liquidFundInvestmentImportConfig.ts",
+            "rendered": 4206,
+            "gzip": 815
+          },
+          {
+            "name": "src/business-apps/irm/core/apps/data-import/config/commonInvestmentFields.ts",
+            "rendered": 3678,
+            "gzip": 808
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 25011,
-        "gzip": 7455
+        "gzip": 7455,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/rest/RestClient.ts",
+            "rendered": 5489,
+            "gzip": 1597
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15765,
-        "gzip": 3733
+        "gzip": 3733,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15765,
+            "gzip": 3733
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 10025,
-        "gzip": 3499
+        "gzip": 3499,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/navigationUtils.ts",
+            "rendered": 2372,
+            "gzip": 865
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/layout",
         "rendered": 6457,
-        "gzip": 1681
+        "gzip": 1681,
+        "leaves": [
+          {
+            "name": "src/components/layout/settings-layout/SettingsLayout.tsx",
+            "rendered": 6457,
+            "gzip": 1681
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5951,
-        "gzip": 1110
+        "gzip": 1110,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5951,
+            "gzip": 1110
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 255
+        "gzip": 255,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 255
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 416,
-        "gzip": 218
+        "gzip": 218,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 416,
+            "gzip": 218
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/irm",
         "rendered": 153,
-        "gzip": 131
+        "gzip": 131,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/irm/core/apps/data-import.ts",
+            "rendered": 153,
+            "gzip": 131
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
-        "gzip": 58
+        "gzip": 58,
+        "leaves": [
+          {
+            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
+            "rendered": 38,
+            "gzip": 58
+          }
+        ]
       }
     ]
   },
@@ -38767,20 +38928,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10738,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10738/",
-    "chunkJsBytes": 990382,
+    "bitbucketBuildNumber": 10741,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10741/",
+    "chunkJsBytes": 1015047,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 615629,
-        "gzip": 37830,
+        "rendered": 642262,
+        "gzip": 40541,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 615629,
-            "gzip": 37830
+            "rendered": 642262,
+            "gzip": 40541
           }
         ]
       },
@@ -44507,7 +44668,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-14T07:33:28.902Z",
+    "generatedAt": "2026-04-14T07:42:45.668Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
