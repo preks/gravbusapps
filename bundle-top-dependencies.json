@@ -75874,15 +75874,15 @@
     ]
   },
   "irm/investments/apps/investment-management": {
-    "bitbucketBuildNumber": 10770,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10770/",
-    "chunkJsBytes": 1276272,
+    "bitbucketBuildNumber": 10776,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10776/",
+    "chunkJsBytes": 1276267,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 732766,
-        "gzip": 175070,
+        "rendered": 732764,
+        "gzip": 175078,
         "leaves": [
           {
             "name": "src/business-apps/irm/investments/apps/investment-management/views/analytics-view/overview/components/PortfolioDistributionCharts.tsx",
@@ -79054,9 +79054,9 @@
     ]
   },
   "irm/investments/records/investment-record": {
-    "bitbucketBuildNumber": 10770,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10770/",
-    "chunkJsBytes": 1023011,
+    "bitbucketBuildNumber": 10776,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10776/",
+    "chunkJsBytes": 1023200,
     "top": [
       {
         "kind": "bucket",
@@ -79097,8 +79097,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 218639,
-        "gzip": 52484,
+        "rendered": 218778,
+        "gzip": 52572,
         "leaves": [
           {
             "name": "src/business-apps/irm/investments/records/investment-record/utils/investmentHeaderConfig.tsx",
@@ -87819,20 +87819,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10770,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10770/",
-    "chunkJsBytes": 1794798,
+    "bitbucketBuildNumber": 10776,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10776/",
+    "chunkJsBytes": 1798826,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1487027,
-        "gzip": 87793,
+        "rendered": 1491427,
+        "gzip": 88312,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1487027,
-            "gzip": 87793
+            "rendered": 1491427,
+            "gzip": 88312
           }
         ]
       },
@@ -101167,7 +101167,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-14T12:23:18.705Z",
+    "generatedAt": "2026-04-14T12:56:30.159Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
