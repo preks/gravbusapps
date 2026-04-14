@@ -1,9 +1,11 @@
 import type { Node as PMNode } from 'prosemirror-model'
 import {
+  resolvePaginationDeferredSchedulingTriggers,
+  resolvePaginationPageCountUpdateDecision,
   resolveSelectionNavigationDirection,
-  runPaginationPluginViewUpdate,
-  type PaginationPluginViewRuntimeState
-} from '../paginationPluginViewController'
+  resolveSelectionOverflowPaginationDecision
+} from '../paginationPluginViewDecisions'
+import { runPaginationPluginViewUpdate, type PaginationPluginViewRuntimeState } from '../paginationPluginViewController'
 
 function createDoc(label: string) {
   return { label } as unknown as PMNode
@@ -91,6 +93,106 @@ describe('resolveSelectionNavigationDirection', () => {
   it('returns forward/backward when the selection moved', () => {
     expect(resolveSelectionNavigationDirection(5, 8)).toBe('forward')
     expect(resolveSelectionNavigationDirection(8, 5)).toBe('backward')
+  })
+})
+
+describe('resolvePaginationPageCountUpdateDecision', () => {
+  it('keeps initial table opens off the immediate page-count refresh path', () => {
+    expect(
+      resolvePaginationPageCountUpdateDecision({
+        activeEditorType: null,
+        isComposing: false,
+        isInitialViewUpdate: true,
+        docChangeAffectsLayout: false,
+        hasTables: true,
+        paginationOwnedDocChange: false,
+        currentPageCount: 22,
+        measuredPageCount: 43
+      })
+    ).toEqual({ type: 'none' })
+  })
+
+  it('marks table doc shrink refreshes for follow-up stabilization after layout-affecting doc changes', () => {
+    expect(
+      resolvePaginationPageCountUpdateDecision({
+        activeEditorType: null,
+        isComposing: false,
+        isInitialViewUpdate: false,
+        docChangeAffectsLayout: true,
+        hasTables: true,
+        paginationOwnedDocChange: true,
+        currentPageCount: 43,
+        measuredPageCount: 22
+      })
+    ).toEqual({
+      type: 'refresh',
+      refreshSource: 'page-count-shrink',
+      nextStoredPageCount: 22,
+      shouldClearGrowthSuppression: true,
+      shouldResetRunawayGrowthCap: true,
+      shouldMarkPendingRefreshDrivenStabilization: true
+    })
+  })
+})
+
+describe('resolvePaginationDeferredSchedulingTriggers', () => {
+  it('separates pending, initial-table, and update-driven stabilization triggers', () => {
+    expect(
+      resolvePaginationDeferredSchedulingTriggers({
+        activeEditorType: null,
+        isInitialViewUpdate: true,
+        hasTables: true,
+        pendingRefreshDrivenStabilization: true,
+        shouldScheduleDeferredRepaginationOnUpdate: true
+      })
+    ).toEqual({
+      shouldConsumePendingRefreshDrivenStabilization: true,
+      shouldScheduleInitialTableStabilization: true,
+      shouldScheduleUpdateDrivenStabilization: true
+    })
+  })
+})
+
+describe('resolveSelectionOverflowPaginationDecision', () => {
+  it('keeps table overflow growth on the deferred stabilization path', () => {
+    expect(
+      resolveSelectionOverflowPaginationDecision({
+        activeEditorType: null,
+        isComposing: false,
+        shouldDeferSelectionOverflowResolution: false,
+        hasSelectionOverflow: true,
+        hasTables: true,
+        currentPageCount: 22,
+        measuredPageCount: 43,
+        docChangedSinceLastUpdate: false,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false
+      })
+    ).toEqual({
+      type: 'schedule-deferred-refresh'
+    })
+  })
+
+  it('requests an immediate overflow refresh for non-table growth', () => {
+    expect(
+      resolveSelectionOverflowPaginationDecision({
+        activeEditorType: null,
+        isComposing: false,
+        shouldDeferSelectionOverflowResolution: false,
+        hasSelectionOverflow: true,
+        hasTables: false,
+        currentPageCount: 22,
+        measuredPageCount: 23,
+        docChangedSinceLastUpdate: false,
+        paginationOwnedDocChange: false,
+        hydrationOwnedDocChange: false
+      })
+    ).toEqual({
+      type: 'refresh',
+      refreshSource: 'selection-overflow',
+      nextStoredPageCount: 23,
+      shouldClearGrowthSuppression: true
+    })
   })
 })
 
@@ -542,6 +644,37 @@ describe('runPaginationPluginViewUpdate', () => {
       ...harness.callbacks
     })
 
+    expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith(5)
+    expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps reopen recovery on the deferred table stabilization path when the initial count is stale low', () => {
+    const harness = createHarness({
+      state: {
+        lastKnownDoc: null,
+        lastKnownSelectionHead: null
+      },
+      measurementState: { currentPageCount: 22, measuredPageCount: 43 },
+      hasTables: true
+    })
+
+    runPaginationPluginViewUpdate({
+      view: harness.view,
+      storage: harness.storage,
+      state: harness.state,
+      documentHasTables: () => true,
+      resolveSelectionOverflow: () => null,
+      resolveMeasurementState: () => harness.measurementState,
+      currentSelection: harness.currentSelection,
+      createSelection: harness.selectionFactory,
+      selectionsEqual: () => false,
+      getDeferredStabilizationAttemptCount: () => 5,
+      shouldScheduleDeferredRepaginationOnUpdate: () => false,
+      ...harness.callbacks
+    })
+
+    expect(harness.callbacks.onSetStoredPageCount).not.toHaveBeenCalled()
+    expect(harness.callbacks.onRequestRefresh).not.toHaveBeenCalled()
     expect(harness.callbacks.onScheduleDeferredRepagination).toHaveBeenCalledWith(5)
     expect(harness.callbacks.onRefreshLayoutBounds).toHaveBeenCalledTimes(1)
   })

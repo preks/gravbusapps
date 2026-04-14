@@ -323,11 +323,29 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
       }
 
       .paged-document-editor .ProseMirror .tableWrapper {
+        position: relative;
         overflow: visible;
         margin: 0;
         border: 0;
         border-radius: 0;
         background: transparent;
+      }
+
+      .paged-document-editor .ProseMirror .tableWrapper[data-linked-table-resize-active="true"] {
+        --linked-table-resize-handle-width: 4px;
+      }
+
+      .paged-document-editor .ProseMirror
+        .tableWrapper[data-linked-table-resize-active="true"]:not([data-linked-table-resize-source="true"]) > table::after {
+        position: absolute;
+        left: calc(var(--linked-table-resize-handle-left, 0px) - (var(--linked-table-resize-handle-width) / 2));
+        top: 0;
+        bottom: -2px;
+        width: var(--linked-table-resize-handle-width);
+        content: "";
+        pointer-events: none;
+        background-color: #adf;
+        z-index: 20;
       }
 
       .paged-document-editor .ProseMirror table {
@@ -336,6 +354,7 @@ export function PagedDocumentEditorStyles({ pageColor, proseMinHeight }: Readonl
         table-layout: fixed;
         break-inside: auto;
         page-break-inside: auto;
+        position: relative;
       }
 
       .paged-document-editor .ProseMirror td,

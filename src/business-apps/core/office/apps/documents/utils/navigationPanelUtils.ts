@@ -40,10 +40,10 @@ export function getHeadingsFromDoc(doc: PMNode): HeadingItem[] {
 }
 
 /**
- * Headings whose block starts at or after `minBlockStart` (e.g. after a table-of-contents block).
+ * Word-style ToC scope defaults to the whole document, including headings before the ToC block.
  */
-export function getHeadingsForDocumentTableOfContents(doc: PMNode, minBlockStart: number): HeadingItem[] {
-  return getHeadingsFromDoc(doc).filter(h => h.blockStart >= minBlockStart)
+export function getHeadingsForDocumentTableOfContents(doc: PMNode): HeadingItem[] {
+  return getHeadingsFromDoc(doc)
 }
 
 /**

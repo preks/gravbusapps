@@ -29,6 +29,7 @@ import {
   DEFAULT_IMAGE_BORDER_WIDTH_PT,
   type ImageBorderDash
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
+import { buildWordTocFieldXmlFromElement } from './docxTocExportUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -511,6 +512,8 @@ async function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext
         case 'div':
           if (el.hasAttribute('data-page-break')) {
             parts.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+          } else if (el.hasAttribute('data-document-toc')) {
+            parts.push(...buildWordTocFieldXmlFromElement(el))
           } else {
             await convertBlock(el, parts, ctx)
           }

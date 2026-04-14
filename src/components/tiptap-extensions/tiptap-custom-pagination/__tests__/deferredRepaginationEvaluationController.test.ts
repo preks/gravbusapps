@@ -3,6 +3,7 @@ import {
   LARGE_DOC_PAGE_YIELD_THRESHOLD,
   runDeferredRepaginationEvaluationLoop
 } from '../deferredRepaginationEvaluationController'
+import { resolveDeferredRepaginationLoopTableState } from '../deferredRepaginationLoopTableState'
 import { writePaginationLayoutTableFragments } from '../layoutTableFragmentsBridge'
 import type { AddPagesMeasurementSnapshot, PaginationMeasuredHeights } from '../paginationPageCountPolicy'
 
@@ -77,6 +78,55 @@ function createBaseOptions() {
     }
   }
 }
+
+describe('resolveDeferredRepaginationLoopTableState', () => {
+  it('derives measured table page count and blocked preflight from the current body bands', () => {
+    const result = resolveDeferredRepaginationLoopTableState({
+      hasActiveEditor: false,
+      hasTables: true,
+      currentPageCount: 22,
+      bodyBands: [
+        { pageNumber: 1, top: 0, bottom: 800 },
+        { pageNumber: 1, top: 0, bottom: 800 },
+        { pageNumber: 2, top: 800, bottom: 1600 }
+      ],
+      stabilizationAttemptsRemaining: 2,
+      getHasPendingTableMeasurements: () => false,
+      cappedPageCount: null
+    })
+
+    expect(result.measuredTablePageCount).toBe(2)
+    expect(result.preflight).toMatchObject({
+      deferTableEvaluation: true,
+      tableMeasurementsPending: false,
+      isBlocked: true,
+      shouldRetry: true
+    })
+  })
+
+  it('turns table stabilization off while a header or footer editor is active', () => {
+    const result = resolveDeferredRepaginationLoopTableState({
+      hasActiveEditor: true,
+      hasTables: true,
+      currentPageCount: 22,
+      bodyBands: [{ pageNumber: 1, top: 0, bottom: 800 }],
+      stabilizationAttemptsRemaining: 2,
+      getHasPendingTableMeasurements: () => true,
+      cappedPageCount: null
+    })
+
+    expect(result.preflight).toMatchObject({
+      tablePaginationHeuristics: {
+        allowMerge: false,
+        allowSplit: false
+      },
+      deferTableEvaluation: false,
+      tableMeasurementsPending: false,
+      isBlocked: false,
+      shouldRetry: false
+    })
+  })
+})
 
 describe('runDeferredRepaginationEvaluationLoop', () => {
   it('returns immediately for destroyed views', () => {

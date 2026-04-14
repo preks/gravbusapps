@@ -94,4 +94,35 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('behindDoc="1"')
     expect(documentXml).toContain('<wp:wrapNone/>')
   })
+
+  it('exports document ToC blocks as refreshable Word TOC fields with cached rows', async () => {
+    const html = `
+      <div
+        data-document-toc=""
+        data-toc-snapshot='{"version":2,"entries":[{"level":1,"text":"Overview","pos":12,"blockStart":11,"pageNumber":"3"}],"updatedAt":"2026-04-14T10:00:00.000Z","updateMode":"entire","layoutVersion":1}'
+        data-toc-show-page-numbers="true"
+        data-toc-right-align-page-numbers="true"
+        data-toc-tab-leader="dot"
+        data-toc-heading-links="true"
+        data-toc-max-heading-level="3"
+      >
+        <div class="document-toc-print-inner">
+          <div class="document-toc-print-title">Table of contents</div>
+        </div>
+      </div>
+      <h1>Overview</h1>
+    `
+
+    const blob = await buildDocxBlob('ToC doc', html)
+    const documentXml = await readDocumentXml(blob)
+
+    expect(documentXml).toContain('TOC \\o &quot;1-3&quot; \\h')
+    expect(documentXml).toContain('fldCharType="begin"')
+    expect(documentXml).toContain('fldCharType="separate"')
+    expect(documentXml).toContain('fldCharType="end"')
+    expect(documentXml).toContain('Table of contents')
+    expect(documentXml).toContain('Overview')
+    expect(documentXml).toContain('<w:tab/>')
+    expect(documentXml).toContain('<w:pStyle w:val="Heading1"/>')
+  })
 })
