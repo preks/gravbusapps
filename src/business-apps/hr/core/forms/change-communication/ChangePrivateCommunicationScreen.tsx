@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useCommunicationLookups } from './queries/ChangeCommunicationQueries'
 import { parseNumber, formatNumber, isValidPhoneNumber, getCountryCallingCode } from 'libphonenumber-js'
 import { FormHeader } from './components/FormHeader'
@@ -27,7 +26,6 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
   const { t } = useTranslation(translations)
   const initialParams = getInitialParams(context)
   const isDeleteMode = initialParams.mode === 'delete'
-  const autoConfirmDelete = isDeleteMode && initialParams.autoConfirmDelete === true
 
   const formState = useCommunicationFormState({
     channels,
@@ -75,30 +73,6 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     formState.selectedCountryCode,
     formState.phoneNumber
   ])
-
-  useEffect(() => {
-    if (!autoConfirmDelete) return
-    const employeeId = initialParams.employeeId || context.userInfo?.employeeDetails?.employeeId
-    dispatchProcessContinueEvent('pse_submit', {
-      employeeId,
-      event: 'pse_submit',
-      mode: 'delete',
-      employeeCommunication: {
-        id: initialParams.communicationId,
-        version: initialParams.version,
-        employeeId,
-        isDeleted: true
-      },
-      completeNotification: {
-        type: 'success',
-        message: t('notification-communication-deleted-success')
-      }
-    })
-  }, [autoConfirmDelete, initialParams, context.userInfo?.employeeDetails?.employeeId, t])
-
-  if (autoConfirmDelete) {
-    return null
-  }
 
   const validateForm = () => {
     if (isDeleteMode) return null

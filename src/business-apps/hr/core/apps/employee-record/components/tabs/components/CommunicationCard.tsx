@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,6 +22,7 @@ import translations from '../../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import { EMPLOYEES_API_URL } from '@/common/utils/serviceResolver'
 
 const PHONE_CHANNEL_CODES = new Set(['Phone', 'Mobile'])
 const MASK_PLACEHOLDER = '••••••••'
@@ -46,9 +47,11 @@ const CommunicationCard: React.FC<CommunicationCardProps> = ({
   const { t } = useTranslation(translations)
   const masked = shouldMask(isSelfView, employeeRecordHrBackoffice.hasPermission === true)
   const [deleteTarget, setDeleteTarget] = useState<(typeof employee.communication)[number] | null>(null)
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const communications = (employee.communication || []).filter(
-    comm => comm?.purpose === 'PRIVATE' && comm?.value?.trim()
+    comm => comm?.purpose === 'PRIVATE' && comm?.value?.trim() && !deletedIds.has(comm.id)
   )
 
   const formatValue = (comm: (typeof communications)[0]) => {
@@ -71,6 +74,38 @@ const CommunicationCard: React.FC<CommunicationCardProps> = ({
     purpose: comm.purpose,
     version: comm.version
   })
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTarget || !accessToken) return
+
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`${EMPLOYEES_API_URL}/deleteEmployeeCommunication`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          employeeCommunication: {
+            id: deleteTarget.id,
+            version: deleteTarget.version,
+            employeeId: employee.id,
+            isDeleted: true
+          }
+        })
+      })
+
+      if (response.ok) {
+        setDeletedIds(prev => new Set(prev).add(deleteTarget.id))
+      }
+    } catch {
+      console.error('Failed to delete communication entry')
+    } finally {
+      setIsDeleting(false)
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, accessToken, employee.id])
 
   return (
     <Card data-testid="details-section-communication">
@@ -137,7 +172,7 @@ const CommunicationCard: React.FC<CommunicationCardProps> = ({
         <AlertDialog
           open={!!deleteTarget}
           onOpenChange={open => {
-            if (!open) setDeleteTarget(null)
+            if (!open && !isDeleting) setDeleteTarget(null)
           }}
         >
           <AlertDialogContent data-testid="communication-delete-confirm-dialog">
@@ -146,26 +181,17 @@ const CommunicationCard: React.FC<CommunicationCardProps> = ({
               <AlertDialogDescription>{t('delete-communication-confirm-description')}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel data-testid="communication-delete-cancel">{t('action-cancel')}</AlertDialogCancel>
-              {deleteTarget && (
-                <AppAction
-                  variant="delete-primary"
-                  data-testid="communication-delete-confirm-action"
-                  contexts={[
-                    {
-                      context: FlowContextName.updateEmployeeCommunication,
-                      contextData: { ...buildContextData(deleteTarget), mode: 'delete', autoConfirmDelete: true }
-                    }
-                  ]}
-                  prefixDataTestId="communication-delete-confirm"
-                  accessToken={accessToken}
-                  autoExecute={true}
-                  emptyState="enable"
-                  onClick={() => setDeleteTarget(null)}
-                >
-                  {t('delete-communication-confirm-button')}
-                </AppAction>
-              )}
+              <AlertDialogCancel disabled={isDeleting} data-testid="communication-delete-cancel">
+                {t('action-cancel')}
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                data-testid="communication-delete-confirm-action"
+              >
+                {isDeleting ? t('common-loading') : t('delete-communication-confirm-button')}
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
