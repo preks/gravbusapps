@@ -157,7 +157,7 @@ export const useSessionManagement = ({
         fileCount: 0,
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.new_session_description',
-          'New AI Builder session'
+          'New Screen Builder session'
         ),
         createdBy: currentUser
       })
@@ -173,7 +173,7 @@ export const useSessionManagement = ({
         createdBy: currentUser,
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.new_session_description',
-          'New AI Builder session'
+          'New Screen Builder session'
         )
       }
 

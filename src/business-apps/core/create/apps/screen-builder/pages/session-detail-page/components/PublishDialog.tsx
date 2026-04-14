@@ -172,7 +172,7 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
                 <p className="gba:text-xs gba:mt-1">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:ai_builder.waiting_for_files_description',
-                    'Ask the AI to create a screen and paths will be detected automatically.'
+                    'Ask Screen Builder to create a screen and paths will be detected automatically.'
                   )}
                 </p>
               </AlertDescription>

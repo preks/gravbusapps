@@ -33,7 +33,7 @@ export interface NewworkCreateProps extends BusinessAppContextProps {
  * NEWWORK CREATE - Premium landing page for the creation suite
  *
  * Provides unified access to all NEWWORK creation tools:
- * - Screen Builder (AI Builder)
+ * - Screen Builder
  * - Flow
  * - Task Expert Studio
  * - Functions
@@ -52,9 +52,9 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
   const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = [
     {
       id: 'ai-builder',
-      title: 'AI Builder',
+      title: 'Screen Builder',
       description:
-        'Design and build UI screens with AI assistance. Create forms, dashboards, lists, and custom layouts.',
+        'Design and build UI screens with Screen Builder. Create forms, dashboards, lists, and custom layouts.',
       icon: Monitor,
       href: buildPlatformUrl('/platform/create/screen-builder'),
       badge: 'AI-Powered',

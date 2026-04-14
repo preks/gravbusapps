@@ -52,3 +52,7 @@ time_tracking_summary_vacation_days = Zile concediu
 time_tracking_summary_planned_hours = Ore planificate
 time_tracking_summary_effective_hours = Ore efective
 time_tracking_summary_difference_hours = Diferență
+absence_option_vacation = Solicită concediu de odihnă
+absence_option_sick = Raportează concediu medical
+absence_option_special = Solicită concediu special
+absence_option_work = Solicită concediu de muncă

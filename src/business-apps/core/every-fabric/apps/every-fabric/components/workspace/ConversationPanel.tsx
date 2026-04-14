@@ -20,7 +20,9 @@ const SCROLL_FOLLOW_INTERVAL_MS = 50
 interface ConversationPanelProps {
   sessionId: string
   messages: ChatMessage[]
+  streamingGreeting: string
   streamingContent: string
+  statusHeadline: string | null
   isStreaming: boolean
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
@@ -42,6 +44,7 @@ function useSmartScroll(
   scrollRef: React.RefObject<HTMLDivElement>,
   endRef: React.RefObject<HTMLDivElement>,
   isStreaming: boolean,
+  streamingGreeting: string,
   streamingContent: string
 ) {
   const isUserScrolledRef = useRef(false)
@@ -97,7 +100,7 @@ function useSmartScroll(
     const intervalId = setInterval(followContent, SCROLL_FOLLOW_INTERVAL_MS)
 
     return () => clearInterval(intervalId)
-  }, [scrollRef, isStreaming, streamingContent])
+  }, [scrollRef, isStreaming, streamingGreeting, streamingContent])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -122,7 +125,9 @@ function useSmartScroll(
 export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   sessionId,
   messages,
+  streamingGreeting,
   streamingContent,
+  statusHeadline,
   isStreaming,
   hasFixedFollowUps = false,
   hasStreamingIsland = false,
@@ -139,10 +144,22 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
     scrollRef,
     endRef,
     isStreaming,
+    streamingGreeting,
     streamingContent
   )
 
   const visibleMessages = messages.filter(isTranscriptMessage)
+  const streamingInsertIndex = (() => {
+    if (!isStreaming) return visibleMessages.length
+    for (let i = visibleMessages.length - 1; i >= 0; i -= 1) {
+      if (visibleMessages[i]?.type === 'user_input') {
+        return i + 1
+      }
+    }
+    return 0
+  })()
+  const messagesBeforeStreaming = visibleMessages.slice(0, streamingInsertIndex)
+  const messagesAfterStreaming = visibleMessages.slice(streamingInsertIndex)
 
   useLayoutEffect(() => {
     if (!hasFixedFollowUps) {
@@ -189,7 +206,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
         className={`gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pt-12 sm:gba:pt-16 ${WORKSPACE_CHAT_GUTTER_CLASS} ${bottomPaddingClass}`}
       >
         <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:space-y-4`}>
-          {visibleMessages.map(msg => (
+          {messagesBeforeStreaming.map(msg => (
             <MessageBubble
               key={msg.id}
               message={msg}
@@ -201,11 +218,27 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
           ))}
 
           {isStreaming &&
-            (streamingContent ? (
-              <StreamingAnswerBubble content={streamingContent} isStreaming={isStreaming} />
+            (streamingGreeting || streamingContent ? (
+              <StreamingAnswerBubble
+                greetingContent={streamingGreeting}
+                responseContent={streamingContent}
+                isStreaming={isStreaming}
+                statusMessage={statusHeadline}
+              />
             ) : (
               <AgentTypingIndicator />
             ))}
+
+          {messagesAfterStreaming.map(msg => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              sessionId={sessionId}
+              onReply={onReply}
+              onViewArtifact={onViewArtifact}
+              accessToken={accessToken}
+            />
+          ))}
 
           <div ref={endRef} className={endSentinelMarginClass} aria-hidden />
         </div>

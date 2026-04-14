@@ -126,7 +126,7 @@ export const SessionList: React.FC<SessionListProps> = ({
     }
     return getTranslationFromI18nKeyAndLabel(
       'lowcoder:ai_builder.sessions.create_first_help',
-      'Create your first session to start building screens with AI'
+      'Create your first session to start building screens with Screen Builder'
     )
   }
 
@@ -171,7 +171,7 @@ export const SessionList: React.FC<SessionListProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
             <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.title', 'AI Builder Sessions')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.title', 'Screen Builder Sessions')}
             </h1>
             <p className="gba:text-muted-foreground gba:mt-1">
               {getTranslationFromI18nKeyAndLabel(
