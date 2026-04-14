@@ -12,7 +12,8 @@ import { ImportConfig } from '@/common/components/common-relations/apps/data-imp
 import {
   useEntityImport,
   useEntityMappings,
-  useLeadImportDefaults
+  useLeadImportDefaults,
+  useInvestmentTypeDefaults
 } from '@/common/components/common-relations/apps/data-import/hooks'
 import { FileUploadStep } from './FileUploadStep'
 import { MappingReviewStep } from './MappingReviewStep'
@@ -95,7 +96,9 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
 
   // Lead-specific defaults (Status, Source, Rating) — only for lead entity type
   const isLeadImport = config.entityType === 'lead'
+  const isInvestmentEntityImport = config.domain === 'investment' && config.entityType.endsWith('-investment')
   const leadDefaults = useLeadImportDefaults(context.accessToken, config.domain)
+  const investmentTypeDefaults = useInvestmentTypeDefaults(context.accessToken)
 
   const handleAnalyze = React.useCallback(async () => {
     await analyzeWithAgent()
@@ -113,6 +116,14 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
       if (Object.keys(enforced).length > 0) {
         enforcedFieldsJson = JSON.stringify(enforced)
       }
+    }
+
+    if (isInvestmentEntityImport && investmentTypeDefaults.selectedType) {
+      const currentEnforced = enforcedFieldsJson
+        ? (JSON.parse(enforcedFieldsJson) as Record<string, string>)
+        : ({} as Record<string, string>)
+      currentEnforced['investment.investmentTypeRef'] = investmentTypeDefaults.selectedType
+      enforcedFieldsJson = JSON.stringify(currentEnforced)
     }
 
     await convertData(mappings, enforcedFieldsJson)
@@ -155,6 +166,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
             businessAppContext: context
           })}
           {...(isLeadImport && { leadDefaults })}
+          {...(isInvestmentEntityImport && { investmentTypeDefaults })}
           data-testid={`${testId}-upload-step`}
         />
       )}
