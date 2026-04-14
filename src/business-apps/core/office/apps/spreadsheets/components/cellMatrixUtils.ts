@@ -42,6 +42,39 @@ const hasCellInMatrix = (value: SheetCellMatrix | undefined, rowIndex: number, c
   return Object.prototype.hasOwnProperty.call(row, colIndex)
 }
 
+const toComparableCellValue = (value: unknown): string => {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+export const cellMatricesDisagreeForRanges = (
+  ranges: SheetRangeShape[],
+  left: SheetCellMatrix | undefined,
+  right: SheetCellMatrix | undefined
+): boolean => {
+  for (const range of ranges) {
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      for (let col = range.startColumn; col <= range.endColumn; col++) {
+        const leftHasValue = hasCellInMatrix(left, row, col)
+        const rightHasRelativeValue = hasCellInMatrix(right, row - range.startRow, col - range.startColumn)
+        const rightHasAbsoluteValue = hasCellInMatrix(right, row, col)
+        if (!leftHasValue || (!rightHasRelativeValue && !rightHasAbsoluteValue)) continue
+        const leftValue = getCellFromMatrix(left, row, col)
+        const rightValue = rightHasRelativeValue
+          ? getCellFromMatrix(right, row - range.startRow, col - range.startColumn)
+          : getCellFromMatrix(right, row, col)
+        if (toComparableCellValue(leftValue) !== toComparableCellValue(rightValue)) {
+          return true
+        }
+      }
+    }
+  }
+  return false
+}
+
 export const buildAbsoluteCellMatrixForRanges = (
   ranges: SheetRangeShape[],
   preferredAbsolute: SheetCellMatrix | undefined,

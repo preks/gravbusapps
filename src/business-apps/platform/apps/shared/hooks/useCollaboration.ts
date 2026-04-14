@@ -84,8 +84,11 @@ function removeParticipant(
   prev: DocumentParticipant[],
   data: Pick<ParticipantEventData, 'userId' | 'socketId'>
 ): DocumentParticipant[] {
-  const identity = participantIdentity({ userId: data.userId, socketId: data.socketId || '' })
-  return prev.filter(p => participantIdentity(p) !== identity)
+  if (data.socketId) {
+    const identity = participantIdentity({ userId: data.userId, socketId: data.socketId })
+    return prev.filter(p => participantIdentity(p) !== identity)
+  }
+  return prev.filter(p => p.userId !== data.userId)
 }
 
 function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
@@ -355,6 +358,16 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       setParticipants(prev => removeParticipant(prev, data))
     }
     client.onUserLeft(handleUserLeft)
+
+    const handleParticipantsUpdated = (data: {
+      entityType: 'document' | 'spreadsheet' | 'note'
+      entityId: string
+      participants: SocketParticipant[]
+    }) => {
+      if (data.entityType !== entityType || data.entityId !== entityId) return
+      setParticipants(data.participants.map(mapSocketParticipantToParticipant))
+    }
+    client.onParticipantsUpdated(handleParticipantsUpdated)
 
     // Handle operation applied
     const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {

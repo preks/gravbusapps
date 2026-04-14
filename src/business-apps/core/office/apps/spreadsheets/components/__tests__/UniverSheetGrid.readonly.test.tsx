@@ -22,6 +22,7 @@ jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: t
 let lastPresetContainer: unknown
 let lastSetNumfmtLocalMock: jest.Mock | undefined
 let lastRangeGetValueMock: jest.Mock | undefined
+let selectionState: { actualRow?: number; actualColumn?: number; row?: number; column?: number } | null = null
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
@@ -48,7 +49,10 @@ jest.mock(
       const activeSheet = {
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
         onScroll: () => ({ dispose: jest.fn() }),
-        getRange: () => range
+        getRange: () => range,
+        getSelection: () => ({
+          getCurrentCell: () => selectionState
+        })
       }
       const workbook = {
         setNumfmtLocal: jest.fn(),
@@ -111,6 +115,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     lastPresetContainer = undefined
     lastSetNumfmtLocalMock = undefined
     lastRangeGetValueMock = undefined
+    selectionState = null
   })
 
   afterEach(() => {
@@ -336,6 +341,55 @@ describe('UniverSheetGrid read-only behavior', () => {
         value: 'Current'
       }
     ])
+  })
+
+  it('does not emit a clear when selection reconcile reads an untouched blank cell', () => {
+    jest.useFakeTimers()
+    const onCellsChange = jest.fn()
+    const blankColumns = [
+      columns[0],
+      {
+        id: 'col-2',
+        name: 'city',
+        label: 'City',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 150,
+        order: 1
+      }
+    ] as any
+    const blankData = [{ _id: 'row-1', name: '', city: '' }]
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={blankData}
+        columns={blankColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    lastRangeGetValueMock?.mockReturnValue(undefined)
+
+    selectionState = { actualRow: 0, actualColumn: 0 }
+    act(() => {
+      eventHandlers.SelectionChanged?.({})
+      jest.advanceTimersByTime(100)
+    })
+
+    selectionState = { actualRow: 0, actualColumn: 1 }
+    act(() => {
+      eventHandlers.SelectionChanged?.({})
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(onCellsChange).not.toHaveBeenCalled()
   })
 
   it('injects Add comment into the vertical context menu list', () => {

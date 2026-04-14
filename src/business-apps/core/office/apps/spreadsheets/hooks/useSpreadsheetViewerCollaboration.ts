@@ -157,26 +157,33 @@ export function useSpreadsheetViewerCollaboration({
   const cursorAvatarCacheRef = useRef<Map<string, string>>(new Map())
   const headerAvatarCacheRef = useRef<Map<string, string>>(new Map())
 
+  const getRemoteParticipants = useCallback(
+    (participants: DocumentParticipant[]): DocumentParticipant[] => {
+      const ownSocketId = socket?.id || ''
+      return participants.filter(participant => {
+        if (ownSocketId && participant.socketId === ownSocketId) return false
+        return true
+      })
+    },
+    [socket?.id]
+  )
+
   const setHeaderFromRawParticipants = useCallback(() => {
     setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
   }, [rawParticipants])
 
   const setCursorFromRawParticipants = useCallback(() => {
-    const ownSocketId = socket?.id || ''
-    const merged = rawParticipants
-      .map(p => ({
+    const merged = getRemoteParticipants(
+      rawParticipants.map(p => ({
         ...p,
         avatarUrl: p.avatarUrl || cursorAvatarCacheRef.current.get(p.userId) || undefined
       }))
-      .filter(p => {
-        if (!p.cursor?.path?.length) return false
-        if (ownSocketId && p.socketId === ownSocketId) return false
-        return true
-      })
+    ).filter(p => Boolean(p.cursor?.path?.length))
     setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, merged) ? prev : merged))
-  }, [rawParticipants, socket?.id])
+  }, [getRemoteParticipants, rawParticipants])
 
-  const cursorParticipantIdsKey = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))].sort().join('|')
+  const remoteParticipants = getRemoteParticipants(rawParticipants)
+  const cursorParticipantIdsKey = [...new Set(remoteParticipants.map(p => p.userId).filter(Boolean))].sort().join('|')
   const headerParticipantIdsKey = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))].sort().join('|')
 
   // Fetch current user info
@@ -187,7 +194,8 @@ export function useSpreadsheetViewerCollaboration({
         if (token) {
           const payload = safeParseJwtPayload(token)
           if (!payload) return
-          currentUserIdRef.current = payload.sub || payload.userId
+          const nextUserId = payload.sub || payload.userId
+          currentUserIdRef.current = nextUserId
           setCurrentUserName(payload.name || payload.preferred_username || 'User')
 
           // Fetch avatar
@@ -292,12 +300,12 @@ export function useSpreadsheetViewerCollaboration({
 
   useEffect(() => {
     async function fetchCursorAvatars() {
-      if (!rawParticipants.length || !authToken) {
+      if (!remoteParticipants.length || !authToken) {
         setCursorFromRawParticipants()
         return
       }
 
-      const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
+      const ids = [...new Set(remoteParticipants.map(p => p.userId).filter(Boolean))]
       if (ids.length === 0) {
         setCursorFromRawParticipants()
         return
@@ -362,7 +370,7 @@ export function useSpreadsheetViewerCollaboration({
           })
         }
 
-        const enriched = rawParticipants.map(p => ({
+        const enriched = remoteParticipants.map(p => ({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
@@ -375,7 +383,7 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCursorAvatars()
-  }, [cursorParticipantIdsKey, authToken, graphqlClient, rawParticipants, setCursorFromRawParticipants])
+  }, [cursorParticipantIdsKey, authToken, graphqlClient, remoteParticipants, setCursorFromRawParticipants])
 
   return {
     headerParticipants,

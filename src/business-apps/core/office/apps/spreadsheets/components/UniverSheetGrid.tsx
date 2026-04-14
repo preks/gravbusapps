@@ -40,6 +40,7 @@ const CURSOR_OVERLAY_HEADER_HEIGHT_PX = 28
 const CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX = 48
 const UNIVER_COMMAND_TYPE_MUTATION = 2
 const REMOTE_ECHO_SUPPRESSION_TTL_MS = 800
+const SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS = 400
 const GERMAN_NUMFMT_LOCALE = 'de_DE'
 /** Same grid pattern as context-menu injection (`tryInjectViaGridContainer`): inner list lives in `univer-grid` + `gap-1`. */
 const NUMFMT_GRID_ROW_SELECTOR = ':scope > div.univer-flex.univer-h-7'
@@ -256,6 +257,11 @@ function toEchoSignature(value: unknown): string {
   }
 }
 
+function normalizeSelectionReconcileSignature(signature: string | undefined): string {
+  if (signature === 'u:' || signature === 'n:' || signature === 's:') return 'blank'
+  return signature ?? 'missing'
+}
+
 function readAuthoritativeRowCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): unknown {
   let value = row[column.name] ?? row[column.id]
   if (value === undefined) {
@@ -294,6 +300,14 @@ function buildAuthoritativeCellSignatureMap(
 
 function remoteEchoKey(row: number, col: number): string {
   return `${row}:${col}`
+}
+
+function pruneExpiredRecentMutationEntries(entries: Map<string, number>, now: number): void {
+  for (const [key, expiresAt] of entries.entries()) {
+    if (expiresAt <= now) {
+      entries.delete(key)
+    }
+  }
 }
 
 function parseCursorPath(path?: string[]): { row: number; col: number } | null {
@@ -490,6 +504,7 @@ export interface CellDimensionsPayload {
 
 export interface UniverSheetGridHandle {
   applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown) => void
+  forceAuthoritativeReapply: () => void
   getWorkbookSnapshot: () => Record<string, unknown> | null
   getVisibleRangeValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
   applyRemoteDimensions: (payload: CellDimensionsPayload) => void
@@ -1023,6 +1038,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const [gridHostEl, setGridHostEl] = useState<HTMLDivElement | null>(null)
     // If a persisted snapshot initializes to a blank sheet (no canvas), retry once with a row-built snapshot.
     const [forceRowSnapshotSeed, setForceRowSnapshotSeed] = useState(0)
+    const [authoritativeReapplySeed, setAuthoritativeReapplySeed] = useState(0)
     const setGridHostRef = useCallback((node: HTMLDivElement | null) => {
       containerRef.current = node
       setGridHostEl(node)
@@ -1047,9 +1063,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const lastSyncedGridRowCountRef = useRef(0)
     const lastSyncedGridColumnCountRef = useRef(0)
     const lastProcessedAuthoritativeDataSyncTokenRef = useRef<number>(props.authoritativeDataSyncToken ?? 0)
-    const suppressProgrammaticMutationSideEffectsUntilRef = useRef(0)
+    const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
     const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
     const recentLocalMutationSignaturesRef = useRef<Map<string, number>>(new Map())
+    const recentLocallyMutatedGridCellsRef = useRef<Map<string, number>>(new Map())
     const activeSelectionRef = useRef<{ row: number; col: number } | null>(null)
     const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
     const propsRef = useRef({ sheet, data, columns, initialSnapshot })
@@ -1419,10 +1436,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (areSnapshotDimensionsEqual(cellDimensionsRef.current, nextDimensions)) {
           return
         }
-        suppressProgrammaticMutationSideEffectsUntilRef.current = Math.max(
-          suppressProgrammaticMutationSideEffectsUntilRef.current,
-          Date.now() + 1500
-        )
         cellDimensionsRef.current = nextDimensions
         const api = univerAPIRef.current
         const worksheet = api?.getActiveWorkbook?.()?.getActiveSheet?.()
@@ -1736,6 +1749,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       ref,
       () => ({
         applyRemoteCellUpdate,
+        forceAuthoritativeReapply: () => {
+          lastSyncedGridCellSignaturesRef.current = new Map()
+          setAuthoritativeReapplySeed(prev => prev + 1)
+        },
         getWorkbookSnapshot,
         getVisibleRangeValues,
         applyRemoteDimensions,
@@ -1764,7 +1781,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const api = univerAPIRef.current
       if (!api) return
       const nextToken = props.authoritativeDataSyncToken ?? 0
-      const shouldSyncWorkbook = nextToken !== lastProcessedAuthoritativeDataSyncTokenRef.current
+      const shouldSyncWorkbook =
+        nextToken !== lastProcessedAuthoritativeDataSyncTokenRef.current ||
+        authoritativeReapplySeed !== lastProcessedAuthoritativeReapplySeedRef.current
       if (!shouldSyncWorkbook) return
       const visibleColumns = columns.filter(column => column.isVisible !== false)
       const previousSignatures = lastSyncedGridCellSignaturesRef.current
@@ -1773,8 +1792,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const previousColumnCount = lastSyncedGridColumnCountRef.current
       const maxRowCount = Math.max(previousRowCount, data.length)
       const maxColumnCount = Math.max(previousColumnCount, visibleColumns.length)
-      suppressProgrammaticMutationSideEffectsUntilRef.current = Date.now() + 1000
-
       for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex++) {
         const row = data[rowIndex]
         for (let colIndex = 0; colIndex < maxColumnCount; colIndex++) {
@@ -1792,7 +1809,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       lastSyncedGridRowCountRef.current = data.length
       lastSyncedGridColumnCountRef.current = visibleColumns.length
       lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
-    }, [applyRemoteCellUpdate, columns, data, props.authoritativeDataSyncToken])
+      lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+    }, [applyRemoteCellUpdate, authoritativeReapplySeed, columns, data, props.authoritativeDataSyncToken])
 
     useEffect(() => {
       const api = univerAPIRef.current
@@ -1824,10 +1842,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       if (!hasMaterialWidthChange) {
         return
       }
-      suppressProgrammaticMutationSideEffectsUntilRef.current = Math.max(
-        suppressProgrammaticMutationSideEffectsUntilRef.current,
-        Date.now() + 1000
-      )
       cellDimensionsRef.current = cellDimensionsRef.current
         ? { ...cellDimensionsRef.current, columnData: nextColumnData }
         : {
@@ -2102,7 +2116,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         ranges
       }: {
         source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended'
-        commandId: string
         payloadCellValue: SheetCellMatrix | undefined
         ranges: SheetRangeShape[]
       }): boolean => {
@@ -2114,11 +2127,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         // persistence broadcast arrives.
         const worksheetCellValue = deriveCellMatrixFromRanges(worksheet, ranges)
         const cellValue = buildAbsoluteCellMatrixForRanges(ranges, worksheetCellValue, payloadCellValue)
-        if (!cellValue) return false
+        if (!cellValue) {
+          return false
+        }
 
         const rowOffset = 0
         const colOffset = 0
         const now = Date.now()
+        pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, now)
         const shouldSuppress = (globalRowIndex: number, globalColIndex: number, value: unknown): boolean => {
           const key = remoteEchoKey(globalRowIndex, globalColIndex)
           const entry = remoteEchoSuppressionRef.current.get(key)
@@ -2150,7 +2166,33 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (hasNonSuppressedCell) break
         }
 
-        if (!hasNonSuppressedCell) return false
+        if (!hasNonSuppressedCell) {
+          return false
+        }
+
+        if (source === 'selection-reconcile') {
+          let allCellsWereRecentlyMutatedLocally = true
+          for (const rowKey of Object.keys(cellValue)) {
+            const rowIndex = Number(rowKey)
+            if (Number.isNaN(rowIndex)) continue
+            const rowCells = cellValue[rowIndex]
+            if (!rowCells || typeof rowCells !== 'object') continue
+            for (const colKey of Object.keys(rowCells)) {
+              const colIndex = Number(colKey)
+              if (Number.isNaN(colIndex)) continue
+              const key = remoteEchoKey(rowIndex + rowOffset, colIndex + colOffset)
+              const expiresAt = recentLocallyMutatedGridCellsRef.current.get(key) ?? 0
+              if (expiresAt <= now) {
+                allCellsWereRecentlyMutatedLocally = false
+                break
+              }
+            }
+            if (!allCellsWereRecentlyMutatedLocally) break
+          }
+          if (allCellsWereRecentlyMutatedLocally) {
+            return false
+          }
+        }
 
         if (source === 'selection-reconcile') {
           let hasAuthoritativeDiff = false
@@ -2162,8 +2204,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             for (const colKey of Object.keys(rowCells)) {
               const colIndex = Number(colKey)
               if (Number.isNaN(colIndex)) continue
-              const nextSignature = toEchoSignature(rowCells[colIndex])
-              if (lastSyncedGridCellSignaturesRef.current.get(remoteEchoKey(rowIndex, colIndex)) !== nextSignature) {
+              const nextSignature = normalizeSelectionReconcileSignature(toEchoSignature(rowCells[colIndex]))
+              const authoritativeSignature = normalizeSelectionReconcileSignature(
+                lastSyncedGridCellSignaturesRef.current.get(remoteEchoKey(rowIndex, colIndex))
+              )
+              if (authoritativeSignature !== nextSignature) {
                 hasAuthoritativeDiff = true
                 break
               }
@@ -2171,7 +2216,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (hasAuthoritativeDiff) break
           }
 
-          if (!hasAuthoritativeDiff) return false
+          if (!hasAuthoritativeDiff) {
+            return false
+          }
         }
 
         lastCellValueMutationAtRef.current = now
@@ -2212,7 +2259,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const ctx = contextRef.current ?? ctxBefore
         const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
 
-        if (changedCells.length === 0) return false
+        if (changedCells.length === 0) {
+          return false
+        }
 
         const signature = buildChangedCellSignature(changedCells)
         for (const [existingSignature, at] of recentLocalMutationSignaturesRef.current.entries()) {
@@ -2222,6 +2271,22 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         if (recentLocalMutationSignaturesRef.current.has(signature)) return true
         recentLocalMutationSignaturesRef.current.set(signature, now)
+        if (source !== 'selection-reconcile') {
+          for (const rowKey of Object.keys(cellValue)) {
+            const rowIndex = Number(rowKey)
+            if (Number.isNaN(rowIndex)) continue
+            const rowCells = cellValue[rowIndex]
+            if (!rowCells || typeof rowCells !== 'object') continue
+            for (const colKey of Object.keys(rowCells)) {
+              const colIndex = Number(colKey)
+              if (Number.isNaN(colIndex)) continue
+              recentLocallyMutatedGridCellsRef.current.set(
+                remoteEchoKey(rowIndex + rowOffset, colIndex + colOffset),
+                now + SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS
+              )
+            }
+          }
+        }
 
         if (onCellsChangeCb) {
           onCellsChangeCb(changedCells)
@@ -2240,13 +2305,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       const reconcileSingleCell = (
         row: number | undefined,
         col: number | undefined,
-        source: 'selection-reconcile' | 'sheet-edit-ended',
-        commandId: string
+        source: 'selection-reconcile' | 'sheet-edit-ended'
       ): void => {
         if (typeof row !== 'number' || typeof col !== 'number') return
         handleDetectedCellMutation({
           source,
-          commandId,
           payloadCellValue: undefined,
           ranges: [
             {
@@ -2364,14 +2427,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         queueMicrotask(emitWorksheetFromUniver)
         if (readOnlyRef.current) return
-        if (Date.now() < suppressProgrammaticMutationSideEffectsUntilRef.current) return
         const t = event?.type
         const commandPayloadCellValue = normalizeCellMatrix(params?.cellValue)
         const commandRanges = Array.isArray(params?.range) ? params.range : []
         if (t === UNIVER_COMMAND_TYPE_MUTATION && (commandPayloadCellValue || commandRanges.length > 0)) {
           handleDetectedCellMutation({
             source: 'command-executed',
-            commandId,
             payloadCellValue: commandPayloadCellValue,
             ranges: commandRanges
           })
@@ -2417,7 +2478,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
         }) => {
           if (readOnlyRef.current) return
-          if (Date.now() < suppressProgrammaticMutationSideEffectsUntilRef.current) return
           const payload = params?.payload
           const payloadCellValue = normalizeCellMatrix(payload?.params?.cellValue)
           const ranges = (payload?.params?.range ??
@@ -2425,7 +2485,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
           handleDetectedCellMutation({
             source: 'sheet-value-changed',
-            commandId: String(payload?.id || ''),
             payloadCellValue,
             ranges
           })
@@ -2450,7 +2509,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             | undefined
         ) => {
           if (readOnlyRef.current) return
-          if (Date.now() < suppressProgrammaticMutationSideEffectsUntilRef.current) return
           const cell = params?.cell
           const range = params?.range
           // Never fall back to the current active selection here. After a slow edit ends,
@@ -2458,7 +2516,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           // the just-typed value into a neighbor. Selection-based reconciliation runs separately.
           const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
           const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
-          reconcileSingleCell(row, col, 'sheet-edit-ended', 'sheet-edit-ended')
+          reconcileSingleCell(row, col, 'sheet-edit-ended')
         }
       )
       const selectionEventKey =
@@ -2511,7 +2569,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (typeof row === 'number' && typeof col === 'number') {
           const previous = activeSelectionRef.current
           if (previous && (previous.row !== row || previous.col !== col)) {
-            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile', 'selection-move')
+            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
           }
           emitCursorByRowCol(row, col, force)
           return
@@ -2520,7 +2578,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (fromRange) {
           const previous = activeSelectionRef.current
           if (previous && (previous.row !== fromRange.row || previous.col !== fromRange.col)) {
-            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile', 'selection-move')
+            reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
           }
           emitCursorByRowCol(fromRange.row, fromRange.col, force)
         }

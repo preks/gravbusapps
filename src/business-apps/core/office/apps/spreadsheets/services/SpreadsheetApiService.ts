@@ -181,32 +181,6 @@ const cloneSnapshot = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-const stripCellDataFromWorkbookSnapshot = <T>(snapshot: T): T => {
-  if (snapshot == null || typeof snapshot !== 'object') return snapshot
-
-  const nextSnapshot = cloneSnapshot(snapshot)
-  const workbook = nextSnapshot as Record<string, unknown>
-  const sheets = workbook.sheets as Record<string, unknown> | undefined
-  if (!sheets || typeof sheets !== 'object') {
-    return nextSnapshot
-  }
-
-  const sanitizedSheets: Record<string, unknown> = {}
-  for (const [sheetKey, sheetValue] of Object.entries(sheets)) {
-    if (!sheetValue || typeof sheetValue !== 'object') {
-      sanitizedSheets[sheetKey] = sheetValue
-      continue
-    }
-
-    const worksheet = { ...(sheetValue as Record<string, unknown>) }
-    delete worksheet.cellData
-    sanitizedSheets[sheetKey] = worksheet
-  }
-
-  workbook.sheets = sanitizedSheets
-  return nextSnapshot
-}
-
 export interface SpreadsheetBatchOperation {
   operationId: string
   type: 'set_cell' | 'set_range' | 'add_rows' | 'delete_rows' | 'clear_cell'
@@ -838,7 +812,6 @@ export const SpreadsheetApiService = {
       snapshot: Record<string, unknown>
     }
   ): Promise<{ sheetId: string; version: number; saved: boolean }> {
-    const sanitizedSnapshot = stripCellDataFromWorkbookSnapshot(payload.snapshot)
     debugLog('saveUniverSnapshot', appId, sheetId, { version: payload.version })
     if (supportsUniverSnapshotEndpoint === false) {
       return { sheetId, version: payload.version, saved: false }
@@ -852,7 +825,7 @@ export const SpreadsheetApiService = {
           method: 'POST',
           body: JSON.stringify({
             ...payload,
-            snapshot: sanitizedSnapshot
+            snapshot: cloneSnapshot(payload.snapshot)
           })
         }
       )

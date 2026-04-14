@@ -60,6 +60,53 @@ import { SpreadsheetSheetTabs } from './components/SpreadsheetSheetTabs'
 
 type ViewerRow = Record<string, unknown>
 type CellChange = { rowId: string; columnName: string; value: unknown; sheetId?: string }
+type PendingCellBatch = {
+  batchId: string
+  targetSheetId: string
+  operations: SpreadsheetBatchOperation[]
+}
+type PendingCellJournal = {
+  draftCells: CellChange[]
+  pendingBatches: PendingCellBatch[]
+}
+
+const PENDING_CELL_JOURNAL_STORAGE_PREFIX = 'spreadsheet-pending-cell-journal:'
+
+const isRecord = (value: unknown): value is Record<string, unknown> => value != null && typeof value === 'object'
+
+const isCellChange = (value: unknown): value is CellChange => {
+  if (!isRecord(value)) return false
+  return typeof value.rowId === 'string' && typeof value.columnName === 'string'
+}
+
+const isSpreadsheetBatchOperation = (value: unknown): value is SpreadsheetBatchOperation => {
+  if (!isRecord(value)) return false
+  return typeof value.operationId === 'string' && typeof value.type === 'string' && isRecord(value.data)
+}
+
+const isPendingCellBatch = (value: unknown): value is PendingCellBatch => {
+  if (!isRecord(value)) return false
+  return (
+    typeof value.batchId === 'string' &&
+    typeof value.targetSheetId === 'string' &&
+    Array.isArray(value.operations) &&
+    value.operations.every(isSpreadsheetBatchOperation)
+  )
+}
+
+const readPendingCellJournal = (storageKey: string): PendingCellJournal | null => {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(storageKey)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { draftCells?: unknown; pendingBatches?: unknown }
+    const draftCells = Array.isArray(parsed.draftCells) ? parsed.draftCells.filter(isCellChange) : []
+    const pendingBatches = Array.isArray(parsed.pendingBatches) ? parsed.pendingBatches.filter(isPendingCellBatch) : []
+    if (draftCells.length === 0 && pendingBatches.length === 0) return null
+    return { draftCells, pendingBatches }
+  } catch {
+    return null
+  }
+}
 
 const viewerRowId = (row: Record<string, unknown>): string => {
   const id = row._id ?? row.id
@@ -106,6 +153,46 @@ const rowMatchesRemoteId = (row: ViewerRow, remoteRowId: string): boolean => {
   return candidateIds.includes(remoteRowId)
 }
 
+const getViewerRowIdentityCandidates = (row: ViewerRow): string[] =>
+  Array.from(new Set([row._id, row.id, row._rowUuid].map(value => String(value ?? '')).filter(Boolean)))
+
+const collectViewerRowUpdates = (
+  row: ViewerRow,
+  updatesByRowId: Map<string, Record<string, unknown>>
+): Record<string, unknown> | null => {
+  const mergedUpdates: Record<string, unknown> = {}
+  for (const candidateId of getViewerRowIdentityCandidates(row)) {
+    Object.assign(mergedUpdates, updatesByRowId.get(candidateId) ?? {})
+  }
+  return Object.keys(mergedUpdates).length > 0 ? mergedUpdates : null
+}
+
+const collectViewerRowClears = (row: ViewerRow, clearedColumnsByRowId: Map<string, Set<string>>): Set<string> => {
+  const mergedClears = new Set<string>()
+  for (const candidateId of getViewerRowIdentityCandidates(row)) {
+    for (const columnName of clearedColumnsByRowId.get(candidateId) ?? []) {
+      mergedClears.add(columnName)
+    }
+  }
+  return mergedClears
+}
+
+const applyColumnUpdatesToViewerRow = (
+  row: ViewerRow,
+  updates: Record<string, unknown>,
+  columns?: SpreadsheetColumn[]
+): ViewerRow => {
+  let nextRow: ViewerRow = { ...row }
+  for (const [columnName, value] of Object.entries(updates)) {
+    const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, columns)
+    nextRow = cleared.nextRow
+    if (value !== undefined) {
+      nextRow[cleared.targetColumnName] = value
+    }
+  }
+  return nextRow
+}
+
 const toComparableCellSignature = (value: unknown): string => {
   try {
     return JSON.stringify(value ?? '')
@@ -141,14 +228,58 @@ const buildAnalyticsInsertPayloads = (
     })
     .filter(payload => Object.keys(payload).length > 0)
 
-const applySetCellDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+const resolveColumnAliasInfo = (
+  columnKey: string,
+  columns?: SpreadsheetColumn[]
+): { targetColumnName: string; normalizedAliases: Set<string> } => {
+  const targetColumn = columns?.find(column => column.id === columnKey || column.name === columnKey)
+  const aliases = [columnKey, targetColumn?.name, targetColumn?.id]
+    .map(value => (value == null ? '' : String(value).trim()))
+    .filter(Boolean)
+    .map(value => value.toLowerCase())
+  return {
+    targetColumnName: targetColumn?.name ?? String(columnKey),
+    normalizedAliases: new Set(aliases)
+  }
+}
+
+const stripEquivalentColumnKeysFromRow = (
+  row: ViewerRow,
+  columnKey: string,
+  columns?: SpreadsheetColumn[]
+): { nextRow: ViewerRow; targetColumnName: string; removedKeys: string[] } => {
+  const { targetColumnName, normalizedAliases } = resolveColumnAliasInfo(columnKey, columns)
+  const nextRow: ViewerRow = { ...row }
+  const removedKeys: string[] = []
+  for (const rowKey of Object.keys(nextRow)) {
+    if (!normalizedAliases.has(rowKey.toLowerCase())) continue
+    removedKeys.push(rowKey)
+    delete nextRow[rowKey]
+  }
+  return { nextRow, targetColumnName, removedKeys }
+}
+
+const applySetCellDelta = (
+  rows: ViewerRow[],
+  payload: Record<string, unknown>,
+  columns?: SpreadsheetColumn[]
+): ViewerRow[] => {
   const rowId = String(payload.rowId || '')
   const columnName = String(payload.columnName || '')
   const value = payload.value
-  return rows.map(row => (rowMatchesRemoteId(row, rowId) ? { ...row, [columnName]: value } : row))
+  return rows.map(row => {
+    if (!rowMatchesRemoteId(row, rowId)) return row
+    const { nextRow, targetColumnName } = stripEquivalentColumnKeysFromRow(row, columnName, columns)
+    nextRow[targetColumnName] = value
+    return nextRow
+  })
 }
 
-const applySetRangeDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+const applySetRangeDelta = (
+  rows: ViewerRow[],
+  payload: Record<string, unknown>,
+  columns?: SpreadsheetColumn[]
+): ViewerRow[] => {
   const cells = Array.isArray(payload.cells) ? (payload.cells as Array<Record<string, unknown>>) : []
   const updatesByRowId = new Map<string, Record<string, unknown>>()
   for (const cell of cells) {
@@ -156,7 +287,8 @@ const applySetRangeDelta = (rows: ViewerRow[], payload: Record<string, unknown>)
     const columnName = String(cell.columnName || '')
     if (!rowId || !columnName) continue
     const updates = updatesByRowId.get(rowId) ?? {}
-    updates[columnName] = cell.value
+    const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
+    updates[targetColumnName] = cell.value
     updatesByRowId.set(rowId, updates)
   }
   return rows.map(row => {
@@ -165,18 +297,26 @@ const applySetRangeDelta = (rows: ViewerRow[], payload: Record<string, unknown>)
       updatesByRowId.get(String(row._id || '')) ??
       updatesByRowId.get(String(row.id || ''))
     if (!updates) return row
-    return { ...row, ...updates }
+    let nextRow: ViewerRow = { ...row }
+    for (const [columnName, value] of Object.entries(updates)) {
+      const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, columns)
+      nextRow = cleared.nextRow
+      nextRow[cleared.targetColumnName] = value
+    }
+    return nextRow
   })
 }
 
-const applyClearCellDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
+const applyClearCellDelta = (
+  rows: ViewerRow[],
+  payload: Record<string, unknown>,
+  columns?: SpreadsheetColumn[]
+): ViewerRow[] => {
   const rowId = String(payload.rowId || '')
   const columnName = String(payload.columnName || '')
   return rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
-    const rowCopy = { ...row }
-    delete rowCopy[columnName]
-    return rowCopy
+    return stripEquivalentColumnKeysFromRow(row, columnName, columns).nextRow
   })
 }
 
@@ -218,7 +358,7 @@ const applyDeleteRowsDelta = (rows: ViewerRow[], payload: Record<string, unknown
   return rows.filter(row => !rowIds.some(rowId => rowMatchesRemoteId(row, rowId)))
 }
 
-const applySingleDeltaChange = (rows: ViewerRow[], change: unknown): ViewerRow[] => {
+const applySingleDeltaChange = (rows: ViewerRow[], change: unknown, columns?: SpreadsheetColumn[]): ViewerRow[] => {
   const changeRecord = change as Record<string, unknown>
   const opType = String(changeRecord.operationType || '')
   const payload = (changeRecord.payload || {}) as Record<string, unknown>
@@ -226,11 +366,11 @@ const applySingleDeltaChange = (rows: ViewerRow[], change: unknown): ViewerRow[]
 
   switch (opType) {
     case 'set_cell':
-      return applySetCellDelta(rows, payload)
+      return applySetCellDelta(rows, payload, columns)
     case 'set_range':
-      return applySetRangeDelta(rows, payload)
+      return applySetRangeDelta(rows, payload, columns)
     case 'clear_cell':
-      return applyClearCellDelta(rows, payload)
+      return applyClearCellDelta(rows, payload, columns)
     case 'add_rows':
       return replaceClientRowsWithCreatedRows(rows, mapAddedRowsFromDeltaResult(result))
     case 'delete_rows':
@@ -240,10 +380,14 @@ const applySingleDeltaChange = (rows: ViewerRow[], change: unknown): ViewerRow[]
   }
 }
 
-const applyDeltaChangesToRows = (baseRows: ViewerRow[], changes: unknown[] | undefined): ViewerRow[] => {
+const applyDeltaChangesToRows = (
+  baseRows: ViewerRow[],
+  changes: unknown[] | undefined,
+  columns?: SpreadsheetColumn[]
+): ViewerRow[] => {
   let next = [...baseRows]
   for (const change of changes || []) {
-    next = applySingleDeltaChange(next, change)
+    next = applySingleDeltaChange(next, change, columns)
   }
   return next
 }
@@ -363,10 +507,11 @@ const mapSnapshotRowsToViewerRows = (snapshotRows: unknown[]): ViewerRow[] =>
 const buildUiToBackendRowIdMap = (rows: ViewerRow[], isUuid: (value: string) => boolean): Map<string, string> => {
   const map = new Map<string, string>()
   rows.forEach(row => {
-    const uiRowId = viewerRowId(row)
-    if (!uiRowId) return
     const backend = resolveBackendRowIdForViewerRow(row, isUuid)
-    if (backend) map.set(uiRowId, backend)
+    if (!backend) return
+    getViewerRowIdentityCandidates(row).forEach(candidateId => {
+      map.set(candidateId, backend)
+    })
   })
   return map
 }
@@ -667,30 +812,18 @@ const cloneSnapshot = <T,>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-const stripCellDataFromWorkbookSnapshot = <T,>(snapshot: T): T => {
-  if (snapshot == null || typeof snapshot !== 'object') return snapshot
-
-  const nextSnapshot = cloneSnapshot(snapshot)
-  const workbook = nextSnapshot as Record<string, unknown>
-  const sheets = workbook.sheets as Record<string, unknown> | undefined
-  if (!sheets || typeof sheets !== 'object') {
-    return nextSnapshot
+const normalizeCellValueForBatchPersistence = (value: unknown): unknown => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.startsWith('=') ? { f: trimmed } : value
   }
-
-  const sanitizedSheets: Record<string, unknown> = {}
-  for (const [sheetKey, sheetValue] of Object.entries(sheets)) {
-    if (!sheetValue || typeof sheetValue !== 'object') {
-      sanitizedSheets[sheetKey] = sheetValue
-      continue
-    }
-
-    const worksheet = { ...(sheetValue as Record<string, unknown>) }
-    delete worksheet.cellData
-    sanitizedSheets[sheetKey] = worksheet
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const obj = value as Record<string, unknown>
+  if (typeof obj.f === 'string') {
+    const trimmed = obj.f.trim()
+    return { ...obj, f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
   }
-
-  workbook.sheets = sanitizedSheets
-  return nextSnapshot
+  return value
 }
 
 const mergeBootstrapSnapshotWithCanonicalRows = (
@@ -756,7 +889,7 @@ const saveSnapshotWithRetry = async ({
     try {
       const rawSnapshot =
         attempt === 0 ? baseSnapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? baseSnapshot)
-      const snapshotToSave = stripCellDataFromWorkbookSnapshot(rawSnapshot)
+      const snapshotToSave = cloneSnapshot(rawSnapshot)
       const cacheResult = writeUniverSnapshotCache(
         appId,
         activeSheetId,
@@ -892,8 +1025,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const operationQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingClientRowUpdatesRef = useRef<Map<string, Record<string, unknown>>>(new Map())
   const pendingCellChangesRef = useRef<CellChange[]>([])
+  const pendingCellBatchesRef = useRef<PendingCellBatch[]>([])
+  const pendingCellJournalRestoredKeyRef = useRef<string | null>(null)
   const pendingCellPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const enqueueSnapshotCheckpointRef = useRef<(() => Promise<void>) | null>(null)
+  const pendingSnapshotCheckpointBySheetRef = useRef<Map<string, { requestedAt: number }>>(new Map())
+  const snapshotCheckpointDrainScheduledRef = useRef(false)
+  const snapshotCheckpointDrainPromiseRef = useRef<Promise<void> | null>(null)
   const lastSuccessfulSnapshotCheckpointAtRef = useRef<number>(0)
   const latestUniverDataRef = useRef<Record<string, unknown>[] | null>(null)
   const univerDataChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1504,8 +1642,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       const targetColumn = activeSheet.columns.find(c => c.id === columnKey || c.name === columnKey)
-      let colIndex = visibleColumns.findIndex(c => c.id === columnKey || c.name === columnKey)
-      if (colIndex < 0) colIndex = undefined
+      const resolvedColIndex = visibleColumns.findIndex(c => c.id === columnKey || c.name === columnKey)
+      const colIndex = resolvedColIndex >= 0 ? resolvedColIndex : undefined
 
       const targetColumnName = targetColumn?.name ?? String(columnKey)
 
@@ -1559,7 +1697,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     scheduleCoalescedTimeout(remoteAuthoritativeHealTimeoutRef, 1200, () => {
       remoteAuthoritativeHealTimeoutRef.current = null
       void (async () => {
-        if (pendingCellPersistTimeoutRef.current != null || pendingCellChangesRef.current.length > 0) {
+        if (
+          pendingCellPersistTimeoutRef.current != null ||
+          pendingCellChangesRef.current.length > 0 ||
+          pendingCellBatchesRef.current.length > 0
+        ) {
           scheduleRemoteAuthoritativeHealFromApi()
           return
         }
@@ -1631,7 +1773,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             if (!matchedRowId) return row
             const rowPatch = mismatchedCellValuesByRowId.get(matchedRowId)
             const clearColumns = clearedColumnsByRowId.get(matchedRowId)
-            const nextRow = {
+            const nextRow: ViewerRow = {
               ...row,
               ...(rowPatch ?? {}),
               _updatedAt: new Date().toISOString()
@@ -1853,9 +1995,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                 ? String(row._id || '')
                 : String(row.id || '')
             if (matchedRemoteRowId) matchedRowIds.add(matchedRemoteRowId)
-            return { ...row, ...updates, _updatedAt: new Date().toISOString() }
+            let nextRow: ViewerRow = { ...row, _updatedAt: new Date().toISOString() }
+            for (const [columnName, value] of Object.entries(updates)) {
+              const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, activeSheet.columns)
+              nextRow = cleared.nextRow
+              nextRow[cleared.targetColumnName] = value
+            }
+            return nextRow
           })
           commitLocalSheetData(nextLocal, { persisted: true, syncGrid: true })
+          spreadsheetGridRef.current?.forceAuthoritativeReapply?.()
           queueRemoteAuthoritativeAudit(touchedCellsForAudit)
           if (hadUnresolvedCell || matchedRowIds.size !== updatesByRowId.size) {
             scheduleRemoteAuthoritativeHealFromApi()
@@ -1891,11 +2040,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           const nextLocal = localSheetDataRef.current.map(row => {
             if (!rowMatchesRemoteId(row, remoteRowId)) return row
             matchedRow = true
-            const nextRow = { ...row, _updatedAt: new Date().toISOString() }
-            delete nextRow[targetColumnName]
+            const { nextRow } = stripEquivalentColumnKeysFromRow(row, targetColumnName, activeSheet.columns)
+            nextRow._updatedAt = new Date().toISOString()
             return nextRow
           })
           commitLocalSheetData(nextLocal, { persisted: true, syncGrid: true })
+          spreadsheetGridRef.current?.forceAuthoritativeReapply?.()
           queueRemoteAuthoritativeAudit([{ rowId: remoteRowId, columnName: targetColumnName }])
           if (rowIndex === undefined || !columnExists || !matchedRow) {
             scheduleRemoteAuthoritativeHealFromApi()
@@ -1931,9 +2081,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         const nextLocal = localSheetDataRef.current.map(row => {
           if (!rowMatchesRemoteId(row, remoteRowId)) return row
           matchedRow = true
-          return { ...row, [targetColumnName]: d.value, _updatedAt: new Date().toISOString() }
+          const { nextRow } = stripEquivalentColumnKeysFromRow(row, targetColumnName, activeSheet.columns)
+          nextRow[targetColumnName] = d.value
+          nextRow._updatedAt = new Date().toISOString()
+          return nextRow
         })
         commitLocalSheetData(nextLocal, { persisted: true, syncGrid: true })
+        spreadsheetGridRef.current?.forceAuthoritativeReapply?.()
         queueRemoteAuthoritativeAudit([{ rowId: remoteRowId, columnName: targetColumnName }])
         if (rowIndex === undefined || !columnExists || !matchedRow) {
           scheduleRemoteAuthoritativeHealFromApi()
@@ -1947,6 +2101,133 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           operations?: Array<{ type: string; data?: unknown; broadcastOnly?: boolean }>
         }
         if (!d?.sheetId || d.sheetId !== activeSheetId || !Array.isArray(d.operations) || d.operations.length === 0) {
+          return
+        }
+        const containsOnlyCellOps = d.operations.every(
+          entry => entry.type === 'set_range' || entry.type === 'clear_cell'
+        )
+        if (containsOnlyCellOps) {
+          const updatesByRowId = new Map<string, Record<string, unknown>>()
+          const clearedColumnsByRowId = new Map<string, Set<string>>()
+          const touchedCellsForAudit: Array<{ rowId: string; columnName: string }> = []
+
+          for (const nestedOperation of d.operations) {
+            if (nestedOperation.type === 'set_range') {
+              const nestedData = nestedOperation.data as {
+                cells?: Array<{
+                  rowId?: string
+                  columnName?: string
+                  column?: string
+                  columnId?: string
+                  value?: unknown
+                }>
+              }
+              for (const cell of nestedData?.cells ?? []) {
+                if (!cell?.rowId) continue
+                const columnKey = cell.columnName ?? cell.column ?? cell.columnId
+                if (columnKey == null) continue
+                const remoteRowId = String(cell.rowId)
+                const targetColumnName = resolveColumnAliasInfo(String(columnKey), activeSheet.columns).targetColumnName
+                const rowUpdates = updatesByRowId.get(remoteRowId) ?? {}
+                rowUpdates[targetColumnName] = cell.value
+                updatesByRowId.set(remoteRowId, rowUpdates)
+                const clearedColumns = clearedColumnsByRowId.get(remoteRowId)
+                clearedColumns?.delete(targetColumnName)
+                if (clearedColumns && clearedColumns.size === 0) {
+                  clearedColumnsByRowId.delete(remoteRowId)
+                }
+                touchedCellsForAudit.push({ rowId: remoteRowId, columnName: targetColumnName })
+              }
+            }
+
+            if (nestedOperation.type === 'clear_cell') {
+              const nestedData = nestedOperation.data as {
+                rowId?: string
+                columnName?: string
+                column?: string
+                columnId?: string
+              }
+              if (!nestedData?.rowId) continue
+              const columnKey = nestedData.columnName ?? nestedData.column ?? nestedData.columnId
+              if (columnKey == null) continue
+              const remoteRowId = String(nestedData.rowId)
+              const targetColumnName = resolveColumnAliasInfo(String(columnKey), activeSheet.columns).targetColumnName
+              const rowUpdates = updatesByRowId.get(remoteRowId)
+              if (rowUpdates) {
+                delete rowUpdates[targetColumnName]
+                if (Object.keys(rowUpdates).length === 0) {
+                  updatesByRowId.delete(remoteRowId)
+                } else {
+                  updatesByRowId.set(remoteRowId, rowUpdates)
+                }
+              }
+              const clearedColumns = clearedColumnsByRowId.get(remoteRowId) ?? new Set<string>()
+              clearedColumns.add(targetColumnName)
+              clearedColumnsByRowId.set(remoteRowId, clearedColumns)
+              touchedCellsForAudit.push({ rowId: remoteRowId, columnName: targetColumnName })
+            }
+          }
+
+          const touchedRowIds = new Set([
+            ...Array.from(updatesByRowId.keys()),
+            ...Array.from(clearedColumnsByRowId.keys())
+          ])
+          if (touchedRowIds.size === 0) {
+            return
+          }
+
+          const gridPatches: Array<{ rowIndex: number; colIndex: number; value: unknown }> = []
+          let hadUnresolvedCell = false
+          for (const [remoteRowId, updates] of updatesByRowId.entries()) {
+            for (const [columnName, value] of Object.entries(updates)) {
+              const { rowIndex, colIndex, columnExists } = resolveRemoteCellCoordinates(columnName, remoteRowId)
+              if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+                gridPatches.push({ rowIndex, colIndex, value })
+              } else if (rowIndex === undefined || !columnExists) {
+                hadUnresolvedCell = true
+              }
+            }
+          }
+          for (const [remoteRowId, clearedColumns] of clearedColumnsByRowId.entries()) {
+            for (const columnName of clearedColumns) {
+              const { rowIndex, colIndex, columnExists } = resolveRemoteCellCoordinates(columnName, remoteRowId)
+              if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+                gridPatches.push({ rowIndex, colIndex, value: '' })
+              } else if (rowIndex === undefined || !columnExists) {
+                hadUnresolvedCell = true
+              }
+            }
+          }
+
+          if (spreadsheetGridRef.current?.applyRemoteCellUpdate) {
+            for (const patch of gridPatches) {
+              spreadsheetGridRef.current.applyRemoteCellUpdate(patch.rowIndex, patch.colIndex, patch.value)
+            }
+          }
+
+          const matchedRowIds = new Set<string>()
+          const nextLocal = localSheetDataRef.current.map(row => {
+            const touchedAliases = getViewerRowIdentityCandidates(row).filter(candidateId => {
+              return updatesByRowId.has(candidateId) || clearedColumnsByRowId.has(candidateId)
+            })
+            if (touchedAliases.length === 0) return row
+            touchedAliases.forEach(candidateId => matchedRowIds.add(candidateId))
+            let nextRow = row
+            for (const columnName of collectViewerRowClears(row, clearedColumnsByRowId)) {
+              nextRow = stripEquivalentColumnKeysFromRow(nextRow, columnName, activeSheet.columns).nextRow
+            }
+            const updates = collectViewerRowUpdates(row, updatesByRowId)
+            if (updates) {
+              nextRow = applyColumnUpdatesToViewerRow(nextRow, updates, activeSheet.columns)
+            }
+            return { ...nextRow, _updatedAt: new Date().toISOString() }
+          })
+          commitLocalSheetData(nextLocal, { persisted: true, syncGrid: true })
+          spreadsheetGridRef.current?.forceAuthoritativeReapply?.()
+          queueRemoteAuthoritativeAudit(touchedCellsForAudit)
+          if (hadUnresolvedCell || matchedRowIds.size !== touchedRowIds.size) {
+            scheduleRemoteAuthoritativeHealFromApi()
+          }
           return
         }
         for (const nestedOperation of d.operations) {
@@ -2156,12 +2437,40 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
   }, [])
 
+  const pendingCellJournalStorageKey = useMemo(() => `${PENDING_CELL_JOURNAL_STORAGE_PREFIX}${app.id}`, [app.id])
+
+  const persistPendingCellJournal = useCallback(() => {
+    if (entityEnabled || typeof globalThis === 'undefined') return
+    try {
+      const storage = globalThis.sessionStorage
+      if (!storage) return
+      if (pendingCellChangesRef.current.length === 0 && pendingCellBatchesRef.current.length === 0) {
+        storage.removeItem(pendingCellJournalStorageKey)
+        return
+      }
+      storage.setItem(
+        pendingCellJournalStorageKey,
+        JSON.stringify({
+          draftCells: pendingCellChangesRef.current,
+          pendingBatches: pendingCellBatchesRef.current
+        } satisfies PendingCellJournal)
+      )
+    } catch {
+      // Best-effort persistence only.
+    }
+  }, [entityEnabled, pendingCellJournalStorageKey])
+
+  const hasPendingCellPersistence = useCallback(
+    () => pendingCellChangesRef.current.length > 0 || pendingCellBatchesRef.current.length > 0,
+    []
+  )
+
   const recoverFromVersionConflict = useCallback(async () => {
     try {
       const sinceVersion = sheetVersionRef.current
       const delta = await SpreadsheetApiService.getSheetChangesSince(app.id, activeSheetId, sinceVersion)
       if (!sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
-        const next = applyDeltaChangesToRows(localSheetDataRef.current, delta.changes)
+        const next = applyDeltaChangesToRows(localSheetDataRef.current, delta.changes, activeSheet.columns)
         sheetVersionRef.current = Number(delta.currentVersion || sheetVersionRef.current)
         commitLocalSheetData(next, { persisted: true, syncGrid: true })
         sheetPersist.recordSuccess(true)
@@ -2209,6 +2518,67 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     recoverFromVersionConflictRef.current = recoverFromVersionConflict
   }, [recoverFromVersionConflict])
 
+  const buildPendingCellBatches = useCallback(
+    (queuedCells: CellChange[]): PendingCellBatch[] => {
+      const groupedCells = new Map<string, CellChange[]>()
+      for (const cell of queuedCells) {
+        const targetSheetId = cell.sheetId ?? activeSheetIdRef.current
+        const next = groupedCells.get(targetSheetId) ?? []
+        next.push(cell)
+        groupedCells.set(targetSheetId, next)
+      }
+
+      const resolveRowsForCellFlush = (targetSheetId: string): ViewerRow[] => {
+        if (targetSheetId === activeSheetIdRef.current) return localSheetDataRef.current
+        const cached = peerSheetDataCacheRef.current.get(targetSheetId)
+        if (cached) return cached as ViewerRow[]
+        const sheet = app.sheets.find(entry => entry.id === targetSheetId)
+        return sortSpreadsheetRowsBySheetSettings(sheet?.data ?? [], sheet) as ViewerRow[]
+      }
+
+      const workItems: PendingCellBatch[] = []
+      for (const [targetSheetId, sheetCells] of groupedCells) {
+        const uiToBackendRowId = buildUiToBackendRowIdMap(resolveRowsForCellFlush(targetSheetId), isUuid)
+        const { setUpdatesByBackendRowId, clearCells } = partitionCellUpdatesByBackendRowId(
+          sheetCells,
+          uiToBackendRowId,
+          pendingClientRowUpdatesRef.current,
+          isUuid
+        )
+        const setCellsToPersist = flattenUpdatesToCells(setUpdatesByBackendRowId).map(cell => ({
+          ...cell,
+          value: normalizeCellValueForBatchPersistence(cell.value)
+        }))
+        const operations: SpreadsheetBatchOperation[] = []
+        if (setCellsToPersist.length > 0) {
+          operations.push({
+            operationId: createOperationId('set_range'),
+            type: 'set_range',
+            data: { cells: setCellsToPersist }
+          })
+        }
+        operations.push(
+          ...clearCells.map(cell => ({
+            operationId: createOperationId('clear_cell'),
+            type: 'clear_cell' as const,
+            data: {
+              rowId: cell.rowId,
+              columnName: cell.columnName
+            }
+          }))
+        )
+        if (operations.length === 0) continue
+        workItems.push({
+          batchId: createOperationId(`cell_ops_${targetSheetId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)}`),
+          targetSheetId,
+          operations
+        })
+      }
+      return workItems
+    },
+    [app.sheets, createOperationId, isUuid, localSheetDataRef]
+  )
+
   useEffect(() => {
     return () => {
       if (remoteStructuralResyncTimeoutRef.current) clearTimeout(remoteStructuralResyncTimeoutRef.current)
@@ -2227,7 +2597,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     async (
       targetSheetId: string,
       operations: SpreadsheetBatchOperation[],
-      batchIdPrefix = 'batch'
+      batchIdPrefix = 'batch',
+      batchIdOverride?: string
     ): Promise<SpreadsheetBatchOperationResponse> => {
       const isActiveTarget = () => targetSheetId === activeSheetIdRef.current
       const resolveBaseVersion = () =>
@@ -2250,13 +2621,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       try {
         const baseVersion = await refreshBaseVersionBeforeWrite(resolveBaseVersion())
+        const batchId = batchIdOverride ?? createOperationId(batchIdPrefix)
         const response = await SpreadsheetApiService.applyOperationBatch(
           app.id,
           targetSheetId,
           {
             baseVersion,
             operations,
-            batchId: createOperationId(batchIdPrefix)
+            batchId
           },
           {
             keepalive: unloadKeepAlivePersistRef.current
@@ -2275,13 +2647,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           if (isActiveTarget()) {
             snapshotSaveMetricsRef.current.conflicts += 1
             await recoverFromVersionConflict()
+            const retryBatchId = createOperationId(
+              batchIdOverride ? `${batchIdPrefix}_retry_after_restore` : `${batchIdPrefix}_retry`
+            )
             const retry = await SpreadsheetApiService.applyOperationBatch(
               app.id,
               targetSheetId,
               {
                 baseVersion: sheetVersionRef.current,
                 operations,
-                batchId: createOperationId(`${batchIdPrefix}_retry`)
+                batchId: retryBatchId
               },
               {
                 keepalive: unloadKeepAlivePersistRef.current
@@ -2294,13 +2669,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
           try {
             const sheet = await SpreadsheetApiService.getSheet(app.id, targetSheetId)
+            const retryBatchId = createOperationId(
+              batchIdOverride ? `${batchIdPrefix}_retry_after_restore` : `${batchIdPrefix}_retry`
+            )
             const retry = await SpreadsheetApiService.applyOperationBatch(
               app.id,
               targetSheetId,
               {
                 baseVersion: Number(sheet?.version ?? 0),
                 operations,
-                batchId: createOperationId(`${batchIdPrefix}_retry`)
+                batchId: retryBatchId
               },
               {
                 keepalive: unloadKeepAlivePersistRef.current
@@ -2338,8 +2716,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, applyBatchDirectForSheet]
   )
 
-  const enqueueUniverSnapshotCheckpoint = useCallback((): Promise<void> => {
-    const run = async () => {
+  const persistSnapshotCheckpointForSheet = useCallback(
+    async (targetSheetId: string) => {
       if (entityEnabled) return
       snapshotSaveMetricsRef.current.attempts += 1
 
@@ -2349,7 +2727,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
-      const snapshot = stripCellDataFromWorkbookSnapshot(rawSnapshot)
+      const snapshot = cloneSnapshot(rawSnapshot)
       const snapshotSizeBytes = getSnapshotSizeBytes(snapshot)
       if (snapshotSizeBytes == null) {
         snapshotSaveMetricsRef.current.failures += 1
@@ -2361,22 +2739,47 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
+      const targetSheetVersionRef = {
+        current:
+          targetSheetId === activeSheetIdRef.current
+            ? sheetVersionRef.current
+            : Number(app.sheets.find(sheet => sheet.id === targetSheetId)?.version ?? 0)
+      }
+
+      const recoverSnapshotConflict = async () => {
+        if (targetSheetId === activeSheetIdRef.current) {
+          await recoverFromVersionConflict()
+          targetSheetVersionRef.current = sheetVersionRef.current
+          return
+        }
+
+        try {
+          const sheet = await SpreadsheetApiService.getSheet(app.id, targetSheetId)
+          targetSheetVersionRef.current = Number(sheet?.version ?? targetSheetVersionRef.current)
+        } catch {
+          /* ignore */
+        }
+      }
+
       sheetPersist.beginPersist()
       try {
         await saveSnapshotWithRetry({
           appId: app.id,
-          activeSheetId,
+          activeSheetId: targetSheetId,
           baseSnapshot: snapshot,
-          sheetVersionRef,
+          sheetVersionRef: targetSheetVersionRef,
           snapshotSaveMetricsRef,
-          recoverFromVersionConflict,
+          recoverFromVersionConflict: recoverSnapshotConflict,
           spreadsheetGridRef,
           collaboration,
           maxSnapshotRetries: 3,
           lastEmittedDimensionSignatureRef
         })
+        if (targetSheetId === activeSheetIdRef.current) {
+          sheetVersionRef.current = Math.max(sheetVersionRef.current, targetSheetVersionRef.current)
+        }
         lastSuccessfulSnapshotCheckpointAtRef.current = Date.now()
-        const queueClear = pendingCellChangesRef.current.length === 0 && pendingCellPersistTimeoutRef.current == null
+        const queueClear = !hasPendingCellPersistence() && pendingCellPersistTimeoutRef.current == null
         sheetPersist.recordSuccess(queueClear)
         if (queueClear) {
           versioning.markAsSaved()
@@ -2387,22 +2790,54 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       } finally {
         sheetPersist.endPersist()
       }
+    },
+    [
+      app.id,
+      app.sheets,
+      collaboration,
+      entityEnabled,
+      hasPendingCellPersistence,
+      recoverFromVersionConflict,
+      sheetPersist.beginPersist,
+      sheetPersist.endPersist,
+      sheetPersist.recordError,
+      sheetPersist.recordSuccess,
+      sheetT,
+      versioning.markAsSaved
+    ]
+  )
+
+  const scheduleSnapshotCheckpointDrain = useCallback(() => {
+    if (snapshotCheckpointDrainScheduledRef.current) {
+      return snapshotCheckpointDrainPromiseRef.current ?? Promise.resolve()
     }
 
-    return chainOnOperationQueue(operationQueueRef, run)
-  }, [
-    activeSheetId,
-    app.id,
-    collaboration,
-    entityEnabled,
-    recoverFromVersionConflict,
-    sheetPersist.beginPersist,
-    sheetPersist.endPersist,
-    sheetPersist.recordError,
-    sheetPersist.recordSuccess,
-    sheetT,
-    versioning.markAsSaved
-  ])
+    snapshotCheckpointDrainScheduledRef.current = true
+    const promise = chainOnOperationQueue(operationQueueRef, async () => {
+      while (pendingSnapshotCheckpointBySheetRef.current.size > 0) {
+        const pendingSheetIds = Array.from(pendingSnapshotCheckpointBySheetRef.current.keys())
+        pendingSnapshotCheckpointBySheetRef.current.clear()
+
+        for (const targetSheetId of pendingSheetIds) {
+          await persistSnapshotCheckpointForSheet(targetSheetId)
+        }
+      }
+    }).finally(() => {
+      snapshotCheckpointDrainScheduledRef.current = false
+      snapshotCheckpointDrainPromiseRef.current = null
+      if (pendingSnapshotCheckpointBySheetRef.current.size > 0) {
+        void scheduleSnapshotCheckpointDrain()
+      }
+    })
+
+    snapshotCheckpointDrainPromiseRef.current = promise
+    return promise
+  }, [persistSnapshotCheckpointForSheet])
+
+  const enqueueUniverSnapshotCheckpoint = useCallback((): Promise<void> => {
+    pendingSnapshotCheckpointBySheetRef.current.set(activeSheetId, { requestedAt: Date.now() })
+    return scheduleSnapshotCheckpointDrain()
+  }, [activeSheetId, scheduleSnapshotCheckpointDrain])
 
   useEffect(() => {
     enqueueSnapshotCheckpointRef.current = enqueueUniverSnapshotCheckpoint
@@ -2410,95 +2845,44 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const flushPendingCellChanges = useCallback(async () => {
     if (entityEnabled) return
+    if (!hasPendingCellPersistence()) return
 
-    const queuedCells = pendingCellChangesRef.current
-    if (queuedCells.length === 0) return
-    pendingCellChangesRef.current = []
     cellFlushSequenceRef.current += 1
-
-    const groupedCells = new Map<string, CellChange[]>()
-    for (const cell of queuedCells) {
-      const targetSheetId = cell.sheetId ?? activeSheetIdRef.current
-      const next = groupedCells.get(targetSheetId) ?? []
-      next.push(cell)
-      groupedCells.set(targetSheetId, next)
-    }
-
-    const resolveRowsForCellFlush = (targetSheetId: string): ViewerRow[] => {
-      if (targetSheetId === activeSheetIdRef.current) return localSheetDataRef.current
-      const cached = peerSheetDataCacheRef.current.get(targetSheetId)
-      if (cached) return cached as ViewerRow[]
-      const sheet = app.sheets.find(entry => entry.id === targetSheetId)
-      return sortSpreadsheetRowsBySheetSettings(sheet?.data ?? [], sheet) as ViewerRow[]
-    }
-
-    const workItems: Array<{
-      targetSheetId: string
-      touchedRowCount: number
-      setCellsToPersist: Array<{ rowId: string; columnName: string; value: unknown }>
-      clearCellsToPersist: Array<{ rowId: string; columnName: string }>
-      operations: SpreadsheetBatchOperation[]
-    }> = []
-
-    for (const [targetSheetId, sheetCells] of groupedCells) {
-      const uiToBackendRowId = buildUiToBackendRowIdMap(resolveRowsForCellFlush(targetSheetId), isUuid)
-      const { setUpdatesByBackendRowId, clearCells } = partitionCellUpdatesByBackendRowId(
-        sheetCells,
-        uiToBackendRowId,
-        pendingClientRowUpdatesRef.current,
-        isUuid
-      )
-      const setCellsToPersist = flattenUpdatesToCells(setUpdatesByBackendRowId)
-      const operations: SpreadsheetBatchOperation[] = []
-      if (setCellsToPersist.length > 0) {
-        operations.push({
-          operationId: createOperationId('set_range'),
-          type: 'set_range',
-          data: { cells: setCellsToPersist }
-        })
-      }
-      operations.push(
-        ...clearCells.map(cell => ({
-          operationId: createOperationId('clear_cell'),
-          type: 'clear_cell' as const,
-          data: {
-            rowId: cell.rowId,
-            columnName: cell.columnName
-          }
-        }))
-      )
-      if (operations.length === 0) continue
-      const touchedRowIds = new Set([
-        ...Array.from(setUpdatesByBackendRowId.keys()),
-        ...clearCells.map(cell => cell.rowId)
-      ])
-      workItems.push({
-        targetSheetId,
-        touchedRowCount: touchedRowIds.size,
-        setCellsToPersist,
-        clearCellsToPersist: clearCells,
-        operations
-      })
-    }
-
-    if (workItems.length === 0) {
-      return
-    }
 
     sheetPersist.beginPersist()
     try {
-      for (const { targetSheetId, operations } of workItems) {
+      let didPersistAnyBatch = false
+      while (true) {
+        if (pendingCellBatchesRef.current.length === 0) {
+          const draftCells = pendingCellChangesRef.current
+          if (draftCells.length === 0) break
+          pendingCellChangesRef.current = []
+          pendingCellBatchesRef.current = buildPendingCellBatches(draftCells)
+          persistPendingCellJournal()
+          if (pendingCellBatchesRef.current.length === 0) break
+        }
+
+        const [nextBatch, ...remainingBatches] = pendingCellBatchesRef.current
+        if (!nextBatch) break
         const response = await applyBatchDirectForSheet(
-          targetSheetId,
-          operations,
-          `cell_ops_${targetSheetId.replaceAll(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)}`
+          nextBatch.targetSheetId,
+          nextBatch.operations,
+          'persisted_cell_batch',
+          nextBatch.batchId
         )
+        pendingCellBatchesRef.current = remainingBatches
+        persistPendingCellJournal()
+        didPersistAnyBatch = true
         sheetVersionRef.current = Math.max(sheetVersionRef.current, Number(response.newVersion || 0))
       }
-      sheetPersist.recordSuccess(true)
-      versioning.markAsSaved()
+
+      if (!didPersistAnyBatch) return
+      sheetPersist.recordSuccess(!hasPendingCellPersistence())
+      if (!hasPendingCellPersistence()) {
+        versioning.markAsSaved()
+      }
     } catch (error) {
-      pendingCellChangesRef.current = [...queuedCells, ...pendingCellChangesRef.current]
+      persistPendingCellJournal()
       console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
       sheetPersist.recordError(sheetT('persist-cell-failed'))
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
@@ -2508,15 +2892,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       sheetPersist.endPersist()
     }
   }, [
-    activeSheetId,
-    app.id,
-    applyBatchDirect,
-    createOperationId,
+    applyBatchDirectForSheet,
+    buildPendingCellBatches,
     entityEnabled,
-    isOpsV2Enabled,
-    isUuid,
-    localSheetDataRef,
-    onRowUpdate,
+    hasPendingCellPersistence,
+    persistPendingCellJournal,
     recoverFromVersionConflict,
     sheetPersist.beginPersist,
     sheetPersist.endPersist,
@@ -2544,11 +2924,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleLocalCursorEmit = useCallback(
     (pos: { path: string[] }) => {
       collaboration.emitCursor({ path: pos.path })
-      if (pendingCellChangesRef.current.length > 0) {
+      if (hasPendingCellPersistence()) {
         schedulePendingCellPersist(60)
       }
     },
-    [collaboration, schedulePendingCellPersist]
+    [collaboration, hasPendingCellPersistence, schedulePendingCellPersist]
   )
 
   // Wrapped createCheckpoint that guarantees a complete, consistent checkpoint:
@@ -2598,22 +2978,31 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       sheetPersist.markDirty()
       versioning.markAsChanged()
 
-      pendingCellChangesRef.current.push(...cells.map(cell => ({ ...cell, sheetId: activeSheetId })))
+      pendingCellChangesRef.current.push(
+        ...cells.map(cell => ({
+          ...cell,
+          value: normalizeCellValueForBatchPersistence(cell.value),
+          sheetId: activeSheetId
+        }))
+      )
+      persistPendingCellJournal()
 
       const current = localSheetDataRef.current
       const updatesByUiRowId = new Map<string, Record<string, unknown>>()
       for (const cell of cells) {
         const uiRowId = String(cell.rowId)
         const uiUpdates = updatesByUiRowId.get(uiRowId) ?? {}
-        uiUpdates[cell.columnName] = cell.value
+        uiUpdates[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
         updatesByUiRowId.set(uiRowId, uiUpdates)
       }
 
       const next = current.map(row => {
-        const uiRowId = viewerRowId(row)
-        const updates = updatesByUiRowId.get(uiRowId)
+        const updates = collectViewerRowUpdates(row, updatesByUiRowId)
         if (!updates) return row
-        return { ...row, ...updates, _updatedAt: new Date().toISOString() }
+        return {
+          ...applyColumnUpdatesToViewerRow(row, updates, activeSheet.columns),
+          _updatedAt: new Date().toISOString()
+        }
       })
       commitLocalSheetData(next)
       const persistDelayMs =
@@ -2631,6 +3020,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       localSheetDataRef,
       onDataChange,
       CELL_PERSIST_COLLAB_DEBOUNCE_MS,
+      persistPendingCellJournal,
       schedulePendingCellPersist,
       setLocalSheetData,
       sheetPersist.markDirty,
@@ -2654,7 +3044,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const cells = Object.entries(pending).map(([columnName, value]) => ({
         rowId: persistedId,
         columnName,
-        value
+        value: normalizeCellValueForBatchPersistence(value)
       }))
       const flushOp: SpreadsheetBatchOperation = {
         operationId: createOperationId('set_range'),
@@ -2698,7 +3088,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const flushOp: SpreadsheetBatchOperation = {
         operationId: createOperationId('set_range'),
         type: 'set_range',
-        data: { cells: flushCells }
+        data: {
+          cells: flushCells.map(cell => ({
+            ...cell,
+            value: normalizeCellValueForBatchPersistence(cell.value)
+          }))
+        }
       }
       await applyBatchDirect([flushOp], 'set_range_flush')
     },
@@ -2858,9 +3253,33 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [entityEnabled])
 
   useEffect(() => {
+    if (entityEnabled || typeof globalThis === 'undefined') return
+    if (pendingCellJournalRestoredKeyRef.current === pendingCellJournalStorageKey) return
+    pendingCellJournalRestoredKeyRef.current = pendingCellJournalStorageKey
+
+    const journal = readPendingCellJournal(pendingCellJournalStorageKey)
+    if (!journal) return
+
+    pendingCellChangesRef.current = journal.draftCells
+    pendingCellBatchesRef.current = journal.pendingBatches
+    persistPendingCellJournal()
+
+    if (journal.draftCells.length > 0 || journal.pendingBatches.length > 0) {
+      flushPendingPersistenceNow()
+    }
+  }, [entityEnabled, flushPendingPersistenceNow, pendingCellJournalStorageKey, persistPendingCellJournal])
+
+  useEffect(() => {
     if (typeof globalThis === 'undefined' || typeof document === 'undefined') return
 
     let resumeFlushTimeout: ReturnType<typeof setTimeout> | null = null
+    const scheduleResumeFlush = () => {
+      if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
+      resumeFlushTimeout = setTimeout(() => {
+        resumeFlushTimeout = null
+        flushPendingPersistenceNow()
+      }, 300)
+    }
 
     const handlePageHide = () => {
       unloadKeepAlivePersistRef.current = true
@@ -2881,23 +3300,39 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         // A prior 404/501 caches "no univer-snapshot API" and skips snapshot HTTP until reload — looks like missing network calls.
         revalidateSpreadsheetUniverSnapshotAfterIdleTab()
         // Brief defer so tab-focus and persistence flush do not race the same tick.
-        if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
-        resumeFlushTimeout = setTimeout(() => {
-          resumeFlushTimeout = null
-          flushPendingPersistenceNow()
-        }, 300)
+        scheduleResumeFlush()
       }
+    }
+    const handleWindowFocus = () => {
+      unloadKeepAlivePersistRef.current = false
+      scheduleResumeFlush()
+    }
+    const handleOnline = () => {
+      unloadKeepAlivePersistRef.current = false
+      scheduleResumeFlush()
     }
 
     globalThis.addEventListener('pagehide', handlePageHide)
+    globalThis.addEventListener('focus', handleWindowFocus)
+    globalThis.addEventListener('online', handleOnline)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       unloadKeepAlivePersistRef.current = false
       if (resumeFlushTimeout) clearTimeout(resumeFlushTimeout)
       globalThis.removeEventListener('pagehide', handlePageHide)
+      globalThis.removeEventListener('focus', handleWindowFocus)
+      globalThis.removeEventListener('online', handleOnline)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [flushPendingPersistenceNow])
+
+  useEffect(() => {
+    if (!collaboration.isCollaborationConnected || !hasPendingCellPersistence()) return
+    const timeout = globalThis.setTimeout(() => {
+      flushPendingPersistenceNow()
+    }, 150)
+    return () => clearTimeout(timeout)
+  }, [collaboration.isCollaborationConnected, flushPendingPersistenceNow, hasPendingCellPersistence])
 
   useEffect(() => {
     return () => {
@@ -3141,7 +3576,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         .map(row => {
           const rowId = viewerRowId(row)
           if (!rowId) return null
-          return { rowId, columnName, value: normalizedFormula }
+          return {
+            rowId,
+            columnName,
+            value: normalizeCellValueForBatchPersistence({ f: normalizedFormula })
+          }
         })
         .filter((cell): cell is { rowId: string; columnName: string; value: string } => Boolean(cell))
 

@@ -356,6 +356,12 @@ export class CollaborationClient {
     this.socket?.on('user_left', handler)
   }
 
+  onParticipantsUpdated(
+    handler: (data: { entityType: 'document' | 'spreadsheet' | 'note'; entityId: string; participants: any[] }) => void
+  ) {
+    this.socket?.on('participants_updated', handler)
+  }
+
   onOperationApplied(
     handler: (data: {
       userId: string

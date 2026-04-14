@@ -312,5 +312,64 @@ describe('spreadsheetCollaborationReceive', () => {
       expect(rowMatchesRemoteId(row, 'uuid-1')).toBe(true)
       expect(rowMatchesRemoteId(row, 'missing')).toBe(false)
     })
+
+    it('merges mixed set_range and clear_cell batch mutations across row id aliases', () => {
+      const localRef = {
+        current: [{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: 'before', ColumnB: 42 }] as Record<string, unknown>[]
+      }
+
+      const updatesByRowId = new Map<string, Record<string, unknown>>()
+      const clearedColumnsByRowId = new Map<string, Set<string>>()
+
+      const applySet = (rowId: string, columnName: string, value: unknown) => {
+        const rowUpdates = updatesByRowId.get(rowId) ?? {}
+        rowUpdates[columnName] = value
+        updatesByRowId.set(rowId, rowUpdates)
+        const cleared = clearedColumnsByRowId.get(rowId)
+        cleared?.delete(columnName)
+        if (cleared && cleared.size === 0) {
+          clearedColumnsByRowId.delete(rowId)
+        }
+      }
+
+      const applyClear = (rowId: string, columnName: string) => {
+        const rowUpdates = updatesByRowId.get(rowId)
+        if (rowUpdates) {
+          delete rowUpdates[columnName]
+          if (Object.keys(rowUpdates).length === 0) {
+            updatesByRowId.delete(rowId)
+          } else {
+            updatesByRowId.set(rowId, rowUpdates)
+          }
+        }
+        const cleared = clearedColumnsByRowId.get(rowId) ?? new Set<string>()
+        cleared.add(columnName)
+        clearedColumnsByRowId.set(rowId, cleared)
+      }
+
+      applySet('uuid-1', 'ColumnA', 'after')
+      applyClear('row_0', 'ColumnB')
+
+      localRef.current = localRef.current.map(row => {
+        const matchedRowIds = [row._id, row.id, row._rowUuid]
+          .map(value => String(value ?? ''))
+          .filter(Boolean)
+          .filter(candidateId => updatesByRowId.has(candidateId) || clearedColumnsByRowId.has(candidateId))
+
+        if (matchedRowIds.length === 0) return row
+
+        const nextRow = { ...row } as Record<string, unknown>
+        for (const matchedRowId of matchedRowIds) {
+          for (const columnName of clearedColumnsByRowId.get(matchedRowId) ?? []) {
+            delete nextRow[columnName]
+          }
+          Object.assign(nextRow, updatesByRowId.get(matchedRowId) ?? {})
+        }
+        nextRow._updatedAt = 'now'
+        return nextRow
+      })
+
+      expect(localRef.current).toEqual([{ _id: 'row_0', _rowUuid: 'uuid-1', ColumnA: 'after', _updatedAt: 'now' }])
+    })
   })
 })

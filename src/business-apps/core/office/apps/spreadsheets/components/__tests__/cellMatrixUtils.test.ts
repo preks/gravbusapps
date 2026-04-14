@@ -1,4 +1,9 @@
-import { buildAbsoluteCellMatrixForRanges, mergeCellMatrices, normalizeCellMatrix } from '../cellMatrixUtils'
+import {
+  buildAbsoluteCellMatrixForRanges,
+  cellMatricesDisagreeForRanges,
+  mergeCellMatrices,
+  normalizeCellMatrix
+} from '../cellMatrixUtils'
 
 describe('cellMatrixUtils', () => {
   it('normalizes object input into a cell matrix', () => {
@@ -85,5 +90,15 @@ describe('cellMatrixUtils', () => {
       2: { 10: { v: 'Payload B' } },
       3: { 10: { v: 'Worksheet C' } }
     })
+  })
+
+  it('detects when worksheet and payload disagree for the same ranged cell', () => {
+    expect(
+      cellMatricesDisagreeForRanges(
+        [{ startRow: 4, endRow: 4, startColumn: 2, endColumn: 2 }],
+        { 4: { 2: { v: 'Worksheet value' } } },
+        { 0: { 0: { v: 'Payload value' } } }
+      )
+    ).toBe(true)
   })
 })

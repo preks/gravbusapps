@@ -120,6 +120,12 @@ function normalizeColumnToken(value: string): string {
   return value.toLowerCase()
 }
 
+function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
+  return Array.from(
+    new Set([row._id, row.id, row._rowUuid].map(value => (typeof value === 'string' ? value : '')).filter(Boolean))
+  )
+}
+
 function isAvatarColumn(column: SpreadsheetColumn): boolean {
   const normalizedName = normalizeColumnToken(String(column.name || ''))
   const normalizedId = normalizeColumnToken(String(column.id || ''))
@@ -562,9 +568,13 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
-    const rowId = typeof row._id === 'string' ? row._id : `row_${index}`
-    rowIdToIndex.set(rowId, index)
-    rowIndexToId.set(index, rowId)
+    const candidateRowIds = getRowIdentityCandidates(row)
+    const canonicalRowId = candidateRowIds[0] || `row_${index}`
+    candidateRowIds.forEach(rowId => {
+      rowIdToIndex.set(rowId, index)
+    })
+    rowIdToIndex.set(canonicalRowId, index)
+    rowIndexToId.set(index, canonicalRowId)
   })
   return {
     columnIdToIndex,
