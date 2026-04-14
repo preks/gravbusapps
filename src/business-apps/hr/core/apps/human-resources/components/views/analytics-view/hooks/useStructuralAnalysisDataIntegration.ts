@@ -48,7 +48,12 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
   const datasetClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
   const { fetchHierarchyEdgesMin } = useGetHierarchyEdgesMin(context)
   const { fetchHierarchyEdgesWithCounts } = useGetHierarchyEdgesWithCounts(context)
-  type DatasetRow = { category: string; value: number }
+  type DatasetRow = {
+    category: string
+    value: number
+    manager_name?: string | null
+    organizational_unit_name?: string | null
+  }
   interface DatasetResponse<T> {
     data: T[]
   }
@@ -61,7 +66,9 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
   }
   const getValueByCategory = (rows: DatasetRow[], key: string): number => {
     const row = rows.find(r => String(r.category).toLowerCase() === key.toLowerCase())
-    return typeof row?.value === 'number' ? row.value : 0
+    if (!row) return 0
+    const numericValue = typeof row.value === 'number' ? row.value : Number(row.value)
+    return Number.isFinite(numericValue) ? numericValue : 0
   }
 
   interface HierarchyEdgeRow {
@@ -260,7 +267,8 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       const spanOfControlData: SpanOfControlData[] =
         spanDistRows.length > 0
           ? spanDistRows.map<SpanOfControlData>(r => {
-              const directReports = typeof r.value === 'number' ? r.value : 0
+              const rawDirectReports = typeof r.value === 'number' ? r.value : Number(r.value)
+              const directReports = Number.isFinite(rawDirectReports) ? rawDirectReports : 0
               const efficiency = directReports > 7 ? 'Overloaded' : directReports >= 3 ? 'Optimal' : 'Underutilized'
               const recommendation =
                 efficiency === 'Overloaded'
@@ -269,9 +277,9 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
                     ? t('hr-analytics-recommendation-underutilized')
                     : t('hr-analytics-recommendation-optimal')
               return {
-                managerId: r.category, // no id available; use name as key
-                managerName: r.category,
-                organizationalUnit: r.category,
+                managerId: r.category, // category is manager id from dataset
+                managerName: r.manager_name?.trim() || r.category,
+                organizationalUnit: r.organizational_unit_name?.trim() || r.manager_name?.trim() || r.category,
                 directReports,
                 managerLevel: null,
                 efficiency,
@@ -279,7 +287,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
               }
             })
           : generateSpanOfControlAnalysis(organizationalNodes)
-      let spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
+      const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
       const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
       const reportingChainData = generateReportingChainAnalysis(organizationalNodes)
       let reportingChainSummary = generateReportingChainSummary(reportingChainData)
@@ -298,8 +306,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         const dsTotalManagers = getValueByCategory(overviewRows, 'total_managers')
         const dsTotalUnits = getValueByCategory(overviewRows, 'total_units')
         const dsAvgSpan = getValueByCategory(overviewRows, 'avg_span_of_control')
-        const dsOptimalCount = getValueByCategory(overviewRows, 'optimal_count')
-        const dsUnderutilizedCount = getValueByCategory(overviewRows, 'underutilized_count')
         const dsOverburdenedCount = getValueByCategory(overviewRows, 'overburdened_count')
         const dsHierarchyDepth = getValueByCategory(hierarchyRows, 'hierarchy_depth')
         const dsAvgChain = getValueByCategory(hierarchyRows, 'avg_chain_length')
@@ -317,15 +323,8 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
           averageReportingChainLength: dsAvgChain || structuralStatistics.averageReportingChainLength
         }
 
-        // Also override span of control summary counts for Key Insights
-        spanOfControlSummary = {
-          ...spanOfControlSummary,
-          totalManagers: dsTotalManagers || spanOfControlSummary.totalManagers,
-          averageSpan: dsAvgSpan ? Math.round(dsAvgSpan * 10) / 10 : spanOfControlSummary.averageSpan,
-          optimalCount: dsOptimalCount || spanOfControlSummary.optimalCount,
-          underUtilizedCount: dsUnderutilizedCount || spanOfControlSummary.underUtilizedCount,
-          overBurdenedCount: dsOverburdenedCount || spanOfControlSummary.overBurdenedCount
-        }
+        // Keep span-of-control summary based on span distribution rows.
+        // structuralOverviewMetrics can be stale/mismatched and should not overwrite the cards.
 
         // Override reporting chain summary cards from datasets when available
         reportingChainSummary = {

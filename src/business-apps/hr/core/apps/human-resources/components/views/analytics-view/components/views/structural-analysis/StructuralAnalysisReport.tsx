@@ -260,12 +260,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       testId: 'span-control',
       rows: data.spanOfControlData.map(item => ({
         unit: item.organizationalUnit,
-        reports: item.directReports,
+        value: Number.isFinite(item.directReports) ? item.directReports : 0,
         efficiency: item.efficiency
       })),
       columns: [
         { key: 'unit', header: t('hr-analytics-entity-organizational-unit') },
-        { key: 'reports', header: t('hr-analytics-value') },
+        { key: 'value', header: t('hr-analytics-direct-reports') },
         { key: 'efficiency', header: t('hr-analytics-status') }
       ]
     }
@@ -305,6 +305,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     setExportingTable(`${selectedTableConfig.testId}-${format}`)
     try {
       const rows = selectedTableConfig.rows.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (selectedTableConfig.testId === 'span-control') {
+        rows.forEach(row => {
+          const numericValue = Number(row.value)
+          row.value = Number.isFinite(numericValue) ? numericValue : 0
+        })
+      }
       if (format === 'excel') {
         await exportTableToExcel(selectedTableConfig.title, selectedTableConfig.columns, rows)
       } else {

@@ -36,8 +36,14 @@ const normalizeHexToArgb = (value: unknown): string | null => {
   return null
 }
 
-const extractExportCell = (value: unknown): { text: string; bgArgb?: string } => {
+const extractExportCell = (value: unknown): { text: string; raw: string | number | boolean; bgArgb?: string } => {
   if (isRecord(value) && ('v' in value || 'm' in value || 'f' in value || 'bg' in value)) {
+    const raw =
+      value.v === null || value.v === undefined
+        ? ''
+        : typeof value.v === 'string' || typeof value.v === 'number' || typeof value.v === 'boolean'
+          ? value.v
+          : ''
     const display =
       typeof value.m === 'string'
         ? value.m
@@ -47,9 +53,16 @@ const extractExportCell = (value: unknown): { text: string; bgArgb?: string } =>
             ? String(value.v)
             : ''
     const bgArgb = normalizeHexToArgb(value.bg)
-    return { text: display, bgArgb: bgArgb ?? undefined }
+    return { text: display, raw, bgArgb: bgArgb ?? undefined }
   }
-  return { text: formatCellValue(value) }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return { text: String(value), raw: value }
+  }
+  if (typeof value === 'boolean') {
+    return { text: value ? 'Yes' : 'No', raw: value }
+  }
+  const text = formatCellValue(value)
+  return { text, raw: text }
 }
 
 /** Formats a cell value for display in exports (handles null, Date, arrays, booleans, objects). */
@@ -166,11 +179,11 @@ const populateWorksheet = (
 
   // Add data rows
   data.forEach(row => {
-    const rowData: Record<string, string> = {}
+    const rowData: Record<string, string | number | boolean> = {}
     const rowCellStyles: Array<{ colIndex: number; bgArgb: string }> = []
     columns.forEach(col => {
       const parsedCell = extractExportCell(row[col.key])
-      rowData[col.key] = parsedCell.text
+      rowData[col.key] = parsedCell.raw
       if (parsedCell.bgArgb) {
         const colIndex = columns.findIndex(c => c.key === col.key)
         if (colIndex >= 0) {
