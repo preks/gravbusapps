@@ -5428,9 +5428,9 @@
     ]
   },
   "core/create/apps/create-workspace": {
-    "bitbucketBuildNumber": 10761,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10761/",
-    "chunkJsBytes": 113299,
+    "bitbucketBuildNumber": 10768,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10768/",
+    "chunkJsBytes": 113386,
     "top": [
       {
         "kind": "bucket",
@@ -5471,18 +5471,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 40862,
-        "gzip": 10993,
+        "rendered": 40875,
+        "gzip": 10998,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/create-workspace/features/landing/components/ConnectionsVisualization.tsx",
-            "rendered": 14782,
-            "gzip": 3355
+            "rendered": 14790,
+            "gzip": 3358
           },
           {
             "name": "src/business-apps/core/create/apps/create-workspace/CreateWorkspace.tsx",
-            "rendered": 7837,
-            "gzip": 2179
+            "rendered": 7842,
+            "gzip": 2181
           }
         ]
       },
@@ -87819,20 +87819,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10761,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10761/",
-    "chunkJsBytes": 1030419,
+    "bitbucketBuildNumber": 10768,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10768/",
+    "chunkJsBytes": 1794721,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 658805,
-        "gzip": 43764,
+        "rendered": 1487030,
+        "gzip": 87862,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 658805,
-            "gzip": 43764
+            "rendered": 1487030,
+            "gzip": 87862
           }
         ]
       },
@@ -100871,9 +100871,303 @@
       }
     ]
   },
+  "core/create/apps/screen-builder": {
+    "bitbucketBuildNumber": 10768,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10768/",
+    "chunkJsBytes": 323598,
+    "top": [
+      {
+        "kind": "bucket",
+        "name": "(src)/business-apps/core",
+        "rendered": 302281,
+        "gzip": 66309,
+        "leaves": [
+          {
+            "name": "src/business-apps/core/create/apps/screen-builder/pages/session-detail-page/SessionDetailPage.tsx",
+            "rendered": 84857,
+            "gzip": 16513
+          },
+          {
+            "name": "src/business-apps/core/create/apps/screen-builder/pages/session-overview-page/components/AdminSettings.tsx",
+            "rendered": 40091,
+            "gzip": 6100
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "react-resizable-panels",
+        "rendered": 81163,
+        "gzip": 18118,
+        "leaves": [
+          {
+            "name": "node_modules/react-resizable-panels/dist/react-resizable-panels.browser.esm.js",
+            "rendered": 81163,
+            "gzip": 18118
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "@newwork/nw-design-system",
+        "rendered": 69887,
+        "gzip": 22834,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
+            "rendered": 8699,
+            "gzip": 2247
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/input-group/InputGroup.js",
+            "rendered": 7083,
+            "gzip": 1820
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/network",
+        "rendered": 48466,
+        "gzip": 10545,
+        "leaves": [
+          {
+            "name": "src/common/network/ai/builder/BuilderClient.ts",
+            "rendered": 35065,
+            "gzip": 6489
+          },
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/dev-report",
+        "rendered": 41449,
+        "gzip": 10115,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27265,
+            "gzip": 5038
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 26226,
+        "gzip": 6960,
+        "leaves": [
+          {
+            "name": "src/common/components/ai-builder/sandbox/PreviewSandbox.tsx",
+            "rendered": 13686,
+            "gzip": 3286
+          },
+          {
+            "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
+            "rendered": 7384,
+            "gzip": 2246
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/components/share-entity",
+        "rendered": 15735,
+        "gzip": 3725,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15735,
+            "gzip": 3725
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/env",
+        "rendered": 6478,
+        "gzip": 1278,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 6478,
+            "gzip": 1278
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/data",
+        "rendered": 6309,
+        "gzip": 1973,
+        "leaves": [
+          {
+            "name": "src/common/data/employee/useEmployeeSearch.ts",
+            "rendered": 4642,
+            "gzip": 1338
+          },
+          {
+            "name": "src/common/data/employee/queries/employeeQueries.ts",
+            "rendered": 1667,
+            "gzip": 635
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/utils",
+        "rendered": 5368,
+        "gzip": 1528,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4430,
+            "gzip": 1072
+          },
+          {
+            "name": "src/common/utils/windowUtils.ts",
+            "rendered": 685,
+            "gzip": 303
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/providers",
+        "rendered": 941,
+        "gzip": 393,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 941,
+            "gzip": 393
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/hooks",
+        "rendered": 727,
+        "gzip": 394,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 412,
+            "gzip": 215
+          },
+          {
+            "name": "src/common/hooks/useDebounce.ts",
+            "rendered": 315,
+            "gzip": 179
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/wrapWithBlinkProvider.tsx",
+        "rendered": 519,
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/wrapWithLocalizationProvider.tsx",
+        "rendered": 451,
+        "gzip": 254,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 254
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/wrapWithUiCatalog.tsx",
+        "rendered": 393,
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/wrapped-entries/core",
+        "rendered": 165,
+        "gzip": 136,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/core/create/apps/screen-builder.ts",
+            "rendered": 165,
+            "gzip": 136
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 148,
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(other)/core",
+        "rendered": 104,
+        "gzip": 109,
+        "leaves": [
+          {
+            "name": "core/create/apps/screen-builder/index.js/scripts/screen-discovery.config.json",
+            "rendered": 104,
+            "gzip": 109
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/runtime",
+        "rendered": 38,
+        "gzip": 58,
+        "leaves": [
+          {
+            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
+            "rendered": 38,
+            "gzip": 58
+          }
+        ]
+      }
+    ]
+  },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-14T11:28:59.821Z",
+    "generatedAt": "2026-04-14T11:31:36.419Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
