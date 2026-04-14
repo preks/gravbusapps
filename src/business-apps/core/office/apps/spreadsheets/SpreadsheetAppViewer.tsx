@@ -32,6 +32,7 @@ import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows, syncTrackingHeaderRowWithColumnLabels } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
 import { useVersionUserDisplays } from '@/business-apps/core/office/apps/documents/hooks/useVersionUserDisplays'
+import { env } from '@/common/env/EnvUtils'
 
 import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
 import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComments'
@@ -143,7 +144,7 @@ const SNAPSHOT_FETCH_TIMEOUT_MS = 15000
  * Set `NEXT_PUBLIC_SPREADSHEET_GRID_REFRESH_INTERVAL_MS` to a positive ms (max 60000) only when debugging sync.
  */
 const SPREADSHEET_GRID_AUTO_REFRESH_MS = ((): number => {
-  const raw = process.env.NEXT_PUBLIC_SPREADSHEET_GRID_REFRESH_INTERVAL_MS
+  const raw = env('NEXT_PUBLIC_SPREADSHEET_GRID_REFRESH_INTERVAL_MS')
   if (raw == null || raw === '' || raw === '0') return 0
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? Math.min(n, 60_000) : 0

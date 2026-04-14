@@ -4,6 +4,8 @@
  * Local development (localhost): /platform/apps/spreadsheet-apps
  */
 
+import { env } from '@/common/env/EnvUtils'
+
 const SPREADSHEET_PATH_PROD = '/platform/every-office/spreadsheets'
 const SPREADSHEET_PATH_LEGACY = '/platform/spreadsheets'
 const SPREADSHEET_PATH_DEV = '/platform/apps/spreadsheet-apps'
@@ -13,7 +15,7 @@ const SPREADSHEET_PATH_DEV = '/platform/apps/spreadsheet-apps'
  * Use this when building URLs for sharing, copy links, etc.
  */
 export function getSpreadsheetBasePath(): string {
-  const isProduction = process.env.NODE_ENV === 'production'
+  const isProduction = env('NODE_ENV') === 'production'
   return isProduction ? SPREADSHEET_PATH_PROD : SPREADSHEET_PATH_DEV
 }
 
