@@ -7,7 +7,7 @@ import {
   PlusIcon,
   XIcon
 } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
 import { ArtifactViewer } from './ArtifactViewer'
@@ -25,6 +25,7 @@ import {
   WORKSPACE_RIGHT_RAIL_BOTTOM_DEFAULT_CLASS,
   WORKSPACE_RIGHT_RAIL_BOTTOM_STREAMING_ISLAND_CLASS,
   WORKSPACE_RIGHT_RAIL_BOTTOM_WITH_FOLLOWUPS_CLASS,
+  WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX,
   WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS,
   WORKSPACE_RIGHT_RAIL_WIDTH_CLASS,
   WORKSPACE_TOP_CONTROLS_OFFSET_CLASS
@@ -47,6 +48,18 @@ function workspaceRightPanelShellClass(
   return `gba:fixed gba:top-24 sm:gba:top-28 gba:right-3 gba:left-3 gba:z-50 sm:gba:right-4 sm:gba:left-auto sm:gba:w-[22rem] ${narrowRailBottomClass} ${narrowMotion}`
 }
 
+type WorkspacePanelMode = 'desktop' | 'overlay'
+
+function resolveWorkspacePanelMode(innerWidth: number): WorkspacePanelMode {
+  if (innerWidth >= WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX) return 'desktop'
+  return 'overlay'
+}
+
+function getCurrentWorkspacePanelMode(): WorkspacePanelMode {
+  if (typeof globalThis.innerWidth !== 'number') return 'desktop'
+  return resolveWorkspacePanelMode(globalThis.innerWidth)
+}
+
 const parseFollowUps = (message: ChatMessage | undefined): string[] => {
   if (message?.type !== 'final_answer' || !message?.content || typeof message.content !== 'object') return []
   const recommendations = 'recommendations' in message.content ? message.content.recommendations : undefined
@@ -65,6 +78,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
   onOpenHistory,
   onOpenSettings
 }) => {
+  const initialPanelMode = getCurrentWorkspacePanelMode()
   const {
     session,
     messages,
@@ -97,19 +111,27 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     isLoading: isLoadingConnectors
   } = useFabricConnectors(accessToken)
 
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
-  const [isDesktopPanel, setIsDesktopPanel] = useState(false)
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(initialPanelMode === 'desktop')
+  const [isDesktopPanel, setIsDesktopPanel] = useState(initialPanelMode === 'desktop')
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
   const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
+  const lastPanelModeRef = useRef<WorkspacePanelMode>(initialPanelMode)
 
   useEffect(() => {
     if (typeof globalThis.innerWidth !== 'number') return
 
     const syncPanelMode = () => {
-      const desktop = globalThis.innerWidth >= 1500
-      setIsDesktopPanel(desktop)
-      if (desktop) setIsRightPanelOpen(true)
+      const nextPanelMode = resolveWorkspacePanelMode(globalThis.innerWidth)
+      const previousPanelMode = lastPanelModeRef.current
+
+      setIsDesktopPanel(nextPanelMode === 'desktop')
+      setIsRightPanelOpen(previousIsOpen => {
+        if (nextPanelMode === 'desktop') return true
+        if (nextPanelMode !== previousPanelMode) return false
+        return previousIsOpen
+      })
+      lastPanelModeRef.current = nextPanelMode
     }
 
     syncPanelMode()
@@ -347,7 +369,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
           </div>
 
           <div
-            className={`gba:transition-all gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
+            className={`gba:transition gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
               isDesktopPanel,
               isRightPanelOpen,
               narrowRailBottomClass
