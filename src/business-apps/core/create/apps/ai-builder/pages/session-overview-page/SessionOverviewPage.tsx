@@ -43,13 +43,15 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
     }
 
     const search = searchQuery.toLowerCase()
+    const includesSearchQuery = (value?: string | null): boolean => value?.toLowerCase().includes(search) ?? false
+
     const filtered = sessions.filter(
       session =>
-        session.targetPath?.toLowerCase().includes(search) ||
-        session.resourceUrl?.toLowerCase().includes(search) ||
-        session.description?.toLowerCase().includes(search) ||
-        session.createdBy.displayName.toLowerCase().includes(search) ||
-        session.createdBy.email?.toLowerCase().includes(search)
+        includesSearchQuery(session.targetPath) ||
+        includesSearchQuery(session.resourceUrl) ||
+        includesSearchQuery(session.description) ||
+        includesSearchQuery(session.createdBy?.displayName) ||
+        includesSearchQuery(session.createdBy?.email)
     )
     setFilteredSessions(filtered)
   }, [searchQuery, sessions])

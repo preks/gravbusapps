@@ -3,13 +3,7 @@ import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CategoryTable } from './components/CategoryTable'
 import { useContentCategoryOptions } from '@/common/data/content/hooks/useContentCategoryOptions'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  buildInsertContentCategoryMutation,
-  buildUpdateContentCategoryMutation,
-  buildDeleteContentCategoryMutation
-} from '@/common/data/content/queries/contentQueries'
-import type { ContentCategory } from '@/common/data/content/types/contentTypes'
+import { useContentClient } from '@/common/network/content'
 
 export interface CategoryDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -18,9 +12,8 @@ export interface CategoryDataPageProps extends BusinessAppContextProps {
 
 const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
   const [mutationError, setMutationError] = useState<string | null>(null)
-
-  const graphqlClient = useGraphQLClient(context.accessToken)
   const { options: categories, isLoading, error: fetchError, refetch } = useContentCategoryOptions(context.accessToken)
+  const contentClient = useContentClient(context.accessToken)
 
   const error = mutationError || (fetchError ? fetchError.message : null)
 
@@ -28,10 +21,7 @@ const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, o
     async (data: { name: string }) => {
       setMutationError(null)
       try {
-        await graphqlClient.request<{ InsertContentCategoryOne: ContentCategory }>(
-          buildInsertContentCategoryMutation(),
-          { name: data.name }
-        )
+        await contentClient.createContentCategory({ name: data.name })
         await refetch()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to create category'
@@ -39,17 +29,22 @@ const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, o
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch]
   )
 
   const handleUpdate = useCallback(
     async (id: string, data: { name: string }) => {
       setMutationError(null)
       try {
-        await graphqlClient.request<{ UpdateContentCategoryByPk: ContentCategory }>(
-          buildUpdateContentCategoryMutation(),
-          { id, name: data.name }
-        )
+        const categoryToUpdate = categories.find(category => category.id === id)
+        if (categoryToUpdate?.version == null) {
+          throw new Error('Failed to update category: version is missing')
+        }
+        await contentClient.updateContentCategory({
+          id,
+          version: categoryToUpdate.version,
+          name: data.name
+        })
         await refetch()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to update category'
@@ -57,14 +52,18 @@ const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, o
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [categories, contentClient, refetch]
   )
 
   const handleDelete = useCallback(
     async (id: string) => {
       setMutationError(null)
       try {
-        await graphqlClient.request(buildDeleteContentCategoryMutation(), { id })
+        const categoryToDelete = categories.find(category => category.id === id)
+        if (categoryToDelete?.version == null) {
+          throw new Error('Failed to delete category: version is missing')
+        }
+        await contentClient.deleteContentCategory(id, categoryToDelete.version)
         await refetch()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete category'
@@ -72,7 +71,7 @@ const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, o
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [categories, contentClient, refetch]
   )
 
   if (isLoading && categories.length === 0) {
