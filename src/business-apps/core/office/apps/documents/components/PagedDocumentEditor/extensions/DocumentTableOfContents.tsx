@@ -241,12 +241,12 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
     return {
       insertDocumentTableOfContents:
         () =>
-        ({ state, dispatch, editor }) => {
+        ({ state, commands }) => {
           const nodeType = state.schema.nodes[this.name]
           if (!nodeType) return false
           const insertPos = state.selection.from
-          dispatch?.(state.tr.insert(insertPos, nodeType.create(DEFAULT_DOCUMENT_TOC_ATTRS)))
-          return editor.commands.updateDocumentTableOfContentsEntireTable(insertPos)
+          state.tr.insert(insertPos, nodeType.create(DEFAULT_DOCUMENT_TOC_ATTRS))
+          return commands.updateDocumentTableOfContentsEntireTable(insertPos)
         },
       updateDocumentTableOfContentsEntireTable:
         (pos?: number) =>
@@ -264,7 +264,7 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
         },
       updateDocumentTableOfContentsPageNumbers:
         (pos?: number) =>
-        ({ state, dispatch, editor }) => {
+        ({ state, dispatch, commands }) => {
           const tocPos = resolveDocumentTocPos(state, pos)
           if (tocPos === null) return false
           const node = state.doc.nodeAt(tocPos)
@@ -272,7 +272,7 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
 
           const snapshot = parseDocumentTocSnapshot(node.attrs.snapshotJson as string)
           if (snapshot.entries.length === 0) {
-            return editor.commands.updateDocumentTableOfContentsEntireTable(tocPos)
+            return commands.updateDocumentTableOfContentsEntireTable(tocPos)
           }
 
           const nextJson = buildUpdatedPageNumbersSnapshotJson(state, node.attrs.snapshotJson as string)
@@ -281,8 +281,8 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
         },
       updateDocumentTableOfContents:
         (pos?: number) =>
-        ({ editor }) =>
-          editor.commands.updateDocumentTableOfContentsEntireTable(pos),
+        ({ commands }) =>
+          commands.updateDocumentTableOfContentsEntireTable(pos),
       removeDocumentTableOfContents:
         (pos?: number) =>
         ({ state, dispatch }) => {

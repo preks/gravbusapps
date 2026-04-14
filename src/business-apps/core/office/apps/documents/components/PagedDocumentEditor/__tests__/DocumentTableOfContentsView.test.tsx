@@ -6,7 +6,9 @@ import { stringifyDocumentTocStyles } from '../../../utils/documentTocStyleUtils
 
 jest.mock('@tiptap/react', () => ({
   NodeViewWrapper: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
-    <div {...props}>{children}</div>
+    <div data-node-view-wrapper="" {...props}>
+      {children}
+    </div>
   ),
   useEditorState: ({ editor, selector }: { editor: unknown; selector: (params: { editor: unknown }) => unknown }) =>
     selector({ editor })
@@ -96,6 +98,7 @@ describe('DocumentTableOfContentsView', () => {
     )
 
     expect(screen.getByTestId('document-table-of-contents')).toBeInTheDocument()
+    expect(screen.getByTestId('document-table-of-contents')).toHaveAttribute('data-node-view-wrapper', '')
     expect(subscribeDocumentTocLayout).not.toHaveBeenCalled()
     expect(editor.on).not.toHaveBeenCalled()
     expect(editor.off).not.toHaveBeenCalled()

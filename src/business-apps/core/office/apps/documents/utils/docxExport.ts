@@ -30,7 +30,7 @@ import {
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
 import type { DocumentFormatting } from '../types'
 import { getDocxPageSetupFromFormatting, getPrintStyleConfigFromFormatting } from './pageLayoutUtils'
-import { buildWordTocFieldXmlFromElement } from './docxTocExportUtils'
+import { buildWordTocXmlFromElement } from './docxTocExportUtils'
 import { DEFAULT_DOCUMENT_TOC_STYLES, type DocumentTocStyles, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 import { createJSZip } from './jsZipCompat'
@@ -469,6 +469,10 @@ function imageDrawingXml(
     : imageInlineDrawingXml(img, docPrId, rotation, layout)
 }
 
+function wrapDrawingRun(drawingXml: string): string {
+  return `<w:r>${drawingXml}</w:r>`
+}
+
 function getWordAlignmentValue(align: string | null | undefined): 'left' | 'center' | 'right' {
   if (align === 'center') return 'center'
   if (align === 'right') return 'right'
@@ -488,7 +492,9 @@ async function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildCon
   const img = registerImage(ctx, src, width, height)
   if (!img) return
 
-  parts.push(`<w:p>${imageDrawingXml(img, ctx.images.length, layout, wordLayout, resolvedDimensions.rotation)}</w:p>`)
+  parts.push(
+    `<w:p>${wrapDrawingRun(imageDrawingXml(img, ctx.images.length, layout, wordLayout, resolvedDimensions.rotation))}</w:p>`
+  )
 
   if (layout.caption?.trim()) {
     const jc = getWordAlignmentValue(layout.align)
@@ -550,8 +556,7 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
           const w = parseInt(child.getAttribute('width') || '0', 10) || DEFAULT_IMG_WIDTH
           const h = parseInt(child.getAttribute('height') || '0', 10) || DEFAULT_IMG_HEIGHT
           const img = registerImage(ctx, src, w, h)
-          if (img)
-            result += `<w:r><w:drawing>${imageDrawingXml(img, ctx.images.length).replace('<w:drawing>', '').replace('</w:drawing>', '')}</w:drawing></w:r>`
+          if (img) result += wrapDrawingRun(imageDrawingXml(img, ctx.images.length))
           break
         }
         case 'code':
@@ -638,7 +643,7 @@ async function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext
           if (el.hasAttribute('data-page-break')) {
             parts.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
           } else if (el.hasAttribute('data-document-toc')) {
-            parts.push(...buildWordTocFieldXmlFromElement(el))
+            parts.push(...buildWordTocXmlFromElement(el))
           } else {
             await convertBlock(el, parts, ctx)
           }
@@ -733,8 +738,7 @@ function buildDocumentXml(bodyXml: string, formatting?: DocumentFormatting | nul
   xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
   xmlns:w10="urn:schemas-microsoft-com:office:word"
   xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-  xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
-  mc:Ignorable="w14 wp14">
+  xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml">
 <w:body>
 ${bodyXml}
 <w:sectPr>${pageSizeXml}${pageMarginXml}</w:sectPr>

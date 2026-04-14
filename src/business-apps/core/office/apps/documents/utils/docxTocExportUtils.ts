@@ -1,32 +1,10 @@
-// Word TOC field export helpers for refreshable .docx output.
+// Word TOC export helpers for static .docx output.
 
 import { parseDocumentTocSnapshot } from './documentTocSnapshot'
 import { type DocumentTocTextStyle, parseDocumentTocStyles } from './documentTocStyleUtils'
 
 function escapeXml(text: string): string {
   return (text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function normalizeMaxHeadingLevel(value: string | null): number {
-  const parsed = Number.parseInt(String(value ?? ''), 10)
-  if (!Number.isFinite(parsed)) return 3
-  return Math.max(1, Math.min(6, parsed))
-}
-
-function buildTocInstruction(element: HTMLElement): string {
-  const maxHeadingLevel = normalizeMaxHeadingLevel(element.getAttribute('data-toc-max-heading-level'))
-  const showPageNumbers = element.getAttribute('data-toc-show-page-numbers') !== 'false'
-  const headingLinks = element.getAttribute('data-toc-heading-links') !== 'false'
-
-  const switches = [` TOC \\o "1-${maxHeadingLevel}"`]
-  if (headingLinks) {
-    switches.push(' \\h')
-  }
-  if (!showPageNumbers) {
-    switches.push(' \\n')
-  }
-
-  return switches.join('')
 }
 
 function buildRightTabXml(element: HTMLElement): string {
@@ -105,7 +83,7 @@ function buildCachedEntryParagraph(
   return `<w:p><w:pPr>${pPr}</w:pPr><w:r>${runProps}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>${pageRuns}</w:p>`
 }
 
-export function buildWordTocFieldXmlFromElement(element: HTMLElement): string[] {
+export function buildWordTocXmlFromElement(element: HTMLElement): string[] {
   const snapshot = parseDocumentTocSnapshot(element.getAttribute('data-toc-snapshot') ?? '[]')
   const styles = parseDocumentTocStyles(element.getAttribute('data-toc-styles'))
   const title = element.querySelector('.document-toc-print-title')?.textContent?.trim() ?? ''
@@ -117,10 +95,6 @@ export function buildWordTocFieldXmlFromElement(element: HTMLElement): string[] 
     parts.push(titleParagraph)
   }
 
-  parts.push(
-    `<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve">${escapeXml(buildTocInstruction(element))}</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>`
-  )
-
   if (snapshot.entries.length === 0) {
     parts.push(buildEmptyParagraph(emptyMessage, styles.entries))
   } else {
@@ -128,8 +102,6 @@ export function buildWordTocFieldXmlFromElement(element: HTMLElement): string[] 
       parts.push(buildCachedEntryParagraph(element, entry.level, entry.text || '', entry.pageNumber, styles.entries))
     })
   }
-
-  parts.push('<w:p><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>')
 
   return parts
 }

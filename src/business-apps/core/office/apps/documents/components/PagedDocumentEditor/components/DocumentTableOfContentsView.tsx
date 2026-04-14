@@ -2,7 +2,7 @@
  * In-document table of contents (Word-style block): live heading list with optional page numbers.
  */
 
-import React, { useCallback, useMemo } from 'react'
+import * as React from 'react'
 import type { NodeViewProps } from '@tiptap/react'
 import { NodeViewWrapper, useEditorState } from '@tiptap/react'
 import {
@@ -27,6 +27,7 @@ type DocumentTocOpenFormatEventDetail = {
 }
 
 export function DocumentTableOfContentsView({ editor, node, getPos, selected }: Readonly<NodeViewProps>) {
+  const { useCallback, useMemo } = React
   const { t } = useTranslation(translations)
 
   const tocBlockEnd = useMemo(() => {
@@ -134,27 +135,27 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
   }, [editor.commands, getPos])
 
   return (
-    <React.Fragment>
+    <NodeViewWrapper
+      as="div"
+      className={`document-table-of-contents gba:my-3 gba:w-full gba:max-w-full ${
+        selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
+      }`}
+      data-document-toc=""
+      contentEditable={false}
+      data-testid="document-table-of-contents"
+      onMouseDown={(event: MouseEvent) => {
+        const target = event.target
+        if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
+          return
+        }
+        const pos = getPos()
+        if (typeof pos !== 'number') return
+        editor.chain().focus().setNodeSelection(pos).run()
+      }}
+    >
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <NodeViewWrapper
-            as="div"
-            className={`document-table-of-contents gba:my-3 gba:w-full gba:max-w-full ${
-              selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
-            }`}
-            data-document-toc=""
-            contentEditable={false}
-            data-testid="document-table-of-contents"
-            onMouseDown={(event: MouseEvent) => {
-              const target = event.target
-              if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
-                return
-              }
-              const pos = getPos()
-              if (typeof pos !== 'number') return
-              editor.chain().focus().setNodeSelection(pos).run()
-            }}
-          >
+          <div className="gba:w-full">
             <div className="gba:mb-3 gba:text-base gba:text-foreground" style={titleStyle}>
               {t('document-toc-block-title')}
             </div>
@@ -237,7 +238,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                 })}
               </div>
             )}
-          </NodeViewWrapper>
+          </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="gba:w-64" data-testid="document-toc-context-menu">
           {showPageNumbers ? (
@@ -257,6 +258,6 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-    </React.Fragment>
+    </NodeViewWrapper>
   )
 }

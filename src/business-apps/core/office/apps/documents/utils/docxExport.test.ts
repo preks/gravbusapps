@@ -2,32 +2,77 @@ import JSZip from 'jszip'
 import { buildDocxBlob } from './docxExport'
 import { JSZipCompat, resolveJsZipConstructor } from './jsZipCompat'
 
-async function readDocumentXml(blob: Blob) {
-  const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+async function readBlobAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return await new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as ArrayBuffer)
     reader.onerror = () => reject(reader.error)
     reader.readAsArrayBuffer(blob)
   })
-  const zip = await JSZipCompat.loadAsync(arrayBuffer)
-  return zip.file('word/document.xml')?.async('string')
+}
+
+async function loadZip(blob: Blob) {
+  return await JSZipCompat.loadAsync(await readBlobAsArrayBuffer(blob))
+}
+
+async function readZipText(blob: Blob, entryPath: string): Promise<string | undefined> {
+  const zip = await loadZip(blob)
+  return zip.file(entryPath)?.async('string')
+}
+
+function expectXmlToParse(xml: string | undefined) {
+  expect(xml).toBeTruthy()
+
+  const parsed = new DOMParser().parseFromString(xml ?? '', 'application/xml')
+  expect(parsed.getElementsByTagName('parsererror')).toHaveLength(0)
+}
+
+async function readDocumentXml(blob: Blob) {
+  return await readZipText(blob, 'word/document.xml')
 }
 
 async function readStylesXml(blob: Blob) {
-  const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsArrayBuffer(blob)
-  })
-  const zip = await JSZipCompat.loadAsync(arrayBuffer)
-  return zip.file('word/styles.xml')?.async('string')
+  return await readZipText(blob, 'word/styles.xml')
 }
 
 describe('docxExport image layout', () => {
   it('resolves JSZip constructors from raw and default-wrapped module shapes', () => {
     expect(resolveJsZipConstructor(JSZip)).toBe(JSZip)
     expect(resolveJsZipConstructor({ default: JSZip })).toBe(JSZip)
+  })
+
+  it('wraps figure drawings in runs and emits the required DOCX package parts', async () => {
+    const html = [
+      '<figure data-node-type="custom-image" data-image-wrap="front">',
+      '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9sWwaP8AAAAASUVORK5CYII=" width="240" height="120" />',
+      '</figure>'
+    ].join('')
+
+    const blob = await buildDocxBlob('Figure doc', html)
+    const zip = await loadZip(blob)
+    const documentXml = await readDocumentXml(blob)
+    const documentRelsXml = await readZipText(blob, 'word/_rels/document.xml.rels')
+    const contentTypesXml = await readZipText(blob, '[Content_Types].xml')
+
+    expect(zip.file('_rels/.rels')).toBeTruthy()
+    expect(zip.file('word/document.xml')).toBeTruthy()
+    expect(zip.file('word/styles.xml')).toBeTruthy()
+    expect(zip.file('word/numbering.xml')).toBeTruthy()
+    expect(zip.file('word/_rels/document.xml.rels')).toBeTruthy()
+    expect(zip.file('[Content_Types].xml')).toBeTruthy()
+
+    expectXmlToParse(documentXml)
+    expectXmlToParse(documentRelsXml)
+    expectXmlToParse(contentTypesXml)
+
+    expect(documentXml).toContain('<w:p><w:r><w:drawing>')
+    expect(documentXml).not.toContain('<w:p><w:drawing>')
+    expect(documentXml).not.toContain('mc:Ignorable=')
+    expect(documentRelsXml).toContain('Target="media/image1.png"')
+    expect(contentTypesXml).toContain('<Default Extension="png" ContentType="image/png"/>')
+    expect(contentTypesXml).toContain(
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+    )
   })
 
   it('preserves image crop and rotation in generated drawing xml', async () => {
@@ -112,7 +157,7 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<wp:wrapNone/>')
   })
 
-  it('exports document ToC blocks as refreshable Word TOC fields with cached rows', async () => {
+  it('exports document ToC blocks as static Word paragraphs without live fields', async () => {
     const html = `
       <div
         data-document-toc=""
@@ -135,15 +180,14 @@ describe('docxExport image layout', () => {
     const documentXml = await readDocumentXml(blob)
     const stylesXml = await readStylesXml(blob)
 
-    expect(documentXml).toContain('TOC \\o &quot;1-3&quot; \\h')
-    expect(documentXml).toContain('fldCharType="begin"')
-    expect(documentXml).toContain('fldCharType="separate"')
-    expect(documentXml).toContain('fldCharType="end"')
     expect(documentXml).toContain('Table of contents')
     expect(documentXml).toContain('Overview')
     expect(documentXml).toContain('<w:pStyle w:val="TOCHeading"/>')
     expect(documentXml).toContain('<w:pStyle w:val="TOC1"/>')
     expect(documentXml).toContain('<w:tab/>')
+    expect(documentXml).not.toContain('TOC \\o')
+    expect(documentXml).not.toContain('fldCharType=')
+    expect(documentXml).not.toContain('<w:instrText')
     expect(documentXml).toContain('<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>')
     expect(documentXml).toContain('<w:sz w:val="28"/>')
     expect(documentXml).toContain('<w:i/>')
