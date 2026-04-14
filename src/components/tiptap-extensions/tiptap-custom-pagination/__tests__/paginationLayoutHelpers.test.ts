@@ -113,6 +113,35 @@ describe('applyMeasuredPageHeightsToView', () => {
     )
   })
 
+  it('uses zero header and footer fallback heights for empty unmeasured pages', () => {
+    const editorDom = document.createElement('div')
+    document.body.appendChild(editorDom)
+    appendPageBreak(editorDom, 1)
+
+    const storage = createStorageFromOptions(baseOptions)
+    storage.pageCount = 1
+
+    jest.spyOn(paginationUtils, 'getExistingPageCount').mockReturnValue(1)
+    jest.spyOn(paginationUtils, 'measureHeaderFooterContentHeights').mockReturnValue({
+      headerHeights: new Map(),
+      footerHeights: new Map()
+    })
+
+    applyMeasuredPageHeightsToView(
+      {
+        dom: editorDom
+      } as never,
+      storage,
+      baseOptions
+    )
+
+    const emptyLayout = getPageLayoutHeights(storage.pageFormat, storage, 0, 0)
+
+    expect(editorDom.style.getPropertyValue('--rm-page-body-1')).toBe(`${emptyLayout.bodyHeight}px`)
+    expect(editorDom.style.getPropertyValue('--rm-page-content-1')).toBe(`${emptyLayout.bodyHeight}px`)
+    expect(editorDom.style.getPropertyValue('--rm-page-content-first')).toBe(`${emptyLayout.bodyHeight}px`)
+  })
+
   it('limits windowed measurements to the active range plus the first page', () => {
     const viewport = document.createElement('div')
     const editorDom = document.createElement('div')

@@ -64,14 +64,9 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   const { t } = useTranslation(translations)
   const { actions, capability, selectionMetrics, values } = controller
 
-  const [tableWidthInput, setTableWidthInput] = useState(values.tableWidth)
   const [rowHeightInput, setRowHeightInput] = useState(values.rowHeight)
   const [columnWidthInput, setColumnWidthInput] = useState(formatCentimeterValue(values.columnWidthPx))
   const [tableBackgroundInput, setTableBackgroundInput] = useState(values.tableBackgroundColor)
-
-  useEffect(() => {
-    setTableWidthInput(values.tableWidth)
-  }, [values.tableWidth])
 
   useEffect(() => {
     setRowHeightInput(values.rowHeight)
@@ -84,12 +79,6 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
   useEffect(() => {
     setTableBackgroundInput(values.tableBackgroundColor)
   }, [values.tableBackgroundColor])
-
-  useEffect(() => {
-    if (values.tableWidthMode !== 'manual') {
-      actions.setTableWidthMode('manual')
-    }
-  }, [actions, values.tableWidthMode])
 
   const selectionLabel = useMemo(() => t('table-sidebar-selection-summary', selectionMetrics), [selectionMetrics, t])
 
@@ -383,31 +372,6 @@ export function TableSettingsSidebarContent({ testId, controller }: Readonly<Tab
       <Separator className="gba:my-1" />
 
       <ImageSidebarSection title={t('table-sidebar-section-layout')} data-testid={`${testId}-layout-section`}>
-        <div className="gba:space-y-1.5">
-          <Label htmlFor={`${testId}-table-width`} className="gba:text-xs gba:font-medium">
-            {t('table-sidebar-table-width')}
-          </Label>
-          <div className="gba:grid gba:grid-cols-[1fr_auto] gba:gap-2">
-            <Input
-              id={`${testId}-table-width`}
-              value={tableWidthInput}
-              onChange={event => setTableWidthInput(event.target.value)}
-              placeholder="100%"
-              data-testid={`${testId}-table-width`}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onMouseDown={preventEditorBlurOnMouseDown}
-              onClick={() => actions.setTableWidth(ensureUnit(tableWidthInput))}
-              data-testid={`${testId}-table-width-apply`}
-            >
-              {t('table-sidebar-apply')}
-            </Button>
-          </div>
-        </div>
-
         <div className="gba:grid gba:grid-cols-3 gba:gap-1.5">
           <Button
             type="button"
