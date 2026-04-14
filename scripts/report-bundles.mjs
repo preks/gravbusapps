@@ -6,9 +6,14 @@
  * Usage:
  *   npm run report:bundles -- core/office/apps/slides,platform/apps/chat
  *   npm run report:bundles -- core/office/apps/slides, /core/office/apps/spreadsheets, platform/apps/bundle-dashboard
+ *   npm run report:bundles -- --all
  *
  * Paths are comma-separated (or separate argv tokens). Leading slashes optional; optional prefix
  * src/business-apps/ is stripped. Each entry resolves to src/business-apps/<path>/index.ts.
+ *
+ * `--all` uses the same screen discovery as publish-all-screens / screenDiscovery.js (patterns from
+ * screen-discovery.config.json: apps, forms, popups, records, windows). Pass `--` before `--all` so npm
+ * forwards the flag to this script.
  */
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -16,6 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TOP_COMBINED_DEFAULT, buildBundleEntryPayload } from './utils/bundleTopDependenciesFromRaw.mjs'
 import { getBitbucketPipelineMetadata } from './utils/bitbucketPipelineUrl.js'
+import { getScreenDirectories } from './utils/screenDiscovery.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -55,6 +61,27 @@ function resolveReportEntriesFromArgv(argv) {
   return out
 }
 
+/**
+ * Same publish keys as `publish-all-screens.js`: `getScreenDirectories` + strip `src/business-apps/`.
+ * @returns {Promise<{ key: string, file: string }[]>}
+ */
+async function discoverAllReportEntriesFromScreenDiscovery() {
+  const screenDirs = await getScreenDirectories({ cwd: ROOT })
+  const seen = new Set()
+  /** @type {{ key: string, file: string }[]} */
+  const out = []
+
+  for (const dir of screenDirs) {
+    const key = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    const file = `${BA_PREFIX}${key}/index.ts`
+    out.push({ key, file })
+  }
+
+  return out.sort((a, b) => a.key.localeCompare(b.key))
+}
+
 function runBuild(entryKey, entryFile) {
   const env = {
     ...process.env,
@@ -83,16 +110,28 @@ function loadExistingDoc() {
   }
 }
 
-function main() {
+async function main() {
   const argv = process.argv.slice(2)
-  const reportEntries = resolveReportEntriesFromArgv(argv)
+  const allScreens = argv.includes('--all')
+  const pathArgv = argv.filter(a => a !== '--all')
+
+  const reportEntries = allScreens
+    ? await discoverAllReportEntriesFromScreenDiscovery()
+    : resolveReportEntriesFromArgv(pathArgv)
 
   if (reportEntries.length === 0) {
     console.error(`Usage: npm run report:bundles -- <paths>
   Example: npm run report:bundles -- core/office/apps/slides,platform/apps/chat
+  All screens: npm run report:bundles -- --all
   Paths: comma-separated, with or without a leading slash; optional prefix src/business-apps/ is stripped.
   Each path is relative to src/business-apps/ and must have index.ts.`)
     process.exit(1)
+  }
+
+  if (allScreens) {
+    console.log(
+      `\n--all: analyzing ${reportEntries.length} screen(s) (same discovery as publish-all-screens; see screen-discovery.config.json)\n`
+    )
   }
 
   const { bitbucketBuildNumber, pipelineUrl } = getBitbucketPipelineMetadata(process.env)
@@ -167,4 +206,7 @@ function main() {
   }
 }
 
-main()
+main().catch(err => {
+  console.error(err)
+  process.exit(1)
+})

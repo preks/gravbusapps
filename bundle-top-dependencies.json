@@ -36095,111 +36095,260 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10729,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10729/",
-    "chunkJsBytes": 970761,
+    "bitbucketBuildNumber": 10733,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10733/",
+    "chunkJsBytes": 971446,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 595179,
-        "gzip": 32645
+        "gzip": 32691,
+        "leaves": [
+          {
+            "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
+            "rendered": 595179,
+            "gzip": 32691
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
         "rendered": 408938,
-        "gzip": 208110
+        "gzip": 208110,
+        "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
+            "rendered": 232900,
+            "gzip": 125445
+          },
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
+            "rendered": 58390,
+            "gzip": 42107
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41535,
-        "gzip": 10131
+        "gzip": 10131,
+        "leaves": [
+          {
+            "name": "src/common/dev-report/DevReportDot.tsx",
+            "rendered": 27341,
+            "gzip": 5050
+          },
+          {
+            "name": "src/common/dev-report/screenshot.ts",
+            "rendered": 6973,
+            "gzip": 2084
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 23915,
-        "gzip": 5886
+        "rendered": 25036,
+        "gzip": 6054,
+        "leaves": [
+          {
+            "name": "src/business-apps/platform/apps/bundle-dashboard/BundleDashboard.tsx",
+            "rendered": 24267,
+            "gzip": 5559
+          },
+          {
+            "name": "src/business-apps/platform/apps/bundle-dashboard/PipelineOpenLink.tsx",
+            "rendered": 487,
+            "gzip": 307
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15765,
-        "gzip": 3733
+        "gzip": 3733,
+        "leaves": [
+          {
+            "name": "src/components/share-entity/ShareEntityDialog.tsx",
+            "rendered": 15765,
+            "gzip": 3733
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 12799,
-        "gzip": 3797
+        "gzip": 3797,
+        "leaves": [
+          {
+            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
+            "rendered": 9004,
+            "gzip": 2181
+          },
+          {
+            "name": "src/common/network/graphql/GraphQLClient.ts",
+            "rendered": 1869,
+            "gzip": 701
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 6337,
-        "gzip": 1977
+        "gzip": 1977,
+        "leaves": [
+          {
+            "name": "src/common/data/employee/useEmployeeSearch.ts",
+            "rendered": 4670,
+            "gzip": 1342
+          },
+          {
+            "name": "src/common/data/employee/queries/employeeQueries.ts",
+            "rendered": 1667,
+            "gzip": 635
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
-        "gzip": 1091
+        "gzip": 1091,
+        "leaves": [
+          {
+            "name": "src/common/env/EnvUtils.ts",
+            "rendered": 5857,
+            "gzip": 1091
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 4738,
-        "gzip": 1342
+        "gzip": 1342,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4297,
+            "gzip": 1054
+          },
+          {
+            "name": "src/common/utils/postToPlatform.ts",
+            "rendered": 253,
+            "gzip": 153
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
-        "gzip": 396
+        "gzip": 396,
+        "leaves": [
+          {
+            "name": "src/common/providers/BlinkProvider.tsx",
+            "rendered": 953,
+            "gzip": 396
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithBlinkProvider.tsx",
         "rendered": 519,
-        "gzip": 267
+        "gzip": 267,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithBlinkProvider.tsx",
+            "rendered": 519,
+            "gzip": 267
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 254
+        "gzip": 254,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithLocalizationProvider.tsx",
+            "rendered": 451,
+            "gzip": 254
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 416,
-        "gzip": 219
+        "gzip": 219,
+        "leaves": [
+          {
+            "name": "src/common/hooks/useFeature.ts",
+            "rendered": 416,
+            "gzip": 219
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/wrapWithUiCatalog.tsx",
         "rendered": 393,
-        "gzip": 222
+        "gzip": 222,
+        "leaves": [
+          {
+            "name": "src/common/wrapWithUiCatalog.tsx",
+            "rendered": 393,
+            "gzip": 222
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/platform",
         "rendered": 168,
-        "gzip": 137
+        "gzip": 137,
+        "leaves": [
+          {
+            "name": "src/wrapped-entries/platform/apps/bundle-dashboard.ts",
+            "rendered": 168,
+            "gzip": 137
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/types",
         "rendered": 148,
-        "gzip": 113
+        "gzip": 113,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 148,
+            "gzip": 113
+          }
+        ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
-        "gzip": 58
+        "gzip": 58,
+        "leaves": [
+          {
+            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
+            "rendered": 38,
+            "gzip": 58
+          }
+        ]
       }
     ]
   },
@@ -41496,7 +41645,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-13T23:59:15.555Z",
+    "generatedAt": "2026-04-14T06:11:17.235Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
