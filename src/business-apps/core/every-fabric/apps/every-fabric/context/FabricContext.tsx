@@ -33,10 +33,13 @@ interface FabricContextValue {
   // Conversation
   messages: ChatMessage[]
   events: AgentStreamEvent[]
+  streamingGreeting: string
   streamingContent: string
+  statusHeadline: string | null
   isStreaming: boolean
   isConnected: boolean
   isWaitingForInput: boolean
+  sessionLoadError: boolean
 
   // Activity panel
   activityEvents: ActivityEvent[]
@@ -67,6 +70,7 @@ interface FabricContextValue {
   selectSession: (id: string | null) => void
   newSession: () => void
   deleteSession: (id: string) => void
+  retrySessionLoad: () => Promise<void>
   reply: (message?: string, structuredInput?: Record<string, any>) => Promise<void>
   stopSession: () => Promise<void>
   setActiveArtifactId: (id: string | null) => void
@@ -86,6 +90,7 @@ export interface FabricProviderProps extends BusinessAppContextProps {
 export const FabricProvider: React.FC<FabricProviderProps> = ({ children, accessToken, userInfo }) => {
   const { urlSessionId, updateUrl } = useSessionUrlState()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [bootstrapSession, setBootstrapSession] = useState<DeepAgentSession | null>(null)
 
   // Sync activeSessionId with URL on mount
   useEffect(() => {
@@ -96,7 +101,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
 
   // Update URL when activeSessionId changes
   useEffect(() => {
-    updateUrl(activeSessionId)
+    updateUrl({ sessionId: activeSessionId })
   }, [activeSessionId, updateUrl])
 
   // Session list management
@@ -107,19 +112,29 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     session,
     messages,
     events,
+    streamingGreeting,
     streamingContent,
+    statusHeadline,
     isConnected,
     isStreaming,
     isWaitingForInput,
+    sessionLoadError,
     activeSkill,
     startSession: _startSession,
-    reply: _reply
-  } = useAgentSession(activeSessionId, accessToken)
+    reply: _reply,
+    retrySessionLoad: _retrySessionLoad
+  } = useAgentSession(activeSessionId, accessToken, bootstrapSession)
 
   // Keep session list in sync with live session state
   useEffect(() => {
     if (session) updateSession(session)
   }, [session, updateSession])
+
+  useEffect(() => {
+    if (session?.session_id && bootstrapSession?.session_id === session.session_id) {
+      setBootstrapSession(null)
+    }
+  }, [session?.session_id, bootstrapSession?.session_id])
 
   // Task progress derived from session.todos + SSE events
   const { taskNodes, completedCount, totalCount, progressPercent } = useFabricProgress(session, events)
@@ -141,21 +156,23 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       activeEnterpriseSkillId?: string,
       fallbackSkillId?: string
     ) => {
-      const sessionId = await _startSession(
+      const startResponse = await _startSession(
         task,
         config,
         activeExternalConnectionIds,
         activeEnterpriseSkillId,
         fallbackSkillId
       )
+      const sessionId = startResponse.session_id
+      setBootstrapSession(startResponse.session)
       setActiveSessionId(sessionId)
       addSession({
         session_id: sessionId,
         input: task,
-        status: 'running',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        config
+        status: startResponse.session.status,
+        created_at: startResponse.session.created_at,
+        updated_at: startResponse.session.updated_at,
+        config: startResponse.session.config ?? config
       })
       return sessionId
     },
@@ -163,20 +180,29 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   )
 
   const selectSession = useCallback((id: string | null) => {
+    setBootstrapSession(null)
     setActiveSessionId(id)
   }, [])
 
   const newSession = useCallback(() => {
+    setBootstrapSession(null)
     setActiveSessionId(null)
   }, [])
 
   const deleteSession = useCallback(
     (id: string) => {
       removeSession(id)
-      if (activeSessionId === id) setActiveSessionId(null)
+      if (activeSessionId === id) {
+        setBootstrapSession(null)
+        setActiveSessionId(null)
+      }
     },
     [activeSessionId, removeSession]
   )
+
+  const retrySessionLoad = useCallback(async () => {
+    await _retrySessionLoad()
+  }, [_retrySessionLoad])
 
   const reply = useCallback(
     async (message?: string, structuredInput?: Record<string, any>) => {
@@ -202,10 +228,13 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       session,
       messages,
       events,
+      streamingGreeting,
       streamingContent,
+      statusHeadline,
       isStreaming,
       isConnected,
       isWaitingForInput,
+      sessionLoadError,
       activityEvents,
       activeSkill,
       taskNodes,
@@ -220,6 +249,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       selectSession,
       newSession,
       deleteSession,
+      retrySessionLoad,
       reply,
       stopSession,
       setActiveArtifactId,
@@ -233,10 +263,13 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       session,
       messages,
       events,
+      streamingGreeting,
       streamingContent,
+      statusHeadline,
       isStreaming,
       isConnected,
       isWaitingForInput,
+      sessionLoadError,
       activityEvents,
       activeSkill,
       taskNodes,
@@ -251,6 +284,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       selectSession,
       newSession,
       deleteSession,
+      retrySessionLoad,
       reply,
       stopSession,
       setActiveArtifactId,

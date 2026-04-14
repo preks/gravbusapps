@@ -68,7 +68,9 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
   const {
     session,
     messages,
+    streamingGreeting,
     streamingContent,
+    statusHeadline,
     accessToken,
     isStreaming,
     isConnected,
@@ -143,13 +145,17 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
   const suggestedFollowUps = useMemo(() => parseFollowUps(latestFinalAnswer), [latestFinalAnswer])
 
   const streamingStatusHeadline = useMemo(() => {
+    // Prioritize real-time status from agent (skill matching, workspace prep, etc.)
+    if (statusHeadline) return statusHeadline
+
+    // Fallback to task node progress
     if (totalCount === 0) return null
     const active = taskNodes.find(n => n.status === 'active')
     if (active?.label) return active.label
     const pending = taskNodes.find(n => n.status === 'pending')
     if (pending?.label) return `Next: ${pending.label}`
     return null
-  }, [taskNodes, totalCount])
+  }, [statusHeadline, taskNodes, totalCount])
   useEffect(() => {
     if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
@@ -365,7 +371,9 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
         <ConversationPanel
           sessionId={session.session_id}
           messages={messages}
+          streamingGreeting={streamingGreeting}
           streamingContent={streamingContent}
+          statusHeadline={statusHeadline}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}

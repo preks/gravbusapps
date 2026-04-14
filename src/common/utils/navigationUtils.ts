@@ -98,6 +98,9 @@ export const Navigation = {
   OFFICE_SPREADSHEETS: `${NAVIGATION_BASE_PATH}/every-office/spreadsheets`,
   OFFICE_WHITEBOARDS: `${NAVIGATION_BASE_PATH}/every-office/whiteboards`,
 
+  // Core Apps
+  EVERY_FABRIC: `${NAVIGATION_BASE_PATH}/every-fabric`,
+
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
   CREATE_CONNECT: `${NAVIGATION_BASE_PATH}/create/connect`,
@@ -113,8 +116,7 @@ export const Navigation = {
   CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
   CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
   CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
-  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`,
-  CREATE_ENTERPRISE_AGENT: `${NAVIGATION_BASE_PATH}/every-fabric`
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-creator`
 } as const
 
 // Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
@@ -210,6 +212,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.OFFICE_SPREADSHEETS]: 'core/office/apps/spreadsheets',
   [Navigation.OFFICE_WHITEBOARDS]: 'core/office/apps/whiteboards',
 
+  // EveryFabric
+  [Navigation.EVERY_FABRIC]: 'core/every-fabric/apps/every-fabric',
+
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',
   [Navigation.CREATE_CONNECT]: 'core/create/apps/newwork-connect',
@@ -225,8 +230,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CREATE_DEBUG_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_PROMPT_MESH]: 'platform/apps/agent-mesh',
-  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator',
-  [Navigation.CREATE_ENTERPRISE_AGENT]: 'core/every-fabric/apps/every-fabric'
+  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator'
 }
 
 /**
