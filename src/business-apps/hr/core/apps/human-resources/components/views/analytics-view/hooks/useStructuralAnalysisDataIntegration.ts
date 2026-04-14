@@ -81,6 +81,19 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     parent_name?: string | null
     child_name?: string | null
   }
+  interface ReportingChainDatasetRow {
+    category: string
+    value: number
+    root_name?: string | null
+    branch_name?: string | null
+    leaf_id_text?: string | null
+    leaf_name?: string | null
+    chain_node_count?: number | null
+    chain_path?: string | null
+    chain_path_without_root?: string | null
+    bottleneck_count?: number | null
+    bottleneck_nodes?: string | null
+  }
 
   const buildNodesFromEdges = (edgeRows: HierarchyEdgeRow[]): OrganizationalNode[] => {
     type MutableNode = OrganizationalNode & { childrenIds?: string[] }
@@ -172,20 +185,25 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       let overviewRows: DatasetRow[] = []
       let hierarchyRows: DatasetRow[] = []
       let spanDistRows: DatasetRow[] = []
+      let reportingChainRows: ReportingChainDatasetRow[] = []
       // Sunburst: we'll first try orgHierarchySunburstData (edges encoded in category), else fall back to GraphQL
       let edgeRowsFromDataset: HierarchyEdgeRow[] = []
       if (datasetClient) {
-        const [overviewRes, hierarchyRes, spanDistRes, sunburstRes] = await Promise.all([
+        const [overviewRes, hierarchyRes, spanDistRes, sunburstRes, reportingChainsRes] = await Promise.all([
           datasetClient.executeQuery('structuralOverviewMetrics', QueryType.DATASET, { structureId }),
           datasetClient.executeQuery('hierarchyDepthMetrics', QueryType.DATASET, { structureId }),
           datasetClient.executeQuery('spanOfControlDistribution', QueryType.DATASET, { structureId }),
           datasetClient
             .executeQuery('orgHierarchySunburstData', QueryType.DATASET, { structureId })
+            .catch(() => ({ data: [] })),
+          datasetClient
+            .executeQuery('reportingChainsDetails', QueryType.DATASET, { structureId, pageSize: 50 })
             .catch(() => ({ data: [] }))
         ])
         overviewRows = toRows<DatasetRow>(overviewRes)
         hierarchyRows = toRows<DatasetRow>(hierarchyRes)
         spanDistRows = toRows<DatasetRow>(spanDistRes)
+        reportingChainRows = toRows<ReportingChainDatasetRow>(reportingChainsRes)
         const sunburstRows = toRows<{ category: string; value: number }>(sunburstRes)
 
         if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
@@ -289,7 +307,49 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
           : generateSpanOfControlAnalysis(organizationalNodes)
       const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
       const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
-      const reportingChainData = generateReportingChainAnalysis(organizationalNodes)
+      const employeeCountByNodeId = new Map(organizationalNodes.map(node => [node.id, node.employeeCount]))
+      const reportingChainData: ReportingChainData[] =
+        reportingChainRows.length > 0
+          ? reportingChainRows.map(row => {
+              const numericChainLength = typeof row.value === 'number' ? row.value : Number(row.value)
+              const chainLength = Number.isFinite(numericChainLength) ? Math.max(0, Math.round(numericChainLength)) : 0
+              const rawNodeCount =
+                typeof row.chain_node_count === 'number' ? row.chain_node_count : Number(row.chain_node_count ?? 0)
+              const levels = Number.isFinite(rawNodeCount)
+                ? Math.max(1, Math.round(rawNodeCount))
+                : Math.max(1, chainLength + 1)
+              const rawBottleneckCount =
+                typeof row.bottleneck_count === 'number' ? row.bottleneck_count : Number(row.bottleneck_count ?? 0)
+              const bottleneckCount = Number.isFinite(rawBottleneckCount)
+                ? Math.max(0, Math.round(rawBottleneckCount))
+                : 0
+              const bottleneckList = (row.bottleneck_nodes ?? '')
+                .split(',')
+                .map(item => item.trim())
+                .filter(item => item.length > 0)
+              const fallbackBottlenecks =
+                bottleneckCount > 0 && bottleneckList.length === 0
+                  ? [t('hr-analytics-bottlenecks-identified')]
+                  : bottleneckList
+              const leafEmployeeCount = row.leaf_id_text
+                ? (employeeCountByNodeId.get(String(row.leaf_id_text)) ?? 0)
+                : 0
+              const depthPenalty = chainLength > 6 ? 20 : chainLength > 4 ? 10 : 0
+              const bottleneckPenalty = Math.min(30, bottleneckCount * 10)
+              const efficiency = Math.max(50, 95 - depthPenalty - bottleneckPenalty)
+
+              return {
+                chainId: String(row.category),
+                topManager: row.root_name?.trim() || row.branch_name?.trim() || t('hr-analytics-top-org-unit'),
+                levels,
+                totalEmployees: leafEmployeeCount,
+                averageSpanOfControl: 0,
+                chainPath: row.chain_path?.trim() || row.chain_path_without_root?.trim() || '',
+                bottlenecks: fallbackBottlenecks,
+                efficiency
+              }
+            })
+          : generateReportingChainAnalysis(organizationalNodes)
       let reportingChainSummary = generateReportingChainSummary(reportingChainData)
       const sunburstData = generateSunburstData(organizationalNodes)
 
@@ -306,7 +366,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         const dsTotalManagers = getValueByCategory(overviewRows, 'total_managers')
         const dsTotalUnits = getValueByCategory(overviewRows, 'total_units')
         const dsAvgSpan = getValueByCategory(overviewRows, 'avg_span_of_control')
-        const dsOverburdenedCount = getValueByCategory(overviewRows, 'overburdened_count')
         const dsHierarchyDepth = getValueByCategory(hierarchyRows, 'hierarchy_depth')
         const dsAvgChain = getValueByCategory(hierarchyRows, 'avg_chain_length')
         const dsMinChain = getValueByCategory(hierarchyRows, 'min_chain_length')
@@ -334,27 +393,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
             typeof dsMinChain === 'number' && dsMinChain > 0 ? dsMinChain : reportingChainSummary.minChainLength,
           maxChainLength:
             typeof dsMaxChain === 'number' && dsMaxChain > 0 ? dsMaxChain : reportingChainSummary.maxChainLength
-        }
-        if (typeof dsOverburdenedCount === 'number') {
-          const desired = Math.max(0, Math.floor(dsOverburdenedCount))
-          if (desired < reportingChainSummary.bottlenecks.length) {
-            reportingChainSummary = {
-              ...reportingChainSummary,
-              bottlenecks: reportingChainSummary.bottlenecks.slice(0, desired)
-            }
-          } else if (desired > reportingChainSummary.bottlenecks.length) {
-            const padCount = desired - reportingChainSummary.bottlenecks.length
-            const pads = Array.from({ length: padCount }).map((_, i) => ({
-              managerId: `unknown-${i}`,
-              managerName: 'N/A',
-              chainsThroughManager: 0,
-              impact: 0
-            }))
-            reportingChainSummary = {
-              ...reportingChainSummary,
-              bottlenecks: [...reportingChainSummary.bottlenecks, ...pads]
-            }
-          }
         }
       }
 

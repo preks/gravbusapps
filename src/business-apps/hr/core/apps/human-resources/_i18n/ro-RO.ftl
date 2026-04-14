@@ -150,6 +150,7 @@ hr-analytics-parent-organizational-unit = Unitate organizațională părinte
 hr-analytics-top-org-unit = Unitate organizațională principală
 hr-analytics-levels-title = Niveluri
 hr-analytics-bottlenecks = Blocaje
+hr-analytics-bottlenecks-description = Noduri identificate ca blocaje pe baza ramificării ridicate în lanțurile de raportare (rădăcina este exclusă).
 hr-analytics-efficiency = Eficiență
 hr-analytics-none = Niciunul
 hr-analytics-more = mai multe

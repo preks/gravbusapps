@@ -286,16 +286,18 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       title: t('hr-analytics-reporting-chains'),
       testId: 'reporting-chains',
       rows: data.reportingChainData.map(item => ({
-        topManager: item.topManager,
+        topOrgUnit: item.topManager,
         levels: item.levels,
-        totalEmployees: item.totalEmployees,
-        averageSpan: item.averageSpanOfControl.toFixed(1)
+        chainPath: item.chainPath || '-',
+        bottlenecks: item.bottlenecks.length > 0 ? item.bottlenecks.join(', ') : t('hr-analytics-none'),
+        efficiency: `${item.efficiency}%`
       })),
       columns: [
-        { key: 'topManager', header: t('hr-analytics-top-manager') },
-        { key: 'levels', header: t('hr-analytics-levels') },
-        { key: 'totalEmployees', header: t('hr-analytics-employees') },
-        { key: 'averageSpan', header: t('hr-analytics-avg-span-of-control') }
+        { key: 'topOrgUnit', header: t('hr-analytics-top-org-unit') },
+        { key: 'levels', header: t('hr-analytics-levels-title') },
+        { key: 'chainPath', header: t('hr-analytics-reporting-chains') },
+        { key: 'bottlenecks', header: t('hr-analytics-bottlenecks') },
+        { key: 'efficiency', header: t('hr-analytics-efficiency') }
       ]
     }
   }

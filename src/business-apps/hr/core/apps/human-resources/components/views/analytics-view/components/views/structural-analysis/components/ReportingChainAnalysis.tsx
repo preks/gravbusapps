@@ -23,12 +23,6 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
   // Table columns for reporting chains
   const chainColumns = [
     {
-      title: t('hr-analytics-chain-id'),
-      dataIndex: 'chainId',
-      key: 'chainId',
-      width: 120
-    },
-    {
       title: t('hr-analytics-top-org-unit'),
       dataIndex: 'topManager',
       key: 'topManager',
@@ -54,24 +48,21 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       }
     },
     {
-      title: t('hr-analytics-total-employees'),
-      dataIndex: 'totalEmployees',
-      key: 'totalEmployees',
-      width: 120,
-      align: 'center' as const,
-      render: (value: number) => (
-        <Text strong className="gba:text-base">
-          {value}
-        </Text>
-      )
-    },
-    {
-      title: t('hr-analytics-avg-span-of-control'),
-      dataIndex: 'averageSpanOfControl',
-      key: 'averageSpanOfControl',
-      width: 140,
-      align: 'center' as const,
-      render: (value: number) => value.toFixed(1)
+      title: t('hr-analytics-reporting-chains'),
+      dataIndex: 'chainPath',
+      key: 'chainPath',
+      width: 420,
+      render: (path?: string) => {
+        const displayPath = path?.trim() ?? ''
+        if (displayPath.length === 0) {
+          return <Text className="gba:text-muted-foreground">-</Text>
+        }
+        return (
+          <Text className="gba:text-xs gba:text-muted-foreground" title={displayPath}>
+            {displayPath}
+          </Text>
+        )
+      }
     },
     {
       title: t('hr-analytics-bottlenecks'),
@@ -172,8 +163,9 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       <div>
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold gba:flex gba:items-center">
           <SirenIcon size={16} className="gba:mr-2 gba:text-warning" />
-          {t('hr-analytics-bottleneck-managers')}
+          {t('hr-analytics-bottlenecks')}
         </h3>
+        <p className="gba:mb-4 gba:text-sm gba:text-muted-foreground">{t('hr-analytics-bottlenecks-description')}</p>
         <List
           dataSource={summary.bottlenecks}
           renderItem={bottleneck => (
@@ -184,8 +176,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                 description={
                   <div>
                     <Text>
-                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}{' '}
-                      {t('hr-analytics-pass-through-this-manager')}
+                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}
                     </Text>
                     <br />
                     <Tag color="var(--nw-warning)">

@@ -266,6 +266,7 @@ hr-analytics-parent-organizational-unit = Übergeordnete Organisationseinheit
 hr-analytics-top-org-unit = Oberste Organisationseinheit
 hr-analytics-levels-title = Ebenen
 hr-analytics-bottlenecks = Engpässe
+hr-analytics-bottlenecks-description = Knoten, die als Engpässe anhand hoher Verzweigung in Berichtsketten identifiziert wurden (Wurzel ausgeschlossen).
 hr-analytics-efficiency = Effizienz
 hr-analytics-none = Keine
 hr-analytics-more = mehr

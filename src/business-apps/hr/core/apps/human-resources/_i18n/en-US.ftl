@@ -289,6 +289,7 @@ hr-analytics-parent-organizational-unit = Parent Organizational Unit
 hr-analytics-top-org-unit = Top organizational unit
 hr-analytics-levels-title = Levels
 hr-analytics-bottlenecks = Bottlenecks
+hr-analytics-bottlenecks-description = Nodes identified as bottlenecks based on high branching within reporting chains (root excluded).
 hr-analytics-efficiency = Efficiency
 hr-analytics-none = None
 hr-analytics-more = more
