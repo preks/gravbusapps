@@ -68,10 +68,94 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('<w:p><w:r><w:drawing>')
     expect(documentXml).not.toContain('<w:p><w:drawing>')
     expect(documentXml).not.toContain('mc:Ignorable=')
-    expect(documentRelsXml).toContain('Target="media/image1.png"')
+    expect(documentRelsXml).toContain('Target="media/body-image1.png"')
     expect(contentTypesXml).toContain('<Default Extension="png" ContentType="image/png"/>')
     expect(contentTypesXml).toContain(
       '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+    )
+  })
+
+  it('exports header and footer parts with first-page and odd-even references plus Word page fields', async () => {
+    const blob = await buildDocxBlob('Quarterly Report', '<p>Body</p>', {
+      pages: {
+        differentFirstPage: true,
+        differentOddEven: true,
+        headerFirstPage: '<p>Cover {title}</p>',
+        headerOdd: '<p>Odd chapter</p>',
+        headerEven: '<p>Even chapter</p>',
+        footerFirstPage: '<p>First footer</p>',
+        footerOdd: '<p>Odd footer {page} of {total}</p>',
+        footerEven: '<p>Even footer {title}</p>',
+        pageNumberRegion: 'header',
+        pageNumberAlignment: 'outside',
+        pageNumberShowOnFirstPage: true,
+        pageNumberStartAt: 5,
+        pageNumberNumeralStyle: 'upperRoman'
+      }
+    })
+    const documentXml = await readDocumentXml(blob)
+    const documentRelsXml = await readZipText(blob, 'word/_rels/document.xml.rels')
+    const settingsXml = await readZipText(blob, 'word/settings.xml')
+    const headerFirstXml = await readZipText(blob, 'word/header1.xml')
+    const headerDefaultXml = await readZipText(blob, 'word/header2.xml')
+    const headerEvenXml = await readZipText(blob, 'word/header3.xml')
+    const footerFirstXml = await readZipText(blob, 'word/footer1.xml')
+    const footerDefaultXml = await readZipText(blob, 'word/footer2.xml')
+    const footerEvenXml = await readZipText(blob, 'word/footer3.xml')
+    const contentTypesXml = await readZipText(blob, '[Content_Types].xml')
+
+    expectXmlToParse(documentXml)
+    expectXmlToParse(documentRelsXml)
+    expectXmlToParse(settingsXml)
+    expectXmlToParse(headerFirstXml)
+    expectXmlToParse(headerDefaultXml)
+    expectXmlToParse(headerEvenXml)
+    expectXmlToParse(footerFirstXml)
+    expectXmlToParse(footerDefaultXml)
+    expectXmlToParse(footerEvenXml)
+    expectXmlToParse(contentTypesXml)
+
+    expect(documentXml).toContain('<w:titlePg/>')
+    expect(documentXml).toContain('<w:pgNumType w:start="5" w:fmt="upperRoman"/>')
+    expect(documentXml).toContain('<w:headerReference w:type="first" r:id="rIdHeader1"/>')
+    expect(documentXml).toContain('<w:headerReference w:type="default" r:id="rIdHeader2"/>')
+    expect(documentXml).toContain('<w:headerReference w:type="even" r:id="rIdHeader3"/>')
+    expect(documentXml).toContain('<w:footerReference w:type="first" r:id="rIdFooter1"/>')
+    expect(documentXml).toContain('<w:footerReference w:type="default" r:id="rIdFooter2"/>')
+    expect(documentXml).toContain('<w:footerReference w:type="even" r:id="rIdFooter3"/>')
+
+    expect(documentRelsXml).toContain('Target="settings.xml"')
+    expect(documentRelsXml).toContain('Target="header1.xml"')
+    expect(documentRelsXml).toContain('Target="header2.xml"')
+    expect(documentRelsXml).toContain('Target="header3.xml"')
+    expect(documentRelsXml).toContain('Target="footer1.xml"')
+    expect(documentRelsXml).toContain('Target="footer2.xml"')
+    expect(documentRelsXml).toContain('Target="footer3.xml"')
+
+    expect(settingsXml).toContain('<w:evenAndOddHeaders/>')
+
+    expect(headerFirstXml).toContain('Quarterly Report')
+    expect(headerFirstXml).toContain('w:instr="PAGE \\* ROMAN"')
+    expect(headerFirstXml).toContain('<w:jc w:val="right"/>')
+    expect(headerDefaultXml).toContain('Odd chapter')
+    expect(headerDefaultXml).toContain('<w:jc w:val="right"/>')
+    expect(headerEvenXml).toContain('Even chapter')
+    expect(headerEvenXml).toContain('<w:jc w:val="left"/>')
+
+    expect(footerFirstXml).toContain('First footer')
+    expect(footerDefaultXml).toContain('Odd footer ')
+    expect(footerDefaultXml).toContain('w:instr="PAGE \\* ROMAN"')
+    expect(footerDefaultXml).toContain('w:instr="NUMPAGES"')
+    expect(footerEvenXml).toContain('Quarterly Report')
+
+    expect(contentTypesXml).toContain(
+      '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'
+    )
+    expect(contentTypesXml).toContain(
+      '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>'
+    )
+    expect(contentTypesXml).toContain(
+      '<Override PartName="/word/footer3.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'
     )
   })
 

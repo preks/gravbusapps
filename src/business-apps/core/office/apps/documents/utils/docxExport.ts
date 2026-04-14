@@ -29,7 +29,11 @@ import {
   type ImageBorderDash
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
 import type { DocumentFormatting } from '../types'
-import { getDocxPageSetupFromFormatting, getPrintStyleConfigFromFormatting } from './pageLayoutUtils'
+import {
+  getDocxPageSetupFromFormatting,
+  getPagesConfigFromFormatting,
+  getPrintStyleConfigFromFormatting
+} from './pageLayoutUtils'
 import { buildWordTocXmlFromElement } from './docxTocExportUtils'
 import { DEFAULT_DOCUMENT_TOC_STYLES, type DocumentTocStyles, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
@@ -52,7 +56,10 @@ interface DocxBuildContext {
   hyperlinks: { rId: string; url: string }[]
   nextImageId: number
   nextHyperlinkId: number
+  partKey: string
+  buildState: DocxBuildState
   typography: DocxTypographySettings
+  fieldConfig?: DocxFieldConfig
 }
 
 interface DocxTypographySettings {
@@ -69,8 +76,37 @@ interface DocxTocStyleSettings {
   tabLeader: 'dot' | 'none'
 }
 
-function newContext(typography: DocxTypographySettings): DocxBuildContext {
-  return { images: [], hyperlinks: [], nextImageId: 1, nextHyperlinkId: 1, typography }
+interface DocxBuildState {
+  nextDocPrId: number
+}
+
+interface DocxFieldConfig {
+  documentTitle: string
+  pageInstruction: string
+  pageDisplayText: string
+  totalDisplayText: string
+}
+
+interface DocxPageNumberSlot {
+  alignment: 'left' | 'center' | 'right'
+}
+
+function newContext(
+  typography: DocxTypographySettings,
+  partKey: string,
+  buildState: DocxBuildState,
+  fieldConfig?: DocxFieldConfig
+): DocxBuildContext {
+  return {
+    images: [],
+    hyperlinks: [],
+    nextImageId: 1,
+    nextHyperlinkId: 1,
+    partKey,
+    buildState,
+    typography,
+    fieldConfig
+  }
 }
 
 const PX_TO_EMU = 9525
@@ -206,13 +242,27 @@ function base64ToUint8Array(b64: string): Uint8Array {
   return arr
 }
 
+function sanitizeDocxPartKey(partKey: string): string {
+  const normalized = partKey
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+  return normalized || 'part'
+}
+
+function allocateDocPrId(ctx: DocxBuildContext): number {
+  const nextId = ctx.buildState.nextDocPrId
+  ctx.buildState.nextDocPrId += 1
+  return nextId
+}
+
 function registerImage(ctx: DocxBuildContext, src: string, width: number, height: number): EmbeddedImage | null {
   const parts = extractDataUrlParts(src)
   if (!parts) return null
   const id = ctx.nextImageId++
   const img: EmbeddedImage = {
     rId: `rIdImg${id}`,
-    fileName: `image${id}.${parts.ext}`,
+    fileName: `${sanitizeDocxPartKey(ctx.partKey)}-image${id}.${parts.ext}`,
     data: base64ToUint8Array(parts.base64),
     widthEmu: (width || DEFAULT_IMG_WIDTH) * PX_TO_EMU,
     heightEmu: (height || DEFAULT_IMG_HEIGHT) * PX_TO_EMU
@@ -491,9 +541,10 @@ async function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildCon
   const height = resolvedDimensions.height ?? DEFAULT_IMG_HEIGHT
   const img = registerImage(ctx, src, width, height)
   if (!img) return
+  const docPrId = allocateDocPrId(ctx)
 
   parts.push(
-    `<w:p>${wrapDrawingRun(imageDrawingXml(img, ctx.images.length, layout, wordLayout, resolvedDimensions.rotation))}</w:p>`
+    `<w:p>${wrapDrawingRun(imageDrawingXml(img, docPrId, layout, wordLayout, resolvedDimensions.rotation))}</w:p>`
   )
 
   if (layout.caption?.trim()) {
@@ -504,9 +555,66 @@ async function convertFigure(el: HTMLElement, parts: string[], ctx: DocxBuildCon
   }
 }
 
-function wrapRun(text: string, props?: string): string {
+function buildRunInnerXml(text: string, props?: string): string {
   const rPr = props ? `<w:rPr>${props}</w:rPr>` : ''
-  return `<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`
+  const textXml = text.length > 0 ? `<w:t xml:space="preserve">${escapeXml(text)}</w:t>` : ''
+  return `${rPr}${textXml}`
+}
+
+function wrapRun(text: string, props?: string): string {
+  return `<w:r>${buildRunInnerXml(text, props)}</w:r>`
+}
+
+function buildSimpleFieldXml(instruction: string, displayText: string, props?: string): string {
+  return `<w:fldSimple w:instr="${escapeXml(instruction)}"><w:r>${buildRunInnerXml(displayText, props)}</w:r></w:fldSimple>`
+}
+
+const DOCX_FIELD_TOKEN_REGEX = /\{(page|total|title)\}/g
+
+function wrapTextWithFieldTokens(text: string, ctx: DocxBuildContext, props?: string): string {
+  if (!ctx.fieldConfig || !DOCX_FIELD_TOKEN_REGEX.test(text)) {
+    DOCX_FIELD_TOKEN_REGEX.lastIndex = 0
+    return wrapRun(text, props)
+  }
+
+  DOCX_FIELD_TOKEN_REGEX.lastIndex = 0
+  let result = ''
+  let cursor = 0
+  let match = DOCX_FIELD_TOKEN_REGEX.exec(text)
+
+  while (match) {
+    const [token, tokenName] = match
+    const start = match.index
+
+    if (start > cursor) {
+      result += wrapRun(text.slice(cursor, start), props)
+    }
+
+    switch (tokenName) {
+      case 'page':
+        result += buildSimpleFieldXml(ctx.fieldConfig.pageInstruction, ctx.fieldConfig.pageDisplayText, props)
+        break
+      case 'total':
+        result += buildSimpleFieldXml('NUMPAGES', ctx.fieldConfig.totalDisplayText, props)
+        break
+      case 'title':
+        result += wrapRun(ctx.fieldConfig.documentTitle, props)
+        break
+      default:
+        result += wrapRun(token, props)
+        break
+    }
+
+    cursor = start + token.length
+    match = DOCX_FIELD_TOKEN_REGEX.exec(text)
+  }
+
+  if (cursor < text.length) {
+    result += wrapRun(text.slice(cursor), props)
+  }
+
+  DOCX_FIELD_TOKEN_REGEX.lastIndex = 0
+  return result
 }
 
 function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: string): string {
@@ -515,7 +623,7 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
     const node = el.childNodes[i]
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent || ''
-      if (text) result += wrapRun(text, inheritProps)
+      if (text) result += wrapTextWithFieldTokens(text, ctx, inheritProps)
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const child = node as HTMLElement
       const tag = child.tagName.toLowerCase()
@@ -556,7 +664,7 @@ function convertInline(el: HTMLElement, ctx: DocxBuildContext, inheritProps?: st
           const w = parseInt(child.getAttribute('width') || '0', 10) || DEFAULT_IMG_WIDTH
           const h = parseInt(child.getAttribute('height') || '0', 10) || DEFAULT_IMG_HEIGHT
           const img = registerImage(ctx, src, w, h)
-          if (img) result += wrapDrawingRun(imageDrawingXml(img, ctx.images.length))
+          if (img) result += wrapDrawingRun(imageDrawingXml(img, allocateDocPrId(ctx)))
           break
         }
         case 'code':
@@ -720,13 +828,330 @@ function convertTable(tableEl: HTMLElement, parts: string[], ctx: DocxBuildConte
   parts.push('</w:tbl>')
 }
 
-function buildDocumentXml(bodyXml: string, formatting?: DocumentFormatting | null): string {
+type DocxHeaderFooterReferenceType = 'default' | 'first' | 'even'
+type DocxHeaderFooterKind = 'header' | 'footer'
+
+interface DocxHeaderFooterPart {
+  kind: DocxHeaderFooterKind
+  referenceType: DocxHeaderFooterReferenceType
+  relationshipId: string
+  targetPath: string
+  zipPath: string
+  relsZipPath: string
+  xml: string
+  ctx: DocxBuildContext
+}
+
+interface DocxHeaderFooterResult {
+  parts: DocxHeaderFooterPart[]
+  useDifferentFirstPage: boolean
+  useEvenAndOddHeaders: boolean
+  pgNumTypeXml: string
+}
+
+function resolveDocxPageNumberSlotAlignment(
+  alignment: NonNullable<ReturnType<typeof getPagesConfigFromFormatting>['pageNumberAlignment']>,
+  oddPage: boolean
+): DocxPageNumberSlot['alignment'] {
+  switch (alignment) {
+    case 'left':
+      return 'left'
+    case 'right':
+      return 'right'
+    case 'inside':
+      return oddPage ? 'left' : 'right'
+    case 'outside':
+      return oddPage ? 'right' : 'left'
+    case 'center':
+    default:
+      return 'center'
+  }
+}
+
+function resolveDocxPageNumberSlot(
+  formatting?: DocumentFormatting | null,
+  region?: DocxHeaderFooterKind,
+  page = 1
+): DocxPageNumberSlot | null {
+  const pages = getPagesConfigFromFormatting(formatting)
+  if (!pages.pageNumberAlignment) return null
+  if ((pages.pageNumberRegion ?? 'footer') !== region) return null
+  if (pages.pageNumberShowOnFirstPage === false && page === 1) return null
+
+  return {
+    alignment: resolveDocxPageNumberSlotAlignment(pages.pageNumberAlignment, page % 2 !== 0)
+  }
+}
+
+function hasDocxFieldTokens(html: string): boolean {
+  return /\{(?:page|total|title)\}/.test(html)
+}
+
+function mapPageNumberNumeralStyleToWordFormat(
+  style: ReturnType<typeof getPagesConfigFromFormatting>['pageNumberNumeralStyle']
+): string {
+  switch (style) {
+    case 'lowerRoman':
+      return 'lowerRoman'
+    case 'upperRoman':
+      return 'upperRoman'
+    case 'lowerAlpha':
+      return 'lowerLetter'
+    case 'upperAlpha':
+      return 'upperLetter'
+    default:
+      return 'decimal'
+  }
+}
+
+function mapPageNumberNumeralStyleToFieldInstruction(
+  style: ReturnType<typeof getPagesConfigFromFormatting>['pageNumberNumeralStyle']
+): string {
+  switch (style) {
+    case 'lowerRoman':
+      return 'PAGE \\* roman'
+    case 'upperRoman':
+      return 'PAGE \\* ROMAN'
+    case 'lowerAlpha':
+      return 'PAGE \\* alphabetic'
+    case 'upperAlpha':
+      return 'PAGE \\* ALPHABETIC'
+    default:
+      return 'PAGE'
+  }
+}
+
+function buildPgNumTypeXml(formatting?: DocumentFormatting | null): string {
+  const pages = getPagesConfigFromFormatting(formatting)
+  const attributes: string[] = []
+
+  if (pages.pageNumberStartAt > 1) {
+    attributes.push(`w:start="${pages.pageNumberStartAt}"`)
+  }
+
+  const numeralFormat = mapPageNumberNumeralStyleToWordFormat(pages.pageNumberNumeralStyle)
+  if (numeralFormat !== 'decimal') {
+    attributes.push(`w:fmt="${numeralFormat}"`)
+  }
+
+  if (attributes.length === 0) {
+    return ''
+  }
+
+  return `<w:pgNumType ${attributes.join(' ')}/>`
+}
+
+function buildSettingsXml(useEvenAndOddHeaders: boolean): string {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+${useEvenAndOddHeaders ? '<w:evenAndOddHeaders/>' : ''}
+</w:settings>`
+}
+
+function buildHeaderFooterPartXml(kind: DocxHeaderFooterKind, bodyXml: string): string {
+  const rootTag = kind === 'header' ? 'w:hdr' : 'w:ftr'
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<${rootTag} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+${bodyXml}
+</${rootTag}>`
+}
+
+function buildPageNumberSlotParagraph(slot: DocxPageNumberSlot, fieldConfig: DocxFieldConfig): string {
+  return `<w:p><w:pPr><w:jc w:val="${slot.alignment}"/><w:spacing w:before="0" w:after="0"/></w:pPr>${buildSimpleFieldXml(fieldConfig.pageInstruction, fieldConfig.pageDisplayText)}</w:p>`
+}
+
+function resolveHeaderFooterHtmlForPage(
+  kind: DocxHeaderFooterKind,
+  formatting?: DocumentFormatting | null,
+  page = 1
+): string {
+  const pages = getPagesConfigFromFormatting(formatting)
+
+  if (page === 1 && pages.differentFirstPage) {
+    return kind === 'header' ? (pages.headerFirstPage ?? '') : (pages.footerFirstPage ?? '')
+  }
+
+  if (pages.differentOddEven) {
+    if (page % 2 === 0) {
+      return kind === 'header' ? (pages.headerEven ?? '') : (pages.footerEven ?? '')
+    }
+
+    return kind === 'header' ? (pages.headerOdd ?? '') : (pages.footerOdd ?? '')
+  }
+
+  return kind === 'header' ? pages.header : pages.footer
+}
+
+function buildFieldConfig(
+  title: string,
+  formatting: DocumentFormatting | null | undefined,
+  page: number
+): DocxFieldConfig {
+  const pages = getPagesConfigFromFormatting(formatting)
+
+  return {
+    documentTitle: title,
+    pageInstruction: mapPageNumberNumeralStyleToFieldInstruction(pages.pageNumberNumeralStyle),
+    pageDisplayText: String(Math.max(1, page - 1 + pages.pageNumberStartAt)),
+    totalDisplayText: '1'
+  }
+}
+
+async function buildHeaderFooterPart(params: {
+  kind: DocxHeaderFooterKind
+  referenceType: DocxHeaderFooterReferenceType
+  page: number
+  title: string
+  html: string
+  slot: DocxPageNumberSlot | null
+  formatting?: DocumentFormatting | null
+  typography: DocxTypographySettings
+  buildState: DocxBuildState
+  index: number
+}): Promise<DocxHeaderFooterPart | null> {
+  const { kind, referenceType, page, title, html, slot, formatting, typography, buildState, index } = params
+  const safeHtml = sanitizeHtmlForExport(html, {
+    preserveBlockSpacing: true,
+    preserveVisualStyles: true,
+    allowDataUriInImg: true
+  })
+  const tempDiv = document.createElement('div')
+
+  tempDiv.innerHTML =
+    DOMPurify.sanitize(safeHtml, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+      ALLOW_DATA_ATTR: true
+    }) || ''
+
+  const requiresFieldConfig = slot !== null || hasDocxFieldTokens(html)
+  const ctx = newContext(
+    typography,
+    `${kind}-${referenceType}-${index}`,
+    buildState,
+    requiresFieldConfig ? buildFieldConfig(title, formatting, page) : undefined
+  )
+  const bodyParts: string[] = []
+
+  if (slot && ctx.fieldConfig) {
+    bodyParts.push(buildPageNumberSlotParagraph(slot, ctx.fieldConfig))
+  }
+
+  await convertBlock(tempDiv, bodyParts, ctx)
+
+  if (bodyParts.length === 0) {
+    return null
+  }
+
+  const fileName = `${kind}${index}.xml`
+  return {
+    kind,
+    referenceType,
+    relationshipId: `rId${kind[0].toUpperCase()}${kind.slice(1)}${index}`,
+    targetPath: fileName,
+    zipPath: `word/${fileName}`,
+    relsZipPath: `word/_rels/${fileName}.rels`,
+    xml: buildHeaderFooterPartXml(kind, bodyParts.join('\n')),
+    ctx
+  }
+}
+
+async function buildHeaderFooterParts(
+  title: string,
+  formatting: DocumentFormatting | null | undefined,
+  typography: DocxTypographySettings,
+  buildState: DocxBuildState
+): Promise<DocxHeaderFooterResult> {
+  const pages = getPagesConfigFromFormatting(formatting)
+  const hasManagedPageNumbers = Boolean(pages.pageNumberRegion && pages.pageNumberAlignment)
+  const useEvenAndOddHeaders =
+    pages.differentOddEven || (hasManagedPageNumbers && ['inside', 'outside'].includes(pages.pageNumberAlignment ?? ''))
+  const useDifferentFirstPage =
+    pages.differentFirstPage || (hasManagedPageNumbers && pages.pageNumberShowOnFirstPage === false)
+  const representativeDefaultPage = useEvenAndOddHeaders
+    ? useDifferentFirstPage
+      ? 3
+      : 1
+    : useDifferentFirstPage
+      ? 2
+      : 1
+  const parts: DocxHeaderFooterPart[] = []
+  let headerIndex = 1
+  let footerIndex = 1
+  let usesPageNumberFields = false
+
+  for (const kind of ['header', 'footer'] as const) {
+    const partCandidates: Array<{ referenceType: DocxHeaderFooterReferenceType; page: number }> = []
+
+    if (useDifferentFirstPage) {
+      partCandidates.push({ referenceType: 'first', page: 1 })
+    }
+
+    partCandidates.push({ referenceType: 'default', page: representativeDefaultPage })
+
+    if (useEvenAndOddHeaders) {
+      partCandidates.push({ referenceType: 'even', page: 2 })
+    }
+
+    for (const candidate of partCandidates) {
+      const html = resolveHeaderFooterHtmlForPage(kind, formatting, candidate.page)
+      const slot = resolveDocxPageNumberSlot(formatting, kind, candidate.page)
+      if (slot || hasDocxFieldTokens(html)) {
+        usesPageNumberFields = true
+      }
+
+      const part = await buildHeaderFooterPart({
+        kind,
+        referenceType: candidate.referenceType,
+        page: candidate.page,
+        title,
+        html,
+        slot,
+        formatting,
+        typography,
+        buildState,
+        index: kind === 'header' ? headerIndex : footerIndex
+      })
+
+      if (kind === 'header') {
+        headerIndex += 1
+      } else {
+        footerIndex += 1
+      }
+
+      if (part) {
+        parts.push(part)
+      }
+    }
+  }
+
+  return {
+    parts,
+    useDifferentFirstPage,
+    useEvenAndOddHeaders,
+    pgNumTypeXml: usesPageNumberFields ? buildPgNumTypeXml(formatting) : ''
+  }
+}
+
+function buildDocumentXml(
+  bodyXml: string,
+  formatting?: DocumentFormatting | null,
+  headerFooterResult?: DocxHeaderFooterResult
+): string {
   const pageSetup = getDocxPageSetupFromFormatting(formatting)
   const pageSizeXml =
     pageSetup.orientation === 'landscape'
       ? `<w:pgSz w:w="${pageSetup.pageWidthTwips}" w:h="${pageSetup.pageHeightTwips}" w:orient="landscape"/>`
       : `<w:pgSz w:w="${pageSetup.pageWidthTwips}" w:h="${pageSetup.pageHeightTwips}"/>`
   const pageMarginXml = `<w:pgMar w:top="${pageSetup.marginTopTwips}" w:right="${pageSetup.marginRightTwips}" w:bottom="${pageSetup.marginBottomTwips}" w:left="${pageSetup.marginLeftTwips}" w:header="${pageSetup.headerDistanceTwips}" w:footer="${pageSetup.footerDistanceTwips}" w:gutter="0"/>`
+  const headerFooterRefsXml =
+    headerFooterResult?.parts
+      .map(part => `<w:${part.kind}Reference w:type="${part.referenceType}" r:id="${part.relationshipId}"/>`)
+      .join('') ?? ''
+  const titlePageXml = headerFooterResult?.useDifferentFirstPage ? '<w:titlePg/>' : ''
+  const pgNumTypeXml = headerFooterResult?.pgNumTypeXml ?? ''
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
@@ -741,7 +1166,7 @@ function buildDocumentXml(bodyXml: string, formatting?: DocumentFormatting | nul
   xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml">
 <w:body>
 ${bodyXml}
-<w:sectPr>${pageSizeXml}${pageMarginXml}</w:sectPr>
+<w:sectPr>${headerFooterRefsXml}${titlePageXml}${pgNumTypeXml}${pageSizeXml}${pageMarginXml}</w:sectPr>
 </w:body>
 </w:document>`
 }
@@ -795,7 +1220,7 @@ ${tocStylesXml}
 </w:styles>`
 }
 
-function buildRelsXml(ctx: DocxBuildContext): string {
+function buildRelsXml(ctx: DocxBuildContext, fixedRelationships: string[] = []): string {
   const imageRels = ctx.images
     .map(
       img =>
@@ -810,15 +1235,17 @@ function buildRelsXml(ctx: DocxBuildContext): string {
     .join('\n')
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+${fixedRelationships.join('\n')}
 ${imageRels}
 ${linkRels}
 </Relationships>`
 }
 
-function buildContentTypesXml(ctx: DocxBuildContext): string {
-  const exts = new Set(ctx.images.map(img => img.fileName.split('.').pop()!))
+function buildContentTypesXml(
+  contexts: readonly DocxBuildContext[],
+  headerFooterParts: readonly DocxHeaderFooterPart[]
+): string {
+  const exts = new Set(contexts.flatMap(ctx => ctx.images.map(img => img.fileName.split('.').pop()!)))
   const extTypes: Record<string, string> = {
     png: 'image/png',
     jpg: 'image/jpeg',
@@ -830,6 +1257,16 @@ function buildContentTypesXml(ctx: DocxBuildContext): string {
   const defaults = Array.from(exts)
     .map(ext => `<Default Extension="${ext}" ContentType="${extTypes[ext] || 'application/octet-stream'}"/>`)
     .join('\n')
+  const partOverrides = headerFooterParts
+    .map(part => {
+      const contentType =
+        part.kind === 'header'
+          ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml'
+          : 'application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml'
+
+      return `<Override PartName="/${part.zipPath}" ContentType="${contentType}"/>`
+    })
+    .join('\n')
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -838,6 +1275,8 @@ ${defaults}
 <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+${partOverrides}
 </Types>`
 }
 
@@ -849,13 +1288,14 @@ export async function buildDocxBlob(
   htmlContent: string,
   formatting?: DocumentFormatting | null
 ): Promise<Blob> {
-  void title
+  const typography = resolveDocxTypographySettings(formatting)
+  const buildState: DocxBuildState = { nextDocPrId: 1 }
   const safeHtml = sanitizeHtmlForExport(htmlContent, {
     preserveBlockSpacing: true,
     preserveVisualStyles: true,
     allowDataUriInImg: true
   })
-  const ctx = newContext(resolveDocxTypographySettings(formatting))
+  const ctx = newContext(typography, 'body', buildState)
 
   const tempDiv = document.createElement('div')
   // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
@@ -869,9 +1309,20 @@ export async function buildDocxBlob(
   await convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')
   const tocSettings = resolveDocxTocStyleSettings(tempDiv)
+  const headerFooterResult = await buildHeaderFooterParts(title, formatting, typography, buildState)
+  const allContexts = [ctx, ...headerFooterResult.parts.map(part => part.ctx)]
+  const documentRelationships = [
+    '<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>',
+    '<Relationship Id="rIdNumbering" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>',
+    '<Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>',
+    ...headerFooterResult.parts.map(
+      part =>
+        `<Relationship Id="${part.relationshipId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${part.kind}" Target="${part.targetPath}"/>`
+    )
+  ]
 
   const zip = createJSZip()
-  zip.file('[Content_Types].xml', buildContentTypesXml(ctx))
+  zip.file('[Content_Types].xml', buildContentTypesXml(allContexts, headerFooterResult.parts))
   zip.file(
     '_rels/.rels',
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -879,14 +1330,24 @@ export async function buildDocxBlob(
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`
   )
-  zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n'), formatting))
+  zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n'), formatting, headerFooterResult))
   zip.file('word/styles.xml', buildStylesXml(formatting, tocSettings))
   zip.file('word/numbering.xml', buildNumberingXml())
-  zip.file('word/_rels/document.xml.rels', buildRelsXml(ctx))
+  zip.file('word/settings.xml', buildSettingsXml(headerFooterResult.useEvenAndOddHeaders))
+  zip.file('word/_rels/document.xml.rels', buildRelsXml(ctx, documentRelationships))
 
-  for (const img of ctx.images) {
-    zip.file(`word/media/${img.fileName}`, img.data)
-  }
+  headerFooterResult.parts.forEach(part => {
+    zip.file(part.zipPath, part.xml)
+    if (part.ctx.images.length > 0 || part.ctx.hyperlinks.length > 0) {
+      zip.file(part.relsZipPath, buildRelsXml(part.ctx))
+    }
+  })
+
+  allContexts.forEach(partCtx => {
+    for (const img of partCtx.images) {
+      zip.file(`word/media/${img.fileName}`, img.data)
+    }
+  })
 
   return zip.generateAsync({
     type: 'blob',
