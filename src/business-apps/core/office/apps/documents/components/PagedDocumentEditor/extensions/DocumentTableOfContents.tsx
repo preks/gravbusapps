@@ -11,6 +11,11 @@ import {
   stringifyDocumentTocSnapshot,
   updateDocumentTocSnapshotPageNumbers
 } from '../../../utils/documentTocSnapshot'
+import {
+  DEFAULT_DOCUMENT_TOC_STYLES,
+  parseDocumentTocStyles,
+  stringifyDocumentTocStyles
+} from '../../../utils/documentTocStyleUtils'
 import { getDocumentTocLayoutHints } from '../../../utils/tocLayoutBridge'
 import { DocumentTableOfContentsView } from '../components/DocumentTableOfContentsView'
 
@@ -22,6 +27,7 @@ export type DocumentTocTabLeader = 'dot' | 'none'
 
 export interface DocumentTableOfContentsAttrs {
   snapshotJson: string
+  stylesJson: string
   showPageNumbers: boolean
   rightAlignPageNumbers: boolean
   tabLeader: DocumentTocTabLeader
@@ -31,6 +37,7 @@ export interface DocumentTableOfContentsAttrs {
 
 const DEFAULT_DOCUMENT_TOC_ATTRS: DocumentTableOfContentsAttrs = {
   snapshotJson: '[]',
+  stylesJson: stringifyDocumentTocStyles(DEFAULT_DOCUMENT_TOC_STYLES),
   showPageNumbers: true,
   rightAlignPageNumbers: true,
   tabLeader: 'dot',
@@ -149,6 +156,14 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
           return { 'data-toc-snapshot': raw }
         }
       },
+      stylesJson: {
+        default: DEFAULT_DOCUMENT_TOC_ATTRS.stylesJson,
+        parseHTML: element =>
+          stringifyDocumentTocStyles(parseDocumentTocStyles(element.getAttribute('data-toc-styles'))),
+        renderHTML: attributes => ({
+          'data-toc-styles': stringifyDocumentTocStyles(parseDocumentTocStyles(String(attributes.stylesJson ?? '')))
+        })
+      },
       showPageNumbers: {
         default: DEFAULT_DOCUMENT_TOC_ATTRS.showPageNumbers,
         parseHTML: element => element.getAttribute('data-toc-show-page-numbers') !== 'false',
@@ -208,7 +223,8 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
         {
           'data-document-toc': '',
           class: 'document-table-of-contents',
-          'data-toc-snapshot': node.attrs.snapshotJson
+          'data-toc-snapshot': node.attrs.snapshotJson,
+          'data-toc-styles': stringifyDocumentTocStyles(parseDocumentTocStyles(String(node.attrs.stylesJson ?? '')))
         },
         this.options.HTMLAttributes,
         HTMLAttributes
@@ -288,6 +304,9 @@ export const DocumentTableOfContents = Node.create<DocumentTableOfContentsOption
           const nextAttrs = {
             ...node.attrs,
             ...attrs,
+            stylesJson: stringifyDocumentTocStyles(
+              parseDocumentTocStyles(String(attrs.stylesJson ?? node.attrs.stylesJson))
+            ),
             tabLeader: normalizeTabLeader(attrs.tabLeader ?? node.attrs.tabLeader),
             maxHeadingLevel: normalizeMaxHeadingLevel(attrs.maxHeadingLevel ?? node.attrs.maxHeadingLevel)
           }

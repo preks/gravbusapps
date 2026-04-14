@@ -111,6 +111,7 @@ describe('docxExport image layout', () => {
       <div
         data-document-toc=""
         data-toc-snapshot='{"version":2,"entries":[{"level":1,"text":"Overview","pos":12,"blockStart":11,"pageNumber":"3"}],"updatedAt":"2026-04-14T10:00:00.000Z","updateMode":"entire","layoutVersion":1}'
+        data-toc-styles='{"title":{"fontFamily":"Arial","fontSizePt":14,"bold":false,"italic":true,"color":"#990000"},"entries":{"fontFamily":"Calibri","fontSizePt":11,"bold":true,"italic":false,"color":"#123456"}}'
         data-toc-show-page-numbers="true"
         data-toc-right-align-page-numbers="true"
         data-toc-tab-leader="dot"
@@ -126,6 +127,7 @@ describe('docxExport image layout', () => {
 
     const blob = await buildDocxBlob('ToC doc', html)
     const documentXml = await readDocumentXml(blob)
+    const stylesXml = await readStylesXml(blob)
 
     expect(documentXml).toContain('TOC \\o &quot;1-3&quot; \\h')
     expect(documentXml).toContain('fldCharType="begin"')
@@ -133,8 +135,24 @@ describe('docxExport image layout', () => {
     expect(documentXml).toContain('fldCharType="end"')
     expect(documentXml).toContain('Table of contents')
     expect(documentXml).toContain('Overview')
+    expect(documentXml).toContain('<w:pStyle w:val="TOCHeading"/>')
+    expect(documentXml).toContain('<w:pStyle w:val="TOC1"/>')
     expect(documentXml).toContain('<w:tab/>')
+    expect(documentXml).toContain('<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>')
+    expect(documentXml).toContain('<w:sz w:val="28"/>')
+    expect(documentXml).toContain('<w:i/>')
+    expect(documentXml).toContain('<w:color w:val="990000"/>')
+    expect(documentXml).toContain('<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>')
+    expect(documentXml).toContain('<w:sz w:val="22"/>')
+    expect(documentXml).toContain('<w:b/>')
+    expect(documentXml).toContain('<w:color w:val="123456"/>')
     expect(documentXml).toContain('<w:pStyle w:val="Heading1"/>')
+    expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOCHeading">')
+    expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOC1">')
+    expect(stylesXml).toContain('<w:style w:type="paragraph" w:styleId="TOC6">')
+    expect(stylesXml).toContain('<w:basedOn w:val="Normal"/>')
+    expect(stylesXml).toContain('<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="9350"/></w:tabs>')
+    expect(stylesXml).toContain('<w:ind w:left="1800"/>')
   })
 
   it('writes live page setup values into the DOCX section properties', async () => {

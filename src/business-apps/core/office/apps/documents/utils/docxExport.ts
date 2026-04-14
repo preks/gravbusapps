@@ -32,6 +32,7 @@ import {
 import type { DocumentFormatting } from '../types'
 import { getDocxPageSetupFromFormatting, getPrintStyleConfigFromFormatting } from './pageLayoutUtils'
 import { buildWordTocFieldXmlFromElement } from './docxTocExportUtils'
+import { DEFAULT_DOCUMENT_TOC_STYLES, type DocumentTocStyles, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -60,6 +61,12 @@ interface DocxTypographySettings {
   bodyLineSpacing: number
   tableFontHalfPoints: number
   tableLineSpacing: number
+}
+
+interface DocxTocStyleSettings {
+  styles: DocumentTocStyles
+  showPageNumbers: boolean
+  tabLeader: 'dot' | 'none'
 }
 
 function newContext(typography: DocxTypographySettings): DocxBuildContext {
@@ -107,6 +114,31 @@ function buildFontRunProps(fontFamily: string, halfPoints: number): string {
   return `<w:rFonts w:ascii="${escapedFamily}" w:hAnsi="${escapedFamily}"/><w:sz w:val="${halfPoints}"/>`
 }
 
+function buildOptionalTocRunProps(style: DocumentTocStyles['entries']): string {
+  const parts: string[] = []
+
+  if (style.fontFamily) {
+    const escapedFamily = escapeXml(style.fontFamily)
+    parts.push(`<w:rFonts w:ascii="${escapedFamily}" w:hAnsi="${escapedFamily}"/>`)
+  }
+  if (style.fontSizePt !== null) {
+    const halfPoints = pxToHalfPoints((style.fontSizePt * 96) / 72)
+    parts.push(`<w:sz w:val="${halfPoints}"/>`)
+    parts.push(`<w:szCs w:val="${halfPoints}"/>`)
+  }
+  if (style.bold) {
+    parts.push('<w:b/>')
+  }
+  if (style.italic) {
+    parts.push('<w:i/>')
+  }
+  if (style.color) {
+    parts.push(`<w:color w:val="${escapeXml(style.color.replace('#', ''))}"/>`)
+  }
+
+  return parts.join('')
+}
+
 function resolveDocxTypographySettings(formatting?: DocumentFormatting | null): DocxTypographySettings {
   const printStyle = getPrintStyleConfigFromFormatting(formatting)
   const bodyFontPx = Number.parseFloat(printStyle.fontSize) || DEFAULT_DOCX_FONT_SIZE_PX
@@ -118,6 +150,46 @@ function resolveDocxTypographySettings(formatting?: DocumentFormatting | null): 
     bodyLineSpacing: lineHeightToWordSpacing(bodyLineHeight),
     tableFontHalfPoints: pxToHalfPoints(DOCX_TABLE_FONT_SIZE_PX),
     tableLineSpacing: lineHeightToWordSpacing(DOCX_TABLE_LINE_HEIGHT)
+  }
+}
+
+function buildTocTabsXml(settings: DocxTocStyleSettings): string {
+  if (!settings.showPageNumbers) {
+    return ''
+  }
+
+  const leader = settings.tabLeader === 'dot' ? ' w:leader="dot"' : ''
+  return `<w:tabs><w:tab w:val="right"${leader} w:pos="9350"/></w:tabs>`
+}
+
+function buildTocParagraphStyleXml(styleId: string, level: number, settings: DocxTocStyleSettings): string {
+  const leftIndent = Math.max(0, level - 1) * 360
+  const indentXml = leftIndent > 0 ? `<w:ind w:left="${leftIndent}"/>` : ''
+  const tabsXml = buildTocTabsXml(settings)
+  const runProps = buildOptionalTocRunProps(settings.styles.entries)
+
+  return `<w:style w:type="paragraph" w:styleId="${styleId}"><w:name w:val="${styleId}"/><w:basedOn w:val="Normal"/><w:pPr>${tabsXml}${indentXml}<w:spacing w:before="0" w:after="0" w:line="${settings.showPageNumbers ? '324' : '276'}" w:lineRule="auto"/></w:pPr><w:rPr>${runProps}</w:rPr></w:style>`
+}
+
+function buildTocHeadingStyleXml(settings: DocxTocStyleSettings): string {
+  const runProps = buildOptionalTocRunProps(settings.styles.title)
+  return `<w:style w:type="paragraph" w:styleId="TOCHeading"><w:name w:val="TOC Heading"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="120" w:line="276" w:lineRule="auto"/></w:pPr><w:rPr>${runProps}</w:rPr></w:style>`
+}
+
+function resolveDocxTocStyleSettings(root: ParentNode): DocxTocStyleSettings {
+  const firstToc = root.querySelector?.('[data-document-toc]')
+  if (!(firstToc instanceof HTMLElement)) {
+    return {
+      styles: DEFAULT_DOCUMENT_TOC_STYLES,
+      showPageNumbers: true,
+      tabLeader: 'dot'
+    }
+  }
+
+  return {
+    styles: parseDocumentTocStyles(firstToc.getAttribute('data-toc-styles')),
+    showPageNumbers: firstToc.getAttribute('data-toc-show-page-numbers') !== 'false',
+    tabLeader: firstToc.getAttribute('data-toc-tab-leader') === 'none' ? 'none' : 'dot'
   }
 }
 
@@ -682,13 +754,27 @@ function buildNumberingXml(): string {
 </w:numbering>`
 }
 
-function buildStylesXml(formatting?: DocumentFormatting | null): string {
+function buildStylesXml(formatting?: DocumentFormatting | null, tocSettings?: DocxTocStyleSettings): string {
   const typography = resolveDocxTypographySettings(formatting)
   const bodyFontProps = buildFontRunProps(typography.fontFamily, typography.bodyFontHalfPoints)
   const h1FontProps = buildFontRunProps(typography.fontFamily, 48)
   const h2FontProps = buildFontRunProps(typography.fontFamily, 36)
   const h3FontProps = buildFontRunProps(typography.fontFamily, 27)
   const h4FontProps = buildFontRunProps(typography.fontFamily, 24)
+  const resolvedTocSettings = tocSettings ?? {
+    styles: DEFAULT_DOCUMENT_TOC_STYLES,
+    showPageNumbers: true,
+    tabLeader: 'dot'
+  }
+  const tocStylesXml = [
+    buildTocHeadingStyleXml(resolvedTocSettings),
+    buildTocParagraphStyleXml('TOC1', 1, resolvedTocSettings),
+    buildTocParagraphStyleXml('TOC2', 2, resolvedTocSettings),
+    buildTocParagraphStyleXml('TOC3', 3, resolvedTocSettings),
+    buildTocParagraphStyleXml('TOC4', 4, resolvedTocSettings),
+    buildTocParagraphStyleXml('TOC5', 5, resolvedTocSettings),
+    buildTocParagraphStyleXml('TOC6', 6, resolvedTocSettings)
+  ].join('')
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -700,6 +786,7 @@ function buildStylesXml(formatting?: DocumentFormatting | null): string {
 <w:style w:type="paragraph" w:styleId="Heading5"><w:name w:val="heading 5"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading6"><w:name w:val="heading 6"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="720"/><w:spacing w:before="0" w:after="0" w:line="${typography.bodyLineSpacing}" w:lineRule="auto"/></w:pPr><w:rPr>${bodyFontProps}</w:rPr></w:style>
+${tocStylesXml}
 <w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0066CC"/><w:u w:val="single"/></w:rPr></w:style>
 </w:styles>`
 }
@@ -777,6 +864,7 @@ export async function buildDocxBlob(
   const bodyParts: string[] = []
   await convertBlock(tempDiv, bodyParts, ctx)
   if (bodyParts.length === 0) bodyParts.push('<w:p/>')
+  const tocSettings = resolveDocxTocStyleSettings(tempDiv)
 
   const zip = new JSZip()
   zip.file('[Content_Types].xml', buildContentTypesXml(ctx))
@@ -788,7 +876,7 @@ export async function buildDocxBlob(
 </Relationships>`
   )
   zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n'), formatting))
-  zip.file('word/styles.xml', buildStylesXml(formatting))
+  zip.file('word/styles.xml', buildStylesXml(formatting, tocSettings))
   zip.file('word/numbering.xml', buildNumberingXml())
   zip.file('word/_rels/document.xml.rels', buildRelsXml(ctx))
 
