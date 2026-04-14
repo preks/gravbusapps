@@ -145,7 +145,6 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
 
   const closeAbsenceTypeVersionModal = () => {
     setIsAbsenceTypeVersionModalOpen(false)
-    setSelectedVersionEntry(null)
   }
 
   const closeAbsenceEntitlementModal = () => {
@@ -193,21 +192,19 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
   }
 
   const handleSaveAbsenceTypeVersion = async (formValues: AbsenceTypeVersionFormValues) => {
-    const payload = buildAbsenceTypeVersionPayload(formValues, absenceTypes)
+    const payload = buildAbsenceTypeVersionPayload(formValues, absenceTypes, Boolean(selectedVersionEntry?.id))
 
     try {
       if (selectedVersionEntry?.id) {
-        await absenceTypeVersionsCatalog.updateEntry(selectedVersionEntry.id, {
-          id: selectedVersionEntry.id,
-          code: selectedVersionEntry.code,
+        const updatedEntry = await absenceTypeVersionsCatalog.updateEntry(selectedVersionEntry.id, {
           value: payload.value,
-          type: selectedVersionEntry.type,
           objectValue: payload.objectValue,
-          localeCode: selectedVersionEntry.localeCode || 'en-US',
           translations: payload.translations
         })
+        setSelectedVersionEntry(updatedEntry)
       } else {
-        await absenceTypeVersionsCatalog.createEntry(payload)
+        const createdEntry = await absenceTypeVersionsCatalog.createEntry(payload)
+        setSelectedVersionEntry(createdEntry)
       }
       toast.success(t('save-catalog-entry-success', { entity: t('absence-type-version-entity-label') }))
       closeAbsenceTypeVersionModal()
@@ -219,6 +216,18 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
       console.error('Error saving absence type version:', message)
       toast.error(t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') }))
       throw saveError
+    }
+  }
+
+  const handleSelectAbsenceTypeVersion = async (entry: CatalogEntry) => {
+    try {
+      await absenceTypeVersionsCatalog.getEntryById(entry.id)
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error
+          ? loadError.message
+          : t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') })
+      console.error('Error loading absence type version details:', message)
     }
   }
 
@@ -414,8 +423,20 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
       setSelectedVersionEntry(null)
       setIsAbsenceTypeVersionModalOpen(true)
     },
-    onEditAbsenceTypeVersion: entry => {
-      setSelectedVersionEntry(entry)
+    onSelectAbsenceTypeVersion: handleSelectAbsenceTypeVersion,
+    onEditAbsenceTypeVersion: async entry => {
+      try {
+        const latestEntry = await absenceTypeVersionsCatalog.getEntryById(entry.id)
+        setSelectedVersionEntry(latestEntry)
+      } catch (loadError) {
+        const message =
+          loadError instanceof Error
+            ? loadError.message
+            : t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') })
+        console.error('Error loading absence type version entry:', message)
+        setSelectedVersionEntry(entry)
+      }
+
       setIsAbsenceTypeVersionModalOpen(true)
     },
     onDeleteAbsenceTypeVersion: entry => {
