@@ -3,7 +3,6 @@
  * upgrade Mammoth HTML to custom-image figures the editor understands.
  */
 
-import JSZip from 'jszip'
 import type { DocumentFormatting, PageSizeId } from '../types'
 import type {
   ImageAlignment,
@@ -26,6 +25,7 @@ import {
   normalizeImageBorderWidthPt
 } from '@/components/tiptap-extensions/tiptap-custom-image/styleUtils'
 import { PAGE_SIZE_LABELS, twipsToCm, twipsToPx } from './pageLayoutUtils'
+import { JSZipCompat } from './jsZipCompat'
 
 const PX_TO_EMU = 9525
 const POINT_TO_OOXML_LINE_WIDTH = 12700
@@ -333,7 +333,7 @@ export function parseDocumentXmlForImageLayouts(xml: string): DocxImageLayout[] 
  */
 export async function parseDocxImageLayouts(arrayBuffer: ArrayBuffer): Promise<DocxImageLayout[]> {
   try {
-    const zip = await JSZip.loadAsync(arrayBuffer)
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
     const entry = zip.file('word/document.xml')
     if (!entry) return []
     const xml = await entry.async('string')
@@ -559,7 +559,7 @@ export function parseStylesXmlForTypography(xml: string): Partial<DocumentFormat
 
 export async function parseDocxPageFormatting(arrayBuffer: ArrayBuffer): Promise<DocumentFormatting | undefined> {
   try {
-    const zip = await JSZip.loadAsync(arrayBuffer)
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
     const documentEntry = zip.file('word/document.xml')
     const stylesEntry = zip.file('word/styles.xml')
 
@@ -587,7 +587,7 @@ export async function parseDocxPageFormatting(arrayBuffer: ArrayBuffer): Promise
 
 export async function parseDocxPageBreaks(arrayBuffer: ArrayBuffer): Promise<number[]> {
   try {
-    const zip = await JSZip.loadAsync(arrayBuffer)
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
     const documentEntry = zip.file('word/document.xml')
     if (!documentEntry) {
       return []

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Loader2 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { DriveItem, DriveFolder } from './types/drive.types'
+import type { DriveItem, DriveFolder, DriveItemType } from './types/drive.types'
 import { DriveHero } from './components/DriveHero'
 import { DriveBreadcrumbs } from './components/DriveBreadcrumbs'
 import { DriveToolbar } from './components/DriveToolbar'
@@ -33,6 +33,12 @@ export interface DriveAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
+interface RenameTarget {
+  id: string
+  name: string
+  itemType: DriveItemType
+}
+
 export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   accessToken,
   userInfo,
@@ -44,7 +50,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
   const [searchOpen, setSearchOpen] = useState(false)
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
-  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string; isFolder: boolean } | null>(null)
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null)
   const [shareTarget, setShareTarget] = useState<{ entityType: string; entityId: string; entityName: string } | null>(
     null
   )
@@ -205,10 +211,25 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
     async (newName: string) => {
       if (!renameTarget) return
       DriveApiService.setAccessToken(accessToken ?? null)
-      if (renameTarget.isFolder) {
-        await DriveApiService.updateFolder(renameTarget.id, { name: newName })
-      } else {
-        await DriveApiService.renameFile(renameTarget.id, newName)
+      switch (renameTarget.itemType) {
+        case 'drive_folder':
+          await DriveApiService.updateFolder(renameTarget.id, { name: newName })
+          break
+        case 'drive_file':
+          await DriveApiService.renameFile(renameTarget.id, newName)
+          break
+        case 'document':
+          await DriveApiService.renameDocument(renameTarget.id, newName)
+          break
+        case 'note':
+          await DriveApiService.renameNote(renameTarget.id, newName)
+          break
+        case 'spreadsheet_app':
+          await DriveApiService.renameSpreadsheetApp(renameTarget.id, newName)
+          break
+        case 'slide':
+          await DriveApiService.renameSlide(renameTarget.id, newName)
+          break
       }
       setRenameTarget(null)
       drive.refresh()
@@ -297,8 +318,8 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
               onRemoveShortcut={shortcutId => drive.removeShortcut(shortcutId)}
               onRestoreItem={activeSection === 'trash' ? handleRestoreItem : undefined}
               onDownloadItem={handleDownload}
-              onRenameItem={item => setRenameTarget({ id: item.id, name: item.name, isFolder: false })}
-              onRenameFolder={f => setRenameTarget({ id: f.id, name: f.name, isFolder: true })}
+              onRenameItem={item => setRenameTarget({ id: item.id, name: item.name, itemType: item.type })}
+              onRenameFolder={f => setRenameTarget({ id: f.id, name: f.name, itemType: 'drive_folder' })}
               onShareItem={handleShareItem}
               onShareFolder={handleShareFolder}
               t={t}
