@@ -52,3 +52,7 @@ time_tracking_summary_vacation_days = Vacation days
 time_tracking_summary_planned_hours = Planned hours
 time_tracking_summary_effective_hours = Effective hours
 time_tracking_summary_difference_hours = Difference
+absence_option_vacation = Request Vacation
+absence_option_sick = Report Sick Leave
+absence_option_special = Request Special Leave
+absence_option_work = Request Work Leave
