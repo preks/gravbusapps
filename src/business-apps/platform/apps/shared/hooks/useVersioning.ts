@@ -128,6 +128,14 @@ export interface UseVersioningActions {
 
 export interface UseVersioningReturn extends UseVersioningState, UseVersioningActions {}
 
+export function markVersioningStateAsChanged(state: UseVersioningState): UseVersioningState {
+  if (state.hasUnsavedChanges) {
+    return state
+  }
+
+  return { ...state, hasUnsavedChanges: true }
+}
+
 /**
  * Hook for managing entity versions
  */
@@ -444,7 +452,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
    * Mark content as changed (enables auto-save)
    */
   const markAsChanged = useCallback(() => {
-    setState(prev => ({ ...prev, hasUnsavedChanges: true }))
+    setState(markVersioningStateAsChanged)
   }, [])
 
   /**

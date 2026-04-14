@@ -9,6 +9,7 @@ import { Hash, Image, Link, ListTree, PenLine, SeparatorHorizontal, Table } from
 import translations from '../../_i18n'
 import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
 import { buildInitialInsertedImageAttrs } from '../../utils/initialInsertedImageLayout'
+import { insertWordLikeTable } from '../../utils/initialInsertedTableLayout'
 import { ToolbarButton, RibbonGroup } from './editorToolbarShared'
 import { TableToolsMenu } from './TableToolsMenu'
 
@@ -80,9 +81,15 @@ export function InsertTabContent({
     if (onOpenInsertTableDialog) {
       onOpenInsertTableDialog()
     } else {
-      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+      insertWordLikeTable({
+        editor,
+        paginationConfig,
+        rows: 3,
+        cols: 3,
+        withHeaderRow: true
+      })
     }
-  }, [editor, onOpenInsertTableDialog])
+  }, [editor, onOpenInsertTableDialog, paginationConfig])
 
   const insertPageBreak = useCallback(() => {
     editor.chain().focus().setPageBreak().run()

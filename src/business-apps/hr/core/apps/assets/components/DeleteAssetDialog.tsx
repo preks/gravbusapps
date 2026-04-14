@@ -49,7 +49,7 @@ export function DeleteAssetDialog({
       return ''
     }
 
-    if (!hasExistingNotes && !trimmedNotes) {
+    if (!trimmedNotes) {
       return t('delete-asset-note-required')
     }
 
@@ -100,6 +100,7 @@ export function DeleteAssetDialog({
               onChange={event => setNotes(event.target.value)}
               className="gba:min-h-[120px]"
               placeholder={t('delete-asset-notes-placeholder')}
+              aria-required="true"
               data-testid="delete-asset-notes-input"
             />
             {validationMessage ? (

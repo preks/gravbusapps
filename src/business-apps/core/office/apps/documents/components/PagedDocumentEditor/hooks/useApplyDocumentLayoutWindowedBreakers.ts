@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import type { DocumentLayoutPageRange } from '../../../types'
+import { refreshPageMinHeight } from '@/components/tiptap-extensions/tiptap-custom-pagination/dom'
 import { resolvePageBreakElements, type DocumentLayoutNavigationState } from '../documentLayoutService'
 import type { DocumentLayoutViewportModel } from './useDocumentLayoutViewportModel'
 
@@ -37,6 +38,27 @@ function resolvePaginationRoot(container: HTMLDivElement): HTMLElement | null {
   return (container.querySelector('[data-rm-pagination="true"]') as HTMLElement | null) ?? null
 }
 
+function resolvePaginationPresentationRoot(
+  paginationRoot: HTMLElement | null,
+  fallbackContainer: HTMLDivElement
+): HTMLElement | null {
+  if (!(paginationRoot instanceof HTMLElement)) {
+    return null
+  }
+
+  const chromeRoot = paginationRoot.closest('[data-rm-pagination-chrome="true"]')
+  if (chromeRoot instanceof HTMLElement && chromeRoot.parentElement instanceof HTMLElement) {
+    return chromeRoot.parentElement
+  }
+
+  const proseMirrorRoot = paginationRoot.closest('.ProseMirror')
+  if (proseMirrorRoot instanceof HTMLElement) {
+    return proseMirrorRoot
+  }
+
+  return paginationRoot.parentElement instanceof HTMLElement ? paginationRoot.parentElement : fallbackContainer
+}
+
 function hasParkedPageBreaker(pageBreakEl: HTMLElement, parkedBreakers: WeakMap<HTMLElement, ParkedBreakerState>) {
   const breaker = resolveBreakerElement(pageBreakEl)
   return breaker instanceof HTMLElement ? parkedBreakers.has(breaker) : false
@@ -58,11 +80,11 @@ function syncMountedRangeMetadata(
   paginationRoot.dataset.rmMountedEndPage = String(normalizedRange.endPage)
 }
 
-function resolveDesiredHydratedPageNumbers(activePages: Set<number>, totalPages: number) {
+function resolveDesiredHydratedPageNumbers(mountedPages: Set<number>, totalPages: number) {
   const desiredHydratedPages = new Set<number>()
 
   for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
-    if (shouldMountPageBreaker(pageNumber, activePages)) {
+    if (shouldMountPageBreaker(pageNumber, mountedPages)) {
       desiredHydratedPages.add(pageNumber)
     }
   }
@@ -99,6 +121,48 @@ function resolveMountedRange(activeRange: DocumentLayoutPageRange) {
   return {
     startPage: Math.max(1, activeRange.startPage - 1),
     endPage: activeRange.endPage
+  }
+}
+
+function doesPageRangeCoverRange(
+  containerRange: DocumentLayoutPageRange | null,
+  requestedRange: DocumentLayoutPageRange
+): boolean {
+  if (!containerRange) {
+    return false
+  }
+
+  return requestedRange.startPage >= containerRange.startPage && requestedRange.endPage <= containerRange.endPage
+}
+
+function createPageNumbersForRange(range: DocumentLayoutPageRange, totalPages: number): number[] {
+  const pageNumbers: number[] = []
+  const endPage = Math.min(totalPages, range.endPage)
+
+  for (let pageNumber = Math.max(1, range.startPage); pageNumber <= endPage; pageNumber += 1) {
+    pageNumbers.push(pageNumber)
+  }
+
+  return pageNumbers
+}
+
+function resolveEffectiveMountedState(
+  viewportModel: Pick<DocumentLayoutViewportModel, 'activeRange' | 'mountedRange' | 'mountedPageNumbers' | 'totalPages'>
+): {
+  mountedRange: DocumentLayoutPageRange
+  mountedPageNumbers: number[]
+} {
+  if (doesPageRangeCoverRange(viewportModel.mountedRange, viewportModel.activeRange)) {
+    return {
+      mountedRange: viewportModel.mountedRange ?? resolveMountedRange(viewportModel.activeRange),
+      mountedPageNumbers: viewportModel.mountedPageNumbers
+    }
+  }
+
+  const recoveredMountedRange = resolveMountedRange(viewportModel.activeRange)
+  return {
+    mountedRange: recoveredMountedRange,
+    mountedPageNumbers: createPageNumbersForRange(recoveredMountedRange, viewportModel.totalPages)
   }
 }
 
@@ -211,9 +275,14 @@ export function useApplyDocumentLayoutWindowedBreakers({
       }
 
       const paginationRoot = resolvePaginationRoot(container)
+      const presentationRoot = resolvePaginationPresentationRoot(paginationRoot, container)
 
       if (!viewportModel.isWindowed) {
+        let didMutateBreakers = false
         pageBreakersRef.current.forEach(pageBreakEl => {
+          if (hasParkedPageBreaker(pageBreakEl, parkedBreakersRef.current)) {
+            didMutateBreakers = true
+          }
           restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
         })
         syncMountedRangeMetadata(paginationRoot, null, viewportModel.totalPages)
@@ -229,24 +298,31 @@ export function useApplyDocumentLayoutWindowedBreakers({
             ;(
               editor?.commands as { hydratePageBreakShells?: (pageNumbers: number[]) => boolean } | undefined
             )?.hydratePageBreakShells?.(placeholderPageNumbers)
+            didMutateBreakers = true
           }
         } else {
           hydrationRequestKeyRef.current = null
         }
 
+        if (didMutateBreakers && presentationRoot) {
+          refreshPageMinHeight(presentationRoot)
+        }
+
         return
       }
 
-      const desiredMountedRange = resolveMountedRange(viewportModel.activeRange)
-      syncMountedRangeMetadata(paginationRoot, desiredMountedRange, viewportModel.totalPages)
-      const activePages = new Set(viewportModel.activePageNumbers)
-      const desiredHydratedPages = resolveDesiredHydratedPageNumbers(activePages, viewportModel.totalPages)
+      const effectiveMountedState = resolveEffectiveMountedState(viewportModel)
+      syncMountedRangeMetadata(paginationRoot, effectiveMountedState.mountedRange, viewportModel.totalPages)
+      const mountedPages = new Set(effectiveMountedState.mountedPageNumbers)
+      const desiredHydratedPages = resolveDesiredHydratedPageNumbers(mountedPages, viewportModel.totalPages)
       const pageNumbersToHydrate: number[] = []
+      let didMutateBreakers = false
 
       pageBreakersRef.current.forEach((pageBreakEl, pageNumber) => {
         if (desiredHydratedPages.has(pageNumber)) {
           if (hasParkedPageBreaker(pageBreakEl, parkedBreakersRef.current)) {
             restorePageBreaker(pageBreakEl, parkedBreakersRef.current)
+            didMutateBreakers = true
           } else if (isPlaceholderPageBreaker(pageBreakEl)) {
             pageNumbersToHydrate.push(pageNumber)
           }
@@ -254,6 +330,7 @@ export function useApplyDocumentLayoutWindowedBreakers({
         }
 
         parkPageBreaker(pageBreakEl, parkedBreakersRef.current)
+        didMutateBreakers = true
       })
 
       if (pageNumbersToHydrate.length > 0) {
@@ -263,9 +340,14 @@ export function useApplyDocumentLayoutWindowedBreakers({
           ;(
             editor?.commands as { hydratePageBreakShells?: (pageNumbers: number[]) => boolean } | undefined
           )?.hydratePageBreakShells?.(pageNumbersToHydrate)
+          didMutateBreakers = true
         }
       } else {
         hydrationRequestKeyRef.current = null
+      }
+
+      if (didMutateBreakers && presentationRoot) {
+        refreshPageMinHeight(presentationRoot)
       }
     })
 
@@ -282,6 +364,8 @@ export function useApplyDocumentLayoutWindowedBreakers({
     viewportModel.activePageNumbers,
     viewportModel.activeRange,
     viewportModel.isWindowed,
+    viewportModel.mountedPageNumbers,
+    viewportModel.mountedRange,
     viewportModel.totalPages,
     viewportModel.windowKey
   ])

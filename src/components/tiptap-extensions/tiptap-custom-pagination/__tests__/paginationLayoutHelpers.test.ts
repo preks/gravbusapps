@@ -113,6 +113,35 @@ describe('applyMeasuredPageHeightsToView', () => {
     )
   })
 
+  it('uses zero header and footer fallback heights for empty unmeasured pages', () => {
+    const editorDom = document.createElement('div')
+    document.body.appendChild(editorDom)
+    appendPageBreak(editorDom, 1)
+
+    const storage = createStorageFromOptions(baseOptions)
+    storage.pageCount = 1
+
+    jest.spyOn(paginationUtils, 'getExistingPageCount').mockReturnValue(1)
+    jest.spyOn(paginationUtils, 'measureHeaderFooterContentHeights').mockReturnValue({
+      headerHeights: new Map(),
+      footerHeights: new Map()
+    })
+
+    applyMeasuredPageHeightsToView(
+      {
+        dom: editorDom
+      } as never,
+      storage,
+      baseOptions
+    )
+
+    const emptyLayout = getPageLayoutHeights(storage.pageFormat, storage, 0, 0)
+
+    expect(editorDom.style.getPropertyValue('--rm-page-body-1')).toBe(`${emptyLayout.bodyHeight}px`)
+    expect(editorDom.style.getPropertyValue('--rm-page-content-1')).toBe(`${emptyLayout.bodyHeight}px`)
+    expect(editorDom.style.getPropertyValue('--rm-page-content-first')).toBe(`${emptyLayout.bodyHeight}px`)
+  })
+
   it('limits windowed measurements to the active range plus the first page', () => {
     const viewport = document.createElement('div')
     const editorDom = document.createElement('div')
@@ -387,6 +416,69 @@ describe('applyMeasuredPageHeightsToView', () => {
 
     expect(paginationUtils.measureHeaderFooterContentHeights).toHaveBeenCalledTimes(1)
     expect(setPropertySpy).not.toHaveBeenCalled()
+  })
+
+  it('remeasures page heights when page-number display settings change under the same window', () => {
+    const viewport = document.createElement('div')
+    const editorDom = document.createElement('div')
+    document.body.appendChild(viewport)
+    viewport.appendChild(editorDom)
+    viewport.className = 'document-editor-viewport'
+    viewport.dataset.layoutWindowMode = 'windowed'
+    viewport.dataset.layoutWindowStart = '39'
+    viewport.dataset.layoutWindowEnd = '41'
+    viewport.dataset.layoutMountedStart = '38'
+    viewport.dataset.layoutMountedEnd = '41'
+
+    const storage = createStorageFromOptions(baseOptions)
+    storage.pageCount = 41
+
+    jest.spyOn(paginationUtils, 'getExistingPageCount').mockReturnValue(41)
+    const measureSpy = jest.spyOn(paginationUtils, 'measureHeaderFooterContentHeights')
+    measureSpy.mockReturnValue({
+      headerHeights: new Map([
+        [1, 50],
+        [38, 50],
+        [39, 50],
+        [40, 50],
+        [41, 50]
+      ]),
+      footerHeights: new Map([
+        [1, 20],
+        [38, 20],
+        [39, 20],
+        [40, 20],
+        [41, 20]
+      ])
+    })
+
+    applyMeasuredPageHeightsToView(
+      {
+        dom: editorDom
+      } as never,
+      storage,
+      baseOptions
+    )
+
+    const nextOptions = {
+      ...baseOptions,
+      pageNumberRegion: 'header' as const,
+      pageNumberAlignment: 'center' as const,
+      pageNumberStartAt: 1,
+      pageNumberShowOnFirstPage: true
+    }
+
+    applyMeasuredPageHeightsToView(
+      {
+        dom: editorDom
+      } as never,
+      storage,
+      nextOptions
+    )
+
+    expect(measureSpy).toHaveBeenCalledTimes(2)
+    expect(measureSpy.mock.calls[0]?.[4]).toEqual([1, 39, 40, 41])
+    expect(measureSpy.mock.calls[1]?.[4]).toEqual([1, 39, 40, 41])
   })
 })
 

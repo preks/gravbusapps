@@ -6,6 +6,7 @@ import {
   PerformanceEvaluationAnalysisDetailResponse,
   PerformanceEvaluationDetailQueryParams
 } from '../types/performanceEvaluation.types'
+import { EMPLOYEES_API_URL } from '@/common/utils/serviceResolver'
 
 const PERFORMANCE_EVALUATIONS_BASE_PATH = '/performance-evaluations'
 const EMPLOYEE_PERFORMANCE_EVALUATIONS_ANALYSIS_PATH = `${PERFORMANCE_EVALUATIONS_BASE_PATH}/analysis/employees`

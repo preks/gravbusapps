@@ -23,6 +23,7 @@ import type { CustomerOpportunityContact } from './customerRelationTypes'
 import type { CustomerOpportunityAccount } from './customerAccountAssociationTypes'
 import { toCustomerAccount } from './customerAccountTypes'
 import { toCustomerContact } from './customerContactTypes'
+import { mapRawCrmNoteGraphQLRow } from '../utils/crmNoteMap'
 
 /**
  * Customer Opportunity Type
@@ -240,6 +241,9 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
       ? stageConditionStatuses.map((sc: any) => toCustomerOpportunityStageCondition(sc))
       : raw.opportunityStageConditions
 
+  const noteSource = raw.notes ?? crmNote
+  const mappedNotes = Array.isArray(noteSource) ? noteSource.map(mapRawCrmNoteGraphQLRow) : noteSource
+
   return {
     ...rest,
     opportunityAccounts: mappedOpportunityAccounts,
@@ -251,7 +255,7 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
     opportunityStageConditions: mappedOpportunityStageConditions,
     opportunityContacts: raw.opportunityContacts ?? mappedOpportunityContacts,
     documents: raw.documents ?? crmDocument,
-    notes: raw.notes ?? crmNote
+    notes: mappedNotes
   } as CustomerOpportunity
 }
 

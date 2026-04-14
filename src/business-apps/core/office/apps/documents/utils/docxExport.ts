@@ -29,6 +29,9 @@ import {
   DEFAULT_IMAGE_BORDER_WIDTH_PT,
   type ImageBorderDash
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
+import type { DocumentFormatting } from '../types'
+import { getDocxPageSetupFromFormatting, getPrintStyleConfigFromFormatting } from './pageLayoutUtils'
+import { buildWordTocFieldXmlFromElement } from './docxTocExportUtils'
 import { sanitizeHtmlForExport } from './exportUtils'
 
 function escapeXml(text: string): string {
@@ -48,10 +51,19 @@ interface DocxBuildContext {
   hyperlinks: { rId: string; url: string }[]
   nextImageId: number
   nextHyperlinkId: number
+  typography: DocxTypographySettings
 }
 
-function newContext(): DocxBuildContext {
-  return { images: [], hyperlinks: [], nextImageId: 1, nextHyperlinkId: 1 }
+interface DocxTypographySettings {
+  fontFamily: string
+  bodyFontHalfPoints: number
+  bodyLineSpacing: number
+  tableFontHalfPoints: number
+  tableLineSpacing: number
+}
+
+function newContext(typography: DocxTypographySettings): DocxBuildContext {
+  return { images: [], hyperlinks: [], nextImageId: 1, nextHyperlinkId: 1, typography }
 }
 
 const PX_TO_EMU = 9525
@@ -59,12 +71,54 @@ const POINT_TO_OOXML_LINE_WIDTH = 12700
 const DEFAULT_IMG_WIDTH = 400
 const DEFAULT_IMG_HEIGHT = 300
 const WRAP_POLYGON_COORDINATE_SPACE = 21600
+const DEFAULT_DOCX_FONT_FAMILY = 'Times New Roman'
+const DEFAULT_DOCX_FONT_SIZE_PX = 16
+const DEFAULT_DOCX_LINE_HEIGHT = 1.15
+const DOCX_SINGLE_LINE_SPACING = 240
+const DOCX_TABLE_FONT_SIZE_PX = 14
+const DOCX_TABLE_LINE_HEIGHT = 1.3
 const DOCX_IMAGE_DEFAULTS = {
   align: 'left' as const,
   wrapMode: 'inline' as const,
   anchorMode: 'inline' as const,
   display: 'inline' as const,
   distance: 0
+}
+
+function extractPrimaryWordFontFamily(fontFamily?: string): string {
+  const primary = fontFamily
+    ?.split(',')
+    .map(part => part.trim().replace(/^['"]|['"]$/g, ''))
+    .find(Boolean)
+
+  return primary || DEFAULT_DOCX_FONT_FAMILY
+}
+
+function pxToHalfPoints(px: number): number {
+  return Math.max(2, Math.round((px * 72 * 2) / 96))
+}
+
+function lineHeightToWordSpacing(lineHeight: number): number {
+  return Math.max(DOCX_SINGLE_LINE_SPACING, Math.round(lineHeight * DOCX_SINGLE_LINE_SPACING))
+}
+
+function buildFontRunProps(fontFamily: string, halfPoints: number): string {
+  const escapedFamily = escapeXml(fontFamily)
+  return `<w:rFonts w:ascii="${escapedFamily}" w:hAnsi="${escapedFamily}"/><w:sz w:val="${halfPoints}"/>`
+}
+
+function resolveDocxTypographySettings(formatting?: DocumentFormatting | null): DocxTypographySettings {
+  const printStyle = getPrintStyleConfigFromFormatting(formatting)
+  const bodyFontPx = Number.parseFloat(printStyle.fontSize) || DEFAULT_DOCX_FONT_SIZE_PX
+  const bodyLineHeight = Number.parseFloat(printStyle.lineHeight) || DEFAULT_DOCX_LINE_HEIGHT
+
+  return {
+    fontFamily: extractPrimaryWordFontFamily(printStyle.fontFamily),
+    bodyFontHalfPoints: pxToHalfPoints(bodyFontPx),
+    bodyLineSpacing: lineHeightToWordSpacing(bodyLineHeight),
+    tableFontHalfPoints: pxToHalfPoints(DOCX_TABLE_FONT_SIZE_PX),
+    tableLineSpacing: lineHeightToWordSpacing(DOCX_TABLE_LINE_HEIGHT)
+  }
 }
 
 function extractDataUrlParts(dataUrl: string): { mime: string; base64: string; ext: string } | null {
@@ -511,6 +565,8 @@ async function convertBlock(parent: Node, parts: string[], ctx: DocxBuildContext
         case 'div':
           if (el.hasAttribute('data-page-break')) {
             parts.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+          } else if (el.hasAttribute('data-document-toc')) {
+            parts.push(...buildWordTocFieldXmlFromElement(el))
           } else {
             await convertBlock(el, parts, ctx)
           }
@@ -575,15 +631,26 @@ function convertTable(tableEl: HTMLElement, parts: string[], ctx: DocxBuildConte
     cells.forEach(cell => {
       const isHeader = cell.tagName.toLowerCase() === 'th'
       const shd = isHeader ? '<w:shd w:val="clear" w:fill="F0F0F0"/>' : ''
-      const rProps = isHeader ? '<w:b/>' : ''
-      parts.push(`<w:tc><w:tcPr>${shd}</w:tcPr><w:p>${convertInline(cell as HTMLElement, ctx, rProps)}</w:p></w:tc>`)
+      const pPr = `<w:pPr><w:spacing w:before="0" w:after="0" w:line="${ctx.typography.tableLineSpacing}" w:lineRule="auto"/></w:pPr>`
+      const rProps =
+        buildFontRunProps(ctx.typography.fontFamily, ctx.typography.tableFontHalfPoints) + (isHeader ? '<w:b/>' : '')
+      parts.push(
+        `<w:tc><w:tcPr>${shd}</w:tcPr><w:p>${pPr}${convertInline(cell as HTMLElement, ctx, rProps)}</w:p></w:tc>`
+      )
     })
     parts.push('</w:tr>')
   })
   parts.push('</w:tbl>')
 }
 
-function buildDocumentXml(bodyXml: string): string {
+function buildDocumentXml(bodyXml: string, formatting?: DocumentFormatting | null): string {
+  const pageSetup = getDocxPageSetupFromFormatting(formatting)
+  const pageSizeXml =
+    pageSetup.orientation === 'landscape'
+      ? `<w:pgSz w:w="${pageSetup.pageWidthTwips}" w:h="${pageSetup.pageHeightTwips}" w:orient="landscape"/>`
+      : `<w:pgSz w:w="${pageSetup.pageWidthTwips}" w:h="${pageSetup.pageHeightTwips}"/>`
+  const pageMarginXml = `<w:pgMar w:top="${pageSetup.marginTopTwips}" w:right="${pageSetup.marginRightTwips}" w:bottom="${pageSetup.marginBottomTwips}" w:left="${pageSetup.marginLeftTwips}" w:header="${pageSetup.headerDistanceTwips}" w:footer="${pageSetup.footerDistanceTwips}" w:gutter="0"/>`
+
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -598,7 +665,7 @@ function buildDocumentXml(bodyXml: string): string {
   mc:Ignorable="w14 wp14">
 <w:body>
 ${bodyXml}
-<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>
+<w:sectPr>${pageSizeXml}${pageMarginXml}</w:sectPr>
 </w:body>
 </w:document>`
 }
@@ -615,17 +682,24 @@ function buildNumberingXml(): string {
 </w:numbering>`
 }
 
-function buildStylesXml(): string {
+function buildStylesXml(formatting?: DocumentFormatting | null): string {
+  const typography = resolveDocxTypographySettings(formatting)
+  const bodyFontProps = buildFontRunProps(typography.fontFamily, typography.bodyFontHalfPoints)
+  const h1FontProps = buildFontRunProps(typography.fontFamily, 48)
+  const h2FontProps = buildFontRunProps(typography.fontFamily, 36)
+  const h3FontProps = buildFontRunProps(typography.fontFamily, 27)
+  const h4FontProps = buildFontRunProps(typography.fontFamily, 24)
+
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="24"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="48"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:spacing w:before="200" w:after="100"/></w:pPr><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="36"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:pPr><w:spacing w:before="160" w:after="80"/></w:pPr><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:sz w:val="28"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading4"><w:name w:val="heading 4"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading5"><w:name w:val="heading 5"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading6"><w:name w:val="heading 6"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="720"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:pPr><w:spacing w:before="0" w:after="0" w:line="${typography.bodyLineSpacing}" w:lineRule="auto"/></w:pPr><w:rPr>${bodyFontProps}</w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:spacing w:before="0" w:after="320" w:line="288" w:lineRule="auto"/></w:pPr><w:rPr>${h1FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:pPr><w:spacing w:before="400" w:after="240" w:line="312" w:lineRule="auto"/></w:pPr><w:rPr>${h2FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:pPr><w:spacing w:before="320" w:after="200" w:line="336" w:lineRule="auto"/></w:pPr><w:rPr>${h3FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading4"><w:name w:val="heading 4"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading5"><w:name w:val="heading 5"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading6"><w:name w:val="heading 6"/><w:pPr><w:spacing w:before="280" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>${h4FontProps}<w:b/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="720"/><w:spacing w:before="0" w:after="0" w:line="${typography.bodyLineSpacing}" w:lineRule="auto"/></w:pPr><w:rPr>${bodyFontProps}</w:rPr></w:style>
 <w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0066CC"/><w:u w:val="single"/></w:rPr></w:style>
 </w:styles>`
 }
@@ -679,9 +753,18 @@ ${defaults}
 /**
  * Build a proper .docx (Office Open XML) Blob from sanitized HTML content.
  */
-export async function buildDocxBlob(title: string, htmlContent: string): Promise<Blob> {
-  const safeHtml = sanitizeHtmlForExport(htmlContent, { preserveBlockSpacing: true, allowDataUriInImg: true })
-  const ctx = newContext()
+export async function buildDocxBlob(
+  title: string,
+  htmlContent: string,
+  formatting?: DocumentFormatting | null
+): Promise<Blob> {
+  void title
+  const safeHtml = sanitizeHtmlForExport(htmlContent, {
+    preserveBlockSpacing: true,
+    preserveVisualStyles: true,
+    allowDataUriInImg: true
+  })
+  const ctx = newContext(resolveDocxTypographySettings(formatting))
 
   const tempDiv = document.createElement('div')
   // CWE-79: use a recognized sanitizer directly at the sink for SAST tools.
@@ -704,8 +787,8 @@ export async function buildDocxBlob(title: string, htmlContent: string): Promise
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>`
   )
-  zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n')))
-  zip.file('word/styles.xml', buildStylesXml())
+  zip.file('word/document.xml', buildDocumentXml(bodyParts.join('\n'), formatting))
+  zip.file('word/styles.xml', buildStylesXml(formatting))
   zip.file('word/numbering.xml', buildNumberingXml())
   zip.file('word/_rels/document.xml.rels', buildRelsXml(ctx))
 

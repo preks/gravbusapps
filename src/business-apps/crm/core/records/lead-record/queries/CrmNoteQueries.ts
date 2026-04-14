@@ -11,6 +11,7 @@ export interface CrmNoteData {
   version: number
   noteText: string
   noteTitle: string
+  noteType: 'UNKNOWN_NOTE_TYPE' | 'GENERAL_NOTE' | 'NEXT_STEP_NOTE'
   createdAt: string
   createdBy: string
 }
@@ -29,6 +30,7 @@ export const GET_CRM_NOTES = (): string => {
         createdBy
         noteText
         noteTitle
+        noteType
         title: noteTitle
         displayName: noteTitle
         text: noteText

@@ -317,6 +317,7 @@ export interface ParsedWordDocument {
   plainText: string // Plain text version
   messages: WordParserMessage[]
   images?: WordImage[]
+  formatting?: DocumentFormatting
 }
 
 /**

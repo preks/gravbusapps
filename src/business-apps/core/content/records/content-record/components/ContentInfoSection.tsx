@@ -6,7 +6,7 @@ import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 import { EmployeeHoverCard } from '@/common/components/employee'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import dayjs from 'dayjs'
 
 interface ContentInfoSectionProps {
@@ -34,15 +34,15 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
     return item.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
   }, [item.createdAt])
 
-  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef)
+  const entityType = getEntityTypeFromContentGroup(item.contentGroup)
   const entityDisplayUrl = buildContentRecordUrl(item.id)
 
   // Get author label based on content group
   const getAuthorLabel = (): string => {
-    if (item.contentGroupRef?.includes(ContentGroup.NEWS)) return 'Author'
-    if (item.contentGroupRef?.includes(ContentGroup.KNOWLEDGE)) return 'Creator'
-    if (item.contentGroupRef?.includes(ContentGroup.DOCUMENT)) return 'Responsible'
-    return 'Author' // Default
+    if (item.contentGroup === ContentGroup.NEWS) return 'Author'
+    if (item.contentGroup === ContentGroup.KNOWLEDGE) return 'Creator'
+    if (item.contentGroup === ContentGroup.DOCUMENT) return 'Responsible'
+    return 'Author'
   }
 
   const authorLabel = getAuthorLabel()

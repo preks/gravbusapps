@@ -85,6 +85,12 @@ export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVa
   readonly enableExport?: boolean
   /** Filename prefix for exported files (timestamp is appended automatically). */
   readonly exportFilenamePrefix?: string
+  /** Called whenever the user changes filters — use to persist filter state externally. */
+  readonly onFilterChange?: (filters: Record<string, any>) => void
+  readonly initialSorting?: Array<{ id: string; desc: boolean }>
+  readonly onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
+  readonly initialVisibleColumns?: string[]
+  readonly onVisibleColumnsChange?: (columns: string[]) => void
 }
 
 // Row Actions Component
@@ -131,7 +137,12 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     renderQuickFilters,
     accountStatistics: accountStatisticsProp,
     enableExport = false,
-    exportFilenamePrefix = 'accounts'
+    exportFilenamePrefix = 'accounts',
+    onFilterChange: onFilterChangeProp,
+    initialSorting: initialSortingProp,
+    onSortingChange: onSortingChangeProp,
+    initialVisibleColumns: initialVisibleColumnsProp,
+    onVisibleColumnsChange: onVisibleColumnsChangeProp
   } = props
 
   // Prefer the directly-passed prop; fall back to config for backwards compatibility
@@ -140,9 +151,11 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   // View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
+  )
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => initialVisibleColumnsProp ?? [])
 
   // Data State
   const [accounts, setAccounts] = useState<TAccount[]>([])
@@ -226,10 +239,30 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      setSelectedFilters(filters)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      onFilterChangeProp?.(filters)
+    },
+    [onFilterChangeProp]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      setSorting(newSorting)
+      onSortingChangeProp?.(newSorting)
+    },
+    [onSortingChangeProp]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (newColumns: string[]) => {
+      setVisibleColumns(newColumns)
+      onVisibleColumnsChangeProp?.(newColumns)
+    },
+    [onVisibleColumnsChangeProp]
+  )
 
   const handleRowClick = useCallback(
     (account: TAccount) => {
@@ -369,10 +402,10 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
+        onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={
           customPrimaryAction ||
           (config.flowContexts.createContext ? (
@@ -412,7 +445,7 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           pagination={pagination}
           onPaginationChange={setPagination}
           actions={rowActions}

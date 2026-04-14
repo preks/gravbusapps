@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 /**
  * Helper function to create standard assignment targets structure
@@ -29,7 +29,7 @@ export const sendGlossaryRequest = async (
   payload: GlossaryRequestPayload
 ): Promise<{ success: boolean; count?: number; error?: string }> => {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const timestamp = Date.now()
     const requestGroupId = `glossary_request_group_${timestamp}_${payload.initiatorId}`
 
@@ -84,7 +84,7 @@ export const sendGlossaryRequest = async (
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -7,6 +7,7 @@
 
 import DOMPurify from 'dompurify'
 import JSZip from 'jszip'
+import { ensurePagesStyles } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationStyles'
 import { resolveWordLikeImageLayout } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
   CUSTOM_IMAGE_TAG,
@@ -51,6 +52,38 @@ const SIGNATURE_EXPORT_IMAGE_STYLE_PROPS = new Set([
   'object-fit',
   'box-sizing'
 ])
+const VISUAL_EXPORT_STYLE_PROPS = new Set([
+  'background-color',
+  'border',
+  'border-top',
+  'border-right',
+  'border-bottom',
+  'border-left',
+  'border-color',
+  'border-style',
+  'border-width',
+  'border-radius',
+  'border-top-color',
+  'border-top-style',
+  'border-top-width',
+  'border-right-color',
+  'border-right-style',
+  'border-right-width',
+  'border-bottom-color',
+  'border-bottom-style',
+  'border-bottom-width',
+  'border-left-color',
+  'border-left-style',
+  'border-left-width',
+  'height',
+  'margin-left',
+  'margin-right',
+  'max-width',
+  'min-height',
+  'min-width',
+  'vertical-align',
+  'width'
+])
 const TEXT_FORMAT_PROPS = new Set([
   'background-color',
   'color',
@@ -75,7 +108,7 @@ function isSafeExportStyleValue(value: string): boolean {
 
 function filterStyleForExport(
   styleStr: string,
-  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean }
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; preserveVisualStyles: boolean }
 ): string {
   const allowedProps = new Set<string>()
   if (options.preserveBlockSpacing) {
@@ -83,6 +116,9 @@ function filterStyleForExport(
   }
   if (options.preserveTextStyles) {
     TEXT_FORMAT_PROPS.forEach(prop => allowedProps.add(prop))
+  }
+  if (options.preserveVisualStyles) {
+    VISUAL_EXPORT_STYLE_PROPS.forEach(prop => allowedProps.add(prop))
   }
   if (allowedProps.size === 0) return ''
 
@@ -337,11 +373,11 @@ function stripEventHandlers(el: Element): void {
 
 function applyStyleSanitization(
   el: Element,
-  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean }
+  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; preserveVisualStyles: boolean }
 ): void {
   const style = el.getAttribute('style')
   if (style == null) return
-  if (!options.preserveBlockSpacing && !options.preserveTextStyles) {
+  if (!options.preserveBlockSpacing && !options.preserveTextStyles && !options.preserveVisualStyles) {
     el.removeAttribute('style')
     return
   }
@@ -384,7 +420,12 @@ function restoreAndCleanDataUriAttr(el: Element, options: { allowDataUriInImg: b
 
 function postProcessExportHtml(
   html: string,
-  options: { preserveBlockSpacing: boolean; preserveTextStyles: boolean; allowDataUriInImg: boolean }
+  options: {
+    preserveBlockSpacing: boolean
+    preserveTextStyles: boolean
+    preserveVisualStyles: boolean
+    allowDataUriInImg: boolean
+  }
 ): string {
   if (globalThis.DOMParser === undefined) return html
 
@@ -412,11 +453,17 @@ function postProcessExportHtml(
  */
 export function sanitizeHtmlForExport(
   html: string,
-  options?: { preserveBlockSpacing?: boolean; preserveTextStyles?: boolean; allowDataUriInImg?: boolean }
+  options?: {
+    preserveBlockSpacing?: boolean
+    preserveTextStyles?: boolean
+    preserveVisualStyles?: boolean
+    allowDataUriInImg?: boolean
+  }
 ): string {
   if (!html) return ''
   const preserveBlockSpacing = options?.preserveBlockSpacing === true
   const preserveTextStyles = options?.preserveTextStyles === true
+  const preserveVisualStyles = options?.preserveVisualStyles === true
   const allowDataUriInImg = options?.allowDataUriInImg === true
 
   if (globalThis.window === undefined || globalThis.DOMParser === undefined) {
@@ -426,14 +473,19 @@ export function sanitizeHtmlForExport(
   try {
     const config: Parameters<typeof DOMPurify.sanitize>[1] = {
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-      FORBID_ATTR: preserveBlockSpacing || preserveTextStyles ? [] : ['style'],
+      FORBID_ATTR: preserveBlockSpacing || preserveTextStyles || preserveVisualStyles ? [] : ['style'],
       ALLOW_DATA_ATTR: allowDataUriInImg
     }
 
     const input = allowDataUriInImg ? preserveDataUriImgsForPurify(html) : html
     const purified = DOMPurify.sanitize(input, config)
 
-    return postProcessExportHtml(purified, { preserveBlockSpacing, preserveTextStyles, allowDataUriInImg })
+    return postProcessExportHtml(purified, {
+      preserveBlockSpacing,
+      preserveTextStyles,
+      preserveVisualStyles,
+      allowDataUriInImg
+    })
   } catch {
     return stripTagsToText(html)
   }
@@ -493,6 +545,135 @@ function normalizePageBreakMarkupForExport(html: string): string {
   } catch {
     return html
   }
+}
+
+function buildEditorParityPrintOverrides(scopePrefix = ''): string {
+  const scope = (selector: string) =>
+    selector
+      .split(',')
+      .map(part => `${scopePrefix}${part.trim()}`)
+      .join(',\n      ')
+
+  return `
+      ${scope('img')} {
+        max-width: 100%;
+        height: auto;
+        margin: 0;
+        vertical-align: bottom;
+        border-radius: 4pt;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      ${scope("img[data-testid='document-editor-signature']")} {
+        max-width: none !important;
+        border-radius: 0;
+        background: transparent;
+      }
+      ${scope("figure[data-node-type='custom-image']")} {
+        max-width: 100%;
+      }
+      ${scope('.editor-image-caption')} {
+        margin-top: 4pt;
+        color: #6b7280;
+        font-size: 0.75rem;
+        line-height: 1.3;
+      }
+      ${scope('.tableWrapper')} {
+        position: relative;
+        overflow: visible;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+      ${scope('table')} {
+        border-collapse: collapse;
+        width: auto;
+        max-width: 100%;
+        table-layout: fixed;
+        margin: 0;
+        background: transparent;
+        break-inside: auto;
+        page-break-inside: auto;
+        position: relative;
+      }
+      ${scope("table[data-table-border-hidden='true']")} {
+        border: none !important;
+      }
+      ${scope('td, th')} {
+        box-sizing: border-box;
+        position: relative;
+        border: 1pt solid #333;
+        padding: 4pt 6pt;
+        text-align: start;
+        vertical-align: top;
+        font-size: 0.875rem;
+        line-height: 1.3;
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
+      }
+      ${scope('th')} {
+        background: #f5f5f5;
+        font-weight: bold;
+      }
+      ${scope("table[data-table-theme='blue']")} {
+        --editor-table-theme-solid: #2563eb;
+        --editor-table-theme-soft: #dbeafe;
+        --editor-table-theme-soft-alt: #eff6ff;
+      }
+      ${scope("table[data-table-theme='teal']")} {
+        --editor-table-theme-solid: #0f766e;
+        --editor-table-theme-soft: #ccfbf1;
+        --editor-table-theme-soft-alt: #f0fdfa;
+      }
+      ${scope("table[data-table-theme='green']")} {
+        --editor-table-theme-solid: #15803d;
+        --editor-table-theme-soft: #dcfce7;
+        --editor-table-theme-soft-alt: #f0fdf4;
+      }
+      ${scope("table[data-table-theme='orange']")} {
+        --editor-table-theme-solid: #c2410c;
+        --editor-table-theme-soft: #ffedd5;
+        --editor-table-theme-soft-alt: #fff7ed;
+      }
+      ${scope("table[data-table-theme='purple']")} {
+        --editor-table-theme-solid: #7c3aed;
+        --editor-table-theme-soft: #ede9fe;
+        --editor-table-theme-soft-alt: #f5f3ff;
+      }
+      ${scope("table[data-table-theme='gray']")} {
+        --editor-table-theme-solid: #4b5563;
+        --editor-table-theme-soft: #e5e7eb;
+        --editor-table-theme-soft-alt: #f3f4f6;
+      }
+      ${scope("table[data-table-style-header-row='true'] > tbody > tr:first-child > td, table[data-table-style-header-row='true'] > tbody > tr:first-child > th")} {
+        background: var(--editor-table-theme-solid, #2563eb);
+        color: #fff;
+        border-color: var(--editor-table-theme-solid, #2563eb);
+        font-weight: 600;
+      }
+      ${scope("table[data-table-style-first-column='true'] > tbody > tr > :first-child")} {
+        background: var(--editor-table-theme-soft, #dbeafe);
+        font-weight: 600;
+      }
+      ${scope("table[data-table-style-last-column='true'] > tbody > tr > :last-child")} {
+        background: var(--editor-table-theme-soft, #dbeafe);
+        font-weight: 600;
+      }
+      ${scope("table[data-table-style-banded-rows='true'] > tbody > tr:nth-child(even) > td, table[data-table-style-banded-rows='true'] > tbody > tr:nth-child(even) > th")} {
+        background: var(--editor-table-theme-soft-alt, #eff6ff);
+      }
+      ${scope("table[data-table-style-banded-columns='true'] > tbody > tr > :nth-child(even)")} {
+        background: var(--editor-table-theme-soft-alt, #eff6ff);
+      }
+      ${scope('.document-table-of-contents')} {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+    `
 }
 
 function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extraCss = ''): string {
@@ -813,6 +994,7 @@ function buildPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, extra
           border: none;
         }
       }
+      ${buildEditorParityPrintOverrides()}
       ${extraCss}
     `
 }
@@ -824,6 +1006,7 @@ function prepareHtmlForPrintDocument(htmlContent: string): string {
     sanitizeHtmlForExport(normalizedContent, {
       preserveBlockSpacing: true,
       preserveTextStyles: true,
+      preserveVisualStyles: true,
       allowDataUriInImg: true
     })
   )
@@ -1144,6 +1327,12 @@ export interface PrintHtmlDocumentOptions {
   targetWindow?: Window | null
 }
 
+interface PaginatedPrintDocumentOptions {
+  title: string
+  paginatedEditorRoot: HTMLElement
+  printStyleConfig?: DocumentPrintStyleConfig
+}
+
 export function buildPrintHtmlDocument({
   title,
   htmlContent,
@@ -1169,6 +1358,94 @@ ${buildPrintStylesheet(printStyleConfig, extraCss)}
   <body>
     ${titleHeading}
     ${safeBodyHtml}
+  </body>
+</html>`
+}
+
+function buildPaginatedPrintStylesheet(printStyleConfig?: DocumentPrintStyleConfig, paginationCss = ''): string {
+  const pageSizeCss = printStyleConfig?.pageSizeCss ?? 'auto'
+
+  return `
+      @page { size: ${pageSizeCss}; margin: 0; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      body { background: #fff; }
+      .rm-pages-root {
+        margin: 0 auto;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      .rm-pages-root .rm-page-break {
+        break-after: page;
+        page-break-after: always;
+      }
+      .rm-pages-root .rm-page-break:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+      .rm-pages-root .rm-page-gap,
+      .rm-pages-root .rm-page-overlay,
+      .rm-pages-root .rm-page-inline-editor,
+      .rm-pages-root .ProseMirror-gapcursor,
+      .rm-pages-root .column-resize-handle {
+        display: none !important;
+      }
+      .rm-pages-root [data-layout-window-active="false"] {
+        content-visibility: visible !important;
+      }
+${paginationCss}
+${buildEditorParityPrintOverrides('.rm-pages-root ')}
+    `
+}
+
+function stripEditorOnlyPaginationState(root: HTMLElement): void {
+  root.querySelectorAll('[contenteditable]').forEach(element => {
+    element.removeAttribute('contenteditable')
+  })
+  root.querySelectorAll('[data-rm-overlay-active]').forEach(element => {
+    element.removeAttribute('data-rm-overlay-active')
+  })
+  root.querySelectorAll('[data-rm-editable]').forEach(element => {
+    element.removeAttribute('data-rm-editable')
+  })
+  root
+    .querySelectorAll('.rm-page-overlay, .rm-page-inline-editor, .ProseMirror-gapcursor, .column-resize-handle')
+    .forEach(element => {
+      element.remove()
+    })
+}
+
+function buildPaginatedPrintHtmlDocument({
+  title,
+  paginatedEditorRoot,
+  printStyleConfig
+}: PaginatedPrintDocumentOptions): string {
+  const safeTitle = escapeHtmlText(title || 'Document')
+  const clone = paginatedEditorRoot.cloneNode(true) as HTMLElement
+  stripEditorOnlyPaginationState(clone)
+
+  const styleDocument = document.implementation.createHTMLDocument('paged-export')
+  ensurePagesStyles(styleDocument)
+  const paginationCss =
+    (styleDocument.head.querySelector('style[data-rm-pages-style]') as HTMLStyleElement | null)?.textContent ?? ''
+  const sanitizedBody = DOMPurify.sanitize(clone.outerHTML, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: [],
+    ALLOW_DATA_ATTR: true
+  })
+
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="referrer" content="no-referrer">
+    <title>${safeTitle}</title>
+    <style>
+${buildPaginatedPrintStylesheet(printStyleConfig, paginationCss)}
+    </style>
+  </head>
+  <body>
+    ${sanitizedBody}
   </body>
 </html>`
 }
@@ -1204,13 +1481,7 @@ function waitForImagesInDocument(doc: Document): Promise<void> {
  * Waits for images to load so pictures appear in print/PDF.
  * CWE-79: body content is sanitized with DOMPurify before building fullHtml so srcdoc/appendChild get safe input.
  */
-function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
-  const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: [],
-    ALLOW_DATA_ATTR: true
-  })
-  const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
+function printFullHtmlDocumentViaIframe(fullHtml: string): void {
   const iframe = document.createElement('iframe')
   iframe.setAttribute('style', 'position:absolute;width:0;height:0;border:0;visibility:hidden')
   iframe.srcdoc = fullHtml
@@ -1246,40 +1517,10 @@ function printHtmlDocumentViaIframe(options: PrintHtmlDocumentOptions): void {
   setTimeout(run, 500)
 }
 
-function syncElementAttributes(target: Element, source: Element): void {
-  for (const attribute of Array.from(target.attributes)) {
-    target.removeAttribute(attribute.name)
-  }
-
-  for (const attribute of Array.from(source.attributes)) {
-    target.setAttribute(attribute.name, attribute.value)
-  }
-}
-
-function replaceDocumentHtml(doc: Document, html: string): void {
-  const parsed = new DOMParser().parseFromString(html, 'text/html')
-  doc.open()
-  syncElementAttributes(doc.documentElement, parsed.documentElement)
-  syncElementAttributes(doc.head, parsed.head)
-  syncElementAttributes(doc.body, parsed.body)
-  doc.head.replaceChildren(...Array.from(parsed.head.childNodes, node => doc.importNode(node, true)))
-  doc.body.replaceChildren(...Array.from(parsed.body.childNodes, node => doc.importNode(node, true)))
-  doc.title = parsed.title
-  doc.close()
-}
-
-export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
-  const { targetWindow } = options
+function printPreparedHtmlDocument(fullHtml: string, targetWindow?: Window | null): void {
   const useExistingWindow = targetWindow && !targetWindow.closed
 
   if (useExistingWindow) {
-    const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
-      FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-      FORBID_ATTR: [],
-      ALLOW_DATA_ATTR: true
-    })
-    const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
-
     try {
       const doc = targetWindow.document
       replaceDocumentHtml(doc, fullHtml)
@@ -1315,7 +1556,39 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
     return
   }
 
-  printHtmlDocumentViaIframe(options)
+  printFullHtmlDocumentViaIframe(fullHtml)
+}
+
+function syncElementAttributes(target: Element, source: Element): void {
+  for (const attribute of Array.from(target.attributes)) {
+    target.removeAttribute(attribute.name)
+  }
+
+  for (const attribute of Array.from(source.attributes)) {
+    target.setAttribute(attribute.name, attribute.value)
+  }
+}
+
+function replaceDocumentHtml(doc: Document, html: string): void {
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  doc.open()
+  syncElementAttributes(doc.documentElement, parsed.documentElement)
+  syncElementAttributes(doc.head, parsed.head)
+  syncElementAttributes(doc.body, parsed.body)
+  doc.head.replaceChildren(...Array.from(parsed.head.childNodes, node => doc.importNode(node, true)))
+  doc.body.replaceChildren(...Array.from(parsed.body.childNodes, node => doc.importNode(node, true)))
+  doc.title = parsed.title
+  doc.close()
+}
+
+export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
+  const sanitizedBody = DOMPurify.sanitize(preserveDataUriImgsForPurify(options.htmlContent), {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: [],
+    ALLOW_DATA_ATTR: true
+  })
+  const fullHtml = buildPrintHtmlDocument({ ...options, htmlContent: sanitizedBody })
+  printPreparedHtmlDocument(fullHtml, options.targetWindow)
 }
 
 export function printHtmlDocumentWithStyle(
@@ -1447,6 +1720,8 @@ function htmlToWordML(html: string): string {
 export interface ExportImageOptions {
   getImageDataUrl?: GetImageDataUrlForExport
   printStyleConfig?: DocumentPrintStyleConfig
+  formatting?: import('../types').DocumentFormatting
+  paginatedEditorRoot?: HTMLElement | null
 }
 
 /**
@@ -1462,7 +1737,7 @@ export async function exportToWord(title: string, htmlContent: string, options?:
     content = await embedImagesInHtml(content, options.getImageDataUrl)
   }
 
-  const blob = await buildDocxBlob(title, content)
+  const blob = await buildDocxBlob(title, content, options?.formatting)
   downloadBlob(blob, `${sanitizeDocxFilename(title)}.docx`)
 }
 
@@ -1479,6 +1754,16 @@ export async function exportToPDF(
   targetWindow?: Window | null,
   options?: ExportImageOptions
 ): Promise<void> {
+  if (options?.paginatedEditorRoot instanceof HTMLElement) {
+    const fullHtml = buildPaginatedPrintHtmlDocument({
+      title,
+      paginatedEditorRoot: options.paginatedEditorRoot,
+      printStyleConfig: options.printStyleConfig
+    })
+    printPreparedHtmlDocument(fullHtml, targetWindow)
+    return
+  }
+
   let content = htmlContent
   if (options?.getImageDataUrl) {
     content = await embedImagesInHtml(content, options.getImageDataUrl)

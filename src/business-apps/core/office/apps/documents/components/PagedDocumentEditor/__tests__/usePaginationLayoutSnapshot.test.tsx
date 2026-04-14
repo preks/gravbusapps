@@ -3,7 +3,10 @@ import { act, renderHook } from '@testing-library/react'
 import type { Transaction } from '@tiptap/pm/state'
 import type { DocumentLayoutMeasurementRequest, DocumentLayoutPageSnapshot } from '../../../types'
 import { LARGE_DOC_PAGE_YIELD_THRESHOLD } from '@/components/tiptap-extensions/tiptap-custom-pagination/deferredRepaginationEvaluationController'
-import { PAGINATION_OWNED_DOC_CHANGE_META } from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
+import {
+  PAGINATION_OWNED_DOC_CHANGE_META,
+  PAGINATION_REFRESH_META
+} from '@/components/tiptap-extensions/tiptap-custom-pagination/PaginationPlus'
 import * as documentLayoutServiceModule from '../documentLayoutService'
 import type { DocumentLayoutService } from '../documentLayoutService'
 import * as documentLayoutScheduler from '../documentLayoutScheduler'
@@ -13,6 +16,7 @@ import {
   resolveCurrentPageFromPageBounds,
   resolveMountedPagePositionRanges,
   resolvePreferredActiveRange,
+  resolveRetainedPagePositionRanges,
   resolveSpacerPageBodyBounds,
   resolveSpacerPagePositionRanges,
   shouldRefreshViewportWindow,
@@ -275,6 +279,97 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(measureLayout.mock.calls[0]?.[1].reason).toBe('initial-load')
   })
 
+  it('reuses measured mounted bounds and only reads placeholder shell bounds during rebuild', () => {
+    const mountedPageBreak = document.createElement('div')
+    mountedPageBreak.className = 'rm-page-break'
+    mountedPageBreak.dataset.rmPageShellState = 'hydrated'
+    const mountedBody = document.createElement('div')
+    mountedBody.className = 'page'
+    mountedBody.dataset.rmPageNumber = '1'
+    mountedPageBreak.appendChild(mountedBody)
+    mountedBody.getBoundingClientRect = () =>
+      ({
+        top: 20,
+        bottom: 120,
+        left: 10,
+        right: 90
+      }) as DOMRect
+
+    const placeholderPageBreak = document.createElement('div')
+    placeholderPageBreak.className = 'rm-page-break'
+    placeholderPageBreak.dataset.rmPageShellState = 'placeholder'
+    const placeholderBody = document.createElement('div')
+    placeholderBody.className = 'page'
+    placeholderBody.dataset.rmPageNumber = '2'
+    placeholderPageBreak.appendChild(placeholderBody)
+    placeholderBody.getBoundingClientRect = () =>
+      ({
+        top: 120,
+        bottom: 220,
+        left: 10,
+        right: 90
+      }) as DOMRect
+
+    const pages = [
+      { pageNumber: 1, flowIndex: 0, mountedIndex: 0, isMounted: true },
+      { pageNumber: 2, flowIndex: 1, mountedIndex: null, isMounted: false }
+    ]
+    const measureLayout = jest.fn((_container: HTMLDivElement, request: DocumentLayoutMeasurementRequest) => ({
+      layout: {
+        pageCount: 2,
+        pages,
+        flow: [
+          { flowIndex: 0, pageRange: { startPage: 1, endPage: 1 }, kind: 'page-break' as const, isMounted: true },
+          { flowIndex: 1, pageRange: { startPage: 2, endPage: 2 }, kind: 'page-break' as const, isMounted: false }
+        ],
+        mountedRange: { startPage: 1, endPage: 1 },
+        mountedPageBodyBounds: [{ pageNumber: 1, top: 100, bottom: 180, left: 20, right: 100 }],
+        pageChromeMetrics: [],
+        activeRange: request.pageRange ?? { startPage: 1, endPage: 2 },
+        activePages: pages
+      },
+      navigationState: {
+        boundaryEls: [],
+        activeRange: request.pageRange ?? { startPage: 1, endPage: 2 },
+        pageBreakEls: [mountedPageBreak, placeholderPageBreak],
+        flowEls: [mountedPageBreak, placeholderPageBreak]
+      }
+    }))
+
+    const service: DocumentLayoutService = {
+      source: 'incremental-layout-engine',
+      measureLayout,
+      resolveCurrentPage: jest.fn(() => 1),
+      observeLayout: jest.fn(() => () => undefined)
+    }
+    const editorContainerRef = {
+      current: document.createElement('div')
+    } as MutableRefObject<HTMLDivElement | null>
+    editorContainerRef.current.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        bottom: 200,
+        height: 200
+      }) as DOMRect
+
+    const { result } = renderHook(() =>
+      usePaginationLayoutSnapshot({
+        editor: null,
+        editorContainerRef,
+        layoutService: service,
+        isYjsSynced: false
+      })
+    )
+
+    expect(result.current.layoutSnapshot.mountedPageBodyBounds).toEqual([
+      { pageNumber: 1, top: 100, bottom: 180, left: 20, right: 100 }
+    ])
+    expect(result.current.layoutSnapshot.pageBounds).toEqual([
+      { pageNumber: 1, top: 100, bottom: 180, left: 20, right: 100 },
+      { pageNumber: 2, top: 120, bottom: 220, left: 10, right: 90 }
+    ])
+  })
+
   it('prefers fresh page and spacer bounds over the live layout-service resolver while scrolling', () => {
     const { service, resolveCurrentPage, setResolvedCurrentPage, setVisiblePage } = createSparseLayoutServiceStub({
       pageCount: 30,
@@ -392,6 +487,9 @@ describe('usePaginationLayoutSnapshot', () => {
     const ranges = resolveMountedPagePositionRanges(
       {
         view: {
+          state: {
+            doc: {}
+          },
           posAtCoords: ({ left, top }: { left: number; top: number }) => {
             if (top < 140) {
               return {
@@ -414,6 +512,32 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(ranges).toEqual([{ pageNumber: 2, startPos: 12, endPos: 39 }])
   })
 
+  it('reuses cached mounted page position ranges when doc and bounds are unchanged', () => {
+    const posAtCoords = jest.fn(({ top }: { left: number; top: number }) =>
+      top < 200
+        ? {
+            pos: 12
+          }
+        : {
+            pos: 38
+          }
+    )
+    const doc = {}
+    const editor = {
+      view: {
+        state: {
+          doc
+        },
+        posAtCoords
+      }
+    } as never
+    const bounds = [{ pageNumber: 2, top: 100, bottom: 220, left: 20, right: 140 }]
+
+    expect(resolveMountedPagePositionRanges(editor, bounds)).toEqual([{ pageNumber: 2, startPos: 12, endPos: 38 }])
+    expect(resolveMountedPagePositionRanges(editor, bounds)).toEqual([{ pageNumber: 2, startPos: 12, endPos: 38 }])
+    expect(posAtCoords).toHaveBeenCalledTimes(9)
+  })
+
   it('resolves spacer page position ranges from page-segment metadata', () => {
     const spacer = document.createElement('div')
     spacer.className = 'rm-page-spacer'
@@ -431,6 +555,9 @@ describe('usePaginationLayoutSnapshot', () => {
     const ranges = resolveSpacerPagePositionRanges(
       {
         view: {
+          state: {
+            doc: {}
+          },
           posAtCoords: ({ top }: { left: number; top: number }) =>
             top < 480
               ? {
@@ -450,6 +577,49 @@ describe('usePaginationLayoutSnapshot', () => {
     ])
   })
 
+  it('reuses cached spacer page position ranges when doc and spacer bounds are unchanged', () => {
+    const spacer = document.createElement('div')
+    spacer.className = 'rm-page-spacer'
+    spacer.dataset.rmPageRangeStart = '7'
+    spacer.dataset.rmPageRangeEnd = '8'
+    spacer.dataset.rmPageSegmentHeights = '80,120'
+    spacer.getBoundingClientRect = () =>
+      ({
+        left: 40,
+        right: 160,
+        top: 400,
+        bottom: 600
+      }) as DOMRect
+
+    const posAtCoords = jest.fn(({ top }: { left: number; top: number }) =>
+      top < 480
+        ? {
+            pos: top < 440 ? 70 : 79
+          }
+        : {
+            pos: top < 540 ? 80 : 99
+          }
+    )
+    const editor = {
+      view: {
+        state: {
+          doc: {}
+        },
+        posAtCoords
+      }
+    } as never
+
+    expect(resolveSpacerPagePositionRanges(editor, [spacer])).toEqual([
+      { pageNumber: 7, startPos: 70, endPos: 79 },
+      { pageNumber: 8, startPos: 80, endPos: 99 }
+    ])
+    expect(resolveSpacerPagePositionRanges(editor, [spacer])).toEqual([
+      { pageNumber: 7, startPos: 70, endPos: 79 },
+      { pageNumber: 8, startPos: 80, endPos: 99 }
+    ])
+    expect(posAtCoords).toHaveBeenCalledTimes(6)
+  })
+
   it('resolves spacer page body bounds from page-segment metadata', () => {
     const spacer = document.createElement('div')
     spacer.className = 'rm-page-spacer'
@@ -467,6 +637,22 @@ describe('usePaginationLayoutSnapshot', () => {
     expect(resolveSpacerPageBodyBounds([spacer])).toEqual([
       { pageNumber: 7, top: 400, bottom: 480, left: 40, right: 160 },
       { pageNumber: 8, top: 480, bottom: 600, left: 40, right: 160 }
+    ])
+  })
+
+  it('reuses retained page position ranges only for the requested placeholder pages', () => {
+    expect(
+      resolveRetainedPagePositionRanges(
+        [
+          { pageNumber: 1, startPos: 1, endPos: 9 },
+          { pageNumber: 2, startPos: 10, endPos: 19 },
+          { pageNumber: 3, startPos: 20, endPos: 29 }
+        ],
+        new Set([1, 3, 4])
+      )
+    ).toEqual([
+      { pageNumber: 1, startPos: 1, endPos: 9 },
+      { pageNumber: 3, startPos: 20, endPos: 29 }
     ])
   })
 
@@ -673,6 +859,182 @@ describe('usePaginationLayoutSnapshot', () => {
       const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
       expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
       expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(false)
+    })
+
+    it('schedules a layout catch-up when pagination refresh metadata arrives without a doc change', async () => {
+      const pageCount = LARGE_DOC_PAGE_YIELD_THRESHOLD - 1
+      const { service } = createLayoutServiceStub(pageCount)
+      const container = document.createElement('div')
+      const editorContainerRef = { current: container } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 1,
+        posAtCoords: () => ({ pos: 1 })
+      })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        editor.emit('transaction', {
+          transaction: createMockTransaction(false, { [PAGINATION_REFRESH_META]: true })
+        })
+      })
+
+      const editorTxCalls = requestLayoutCalls.filter(call => call.reason === 'editor-transaction')
+      expect(editorTxCalls.length).toBeGreaterThanOrEqual(1)
+      expect(editorTxCalls[editorTxCalls.length - 1]?.immediate).toBe(true)
+    })
+  })
+
+  describe('layout refresh scheduling stability', () => {
+    let requestLayoutCalls: Array<{ reason: string; immediate?: boolean }>
+    const realCreateDocumentLayoutScheduler =
+      jest.requireActual<typeof documentLayoutScheduler>('../documentLayoutScheduler').createDocumentLayoutScheduler
+
+    beforeEach(() => {
+      requestLayoutCalls = []
+      jest.spyOn(documentLayoutScheduler, 'createDocumentLayoutScheduler').mockImplementation(params => {
+        const scheduler = realCreateDocumentLayoutScheduler(params)
+        const originalRequestLayout = scheduler.requestLayout.bind(scheduler)
+        scheduler.requestLayout = options => {
+          requestLayoutCalls.push({ reason: options.reason, immediate: options.immediate })
+          return originalRequestLayout(options)
+        }
+        return scheduler
+      })
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('does not reschedule hydration or layout-service refreshes when only the current page changes', async () => {
+      const { service, setResolvedCurrentPage, setVisiblePage } = createSparseLayoutServiceStub({
+        pageCount: 4,
+        initialResolvedCurrentPage: 1,
+        initialVisiblePage: 1
+      })
+      const container = document.createElement('div')
+      container.getBoundingClientRect = () =>
+        ({
+          top: 0,
+          bottom: 200,
+          height: 200
+        }) as DOMRect
+      const editorContainerRef = {
+        current: container
+      } as MutableRefObject<HTMLDivElement | null>
+      const editor = createEditorStub({
+        selectionHead: 59,
+        posAtCoords: ({ top }: { left: number; top: number }) => {
+          if (top < 100) {
+            return { pos: top < 50 ? 1 : 19 }
+          }
+          if (top < 200) {
+            return { pos: top < 150 ? 20 : 39 }
+          }
+          if (top < 300) {
+            return { pos: top < 250 ? 40 : 59 }
+          }
+          return null
+        }
+      })
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: editor as never,
+          editorContainerRef,
+          layoutService: service,
+          documentId: 'doc-1',
+          isYjsSynced: true
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 12; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      requestLayoutCalls = []
+      setVisiblePage(4)
+      setResolvedCurrentPage(1)
+
+      act(() => {
+        editor.emit('selectionUpdate')
+      })
+
+      await act(async () => {
+        for (let i = 0; i < 4; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      expect(requestLayoutCalls.filter(call => call.reason === 'document-hydration')).toEqual([])
+      expect(requestLayoutCalls.filter(call => call.reason === 'layout-service-changed')).toEqual([])
+    })
+
+    it('skips redundant viewport refreshes once the requested window is already active', async () => {
+      const { service } = createLayoutServiceStub(30)
+      let emitInvalidation: ((reason: string) => void) | null = null
+      service.observeLayout = jest.fn(({ onInvalidated }) => {
+        emitInvalidation = onInvalidated as (reason: string) => void
+        return () => undefined
+      })
+      const editorContainerRef = {
+        current: document.createElement('div')
+      } as MutableRefObject<HTMLDivElement | null>
+
+      renderHook(() =>
+        usePaginationLayoutSnapshot({
+          editor: null,
+          editorContainerRef,
+          layoutService: service,
+          isYjsSynced: false
+        })
+      )
+
+      await act(async () => {
+        for (let i = 0; i < 6; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      act(() => {
+        emitInvalidation?.('viewport-resize')
+      })
+
+      await act(async () => {
+        for (let i = 0; i < 4; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      requestLayoutCalls = []
+
+      act(() => {
+        emitInvalidation?.('viewport-resize')
+      })
+
+      await act(async () => {
+        for (let i = 0; i < 2; i += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      expect(requestLayoutCalls.filter(call => call.reason === 'viewport-resize')).toEqual([])
     })
   })
 

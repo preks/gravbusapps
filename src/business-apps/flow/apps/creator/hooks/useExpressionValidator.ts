@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { FlowTemplate } from '../types/flowTemplate'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { EntitySchema } from './useEntitySchemas'
 
 export interface ValidationResult {
@@ -42,8 +42,8 @@ export const useExpressionValidator = (
 
       try {
         // Call backend validation API
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-        const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
+        const response = await fetch(`${apiUrl}/templates/validate-expressions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

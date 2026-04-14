@@ -2,6 +2,9 @@ import { type BaseEntity, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graph
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
+/** CRM CrmNote.noteType string values (GraphQL exposes String!). */
+export type CrmNoteType = 'UNKNOWN_NOTE_TYPE' | 'GENERAL_NOTE' | 'NEXT_STEP_NOTE'
+
 export interface Note extends BaseEntity {
   account?: any // IRM | CRM
   accountId?: string // IRM | CRM
@@ -19,6 +22,8 @@ export interface Note extends BaseEntity {
   source?: string // IRM | CRM
   text?: string // IRM | TODO
   title?: string // IRM | TODO
+  /** CRM only; populated when querying CrmNote with noteType */
+  noteType?: CrmNoteType | null
 }
 
 /**
@@ -40,7 +45,9 @@ export const NoteFields = {
   reminderDate: 'reminderDate',
   source: 'source',
   text: 'text',
-  title: 'title'
+  title: 'title',
+  /** CRM CrmNote only; empty string in mapping = omit from IRM fragments */
+  noteType: 'noteType'
 } as const
 
 export const NoteFormFields = {
@@ -61,62 +68,77 @@ export const NoteFormFields = {
 /**
  * Create Common Note Descriptors with fields mapping
  */
-export const createNoteDescriptors = (fields: Record<keyof typeof NoteFields, string> = NoteFields): Descriptor[] => [
-  ...BASE_ENTITY_DESCRIPTORS,
+export const createNoteDescriptors = (fields: Record<keyof typeof NoteFields, string> = NoteFields): Descriptor[] => {
+  const descriptors: Descriptor[] = [
+    ...BASE_ENTITY_DESCRIPTORS,
 
-  {
-    key: 'account',
-    searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
-    sortPath: `${fields.account}.name`,
-    type: 'text'
-  },
-  {
-    key: 'authorEmployee',
-    searchPaths: [
-      `${fields.authorEmployee}.displayName`,
-      `${fields.authorEmployee}.firstName`,
-      `${fields.authorEmployee}.lastName`
-    ],
-    sortPath: `${fields.authorEmployee}.displayName`,
-    type: 'text'
-  },
-  {
-    key: 'contact',
-    searchPaths: [`${fields.contact}.firstName`, `${fields.contact}.lastName`],
-    sortPath: `${fields.contact}.lastName`,
-    type: 'text'
-  },
-  {
-    key: 'documents',
-    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
-    sortPath: `${fields.documents}.name`,
-    type: 'text'
-  },
-  {
-    key: 'lead',
-    searchPaths: [`${fields.lead}.firstName`, `${fields.lead}.lastName`, `${fields.lead}.companyName`],
-    sortPath: `${fields.lead}.lastName`,
-    type: 'text'
-  },
-  {
-    key: 'opportunity',
-    searchPaths: [`${fields.opportunity}.name`, `${fields.opportunity}.description`],
-    sortPath: `${fields.opportunity}.name`,
-    type: 'text'
-  },
-  { key: 'reminderDate', searchPaths: [fields.reminderDate], sortPath: fields.reminderDate, type: 'date' },
-  { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
-  { key: 'text', searchPaths: [fields.text], sortPath: fields.text, type: 'text' },
-  { key: 'title', searchPaths: [fields.title], sortPath: fields.title, type: 'text' },
+    {
+      key: 'account',
+      searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+      sortPath: `${fields.account}.name`,
+      type: 'text'
+    },
+    {
+      key: 'authorEmployee',
+      searchPaths: [
+        `${fields.authorEmployee}.displayName`,
+        `${fields.authorEmployee}.firstName`,
+        `${fields.authorEmployee}.lastName`
+      ],
+      sortPath: `${fields.authorEmployee}.displayName`,
+      type: 'text'
+    },
+    {
+      key: 'contact',
+      searchPaths: [`${fields.contact}.firstName`, `${fields.contact}.lastName`],
+      sortPath: `${fields.contact}.lastName`,
+      type: 'text'
+    },
+    {
+      key: 'documents',
+      searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+      sortPath: `${fields.documents}.name`,
+      type: 'text'
+    },
+    {
+      key: 'lead',
+      searchPaths: [`${fields.lead}.firstName`, `${fields.lead}.lastName`, `${fields.lead}.companyName`],
+      sortPath: `${fields.lead}.lastName`,
+      type: 'text'
+    },
+    {
+      key: 'opportunity',
+      searchPaths: [`${fields.opportunity}.name`, `${fields.opportunity}.description`],
+      sortPath: `${fields.opportunity}.name`,
+      type: 'text'
+    },
+    { key: 'reminderDate', searchPaths: [fields.reminderDate], sortPath: fields.reminderDate, type: 'date' },
+    { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
+    { key: 'text', searchPaths: [fields.text], sortPath: fields.text, type: 'text' },
+    { key: 'title', searchPaths: [fields.title], sortPath: fields.title, type: 'text' }
+  ]
 
-  // Filter IDs
-  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
-  { key: 'authorEmployeeIds', path: fields.authorEmployeeId, kind: 'inIds' },
-  { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
-  { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
-  { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
+  if (fields.noteType) {
+    descriptors.push({
+      key: 'noteType',
+      searchPaths: [fields.noteType],
+      sortPath: fields.noteType,
+      type: 'text'
+    })
+  }
 
-  // Date range filters
-  { key: 'reminderDateFrom', path: fields.reminderDate, kind: 'dateFrom' },
-  { key: 'reminderDateTo', path: fields.reminderDate, kind: 'dateTo' }
-]
+  descriptors.push(
+    // Filter IDs
+    { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
+    { key: 'authorEmployeeIds', path: fields.authorEmployeeId, kind: 'inIds' },
+    { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
+    { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
+    { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
+
+    // Date range filters
+    { key: 'reminderDateFrom', path: fields.reminderDate, kind: 'dateFrom' },
+    { key: 'reminderDateTo', path: fields.reminderDate, kind: 'dateTo' }
+  )
+
+  return descriptors
+}

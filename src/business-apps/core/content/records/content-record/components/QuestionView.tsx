@@ -50,7 +50,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const displayPreview = translatedTexts?.preview || item.preview
   const displayContent = translatedTexts?.content || item.content
 
-  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef || '')
+  const entityType = getEntityTypeFromContentGroup(item.contentGroup || '')
   const entityDisplayUrl = buildContentRecordUrl(item.id || '')
   const [expandedAnswerId, setExpandedAnswerId] = useState<string | null>(null)
   const [showAnswerForm, setShowAnswerForm] = useState(false)

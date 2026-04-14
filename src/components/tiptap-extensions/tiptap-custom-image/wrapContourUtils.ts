@@ -274,6 +274,60 @@ export function analyzeImageWrapContour(
   }
 }
 
+export function areImageWrapContoursEqual(left: ImageWrapContour | null, right: ImageWrapContour | null): boolean {
+  if (left === right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  if (
+    left.hasInteriorOpenings !== right.hasInteriorOpenings ||
+    left.polygon.source !== right.polygon.source ||
+    left.polygon.supportsInnerContours !== right.polygon.supportsInnerContours ||
+    left.polygon.points.length !== right.polygon.points.length ||
+    left.slices.length !== right.slices.length
+  ) {
+    return false
+  }
+
+  for (let pointIndex = 0; pointIndex < left.polygon.points.length; pointIndex += 1) {
+    const leftPoint = left.polygon.points[pointIndex]
+    const rightPoint = right.polygon.points[pointIndex]
+
+    if (!rightPoint || leftPoint.x !== rightPoint.x || leftPoint.y !== rightPoint.y) {
+      return false
+    }
+  }
+
+  for (let sliceIndex = 0; sliceIndex < left.slices.length; sliceIndex += 1) {
+    const leftSlice = left.slices[sliceIndex]
+    const rightSlice = right.slices[sliceIndex]
+
+    if (
+      !rightSlice ||
+      leftSlice.top !== rightSlice.top ||
+      leftSlice.bottom !== rightSlice.bottom ||
+      leftSlice.spans.length !== rightSlice.spans.length
+    ) {
+      return false
+    }
+
+    for (let spanIndex = 0; spanIndex < leftSlice.spans.length; spanIndex += 1) {
+      const leftSpan = leftSlice.spans[spanIndex]
+      const rightSpan = rightSlice.spans[spanIndex]
+
+      if (!rightSpan || leftSpan.start !== rightSpan.start || leftSpan.end !== rightSpan.end) {
+        return false
+      }
+    }
+  }
+
+  return true
+}
+
 export function serializeImageWrapContour(contour: ImageWrapContour | null): string | null {
   if (!contour) {
     return null

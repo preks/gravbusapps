@@ -1,54 +1,50 @@
 # Content Settings App
 
-Comprehensive settings app for managing Content Module catalogs: Categories, Tags, Reactions, and Types.
+Comprehensive settings app for managing Content Module taxonomy: Categories, Tags, Types, and Reactions.
 
 ## Overview
 
-This app provides specialized UIs for managing the four core catalog types used in the Content Module:
+This app provides specialized UIs for managing:
 
-- **Content Categories**: Hierarchical organization of content
-- **Content Tags**: Flexible tagging for filtering and discovery
-- **Content Reactions**: Emoji and custom image reactions for user engagement
-- **Content Types**: Define different types of content entries
+- **Content Categories**: Hierarchical organization of content (own table, UUID-backed)
+- **Content Tags**: Flexible tagging for filtering and discovery (own table, UUID-backed)
+- **Content Types**: Define different types of content entries (own table, UUID-backed)
+- **Content Reactions**: Emoji and custom image reactions for user engagement (catalog-based)
 
 ## Architecture
 
 - **Main Component**: `ContentSettings.tsx` - Card-based navigation using `SettingsLayout`
-- **Page Components**: Individual catalog management pages
-- **Central Data**: Uses hooks from `@/common/data/catalog` for GraphQL operations
-- **Specialized UIs**: Each catalog type has a custom-tailored UI
+- **Page Components**: Individual management pages
+- **Taxonomy Data**: ContentType, ContentCategory, ContentTag use direct GraphQL mutations via `graphqlClient`
+- **Reaction Data**: Uses hooks from `@/common/data/catalog` — reactions remain catalog-based
 
-## Catalog Field Mapping
+## Field Mapping
 
-### ContentCategory Catalog
+### ContentCategory (table: `nw_content.content_category`)
 
 ```typescript
 {
-  code: 'COMPANY_NEWS' // UPPER_SNAKE_CASE
-  value: 'Company News' // Display name (translatable)
-  displayOrder: 1 // Sort order
+  id: string // UUID primary key
+  name: string // Display name
 }
 ```
 
-### ContentTag Catalog
+### ContentTag (table: `nw_content.content_tag`)
 
 ```typescript
 {
-  code: 'TECHNOLOGY' // UPPER_SNAKE_CASE
-  value: 'Technology' // Display name (translatable)
-  additionalValue1: '#3b82f6' // Color hex (optional)
-  displayOrder: 1
+  id: string // UUID primary key
+  name: string // Display name
 }
 ```
 
-### ContentType Catalog
+### ContentType (table: `nw_content.content_type`)
 
 ```typescript
 {
-  code: 'ARTICLE' // UPPER_SNAKE_CASE
-  value: 'Article' // Display name (translatable)
-  description: 'Long-form...' // Detailed description (translatable)
-  displayOrder: 1
+  id: string           // UUID primary key
+  name: string         // Display name
+  contentGroup?: string // Optional enum value (ContentGroup) to scope type to a group
 }
 ```
 
@@ -86,44 +82,28 @@ This app provides specialized UIs for managing the four core catalog types used 
 }
 ```
 
-## Translation Support
-
-The Catalog Manager provides translation capabilities for specific fields:
-
-### Translatable Fields
-
-- `value` - Display names (all catalogs)
-- `description` - Only for ContentType (NOT for reactions - emoji is universal)
-- `additionalValue3` - Alternative names array for reactions
-
-### Non-Translatable Fields
-
-- `code` - Technical identifier (always UPPER_SNAKE_CASE)
-- `description` (reactions) - Emoji character or custom name (universal)
-- `additionalValue1` - Unicode or custom ID (technical)
-- `additionalValue2` - Unified code or image URL (technical)
-- `alternativeCode` - Shortcode format (technical)
-- `displayOrder` - Sort order (numeric)
-
 ## Usage
 
 ### Accessing Settings
 
 1. Navigate to Content → Content Settings
-2. Click on a card to manage that catalog type
-3. Use search to filter settings
+2. Click on a card to manage that taxonomy type
+3. Use search to filter entries
 
 ### Managing Categories
 
-- Create hierarchical categories
-- Drag-drop to reorder
-- Bulk operations support
+- Create categories by entering a name and saving
+- Edit or delete existing categories
 
 ### Managing Tags
 
-- Assign colors for visual distinction
-- Preview tag cloud
-- Track popular tags
+- Create tags by entering a name and saving
+- Edit or delete existing tags
+
+### Managing Types
+
+- Create types with a name and optional content group scope
+- Edit or delete existing types
 
 ### Managing Reactions
 
@@ -145,43 +125,24 @@ The Catalog Manager provides translation capabilities for specific fields:
 5. Set display order
 6. Click "Create"
 
-### Managing Types
-
-- Define content types with descriptions
-- Link to form field configurations
-- View usage statistics
-
 ## Technical Details
 
-### Catalog Identifiers
+### Taxonomy (ContentType, ContentCategory, ContentTag)
 
-All use version `'v1'`:
+CRUD operations use direct GraphQL mutations:
 
-- `ContentCategory`
-- `ContentTag`
-- `ContentReaction`
-- `ContentType`
+- `InsertContentTypeOne`, `UpdateContentTypeByPk`, `DeleteContentTypeByPk`
+- `InsertContentCategoryOne`, `UpdateContentCategoryByPk`, `DeleteContentCategoryByPk`
+- `InsertContentTagOne`, `UpdateContentTagByPk`, `DeleteContentTagByPk`
 
-### Code Generation
+Data is fetched via `useContentTypeOptions`, `useContentCategoryOptions`, `useContentTagOptions` hooks from `@/common/data/content`.
 
-All codes are auto-generated from display names:
+### Reactions (ContentReaction)
 
-- "Thumbs Up" → `THUMBS_UP`
-- "Company News" → `COMPANY_NEWS`
+Still catalog-based. Uses hooks from `@/common/data/catalog`:
 
-### Shortcode Generation
-
-Shortcodes follow standard emoji format:
-
-- "Thumbs Up" → `:thumbs_up:`
-- "Red Heart" → `:red_heart:`
-
-### Unicode Format
-
-Unicode values use standard notation:
-
-- Single codepoint: `U+1F44D`
-- Multiple codepoints: `U+2764 U+FE0F`
+- Catalog Identifier: `ContentReaction`
+- Catalog Version: `v1`
 
 ### Integration with ReactionButton
 
@@ -189,8 +150,6 @@ The `ReactionButton` component automatically supports both reaction types:
 
 - **EMOJI**: Displays emoji character from `description` field
 - **CUSTOM**: Displays image from `additionalValue2` (image URL)
-
-Both types work seamlessly in the user interface with proper fallbacks.
 
 ## File Structure
 
@@ -222,5 +181,6 @@ src/business-apps/core/content/apps/content-settings/
 
 - `@newwork/nw-design-system` - UI components
 - `emoji-picker-react` - Emoji selection
-- `@/common/data/catalog` - Central catalog data hooks
+- `@/common/data/content` - Taxonomy hooks (ContentType, ContentCategory, ContentTag)
+- `@/common/data/catalog` - Catalog hooks (ContentReaction only)
 - `lucide-react` - Icons

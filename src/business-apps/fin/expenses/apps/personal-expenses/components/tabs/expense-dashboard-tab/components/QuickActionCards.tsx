@@ -1,12 +1,14 @@
 import React, { useCallback } from 'react'
-import { Card, Button, CardContent } from '@newwork/nw-design-system'
+import { Card, Button, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { PlusCircleIcon, PaperPlaneTiltIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import personalTranslations from '../../../../_i18n'
 
 const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
   const { userInfo } = props
+  const { t } = useTranslation(personalTranslations)
 
   const handlePlanTrip = useCallback(() => {
     const employeeId = userInfo?.employeeDetails?.employeeId
@@ -85,7 +87,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
           'Track Submission Status'
         )
       ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.add_plan', 'Plan a new Business Trip'),
+      buttonText: t('dashboard-quick-action-plan-button'),
       buttonIcon: <PlusCircleIcon size={16} />,
       buttonAction: handlePlanTrip
     },
@@ -108,7 +110,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
         ),
         getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.categorize_for_clarity', 'Categorize for clarity')
       ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_expense', 'New Expense'),
+      buttonText: t('dashboard-quick-action-expense-item-button'),
       buttonIcon: <PlusCircleIcon size={16} />,
       buttonAction: handleRecordExpense
     },
@@ -128,7 +130,7 @@ const QuickActionCards: React.FC<BusinessAppContextProps> = props => {
           'Track submission status'
         )
       ],
-      buttonText: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.new_request', 'New Request'),
+      buttonText: t('dashboard-quick-action-request-button'),
       buttonIcon: <PaperPlaneTiltIcon size={16} />,
       buttonAction: handleSubmitRequest
     }

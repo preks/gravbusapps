@@ -5,7 +5,11 @@ import { NodeViewWrapper } from '@tiptap/react'
 import { createPortal } from 'react-dom'
 import { CustomImageFigure, type ResizeDirection } from './CustomImageFigure'
 import { normalizeImageCrop } from './cropUtils'
-import { resolveImageOverlayFigureStyle, resolveImageOverlayMount } from './imageOverlayUtils'
+import {
+  areImageOverlayMountsEqual,
+  resolveImageOverlayFigureStyle,
+  resolveImageOverlayMount
+} from './imageOverlayUtils'
 import { DOCUMENT_IMAGE_UI_EVENT, type DocumentImageUiMode } from './pictureUiEvents'
 import { DEFAULT_IMAGE_SIZE_REFERENCE } from './sizeUtils'
 import { getFigureDataAttributes, normalizeNullableNumber } from './styleUtils'
@@ -16,7 +20,7 @@ import {
   type CustomImageAttributes,
   type CustomImageOptions
 } from './types'
-import { analyzeImageWrapContour, type ImageWrapContour } from './wrapContourUtils'
+import { analyzeImageWrapContour, areImageWrapContoursEqual, type ImageWrapContour } from './wrapContourUtils'
 import {
   getImageFlowShimAttributes,
   resolveImageAnchorGeometryElement,
@@ -615,12 +619,7 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
   )
 
   useEffect(() => {
-    if (interactiveAttributes.wrapMode !== 'tight' && interactiveAttributes.wrapMode !== 'through') {
-      setWrapContour(null)
-      return
-    }
-
-    setWrapContour(null)
+    setWrapContour(previousWrapContour => (previousWrapContour === null ? previousWrapContour : null))
   }, [
     displaySrc,
     interactiveAttributes.cropBottom,
@@ -724,9 +723,12 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       if (!editor || naturalWidth <= 0 || naturalHeight <= 0) return
 
       if (interactiveAttributes.wrapMode === 'tight' || interactiveAttributes.wrapMode === 'through') {
-        setWrapContour(analyzeImageWrapContour(img, interactiveAttributes))
+        const nextWrapContour = analyzeImageWrapContour(img, interactiveAttributes)
+        setWrapContour(previousWrapContour =>
+          areImageWrapContoursEqual(previousWrapContour, nextWrapContour) ? previousWrapContour : nextWrapContour
+        )
       } else {
-        setWrapContour(null)
+        setWrapContour(previousWrapContour => (previousWrapContour === null ? previousWrapContour : null))
       }
 
       const pos = getPos()
@@ -767,13 +769,14 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       return
     }
 
-    setOverlayMount(
-      resolveImageOverlayMount({
-        editorElement,
-        anchorElement,
-        wrapperElement: wrapper,
-        layout
-      })
+    const nextOverlayMount = resolveImageOverlayMount({
+      editorElement,
+      anchorElement,
+      wrapperElement: wrapper,
+      layout
+    })
+    setOverlayMount(previousOverlayMount =>
+      areImageOverlayMountsEqual(previousOverlayMount, nextOverlayMount) ? previousOverlayMount : nextOverlayMount
     )
   }, [editor, layout, usesPageOverlayVisual])
 
