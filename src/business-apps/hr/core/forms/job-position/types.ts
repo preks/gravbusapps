@@ -48,7 +48,6 @@ export interface JobPositionContextState {
   hasMoreJobProfiles: boolean
   jobProfilesError: string | null
   jobProfilesLoading: boolean
-  enableJobProfilesLoading: () => void
   // Organizational unit specific methods
   searchOrganizationalUnits: (searchTerm?: string) => void
   loadMoreOrganizationalUnits: () => void
