@@ -15,6 +15,12 @@ import type { Activity } from '@/common/data/relations/types/activityTypes'
 import { compareActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 import { ActivityInput } from './ActivityInput'
 import { ActivityEmailBody } from './ActivityEmailBody'
+import { ActivityRelatedEntityHints } from './ActivityRelatedEntityHints'
+import {
+  getActivityRelatedEntities,
+  type ActivityWithInvestment,
+  type ActivityRelatedEntityKind
+} from './getActivityRelatedEntities'
 import { AppAction } from '@/components/app-action'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useForm } from 'react-hook-form'
@@ -71,6 +77,13 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
   opportunityId?: string
   leadId?: string
   investmentId?: string
+  /**
+   * When true, shows chips for every linked entity, including the one that matches the current record context.
+   * When false or omitted, omits chips that duplicate the section context (accountId, contactId, etc.).
+   */
+  showAllRelatedEntityChips?: boolean
+  /** Record URLs for linked entities; parent supplies CRM vs IRM paths. Omitted hrefs render non-clickable chips. */
+  getRelatedRecordUrl?: (kind: ActivityRelatedEntityKind, id: string) => string | undefined
   /** Optional pre-submit handler (e.g. uploads _pendingFiles and returns data with documents). When set, called before buildActivityPayload/executeAction. */
   preSubmit?: (data: Record<string, any>) => Promise<Record<string, any>>
 }
@@ -94,7 +107,9 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     contactId,
     opportunityId,
     leadId,
-    investmentId
+    investmentId,
+    showAllRelatedEntityChips,
+    getRelatedRecordUrl
   } = props
 
   const { t } = useTranslation(translations)
@@ -205,6 +220,16 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
   const processedActivities = useMemo(() => {
     if (!rawActivities || rawActivities.length === 0) return []
 
+    const relatedContext = {
+      accountId,
+      contactId,
+      opportunityId,
+      leadId,
+      investmentId,
+      showAllRelatedEntityChips,
+      getRelatedRecordUrl
+    }
+
     return rawActivities
       .map((activity: Activity) => ({
         id: activity.id,
@@ -219,10 +244,20 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           : undefined,
         activityType: activity.activityType,
         documents: activity.documents || [],
-        emailMessageId: activity.additionalProperties?.emailMessageId || null
+        emailMessageId: activity.additionalProperties?.emailMessageId || null,
+        relatedEntities: getActivityRelatedEntities(activity as ActivityWithInvestment, relatedContext)
       }))
       .sort(compareActivitiesByOccurredAtDesc)
-  }, [rawActivities])
+  }, [
+    rawActivities,
+    accountId,
+    contactId,
+    opportunityId,
+    leadId,
+    investmentId,
+    showAllRelatedEntityChips,
+    getRelatedRecordUrl
+  ])
 
   // Handle document download
   const handleDocumentClick = async (document: ActivityDocument, e: React.MouseEvent) => {
@@ -335,9 +370,12 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
               </a>
             ) : undefined,
             title: (
-              <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
-                <span className="gba:flex-1 gba:truncate">{activity.title}</span>
-                {activityActions}
+              <div className="gba:flex gba:flex-col gba:gap-1.5 gba:w-full gba:min-w-0">
+                <ActivityRelatedEntityHints activityId={activity.id} entities={activity.relatedEntities} t={t} />
+                <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:min-w-0">
+                  <span className="gba:flex-1 gba:truncate">{activity.title}</span>
+                  {activityActions}
+                </div>
               </div>
             ),
             description: (
