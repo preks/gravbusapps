@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form } from 'antd'
 import { Button, Checkbox } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -33,6 +34,8 @@ import { EVENTS } from '../../../utils/constants'
 import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils'
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils'
 import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils'
+import expenseFormsTranslations from '../../_i18n'
+import { tripLocationPointsEqual } from '../../expense-request-wizard/utils/tripLocationPointEquality'
 
 /**
  * Filters travel regions based on expense items' currency
@@ -85,6 +88,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     setRequestAdvancePayment
   } = useExpensePlanWizardContext()
   const { userInfo } = props
+  const { t: tForms } = useTranslation(expenseFormsTranslations)
 
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
@@ -552,6 +556,20 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     [startLocation, destinations, endLocation]
   )
 
+  const startEqualsFirstDestinationMessage = useMemo(() => {
+    if (destinations.length === 0) {
+      return null
+    }
+    const first = destinations[0]
+    if (!startLocation.location?.trim() || !first.location?.trim()) {
+      return null
+    }
+    if (!tripLocationPointsEqual(startLocation, first)) {
+      return null
+    }
+    return tForms('trip-start-equals-first-destination')
+  }, [destinations, startLocation, tForms])
+
   const validateTripForm = useCallback(() => {
     if (employeeRuleError || ruleConflictError) {
       updateTripFormValidation(false)
@@ -561,6 +579,18 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     if (startLocationOverlap?.isError === true || endLocationOverlap?.isError === true) {
       updateTripFormValidation(false)
       return false
+    }
+
+    if (destinations.length > 0) {
+      const firstDest = destinations[0]
+      if (
+        startLocation.location?.trim() &&
+        firstDest.location?.trim() &&
+        tripLocationPointsEqual(startLocation, firstDest)
+      ) {
+        updateTripFormValidation(false)
+        return false
+      }
     }
 
     if (
@@ -800,6 +830,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   showDateTimeFields={index < destinations.length - 1}
                   dateTimeLimits={destinationLimits[destination.id] ?? {}}
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
+                  errorMessage={index === 0 ? startEqualsFirstDestinationMessage : null}
                   locationFormLabels={{
                     inputFieldLabel: getTranslationFromI18nKeyAndLabel(
                       'lowcoder:create_expense_request.add_request_trip_details.destination_input_label',

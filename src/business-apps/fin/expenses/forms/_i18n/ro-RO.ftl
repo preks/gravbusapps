@@ -133,4 +133,6 @@ view-timeline = Cronologie
 missing-sap-wizard-title = Lipsește codul SAP
 missing-sap-wizard-description = Codul SAP lipsește din profilul dumneavoastră. Vă rugăm să contactați Departamentul Contabilitate pentru a furniza datele lipsă înainte de a începe o cerere de decont.
 
+# Trip — plecare vs. prima destinație (asistenți cerere & plan)
 
+trip-start-equals-first-destination = Destinația pare identică cu locul de plecare. Vă rugăm să verificați.
