@@ -305,20 +305,18 @@ export function useSpreadsheetCollaboration({
 
   // Stable ref for callbacks — prevents re-creating the manager on every render
   const callbacksRef = useRef(callbacks)
-  useEffect(() => {
-    callbacksRef.current = callbacks
-  }, [callbacks])
 
   const onErrorRef = useRef(onError)
   useEffect(() => {
     onErrorRef.current = onError
   }, [onError])
 
-  // Create manager once, update callbacks via ref
+  // Create manager once, update callbacks when the memoized callbacks object changes
   const manager = useMemo(() => new SpreadsheetCollaborationManager(callbacksRef.current), [])
   useEffect(() => {
-    manager.updateCallbacks(callbacksRef.current)
-  })
+    callbacksRef.current = callbacks
+    manager.updateCallbacks(callbacks)
+  }, [callbacks, manager])
 
   const onOperationReceivedStable = useCallback(
     (op: CollaborationOperation) => {
