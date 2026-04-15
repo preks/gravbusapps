@@ -31,7 +31,7 @@ export const SessionHistoryDrawer: React.FC<SessionHistoryDrawerProps> = ({
 }) => {
   return (
     <div
-      className={`gba:fixed gba:top-16 sm:gba:top-20 gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:z-40 gba:w-[min(26rem,calc(100vw-2rem))] sm:gba:w-[24rem] gba:transition-all gba:duration-200 ${
+      className={`gba:fixed gba:top-16 sm:gba:top-20 gba:left-18 sm:gba:left-6 lg:gba:left-8 gba:z-40 gba:w-[min(20rem,calc(100vw-2rem))] sm:gba:w-[24rem] gba:transition-all gba:duration-200 ${
         isOpen
           ? 'gba:opacity-100 gba:translate-y-0 gba:pointer-events-auto'
           : 'gba:opacity-0 -gba:translate-y-2 gba:pointer-events-none'

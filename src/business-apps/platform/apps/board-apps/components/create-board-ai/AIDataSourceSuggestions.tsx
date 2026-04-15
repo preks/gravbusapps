@@ -5,11 +5,12 @@
  */
 
 import React, { useMemo } from 'react'
-import { Badge, Checkbox, Button, Spinner } from '@newwork/nw-design-system'
+import { Badge, Checkbox, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Database, TableProperties, ListFilter, RefreshCw, Star } from 'lucide-react'
 import type { DataSourceSuggestion } from '../../hooks/useBoardAI'
-import { ENTITY_REGISTRY, ENTITY_CATEGORY_LABELS, type EntityCategory } from '../../queries/entityQueries'
+import { ENTITY_REGISTRY, ENTITY_CATEGORY_LABEL_KEYS, type EntityCategory } from '../../queries/entityQueries'
 import { FieldSelector } from './FieldSelector'
+import translations from '../../_i18n'
 
 export interface AIDataSourceSuggestionsProps {
   suggestions: DataSourceSuggestion[]
@@ -38,6 +39,7 @@ export const AIDataSourceSuggestions: React.FC<AIDataSourceSuggestionsProps> = (
   onToggleField,
   'data-testid': testId = 'ai-datasource-suggestions'
 }) => {
+  const { t } = useTranslation(translations)
   const primaryEntity = useMemo(() => suggestions.find(s => s.role === 'primary')?.entityType, [suggestions])
   const auxiliarySources = useMemo(
     () => suggestions.filter(s => s.entityType !== primaryEntity).sort((a, b) => b.confidence - a.confidence),
@@ -85,6 +87,7 @@ export const AIDataSourceSuggestions: React.FC<AIDataSourceSuggestionsProps> = (
           fieldSelections={fieldSelections}
           onToggleField={onToggleField}
           testId={testId}
+          t={t}
         />
 
         {auxiliarySources.length > 0 && (
@@ -118,6 +121,7 @@ interface PrimarySectionProps {
   fieldSelections?: Map<string, Set<string>>
   onToggleField?: (entityType: string, fieldKey: string) => void
   testId: string
+  t: (key: string, args?: Record<string, unknown>) => string
 }
 
 const PrimarySection: React.FC<PrimarySectionProps> = ({
@@ -126,7 +130,8 @@ const PrimarySection: React.FC<PrimarySectionProps> = ({
   onSetPrimary,
   fieldSelections,
   onToggleField,
-  testId
+  testId,
+  t
 }) => (
   <div className="gba:space-y-1.5">
     <div className="gba:flex gba:items-center gba:gap-1.5">
@@ -140,7 +145,7 @@ const PrimarySection: React.FC<PrimarySectionProps> = ({
       {suggestions.map(s => {
         const isActive = s.entityType === primaryEntity
         const entityDef = ENTITY_REGISTRY[s.entityType]
-        const catLabel = entityDef ? ENTITY_CATEGORY_LABELS[entityDef.category as EntityCategory] : undefined
+        const catLabel = entityDef ? t(ENTITY_CATEGORY_LABEL_KEYS[entityDef.category as EntityCategory]) : undefined
 
         if (!isActive) {
           return (

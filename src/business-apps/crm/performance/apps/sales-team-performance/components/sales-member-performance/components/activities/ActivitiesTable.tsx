@@ -3,7 +3,7 @@ import { DataTable, DataDisplay, type FilterConfiguration } from '@newwork/nw-de
 import { ActivitiesTableProps } from '../../types/activitiesTypes'
 import { useEmployeeActivitiesData } from '../../hooks/useEmployeeActivitiesData'
 import { createActivityColumns } from './activityColumns'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import {
   activitySortableColumns,
   activityAvailableColumns,
@@ -135,17 +135,16 @@ export const ActivitiesTable: React.FC<ActivitiesTableProps> = ({
 
   // Handle reference click (navigate to entity record)
   const handleReferenceClick = useCallback((activity: any) => {
-    let url = ''
-
-    if (activity.accountId) {
-      url = buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
-    } else if (activity.contactId) {
-      url = buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
-    } else if (activity.leadId) {
-      url = buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
-    } else if (activity.opportunityId) {
-      url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
+    const go = (kind: Parameters<typeof buildCrmRelatedEntityRecordUrl>[0], id: string | null | undefined) => {
+      if (!id) return null
+      const url = buildCrmRelatedEntityRecordUrl(kind, id)
+      return url.length > 0 ? url : null
     }
+    const url =
+      go('account', activity.accountId) ||
+      go('contact', activity.contactId) ||
+      go('lead', activity.leadId) ||
+      go('opportunity', activity.opportunityId)
 
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer')

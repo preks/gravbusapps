@@ -12,9 +12,6 @@ import {
 } from '@newwork/nw-design-system'
 import {
   UserIcon,
-  TargetIcon,
-  HandshakeIcon,
-  BuildingIcon,
   CalendarBlankIcon as CalendarIcon,
   PhoneIcon,
   EnvelopeIcon,
@@ -22,17 +19,14 @@ import {
   ListChecksIcon
 } from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
-import {
-  getEntityName,
-  getEntityType,
-  getEntityTypeFromIds,
-  getActivityTypeVariant
-} from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityHelpers'
+import { getActivityTypeVariant } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityHelpers'
+import { ActivityTableReferenceCell } from '@/common/components/common-relations/view-layouts/activity-layout/config/ActivityTableReferenceCell'
 import {
   calculateActivityScore,
   getScoreBadgeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 
 // Format date with time
 const formatDateTime = (date: string | Date) => {
@@ -147,37 +141,21 @@ const getActivityTypeIcon = (type: string) => {
   }
 }
 
-// Get entity type icon
-const getEntityTypeIcon = (entityType: string) => {
-  switch (entityType) {
-    case 'Contact':
-      return <UserIcon className="gba:h-4 gba:w-4" />
-    case 'Lead':
-      return <TargetIcon className="gba:h-4 gba:w-4" />
-    case 'Opportunity':
-      return <HandshakeIcon className="gba:h-4 gba:w-4" />
-    case 'Account':
-      return <BuildingIcon className="gba:h-4 gba:w-4" />
-    default:
-      return <UserIcon className="gba:h-4 gba:w-4" />
-  }
-}
-
 // Handle entity reference clicks — navigate by ID alone so records with missing data still work
 const handleEntityReferenceClick = (activity: TeamSalesActivity) => {
-  if (activity.accountId) {
-    const url = buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
-    navigateTo(url)
-  } else if (activity.contactId) {
-    const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
-    navigateTo(url)
-  } else if (activity.leadId) {
-    const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
-    navigateTo(url)
-  } else if (activity.opportunityId) {
-    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
-    navigateTo(url)
+  const go = (kind: Parameters<typeof buildCrmRelatedEntityRecordUrl>[0], id: string | null | undefined) => {
+    if (!id) return false
+    const url = buildCrmRelatedEntityRecordUrl(kind, id)
+    if (url.length > 0) {
+      navigateTo(url)
+      return true
+    }
+    return false
   }
+  if (go('account', activity.accountId)) return
+  if (go('contact', activity.contactId)) return
+  if (go('lead', activity.leadId)) return
+  if (go('opportunity', activity.opportunityId)) return
 }
 
 /**
@@ -274,49 +252,14 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
     enableSorting: false,
     cell: ({ row }) => {
       const activity = row.original
-
-      // Check if unlinked
-      const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
-
-      if (isUnlinked) {
-        return (
-          <Badge variant="secondary" data-testid={`activity360-badge-${activity.id}`}>
-            Unlinked
-          </Badge>
-        )
-      }
-
-      const entityName = getEntityName(activity)
-      const entityType = getEntityType(activity)
-
-      // When the entity JOIN returned no name (deleted/inaccessible record),
-      // fall back to ID-based type so we still show the correct label and allow navigation.
-      const resolvedType = entityType === 'No reference' ? getEntityTypeFromIds(activity) : entityType
-      const resolvedName = entityName === 'No reference' ? null : entityName
-
-      const handleClick = (e: React.MouseEvent) => {
-        e.stopPropagation()
-        handleEntityReferenceClick(activity)
-      }
-
       return (
-        <button
-          type="button"
-          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:w-full gba:max-w-[200px] gba:overflow-hidden"
-          onClick={handleClick}
-        >
-          {resolvedName ? (
-            <span className="gba:text-sm gba:font-medium gba:text-primary gba:truncate" title={resolvedName}>
-              {resolvedName}
-            </span>
-          ) : (
-            <span className="gba:text-sm gba:italic gba:text-muted-foreground">Unnamed {resolvedType}</span>
-          )}
-          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-            {getEntityTypeIcon(resolvedType)}
-            <span>{resolvedType}</span>
-          </div>
-        </button>
+        <ActivityTableReferenceCell
+          activity={activity}
+          onReferenceClick={handleEntityReferenceClick}
+          emptyVariant="unlinked"
+          unlinkedBadgeTestId={`activity360-badge-${activity.id}`}
+          singleReferenceButtonClassName="gba:px-3 gba:py-2 gba:w-full"
+        />
       )
     }
   },

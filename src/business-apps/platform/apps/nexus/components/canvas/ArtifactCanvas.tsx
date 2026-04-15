@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { toast } from '@newwork/nw-design-system'
+import { toast, useTranslation } from '@newwork/nw-design-system'
 import { EmptyCanvas } from './EmptyCanvas'
 import { ArtifactToolbar } from './ArtifactToolbar'
 import { DocumentRenderer } from '../renderers/DocumentRenderer'
@@ -8,6 +8,7 @@ import { SlidesRenderer } from '../renderers/SlidesRenderer'
 import type { SaveResult } from '../../hooks/useArtifact'
 import type { NexusArtifact, DocumentContent, AnalysisContent, SlidesContent } from '../../types/nexus.types'
 import { normalizeNexusMarkdown } from '../../utils/normalizeNexusMarkdown'
+import translations from '../../_i18n'
 
 const AUTOSAVE_DELAY_MS = 800
 
@@ -39,6 +40,7 @@ export const ArtifactCanvas = ({
   onSetActiveArtifact,
   testId = 'nexus-canvas'
 }: ArtifactCanvasProps) => {
+  const { t } = useTranslation(translations)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isAutoSaving, setIsAutoSaving] = useState(false)
@@ -169,8 +171,11 @@ export const ArtifactCanvas = ({
         const result = await onSaveArtifact(artifactToFlush.id, targetType)
         if (result.success) {
           setSaveSuccess(true)
-          const verb = result.action === 'updated' ? 'Updated' : 'Saved'
-          toast.success(`${verb} successfully — ${result.message}`)
+          toast.success(
+            result.action === 'updated'
+              ? t('canvas-toast-updated-success', { message: result.message })
+              : t('canvas-toast-saved-success', { message: result.message })
+          )
           // Update local artifact metadata with savedDocumentId
           if (result.savedId) {
             onSetActiveArtifact(prev => {
@@ -182,7 +187,7 @@ export const ArtifactCanvas = ({
             })
           }
         } else {
-          toast.error(`Save failed — ${result.message}`)
+          toast.error(t('canvas-toast-save-failed', { message: result.message }))
         }
       } finally {
         setIsSaving(false)
@@ -204,8 +209,8 @@ export const ArtifactCanvas = ({
     }
 
     navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard')
-  }, [artifact])
+    toast.success(t('canvas-toast-copied'))
+  }, [artifact, t])
 
   if (!artifact) {
     return <EmptyCanvas onOpenChat={onOpenChat} onSuggestionClick={onSuggestionClick} />

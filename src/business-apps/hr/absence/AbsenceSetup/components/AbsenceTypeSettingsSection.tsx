@@ -33,6 +33,19 @@ const measurementLabelKeys = {
   Hours: 'measurement-hours'
 } as const
 
+const absenceTypeIconOptions = [
+  'vacation',
+  'sick',
+  'home-office',
+  'business-trip',
+  'training',
+  'family-care',
+  'jury-duty'
+].map(icon => ({
+  value: icon,
+  label: icon
+}))
+
 const booleanFieldLabelKeys: Record<BooleanFieldKey, string> = {
   display: 'toggle-display-balance',
   enableApproval: 'toggle-requires-approval',
@@ -73,25 +86,25 @@ export function AbsenceTypeSettingsSection({ settings, onFieldChange }: Readonly
 
         <div className="gba:grid gba:gap-4 gba:md:grid-cols-2">
           <div className="gba:space-y-2">
-            <Label htmlFor="absence-type-icon-input">{t('field-icon-label')}</Label>
-            <Input
-              id="absence-type-icon-input"
-              list="absence-type-icon-suggestions"
+            <Label htmlFor="absence-type-icon-select">{t('field-icon-label')}</Label>
+            <Combobox
               value={settings.icon}
-              onChange={event => onFieldChange('icon', event.target.value)}
+              onValueChange={value => onFieldChange('icon', String(value || ''))}
+              options={absenceTypeIconOptions}
               placeholder={t('icon-placeholder')}
+              searchPlaceholder={t('icon-placeholder')}
+              emptyText={t('icon-placeholder')}
               data-testid="absence-type-icon-input"
               title={t('icon-field-tooltip')}
             />
-            <datalist id="absence-type-icon-suggestions">
-              <option value="vacation" />
-              <option value="sick" />
-              <option value="home-office" />
-              <option value="business-trip" />
-              <option value="training" />
-              <option value="family-care" />
-              <option value="jury-duty" />
-            </datalist>
+            <Input
+              id="absence-type-icon-select"
+              value={settings.icon}
+              onChange={event => onFieldChange('icon', event.target.value)}
+              placeholder={t('icon-placeholder')}
+              data-testid="absence-type-icon-manual-input"
+              className="gba:mt-2"
+            />
             <p className="gba:text-xs gba:text-muted-foreground">{t('icon-field-helper')}</p>
           </div>
 

@@ -24,6 +24,7 @@ import { SparkleIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
 import { LeadImportDefaults } from '@/common/components/common-relations/apps/data-import/hooks/useLeadImportDefaults'
+import { InvestmentTypeDefaults } from '@/common/components/common-relations/apps/data-import/hooks/useInvestmentTypeDefaults'
 import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
@@ -35,6 +36,7 @@ export interface FileUploadStepProps {
   onCampaignChange?: (campaign: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
   leadDefaults?: LeadImportDefaults
+  investmentTypeDefaults?: InvestmentTypeDefaults
   'data-testid'?: string
 }
 
@@ -47,6 +49,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   onCampaignChange,
   businessAppContext,
   leadDefaults,
+  investmentTypeDefaults,
   'data-testid': testId = 'file-upload-step'
 }) => {
   const { t } = useTranslation(translations)
@@ -201,6 +204,37 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
                 </p>
               )}
             </>
+          )}
+
+          {investmentTypeDefaults && (
+            <div>
+              <Label htmlFor="investment-type-select">{t('investment-type-label')}</Label>
+              <Select
+                value={investmentTypeDefaults.selectedType || undefined}
+                onValueChange={value => investmentTypeDefaults.onTypeChange(value === '__none__' ? '' : value)}
+                disabled={investmentTypeDefaults.isLoading}
+              >
+                <SelectTrigger
+                  id="investment-type-select"
+                  className="gba:mt-2 gba:w-full"
+                  data-testid={`${testId}-investment-type-select`}
+                >
+                  <SelectValue
+                    placeholder={
+                      investmentTypeDefaults.isLoading ? t('loading-placeholder') : t('investment-type-placeholder')
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('investment-type-none-option')}</SelectItem>
+                  {investmentTypeDefaults.options.map(opt => (
+                    <SelectItem key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           <Button

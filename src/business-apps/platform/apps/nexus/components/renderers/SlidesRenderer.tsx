@@ -1,14 +1,43 @@
 import { useState } from 'react'
-import { Button, Card, CardContent, Badge } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, Badge, useTranslation } from '@newwork/nw-design-system'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { SlidesContent, GeneratedSlide } from '../../types/nexus.types'
+import translations from '../../_i18n'
 
 interface SlidesRendererProps {
   content: SlidesContent
   testId?: string
 }
 
+const getLayoutLabel = (layout: string, t: (key: string, args?: Record<string, number | string>) => string) => {
+  switch (layout) {
+    case 'title-cover':
+      return t('slides-layout-title-cover')
+    case 'thank-you':
+      return t('slides-layout-thank-you')
+    case 'agenda':
+      return t('slides-layout-agenda')
+    case 'bullets':
+      return t('slides-layout-bullets')
+    case 'section-divider':
+      return t('slides-layout-section-divider')
+    case 'two-column':
+      return t('slides-layout-two-column')
+    case 'key-takeaway':
+      return t('slides-layout-key-takeaway')
+    case 'key-metrics':
+      return t('slides-layout-key-metrics')
+    case 'process-flow':
+      return t('slides-layout-process-flow')
+    case 'timeline':
+      return t('slides-layout-timeline')
+    default:
+      return layout
+  }
+}
+
 export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRendererProps) => {
+  const { t } = useTranslation(translations)
   const [currentIndex, setCurrentIndex] = useState(0)
   const slides = content.slides || []
   const currentSlide = slides[currentIndex]
@@ -71,7 +100,9 @@ export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRende
             data-testid={`${testId}-thumb-${idx}`}
           >
             <p className="gba:text-[8px] gba:font-semibold gba:text-foreground gba:truncate">{slide.title}</p>
-            <p className="gba:text-[7px] gba:text-muted-foreground gba:truncate gba:mt-0.5">{slide.layout}</p>
+            <p className="gba:text-[7px] gba:text-muted-foreground gba:truncate gba:mt-0.5">
+              {getLayoutLabel(slide.layout, t)}
+            </p>
           </button>
         ))}
       </div>
@@ -82,6 +113,8 @@ export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRende
 // ── Slide Content Renderer ───────────────────────────────────
 
 const SlideContent = ({ slide }: { slide: GeneratedSlide }) => {
+  const { t } = useTranslation(translations)
+
   switch (slide.layout) {
     case 'title-cover':
       return (
@@ -122,7 +155,7 @@ const SlideContent = ({ slide }: { slide: GeneratedSlide }) => {
         <div className="gba:text-center gba:space-y-3">
           {slide.sectionNumber && (
             <Badge variant="secondary" className="gba:text-xs">
-              Section {slide.sectionNumber}
+              {t('slides-section', { number: slide.sectionNumber })}
             </Badge>
           )}
           <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">{slide.title}</h1>

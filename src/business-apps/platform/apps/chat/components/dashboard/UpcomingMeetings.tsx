@@ -39,20 +39,23 @@ function getInitials(name: string): string {
 }
 
 /**
- * Format time for display (e.g., "2:30 PM")
+ * Format time using the active app locale.
  */
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
+function formatTime(date: Date, locale: string): string {
+  return date.toLocaleTimeString(locale, {
     hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
+    minute: '2-digit'
   })
 }
 
 /**
- * Format relative time (e.g., "In 15 minutes", "Now", "Tomorrow")
+ * Format relative time using translated dashboard labels.
  */
-function formatRelativeTime(date: Date): { label: string; isLive: boolean; isSoon: boolean } {
+function formatRelativeTime(
+  date: Date,
+  locale: string,
+  t: (key: string, args?: Record<string, unknown>) => string
+): { label: string; isLive: boolean; isSoon: boolean } {
   const now = new Date()
   const diffMs = date.getTime() - now.getTime()
   const diffMins = Math.floor(diffMs / (1000 * 60))
@@ -60,39 +63,43 @@ function formatRelativeTime(date: Date): { label: string; isLive: boolean; isSoo
 
   // Check if meeting is currently happening
   if (diffMins < 0 && diffMins > -120) {
-    return { label: 'Now', isLive: true, isSoon: false }
+    return { label: t('dashboard-upcomingMeetings-now'), isLive: true, isSoon: false }
   }
 
   if (diffMins < 0) {
-    return { label: 'Started', isLive: true, isSoon: false }
+    return { label: t('dashboard-upcomingMeetings-started'), isLive: true, isSoon: false }
   }
 
   if (diffMins < 5) {
-    return { label: 'Starting now', isLive: false, isSoon: true }
+    return { label: t('dashboard-upcomingMeetings-startingNow'), isLive: false, isSoon: true }
   }
 
   if (diffMins < 60) {
-    return { label: `In ${diffMins} min`, isLive: false, isSoon: diffMins <= 15 }
+    return {
+      label: t('dashboard-upcomingMeetings-inMinutes', { minutes: diffMins }),
+      isLive: false,
+      isSoon: diffMins <= 15
+    }
   }
 
   if (diffHours < 24) {
-    return { label: `In ${diffHours}h`, isLive: false, isSoon: false }
+    return { label: t('dashboard-upcomingMeetings-inHours', { hours: diffHours }), isLive: false, isSoon: false }
   }
 
   // Check if tomorrow
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   if (date.toDateString() === tomorrow.toDateString()) {
-    return { label: 'Tomorrow', isLive: false, isSoon: false }
+    return { label: t('dashboard-upcomingMeetings-tomorrow'), isLive: false, isSoon: false }
   }
 
   // Show day name if within a week
   const daysAway = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
   if (daysAway <= 7) {
-    return { label: date.toLocaleDateString('en-US', { weekday: 'short' }), isLive: false, isSoon: false }
+    return { label: date.toLocaleDateString(locale, { weekday: 'short' }), isLive: false, isSoon: false }
   }
 
-  return { label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), isLive: false, isSoon: false }
+  return { label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }), isLive: false, isSoon: false }
 }
 
 /**
@@ -118,8 +125,8 @@ interface MeetingCardProps {
  * MeetingCard - Individual meeting item
  */
 const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, 'data-testid': testId }) => {
-  const { t } = useTranslation(translations)
-  const timeInfo = formatRelativeTime(meeting.start)
+  const { t, locale } = useTranslation(translations)
+  const timeInfo = formatRelativeTime(meeting.start, locale, t)
   const joinable = canJoinMeeting(meeting)
   const hasExternalLink = meeting.meetingLink && meeting.meetingLink !== 'auto-generate'
   const agendaItems = getAgendaFromMetadata(meeting.metadata)
@@ -149,7 +156,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
         >
           {timeInfo.label}
         </span>
-        <span className="gba:text-xs gba:text-muted-foreground">{formatTime(meeting.start)}</span>
+        <span className="gba:text-xs gba:text-muted-foreground">{formatTime(meeting.start, locale)}</span>
       </div>
 
       {/* Meeting info */}
@@ -176,7 +183,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
           {meeting.organizer && (
             <span className="gba:truncate">
-              {meeting.isOrganizer ? 'You' : meeting.organizer.displayName || meeting.organizer.email}
+              {meeting.isOrganizer
+                ? t('dashboard-common-you')
+                : meeting.organizer.displayName || meeting.organizer.email}
             </span>
           )}
           {meeting.participantCount > 1 && (
@@ -191,7 +200,10 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
           {hasAgenda && (
             <>
               <span>·</span>
-              <span className="gba:flex gba:items-center gba:gap-1" title={`${agendaItems.length} agenda items`}>
+              <span
+                className="gba:flex gba:items-center gba:gap-1"
+                title={t('dashboard-upcomingMeetings-agendaItems', { count: agendaItems.length })}
+              >
                 <ListTodo className="gba:w-3 gba:h-3" />
                 {agendaItems.length}
               </span>
@@ -237,12 +249,12 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, avatarMap, onJoin, '
           {hasExternalLink ? (
             <>
               <ExternalLink className="gba:w-3.5 gba:h-3.5" />
-              Open
+              {t('dashboard-upcomingMeetings-open')}
             </>
           ) : (
             <>
               <Video className="gba:w-3.5 gba:h-3.5" />
-              Join
+              {t('dashboard-upcomingMeetings-join')}
             </>
           )}
         </Button>
@@ -264,6 +276,7 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
   onJoinMeeting,
   'data-testid': testId = 'upcoming-meetings'
 }) => {
+  const { t, locale } = useTranslation(translations)
   const [meetings, setMeetings] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -334,7 +347,7 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
       setLastFetchTime(Date.now())
     } catch (err) {
       console.error('Failed to fetch upcoming meetings:', err)
-      setError('Unable to load meetings')
+      setError('dashboard-upcomingMeetings-error')
     } finally {
       setIsLoading(false)
     }
@@ -382,7 +395,7 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
     return (
       <section data-testid={testId}>
         <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-          Upcoming meetings
+          {t('dashboard-upcomingMeetings-title')}
         </h3>
         <div className="gba:rounded-xl gba:bg-card gba:p-4">
           <div className="gba:space-y-2">
@@ -407,11 +420,13 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
     return (
       <section data-testid={testId}>
         <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-          Upcoming meetings
+          {t('dashboard-upcomingMeetings-title')}
         </h3>
         <div className="gba:rounded-xl gba:bg-card gba:p-6 gba:text-center">
           <Calendar className="gba:w-8 gba:h-8 gba:text-muted-foreground/50 gba:mx-auto gba:mb-2" />
-          <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {error ? t(error) : t('dashboard-upcomingMeetings-error')}
+          </p>
         </div>
       </section>
     )
@@ -422,12 +437,14 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
     return (
       <section data-testid={testId}>
         <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-          Upcoming meetings
+          {t('dashboard-upcomingMeetings-title')}
         </h3>
         <div className="gba:rounded-xl gba:bg-card gba:p-6 gba:text-center">
           <Calendar className="gba:w-8 gba:h-8 gba:text-muted-foreground/50 gba:mx-auto gba:mb-2" />
-          <p className="gba:text-sm gba:text-muted-foreground">No upcoming meetings</p>
-          <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">Your schedule is clear</p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('dashboard-upcomingMeetings-emptyTitle')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
+            {t('dashboard-upcomingMeetings-emptyDescription')}
+          </p>
         </div>
       </section>
     )
@@ -444,12 +461,12 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
     <section data-testid={testId}>
       <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
         <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-          Upcoming meetings
+          {t('dashboard-upcomingMeetings-title')}
           {meetings.length > INITIAL_DISPLAY_COUNT && (
             <span className="gba:ml-2 gba:text-xs gba:font-normal">({meetings.length})</span>
           )}
         </h3>
-        <span className="gba:text-xs gba:text-muted-foreground/70">Next 7 days</span>
+        <span className="gba:text-xs gba:text-muted-foreground/70">{t('dashboard-upcomingMeetings-next7Days')}</span>
       </div>
 
       <div className="gba:rounded-xl gba:bg-card gba:p-2">
@@ -475,14 +492,16 @@ export const UpcomingMeetings: React.FC<UpcomingMeetingsProps> = ({
               className="gba:w-full gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
               data-testid={`${testId}-toggle`}
             >
-              {canExpand ? (
-                <>
-                  Show {Math.min(hiddenCount + displayCount, MAX_DISPLAY_COUNT) - INITIAL_DISPLAY_COUNT} more
-                  {hiddenCount > MAX_DISPLAY_COUNT - INITIAL_DISPLAY_COUNT && ` (${meetings.length} total)`}
-                </>
-              ) : (
-                'Show less'
-              )}
+              {canExpand
+                ? hiddenCount > MAX_DISPLAY_COUNT - INITIAL_DISPLAY_COUNT
+                  ? t('dashboard-upcomingMeetings-showMoreWithTotal', {
+                      count: Math.min(hiddenCount + displayCount, MAX_DISPLAY_COUNT) - INITIAL_DISPLAY_COUNT,
+                      total: meetings.length.toLocaleString(locale)
+                    })
+                  : t('dashboard-upcomingMeetings-showMore', {
+                      count: Math.min(hiddenCount + displayCount, MAX_DISPLAY_COUNT) - INITIAL_DISPLAY_COUNT
+                    })
+                : t('dashboard-upcomingMeetings-showLess')}
             </Button>
           </div>
         )}

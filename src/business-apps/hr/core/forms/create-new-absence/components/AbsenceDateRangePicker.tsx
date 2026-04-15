@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, XIcon } from 'lucide-react'
 import { useAbsenceCalendarData } from '../hooks/useAbsenceCalendarData'
-import { useAbsencePrevalidate } from '../hooks/useAbsencePrevalidate'
+import type { PrevalidateResult } from '@/business-apps/hr/core/hooks/useAbsencePrevalidate'
 import { getPrevalidateErrorPresentation } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import formsTranslations from '../../_i18n'
@@ -24,6 +24,7 @@ interface AbsenceDateRangePickerProps {
   accessToken: string | undefined
   employeeId: string
   selectedTypeRef?: string
+  prevalidate?: PrevalidateResult
   disabled?: boolean
   'data-testid'?: string
 }
@@ -35,6 +36,15 @@ const toLocalDateStr = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 const formatSnapshotValue = (value: number): string => value.toFixed(2)
+
+const IDLE_PREVALIDATE: PrevalidateResult = {
+  effectiveDays: null,
+  workingDays: null,
+  errorCode: null,
+  errorTitle: null,
+  errorDetail: null,
+  isLoading: false
+}
 
 /**
  * Absence date range picker built on Calendar + Popover.
@@ -49,6 +59,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
   accessToken,
   employeeId,
   selectedTypeRef,
+  prevalidate = IDLE_PREVALIDATE,
   disabled = false,
   'data-testid': testId = 'absence-date-range-input'
 }) => {
@@ -58,9 +69,6 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
 
   const { approvedDates, pendingDates, blockedRequestDates, bankHolidayDates, entitlementSnapshot } =
     useAbsenceCalendarData(accessToken, employeeId, visibleMonth, selectedTypeRef)
-  const startDateStr = startDate ? toLocalDateStr(startDate) : null
-  const endDateStr = endDate ? toLocalDateStr(endDate) : null
-  const prevalidate = useAbsencePrevalidate(accessToken, employeeId, selectedTypeRef, startDateStr, endDateStr)
 
   const blockedDateSet = new Set([...blockedRequestDates, ...bankHolidayDates].map(toLocalDateStr))
 

@@ -4,20 +4,30 @@ import type { AbsenceEntitlementObjectValue } from './absenceEntitlementObjectVa
 import { defaultAbsenceTypeObjectSettings, type AbsenceTypeObjectSettings } from './absenceTypeObjectValue'
 import { getFirstDayOfCurrentMonthIso } from './absenceTypeVersionValidation'
 
+export interface SetupSectionHighlight {
+  label: string
+  value: string
+  display?: 'text' | 'icon' | 'color'
+}
+
+export interface SetupSectionSortOption {
+  id: string
+  label: string
+  direction?: 'asc' | 'desc'
+}
+
 export interface SetupSectionItem {
   id: string
   title: string
   description: string
-  highlights?: Array<{
-    label: string
-    value: string
-  }>
+  highlights?: SetupSectionHighlight[]
   statusLabel?: string
   statusValue?: 'active' | 'inactive'
   canEdit?: boolean
   canDelete?: boolean
   searchText?: string
   sortText?: string
+  sortValues?: Record<string, string | number>
   fields?: Array<{
     label: string
     value: string

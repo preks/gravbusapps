@@ -22,13 +22,16 @@ export interface UseOrganizationalUnitsReturn {
   hasMore: boolean
   total: number
   loadMore: () => void
-  searchUnits: (searchTerm?: string) => void
   retry: () => void
 }
 
-/**
- * Custom hook for fetching organizational units with infinite scroll and search functionality
- */
+const convertToSelectOption = (unit: OrganizationalUnitItem): SelectOption => ({
+  id: unit.id,
+  name: unit.name,
+  label: unit.name,
+  value: unit.id
+})
+
 export const useOrganizationalUnits = ({
   accessToken,
   structureId,
@@ -41,127 +44,94 @@ export const useOrganizationalUnits = ({
   const [hasMore, setHasMore] = useState(true)
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
-  const [currentSearch, setCurrentSearch] = useState<string | undefined>(search)
+  const [fetchVersion, setFetchVersion] = useState(0)
 
-  // Convert OrganizationalUnitItem to SelectOption
-  const convertToSelectOption = (unit: OrganizationalUnitItem): SelectOption => ({
-    id: unit.id,
-    name: unit.name,
-    label: unit.name,
-    value: unit.id
-  })
-
-  // Reset data when search changes
   useEffect(() => {
-    if (currentSearch !== search) {
-      setCurrentSearch(search)
-      setOrganizationalUnits([])
-      setOffset(0)
-      setHasMore(true)
-      setTotal(0)
-      setError(null)
+    if (!accessToken || !client || !structureId) {
+      return
     }
-  }, [search, currentSearch])
 
-  // Load more organizational units
+    let cancelled = false
+
+    const run = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const variables: QueryVariablesOrganizationalUnit = {
+          structureId,
+          offset: 0,
+          limit: UNITS_PER_PAGE,
+          search
+        }
+        const data = await fetchOrganizationalUnitData(client, variables)
+        if (cancelled) {
+          return
+        }
+        const newUnits = data.OrganizationalUnit || []
+        const newSelectOptions = newUnits.map(convertToSelectOption)
+        const count = data.OrganizationalUnitAggregate.aggregate.count
+        setOrganizationalUnits(newSelectOptions)
+        setTotal(count)
+        const nextOffset = newUnits.length
+        setOffset(nextOffset)
+        setHasMore(nextOffset < count && newUnits.length === UNITS_PER_PAGE)
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Failed to load organizational units'
+          console.error('Error loading organizational units:', err)
+          setError(message)
+          setHasMore(false)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, client, structureId, search, fetchVersion])
+
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore || !accessToken || !client || !structureId) return
+    if (loading || !hasMore || !accessToken || !client || !structureId) {
+      return
+    }
 
     setLoading(true)
     setError(null)
-
     try {
       const variables: QueryVariablesOrganizationalUnit = {
         structureId,
         offset,
         limit: UNITS_PER_PAGE,
-        search: currentSearch
+        search
       }
-
       const data = await fetchOrganizationalUnitData(client, variables)
-
       const newUnits = data.OrganizationalUnit || []
       const newSelectOptions = newUnits.map(convertToSelectOption)
-
-      // Append new data for infinite scroll
-      setOrganizationalUnits(prev => (offset === 0 ? newSelectOptions : [...prev, ...newSelectOptions]))
-
-      setTotal(data.OrganizationalUnitAggregate.aggregate.count)
-      setOffset(prev => prev + UNITS_PER_PAGE)
-      setHasMore(
-        newUnits.length === UNITS_PER_PAGE && offset + UNITS_PER_PAGE < data.OrganizationalUnitAggregate.aggregate.count
-      )
-    } catch (err: any) {
+      setOrganizationalUnits(prev => [...prev, ...newSelectOptions])
+      const nextOffset = offset + newUnits.length
+      setOffset(nextOffset)
+      setHasMore(nextOffset < total && newUnits.length === UNITS_PER_PAGE)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load organizational units'
       console.error('Error loading organizational units:', err)
-      setError(err.message || 'Failed to load organizational units')
+      setError(message)
       setHasMore(false)
     } finally {
       setLoading(false)
     }
-  }, [client, loading, hasMore, offset, currentSearch, accessToken, structureId])
+  }, [loading, hasMore, accessToken, client, structureId, search, offset, total])
 
-  // Initial load function - separate from loadMore to avoid circular dependency
-  const initialLoad = useCallback(async () => {
-    if (loading || !accessToken || !client || !structureId) return
-
-    setLoading(true)
-    setError(null)
-    setOrganizationalUnits([])
-    setOffset(0)
-    setHasMore(true)
-    setTotal(0)
-
-    try {
-      const variables: QueryVariablesOrganizationalUnit = {
-        structureId,
-        offset: 0,
-        limit: UNITS_PER_PAGE,
-        search: currentSearch
-      }
-
-      const data = await fetchOrganizationalUnitData(client, variables)
-
-      const newUnits = data.OrganizationalUnit || []
-      const newSelectOptions = newUnits.map(convertToSelectOption)
-
-      setOrganizationalUnits(newSelectOptions)
-      setTotal(data.OrganizationalUnitAggregate.aggregate.count)
-      setOffset(UNITS_PER_PAGE)
-      setHasMore(
-        newUnits.length === UNITS_PER_PAGE && UNITS_PER_PAGE < data.OrganizationalUnitAggregate.aggregate.count
-      )
-    } catch (err: any) {
-      console.error('Error loading organizational units:', err)
-      setError(err.message || 'Failed to load organizational units')
-      setHasMore(false)
-    } finally {
-      setLoading(false)
-    }
-  }, [client, loading, currentSearch, accessToken, structureId])
-
-  // Search organizational units
-  const searchUnits = useCallback((searchTerm?: string) => {
-    setCurrentSearch(searchTerm)
-    setOrganizationalUnits([])
-    setOffset(0)
-    setHasMore(true)
-    setTotal(0)
-    setError(null)
-  }, [])
-
-  // Retry loading
   const retry = useCallback(() => {
     setError(null)
     setHasMore(true)
-    initialLoad()
-  }, [initialLoad])
-
-  // Initial load - simplified to avoid circular dependencies
-  useEffect(() => {
-    if (accessToken && client && structureId && organizationalUnits.length === 0 && !loading) {
-      initialLoad()
-    }
-  }, [accessToken, client, structureId, organizationalUnits.length, loading, initialLoad])
+    setOffset(0)
+    setFetchVersion(v => v + 1)
+  }, [])
 
   return {
     organizationalUnits,
@@ -170,7 +140,6 @@ export const useOrganizationalUnits = ({
     hasMore,
     total,
     loadMore,
-    searchUnits,
     retry
   }
 }

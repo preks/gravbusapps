@@ -179,6 +179,21 @@ export interface SignatureViewProps {
   selected: boolean
 }
 
+export function areSignatureRenderPositionsEqual(
+  left: { left: number; top: number } | null,
+  right: { left: number; top: number } | null
+): boolean {
+  if (left === right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  return left.left === right.left && left.top === right.top
+}
+
 export function SignatureView({ node, editor, getPos, selected }: SignatureViewProps) {
   const { t } = useTranslation(translations)
   const imgRef = useRef<HTMLImageElement | null>(null)
@@ -546,13 +561,13 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
 
   useLayoutEffect(() => {
     if (!posPageLocal) {
-      setRenderPos(null)
+      setRenderPos(previousRenderPos => (previousRenderPos === null ? previousRenderPos : null))
       return
     }
     const wrapper = contentRef.current?.parentElement ?? null
     const pageLayer = resolvePageBodyLayerForWrapper(editor, wrapper, pageNumber)
     if (!wrapper || !pageLayer) {
-      setRenderPos(null)
+      setRenderPos(previousRenderPos => (previousRenderPos === null ? previousRenderPos : null))
       return
     }
     const wr = wrapper.getBoundingClientRect()
@@ -568,10 +583,13 @@ export function SignatureView({ node, editor, getPos, selected }: SignatureViewP
       pageLayer,
       pageNumber
     )
-    setRenderPos({
+    const nextRenderPos = {
       left: lr.left + clamped.x - wr.left,
       top: lr.top + clamped.y - wr.top
-    })
+    }
+    setRenderPos(previousRenderPos =>
+      areSignatureRenderPositionsEqual(previousRenderPos, nextRenderPos) ? previousRenderPos : nextRenderPos
+    )
   }, [editor, pageNumber, posPageLocal?.x, posPageLocal?.y, isFloating, dragPosition, displayWidth, displayHeight])
 
   useEffect(() => {

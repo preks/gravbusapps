@@ -121,10 +121,16 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
     }
   }
 
-  if (chunk.role === 'ai') {
+  if (chunk.chunk_kind === 'response_stream') {
+    return null
+  }
+
+  if (chunk.role === 'ai' || chunk.role === 'system') {
+    // Status updates get their own message type
+    const isStatus = chunk.chunk_kind === 'status'
     return {
       id: chunk.event_id,
-      type: 'agent_thinking' as ChatMessageType,
+      type: isStatus ? 'agent_status' : 'agent_thinking',
       timestamp: chunk.timestamp,
       content: chunk.content,
       isStreaming: chunk.chunk_kind !== 'final'
@@ -139,6 +145,14 @@ const toEpoch = (value?: string): number => {
   if (!value) return 0
   const parsed = Date.parse(value)
   return Number.isNaN(parsed) ? 0 : parsed
+}
+
+const readEventSeq = (event?: AgentStreamEvent): number | undefined => {
+  if (!event || !('seq' in event) || typeof event.seq !== 'number') {
+    return undefined
+  }
+
+  return event.seq
 }
 
 function toolCallMessageStatus(completed: StepCompletion | undefined): 'failed' | 'done' | 'running' {
@@ -467,28 +481,36 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]) {
 }
 
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
-  // Just return trace messages - they already have everything from SSE stream
-  // No need to create synthetic terminal messages from session.status
-  const traceMessages = deriveMessagesFromEvents(session.trace ?? []).filter(
-    message => !(message.type === 'user_input' && message.content === session.input)
-  )
+  // Derive messages from the trace - the server's authoritative record.
+  // The trace is already in correct chronological/seq order from the backend.
+  // Do NOT re-sort or add synthetic messages - trust the server order.
+  const traceMessages = deriveMessagesFromEvents(session.trace ?? [])
 
-  const initialUserMessage = session.input
-    ? ({
-        id: `user-${session.session_id}`,
-        type: 'user_input',
-        timestamp: session.created_at,
-        content: session.input
-      } satisfies ChatMessage)
-    : null
+  // If the trace doesn't include the initial user message (older sessions),
+  // prepend it. But check if it's already in the trace first.
+  const hasInitialUserMessage = traceMessages.some(msg => msg.type === 'user_input' && msg.content === session.input)
 
-  return [...(initialUserMessage ? [initialUserMessage] : []), ...traceMessages]
+  if (!hasInitialUserMessage && session.input) {
+    // Find the first seq in the trace to create a proper ID for sorting
+    const firstSeq = readEventSeq(session.trace?.[0])
+    const syntheticSeq = typeof firstSeq === 'number' ? firstSeq - 1 : 0
+    const initialUserMessage: ChatMessage = {
+      id: `${session.session_id}:${syntheticSeq}`,
+      type: 'user_input',
+      timestamp: session.created_at,
+      content: session.input
+    }
+    return [initialUserMessage, ...traceMessages]
+  }
+
+  return traceMessages
 }
 
 export function messageTypeLabel(type: ChatMessageType): string {
   const labels: Record<ChatMessageType, string> = {
     user_input: 'You',
     agent_thinking: 'Thinking',
+    agent_status: 'Status',
     plan: 'Plan created',
     tool_call: 'Tool called',
     tool_result: 'Tool result',

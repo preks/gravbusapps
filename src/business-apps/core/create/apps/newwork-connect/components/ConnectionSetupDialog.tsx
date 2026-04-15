@@ -42,6 +42,8 @@ import {
   extractAuthState,
   isAuthConfigKey
 } from './ConnectionAuthFields'
+import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
+import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
 
 type EditorState =
   | { mode: 'create'; provider: ConnectorProviderODM }
@@ -54,6 +56,8 @@ interface ConnectionSetupDialogProps {
   onCreate: (providerId: string, payload: ConnectorProviderInstantiationDetails) => Promise<void>
   onUpdate: (connectionId: string, payload: ExternalConnectionDetails) => Promise<void>
   t: (key: string, args?: Record<string, unknown>) => string
+  /** When provided, sensitive provider fields can bind stored credentials / bundle slots. */
+  credentialBindOptions?: CredentialBindOption[]
 }
 
 const parseJsonRecord = (value: string): Record<string, string> | null => {
@@ -71,7 +75,8 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   onClose,
   onCreate,
   onUpdate,
-  t
+  t,
+  credentialBindOptions
 }) => {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -91,6 +96,10 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   const helpUrl = useMemo(() => getProviderHelpUrl(provider), [provider])
   const showUrlField = provider?.kind === 'mcp' || !!url
   const showAuthSection = provider?.kind === 'mcp'
+  const lightningDomainHint = useMemo(() => {
+    const domainValue = fieldValues['DOMAIN'] || ''
+    return /\.lightning\.force\.com/i.test(domainValue)
+  }, [fieldValues])
 
   useEffect(() => {
     if (!editorState) return
@@ -130,6 +139,13 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   const handleSave = async () => {
     if (!editorState || !provider) return
     setFormError(null)
+
+    const missingRequired = providerFields.filter(field => field.required && !(fieldValues[field.key] || '').trim())
+    if (missingRequired.length > 0) {
+      setFormError(t('connect-validation-required-fields'))
+      return
+    }
+
     setIsSaving(true)
 
     try {
@@ -275,7 +291,14 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
             </div>
           ) : null}
 
-          {showAuthSection ? <ConnectionAuthFields auth={auth} onChange={setAuth} t={t} /> : null}
+          {showAuthSection ? (
+            <ConnectionAuthFields
+              auth={auth}
+              onChange={setAuth}
+              t={t}
+              credentialBindOptions={credentialBindOptions}
+            />
+          ) : null}
 
           {providerFields.length ? (
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
@@ -284,7 +307,10 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
                   key={field.key}
                   className={`gba:space-y-2${field.fieldType === 'textarea' ? ' gba:col-span-2' : ''}`}
                 >
-                  <Label>{getFieldLabel(t, field.key)}</Label>
+                  <Label>
+                    {getFieldLabel(t, field.key)}
+                    {field.required ? <span className="gba:text-destructive gba:ml-0.5">*</span> : null}
+                  </Label>
                   {field.fieldType === 'textarea' ? (
                     <Textarea
                       rows={3}
@@ -293,6 +319,16 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
                       onChange={e => handleFieldValueChange(field.key, e.target.value)}
                       placeholder={getFieldPlaceholder(t, field.key)}
                       required={field.required}
+                      data-testid={`newwork-connect-form-field-${field.key}`}
+                    />
+                  ) : credentialBindOptions?.length &&
+                    (field.fieldType === 'password' || field.fieldType === 'text' || field.fieldType === 'url') ? (
+                    <CredentialBindField
+                      value={fieldValues[field.key] || ''}
+                      onChange={v => handleFieldValueChange(field.key, v)}
+                      bindOptions={credentialBindOptions}
+                      plainInputType={field.fieldType === 'password' ? 'password' : 'text'}
+                      plainPlaceholder={getFieldPlaceholder(t, field.key)}
                       data-testid={`newwork-connect-form-field-${field.key}`}
                     />
                   ) : (
@@ -316,6 +352,15 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
                 </div>
               ))}
             </div>
+          ) : null}
+
+          {lightningDomainHint ? (
+            <p
+              className="gba:text-xs gba:text-warning-foreground gba:bg-warning/10 gba:border gba:border-warning/20 gba:rounded-lg gba:px-3 gba:py-2"
+              data-testid="newwork-connect-lightning-hint"
+            >
+              {t('connect-validation-lightning-domain')}
+            </p>
           ) : null}
 
           <div className="gba:space-y-3">

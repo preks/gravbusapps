@@ -22,9 +22,29 @@ interface AbsenceTypeVersionBasicSectionProps {
   onChange: (values: AbsenceTypeVersionFormValues) => void
 }
 
+const getAbsenceTypeDisplayName = (absenceType: AbsenceType): string => {
+  const translatedName = absenceType.translations
+    ?.find(translation => translation.localeCode === 'en-US')
+    ?.value?.trim()
+
+  return translatedName || absenceType.value || absenceType.code
+}
+
+const buildAbsenceTypeOptionValue = (absenceType: AbsenceType): string =>
+  `${absenceType.code}:::${getAbsenceTypeDisplayName(absenceType)}`
+
+const getAbsenceTypeCodeFromOptionValue = (value: string): string => value.split(':::')[0] || ''
+
 const normalizeDateInputValue = (value: string): string => {
   if (!value) {
     return ''
+  }
+
+  if (value.includes('T')) {
+    const isoDatePart = value.split('T')[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoDatePart)) {
+      return isoDatePart
+    }
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -39,6 +59,9 @@ const normalizeDateInputValue = (value: string): string => {
   return value
 }
 
+const getDateInputChangeValue = (value: string | [string | null, string | null] | null): string =>
+  typeof value === 'string' ? normalizeDateInputValue(value) : ''
+
 const getFieldErrorClassName = (hasError: boolean) =>
   hasError ? 'gba:border-destructive focus:gba:border-destructive' : ''
 
@@ -51,10 +74,11 @@ export function AbsenceTypeVersionBasicSection({
 }: Readonly<AbsenceTypeVersionBasicSectionProps>) {
   const { t } = useTranslation(translations)
   const selectedType = absenceTypes.find(item => item.code === formValues.code)
+  const selectedTypeOptionValue = selectedType ? buildAbsenceTypeOptionValue(selectedType) : ''
 
   const absenceTypeOptions = absenceTypes.map(item => ({
-    value: item.code,
-    label: `${item.code} - ${item.value || item.code}`
+    value: buildAbsenceTypeOptionValue(item),
+    label: `${item.code} - ${getAbsenceTypeDisplayName(item)}`
   }))
 
   const updateTranslations = (locale: 'enUS' | 'deDE' | 'roRO', value: string) => {
@@ -80,8 +104,10 @@ export function AbsenceTypeVersionBasicSection({
               <span className="gba:text-destructive"> *</span>
             </Label>
             <Combobox
-              value={formValues.code}
-              onValueChange={value => onChange({ ...formValues, code: String(value || '') })}
+              value={selectedTypeOptionValue}
+              onValueChange={value =>
+                onChange({ ...formValues, code: getAbsenceTypeCodeFromOptionValue(String(value || '')) })
+              }
               options={absenceTypeOptions}
               placeholder={t('field-absence-type-placeholder')}
               searchPlaceholder={t('field-absence-type-search-placeholder')}
@@ -121,9 +147,8 @@ export function AbsenceTypeVersionBasicSection({
             <DateInput
               id="absence-type-version-valid-from"
               type="date"
-              outputFormat="iso"
               value={normalizeDateInputValue(formValues.validFrom)}
-              onChange={value => onChange({ ...formValues, validFrom: value || '' })}
+              onChange={value => onChange({ ...formValues, validFrom: getDateInputChangeValue(value) })}
               data-testid="absence-type-version-valid-from-input"
               className={getFieldErrorClassName(Boolean(validationErrors.validFrom))}
             />
@@ -137,9 +162,8 @@ export function AbsenceTypeVersionBasicSection({
             <DateInput
               id="absence-type-version-valid-to"
               type="date"
-              outputFormat="iso"
               value={normalizeDateInputValue(formValues.validTo)}
-              onChange={value => onChange({ ...formValues, validTo: value || '' })}
+              onChange={value => onChange({ ...formValues, validTo: getDateInputChangeValue(value) })}
               data-testid="absence-type-version-valid-to-input"
               className={getFieldErrorClassName(Boolean(validationErrors.validTo))}
             />

@@ -21,6 +21,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/investment/utils'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
+import { IrmActivityAssociationFields } from './IrmActivityAssociationFields'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
   onSuccess?: (activity: Partial<ActivitySchema>) => void
@@ -324,6 +325,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           onDocumentRemove={handleDocumentRemove}
           loading={activityLoading && isUpdateMode}
           data-testid="investment-activity-layout"
+          associationFields={
+            <IrmActivityAssociationFields
+              accessToken={accessToken}
+              entitySearchOptions={entities}
+              data-testid="irm-activity-associations"
+            />
+          }
         />
       </AppActionForm>
     </CatalogSelect.Provider>

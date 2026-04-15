@@ -183,13 +183,15 @@ export function usePagedDocumentShellControls({
     setIsExporting(true)
     try {
       const safeHtml = await getExportHtmlWithEmbeddedImages()
-      await exportToWord(title, safeHtml)
+      await exportToWord(title, safeHtml, {
+        formatting: layoutFormatting
+      })
     } catch (error) {
       console.error('[PagedDocumentEditor] Export to Word failed:', error)
     } finally {
       setIsExporting(false)
     }
-  }, [editor, getExportHtmlWithEmbeddedImages, title])
+  }, [editor, getExportHtmlWithEmbeddedImages, layoutFormatting, title])
 
   const handleExportPDF = useCallback(async () => {
     if (!editor) return

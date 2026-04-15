@@ -305,6 +305,7 @@ notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+notification-communication-deleted-success = Communication entry deleted successfully.
 
 # Employee Record - Errors and states
 employee-record-error-title = Error
@@ -744,6 +745,11 @@ details-private-communication = Private Communication
 details-emergency-contact = Emergency Contact
 details-additional-attributes = Additional Attributes
 details-no-emergency-contact = No emergency contact information available
+details-communication-no-entries = No communication entries
+details-communication-add = Add communication
+delete-communication-confirm-title = Delete communication entry
+delete-communication-confirm-description = Are you sure you want to delete this communication entry? This action cannot be undone.
+delete-communication-confirm-button = Delete
 details-label-salutation = Salutation
 details-label-academic-titles = Academic Titles
 details-label-first-name = First Name

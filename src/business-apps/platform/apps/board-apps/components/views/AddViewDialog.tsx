@@ -12,11 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Table2, Columns3, CalendarDays, GanttChart, FileText, LayoutDashboard } from 'lucide-react'
 import type { BoardColumn, BoardView, BoardViewType, ViewConfig } from '../../types'
 import { getPrimaryColumn } from '../../types'
+import translations from '../../_i18n'
 
 export interface AddViewDialogProps {
   open: boolean
@@ -37,52 +39,56 @@ function createId(): string {
 
 interface ViewTypeOption {
   value: BoardViewType
-  label: string
-  description: string
+  labelKey: string
+  descriptionKey: string
   icon: React.ReactNode
 }
 
 const VIEW_TYPES: ViewTypeOption[] = [
   {
     value: 'table',
-    label: 'Table',
-    description: 'Rows and columns, like a spreadsheet. Best for editing and bulk data entry.',
+    labelKey: 'board-view-type-table',
+    descriptionKey: 'board-view-desc-table',
     icon: <Table2 className="gba:w-5 gba:h-5" />
   },
   {
     value: 'kanban',
-    label: 'Kanban',
-    description: 'Drag-and-drop cards grouped by status. Great for tracking workflows.',
+    labelKey: 'board-view-type-kanban',
+    descriptionKey: 'board-view-desc-kanban',
     icon: <Columns3 className="gba:w-5 gba:h-5" />
   },
   {
     value: 'calendar',
-    label: 'Calendar',
-    description: 'View items on a monthly calendar by date. Perfect for scheduling.',
+    labelKey: 'board-view-type-calendar',
+    descriptionKey: 'board-view-desc-calendar',
     icon: <CalendarDays className="gba:w-5 gba:h-5" />
   },
   {
     value: 'timeline',
-    label: 'Timeline',
-    description: 'Gantt-style bar chart across a date range. Ideal for project planning.',
+    labelKey: 'board-view-type-timeline',
+    descriptionKey: 'board-view-desc-timeline',
     icon: <GanttChart className="gba:w-5 gba:h-5" />
   },
   {
     value: 'form',
-    label: 'Form',
-    description: 'A submission form that creates new rows. Use for intake and requests.',
+    labelKey: 'board-view-type-form',
+    descriptionKey: 'board-view-desc-form',
     icon: <FileText className="gba:w-5 gba:h-5" />
   },
   {
     value: 'dashboard',
-    label: 'Dashboard',
-    description: 'Charts, KPIs, and widgets built from your data. For reporting at a glance.',
+    labelKey: 'board-view-type-dashboard',
+    descriptionKey: 'board-view-desc-dashboard',
     icon: <LayoutDashboard className="gba:w-5 gba:h-5" />
   }
 ]
 
-function defaultViewName(type: BoardViewType, existing: BoardView[]): string {
-  const base = VIEW_TYPES.find(t => t.value === type)?.label || 'View'
+function defaultViewName(
+  type: BoardViewType,
+  existing: BoardView[],
+  getLabel: (type: BoardViewType) => string
+): string {
+  const base = getLabel(type)
   const used = new Set(existing.map(v => v.name))
   if (!used.has(base)) return base
   for (let i = 2; i < 50; i++) {
@@ -105,8 +111,25 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
   onCreate,
   'data-testid': testId = 'add-view-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [type, setType] = useState<BoardViewType>('table')
   const [name, setName] = useState('')
+  const getViewLabel = useCallback(
+    (viewType: BoardViewType) => {
+      const option = VIEW_TYPES.find(item => item.value === viewType)
+      return option ? t(option.labelKey) : t('board-view-default-name')
+    },
+    [t]
+  )
+  const localizedViewTypes = useMemo(
+    () =>
+      VIEW_TYPES.map(option => ({
+        ...option,
+        label: t(option.labelKey),
+        description: t(option.descriptionKey)
+      })),
+    [t]
+  )
 
   const statusCandidates = useMemo(() => {
     const preferred = columns.filter(c => c.type === 'status' || c.type === 'priority' || c.type === 'select')
@@ -151,8 +174,9 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
   const ensureDefaultsForType = useCallback(
     (nextType: BoardViewType) => {
       const prevName = name.trim()
-      const isAutoName = !prevName || VIEW_TYPES.some(t => prevName === defaultViewName(t.value, existingViews))
-      if (isAutoName) setName(defaultViewName(nextType, existingViews))
+      const isAutoName =
+        !prevName || VIEW_TYPES.some(option => prevName === defaultViewName(option.value, existingViews, getViewLabel))
+      if (isAutoName) setName(defaultViewName(nextType, existingViews, getViewLabel))
 
       const primaryName = getPrimaryColumn(columns)?.name || columns[0]?.name || ''
 
@@ -173,7 +197,7 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
         setTimelineTitle(prev => prev || primaryName)
       }
     },
-    [name, existingViews, columns, statusCandidates, dateCandidates]
+    [name, existingViews, columns, statusCandidates, dateCandidates, getViewLabel]
   )
 
   const handleTypeChange = useCallback(
@@ -210,10 +234,10 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
         startDateColumn: timelineStart || fd,
         endDateColumn: timelineEnd || fd,
         titleColumn: timelineTitle || primaryName,
-        dependencyColumn: timelineDeps || undefined
+        dependencyColumn: timelineDeps && timelineDeps !== '__none__' ? timelineDeps : undefined
       }
     } else if (type === 'form') {
-      config = { type: 'form', fields: [], layout: 'single', submitLabel: 'Add row' }
+      config = { type: 'form', fields: [], layout: 'single', submitLabel: t('board-add-row') }
     } else {
       config = { type: 'dashboard', widgets: [] }
     }
@@ -244,7 +268,8 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
     calendarTitle,
     timelineStart,
     timelineEnd,
-    timelineTitle
+    timelineTitle,
+    t
   ])
 
   const needsConfig = type === 'kanban' || type === 'calendar' || type === 'timeline'
@@ -253,16 +278,14 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="gba:max-w-[520px] gba:p-0 gba:gap-0 gba:overflow-hidden" data-testid={testId}>
         <DialogHeader className="gba:px-5 gba:pt-5 gba:pb-3">
-          <DialogTitle className="gba:text-base">Add a new view</DialogTitle>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-            Choose how you want to visualize your data. Each view provides a different perspective.
-          </p>
+          <DialogTitle className="gba:text-base">{t('board-add-view-dialog-title')}</DialogTitle>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{t('board-add-view-dialog-description')}</p>
         </DialogHeader>
 
         <div className="gba:px-5 gba:pb-4 gba:space-y-4">
           {/* View type selector grid */}
-          <div className="gba:grid gba:grid-cols-3 gba:gap-2" role="radiogroup" aria-label="View type">
-            {VIEW_TYPES.map(opt => {
+          <div className="gba:grid gba:grid-cols-3 gba:gap-2" role="radiogroup" aria-label={t('board-view-type-aria')}>
+            {localizedViewTypes.map(opt => {
               const selected = type === opt.value
               return (
                 <button
@@ -301,13 +324,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
           {/* Name input */}
           <div>
             <Label className="gba:text-xs gba:font-medium" htmlFor={`${testId}-name`}>
-              View name
+              {t('board-view-name-label')}
             </Label>
             <Input
               id={`${testId}-name`}
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={defaultViewName(type, existingViews)}
+              placeholder={defaultViewName(type, existingViews, getViewLabel)}
               className="gba:mt-1 gba:h-8 gba:text-sm"
               autoFocus
               onKeyDown={e => {
@@ -320,18 +343,20 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
           {/* Type-specific configuration */}
           {needsConfig && (
             <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-3 gba:space-y-3">
-              <p className="gba:text-xs gba:font-medium gba:text-foreground">Configuration</p>
+              <p className="gba:text-xs gba:font-medium gba:text-foreground">{t('board-view-configuration')}</p>
 
               {type === 'kanban' && (
                 <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                   <div>
-                    <Label className="gba:text-[11px] gba:text-muted-foreground">Group by column</Label>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">
+                      {t('board-view-group-by-column')}
+                    </Label>
                     <Select value={kanbanStatus} onValueChange={setKanbanStatus}>
                       <SelectTrigger
                         className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                         data-testid={`${testId}-kanban-status`}
                       >
-                        <SelectValue placeholder="Select column" />
+                        <SelectValue placeholder={t('board-view-select-column')} />
                       </SelectTrigger>
                       <SelectContent>
                         {statusCandidates.map(c => (
@@ -343,13 +368,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                     </Select>
                   </div>
                   <div>
-                    <Label className="gba:text-[11px] gba:text-muted-foreground">Card title</Label>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">{t('board-view-card-title')}</Label>
                     <Select value={kanbanTitle} onValueChange={setKanbanTitle}>
                       <SelectTrigger
                         className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                         data-testid={`${testId}-kanban-title`}
                       >
-                        <SelectValue placeholder="Select column" />
+                        <SelectValue placeholder={t('board-view-select-column')} />
                       </SelectTrigger>
                       <SelectContent>
                         {columns.map(c => (
@@ -366,13 +391,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
               {type === 'calendar' && (
                 <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                   <div>
-                    <Label className="gba:text-[11px] gba:text-muted-foreground">Date column</Label>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">{t('board-view-date-column')}</Label>
                     <Select value={calendarDate} onValueChange={setCalendarDate}>
                       <SelectTrigger
                         className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                         data-testid={`${testId}-calendar-date`}
                       >
-                        <SelectValue placeholder="Select column" />
+                        <SelectValue placeholder={t('board-view-select-column')} />
                       </SelectTrigger>
                       <SelectContent>
                         {dateCandidates.map(c => (
@@ -384,13 +409,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                     </Select>
                   </div>
                   <div>
-                    <Label className="gba:text-[11px] gba:text-muted-foreground">Card title</Label>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">{t('board-view-card-title')}</Label>
                     <Select value={calendarTitle} onValueChange={setCalendarTitle}>
                       <SelectTrigger
                         className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                         data-testid={`${testId}-calendar-title`}
                       >
-                        <SelectValue placeholder="Select column" />
+                        <SelectValue placeholder={t('board-view-select-column')} />
                       </SelectTrigger>
                       <SelectContent>
                         {columns.map(c => (
@@ -408,13 +433,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                 <div className="gba:space-y-3">
                   <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                     <div>
-                      <Label className="gba:text-[11px] gba:text-muted-foreground">Start date</Label>
+                      <Label className="gba:text-[11px] gba:text-muted-foreground">{t('board-view-start-date')}</Label>
                       <Select value={timelineStart} onValueChange={setTimelineStart}>
                         <SelectTrigger
                           className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                           data-testid={`${testId}-timeline-start`}
                         >
-                          <SelectValue placeholder="Select column" />
+                          <SelectValue placeholder={t('board-view-select-column')} />
                         </SelectTrigger>
                         <SelectContent>
                           {dateCandidates.map(c => (
@@ -426,13 +451,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                       </Select>
                     </div>
                     <div>
-                      <Label className="gba:text-[11px] gba:text-muted-foreground">End date</Label>
+                      <Label className="gba:text-[11px] gba:text-muted-foreground">{t('board-view-end-date')}</Label>
                       <Select value={timelineEnd} onValueChange={setTimelineEnd}>
                         <SelectTrigger
                           className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                           data-testid={`${testId}-timeline-end`}
                         >
-                          <SelectValue placeholder="Select column" />
+                          <SelectValue placeholder={t('board-view-select-column')} />
                         </SelectTrigger>
                         <SelectContent>
                           {dateCandidates.map(c => (
@@ -445,13 +470,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                     </div>
                   </div>
                   <div>
-                    <Label className="gba:text-[11px] gba:text-muted-foreground">Bar label</Label>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">{t('board-view-bar-label')}</Label>
                     <Select value={timelineTitle} onValueChange={setTimelineTitle}>
                       <SelectTrigger
                         className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                         data-testid={`${testId}-timeline-title`}
                       >
-                        <SelectValue placeholder="Select column" />
+                        <SelectValue placeholder={t('board-view-select-column')} />
                       </SelectTrigger>
                       <SelectContent>
                         {columns.map(c => (
@@ -464,16 +489,18 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
                   </div>
                   {relationCandidates.length > 0 && (
                     <div>
-                      <Label className="gba:text-[11px] gba:text-muted-foreground">Dependencies</Label>
+                      <Label className="gba:text-[11px] gba:text-muted-foreground">
+                        {t('board-view-dependencies')}
+                      </Label>
                       <Select value={timelineDeps} onValueChange={setTimelineDeps}>
                         <SelectTrigger
                           className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
                           data-testid={`${testId}-timeline-deps`}
                         >
-                          <SelectValue placeholder="None (optional)" />
+                          <SelectValue placeholder={t('board-view-none-optional')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
+                          <SelectItem value="__none__">{t('board-view-none')}</SelectItem>
                           {relationCandidates.map(c => (
                             <SelectItem key={c.id} value={c.name}>
                               {c.label}
@@ -491,10 +518,10 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
 
         <DialogFooter className="gba:px-5 gba:py-3 gba:border-t gba:border-border gba:bg-muted/20">
           <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} data-testid={`${testId}-cancel`}>
-            Cancel
+            {t('common-cancel')}
           </Button>
           <Button size="sm" onClick={handleCreate} disabled={!canCreate} data-testid={`${testId}-create`}>
-            Create view
+            {t('board-add-view-submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

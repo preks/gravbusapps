@@ -38,7 +38,7 @@
     "rules:validate": "cursor-rules validate",
     "rules:diff": "cursor-rules diff",
     "preinstall": "node ./scripts/setup-env.js",
-    "postinstall": "newwork-git-hooks"
+    "postinstall": "newwork-git-hooks && node scripts/patch-excalidraw-dynamic-imports.cjs"
   },
   "dependencies": {
     "@cloudflare/realtimekit": "^1.0.0",
@@ -60,7 +60,7 @@
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/icons": "^0.0.5",
     "@newwork/nw-design-system": "^0.99.0-609",
-    "@newwork/remote-component-loader": "^0.5.0",
+    "@newwork/remote-component-loader": "^0.5.7",
     "@tiptap/extension-bubble-menu": "^3.15.3",
     "@tiptap/extension-character-count": "^3.15.3",
     "@tiptap/extension-collaboration": "^3.15.3",

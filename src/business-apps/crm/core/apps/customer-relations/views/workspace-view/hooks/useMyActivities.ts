@@ -377,6 +377,8 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
           return buildPlatformUrl('/platform/crm/contact-record', { contactId: entityId })
         case 'opportunity':
           return buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: entityId })
+        case 'investment':
+          return ''
         default:
           return ''
       }

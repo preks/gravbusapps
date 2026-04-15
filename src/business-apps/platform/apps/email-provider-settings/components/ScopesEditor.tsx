@@ -5,49 +5,107 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { Badge, Button, Input, Label } from '@newwork/nw-design-system'
+import { Badge, Button, Input, Label, useTranslation } from '@newwork/nw-design-system'
 import { Check, AlertTriangle, Plus, Lock, X, Info } from 'lucide-react'
+import translations from '../_i18n'
 
-/** A single permission/feature definition */
 interface PermissionDef {
   scope: string
-  label: string
-  description: string
+  labelKey: string
+  descriptionKey: string
   required?: boolean
 }
 
 const MICROSOFT_PERMISSIONS: PermissionDef[] = [
-  { scope: 'openid', label: 'OpenID', description: 'Basic identity', required: true },
-  { scope: 'profile', label: 'Profile', description: 'User profile info', required: true },
-  { scope: 'email', label: 'Email identity', description: 'User email address', required: true },
   {
-    scope: 'offline_access',
-    label: 'Offline access',
-    description: 'Refresh tokens for background sync',
+    scope: 'openid',
+    labelKey: 'permission-microsoft-openid-label',
+    descriptionKey: 'permission-microsoft-openid-description',
     required: true
   },
-  { scope: 'Mail.Read', label: 'Read emails', description: 'Read user mailbox' },
-  { scope: 'Mail.Send', label: 'Send emails', description: 'Send mail on behalf of user' },
-  { scope: 'Mail.ReadWrite', label: 'Read/write emails', description: 'Full mailbox access' },
-  { scope: 'Calendars.Read', label: 'Read calendars', description: 'View calendar events' },
-  { scope: 'Calendars.ReadWrite', label: 'Read/write calendars', description: 'Manage calendar events' },
-  { scope: 'Contacts.Read', label: 'Read contacts', description: 'View user contacts' }
+  {
+    scope: 'profile',
+    labelKey: 'permission-microsoft-profile-label',
+    descriptionKey: 'permission-microsoft-profile-description',
+    required: true
+  },
+  {
+    scope: 'email',
+    labelKey: 'permission-microsoft-email-label',
+    descriptionKey: 'permission-microsoft-email-description',
+    required: true
+  },
+  {
+    scope: 'offline_access',
+    labelKey: 'permission-microsoft-offline-access-label',
+    descriptionKey: 'permission-microsoft-offline-access-description',
+    required: true
+  },
+  {
+    scope: 'Mail.Read',
+    labelKey: 'permission-microsoft-mail-read-label',
+    descriptionKey: 'permission-microsoft-mail-read-description'
+  },
+  {
+    scope: 'Mail.Send',
+    labelKey: 'permission-microsoft-mail-send-label',
+    descriptionKey: 'permission-microsoft-mail-send-description'
+  },
+  {
+    scope: 'Mail.ReadWrite',
+    labelKey: 'permission-microsoft-mail-readwrite-label',
+    descriptionKey: 'permission-microsoft-mail-readwrite-description'
+  },
+  {
+    scope: 'Calendars.Read',
+    labelKey: 'permission-microsoft-calendars-read-label',
+    descriptionKey: 'permission-microsoft-calendars-read-description'
+  },
+  {
+    scope: 'Calendars.ReadWrite',
+    labelKey: 'permission-microsoft-calendars-readwrite-label',
+    descriptionKey: 'permission-microsoft-calendars-readwrite-description'
+  },
+  {
+    scope: 'Contacts.Read',
+    labelKey: 'permission-microsoft-contacts-read-label',
+    descriptionKey: 'permission-microsoft-contacts-read-description'
+  }
 ]
 
 const GOOGLE_PERMISSIONS: PermissionDef[] = [
-  { scope: 'openid', label: 'OpenID', description: 'Basic identity', required: true },
-  { scope: 'email', label: 'Email identity', description: 'User email address', required: true },
-  { scope: 'profile', label: 'Profile', description: 'User profile info', required: true },
-  { scope: 'https://mail.google.com/', label: 'Full mail access', description: 'Read, send, and manage email' },
+  {
+    scope: 'openid',
+    labelKey: 'permission-google-openid-label',
+    descriptionKey: 'permission-google-openid-description',
+    required: true
+  },
+  {
+    scope: 'email',
+    labelKey: 'permission-google-email-label',
+    descriptionKey: 'permission-google-email-description',
+    required: true
+  },
+  {
+    scope: 'profile',
+    labelKey: 'permission-google-profile-label',
+    descriptionKey: 'permission-google-profile-description',
+    required: true
+  },
+  {
+    scope: 'https://mail.google.com/',
+    labelKey: 'permission-google-mail-full-label',
+    descriptionKey: 'permission-google-mail-full-description'
+  },
   {
     scope: 'https://www.googleapis.com/auth/calendar.readonly',
-    label: 'Read calendars',
-    description: 'View calendar events'
+    labelKey: 'permission-google-calendar-readonly-label',
+    descriptionKey: 'permission-google-calendar-readonly-description'
   },
   {
     scope: 'https://www.googleapis.com/auth/contacts.readonly',
-    label: 'Read contacts',
-    description: 'View user contacts'
+    labelKey: 'permission-google-contacts-readonly-label',
+    descriptionKey: 'permission-google-contacts-readonly-description'
   }
 ]
 
@@ -66,13 +124,13 @@ export const PermissionToggles: React.FC<PermissionTogglesProps> = ({
   grantedScopes,
   testId
 }) => {
+  const { t } = useTranslation(translations)
   const [customScope, setCustomScope] = useState('')
 
   const permissions = provider === 'microsoft' ? MICROSOFT_PERMISSIONS : GOOGLE_PERMISSIONS
   const scopeList = useMemo(() => scopes.split(/\s+/).filter(Boolean), [scopes])
   const grantedList = useMemo(() => (grantedScopes ? grantedScopes.split(/\s+/).filter(Boolean) : []), [grantedScopes])
 
-  // Scopes that are active but not in our known permissions list
   const customScopes = useMemo(
     () => scopeList.filter(s => !permissions.some(p => p.scope === s)),
     [scopeList, permissions]
@@ -111,9 +169,7 @@ export const PermissionToggles: React.FC<PermissionTogglesProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid={`${testId}-permissions`}>
-      <Label>Permissions</Label>
-
-      {/* Feature toggles */}
+      <Label>{t('permissions-title')}</Label>
       <div className="gba:space-y-2">
         {permissions.map(perm => {
           const isActive = scopeList.includes(perm.scope)
@@ -134,27 +190,25 @@ export const PermissionToggles: React.FC<PermissionTogglesProps> = ({
                 className="gba:w-4 gba:h-4 gba:flex-shrink-0"
               />
 
-              {/* Label + description */}
               <div className="gba:flex-1 gba:min-w-0">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-sm gba:font-medium gba:text-foreground">{perm.label}</span>
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground">{t(perm.labelKey)}</span>
                   {perm.required && <Lock className="gba:w-3 gba:h-3 gba:text-muted-foreground" />}
                 </div>
-                <p className="gba:text-xs gba:text-muted-foreground">{perm.description}</p>
-                <code className="gba:text-[10px] gba:text-muted-foreground">{perm.scope}</code>
+                <p className="gba:text-xs gba:text-muted-foreground">{t(perm.descriptionKey)}</p>
+                <code className="gba:text-xs gba:text-muted-foreground">{perm.scope}</code>
               </div>
 
-              {/* Provider status indicator */}
               {isActive && status === 'granted' && (
                 <Badge variant="success" className="gba:gap-1 gba:flex-shrink-0">
                   <Check className="gba:w-3 gba:h-3" />
-                  Active
+                  {t('common-active')}
                 </Badge>
               )}
               {isActive && status === 'not_granted' && (
                 <Badge variant="warning" className="gba:gap-1 gba:flex-shrink-0">
                   <AlertTriangle className="gba:w-3 gba:h-3" />
-                  Not granted
+                  {t('common-not-granted')}
                 </Badge>
               )}
             </div>
@@ -162,18 +216,18 @@ export const PermissionToggles: React.FC<PermissionTogglesProps> = ({
         })}
       </div>
 
-      {/* Custom scopes (not in known list) */}
       {customScopes.length > 0 && (
         <div className="gba:space-y-2">
-          <Label className="gba:text-xs">Custom scopes</Label>
+          <Label className="gba:text-xs">{t('permissions-custom-scopes-title')}</Label>
           <div className="gba:flex gba:flex-wrap gba:gap-2">
             {customScopes.map(scope => (
               <Badge key={scope} variant="outline" className="gba:gap-1 gba:py-1 gba:px-2">
-                <span className="gba:max-w-[200px] gba:truncate gba:text-xs">{scope}</span>
+                <span className="gba:max-w-48 gba:truncate gba:text-xs">{scope}</span>
                 <button
                   type="button"
                   onClick={() => removeCustomScope(scope)}
-                  className="gba:ml-1 gba:rounded-full gba:hover:bg-muted gba:p-0.5"
+                  className="gba:ml-1 gba:rounded-full gba:hover:bg-muted gba:p-1"
+                  aria-label={t('common-remove-custom-scope', { scope })}
                 >
                   <X className="gba:w-3 gba:h-3" />
                 </button>
@@ -183,7 +237,6 @@ export const PermissionToggles: React.FC<PermissionTogglesProps> = ({
         </div>
       )}
 
-      {/* Add custom scope */}
       <div className="gba:flex gba:gap-2">
         <Input
           value={customScope}
@@ -194,32 +247,31 @@ export const PermissionToggles: React.FC<PermissionTogglesProps> = ({
               handleAddCustom()
             }
           }}
-          placeholder="Add custom scope..."
+          placeholder={t('permissions-placeholder-custom-scope')}
           className="gba:flex-1 gba:text-sm"
           data-testid={`${testId}-custom-scope`}
         />
-        <Button type="button" variant="outline" size="sm" onClick={handleAddCustom} disabled={!customScope.trim()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddCustom}
+          disabled={!customScope.trim()}
+          aria-label={t('common-add-custom-scope')}
+        >
           <Plus className="gba:w-4 gba:h-4" />
         </Button>
       </div>
 
-      {/* Provider status note */}
       {grantedScopes ? (
         <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:rounded-md gba:bg-muted gba:text-xs gba:text-muted-foreground">
           <Info className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
-          <span>
-            Status badges show which permissions are actually active on the provider side (captured from the last
-            successful user connection). &quot;Not granted&quot; means the scope is configured here but not yet approved
-            in your app registration.
-          </span>
+          <span>{t('permissions-note-granted')}</span>
         </div>
       ) : (
         <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:rounded-md gba:bg-muted gba:text-xs gba:text-muted-foreground">
           <Info className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
-          <span>
-            Connect a test account to verify which permissions are active on the provider side. Status badges will
-            appear once a user has successfully connected.
-          </span>
+          <span>{t('permissions-note-pending')}</span>
         </div>
       )}
     </div>

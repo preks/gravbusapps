@@ -30,6 +30,7 @@ import {
 import { useForm } from 'react-hook-form'
 import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react'
 import type { CatalogEntry } from '@/common/data/catalog'
+import { getContentReactionEntryId } from '@/common/data/content/constants/contentCatalogs'
 import {
   generateCode,
   generateShortcode,
@@ -148,7 +149,7 @@ export const ReactionFormDialog: React.FC<ReactionFormDialogProps> = ({
     // For EMOJI type with new creation
     if (data.type === 'EMOJI' && selectedEmojiData && !initialData) {
       const baseCode = generateCode(data.value)
-      const parentId = `ContentReaction:v1:${baseCode}`
+      const parentId = getContentReactionEntryId(baseCode)
 
       // Generate parent entry
       const parentEntry = generateParentEntry(selectedEmojiData, data.value, data.displayOrder)

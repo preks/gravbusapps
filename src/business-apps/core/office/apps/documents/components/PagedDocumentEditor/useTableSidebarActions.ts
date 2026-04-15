@@ -5,9 +5,7 @@ import {
   normalizeBorderStyle,
   normalizeColorValue,
   normalizeCssLength,
-  normalizeTableTheme,
-  normalizeTableWidth,
-  normalizeTableWidthMode
+  normalizeTableTheme
 } from '@/components/tiptap-extensions/tiptap-custom-tables/styleUtils'
 import {
   DEFAULT_TABLE_CELL_BORDER_COLOR,
@@ -135,8 +133,6 @@ export function useTableSidebarActions({ editor, tablePos }: Readonly<UseTableSi
       '1pt'
 
     return {
-      tableWidth: normalizeTableWidth(tableAttrs.tableWidth as string | null) ?? '100%',
-      tableWidthMode: normalizeTableWidthMode(tableAttrs.tableWidthMode as string | null) ?? 'manual',
       tableAlign: (tableAttrs.tableAlign as 'left' | 'center' | 'right' | undefined) ?? 'left',
       tableTheme: normalizeTableTheme(tableAttrs.tableTheme as string | null) ?? 'blue',
       tableBackgroundColor: normalizeColorValue(tableAttrs.tableBackgroundColor as string | null) ?? '#ffffff',

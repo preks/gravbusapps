@@ -14,3 +14,17 @@ activities-titlePlaceholder = Aktivitätstitel...
 activities-descriptionPlaceholder = Beschreibung...
 activities-creating = Wird erstellt...
 activities-create = Erstellen
+
+activities-related-account = Konto
+activities-related-contact = Kontakt
+activities-related-opportunity = Opportunity
+activities-related-lead = Lead
+activities-related-investment = Investment
+activities-detail-related = Verknüpft
+activities-detail-general = Allgemein
+
+activities-reference-multiple = Mehrere
+activities-reference-multiple-hint = Öffnen Sie die Aktivität, um alle verknüpften Datensätze zu sehen.
+activities-reference-none = Keine Referenz
+activities-reference-unlinked = Nicht verknüpft
+activities-reference-unnamed = Unbenannt {$entityType}

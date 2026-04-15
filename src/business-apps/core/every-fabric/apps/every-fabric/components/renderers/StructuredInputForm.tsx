@@ -11,6 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { CheckCircleIcon, MagicWandIcon, SparkleIcon, WarningIcon } from '@phosphor-icons/react'
 import type { InputFieldSchema } from '../../types/enterpriseAgent'
+import { EmployeeSearchField } from '../forms/EmployeeSearchField'
 
 interface StructuredInputFormProps {
   formId: string
@@ -20,6 +21,7 @@ interface StructuredInputFormProps {
   allowPartialSubmit: boolean
   onSubmit: (values: Record<string, any>, aiDelegated: string[]) => void
   onCancel?: () => void
+  accessToken?: string
 }
 
 interface FieldState {
@@ -65,7 +67,8 @@ export const StructuredInputForm = ({
   fields,
   allowPartialSubmit,
   onSubmit,
-  onCancel
+  onCancel,
+  accessToken
 }: StructuredInputFormProps) => {
   // Initialize field state
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>(() => {
@@ -281,6 +284,18 @@ export const StructuredInputForm = ({
               </div>
             )}
 
+            {field.field_type === 'employee_search' && (
+              <EmployeeSearchField
+                value={state.value || ''}
+                onChange={userId => {
+                  updateField(field.field_id, userId)
+                }}
+                placeholder={field.placeholder}
+                required={field.required}
+                accessToken={accessToken}
+              />
+            )}
+
             {state.error && (
               <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-destructive gba:mt-1">
                 <WarningIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
@@ -308,21 +323,18 @@ export const StructuredInputForm = ({
       data-testid={`structured-input-form-${formId}`}
     >
       {/* Header */}
-      <div className="gba:px-5 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/60">
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-          <SparkleIcon className="gba:h-5 gba:w-5 gba:text-primary" weight="fill" />
-          <h3 className="gba:text-base gba:font-bold gba:text-foreground">{title}</h3>
-        </div>
+      <div className="gba:px-5 gba:pt-3 gba:pb-3 gba:border-b gba:border-border/60">
+        <h3 className="gba:text-base gba:font-bold gba:text-foreground gba:mb-1">{title}</h3>
         <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{description}</p>
       </div>
 
       {/* Form fields */}
-      <div className="gba:px-5 gba:py-4 gba:space-y-5 gba:max-h-[60vh] gba:overflow-y-auto">
+      <div className="gba:px-5 gba:py-4 gba:space-y-5 gba:max-h-[70vh] gba:overflow-y-auto">
         {fields.map(renderField)}
       </div>
 
       {/* Footer with actions */}
-      <div className="gba:px-5 gba:py-4 gba:border-t gba:border-border/60 gba:flex gba:items-center gba:justify-between gba:gap-3">
+      <div className="gba:px-5 gba:py-3 gba:border-t gba:border-border/60 gba:flex gba:items-center gba:justify-between gba:gap-3">
         <div className="gba:flex-1">
           {hasAiDelegatedFields && allowPartialSubmit && (
             <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">

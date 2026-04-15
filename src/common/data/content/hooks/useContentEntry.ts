@@ -45,14 +45,13 @@ export const useContentEntry = (
     setError(null)
 
     try {
-      // Get fields from builder
-      const fields = buildContentEntryFields(options?.queryOptions || { config: 'detail' })
+      const queryFields = buildContentEntryFields(options?.queryOptions || { config: 'detail' })
 
       // Build query with ContentEntryByPk using variables
       const query = `
         query getContentEntry($id: uuid!) {
           ContentEntryByPk(id: $id) {
-            ${fields}
+            ${queryFields}
           }
         }
       `

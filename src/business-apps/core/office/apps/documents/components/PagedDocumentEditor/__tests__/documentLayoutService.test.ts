@@ -4,6 +4,7 @@ import {
   createLegacyDomPaginationLayoutService,
   resolveCurrentPageFromLayoutNavigation,
   resolveMountedPageBodyBoundsBatched,
+  resolvePlaceholderPageBodyBounds,
   resolveObservableLayoutRoot
 } from '../documentLayoutService'
 import { createIncrementalDocumentLayoutService } from '../incrementalDocumentLayoutService'
@@ -55,6 +56,15 @@ function setRect(element: HTMLElement, rect: Pick<DOMRect, 'top' | 'bottom' | 'l
   })
 }
 
+function setPageBodyRect(
+  pageBreak: HTMLElement,
+  rect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right' | 'width' | 'height'>
+) {
+  const pageBody = pageBreak.querySelector('.page') as HTMLElement | null
+  expect(pageBody).not.toBeNull()
+  setRect(pageBody as HTMLElement, rect)
+}
+
 function mountPaginationRoot(pageCount: number, options?: { wrapInChrome?: boolean }): HTMLDivElement {
   const container = document.createElement('div')
   const paginationChrome = document.createElement('div')
@@ -78,6 +88,40 @@ function mountPaginationRoot(pageCount: number, options?: { wrapInChrome?: boole
 
 function runSharedLayoutServiceContract(label: string, createService: typeof createLegacyDomPaginationLayoutService) {
   describe(label, () => {
+    it('resolves placeholder page bounds without re-reading hydrated page shells', () => {
+      const mountedPage = createPage(document, 1)
+      mountedPage.dataset.rmPageShellState = 'hydrated'
+      setPageBodyRect(mountedPage, {
+        top: 20,
+        bottom: 120,
+        left: 10,
+        right: 90,
+        width: 80,
+        height: 100
+      })
+
+      const placeholderPage = createPage(document, 2)
+      placeholderPage.dataset.rmPageShellState = 'placeholder'
+      setPageBodyRect(placeholderPage, {
+        top: 120,
+        bottom: 220,
+        left: 10,
+        right: 90,
+        width: 80,
+        height: 100
+      })
+
+      expect(resolvePlaceholderPageBodyBounds([mountedPage, placeholderPage])).toEqual([
+        {
+          pageNumber: 2,
+          top: 120,
+          bottom: 220,
+          left: 10,
+          right: 90
+        }
+      ])
+    })
+
     it('reuses cached layout for viewport requests', () => {
       const service = createService()
       const container = mountPaginationRoot(3)
@@ -627,6 +671,29 @@ describe('large-document chunked geometry', () => {
     expect(bounds).toHaveLength(60)
   })
 
+  it('excludes placeholder shells from batched mounted body bounds on large documents', async () => {
+    const container = mountPaginationRoot(60)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const pageBreakEls = Array.from(root.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    pageBreakEls.forEach((pageBreak, index) => {
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, { top: index * 100, bottom: index * 100 + 90, left: 0, right: 100, width: 100, height: 90 })
+      }
+      if (index >= 6) {
+        pageBreak.dataset.rmPageShellState = 'placeholder'
+      } else {
+        pageBreak.dataset.rmPageShellState = 'hydrated'
+      }
+    })
+
+    const boundsPromise = resolveMountedPageBodyBoundsBatched(pageBreakEls, 28)
+    const bounds = await settleChunkedLayoutPromise(boundsPromise)
+
+    expect(bounds).toHaveLength(6)
+    expect(bounds.map(bound => bound.pageNumber)).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
   it('matches synchronous layout measurement after flushing rAF for large structures', async () => {
     const container = mountPaginationRoot(60)
     const root = container.querySelector('[data-rm-pagination]') as HTMLElement
@@ -668,6 +735,48 @@ describe('large-document chunked geometry', () => {
 })
 
 describe('createIncrementalDocumentLayoutService.measureLayoutAsync', () => {
+  it('reuses cached full-document chrome metrics when the registry version is unchanged', () => {
+    const service = createIncrementalDocumentLayoutService()
+    const container = mountPaginationRoot(3)
+    const root = container.querySelector('[data-rm-pagination]') as HTMLElement
+    const headerFooterQuerySpy = jest.fn()
+
+    Array.from(root.children).forEach((pageBreak, index) => {
+      if (!(pageBreak instanceof HTMLElement)) {
+        return
+      }
+
+      const page = pageBreak.querySelector('.page')
+      if (page instanceof HTMLElement) {
+        setRect(page, {
+          top: index * 120,
+          bottom: index * 120 + 100,
+          left: 0,
+          right: 80,
+          width: 80,
+          height: 100
+        })
+      }
+
+      const originalQuerySelector = pageBreak.querySelector.bind(pageBreak)
+      jest.spyOn(pageBreak, 'querySelector').mockImplementation((selector: string) => {
+        if (selector.includes('.rm-page-header-region') || selector.includes('.rm-page-footer-region')) {
+          headerFooterQuerySpy()
+        }
+
+        return originalQuerySelector(selector)
+      })
+    })
+
+    service.measureLayout(container, createMeasurementRequest(1, 'initial-load', 'full-document'))
+    const initialHeaderFooterQueryCount = headerFooterQuerySpy.mock.calls.length
+    service.measureLayout(container, createMeasurementRequest(2, 'initial-load', 'full-document'))
+
+    expect(initialHeaderFooterQueryCount).toBeGreaterThan(0)
+    expect(headerFooterQuerySpy.mock.calls.length).toBe(initialHeaderFooterQueryCount)
+    jest.restoreAllMocks()
+  })
+
   it('returns the same structural result as measureLayout after flushing rAF for large documents', async () => {
     const service = createIncrementalDocumentLayoutService()
     const container = mountPaginationRoot(60)

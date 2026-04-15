@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { BrainIcon, CaretDownIcon, CaretUpIcon, CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import type { ChatMessage, StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 import { PlanRenderer } from '../renderers/PlanRenderer'
@@ -9,6 +9,34 @@ import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+
+const AnimatedMessageWrapper: React.FC<{
+  children: React.ReactNode
+  messageId: string
+  className?: string
+  disableEntranceAnimation?: boolean
+  'data-testid'?: string
+}> = ({ children, messageId, className = '', disableEntranceAnimation = false, 'data-testid': testId }) => {
+  const [isNew, setIsNew] = useState(true)
+  const mountedRef = useRef(false)
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true
+      const timer = setTimeout(() => setIsNew(false), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [])
+
+  const animationClass =
+    !disableEntranceAnimation && isNew ? 'gba:animate-in gba:fade-in gba:slide-in-from-bottom-2 gba:duration-200' : ''
+
+  return (
+    <div className={`${className} ${animationClass}`} data-testid={testId} data-message-id={messageId}>
+      {children}
+    </div>
+  )
+}
 
 const formatMessageTimestamp = (timestamp: string) => {
   const date = new Date(timestamp)
@@ -47,7 +75,11 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
   }, [content])
 
   return (
-    <div className="gba:flex gba:flex-col gba:items-end gba:py-2" data-testid={`msg-${message.id}`}>
+    <AnimatedMessageWrapper
+      messageId={message.id}
+      className="gba:flex gba:flex-col gba:items-end gba:py-2"
+      data-testid={`msg-${message.id}`}
+    >
       <div className="gba:max-w-[85%] gba:rounded-[1.15rem] gba:bg-muted/40 gba:px-4 gba:py-2.5 gba:text-[14px] gba:leading-6 gba:font-normal gba:text-foreground">
         {visibleContent}
       </div>
@@ -80,7 +112,7 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
           )}
         </button>
       </div>
-    </div>
+    </AnimatedMessageWrapper>
   )
 }
 
@@ -89,9 +121,10 @@ interface MessageBubbleProps {
   sessionId: string
   onReply?: (answer?: string, structuredInput?: Record<string, any>) => void
   onViewArtifact?: (artifactName: string) => void
+  accessToken?: string
 }
 
-export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbleProps) => {
+export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }: MessageBubbleProps) => {
   switch (message.type) {
     case 'user_input': {
       return <UserMessageBubble message={message} />
@@ -155,9 +188,9 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
     case 'expert_call': {
       const content = message.content as Parameters<typeof ExpertCallRenderer>[0]
       return (
-        <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
           <ExpertCallRenderer {...content} />
-        </div>
+        </AnimatedMessageWrapper>
       )
     }
 
@@ -171,6 +204,7 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
             description={formData.description}
             fields={formData.fields}
             allowPartialSubmit={formData.allow_partial_submit}
+            accessToken={accessToken}
             onSubmit={(values, aiDelegated) => {
               if (onReply) {
                 const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
@@ -182,19 +216,45 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
       )
     }
 
+    case 'human_interrupt': {
+      const { question } = message.content as { question: string }
+      return (
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
+          <div className="gba:w-fit gba:max-w-full gba:px-1">
+            <div className="gba:flex gba:items-start gba:gap-2.5">
+              <div className="gba:flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted/55 gba:text-muted-foreground gba:shrink-0 gba:mt-0.5">
+                <span className="gba:text-[11px] gba:font-medium">?</span>
+              </div>
+              <div className="gba:flex-1">
+                <p className="gba:text-[12px] gba:font-semibold gba:text-foreground/90 gba:mb-0.5">
+                  Agent has a question
+                </p>
+                <p className="gba:text-[14px] gba:leading-6 gba:text-muted-foreground">{question}</p>
+              </div>
+            </div>
+          </div>
+        </AnimatedMessageWrapper>
+      )
+    }
+
     case 'final_answer': {
       const content = message.content as Parameters<typeof FinalAnswerRenderer>[0]
       return (
-        <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper
+          messageId={message.id}
+          className="gba:py-1"
+          disableEntranceAnimation
+          data-testid={`msg-${message.id}`}
+        >
           <FinalAnswerRenderer {...content} onViewArtifact={onViewArtifact} />
-        </div>
+        </AnimatedMessageWrapper>
       )
     }
 
     case 'error': {
       const { message: errMsg } = message.content as { message: string }
       return (
-        <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
           <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-2xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-5 gba:py-4">
             <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0 gba:mt-0.5" />
             <div>
@@ -202,7 +262,7 @@ export const MessageBubble = ({ message, onReply, onViewArtifact }: MessageBubbl
               <p className="gba:text-sm gba:text-muted-foreground">{errMsg}</p>
             </div>
           </div>
-        </div>
+        </AnimatedMessageWrapper>
       )
     }
 

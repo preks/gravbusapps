@@ -10,6 +10,7 @@ import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
+import CommunicationCard from './components/CommunicationCard'
 
 interface DetailsTabProps {
   employee: Employee
@@ -138,53 +139,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   }
 
   const bankAccountData = getBankAccountData()
-
-  // Prepare private communication data
-  const getPrivateCommunication = () => {
-    // Safely extract private communication; it may be empty
-    const communications = employee.communication || []
-    const privateComms = communications.filter(comm => comm?.purpose === 'PRIVATE')
-
-    // Helper: pick latest by channel code and type (Primary/Secondary)
-    const lastByCodeAndType = (code: string, typeLabel: 'Primary' | 'Secondary') => {
-      for (let i = privateComms.length - 1; i >= 0; i--) {
-        const comm = privateComms[i]
-        if (comm?.channel?.code === code && comm?.type?.value === typeLabel) {
-          return comm
-        }
-      }
-      return undefined
-    }
-
-    const primaryPhone = lastByCodeAndType('Phone', 'Primary')
-    const secondaryPhone = lastByCodeAndType('Phone', 'Secondary')
-    const primaryMobile = lastByCodeAndType('Mobile', 'Primary')
-    const secondaryMobile = lastByCodeAndType('Mobile', 'Secondary')
-    const primaryEmail = lastByCodeAndType('e-mail', 'Primary')
-    const secondaryEmail = lastByCodeAndType('e-mail', 'Secondary')
-
-    const formatOrEmpty = (val?: string) => (val && val.trim() !== '' ? val : '')
-
-    return [
-      {
-        label: t('details-label-private-phone'),
-        value: primaryPhone?.value ? formatPhoneNumberWithCountryCode(primaryPhone.value) : '',
-        secondary: secondaryPhone?.value ? formatPhoneNumberWithCountryCode(secondaryPhone.value) : undefined
-      },
-      {
-        label: t('details-label-private-mobile'),
-        value: primaryMobile?.value ? formatPhoneNumberWithCountryCode(primaryMobile.value) : '',
-        secondary: secondaryMobile?.value ? formatPhoneNumberWithCountryCode(secondaryMobile.value) : undefined
-      },
-      {
-        label: t('details-label-private-email'),
-        value: formatOrEmpty(primaryEmail?.value),
-        secondary: formatOrEmpty(secondaryEmail?.value) || undefined
-      }
-    ]
-  }
-
-  const privateCommunicationData = getPrivateCommunication()
 
   // Prepare emergency contact data
 
@@ -336,28 +290,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Private Communication Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-communication">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-private-communication')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="private-communication-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeCommunication, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="private-communication-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            {renderDataItems(
-              privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
-            )}
-          </CardContent>
-        </Card>
-
         {/* Emergency Contact Card - Always visible but values may be masked */}
         <Card data-testid="details-section-emergency">
           <CardContent className="gba:p-4">
@@ -424,6 +356,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             </Card>
           )
         })()}
+
+        <CommunicationCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>

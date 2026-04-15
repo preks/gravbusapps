@@ -29,12 +29,14 @@ export interface Activity {
   account?: {
     id: string
     name: string
+    pictureThumbnail?: string | null
   }
   accountId?: string
   contact?: {
     id: string
     firstName?: string
     lastName?: string
+    pictureThumbnail?: string | null
   }
   contactId?: string
   lead?: {
@@ -50,6 +52,12 @@ export interface Activity {
     name: string
   }
   opportunityId?: string
+  investment?: {
+    id?: string
+    name?: string
+    pictureThumbnail?: string | null
+  }
+  investmentId?: string | null
   documents?: ActivityDocument[]
 }
 
@@ -63,7 +71,7 @@ export interface ActivityDocument {
 }
 
 export interface ActivityReference {
-  type: 'account' | 'contact' | 'lead' | 'opportunity'
+  type: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
   id: string
   name: string
 }

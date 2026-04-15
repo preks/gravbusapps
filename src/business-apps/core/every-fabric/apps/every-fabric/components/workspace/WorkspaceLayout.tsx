@@ -2,17 +2,19 @@ import {
   ArrowRightIcon,
   ChatCircleDotsIcon,
   ClockCounterClockwiseIcon,
+  GearIcon,
   LayoutIcon,
   PlusIcon,
   XIcon
 } from '@phosphor-icons/react'
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
 import { ArtifactViewer } from './ArtifactViewer'
 import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
+import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
 import { WorkspaceStreamingIsland } from './WorkspaceStreamingIsland'
 import { FabricInput } from '../landing/FabricInput'
 import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
@@ -23,6 +25,7 @@ import {
   WORKSPACE_RIGHT_RAIL_BOTTOM_DEFAULT_CLASS,
   WORKSPACE_RIGHT_RAIL_BOTTOM_STREAMING_ISLAND_CLASS,
   WORKSPACE_RIGHT_RAIL_BOTTOM_WITH_FOLLOWUPS_CLASS,
+  WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX,
   WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS,
   WORKSPACE_RIGHT_RAIL_WIDTH_CLASS,
   WORKSPACE_TOP_CONTROLS_OFFSET_CLASS
@@ -45,6 +48,18 @@ function workspaceRightPanelShellClass(
   return `gba:fixed gba:top-24 sm:gba:top-28 gba:right-3 gba:left-3 gba:z-50 sm:gba:right-4 sm:gba:left-auto sm:gba:w-[22rem] ${narrowRailBottomClass} ${narrowMotion}`
 }
 
+type WorkspacePanelMode = 'desktop' | 'overlay'
+
+function resolveWorkspacePanelMode(innerWidth: number): WorkspacePanelMode {
+  if (innerWidth >= WORKSPACE_RIGHT_RAIL_DESKTOP_BREAKPOINT_PX) return 'desktop'
+  return 'overlay'
+}
+
+function getCurrentWorkspacePanelMode(): WorkspacePanelMode {
+  if (typeof globalThis.innerWidth !== 'number') return 'desktop'
+  return resolveWorkspacePanelMode(globalThis.innerWidth)
+}
+
 const parseFollowUps = (message: ChatMessage | undefined): string[] => {
   if (message?.type !== 'final_answer' || !message?.content || typeof message.content !== 'object') return []
   const recommendations = 'recommendations' in message.content ? message.content.recommendations : undefined
@@ -59,10 +74,18 @@ const parseFollowUps = (message: ChatMessage | undefined): string[] => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpenHistory }) => {
+export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettings: () => void }> = ({
+  onOpenHistory,
+  onOpenSettings
+}) => {
+  const initialPanelMode = getCurrentWorkspacePanelMode()
   const {
     session,
     messages,
+    streamingGreeting,
+    streamingContent,
+    streamingThinking,
+    statusHeadline,
     accessToken,
     isStreaming,
     isConnected,
@@ -72,6 +95,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
     totalCount,
     progressPercent,
     activityEvents,
+    activeSkill,
     artifacts,
     workspaceDocs,
     activeArtifact,
@@ -88,19 +112,27 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
     isLoading: isLoadingConnectors
   } = useFabricConnectors(accessToken)
 
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true)
-  const [isDesktopPanel, setIsDesktopPanel] = useState(false)
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(initialPanelMode === 'desktop')
+  const [isDesktopPanel, setIsDesktopPanel] = useState(initialPanelMode === 'desktop')
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
   const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
+  const lastPanelModeRef = useRef<WorkspacePanelMode>(initialPanelMode)
 
   useEffect(() => {
     if (typeof globalThis.innerWidth !== 'number') return
 
     const syncPanelMode = () => {
-      const desktop = globalThis.innerWidth >= 1500
-      setIsDesktopPanel(desktop)
-      if (desktop) setIsRightPanelOpen(true)
+      const nextPanelMode = resolveWorkspacePanelMode(globalThis.innerWidth)
+      const previousPanelMode = lastPanelModeRef.current
+
+      setIsDesktopPanel(nextPanelMode === 'desktop')
+      setIsRightPanelOpen(previousIsOpen => {
+        if (nextPanelMode === 'desktop') return true
+        if (nextPanelMode !== previousPanelMode) return false
+        return previousIsOpen
+      })
+      lastPanelModeRef.current = nextPanelMode
     }
 
     syncPanelMode()
@@ -136,13 +168,17 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
   const suggestedFollowUps = useMemo(() => parseFollowUps(latestFinalAnswer), [latestFinalAnswer])
 
   const streamingStatusHeadline = useMemo(() => {
+    // Prioritize real-time status from agent (skill matching, workspace prep, etc.)
+    if (statusHeadline) return statusHeadline
+
+    // Fallback to task node progress
     if (totalCount === 0) return null
     const active = taskNodes.find(n => n.status === 'active')
     if (active?.label) return active.label
     const pending = taskNodes.find(n => n.status === 'pending')
     if (pending?.label) return `Next: ${pending.label}`
     return null
-  }, [taskNodes, totalCount])
+  }, [statusHeadline, taskNodes, totalCount])
   useEffect(() => {
     if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
@@ -208,7 +244,8 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
           </div>
 
           <div
-            className={`gba:fixed gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
+            className={`gba:fixed gba:left-3 sm:gba:left-6 lg:gba:left-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:items-center gba:gap-3 gba:pointer-events-auto`}
+            style={{ top: 'calc(5rem + 2.5rem)' }}
           >
             <button
               onClick={onOpenHistory}
@@ -217,6 +254,20 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
             >
               <ClockCounterClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
               <span className="gba:hidden sm:gba:inline">History</span>
+            </button>
+            <WorkspaceSkillIndicator skill={activeSkill} />
+          </div>
+
+          <div
+            className={`gba:fixed gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
+          >
+            <button
+              onClick={onOpenSettings}
+              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
+              data-testid="fabric-workspace-settings-button"
+            >
+              <GearIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="bold" />
+              <span className="gba:hidden sm:gba:inline">Settings</span>
             </button>
 
             <button
@@ -319,7 +370,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
           </div>
 
           <div
-            className={`gba:transition-all gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
+            className={`gba:transition gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
               isDesktopPanel,
               isRightPanelOpen,
               narrowRailBottomClass
@@ -343,12 +394,17 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void }> = ({ onOpe
         <ConversationPanel
           sessionId={session.session_id}
           messages={messages}
+          streamingGreeting={streamingGreeting}
+          streamingContent={streamingContent}
+          streamingThinking={streamingThinking}
+          statusHeadline={statusHeadline}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
           hasStreamingIsland={isStreaming}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
+          accessToken={accessToken}
         />
 
         {showClarification && (

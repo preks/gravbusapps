@@ -21,6 +21,14 @@ export interface DeepAgentSession {
   structured_input_request?: StructuredInputRequestEvent | null
 }
 
+export interface StartSessionResponse {
+  session_id: string
+  status?: DeepAgentSession['status']
+  user_id?: string
+  workspace_id?: string
+  session: DeepAgentSession
+}
+
 export interface TodoItem {
   id: string
   text: string
@@ -29,7 +37,7 @@ export interface TodoItem {
   duration_ms?: number
 }
 
-export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool'
+export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool' | 'status' | 'response_stream' | 'agent_reasoning'
 
 export interface AgentChunkEvent {
   type: 'agent_chunk'
@@ -42,6 +50,7 @@ export interface AgentChunkEvent {
   tool_name?: string
   tool_input?: Record<string, unknown>
   step_id?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface AgentTerminalEvent {
@@ -170,7 +179,7 @@ export interface StructuredInputRequestEvent {
 export interface InputFieldSchema {
   field_id: string
   label: string
-  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'number'
+  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'number' | 'employee_search'
   description?: string
   required: boolean
   default_value?: any
@@ -178,6 +187,30 @@ export interface InputFieldSchema {
   placeholder?: string
   ai_generated?: boolean
   validation_pattern?: string
+  metadata?: Record<string, any>
+}
+
+export interface SkillLoadedEvent {
+  type: 'skill_loaded'
+  seq: number
+  event_id: string
+  timestamp: string
+  skill: {
+    skill_id: string
+    name: string
+    category: string
+    description: string
+    icon?: string
+  }
+  was_auto_detected: boolean
+}
+
+export interface SkillDetectionSkippedEvent {
+  type: 'skill_detection_skipped'
+  seq: number
+  event_id: string
+  timestamp: string
+  reason: string
 }
 
 export type AgentStreamEvent =
@@ -192,6 +225,8 @@ export type AgentStreamEvent =
   | AgentSubagentCompletedEvent
   | AgentArtifactCreatedEvent
   | StructuredInputRequestEvent
+  | SkillLoadedEvent
+  | SkillDetectionSkippedEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -262,6 +297,7 @@ export interface EnterpriseSkill {
 export type ChatMessageType =
   | 'user_input'
   | 'agent_thinking'
+  | 'agent_status'
   | 'plan'
   | 'tool_call'
   | 'tool_result'

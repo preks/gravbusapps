@@ -1,10 +1,11 @@
 import { Editor, type Extension } from '@tiptap/core'
 import { handleTiptapTabKey } from '../tiptapTabKeyHandler'
 import type { HeaderFooterEditorType, PagesHeaderFooter, PagesOptions, PagesStorage, PageVariantKey } from './types'
-import { isEmptyHeaderFooterHtml, renderHeaderFooterDisplayContent } from './dom'
+import { renderHeaderFooterDisplayContent } from './dom'
 import { layoutPageNumberSlots } from './pageNumberSlotLayout'
 import {
   getHeaderFooterExtensions,
+  isEmptyHeaderFooterHtml,
   replaceTemplateTokens,
   resolveVariantForPage,
   setStoredVariantContent
