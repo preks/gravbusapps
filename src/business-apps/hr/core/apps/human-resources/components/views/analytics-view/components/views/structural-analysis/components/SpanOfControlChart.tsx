@@ -1,8 +1,8 @@
 import React from 'react'
-import { Typography, Table, Tag, Progress, Tooltip as AntTooltip } from 'antd'
+import { Typography, Table, Tag, Tooltip as AntTooltip } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip, ReferenceLine } from 'recharts'
 import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
@@ -27,6 +27,54 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
   const optimalPercent = totalManagers > 0 ? (optimalCount / totalManagers) * 100 : 0
   const underUtilizedPercent = totalManagers > 0 ? (underUtilizedCount / totalManagers) * 100 : 0
   const overBurdenedPercent = totalManagers > 0 ? (overBurdenedCount / totalManagers) * 100 : 0
+
+  const summaryCards: KpiCardData[] = [
+    {
+      id: 'span-summary-total-managers',
+      title: t('hr-analytics-total-managers'),
+      value: totalManagers,
+      footer: t('hr-analytics-span-of-control-summary')
+    },
+    {
+      id: 'span-summary-average-span',
+      title: t('hr-analytics-average-span'),
+      value: averageSpan.toFixed(1),
+      footer: `${t('hr-analytics-recommended-span-range')}: ${summary.recommendedSpanMin}-${summary.recommendedSpanMax}`
+    },
+    {
+      id: 'span-summary-optimal',
+      title: t('hr-analytics-optimal'),
+      value: optimalCount,
+      footer: `${optimalPercent.toFixed(0)}% ${t('hr-analytics-of')} ${t('hr-analytics-total-managers').toLowerCase()}`,
+      progress: {
+        label: `${t('hr-analytics-of')} ${t('hr-analytics-total-managers').toLowerCase()}`,
+        target: Math.max(totalManagers, 1),
+        value: Math.round(optimalPercent)
+      }
+    },
+    {
+      id: 'span-summary-underutilized',
+      title: t('hr-analytics-underutilized'),
+      value: underUtilizedCount,
+      footer: `${underUtilizedPercent.toFixed(0)}% ${t('hr-analytics-of')} ${t('hr-analytics-total-managers').toLowerCase()}`,
+      progress: {
+        label: `${t('hr-analytics-of')} ${t('hr-analytics-total-managers').toLowerCase()}`,
+        target: Math.max(totalManagers, 1),
+        value: Math.round(underUtilizedPercent)
+      }
+    },
+    {
+      id: 'span-summary-overloaded',
+      title: t('hr-analytics-overloaded'),
+      value: overBurdenedCount,
+      footer: `${overBurdenedPercent.toFixed(0)}% ${t('hr-analytics-of')} ${t('hr-analytics-total-managers').toLowerCase()}`,
+      progress: {
+        label: `${t('hr-analytics-of')} ${t('hr-analytics-total-managers').toLowerCase()}`,
+        target: Math.max(totalManagers, 1),
+        value: Math.round(overBurdenedPercent)
+      }
+    }
+  ]
 
   // Prepare data for the bar chart
   const chartData = data
@@ -117,33 +165,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-span-of-control-summary')}
         </h3>
-        <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{totalManagers}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-total-managers')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{averageSpan.toFixed(1)}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-average-span')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-success-secondary/40 gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-success-secondary-foreground">{optimalCount}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-optimal')}</div>
-            <Progress percent={optimalPercent} size="small" strokeColor="var(--nw-success)" showInfo={false} />
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-warning-secondary/40 gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">{underUtilizedCount}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-underutilized')}</div>
-            <Progress percent={underUtilizedPercent} size="small" strokeColor="var(--nw-warning)" showInfo={false} />
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-destructive-secondary/40 gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-destructive-secondary-foreground">
-              {overBurdenedCount}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-overloaded')}</div>
-            <Progress percent={overBurdenedPercent} size="small" strokeColor="var(--nw-destructive)" showInfo={false} />
-          </div>
-        </div>
+        <SectionKpiCards cards={summaryCards} />
 
         <div className="gba:mt-4 gba:p-3 gba:bg-info-secondary/40 gba:rounded gba:text-center">
           <Text className="gba:text-info-secondary-foreground">

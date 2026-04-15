@@ -3,7 +3,7 @@ import { Typography, Table, Tag, List, Avatar } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { UserIcon, SirenIcon } from '@phosphor-icons/react'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
@@ -20,6 +20,45 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
   const { t } = useTranslation(hrTranslations)
+  const averageChainLength = Number.isFinite(summary.averageChainLength) ? summary.averageChainLength : 0
+  const maxChainLength = Number.isFinite(summary.maxChainLength) ? summary.maxChainLength : 0
+  const minChainLength = Number.isFinite(summary.minChainLength) ? summary.minChainLength : 0
+  const bottlenecksCount = Array.isArray(summary.bottlenecks) ? summary.bottlenecks.length : 0
+  const chainTotal = Array.isArray(chains) ? chains.length : 0
+  const bottleneckPercent = chainTotal > 0 ? Math.round((bottlenecksCount / chainTotal) * 100) : 0
+
+  const summaryCards: KpiCardData[] = [
+    {
+      id: 'reporting-chain-average',
+      title: t('hr-analytics-average-chain-length'),
+      value: averageChainLength.toFixed(1),
+      footer: t('hr-analytics-reporting-chain-summary')
+    },
+    {
+      id: 'reporting-chain-max',
+      title: t('hr-analytics-max-chain-length'),
+      value: maxChainLength,
+      footer: t('hr-analytics-levels-title')
+    },
+    {
+      id: 'reporting-chain-min',
+      title: t('hr-analytics-min-chain-length'),
+      value: minChainLength,
+      footer: t('hr-analytics-levels-title')
+    },
+    {
+      id: 'reporting-chain-bottlenecks',
+      title: t('hr-analytics-bottlenecks-identified'),
+      value: bottlenecksCount,
+      footer: `${bottleneckPercent}% ${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
+      progress: {
+        label: `${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
+        target: Math.max(chainTotal, 1),
+        value: bottleneckPercent
+      }
+    }
+  ]
+
   // Table columns for reporting chains
   const chainColumns = [
     {
@@ -119,28 +158,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-reporting-chain-summary')}
         </h3>
-        <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">
-              {summary.averageChainLength.toFixed(1)}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-average-chain-length')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.maxChainLength}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-max-chain-length')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.minChainLength}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-min-chain-length')}</div>
-          </div>
-          <div className="gba:text-center gba:p-4 gba:bg-warning-secondary/40 gba:rounded">
-            <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">
-              {summary.bottlenecks.length}
-            </div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-bottlenecks-identified')}</div>
-          </div>
-        </div>
+        <SectionKpiCards cards={summaryCards} />
       </div>
 
       {/* Chain Distribution Chart */}

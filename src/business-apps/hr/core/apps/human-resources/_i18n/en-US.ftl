@@ -203,6 +203,7 @@ hr-analytics-chart-summary = Chart Summary
 hr-analytics-active-groups = Active Groups
 hr-analytics-absence-types = Absence Types
 hr-analytics-departments-label = Departments
+hr-analytics-number-of-departments = Number of Departments
 hr-analytics-total-days = Total Days
 hr-analytics-tenure-lt-6-months = < 6 months
 hr-analytics-tenure-6-12-months = 6-12 months

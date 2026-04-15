@@ -183,6 +183,7 @@ hr-analytics-chart-summary = Diagrammübersicht
 hr-analytics-active-groups = Aktive Gruppen
 hr-analytics-absence-types = Abwesenheitsarten
 hr-analytics-departments-label = Abteilungen
+hr-analytics-number-of-departments = Anzahl der Abteilungen
 hr-analytics-total-days = Gesamttage
 hr-analytics-tenure-lt-6-months = < 6 Monate
 hr-analytics-tenure-6-12-months = 6-12 Monate

@@ -23,10 +23,6 @@ import {
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import {
-  useGetHierarchyEdgesMin,
-  useGetHierarchyEdgesWithCounts
-} from '../components/views/structural-analysis/components/organizational-hierarchy-report/queries/HierarchyQueries'
 
 export interface StructuralAnalysisIntegrationData {
   organizationalNodes: OrganizationalNode[]
@@ -46,8 +42,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
   const [error, setError] = useState<string | null>(null)
 
   const datasetClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
-  const { fetchHierarchyEdgesMin } = useGetHierarchyEdgesMin(context)
-  const { fetchHierarchyEdgesWithCounts } = useGetHierarchyEdgesWithCounts(context)
   type DatasetRow = {
     category: string
     value: number
@@ -234,49 +228,10 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         }
       }
 
-      // Build organizational nodes:
-      // - Prefer dataset edges (already sized) for a true multi-ring sunburst with minimal payload
-      // - Else fall back to GraphQL hierarchy (counts-enabled), then minimal edges
+      // Build organizational nodes from dataset edges only.
       let organizationalNodes: OrganizationalNode[] = []
       if (edgeRowsFromDataset.length > 0) {
         organizationalNodes = buildNodesFromEdges(edgeRowsFromDataset)
-      } else {
-        try {
-          // Prefer counts-enabled minimal query to size nodes properly
-          const asOf = new Date().toISOString()
-          const gqlEdgesWithCounts = await fetchHierarchyEdgesWithCounts({ structureId, asOf })
-          const edgesList = (gqlEdgesWithCounts as any)?.OrganizationalUnitRelationship ?? []
-          if (Array.isArray(edgesList) && edgesList.length > 0) {
-            const mapped: HierarchyEdgeRow[] = edgesList.map((e: any) => ({
-              category: String(e?.child?.name ?? ''),
-              value: Number(e?.child?.organizationalUnitEmployeeAggregate?.aggregate?.count ?? 0),
-              parent_id_text: e?.parentId ?? null,
-              child_id_text: e?.childId ?? null,
-              parent_name: e?.parent?.name ?? null,
-              child_name: e?.child?.name ?? null
-            }))
-            organizationalNodes = buildNodesFromEdges(mapped)
-          }
-
-          // If still empty, try edges-only minimal query and synthesize
-          if (organizationalNodes.length === 0) {
-            const gqlEdges = await fetchHierarchyEdgesMin({ structureId })
-            const edgesOnly = (gqlEdges as any)?.OrganizationalUnitRelationship ?? []
-            if (Array.isArray(edgesOnly) && edgesOnly.length > 0) {
-              const mappedMin: HierarchyEdgeRow[] = edgesOnly.map((e: any) => ({
-                category: String(e?.child?.name ?? ''),
-                value: 1, // size leaves minimally; real counts not available here
-                parent_id_text: e?.parentId ?? null,
-                child_id_text: e?.childId ?? null,
-                parent_name: e?.parent?.name ?? null,
-                child_name: e?.child?.name ?? null
-              }))
-              organizationalNodes = buildNodesFromEdges(mappedMin)
-            }
-          }
-        } catch {
-          // ignore
-        }
       }
 
       // No extra overrides needed when dataset provided edges + counts
@@ -415,7 +370,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     } finally {
       setIsLoading(false)
     }
-  }, [datasetClient])
+  }, [datasetClient, t])
 
   useEffect(() => {
     if (context.accessToken) {

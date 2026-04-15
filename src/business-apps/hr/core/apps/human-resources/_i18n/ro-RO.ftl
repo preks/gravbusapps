@@ -290,6 +290,7 @@ hr-analytics-chart-summary = Rezumat grafic
 hr-analytics-active-groups = Grupuri active
 hr-analytics-absence-types = Tipuri de absență
 hr-analytics-departments-label = Departamente
+hr-analytics-number-of-departments = Număr de departamente
 hr-analytics-total-days = Zile totale
 hr-analytics-tenure-lt-6-months = < 6 luni
 hr-analytics-tenure-6-12-months = 6-12 luni
