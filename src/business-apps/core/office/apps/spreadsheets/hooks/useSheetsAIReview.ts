@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
-import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import type { SheetsAIReviewResponse } from '../prompts/sheets-ai-review'
 import {
@@ -10,7 +11,7 @@ import {
 import { selectPreferredModel } from '../utils/aiModelSelection'
 
 interface UseSheetsAIReviewParams {
-  accessToken: string
+  promptClient: PromptManagerClient
   sheetName: string
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
@@ -71,12 +72,11 @@ const fallbackReview = (
 }
 
 export const useSheetsAIReview = ({
-  accessToken,
+  promptClient,
   sheetName,
   columns,
   sheetData
 }: UseSheetsAIReviewParams): UseSheetsAIReviewResult => {
-  const promptClient = usePromptManagerClient(accessToken)
   const [review, setReview] = useState<SheetsAIReviewResponse | null>(null)
   const [lastReviewedAt, setLastReviewedAt] = useState<string | null>(null)
   const [isRunning, setIsRunning] = useState(false)
@@ -88,9 +88,13 @@ export const useSheetsAIReview = ({
     setIsRunning(true)
     try {
       const selectedModel = await selectPreferredModel(promptClient)
+      const modelId = getPromptManagerDocumentId(selectedModel)
+      if (!modelId) {
+        throw new Error('Selected AI model has no document id')
+      }
 
       const formData = new FormData()
-      formData.append('model_id', selectedModel._id)
+      formData.append('model_id', modelId)
       formData.append('system_content', SHEETS_AI_REVIEW_SYSTEM_PROMPT)
       formData.append('user_content', buildSheetsAIReviewUserPrompt(sheetName, columns, sheetData))
       formData.append('model_settings', JSON.stringify({}))

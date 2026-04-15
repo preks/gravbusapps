@@ -3,6 +3,7 @@
 import { CustomerActivity } from '../types/customerActivityTypes'
 import { CustomerNote } from '../types/customerNoteTypes'
 import { CustomerDocument } from '../types/customerDocumentTypes'
+import { mapRawCrmNoteGraphQLRow } from '../utils/crmNoteMap'
 
 /**
  * Transform CustomerActivity (GraphQL response) to CustomerActivity
@@ -19,11 +20,7 @@ export function toCustomerActivity(base: CustomerActivity): CustomerActivity {
  * Maps CRM-specific field names (noteTitle, noteText) to standard Note fields (title, text)
  */
 export function toCustomerNote(base: any): CustomerNote {
-  return {
-    ...base,
-    title: base.noteTitle || base.title,
-    text: base.noteText || base.text
-  } as CustomerNote
+  return mapRawCrmNoteGraphQLRow(base) as CustomerNote
 }
 
 /**

@@ -493,6 +493,8 @@ export interface SpreadsheetAppViewerProps {
     updates: Partial<SpreadsheetSheet>
   ) => Promise<SpreadsheetSheet | null>
   onBack?: () => void
+  /** Header breadcrumb (Spreadsheets home): spreadsheet hub only. Falls back to onBack when omitted. */
+  onNavigateToSpreadsheetHub?: () => void
   onShare?: () => void
   onEdit?: () => void
   isEditing?: boolean
@@ -641,6 +643,8 @@ export interface SpreadsheetAppSummary {
   isShared?: boolean
   isOwner?: boolean
   sharedWithCount?: number
+  /** Recipient user ids for hub avatars (from list API); full share rows load on demand */
+  sharedPreviewUserIds?: string[]
   // Permission info from backend
   permission?: AppPermission
   sharedBy?: string

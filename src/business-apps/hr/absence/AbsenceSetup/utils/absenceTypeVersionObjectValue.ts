@@ -1,5 +1,6 @@
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
+import { getCatalogTranslationValues } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
 import type { JSONObject, JSONValue } from '@/common/types/i18nTypes'
 import type { AbsenceTypeVersionFormValues } from './absenceSetup'
 import { buildAbsenceTypeObjectValue, getAbsenceTypeObjectEditorState } from './absenceTypeObjectValue'
@@ -17,6 +18,19 @@ const toStringValue = (value: JSONValue | undefined, fallback: string): string =
   if (typeof value === 'string') return value
   if (typeof value === 'number') return String(value)
   return fallback
+}
+
+export const formatAbsenceTypeVersionDisplayDate = (value: string): string => {
+  const parsedDate = parseDateValue(value)
+  if (!parsedDate) {
+    return value
+  }
+
+  const day = `${parsedDate.getDate()}`.padStart(2, '0')
+  const month = `${parsedDate.getMonth() + 1}`.padStart(2, '0')
+  const year = parsedDate.getFullYear()
+
+  return `${day}.${month}.${year}`
 }
 
 const sanitizeVersionCode = (value: string) => value.trim().replaceAll(/[^a-zA-Z0-9_-]+/g, '-')
@@ -126,13 +140,29 @@ export const getAbsenceTypeVersionFormValues = (
     version: toStringValue(objectValue.version, defaultValues.version),
     validFrom: toStringValue(objectValue.validFrom, defaultValues.validFrom),
     validTo: toStringValue(objectValue.validTo, defaultValues.validTo),
+    translations: getCatalogTranslationValues(entry),
     settings
   }
 }
 
+const buildAbsenceTypeVersionTranslations = (
+  formValues: AbsenceTypeVersionFormValues,
+  fallbackValue: string,
+  includeEmptyTranslations: boolean
+): CatalogEntry['translations'] => {
+  const translations: CatalogEntry['translations'] = [
+    { localeCode: 'en-US', value: formValues.translations.enUS.trim() || fallbackValue },
+    { localeCode: 'de-DE', value: formValues.translations.deDE.trim() },
+    { localeCode: 'ro-RO', value: formValues.translations.roRO.trim() }
+  ]
+
+  return includeEmptyTranslations ? translations : translations.filter(item => item.value)
+}
+
 export const buildAbsenceTypeVersionPayload = (
   formValues: AbsenceTypeVersionFormValues,
-  absenceTypes: AbsenceType[]
+  absenceTypes: AbsenceType[],
+  includeEmptyTranslations = false
 ): {
   code: string
   value: string
@@ -143,7 +173,8 @@ export const buildAbsenceTypeVersionPayload = (
   const selectedType = absenceTypes.find(item => item.code === formValues.code)
   const versionCode = sanitizeVersionCode(formValues.version || 'version')
   const code = `${formValues.code}-${versionCode}`
-  const value = `${selectedType?.value || formValues.code} ${formValues.version}`.trim()
+  const fallbackValue = `${selectedType?.value || formValues.code} ${formValues.version}`.trim()
+  const value = formValues.translations.enUS.trim() || fallbackValue
 
   return {
     code,
@@ -154,7 +185,7 @@ export const buildAbsenceTypeVersionPayload = (
       validFrom: formValues.validFrom,
       validTo: formValues.validTo
     }),
-    translations: []
+    translations: buildAbsenceTypeVersionTranslations(formValues, fallbackValue, includeEmptyTranslations)
   }
 }
 
@@ -163,7 +194,12 @@ export const getAbsenceTypeVersionDescription = (entry: CatalogEntry): string =>
   const version = toStringValue(objectValue.version, entry.code)
   const validFrom = toStringValue(objectValue.validFrom, '')
   const validTo = toStringValue(objectValue.validTo, '')
-  const dateRange = validFrom || validTo ? [validFrom, validTo].filter(Boolean).join(' - ') : ''
+  const dateRange =
+    validFrom || validTo
+      ? [formatAbsenceTypeVersionDisplayDate(validFrom), formatAbsenceTypeVersionDisplayDate(validTo)]
+          .filter(Boolean)
+          .join(' - ')
+      : ''
 
   return dateRange ? `${version} | ${dateRange}` : version
 }

@@ -7,6 +7,15 @@ import {
   BaseTaskTemplate,
   TaskTemplateFormData
 } from '@/common/components/common-relations/setting-pages/task-template/types'
+import {
+  formSchedulingTypeForInput,
+  mergeExtensionsIntoAdditionalProperties,
+  parseTaskTemplateExtensions
+} from '@/common/components/common-relations/setting-pages/task-template/taskTemplateExtensions'
+import {
+  toUtcEndOfDayInstantString,
+  toUtcStartOfDayInstantString
+} from '@/common/components/common-relations/setting-pages/task-template/taskTemplateDatePayload'
 
 // GraphQL queries and mutations
 const GET_INVESTMENT_TASK_TEMPLATES = `
@@ -70,6 +79,12 @@ const transformToBaseTaskTemplate = (template: any): BaseTaskTemplate => {
   const priorityRefId = template.priority?.id || template.priorityRef || ''
   const investmentGroupRefId = template.investmentGroup?.id || template.investmentGroupRef || ''
   const investmentTypeRefId = template.investmentType?.id || template.investmentTypeRef || ''
+  const additionalProperties = {
+    ...template.additionalProperties,
+    investmentGroupRef: investmentGroupRefId,
+    investmentTypeRef: investmentTypeRefId
+  }
+  const ext = parseTaskTemplateExtensions(additionalProperties)
 
   return {
     id: template.id,
@@ -104,22 +119,30 @@ const transformToBaseTaskTemplate = (template: any): BaseTaskTemplate => {
     // Use UUID from catalog entry objects (not code-based refs)
     typeRef: typeRefId,
     priorityRef: priorityRefId,
-    additionalProperties: {
-      ...template.additionalProperties,
-      investmentGroupRef: investmentGroupRefId,
-      investmentTypeRef: investmentTypeRefId
-    }
+    additionalProperties,
+    schedulingType: formSchedulingTypeForInput(ext),
+    eventTriggerEnabled: ext.eventTriggerEnabled,
+    eventSourceEntityType: ext.eventSourceEntityType,
+    eventSourceEntityId: ext.eventSourceEntityId,
+    scopeLimited: ext.scopeLimited,
+    scopedEntityType: ext.scopedEntityType,
+    scopedEntityId: ext.scopedEntityId,
+    eventInvestmentGroupRef: ext.eventInvestmentGroupRef,
+    eventInvestmentTypeRef: ext.eventInvestmentTypeRef
   }
 }
 
 // Transform form data to process payload
-const transformFormDataToPayload = (data: TaskTemplateFormData) => ({
+const transformFormDataToPayload = (
+  data: TaskTemplateFormData,
+  existingAdditional?: Record<string, unknown> | null
+) => ({
   code: data.code,
   name: data.name,
   description: data.description,
   enabled: data.isActive,
-  activeFrom: data.activeFrom || null,
-  activeTo: data.activeTo || null,
+  activeFrom: toUtcStartOfDayInstantString(data.activeFrom),
+  activeTo: toUtcEndOfDayInstantString(data.activeTo),
   typeRef: data.typeRef,
   priorityRef: data.priorityRef,
   assigneeType: data.assigneeType,
@@ -128,12 +151,10 @@ const transformFormDataToPayload = (data: TaskTemplateFormData) => ({
   monthsOfYear: data.recurringSchedule?.monthsOfYear || {},
   intervalDays: data.recurringSchedule?.intervalDays || 0,
   holidayPolicy: data.recurringSchedule?.holidayPolicy || 'SKIP_TASK',
-  nextStartDate: data.nextStartDate || null,
-  additionalProperties: {
-    ...(data.schedulingType ? { schedulingType: data.schedulingType } : {})
-  },
-  investmentGroupRef: data.investmentGroupRef,
-  investmentTypeRef: data.investmentTypeRef
+  nextStartDate: toUtcStartOfDayInstantString(data.nextStartDate),
+  additionalProperties: mergeExtensionsIntoAdditionalProperties(data, existingAdditional),
+  investmentGroupRef: data.eventInvestmentGroupRef || null,
+  investmentTypeRef: data.eventInvestmentTypeRef || null
 })
 
 export const useInvestmentTaskTemplateSettings = (context: BusinessAppContextProps) => {
@@ -174,7 +195,7 @@ export const useInvestmentTaskTemplateSettings = (context: BusinessAppContextPro
       try {
         const payload = {
           changeMode: 'INSERT',
-          investmentTaskTemplate: transformFormDataToPayload(data)
+          investmentTaskTemplate: transformFormDataToPayload(data, null)
         }
 
         await restClient.post('/investment-relations/saveInvestmentTaskTemplate', payload, {
@@ -201,7 +222,7 @@ export const useInvestmentTaskTemplateSettings = (context: BusinessAppContextPro
           investmentTaskTemplate: {
             id,
             version: template?.version || 0,
-            ...transformFormDataToPayload(data)
+            ...transformFormDataToPayload(data, template?.additionalProperties ?? null)
           }
         }
 

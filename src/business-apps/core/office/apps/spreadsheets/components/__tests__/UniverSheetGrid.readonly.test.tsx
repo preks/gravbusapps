@@ -90,7 +90,8 @@ jest.mock(
 describe('UniverSheetGrid read-only behavior', () => {
   const sheet = {
     id: 'sheet-1',
-    name: 'Sheet 1'
+    name: 'Sheet 1',
+    settings: { mergeData: [] }
   } as any
 
   const columns = [
@@ -157,6 +158,8 @@ describe('UniverSheetGrid read-only behavior', () => {
   })
 
   it('forces German number-format locale for currency/date/time defaults', () => {
+    jest.useFakeTimers()
+
     render(
       <UniverSheetGrid
         sheet={sheet}
@@ -168,6 +171,10 @@ describe('UniverSheetGrid read-only behavior', () => {
         onDataChange={jest.fn()}
       />
     )
+
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
 
     expect(lastSetNumfmtLocalMock).toHaveBeenCalledWith('de_DE')
   })

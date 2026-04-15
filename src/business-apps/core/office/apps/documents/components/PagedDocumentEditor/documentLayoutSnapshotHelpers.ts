@@ -6,6 +6,7 @@ import {
   getTableRuntimeChainKey
 } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationIdentity'
 import { getTableRowCount } from '@/components/tiptap-extensions/tiptap-custom-tables/tablePaginationUtils'
+import { incrementPaginationInstrumentationCounter } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationInstrumentation'
 import type {
   DocumentLayoutAnchorCollection,
   DocumentLayoutAnchorRect,
@@ -29,6 +30,12 @@ type CommentRangeGroup = {
   commentId: string
   ranges: Array<{ from: number; to: number }>
 }
+
+const documentLayoutAnchorCache = new WeakMap<ProseMirrorNode, Map<string, DocumentLayoutAnchorCollection>>()
+const documentLayoutTableFragmentCache = new WeakMap<
+  ProseMirrorNode,
+  Map<string, DocumentLayoutTableFragmentSnapshot[]>
+>()
 
 function createEmptyAnchorCollection(): DocumentLayoutAnchorCollection {
   return {
@@ -148,6 +155,50 @@ function resolveAnchorRect(
   }
 
   return unionAnchorRect(pageBounds.filter(bounds => pageNumbers.includes(bounds.pageNumber)))
+}
+
+function createPageSpansCacheKey(pageSpans: DocumentLayoutPageSpan[]): string {
+  return pageSpans
+    .map(pageSpan => `${pageSpan.pageNumber}:${pageSpan.startPos}:${pageSpan.endPos}:${pageSpan.source}`)
+    .join('|')
+}
+
+function createPageBoundsCacheKey(pageBounds: DocumentLayoutPageBodyBounds[]): string {
+  return pageBounds
+    .map(pageBound =>
+      [
+        pageBound.pageNumber,
+        pageBound.left.toFixed(1),
+        pageBound.right.toFixed(1),
+        pageBound.top.toFixed(1),
+        pageBound.bottom.toFixed(1)
+      ].join(':')
+    )
+    .join('|')
+}
+
+function resolveCachedDocumentLayoutValue<T>(
+  cache: WeakMap<ProseMirrorNode, Map<string, T>>,
+  doc: ProseMirrorNode,
+  key: string
+): T | null {
+  return cache.get(doc)?.get(key) ?? null
+}
+
+function storeCachedDocumentLayoutValue<T>(
+  cache: WeakMap<ProseMirrorNode, Map<string, T>>,
+  doc: ProseMirrorNode,
+  key: string,
+  value: T
+): T {
+  const existingCache = cache.get(doc)
+  if (existingCache) {
+    existingCache.set(key, value)
+  } else {
+    cache.set(doc, new Map([[key, value]]))
+  }
+
+  return value
 }
 
 function createAnchorSnapshot(options: {
@@ -301,6 +352,12 @@ export function collectDocumentLayoutAnchors(
 
   try {
     const doc = editor.state.doc
+    const cacheKey = `${createPageSpansCacheKey(pageSpans)}::${createPageBoundsCacheKey(pageBounds)}`
+    const cachedAnchors = resolveCachedDocumentLayoutValue(documentLayoutAnchorCache, doc, cacheKey)
+    if (cachedAnchors) {
+      incrementPaginationInstrumentationCounter('layout-anchor-collection-cache-hit')
+      return cachedAnchors
+    }
     const comments = Array.from(collectCommentRanges(doc).values())
       .flatMap(commentRangeGroup => {
         const mergedRanges = mergeRanges(commentRangeGroup.ranges)
@@ -384,12 +441,12 @@ export function collectDocumentLayoutAnchors(
       }
     })
 
-    return {
+    return storeCachedDocumentLayoutValue(documentLayoutAnchorCache, doc, cacheKey, {
       comments,
       images,
       links,
       tables
-    }
+    })
   } catch {
     return createEmptyAnchorCollection()
   }
@@ -404,11 +461,19 @@ export function collectDocumentLayoutTableFragments(
   }
 
   try {
+    const doc = editor.state.doc
+    const cacheKey = createPageSpansCacheKey(pageSpans)
+    const cachedFragments = resolveCachedDocumentLayoutValue(documentLayoutTableFragmentCache, doc, cacheKey)
+    if (cachedFragments) {
+      incrementPaginationInstrumentationCounter('layout-table-fragment-cache-hit')
+      return cachedFragments
+    }
+
     const fragments: DocumentLayoutTableFragmentSnapshot[] = []
     const fragmentIndexesByKey = new Map<string, number>()
     const fragmentCountsByKey = new Map<string, number>()
 
-    editor.state.doc.descendants((node, pos) => {
+    doc.descendants((node, pos) => {
       if (node.type.name !== 'table') {
         return
       }
@@ -444,10 +509,15 @@ export function collectDocumentLayoutTableFragments(
       groupedFragments.set(fragment.paginationChainKey, (groupedFragments.get(fragment.paginationChainKey) ?? 0) + 1)
     })
 
-    return fragments.map(fragment => ({
-      ...fragment,
-      fragmentCount: groupedFragments.get(fragment.paginationChainKey) ?? fragment.fragmentCount
-    }))
+    return storeCachedDocumentLayoutValue(
+      documentLayoutTableFragmentCache,
+      doc,
+      cacheKey,
+      fragments.map(fragment => ({
+        ...fragment,
+        fragmentCount: groupedFragments.get(fragment.paginationChainKey) ?? fragment.fragmentCount
+      }))
+    )
   } catch {
     return []
   }

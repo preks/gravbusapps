@@ -298,6 +298,7 @@ notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
 notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
 notification-vacation-requested-success = Urlaub erfolgreich beantragt
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-communication-deleted-success = Kommunikationseintrag erfolgreich gelöscht.
 
 # Employee Record - Errors and states
 employee-record-error-title = Fehler
@@ -551,6 +552,7 @@ add-skill-form-attach-verification-message-prefix = Laden Sie ein Dokument hoch,
 add-skill-form-attach-verification-message-suffix = zu verifizieren.
 add-skill-form-update-level-for-prefix = Level aktualisieren für die Fähigkeit 
 add-skill-form-attach-verification-upload-label = Dokument hochladen
+add-skill-form-loading-verification-document = Dokument wird geladen...
 add-skill-form-document-group = Dokumentenkategorie
 add-skill-form-document-type = Dokumenttyp
 add-skill-form-select-document-group = Dokumentenkategorie wählen
@@ -736,6 +738,11 @@ details-private-communication = Private Kommunikation
 details-emergency-contact = Notfallkontakt
 details-additional-attributes = Zusätzliche Attribute
 details-no-emergency-contact = Keine Notfallkontaktinformationen verfügbar
+details-communication-no-entries = Keine Kommunikationseinträge
+details-communication-add = Kommunikation hinzufügen
+delete-communication-confirm-title = Kommunikationseintrag löschen
+delete-communication-confirm-description = Möchten Sie diesen Kommunikationseintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+delete-communication-confirm-button = Löschen
 details-label-salutation = Anrede
 details-label-academic-titles = Akademische Titel
 details-label-first-name = Vorname
@@ -890,3 +897,6 @@ service-requests-status-canceled = Abgebrochen
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Ihre Personalabteilung prüft derzeit Ihre letzten Änderungen. Sobald die Freigabe erfolgt ist, können Sie weitere Anpassungen vornehmen.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Adressformular wird geladen...

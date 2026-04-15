@@ -9,6 +9,7 @@ type ActionLabelKey =
   | 'allocate_asset'
   | 'retrieve_asset'
   | 'retire_asset'
+  | 'delete_asset'
   | 'export_certificate'
 
 /** Action dropdown labels by locale (matches assets _i18n FTL). Fallback to en-US. */
@@ -19,6 +20,7 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
     allocate_asset: 'Allocate Asset',
     retrieve_asset: 'Retrieve Asset',
     retire_asset: 'Retire Asset',
+    delete_asset: 'Delete Asset',
     export_certificate: 'Export certificate'
   },
   'de-DE': {
@@ -27,6 +29,7 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
     allocate_asset: 'Gerät zuweisen',
     retrieve_asset: 'Gerät zurücknehmen',
     retire_asset: 'Gerät außer Betrieb nehmen',
+    delete_asset: 'Gerät löschen',
     export_certificate: 'Zertifikat exportieren'
   },
   'ro-RO': {
@@ -35,6 +38,7 @@ const ACTION_LABELS_BY_LOCALE: Record<string, Record<ActionLabelKey, string>> = 
     allocate_asset: 'Alocă activ',
     retrieve_asset: 'Reia activul',
     retire_asset: 'Retrage activul',
+    delete_asset: 'Șterge activul',
     export_certificate: 'Exportă certificat'
   }
 }
@@ -47,24 +51,28 @@ export function getActionLabels(): Record<ActionLabelKey, string> {
 interface AssetTableActionButtonProps {
   assetId: string
   assetStatus: AssetStatus
+  canDeleteAsset?: boolean
   accessToken: string
   dataTestIdPrefix: string
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onDeleteAsset?: (assetId: string) => void
   onGenerateDocument?: (assetId: string) => void
 }
 
 export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
   assetId,
   assetStatus,
+  canDeleteAsset = false,
   accessToken,
   dataTestIdPrefix,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
   onRetrieveAsset,
+  onDeleteAsset,
   onGenerateDocument
 }) => {
   const isAllocated = assetStatus === AssetStatus.ALLOCATED
@@ -123,6 +131,18 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
       })
     }
 
+    if (canDeleteAsset && onDeleteAsset) {
+      actions.push({
+        category: labels.actions,
+        key: 'delete-asset',
+        label: labels.delete_asset,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onDeleteAsset(assetId)
+        }
+      })
+    }
+
     if (isRetired && onGenerateDocument) {
       actions.push({
         category: labels.actions,
@@ -145,6 +165,8 @@ export const AssetTableActionButton: React.FC<AssetTableActionButtonProps> = ({
     onUpdateAsset,
     onRetireAsset,
     onRetrieveAsset,
+    canDeleteAsset,
+    onDeleteAsset,
     onGenerateDocument
   ])
 

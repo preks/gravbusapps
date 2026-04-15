@@ -1,5 +1,5 @@
 import React from 'react'
-import ExpenseItemsTable from '../personal-expenses/components/tabs/expense-items-tab/ExpenseItemsTable'
+import ExpenseItemsTable from '../personal-expenses/components/tabs/expense-items-tab/table/ExpenseItemsTable'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { ExpenseFilter } from '../personal-expenses/hooks/useGetExpenseItems'
@@ -16,6 +16,9 @@ export interface UnallocatedExpenseItemsTableProps extends BusinessAppContextPro
   setFilters: (filters: string[]) => void
   availableStatuses: string[]
   amountRange?: { min?: number; max?: number } | null
+  setAmountRange: (range: { min?: number; max?: number } | null) => void
+  expenseDateRange?: [Date | null, Date | null] | null
+  setExpenseDateRange: (range: [Date | null, Date | null] | null) => void
 }
 
 const UnallocatedExpenseItemsTable: React.FC<UnallocatedExpenseItemsTableProps> = props => {

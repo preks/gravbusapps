@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import '@newwork/nw-design-system/style'
 import { Avatar, AvatarFallback, Button, Card } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
@@ -14,17 +15,33 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
   function?: LatestFunctionItem | null
   onSaved: () => void
   onBack?: () => void
-  /** When set with onBack, editor uses CreateLayout: hero + wizard left, canvas right. */
+  /** Opens Function Manager → Credentials (tenant scope) and leaves the editor. */
+  onOpenTenantCredentials?: () => void
   heroTitle?: string
-  /** Hero subtitle (optional). */
   heroSubtitle?: string
+  className?: string
+  'data-testid'?: string
 }
 
 const DATA_TEST_ID = 'function-editor'
 
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
-  const { mode, function: func, onSaved, accessToken, onBack, userInfo, heroTitle, heroSubtitle } = props
+  const {
+    mode,
+    function: func,
+    onSaved,
+    accessToken,
+    onBack,
+    onOpenTenantCredentials,
+    userInfo,
+    heroTitle,
+    heroSubtitle,
+    className,
+    'data-testid': testId = DATA_TEST_ID
+  } = props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
+  const [isFixingWithAi, setIsFixingWithAi] = React.useState(false)
+  const [fixWithAiError, setFixWithAiError] = React.useState<string | null>(null)
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
   const [fixTestRequest, setFixTestRequest] = React.useState<null | {
     nonce: string
@@ -87,7 +104,13 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     isTesting,
     testError,
     onTest,
-    buildTestIterationSnapshot
+    buildTestIterationSnapshot,
+
+    storedSecrets,
+    refreshSecrets,
+    onCreateStoredSecret,
+    testOverrideRows,
+    setTestOverrideRows
   } = useFunctionEditorState({ accessToken, mode, func })
 
   const handleSave = React.useCallback(() => onSave(onSaved), [onSave, onSaved])
@@ -96,8 +119,16 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   const handleFixWithAi = React.useCallback(() => {
     // Open the assistant and let the chat run the "fix test" iteration flow.
     setAssistantOpen(true)
-    const snap = buildTestIterationSnapshot()
+    setFixWithAiError(null)
+    let snap: ReturnType<typeof buildTestIterationSnapshot> = null
+    try {
+      snap = buildTestIterationSnapshot()
+    } catch (e) {
+      setFixWithAiError(e instanceof Error ? e.message : 'Unable to start AI fix')
+      return
+    }
     if (!snap) return
+    setIsFixingWithAi(true)
     setFixTestRequest({ nonce: `${Date.now()}-${Math.random().toString(16).slice(2)}`, ...snap })
   }, [buildTestIterationSnapshot, setAssistantOpen])
 
@@ -122,6 +153,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     },
     [setAssistantOpen]
   )
+
   const usesCreateLayoutHero = heroTitle != null && onBack != null
 
   const mainContent = (
@@ -136,14 +168,19 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
         onBack={usesCreateLayoutHero ? undefined : onBack}
         data-testid="function-editor-header"
       />
+
       {error && (
         <div className="gba:text-destructive" data-testid="function-editor-error">
           {error}
         </div>
       )}
+
       <div className="gba:space-y-4 gba:mt-4">
         {canUndoAssistantApply ? (
-          <Card className="gba:p-3 gba:border gba:border-border gba:bg-muted" data-testid="function-editor-undo-banner">
+          <Card
+            className="gba:p-3 gba:border gba:border-border gba:bg-muted"
+            data-testid="function-editor-undo-banner"
+          >
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
               <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
                 <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
@@ -183,6 +220,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             </div>
           </Card>
         ) : null}
+
         <FunctionDefinitionCard
           mode={mode}
           name={name}
@@ -209,6 +247,9 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           onInputSchemaChange={setInputSchema}
           onOutputSchemaChange={setOutputSchema}
           onConfigKeysChange={setConfigKeys}
+          storedSecrets={storedSecrets}
+          testOverrideRows={testOverrideRows}
+          onTestOverrideRowsChange={setTestOverrideRows}
           testSchemaProperties={schemaProperties}
           testRequiredFields={requiredFields}
           testPayload={testPayloadObj}
@@ -220,6 +261,8 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           testResult={testResult}
           testLogs={testLogs}
           onFixWithAi={handleFixWithAi}
+          isFixingWithAi={isFixingWithAi}
+          fixWithAiError={fixWithAiError}
           activeTab={definitionTab}
           onTabChange={setDefinitionTab}
           data-testid="function-editor-definition"
@@ -231,7 +274,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   if (usesCreateLayoutHero) {
     return (
       <CreateLayout
-        testId={DATA_TEST_ID}
+        testId={testId}
         heroVariant="editor"
         heroIcon={Code}
         heroTitle={heroTitle}
@@ -245,24 +288,35 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             existing={existingSnapshot}
             onApply={applyDraft}
             onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
+            onFixTestStateChange={({ isFixing, error }) => {
+              setIsFixingWithAi(isFixing)
+              setFixWithAiError(error)
+            }}
             onClose={closeAssistant}
             data-testid="function-assistant"
           />
         }
-        canvasPanel={<div className="gba:overflow-y-auto gba:p-6">{mainContent}</div>}
+        canvasPanel={
+          <div className="gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:p-6">{mainContent}</div>
+        }
         chatPanelCollapsed={chatPanelCollapsed}
         onChatPanelCollapseChange={handleCollapseChange}
-        className="gba:flex-1 gba:min-h-0 gba:overflow-hidden"
+        className={className}
       />
     )
   }
 
   return (
-    <div data-testid={DATA_TEST_ID} className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full">
+    <div
+      data-testid={testId}
+      className={['gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full', className].filter(Boolean).join(' ')}
+    >
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
         <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
+
         {assistantOpen ? (
           <FunctionAssistantSidebar
             accessToken={accessToken}
@@ -271,9 +325,14 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             existing={existingSnapshot}
             onApply={applyDraft}
             onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
-            onClose={() => setAssistantOpen(false)}
+            onFixTestStateChange={({ isFixing, error }) => {
+              setIsFixingWithAi(isFixing)
+              setFixWithAiError(error)
+            }}
+            onClose={closeAssistant}
             data-testid="function-assistant"
           />
         ) : null}

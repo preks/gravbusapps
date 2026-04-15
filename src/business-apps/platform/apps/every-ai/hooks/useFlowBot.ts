@@ -7,12 +7,12 @@ import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
 const STORAGE_KEY = 'newwork_every_ai'
-const LLM_MODEL = 'gpt-4.1'
+const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
 const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
 const PRECHAT_CACHE_TTL_MS = 10 * 60 * 1000
 const PRECHAT_MIN_REFETCH_MS = 3000
-const PRECHAT_LLM_MODEL = LLM_MODEL
+const PRECHAT_MODEL_KIND = FLOWBOT_MODEL_KIND_DEFAULT
 const DOCUMENT_REALTIME_EDIT_INTENT_PATTERN =
   /\b(edit|rewrite|revise|improve|fix|update|rephrase|shorten|expand|draft|polish|refine)\b/i
 const DOCUMENT_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
@@ -424,15 +424,19 @@ export interface FlowBotSession {
   shortInfo?: string
 }
 
-const CHAT_LIST_LIMIT = 50
+const CHAT_LIST_LIMIT = 15
 
 /**
- * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...
+ * Fetch chat list from FlowBot: GET /flowbot/chat/user/chats?limit=...&offset=...
  */
-async function fetchChatListFromApi(accessToken: string, limit: number = CHAT_LIST_LIMIT): Promise<FlowBotSession[]> {
+export async function fetchChatListFromApi(
+  accessToken: string,
+  limit: number = CHAT_LIST_LIMIT,
+  offset: number = 0
+): Promise<FlowBotSession[]> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}`
+    const url = `${baseUrl}/flowbot/chat/user/chats?limit=${limit}&offset=${offset}`
 
     const res = await fetch(url, {
       method: 'GET',
@@ -476,7 +480,7 @@ async function getAllFlowBotSessions(accessToken: string): Promise<FlowBotSessio
 /**
  * Delete a chat session on the server: DELETE /flowbot/chat/sessions/:sessionId
  */
-async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
+export async function deleteChatSession(sessionId: string, accessToken: string): Promise<void> {
   try {
     const baseUrl = resolveFlowbotBaseUrl()
     const url = `${baseUrl}/flowbot/chat/sessions/${sessionId}`
@@ -1022,7 +1026,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         // Always send session_id as string (empty if null) to match terminal client behavior
         form.append('session_id', effectiveSessionId || '')
         form.append('user_input_text', userInputText)
-        form.append('llm_model', isThinking ? 'o4-mini' : LLM_MODEL)
+        form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
         // Append when explicitly provided (including empty string) so callers can
         // force inclusion of the multipart field for document-edit flows.
@@ -1046,7 +1050,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         const baseUrl = resolveFlowbotBaseUrl()
         const realtimeDocumentId = resolveRealtimeDocumentId({
           userInputText,
-          currentPagePayload,
+          currentPagePayload: currentPagePayload as RealtimeDocumentContext,
           hasFiles: files.length > 0,
           isThinking,
           isSearching
@@ -1344,7 +1348,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     if (!isActiveRef.current) return
     if (state.conversation.length > 0 || isPrechatLoadingRef.current) return
 
-    const cacheKey = `${PRECHAT_LLM_MODEL}:${prechatContextKey}`
+    const cacheKey = `${PRECHAT_MODEL_KIND}:${prechatContextKey}`
     const cachedEntry = readPrechatCache(cacheKey)
     if (cachedEntry?.suggestions?.length) {
       setPrechatSuggestions(cachedEntry.suggestions.slice(0, 4))
@@ -1411,7 +1415,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         currentPage: baseCurrentPage
       })
       form.append('current_page_context', JSON.stringify(prechatContext))
-      form.append('llm_model', PRECHAT_LLM_MODEL)
+      form.append('model_kind', PRECHAT_MODEL_KIND)
 
       const baseUrl = resolveFlowbotBaseUrl()
       const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {

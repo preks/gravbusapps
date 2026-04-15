@@ -2,7 +2,7 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
-export type DeskOverviewItemType = 'document' | 'spreadsheet' | 'note' | 'slide'
+export type DeskOverviewItemType = 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
 
 export interface DeskOverviewItem {
   id: string
@@ -21,6 +21,7 @@ export interface DeskOverviewResponse {
     spreadsheets: { total: number; shared: number }
     notes: { total: number; shared: number }
     slides: { total: number; shared: number }
+    whiteboards: { total: number; shared: number }
     totalItems: number
   }
   recentItems: DeskOverviewItem[]
@@ -62,7 +63,7 @@ async function fetchJson<T>(url: string, accessToken: string): Promise<{ ok: boo
 async function getOverviewFallback(accessToken: string, limit: number): Promise<DeskOverviewResponse> {
   const safeLimit = Math.max(1, Math.min(limit, 50))
 
-  const [docsRes, sheetsRes, notesRes, slidesRes] = await Promise.all([
+  const [docsRes, sheetsRes, notesRes, slidesRes, whiteboardsRes] = await Promise.all([
     fetchJson<PaginatedResponse<BasicListItem>>(
       `${API_URL}/documents?includeShared=true&limit=${safeLimit}&page=1`,
       accessToken
@@ -78,11 +79,15 @@ async function getOverviewFallback(accessToken: string, limit: number): Promise<
     fetchJson<PaginatedResponse<BasicListItem>>(
       `${API_URL}/slides?includeShared=true&limit=${safeLimit}&page=1`,
       accessToken
+    ),
+    fetchJson<PaginatedResponse<BasicListItem>>(
+      `${API_URL}/whiteboards?includeShared=true&limit=${safeLimit}&page=1`,
+      accessToken
     )
   ])
 
   // If any call failed due to auth, surface it clearly.
-  const failed = [docsRes, sheetsRes, notesRes, slidesRes].find(r => !r.ok)
+  const failed = [docsRes, sheetsRes, notesRes, slidesRes, whiteboardsRes].find(r => !r.ok)
   if (failed && failed.status === 401) {
     throw new Error('Not authenticated')
   }
@@ -91,6 +96,7 @@ async function getOverviewFallback(accessToken: string, limit: number): Promise<
   const sheets = sheetsRes.data?.items ?? []
   const notes = notesRes.data?.items ?? []
   const slides = slidesRes.data?.items ?? []
+  const whiteboards = whiteboardsRes.data?.items ?? []
 
   const toDeskItem = (type: DeskOverviewItemType, item: BasicListItem): DeskOverviewItem => {
     const title =
@@ -116,7 +122,8 @@ async function getOverviewFallback(accessToken: string, limit: number): Promise<
     ...docs.map(d => toDeskItem('document', d)),
     ...sheets.map(s => toDeskItem('spreadsheet', s)),
     ...notes.map(n => toDeskItem('note', n)),
-    ...slides.map(sl => toDeskItem('slide', sl))
+    ...slides.map(sl => toDeskItem('slide', sl)),
+    ...whiteboards.map(wb => toDeskItem('whiteboard', wb))
   ]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, safeLimit)
@@ -125,6 +132,7 @@ async function getOverviewFallback(accessToken: string, limit: number): Promise<
   const spreadsheetsTotal = sheetsRes.data?.total ?? sheets.length
   const notesTotal = notesRes.data?.total ?? notes.length
   const slidesTotal = slidesRes.data?.total ?? slides.length
+  const whiteboardsTotal = whiteboardsRes.data?.total ?? whiteboards.length
 
   return {
     counts: {
@@ -132,7 +140,8 @@ async function getOverviewFallback(accessToken: string, limit: number): Promise<
       spreadsheets: { total: spreadsheetsTotal, shared: 0 },
       notes: { total: notesTotal, shared: 0 },
       slides: { total: slidesTotal, shared: 0 },
-      totalItems: documentsTotal + spreadsheetsTotal + notesTotal + slidesTotal
+      whiteboards: { total: whiteboardsTotal, shared: 0 },
+      totalItems: documentsTotal + spreadsheetsTotal + notesTotal + slidesTotal + whiteboardsTotal
     },
     recentItems
   }

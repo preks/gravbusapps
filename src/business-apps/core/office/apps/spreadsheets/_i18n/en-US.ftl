@@ -119,6 +119,7 @@ menu-add-column = Add Column
 menu-manage-columns = Manage Columns
 menu-ai-analytics = AI Analytics
 menu-automations = Automations
+menu-check-collection-responses = Check collection responses
 menu-settings = Settings
 
 # AI Capability Menu
@@ -508,6 +509,20 @@ wizard-field-type-textarea = Long Text
 wizard-field-type-number = Number
 wizard-field-type-date = Date
 wizard-field-type-select = Dropdown
+wizard-select-options-custom = Custom list
+wizard-select-options-entity = From entity
+wizard-select-options-custom-help = Enter each dropdown choice on its own line.
+wizard-select-option-placeholder = Option text
+wizard-select-add-option = Add option
+wizard-select-entity-type = Entity
+wizard-select-entity-loading = Loading entities…
+wizard-select-entity-pick = Choose an entity
+wizard-select-value-field = Value field (stored)
+wizard-select-label-field = Label field (shown)
+wizard-select-max-records = Max records
+wizard-select-field-pick = Select field
+wizard-error-select-options-required = Each dropdown field needs at least one custom option.
+wizard-error-select-entity-required = For entity-backed dropdowns, choose an entity, value field, and label field.
 wizard-save-to-column = Save to Column
 wizard-create-new-column = + Create new column
 wizard-required = Required
@@ -907,6 +922,9 @@ automation-toolbar-pending = { $count } pending
 automation-toolbar-completed = { $count } completed
 automation-toolbar-failed = { $count } failed
 automation-toolbar-refresh-tooltip = Refresh workflow statuses
+automation-toolbar-check-responses = Check responses
+automation-toolbar-check-responses-tooltip = Fetch completed submissions and update the sheet now
+automation-toolbar-check-responses-error = Could not check for responses
 automation-toolbar-manage = Manage Automations
 automation-toolbar-create-new = Create New Automation
 
@@ -1004,7 +1022,7 @@ excel-file-size-exceeds = File size exceeds { $maxMb }MB limit
 shared-error-create-comment = Failed to create comment
 shared-error-resolve-comment = Failed to resolve comment
 shared-error-restore-version = Failed to restore version. No changes were applied.
-shared-error-restore-version-owner-only = You can only restore versions for spreadsheets you own. Ask the owner to restore this version.
+shared-error-restore-version-owner-only = You can restore this version only if you are the app owner or the user who created it.
 shared-comment-panel-title = Comments
 shared-comment-unresolved = unresolved
 shared-comment-unresolved-tab = Unresolved
@@ -1052,6 +1070,9 @@ sa-started = Started
 sa-status-completed = Completed
 sa-status-sent = Sent
 sa-stat-collections = Spreadsheet collections
+sa-stat-collection-breakdown = Data collections
+sa-stat-form-collections = Form (sheet rows)
+sa-stat-template-collections = Template (spreadsheet copy)
 sa-stat-total-runs = Total runs
 sa-filter-all = All
 sa-filter-collection = Spreadsheet collection
@@ -1066,10 +1087,14 @@ spreadsheet-save-just-now = Saved just now
 
 # Save / persistence indicator (viewer header)
 persist-cell-failed = Could not save cell changes. Try again or refresh the page.
+collab-sync-save-failed = Could not sync through collaboration; your edits were queued to save directly.
+collab-queue-trimmed-warn = Collaboration backlog was trimmed. If the sheet looks wrong, refresh the page.
 persist-row-update-failed = Could not save row changes.
 persist-row-delete-failed = Could not delete the row.
 persist-rows-add-failed = Could not save new rows.
 persist-snapshot-failed = Could not save sheet layout to the server.
+persist-recovery-failed = Could not recover from a save conflict. Please refresh the page.
+persist-snapshot-too-large = Sheet formatting could not be saved because the spreadsheet is too large. Cell data is still saved.
 
 # Share App Dialog
 share-dialog-title = Share "{ $name }"

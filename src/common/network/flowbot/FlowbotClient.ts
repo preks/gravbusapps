@@ -64,6 +64,7 @@ export interface MapFromFileResponse {
 
 export interface ExtractFromFileRequest {
   entity_type: string
+  domain?: 'crm' | 'irm'
   import_file: File
   mapping_json: string
   offset?: number
@@ -83,6 +84,12 @@ export interface ExtractFromFileResponse {
   }>
   sourceFields: string[]
   unmappedSourceFields: string[]
+}
+
+function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
+  if (domain === 'customer' || domain === 'crm') return 'crm'
+  if (domain === 'investment' || domain === 'irm') return 'irm'
+  return undefined
 }
 
 export interface DocumentAutocompleteRequest {
@@ -169,10 +176,15 @@ export class FlowbotClient extends RestClient {
     entityType: string,
     importFile: File,
     llmModel?: string,
+    domain?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
+    const flowbotDomain = toFlowbotImportDomain(domain)
+    if (flowbotDomain) {
+      formData.append('domain', flowbotDomain)
+    }
     formData.append('import_file', importFile)
     if (llmModel) {
       formData.append('llm_model', llmModel)
@@ -186,12 +198,17 @@ export class FlowbotClient extends RestClient {
     importFile: File,
     mappingJson: string,
     enforcedFieldsJson?: string,
+    domain?: string,
     offset: number = 0,
     maxRows: number = 5000,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
     formData.append('entity_type', entityType)
+    const flowbotDomain = toFlowbotImportDomain(domain)
+    if (flowbotDomain) {
+      formData.append('domain', flowbotDomain)
+    }
     formData.append('import_file', importFile)
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {

@@ -121,7 +121,7 @@ export const GET_EMPLOYEE_REGION_ID = /*sql*/ `
  */
 export const GET_REGION_COUNTRY_ID = /*sql*/ `
   query GetRegionCountryId($regionId: String!) {
-    CatalogEntry(where: { id: { _eq: $regionId } }) {
+    CatalogEntry(where: { id: { _eq: $regionId } isDeleted: { _eq: false } }) {
       id
       additionalValue3
     }

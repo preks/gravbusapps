@@ -103,10 +103,6 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         fetchCustomerTasksByContactId(contactId)
       ])
 
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) =>
-          new Date(b.occurredAt || b.createdAt).getTime() - new Date(a.occurredAt || a.createdAt).getTime()
-      )
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -126,7 +122,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
@@ -412,21 +408,20 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   const headerTitle = fullName
 
   return (
-    <div data-testid="customer-contact-detail">
-      <RecordLayout
-        headerOrientation="horizontal"
-        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
-        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
-        onBack={onBack}
-        headerTitle={headerTitle}
-        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
-        headerActions={headerActions}
-        headerActionButton={headerActionButton}
-        views={subViewsConfig.items}
-        defaultView={subViewsConfig.defaultValue}
-        onViewChange={subViewsConfig.onValueChange}
-      />
-    </div>
+    <RecordLayout
+      data-testid="customer-contact-detail"
+      headerOrientation="horizontal"
+      headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+      onBack={onBack}
+      headerTitle={headerTitle}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
+      headerActionButton={headerActionButton}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
+    />
   )
 }
 

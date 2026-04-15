@@ -4,6 +4,12 @@ import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@ne
 import { ArrowLeft } from 'lucide-react'
 import { AiTranslationButton, useContentTranslation } from '@/common/components/content'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
+import {
+  CONTENT_REACTION_IDENTIFIER,
+  CONTENT_REACTION_VERSION,
+  CONTENT_REACTION_UPVOTE_ENTRY_ID,
+  CONTENT_REACTION_DOWNVOTE_ENTRY_ID
+} from '@/common/data/content/constants/contentCatalogs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { isPolicyContentEntry } from '@/business-apps/core/content/utils/policyUtils'
 import ContentPage from './components/ContentPage'
@@ -15,9 +21,6 @@ export interface ContentRecordProps extends BusinessAppContextProps {
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
 }
-
-const CATALOG_IDENTIFIER = 'ContentReaction'
-const CATALOG_VERSION = 'v1'
 
 const ContentRecord: React.FC<ContentRecordProps> = context => {
   const { t } = useTranslation(translations)
@@ -49,8 +52,8 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
       try {
         const response = await catalogClient.getCatalogEntriesList(
           {
-            catalogIdentifier: CATALOG_IDENTIFIER,
-            version: CATALOG_VERSION
+            catalogIdentifier: CONTENT_REACTION_IDENTIFIER,
+            version: CONTENT_REACTION_VERSION
           },
           {
             limit: 100,
@@ -73,9 +76,9 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
             allowedCodes.push(unifiedCode)
 
             // Also map +1/-1 by their special keys for VoteButtons
-            if (entry.id === 'ContentReaction:v1:+1') {
+            if (entry.id === CONTENT_REACTION_UPVOTE_ENTRY_ID) {
               catalogMap['+1'] = entry.id
-            } else if (entry.id === 'ContentReaction:v1:-1') {
+            } else if (entry.id === CONTENT_REACTION_DOWNVOTE_ENTRY_ID) {
               catalogMap['-1'] = entry.id
             }
           }

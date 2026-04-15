@@ -37,6 +37,15 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
   const contactId = additionalData?.contactId || initialParameters?.contactId || null
   const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
+  const contextNoteType = useMemo(
+    () =>
+      additionalData?.noteType ||
+      initialParameters?.noteType ||
+      additionalData?.crmNote?.noteType ||
+      initialParameters?.crmNote?.noteType ||
+      null,
+    [additionalData, initialParameters]
+  )
 
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
@@ -85,22 +94,29 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
     return errors.length > 0 ? errors : null
   }, [])
 
-  const handleSubmit = useCallback(async (data: z.infer<typeof noteSchema>) => {
-    try {
-      delete data._pendingFiles
-      delete data.relatedEntityId
+  const handleSubmit = useCallback(
+    async (data: z.infer<typeof noteSchema>) => {
+      try {
+        delete data._pendingFiles
+        delete data.relatedEntityId
 
-      // Build payload (buildPayload will include creator fields from noteData)
-      const { crmNote } = buildCustomerNotePayload(data as Partial<CustomerNote>)
+        // Build payload (buildPayload will include creator fields from noteData)
+        const payloadInput = {
+          ...data,
+          noteType: data.noteType ?? contextNoteType ?? undefined
+        }
+        const { crmNote } = buildCustomerNotePayload(payloadInput as Partial<CustomerNote>)
 
-      return {
-        crmNote
+        return {
+          crmNote
+        }
+      } catch (error) {
+        console.error('Error submitting note:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting note:', error)
-      throw error
-    }
-  }, [])
+    },
+    [contextNoteType]
+  )
 
   const handlePreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -197,6 +213,12 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
       hydrateEntityById('lead', leadId)
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+
+  useEffect(() => {
+    if (!contextNoteType) return
+    if (form.getValues('noteType')) return
+    form.setValue('noteType', contextNoteType)
+  }, [contextNoteType, form])
 
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {

@@ -6,6 +6,7 @@ import {
   useGetInvestmentTasksByAccountId,
   useGetInvestmentAccountById
 } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
 const taskDescription = `You are an investment relationship management assistant analyzing an institutional investor or investment account.
 
@@ -54,9 +55,7 @@ export function useAccountAiSummary(accountId: string, accessToken: string): Use
 
       // Get activities data
       const activities = await fetchInvestmentActivitiesByAccountId(accountId)
-      const sortedActivities = (activities || []).sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      )
+      const sortedActivities = sortActivitiesByOccurredAtDesc(activities || [])
 
       // Get notes data
       const notes = await fetchInvestmentNotesByAccountId(accountId)
@@ -91,7 +90,7 @@ export function useAccountAiSummary(accountId: string, accessToken: string): Use
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,
         tasksCount: sortedTasks.length,
-        lastActivityDate: sortedActivities[0]?.createdAt,
+        lastActivityDate: sortedActivities[0]?.occurredAt || sortedActivities[0]?.createdAt,
         lastNoteDate: sortedNotes[0]?.createdAt,
         lastTaskDate: sortedTasks[0]?.createdAt
       }

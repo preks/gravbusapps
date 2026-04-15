@@ -1,3 +1,5 @@
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
 /**
  * GraphQL query helpers (generic, entity-agnostic)
  */
@@ -405,6 +407,38 @@ export const transformFilterOptions = (data: any, descriptor: Descriptor): Array
   const paths = descriptor.optionSelectPaths
   const firstPath = paths[0] || ''
   const pathParts = firstPath.split('.')
+  const currentLocale = getCurrentActiveUserLocale()
+
+  const getValueAtPath = (source: any, parts: string[]): unknown => {
+    let value = source
+    for (const part of parts) {
+      value = value?.[part]
+    }
+    return value
+  }
+
+  const resolveOptionLabel = (
+    source: any,
+    idValue: unknown,
+    fallbackLabelPath: string[],
+    localizedLabelPath: string[]
+  ) => {
+    const fallbackLabel = getValueAtPath(source, fallbackLabelPath)
+    const localizedLabels = localizedLabelPath.length ? getValueAtPath(source, localizedLabelPath) : undefined
+
+    if (localizedLabels && typeof localizedLabels === 'object' && !Array.isArray(localizedLabels)) {
+      const localizedLabel = (localizedLabels as Record<string, unknown>)[currentLocale]
+      if (typeof localizedLabel === 'string' && localizedLabel.trim() !== '') {
+        return localizedLabel
+      }
+    }
+
+    if (typeof fallbackLabel === 'string' && fallbackLabel.trim() !== '') {
+      return fallbackLabel
+    }
+
+    return String(idValue || '')
+  }
 
   // Auto-detect nested arrays: if first selectPath has 3+ parts, it's nested (e.g., "addresses.country.id")
   const isNestedArray = pathParts.length > 2
@@ -421,30 +455,24 @@ export const transformFilterOptions = (data: any, descriptor: Descriptor): Array
     // Get label path (e.g., ["country", "value"])
     const labelPathParts = paths[1]?.split('.') || pathParts
     const nestedLabelPath = labelPathParts.length > 2 ? labelPathParts.slice(1) : nestedIdPath
+    const localizedLabelPathParts = paths[2]?.split('.') || []
+    const nestedLocalizedLabelPath =
+      localizedLabelPathParts.length > 2 ? localizedLabelPathParts.slice(1) : localizedLabelPathParts
 
     data.forEach((item: any) => {
       const array = item?.[arrayKey]
       if (!Array.isArray(array)) return
 
       array.forEach((arrayItem: any) => {
-        // Navigate nested path for id (e.g., arrayItem.country.id)
-        let id = arrayItem
-        for (const part of nestedIdPath) {
-          id = id?.[part]
-        }
-
-        // Navigate nested path for label (e.g., arrayItem.country.value)
-        let label = arrayItem
-        for (const part of nestedLabelPath) {
-          label = label?.[part]
-        }
+        const id = getValueAtPath(arrayItem, nestedIdPath)
+        const label = resolveOptionLabel(arrayItem, id, nestedLabelPath, nestedLocalizedLabelPath)
 
         const idStr = String(id || '')
         if (idStr && idStr.trim() !== '' && !seen.has(idStr)) {
           seen.add(idStr)
           result.push({
             id: idStr,
-            label: String(label || idStr)
+            label
           })
         }
       })
@@ -456,24 +484,16 @@ export const transformFilterOptions = (data: any, descriptor: Descriptor): Array
   // Simple path (existing logic)
   const idPath = pathParts
   const labelPath = paths[1]?.split('.') || pathParts
+  const localizedLabelPath = paths[2]?.split('.') || []
 
   return data
     .map((item: any) => {
-      // Extract id from nested path
-      let id = item
-      for (const segment of idPath) {
-        id = id?.[segment]
-      }
-
-      // Extract label from nested path
-      let label = item
-      for (const segment of labelPath) {
-        label = label?.[segment]
-      }
+      const id = getValueAtPath(item, idPath)
+      const label = resolveOptionLabel(item, id, labelPath, localizedLabelPath)
 
       return {
         id: String(id || ''),
-        label: String(label || id || '')
+        label
       }
     })
     .filter(option => option.id && option.id.trim() !== '')

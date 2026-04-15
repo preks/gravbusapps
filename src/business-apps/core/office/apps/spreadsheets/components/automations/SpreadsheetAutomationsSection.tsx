@@ -252,10 +252,19 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
           </Card>
           <Card>
             <CardContent className="gba:p-3">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:text-xs gba:text-muted-foreground">{t('sa-stat-collections')}</div>
-                <div className="gba:text-lg gba:font-bold gba:text-primary">
-                  {stats.byType['excel_collection'] || 0}
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">{t('sa-stat-collection-breakdown')}</div>
+              <div className="gba:flex gba:flex-col gba:gap-2">
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('sa-stat-form-collections')}</span>
+                  <span className="gba:text-base gba:font-bold gba:text-foreground">
+                    {stats.byType['bulk_collection'] || 0}
+                  </span>
+                </div>
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('sa-stat-template-collections')}</span>
+                  <span className="gba:text-base gba:font-bold gba:text-primary">
+                    {stats.byType['excel_collection'] || 0}
+                  </span>
                 </div>
               </div>
             </CardContent>

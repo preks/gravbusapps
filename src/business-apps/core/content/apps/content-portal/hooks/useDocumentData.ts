@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect } from 'react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useContentDocuments } from '@/common/data/content/hooks/useContentDocuments'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 
 /**
@@ -18,42 +18,37 @@ export interface DocumentArea extends ContentEntry {
  * Uses central useContentEntries hook
  *
  * @param accessToken - Access token for authentication
- * @param contentTypeRef - Optional content type filter
+ * @param contentTypeId - Optional content type filter
  * @param categoryRefs - Optional category filters (can be multiple)
  * @param search - Optional search query
  */
 export const useDocumentAreas = (
   accessToken: string,
-  contentTypeRef?: string | null,
-  categoryRefs?: string[],
+  contentTypeId?: string | null,
+  categoryIds?: string[],
   search?: string
 ) => {
-  // Serialize categoryRefs to prevent reference instability
-  const categoryRefsKey = useMemo(() => JSON.stringify(categoryRefs || []), [categoryRefs])
+  const categoryRefsKey = useMemo(() => JSON.stringify(categoryIds || []), [categoryIds])
 
-  // Memoize params to prevent infinite re-renders
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: 'ContentGroup:v1:DOCUMENT',
-      contentTypeRef: contentTypeRef || undefined,
-      categoryRefs: categoryRefs && categoryRefs.length > 0 ? categoryRefs : undefined,
+      contentGroup: 'DOCUMENT_CONTENT_GROUP',
+      contentTypeId: contentTypeId || undefined,
+      categoryIds: categoryIds && categoryIds.length > 0 ? categoryIds : undefined,
       search: search || undefined,
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }),
-    [contentTypeRef, categoryRefsKey, search]
+    [contentTypeId, categoryRefsKey, search]
   )
 
-  // Memoize query options to prevent infinite re-renders
   const queryOptions = useMemo(
     () => ({
       fields: [
         'id',
         'title',
         'preview',
-        'contentGroupRef',
-        'contentTypeRef',
         'contentGroup',
         'contentType',
         'contentEntryCategories',

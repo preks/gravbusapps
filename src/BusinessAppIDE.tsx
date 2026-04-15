@@ -1125,23 +1125,25 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   <IDEContextPanel accessToken={accessToken || ''} userInfo={parsedUserInfo()} enabled={enableChat} />
                 }
               >
-                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:bg-background gba:rounded-xl">
-                  {!selectedApp ? (
-                    <IDEStartScreen
-                      filteredBusinessApps={filteredCatalogBusinessApps}
-                      allBusinessApps={businessApps}
-                      onAppSelect={handleAppSelect}
-                    />
-                  ) : (
-                    <IDERenderer
-                      selectedApp={selectedApp}
-                      userInfo={parsedUserInfo()}
-                      accessToken={accessToken || ''}
-                      additionalData={parsedAdditionalData()}
-                      onAppSelect={setSelectedApp}
-                    />
-                  )}
-                </div>
+                {!selectedApp ? (
+                  <div className="gba:flex gba:min-h-full gba:w-full gba:flex-col gba:bg-background gba:rounded-xl">
+                    <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto">
+                      <IDEStartScreen
+                        filteredBusinessApps={filteredCatalogBusinessApps}
+                        allBusinessApps={businessApps}
+                        onAppSelect={handleAppSelect}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <IDERenderer
+                    selectedApp={selectedApp}
+                    userInfo={parsedUserInfo()}
+                    accessToken={accessToken || ''}
+                    additionalData={parsedAdditionalData()}
+                    onAppSelect={setSelectedApp}
+                  />
+                )}
               </ShellLayout>
 
               <PerformanceWindow open={performanceWindowOpen} onClose={() => setPerformanceWindowOpen(false)} />

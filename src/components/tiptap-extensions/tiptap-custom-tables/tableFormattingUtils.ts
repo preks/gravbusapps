@@ -1,9 +1,18 @@
-import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import { NodeSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
-import { CellSelection, TableMap, cellAround } from '@tiptap/pm/tables'
-import { getTableRuntimeChainKey } from './tablePaginationIdentity'
+import type { EditorState, Transaction } from '@tiptap/pm/state'
+import {
+  getLinkedSelectedTableContext,
+  getSelectedTableRectContext,
+  type SelectedTableRectContext,
+  type TableFragmentContext
+} from './tableLinkedFragments'
 import type { TableBorderStyle } from './types'
 import { normalizeBorderStyle, normalizeColorValue, normalizeCssLength } from './styleUtils'
+
+export {
+  getSelectedTableRectContext,
+  type SelectedTableRectContext,
+  type TableFragmentContext
+} from './tableLinkedFragments'
 
 const BORDER_SIDE_CONFIG = [
   {
@@ -44,135 +53,11 @@ export type TableBorderPreset =
   | 'bottom'
   | 'left'
 
-export interface SelectedTableRectContext {
-  table: ProseMirrorNode
-  tablePos: number
-  tableStart: number
-  map: TableMap
-  rect: { left: number; top: number; right: number; bottom: number }
-}
-
-export interface TableFragmentContext {
-  table: ProseMirrorNode
-  tablePos: number
-  tableStart: number
-  map: TableMap
-  logicalRowStart: number
-  logicalRowEnd: number
-}
-
-interface LinkedSelectedTableContext {
-  current: SelectedTableRectContext
-  fragments: TableFragmentContext[]
-  totalRows: number
-}
-
 interface ApplyBorderPresetOptions {
   preset: TableBorderPreset
   style?: TableBorderStyle | null
   width?: string | null
   color?: string | null
-}
-
-function getTableFromNodeSelection(
-  state: EditorState,
-  tableNodeName: string
-): Pick<SelectedTableRectContext, 'table' | 'tablePos' | 'tableStart' | 'map'> | null {
-  if (!(state.selection instanceof NodeSelection) || state.selection.node.type.name !== tableNodeName) {
-    return null
-  }
-
-  const table = state.selection.node
-  const tablePos = state.selection.from
-  return {
-    table,
-    tablePos,
-    tableStart: tablePos + 1,
-    map: TableMap.get(table)
-  }
-}
-
-export function getSelectedTableRectContext(
-  state: EditorState,
-  tableNodeName: string
-): SelectedTableRectContext | null {
-  const fromNodeSelection = getTableFromNodeSelection(state, tableNodeName)
-  if (fromNodeSelection) {
-    return {
-      ...fromNodeSelection,
-      rect: {
-        left: 0,
-        top: 0,
-        right: fromNodeSelection.map.width,
-        bottom: fromNodeSelection.map.height
-      }
-    }
-  }
-
-  const $cell = cellAround(state.selection.$from)
-  if (!$cell) return null
-
-  for (let depth = $cell.depth; depth > 0; depth -= 1) {
-    const node = $cell.node(depth)
-    if (node.type.name !== tableNodeName) continue
-
-    const tablePos = $cell.before(depth)
-    const tableStart = tablePos + 1
-    const map = TableMap.get(node)
-    const rect =
-      state.selection instanceof CellSelection
-        ? map.rectBetween(state.selection.$anchorCell.pos - tableStart, state.selection.$headCell.pos - tableStart)
-        : map.findCell($cell.pos - tableStart)
-
-    return {
-      table: node,
-      tablePos,
-      tableStart,
-      map,
-      rect
-    }
-  }
-
-  return null
-}
-
-function getLinkedSelectedTableContext(state: EditorState, tableNodeName: string): LinkedSelectedTableContext | null {
-  const current = getSelectedTableRectContext(state, tableNodeName)
-  if (!current) return null
-
-  const paginationChainKey = getTableRuntimeChainKey(current.table, current.tablePos)
-
-  const baseFragments: Array<Omit<TableFragmentContext, 'logicalRowStart' | 'logicalRowEnd'>> = []
-
-  state.doc.descendants((node, pos) => {
-    if (node.type.name === tableNodeName && getTableRuntimeChainKey(node, pos) === paginationChainKey) {
-      baseFragments.push({
-        table: node,
-        tablePos: pos,
-        tableStart: pos + 1,
-        map: TableMap.get(node)
-      })
-    }
-
-    return true
-  })
-
-  let logicalRowStart = 0
-  const fragments = baseFragments.map(fragment => {
-    const nextFragment: TableFragmentContext = {
-      ...fragment,
-      logicalRowStart,
-      logicalRowEnd: logicalRowStart + fragment.map.height
-    }
-    logicalRowStart = nextFragment.logicalRowEnd
-    return nextFragment
-  })
-
-  return {
-    current,
-    fragments,
-    totalRows: logicalRowStart
-  }
 }
 
 interface TableCellEntry {

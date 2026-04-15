@@ -85,4 +85,8 @@ else
   echo ""
   echo "Updating component hashes..."
   node scripts/update-dev-hashes.js || echo "WARNING: Hash update failed (non-critical)"
+
+  echo ""
+  echo "Updating bundle-top-dependencies..."
+  node scripts/update-bundle-top-dependencies.js || echo "WARNING: Bundle dependencies update failed (non-critical)"
 fi

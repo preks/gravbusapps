@@ -35,7 +35,7 @@ import {
   type EmployeeLiteOption,
   getWorkEmailFromCommunication
 } from '@/common/data/employee/useEmployeeSearch'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SharePermission } from '../types'
 import translations from '../_i18n'
@@ -107,7 +107,7 @@ const sendBlinkNotifications = async (
   }
 ): Promise<{ success: boolean; count?: number; error?: string }> => {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
     const timestamp = Date.now()
     const blinkGroupId = `blink_group_${timestamp}_${payload.initiatorId}`
 
@@ -177,7 +177,7 @@ const sendBlinkNotifications = async (
         }
       }
 
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+      const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -34,7 +34,7 @@ interface MultiEmployeeSelectionModalProps {
   initialSelectedIds?: string[]
   onConfirm: (selectedIds: string[], selectedEmployees: MultiEmployeeOption[]) => void
   maxSelection?: number
-  selectionCountLabel?: string
+  selectionCountLabel?: string | ((count: number, maxSelection?: number) => string)
 }
 
 const prefixDataTestId = 'MultiEmployeeSelectionModal'
@@ -91,6 +91,18 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
   }
 
   const isMaxReached = maxSelection != null && selectedIds.size >= maxSelection
+  const resolvedSelectionCountLabel = useMemo(() => {
+    if (typeof selectionCountLabel === 'function') {
+      return selectionCountLabel(selectedIds.size, maxSelection)
+    }
+    if (selectionCountLabel) {
+      return selectionCountLabel
+    }
+    if (maxSelection != null) {
+      return `${selectedIds.size} of ${maxSelection} selected`
+    }
+    return null
+  }, [selectionCountLabel, selectedIds.size, maxSelection])
 
   const filtered = useMemo(() => {
     if (!searchTerm.trim()) return employees
@@ -127,7 +139,9 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
           />
 
-          {selectionCountLabel && <div className="gba:text-sm gba:text-muted-foreground">{selectionCountLabel}</div>}
+          {resolvedSelectionCountLabel && (
+            <div className="gba:text-sm gba:text-muted-foreground">{resolvedSelectionCountLabel}</div>
+          )}
 
           <div className="gba:max-h-[60vh] gba:overflow-y-auto gba:space-y-2">
             {loading && employees.length === 0 ? (

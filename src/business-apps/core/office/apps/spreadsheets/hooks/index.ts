@@ -37,12 +37,6 @@ export { useSpreadsheetAppsHubUserLookup } from './useSpreadsheetAppsHubUserLook
 export { useSpreadsheetViewerState, sortSpreadsheetRowsBySheetSettings } from './useSpreadsheetViewerState'
 export type { UseSpreadsheetViewerStateProps, SpreadsheetViewerState } from './useSpreadsheetViewerState'
 
-export { useSpreadsheetViewerCollaboration } from './useSpreadsheetViewerCollaboration'
-export type {
-  UseSpreadsheetViewerCollaborationProps,
-  SpreadsheetViewerCollaborationState
-} from './useSpreadsheetViewerCollaboration'
-
 export { useSpreadsheetCellSelection } from './useSpreadsheetCellSelection'
 export type {
   UseSpreadsheetCellSelectionProps,

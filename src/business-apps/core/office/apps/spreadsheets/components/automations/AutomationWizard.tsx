@@ -5,7 +5,7 @@
  * Guides users through type selection, trigger configuration, workflow design, and column mapping.
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Button,
@@ -52,6 +52,7 @@ import {
   MessageSquare
 } from 'lucide-react'
 import { TrackingColumnsConfig, getDefaultTrackingColumns } from './TrackingColumnsConfig'
+import { AutomationFormSelectFieldConfig } from './AutomationFormSelectFieldConfig'
 import type {
   SpreadsheetAutomation,
   AutomationType,
@@ -60,7 +61,8 @@ import type {
   ResultMapping,
   AutomationFlowStep,
   AutomationFlowTemplate,
-  SheetApprovalConfig
+  SheetApprovalConfig,
+  BulkCollectionEntitySelectConfig
 } from '../../types/automation'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import { UserSelect } from '@/components/user-select'
@@ -96,8 +98,8 @@ export interface AutomationWizardProps {
   spreadsheetId: string
   /** Access token for API calls (user selection) */
   accessToken?: string
-  /** Optional: Update column labels to match form field labels (for bulk collection headers) */
-  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void
+  /** Optional: Update column labels to match form field labels (for bulk collection headers). Return a Promise so save can await persistence before patching automations. */
+  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void | Promise<void>
   /** Data test ID */
   'data-testid'?: string
 }
@@ -231,23 +233,83 @@ function toTemplateOptions(
     }))
 }
 
-function mapExistingFormFields(existingAutomation?: SpreadsheetAutomation): Array<{
+type WizardBulkFormField = {
   id: string
   label: string
   type: 'text' | 'number' | 'date' | 'textarea' | 'select'
   required: boolean
   targetColumn: string
-}> {
+  options?: string[]
+  selectOptionsSource?: 'static' | 'entity'
+  entitySelect?: BulkCollectionEntitySelectConfig
+}
+
+function mapExistingFormFields(existingAutomation?: SpreadsheetAutomation): WizardBulkFormField[] {
   const formFields = existingAutomation?.collectionConfig?.formFields
   if (!formFields) return []
 
-  return formFields.map(field => ({
-    id: field.id,
-    label: field.label,
-    type: (field.inputType?.toLowerCase() || 'text') as 'text' | 'number' | 'date' | 'textarea' | 'select',
-    required: field.required || false,
-    targetColumn: field.columnId || field.id
-  }))
+  return formFields.map(field => {
+    const inputLower = (field.inputType?.toLowerCase() || 'text') as WizardBulkFormField['type']
+    const base: WizardBulkFormField = {
+      id: field.id,
+      label: field.label,
+      type: inputLower,
+      required: field.required || false,
+      targetColumn: field.columnId || field.id
+    }
+
+    if (inputLower !== 'select') {
+      return base
+    }
+
+    const source =
+      field.selectOptionsSource ??
+      (field.entitySelect?.entityType && field.entitySelect?.valueField && field.entitySelect?.labelField
+        ? 'entity'
+        : 'static')
+
+    if (source === 'entity' && field.entitySelect) {
+      return {
+        ...base,
+        selectOptionsSource: 'entity',
+        entitySelect: { ...field.entitySelect },
+        options: undefined
+      }
+    }
+
+    return {
+      ...base,
+      selectOptionsSource: 'static',
+      options: field.options && field.options.length > 0 ? [...field.options] : [''],
+      entitySelect: undefined
+    }
+  })
+}
+
+function validateBulkCollectionSelectFields(formFields: WizardBulkFormField[], t: (key: string) => string): string[] {
+  const errors: string[] = []
+  let staticInvalid = false
+  let entityInvalid = false
+
+  for (const f of formFields) {
+    if (f.type !== 'select') continue
+    const source =
+      f.selectOptionsSource ??
+      (f.entitySelect?.entityType && f.entitySelect?.valueField && f.entitySelect?.labelField ? 'entity' : 'static')
+    if (source === 'static') {
+      const opts = (f.options || []).map(o => String(o).trim()).filter(Boolean)
+      if (opts.length === 0) staticInvalid = true
+    } else {
+      const es = f.entitySelect
+      if (!es?.entityType?.trim() || !es.valueField?.trim() || !es.labelField?.trim()) {
+        entityInvalid = true
+      }
+    }
+  }
+
+  if (staticInvalid) errors.push(t('wizard-error-select-options-required'))
+  if (entityInvalid) errors.push(t('wizard-error-select-entity-required'))
+  return errors
 }
 
 function getFieldTypeForColumn(colType: string): 'text' | 'number' | 'date' {
@@ -350,6 +412,19 @@ function getStepTitle(step: WizardStep, translate: (key: string) => string): str
   }
 }
 
+const WIZARD_CLIPBOARD_KEYS = new Set(['c', 'v', 'x', 'a'])
+
+/** Inputs inside the wizard modal and portaled pickers it opens (Select/Popover/Combobox). */
+function isEventTargetInOpenAutomationWizard(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  if (target.closest('[data-automation-wizard-root="true"]')) return true
+  return Boolean(
+    target.closest("[data-slot='select-content']") ||
+      target.closest("[data-slot='popover-content']") ||
+      target.closest("[data-slot='combobox-content']")
+  )
+}
+
 function getAutomationTypeTitle(type: AutomationType | null, translate: (key: string) => string): string {
   if (!type) return translate('wizard-not-selected')
 
@@ -380,6 +455,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const isEditing = !!existingAutomation
+  const wizardModalBodyRef = useRef<HTMLDivElement>(null)
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>('type')
@@ -408,16 +484,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   >([])
 
   // Form fields for bulk collection (what questions to ask)
-  const [formFields, setFormFields] = useState<
-    Array<{
-      id: string
-      label: string
-      type: 'text' | 'number' | 'date' | 'textarea' | 'select'
-      required: boolean
-      targetColumn: string // which column to write response to
-      options?: string[] // for select type
-    }>
-  >([])
+  const [formFields, setFormFields] = useState<WizardBulkFormField[]>([])
 
   // Tracking columns for bulk collection (auto-generated metadata columns)
   const [trackingColumns, setTrackingColumns] = useState<string[]>(() => getDefaultTrackingColumns())
@@ -454,6 +521,42 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const updateFormField = (fieldId: string, updates: Partial<(typeof formFields)[0]>) => {
     setFormFields(prev => prev.map(f => (f.id === fieldId ? { ...f, ...updates } : f)))
   }
+
+  // Univer registers window-level key handlers for spreadsheet copy/paste; they can win over inputs in this modal.
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDownCapture = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (!WIZARD_CLIPBOARD_KEYS.has(e.key.toLowerCase())) return
+      if (!isEventTargetInOpenAutomationWizard(e.target)) return
+      e.stopImmediatePropagation()
+    }
+    window.addEventListener('keydown', onKeyDownCapture, true)
+    return () => window.removeEventListener('keydown', onKeyDownCapture, true)
+  }, [isOpen])
+
+  // Move focus into the wizard so the grid does not keep keyboard focus (and clipboard shortcuts).
+  useEffect(() => {
+    if (!isOpen) return
+    const ae = document.activeElement
+    const gridHost = document.querySelector('[data-testid="univer-sheet-grid-container"]')
+    if (ae instanceof HTMLElement && gridHost instanceof Element && gridHost.contains(ae)) {
+      ae.blur()
+    }
+    const id = window.requestAnimationFrame(() => {
+      const root = wizardModalBodyRef.current
+      if (!root) return
+      const first = root.querySelector<HTMLElement>(
+        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])'
+      )
+      if (first) {
+        first.focus({ preventScroll: true })
+        return
+      }
+      root.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [isOpen])
 
   // Initialize from existing automation
   useEffect(() => {
@@ -602,6 +705,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       if (automationType === 'bulk_collection') {
         if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-form-recipients'))
         if (formFields.length === 0) errors.push(t('wizard-error-add-form-field'))
+        errors.push(...validateBulkCollectionSelectFields(formFields, t))
       }
 
       if (automationType === 'excel_collection') {
@@ -609,7 +713,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         if (!hasConfiguredRecipients()) errors.push(t('wizard-error-select-recipients'))
       }
     },
-    [name, automationType, hasConfiguredRecipients, formFields.length, selectedTemplateId, t]
+    [name, automationType, hasConfiguredRecipients, formFields, selectedTemplateId, t]
   )
 
   const validateTypeStep = useCallback(
@@ -660,8 +764,11 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       if (automationType === 'bulk_collection' && formFields.length === 0) {
         errors.push(t('wizard-error-add-form-field-to-collect'))
       }
+      if (automationType === 'bulk_collection') {
+        errors.push(...validateBulkCollectionSelectFields(formFields, t))
+      }
     },
-    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields.length, t]
+    [hasConfiguredRecipients, automationType, selectedTemplateId, formFields, t]
   )
 
   const stepValidationHandlers: Partial<Record<WizardStep, (errors: string[]) => void>> = useMemo(
@@ -806,14 +913,40 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
           recipients,
           trackingColumns,
           message,
-          formFields: formFields.map(f => ({
-            id: f.id,
-            label: f.label,
-            type: 'existing_column' as const,
-            columnId: f.targetColumn,
-            inputType: f.type.toUpperCase() as 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT',
-            required: f.required
-          })),
+          formFields: formFields.map(f => {
+            const inputType = f.type.toUpperCase() as 'TEXT' | 'NUMBER' | 'DATE' | 'TEXTAREA' | 'SELECT'
+            const base = {
+              id: f.id,
+              label: f.label,
+              type: 'existing_column' as const,
+              columnId: f.targetColumn,
+              inputType,
+              required: f.required
+            }
+            if (f.type !== 'select') {
+              return base
+            }
+            const source =
+              f.selectOptionsSource ??
+              (f.entitySelect?.entityType && f.entitySelect?.valueField && f.entitySelect?.labelField
+                ? 'entity'
+                : 'static')
+            if (source === 'entity' && f.entitySelect) {
+              return {
+                ...base,
+                selectOptionsSource: 'entity' as const,
+                entitySelect: f.entitySelect,
+                options: undefined
+              }
+            }
+            const trimmedOptions = (f.options || []).map(o => String(o).trim()).filter(Boolean)
+            return {
+              ...base,
+              selectOptionsSource: 'static' as const,
+              options: trimmedOptions,
+              entitySelect: undefined
+            }
+          }),
           rowIdentifier: 'assignee' as const,
           fieldMappings: formFields.map(f => ({
             workflowOutputPath: `step_0.formData.${f.targetColumn}`,
@@ -860,13 +993,13 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     [formFields, columns, columnMappings]
   )
 
-  const syncBulkCollectionColumnLabels = useCallback(() => {
+  const syncBulkCollectionColumnLabels = useCallback(async () => {
     if (automationType !== 'bulk_collection' || formFields.length === 0 || !onColumnLabelsUpdate) return
 
     const labelUpdates = formFields
       .map(field => {
         const col = columns.find(c => c.id === field.targetColumn)
-        if (col && field.label.trim() && col.label !== field.label.trim()) {
+        if (col && field.label.trim()) {
           return { columnId: col.id, newLabel: field.label.trim() }
         }
         return undefined
@@ -874,7 +1007,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       .filter((u): u is { columnId: string; newLabel: string } => u !== undefined)
 
     if (labelUpdates.length > 0) {
-      onColumnLabelsUpdate(labelUpdates)
+      await Promise.resolve(onColumnLabelsUpdate(labelUpdates))
     }
   }, [automationType, formFields, onColumnLabelsUpdate, columns])
 
@@ -909,7 +1042,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         collectionConfig
       }
 
-      syncBulkCollectionColumnLabels()
+      await syncBulkCollectionColumnLabels()
 
       await onSave(automation)
       onClose()
@@ -1853,7 +1986,24 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                                 </Label>
                                 <Select
                                   value={field.type}
-                                  onValueChange={v => updateFormField(field.id, { type: v as typeof field.type })}
+                                  onValueChange={v => {
+                                    const nextType = v as WizardBulkFormField['type']
+                                    if (nextType === 'select') {
+                                      updateFormField(field.id, {
+                                        type: 'select',
+                                        selectOptionsSource: 'static',
+                                        options: [''],
+                                        entitySelect: undefined
+                                      })
+                                    } else {
+                                      updateFormField(field.id, {
+                                        type: nextType,
+                                        options: undefined,
+                                        selectOptionsSource: undefined,
+                                        entitySelect: undefined
+                                      })
+                                    }
+                                  }}
                                 >
                                   <SelectTrigger className="gba:mt-1 gba:h-8">
                                     <SelectValue />
@@ -1905,6 +2055,19 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                               </Button>
                             </div>
                           </div>
+                          {field.type === 'select' && (
+                            <AutomationFormSelectFieldConfig
+                              selectOptionsSource={
+                                field.selectOptionsSource ?? (field.entitySelect?.entityType ? 'entity' : 'static')
+                              }
+                              options={field.options ?? ['']}
+                              entitySelect={field.entitySelect}
+                              accessToken={accessToken}
+                              translate={t}
+                              onChange={patch => updateFormField(field.id, patch)}
+                              data-testid={`automation-wizard-select-${field.id}`}
+                            />
+                          )}
                         </CardContent>
                       </Card>
                     ))}
@@ -2295,6 +2458,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         [data-radix-popper-content-wrapper] {
           z-index: 1000003 !important;
         }
+        /* Keep Univer from retaining focus / intercepting gestures while the wizard is open */
+        body:has([data-automation-wizard-root='true']) [data-testid='univer-sheet-grid-container'] {
+          pointer-events: none !important;
+        }
       `}</style>
       {/* Backdrop */}
       <div
@@ -2305,9 +2472,12 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
       {/* Modal */}
       <div
-        className="gba:relative gba:w-full gba:max-w-3xl gba:max-h-[90vh] gba:bg-background gba:rounded-xl gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col gba:m-4"
+        ref={wizardModalBodyRef}
+        tabIndex={-1}
+        className="gba:relative gba:w-full gba:max-w-3xl gba:max-h-[90vh] gba:bg-background gba:rounded-xl gba:shadow-2xl gba:overflow-hidden gba:flex gba:flex-col gba:m-4 gba:outline-none focus-visible:gba:outline-none"
         style={{ zIndex: 1000002 }}
         data-testid={testId}
+        data-automation-wizard-root="true"
       >
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b">

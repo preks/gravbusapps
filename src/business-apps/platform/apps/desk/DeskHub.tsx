@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Presentation,
   HardDrive,
+  PenTool,
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
@@ -72,9 +73,11 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
           ? '/platform/every-office/notes'
           : appName === 'slide-apps'
             ? '/platform/every-office/slides'
-            : appName === 'drive-apps'
-              ? '/platform/every-office/drive'
-              : `/platform/apps/${appName}`
+            : appName === 'whiteboard-apps'
+              ? '/platform/every-office/whiteboards'
+              : appName === 'drive-apps'
+                ? '/platform/every-office/drive'
+                : `/platform/apps/${appName}`
   const urlParams = params?.from ? params : { from: 'desk', ...params }
   navigateTo(buildPlatformUrl(platformUrl, urlParams))
 }
@@ -101,10 +104,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
   // Fetch data from all content apps
-  const { documents, spreadsheets, notes, slides, recentItems, isLoading, stats, activityData } = useDeskData(
-    accessToken,
-    currentUserId
-  )
+  const { documents, spreadsheets, notes, slides, whiteboards, recentItems, isLoading, stats, activityData } =
+    useDeskData(accessToken, currentUserId)
 
   // Fetch spaces
   const { spaces } = useSpaces(accessToken, {
@@ -115,10 +116,10 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
   // Combine all items for search
   const allItems = useMemo(() => {
-    return [...documents, ...spreadsheets, ...notes, ...slides].sort(
+    return [...documents, ...spreadsheets, ...notes, ...slides, ...whiteboards].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
-  }, [documents, spreadsheets, notes, slides])
+  }, [documents, spreadsheets, notes, slides, whiteboards])
 
   // Filter items based on search - search all items when searching, show recent when not
   const displayItems = useMemo(() => {
@@ -161,6 +162,14 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
     navigateToApp('slide-apps', { action: 'new' })
   }, [])
 
+  const handleOpenWhiteboards = useCallback(() => {
+    navigateToApp('whiteboard-apps')
+  }, [])
+
+  const handleCreateWhiteboard = useCallback(() => {
+    navigateToApp('whiteboard-apps', { action: 'new' })
+  }, [])
+
   const handleOpenDrive = useCallback(() => {
     navigateToApp('drive-apps')
   }, [])
@@ -196,6 +205,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
       case 'slide':
         navigateToApp('slide-apps', { slideId: item.id, view: 'editor' })
         break
+      case 'whiteboard':
+        navigateToApp('whiteboard-apps', { whiteboardId: item.id })
+        break
     }
   }, [])
 
@@ -219,6 +231,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           onCreateSpreadsheet={handleCreateSpreadsheet}
           onCreateNote={handleCreateNote}
           onCreateSlide={handleCreateSlide}
+          onCreateWhiteboard={handleCreateWhiteboard}
           searchResults={displayItems}
           onItemClick={handleItemClick}
           isLoading={isLoading}
@@ -321,7 +334,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
             {/* App cards grid - collapsible */}
             {!isAppsCollapsed && (
-              <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-5 gba:gap-4">
+              <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-6 gba:gap-4">
                 <AppCard
                   title={t('app-documents-title')}
                   description={t('app-documents-description')}
@@ -373,6 +386,19 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   isLoading={isLoading}
                   animationDelay={0.4}
                   data-testid={`${testId}-app-slides`}
+                />
+                <AppCard
+                  title={t('app-whiteboards-title')}
+                  description={t('app-whiteboards-description')}
+                  icon={PenTool}
+                  count={stats.whiteboards.total}
+                  sharedCount={stats.whiteboards.shared}
+                  accentColor="accent"
+                  onOpen={handleOpenWhiteboards}
+                  onCreate={handleCreateWhiteboard}
+                  isLoading={isLoading}
+                  animationDelay={0.45}
+                  data-testid={`${testId}-app-whiteboards`}
                 />
                 <AppCard
                   title={t('app-drive-title')}

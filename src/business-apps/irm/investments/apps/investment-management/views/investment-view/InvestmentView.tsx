@@ -574,7 +574,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         config={{
           investmentGroup: group.code as any,
           dataTestIdPrefix: `${group.tabId}-investment`,
-          defaultTypeLabel: group.label,
+          defaultTypeLabel: 'Unknown',
           fromSubView: group.tabId,
           extraColumns: config.extraColumns || [],
           emptyMessage: `No ${group.label.toLowerCase()} investments found`

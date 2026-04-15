@@ -25,6 +25,7 @@ import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { fetchRecipientsData } from '../utils/fetchRecipientData'
 import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
+import { fetchAutomationsForSingleSheet } from '../components/automations/automationSectionUtils'
 
 /**
  * Ensure essential recipient tracking columns are always present.
@@ -125,6 +126,8 @@ export interface UseSpreadsheetAutomationsResult {
   getWorkflowLinkForRow: (rowId: string) => WorkflowRowLink | undefined
   /** Refresh workflow statuses */
   refreshWorkflowStatuses: () => Promise<void>
+  /** Reload automations for this sheet from document service (same sources as the Spreadsheets Automations hub tab) */
+  refreshAutomationsFromDocumentService: () => Promise<void>
   /** Start status polling */
   startPolling: () => void
   /** Stop status polling */
@@ -196,6 +199,26 @@ const buildColumnIdToNameMap = (automation: SpreadsheetAutomation): Map<string, 
   return columnIdToName
 }
 
+/** Map sheet column name → wizard form field label (bulk_collection only). Excel collection uses template columns instead. */
+function buildBulkCollectionFormFieldColumnLabels(
+  automation: SpreadsheetAutomation,
+  columnIdToName: Map<string, string>
+): Record<string, string> | undefined {
+  if (automation.type !== 'bulk_collection') return undefined
+  const formFields = automation.collectionConfig?.formFields
+  if (!formFields?.length) return undefined
+  const out: Record<string, string> = {}
+  for (const field of formFields) {
+    const columnId = field.columnId
+    if (!columnId) continue
+    const label = typeof field.label === 'string' ? field.label.trim() : ''
+    if (!label) continue
+    const columnName = columnIdToName.get(columnId) ?? columnId
+    out[columnName] = label
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 function hasCollectionRecipients(automation: SpreadsheetAutomation): boolean {
   return (
     (automation.collectionConfig?.recipients?.length ?? 0) > 0 ||
@@ -264,7 +287,22 @@ async function buildInitialCollectionRows(params: {
   if (automation.type === 'excel_collection' && automation.collectionConfig?.templateSpreadsheetId) {
     formFieldColumns = await fetchTemplateFormColumns(automation.collectionConfig.templateSpreadsheetId)
     columnLabels = Object.fromEntries(formFieldColumns.map(c => [c.name, c.label]))
+  } else if (automation.type === 'bulk_collection') {
+    const bulkLabels = buildBulkCollectionFormFieldColumnLabels(automation, columnIdToName)
+    if (bulkLabels) columnLabels = bulkLabels
   }
+
+  /** Column IDs for bulk form fields: hide Excel-style placeholder columns until a response writes data (parity with excel_collection UX). */
+  const bulkDeferPlaceholderFormColumnIds: string[] | undefined =
+    automation.type === 'bulk_collection'
+      ? (automation.collectionConfig?.formFields ?? [])
+          .map(f => f.columnId)
+          .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      : undefined
+  const bulkDeferMeta =
+    bulkDeferPlaceholderFormColumnIds && bulkDeferPlaceholderFormColumnIds.length > 0
+      ? { bulkDeferPlaceholderFormColumnIds }
+      : {}
 
   return workflows.map(wf => {
     const recipientId = wf.rowId.replace('recipient_', '')
@@ -303,7 +341,8 @@ async function buildInitialCollectionRows(params: {
         automationId: automation.id,
         isBulkCollectionPending: true,
         trackingColumns,
-        ...(Object.keys(columnLabels).length > 0 ? { columnLabels } : {})
+        ...(Object.keys(columnLabels).length > 0 ? { columnLabels } : {}),
+        ...bulkDeferMeta
       }
     }
   })
@@ -352,7 +391,14 @@ function buildRowUpdate(params: {
     workflowParameter: string
     columnName: string
   }>
-}): { workflowId: string; recipientId?: string; cells: Record<string, unknown> } {
+  /** When form responses omit __columnLabels__ (bulk forms), use automation form field titles */
+  fallbackColumnLabels?: Record<string, string>
+}): {
+  workflowId: string
+  recipientId?: string
+  cells: Record<string, unknown>
+  columnLabels?: Record<string, string>
+} {
   const { response, recipientData, trackingColumns, statusColumn, columnIdToName, columnMappings } = params
   const displayName =
     response.responderName && response.responderName !== 'Unknown' ? response.responderName : recipientData?.name
@@ -406,7 +452,10 @@ function buildRowUpdate(params: {
     }
   }
 
-  const columnLabels = (response.formData.__columnLabels__ as Record<string, string> | undefined) || undefined
+  const fromResponse = (response.formData.__columnLabels__ as Record<string, string> | undefined) || {}
+  const fallback = params.fallbackColumnLabels || {}
+  const mergedLabels = { ...fallback, ...fromResponse }
+  const columnLabels = Object.keys(mergedLabels).length > 0 ? mergedLabels : undefined
 
   for (const [key, value] of Object.entries(response.formData)) {
     if (key === '__columnLabels__') continue
@@ -474,7 +523,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
   const onAddRowsRef = useRef(onAddRows)
   const onUpdateRowsRef = useRef(onUpdateRows)
 
-  // Track processed workflow IDs to avoid duplicate row creation
+  // Track processed workflow IDs when a future collection type opts into in-memory dedupe (see fetchBulkCollectionResponses).
   const processedWorkflowIdsRef = useRef<Set<string>>(new Set())
   // Cache resolved backend IDs for excel_collection automations that were created with client-side IDs.
   const resolvedExcelBackendIdsRef = useRef<Map<string, string>>(new Map())
@@ -580,6 +629,31 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     onWorkflowLinksChangeRef.current?.(newLinks)
   }, [])
 
+  /** Register bulk/excel automations in document-service so the Automations hub tab can list them. */
+  const syncCollectionAutomationToBackend = useCallback(
+    async (automation: SpreadsheetAutomation) => {
+      if (!isCollectionAutomation(automation)) return
+      const svc = automationServiceRef.current
+      if (!svc || !accessToken) return
+      try {
+        const backendId = await svc.syncAutomationRecordOnBackend(automation, spreadsheetId, sheetId, {
+          persistMode: 'upsert'
+        })
+        if (!backendId) return
+        if (isUuid(automation.id)) return
+        if (automation.backendId === backendId) return
+        setAutomations(prev => {
+          const updated = prev.map(a => (a.id === automation.id ? { ...a, backendId } : a))
+          setTimeout(() => notifyAutomationsChange(updated), 0)
+          return updated
+        })
+      } catch {
+        // Hub can still merge from sheet JSON; avoid blocking the editor.
+      }
+    },
+    [accessToken, spreadsheetId, sheetId, notifyAutomationsChange]
+  )
+
   // Create automation
   const createAutomation = useCallback(
     async (
@@ -597,13 +671,15 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
       setAutomations(prev => {
         const updated = [...prev, newAutomation]
-        // Notify parent after state update
-        setTimeout(() => notifyAutomationsChange(updated), 0)
+        setTimeout(() => {
+          notifyAutomationsChange(updated)
+          void syncCollectionAutomationToBackend(newAutomation)
+        }, 0)
         return updated
       })
       return newAutomation
     },
-    [currentUserId, notifyAutomationsChange]
+    [currentUserId, notifyAutomationsChange, syncCollectionAutomationToBackend]
   )
 
   // Update automation
@@ -613,12 +689,15 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const updated = prev.map(automation =>
           automation.id === id ? { ...automation, ...updates, updatedAt: new Date().toISOString() } : automation
         )
-        // Notify parent after state update
-        setTimeout(() => notifyAutomationsChange(updated), 0)
+        const merged = updated.find(a => a.id === id)
+        setTimeout(() => {
+          notifyAutomationsChange(updated)
+          if (merged) void syncCollectionAutomationToBackend(merged)
+        }, 0)
         return updated
       })
     },
-    [notifyAutomationsChange]
+    [notifyAutomationsChange, syncCollectionAutomationToBackend]
   )
 
   // Delete automation
@@ -652,6 +731,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
       const duplicate: SpreadsheetAutomation = {
         ...original,
         id: generateId(),
+        backendId: undefined,
         name: `${original.name} (Copy)`,
         createdAt: now,
         updatedAt: now,
@@ -662,12 +742,15 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
       setAutomations(prev => {
         const updated = [...prev, duplicate]
-        setTimeout(() => notifyAutomationsChange(updated), 0)
+        setTimeout(() => {
+          notifyAutomationsChange(updated)
+          void syncCollectionAutomationToBackend(duplicate)
+        }, 0)
         return updated
       })
       return duplicate
     },
-    [automations, currentUserId, notifyAutomationsChange]
+    [automations, currentUserId, notifyAutomationsChange, syncCollectionAutomationToBackend]
   )
 
   // Toggle automation enabled state
@@ -920,6 +1003,22 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     }
   }, [spreadsheetId, sheetId, workflowLinks, notifyWorkflowLinksChange])
 
+  const refreshAutomationsFromDocumentService = useCallback(async (): Promise<void> => {
+    if (!accessToken) return
+    try {
+      const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
+      const list = await fetchAutomationsForSingleSheet({ id: spreadsheetId, name: '' }, sheetId, docBase, accessToken)
+      const normalized = list.map(a => ({
+        ...a,
+        runCount: typeof a.runCount === 'number' && Number.isFinite(a.runCount) ? a.runCount : 0
+      }))
+      setAutomations(normalized)
+      notifyAutomationsChange(normalized)
+    } catch (err) {
+      console.error('[useSpreadsheetAutomations] Failed to refresh automations from document service:', err)
+    }
+  }, [accessToken, spreadsheetId, sheetId, notifyAutomationsChange])
+
   // Start polling
   const startPolling = useCallback(() => {
     const service = syncServiceRef.current
@@ -968,10 +1067,14 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
     for (const automation of bulkCollectionAutomations) {
       try {
-        // For excel_collection, flows are tagged with backend UUID (document-service). Use backendId when available.
-        let effectiveAutomationId: string | null =
-          automation.backendId || (isUuid(automation.id) ? automation.id : null) || automation.id
+        const automationType = automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
+
+        let responses: Awaited<ReturnType<SpreadsheetAutomationService['fetchBulkCollectionResponses']>>
+
         if (automation.type === 'excel_collection') {
+          // Flows are tagged with document-service UUID; prefer backendId / resolved id.
+          let effectiveAutomationId: string | null =
+            automation.backendId || (isUuid(automation.id) ? automation.id : null) || automation.id
           const resolvedId = await resolveExcelCollectionAutomationId(automation)
           if (resolvedId) {
             effectiveAutomationId = resolvedId
@@ -979,21 +1082,49 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
               void updateAutomation(automation.id, { backendId: resolvedId })
             }
           }
-        }
-        if (!effectiveAutomationId) continue
-        const responses = await service.fetchBulkCollectionResponses({
-          spreadsheetId,
-          sheetId,
-          automationId: effectiveAutomationId,
-          automationType: automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
-        })
+          if (!effectiveAutomationId) continue
+          responses = await service.fetchBulkCollectionResponses({
+            spreadsheetId,
+            sheetId,
+            automationId: effectiveAutomationId,
+            automationType
+          })
+        } else {
+          // bulk_collection: new runs tag flows with document-service automation UUID; legacy flows may
+          // still use the client id. Merge results for every distinct client/backend id.
+          const clientId = typeof automation.id === 'string' ? automation.id.trim() : ''
+          const backendIdTrimmed = typeof automation.backendId === 'string' ? automation.backendId.trim() : ''
+          const idCandidates = [...new Set([clientId, backendIdTrimmed].filter(id => id.length > 0))]
+          if (idCandidates.length === 0) continue
 
-        // Filter out already processed responses.
+          const merged: typeof responses = []
+          const seenWorkflowIds = new Set<string>()
+          for (const automationId of idCandidates) {
+            const batch = await service.fetchBulkCollectionResponses({
+              spreadsheetId,
+              sheetId,
+              automationId,
+              automationType: 'bulk_collection'
+            })
+            for (const item of batch) {
+              const wid = String(item.workflowId || '').trim()
+              if (wid.length > 0 && !seenWorkflowIds.has(wid)) {
+                seenWorkflowIds.add(wid)
+                merged.push(item)
+              }
+            }
+          }
+          responses = merged
+        }
+
+        // Filter out already processed responses (only when shouldDedupeByMemory is true).
         // IMPORTANT:
-        // For excel_collection we intentionally DO NOT suppress by in-memory processed set,
-        // because row persistence can race/fail and we must keep retrying on every poll
-        // until the report sheet is actually updated.
-        const shouldDedupeByMemory = automation.type !== 'excel_collection'
+        // For bulk_collection and excel_collection we DO NOT suppress by in-memory processed set,
+        // because row application can race sheet hydration (poll before local rows exist), fail to
+        // match, or fail to persist — and we must keep retrying on every poll until rows update.
+        // Previously bulk_collection deduped after the first fetch, so closing/reopening the viewer
+        // or a failed first apply could skip completed responses permanently for that session.
+        const shouldDedupeByMemory = automation.type !== 'bulk_collection' && automation.type !== 'excel_collection'
         const newResponses = filterNewCompletedResponses(
           responses,
           shouldDedupeByMemory,
@@ -1017,6 +1148,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const statusColumn = automation.workflowConfig.statusColumn
 
         const columnIdToName = buildColumnIdToNameMap(automation)
+        const fallbackColumnLabels = buildBulkCollectionFormFieldColumnLabels(automation, columnIdToName)
         const recipientIdByWorkflowId = new Map(
           workflowLinks
             .filter(link => link.automationId === automation.id)
@@ -1048,11 +1180,11 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             trackingColumns,
             statusColumn,
             columnIdToName,
-            columnMappings: automation.workflowConfig.columnMappings
+            columnMappings: automation.workflowConfig.columnMappings,
+            fallbackColumnLabels
           })
         })
 
-        // Mark as processed only for non-excel collection automations.
         if (shouldDedupeByMemory) {
           newResponses.forEach(r => processedWorkflowIdsRef.current.add(r.workflowId))
         }
@@ -1208,6 +1340,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     // Status
     getWorkflowLinkForRow,
     refreshWorkflowStatuses,
+    refreshAutomationsFromDocumentService,
     startPolling,
     stopPolling,
 

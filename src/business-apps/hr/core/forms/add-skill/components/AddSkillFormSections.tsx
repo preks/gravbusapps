@@ -2,7 +2,6 @@ import React from 'react'
 import {
   Button,
   Combobox,
-  FileUpload,
   FormControl,
   FormField,
   FormItem,
@@ -19,6 +18,7 @@ import { DebouncedInput } from '@/components/debounced-input'
 import { AddSkillSearchDropdown } from './AddSkillSearchDropdown'
 import { SkillLevelRow } from './SkillLevelRow'
 import type { AddSkillFormValues, PendingSkill, SelectedSkill } from '../addSkill.types'
+import { EmployeeDocumentUploadField } from '../../document-sync/EmployeeDocumentUploadField'
 
 interface AddSkillFormSectionsProps {
   t: (key: string, args?: Record<string, unknown>) => string
@@ -41,7 +41,7 @@ interface AddSkillFormSectionsProps {
   acceptedVerificationFileTypes: string
   dropdownRef: React.RefObject<HTMLDivElement>
   searchContainerRef: React.RefObject<HTMLDivElement>
-  handleDesignSystemFilesChange: (files: Array<{ file: File | { name: string }; id: string }>) => void
+  handleDesignSystemFilesChange: (files: any[]) => void
   handleSearchBlur: (e: React.FocusEvent<HTMLInputElement>) => void
   handleSearchFocus: () => void
   handleSelectSkill: (skill: { id: string; name: string }) => void
@@ -51,7 +51,11 @@ interface AddSkillFormSectionsProps {
   handleUpdatePendingSkillLevel: (id: string, level: number) => void
   handleUpdateExistingSkillLevel: (id: string, level: number) => void
   handleAddPendingSkillToEmployee: (skill: PendingSkill) => void
-  setDocumentTypeIdLocal: (value: string | null) => void
+  verificationInitialFiles: any[]
+  isLoadingVerificationInitialFiles?: boolean
+  isResolvingVerificationInitialDocuments?: boolean
+  hasExistingVerificationDocumentHint?: boolean
+  hasInitialVerificationDocumentCandidates?: boolean
 }
 
 const LevelSelect: React.FC<{ value: number; onChange: (value: number) => void; dataTestId: string }> = ({
@@ -138,7 +142,11 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   handleUpdatePendingSkillLevel,
   handleUpdateExistingSkillLevel,
   handleAddPendingSkillToEmployee,
-  setDocumentTypeIdLocal
+  verificationInitialFiles,
+  isLoadingVerificationInitialFiles = false,
+  isResolvingVerificationInitialDocuments = false,
+  hasExistingVerificationDocumentHint = false,
+  hasInitialVerificationDocumentCandidates = false
 }) => {
   const mode = flowFormParams?.mode
   const isFlowMode = mode === 'deactivate' || mode === 'activate' || mode === 'attachVerification'
@@ -168,15 +176,22 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
             name="verificationFileUpload"
             render={() => (
               <FormItem>
-                <FormLabel>{t('add-skill-form-attach-verification-upload-label')}</FormLabel>
+                {/* <FormLabel>{t('add-skill-form-attach-verification-upload-label')}</FormLabel> */}
                 <div data-testid="flw_addSkill_attachVerification_uploadFile">
-                  <FileUpload
-                    multiple={false}
+                  <EmployeeDocumentUploadField
+                    name="verificationFileUpload"
+                    label={t('add-skill-form-attach-verification-upload-label')}
+                    isLoading={isLoadingVerificationInitialFiles}
+                    isResolvingInitialDocuments={isResolvingVerificationInitialDocuments}
+                    hasExistingDocumentHint={hasExistingVerificationDocumentHint}
+                    hasInitialDocumentCandidates={hasInitialVerificationDocumentCandidates}
+                    loadingMessage={t('add-skill-form-loading-verification-document')}
+                    initialFiles={verificationInitialFiles}
+                    onFilesChange={handleDesignSystemFilesChange}
+                    dataTestId="flw_addSkill_attachVerification_uploadFile"
                     maxFiles={1}
+                    multiple={false}
                     accept={acceptedVerificationFileTypes}
-                    layout="list"
-                    preview="icon"
-                    onChange={handleDesignSystemFilesChange as any}
                   />
                 </div>
               </FormItem>
@@ -199,12 +214,7 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                           label: getCatalogValue(ty)
                         }))}
                         value={field.value || ''}
-                        onValueChange={value => {
-                          setTimeout(() => {
-                            field.onChange(value)
-                            setDocumentTypeIdLocal(value || null)
-                          }, 0)
-                        }}
+                        onValueChange={value => field.onChange(value)}
                         placeholder={t('add-skill-form-select-document-type')}
                         data-testid="flw_addSkill_attachVerification_documentType"
                       />

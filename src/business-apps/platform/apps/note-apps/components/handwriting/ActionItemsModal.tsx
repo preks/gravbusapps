@@ -23,7 +23,7 @@ import {
 import { ListTodo, Send, X, Search, User, Pencil, Trash2, Plus, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type { NoteActionItemFlow } from '../../types'
 import translations from '../../_i18n'
 
@@ -80,7 +80,7 @@ const sendBlink = async (
   errorFallback: string
 ): Promise<{ success: boolean; workflowId?: string; error?: string }> => {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+    const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
 
     const tags: Record<string, string> = {
       app: 'quick-task',
@@ -127,7 +127,7 @@ const sendBlink = async (
       }
     }
 
-    const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+    const response = await fetch(`${baseUrl}/templates/execute-dynamic`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

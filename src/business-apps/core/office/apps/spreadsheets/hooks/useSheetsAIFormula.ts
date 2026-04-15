@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { getPromptManagerDocumentId } from '../utils/promptManagerModelId'
 import type { SpreadsheetColumn } from '../types'
 import { evaluateFormula } from '../utils/formulaEvaluator'
 import { expandFormulaFullColumnRanges } from '../utils/formulaRangeUtils'
@@ -12,7 +13,7 @@ import {
 import { selectPreferredModel } from '../utils/aiModelSelection'
 
 export interface UseSheetsAIFormulaParams {
-  accessToken: string
+  promptClient: PromptManagerClient
   columns: SpreadsheetColumn[]
   sheetData: Array<Record<string, unknown>>
   onApplyFormula: (columnName: string, formula: string) => Promise<boolean>
@@ -59,12 +60,11 @@ const withExactRanges = (rawFormula: string, rowCount: number): string =>
   expandFormulaFullColumnRanges(rawFormula, { rowCount, dataStartRow: 2 })
 
 export const useSheetsAIFormula = ({
-  accessToken,
+  promptClient,
   columns,
   sheetData,
   onApplyFormula
 }: UseSheetsAIFormulaParams): UseSheetsAIFormulaResult => {
-  const promptClient = usePromptManagerClient(accessToken)
   const [intent, setIntent] = useState('')
   const [selectedColumn, setSelectedColumn] = useState(columns[0]?.name ?? '')
   const [generatedFormula, setGeneratedFormula] = useState('')
@@ -90,9 +90,13 @@ export const useSheetsAIFormula = ({
     setIsGenerating(true)
     try {
       const selectedModel = await selectPreferredModel(promptClient)
+      const modelId = getPromptManagerDocumentId(selectedModel)
+      if (!modelId) {
+        throw new Error('Selected AI model has no document id')
+      }
 
       const formData = new FormData()
-      formData.append('model_id', selectedModel._id)
+      formData.append('model_id', modelId)
       formData.append('system_content', SHEETS_AI_FORMULA_SYSTEM_PROMPT)
       formData.append('user_content', buildSheetsAIFormulaUserPrompt(intent, columns, sheetData.slice(0, 80)))
       formData.append('model_settings', JSON.stringify({}))

@@ -2,6 +2,10 @@
 
 # Header & navigation
 request-absence = Abwesenheit beantragen
+absence-request-option-sick = Krankmeldung
+absence-request-option-special = Sonderurlaub beantragen
+absence-request-option-vacation = Urlaub beantragen
+absence-request-option-work = Arbeitsbezogene Abwesenheit beantragen
 calendar = Kalender
 back-to-dashboard = Zurück zur Übersicht
 absence-overview = Abwesenheiten

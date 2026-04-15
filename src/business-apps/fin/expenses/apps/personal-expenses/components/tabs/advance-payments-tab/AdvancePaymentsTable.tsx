@@ -14,15 +14,20 @@ import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdva
 import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
 import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
-import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
-import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
+import ExpensePlanDetails from '../expense-plans-tab/details/ExpensePlanDetails'
+import ExpenseRequestDetails from '../expense-requests-tab/details/ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
 import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
 import { toast } from 'sonner'
-import { resolveSelectedCurrencyCode, applyCurrencyChange, buildEmptyMessage } from '../../../utils/tableUtils'
+import {
+  resolveSelectedCurrencyCode,
+  applyCurrencyChange,
+  buildFilteredEmptyMessage,
+  buildDefaultEmptyMessage
+} from '../../../utils/tableUtils'
 import { CurrencyDropdown, DetailsSheet, RowActionsWrapper, RowActionsIcon } from '../../shared/TableSharedComponents'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
@@ -858,11 +863,12 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     setCurrentPage(newPagination.pageIndex + 1)
     setPageSize(newPagination.pageSize)
   }, [])
-  const emptyMessage = buildEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:personal_expenses.no_advance_payments_found',
-    'No advance payments found. Create your first advance payment to get started.'
-  )
+  const emptyMessage = hasActiveFilters
+    ? buildFilteredEmptyMessage()
+    : buildDefaultEmptyMessage(
+        'lowcoder:personal_expenses.no_advance_payments_found',
+        'No advance payments found. Create your first advance payment to get started.'
+      )
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {

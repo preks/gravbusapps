@@ -67,6 +67,7 @@ export interface DetailViewComputedData {
   skillsChangeBadge: { text: string; className: string } | null
   companyValuesRadarData: RadarDataPoint[]
   skillsRadarData: RadarDataPoint[]
+  activeReviewerKeys: ReviewerKey[]
   combinedCarouselEntries: CarouselEntry[]
   selfReviewerFallback?: ReviewerFallbackIdentity
   managerReviewerFallback?: ReviewerFallbackIdentity

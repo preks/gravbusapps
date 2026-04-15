@@ -52,3 +52,12 @@ add_comment = Kommentar hinzufügen
 answer = Antwort
 answers = Antworten
 unknown = Unbekannt
+
+# Content groups
+content-group-unknown = Unbekannt
+content-group-news = Nachrichten
+content-group-knowledge = Wissen
+content-group-glossary = Glossar
+content-group-question = Frage
+content-group-document = Dokument
+content-group-policy = Richtlinie

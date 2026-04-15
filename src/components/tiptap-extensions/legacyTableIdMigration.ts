@@ -8,6 +8,7 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 import { isYjsInboundSyncTransaction } from '@/components/tiptap-extensions/yjsProsemirrorSync'
+import { TABLE_METADATA_OWNED_DOC_CHANGE_META } from '@/components/tiptap-extensions/tiptap-custom-tables/tableMetadataOwnedDocChange'
 
 function collectLegacyIdMigrations(doc: ProseMirrorNode): Array<{ pos: number; attrs: Record<string, unknown> }> {
   const out: Array<{ pos: number; attrs: Record<string, unknown> }> = []
@@ -61,6 +62,7 @@ export const legacyTableIdMigrationExtension = Extension.create({
             tr = tr.setNodeMarkup(op.pos, undefined, op.attrs)
           }
 
+          tr.setMeta(TABLE_METADATA_OWNED_DOC_CHANGE_META, true)
           return tr
         }
       })

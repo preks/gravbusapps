@@ -305,6 +305,7 @@ notification-address-updated-success = Address updates are done.
 notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+notification-communication-deleted-success = Communication entry deleted successfully.
 
 # Employee Record - Errors and states
 employee-record-error-title = Error
@@ -558,6 +559,7 @@ add-skill-form-attach-verification-message-prefix = Upload a document to verify 
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Update level for skill 
 add-skill-form-attach-verification-upload-label = Upload document
+add-skill-form-loading-verification-document = Loading document...
 add-skill-form-document-group = Document Category
 add-skill-form-document-type = Document Type
 add-skill-form-select-document-group = Select Document Category
@@ -743,6 +745,11 @@ details-private-communication = Private Communication
 details-emergency-contact = Emergency Contact
 details-additional-attributes = Additional Attributes
 details-no-emergency-contact = No emergency contact information available
+details-communication-no-entries = No communication entries
+details-communication-add = Add communication
+delete-communication-confirm-title = Delete communication entry
+delete-communication-confirm-description = Are you sure you want to delete this communication entry? This action cannot be undone.
+delete-communication-confirm-button = Delete
 details-label-salutation = Salutation
 details-label-academic-titles = Academic Titles
 details-label-first-name = First Name
@@ -897,3 +904,6 @@ service-requests-status-canceled = Canceled
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = HR is currently reviewing your recent updates. You’ll be able to make further changes as soon as they have approved the request.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Loading address form...

@@ -12,8 +12,12 @@ import {
   getLinkedInChannel,
   getXingChannel
 } from '@/common/data/common/utils/communicationChannelHelpers'
+import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
+import { isCrmNoteNextStepType, isCrmNoteRegularType } from '@/common/data/customer/types/customerNoteTypes'
 
 const taskDescription = `You are a sales relationship assistant analyzing a customer contact.
+
+"General notes" are historical context (UNKNOWN_NOTE_TYPE, GENERAL_NOTE). "Next steps" are explicit committed follow-ups (NEXT_STEP_NOTE) when present on linked CRM notes.
 
 Analyze all available contact data, organizational role, engagement history, activities, notes, and tasks to provide:
 1. A concise executive summary highlighting the contact's role in purchasing decisions, organizational context, relationship strength, and engagement status
@@ -86,13 +90,14 @@ export function useContactAiSummary(
 
       // Get activities data with pagination
       const allActivities = await fetchPaginatedData(fetchCustomerActivitiesByContactId, contactId)
-      allActivities.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      const sortedActivities = allActivities
+      const sortedActivities = sortActivitiesByOccurredAtDesc(allActivities)
 
       // Get notes data with pagination
       const allNotes = await fetchPaginatedData(fetchCustomerNotesByContactId, contactId)
       allNotes.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       const sortedNotes = allNotes
+      const generalNotes = sortedNotes.filter(isCrmNoteRegularType)
+      const nextStepNotes = sortedNotes.filter(isCrmNoteNextStepType)
 
       // Get tasks data with pagination
       const allTasks = await fetchPaginatedData(fetchCustomerTasksByContactId, contactId)
@@ -140,7 +145,7 @@ export function useContactAiSummary(
         activitiesCount: sortedActivities.length,
         notesCount: sortedNotes.length,
         tasksCount: sortedTasks.length,
-        lastActivityDate: sortedActivities[0]?.createdAt,
+        lastActivityDate: sortedActivities[0]?.occurredAt || sortedActivities[0]?.createdAt,
         lastNoteDate: sortedNotes[0]?.createdAt,
         lastTaskDate: sortedTasks[0]?.createdAt,
         createdAt: contact.createdAt,
@@ -157,7 +162,9 @@ export function useContactAiSummary(
 
 Recent Activities (${sortedActivities.length} items): ${JSON.stringify(sortedActivities, null, 2)}
 
-Notes (${sortedNotes.length} items): ${JSON.stringify(sortedNotes, null, 2)}
+General notes (${generalNotes.length} items): ${JSON.stringify(generalNotes, null, 2)}
+
+Next steps (${nextStepNotes.length} items): ${JSON.stringify(nextStepNotes, null, 2)}
 
 Tasks (${sortedTasks.length} items): ${JSON.stringify(sortedTasks, null, 2)}`
 

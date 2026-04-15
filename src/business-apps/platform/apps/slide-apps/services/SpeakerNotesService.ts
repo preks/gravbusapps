@@ -236,7 +236,7 @@ export async function generateSpeakerNotes(options: SpeakerNotesOptions, accessT
   const form = new FormData()
   form.append('session_id', '')
   form.append('user_input_text', prompt)
-  form.append('llm_model', 'gpt-5.4')
+  form.append('model_kind', 'default')
   form.append('use_web_search_tool', 'false')
   form.append('current_page_context', JSON.stringify({ type: 'unknown' }))
 

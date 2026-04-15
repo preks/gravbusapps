@@ -21,21 +21,19 @@ import {
   FormMessage,
   Input,
   Alert,
-  AlertDescription,
-  Badge
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { Pencil, Trash2, Plus } from 'lucide-react'
-import type { CatalogEntry } from '@/common/data/catalog'
+import type { ContentCategory } from '@/common/data/content/types/contentTypes'
+import { resolveContentCategoryName } from '@/common/data/content/constants/contentConstants'
 
 interface CategoryFormData {
-  code: string
-  value: string
-  displayOrder: number
+  name: string
 }
 
 interface CategoryTableProps {
-  categories: CatalogEntry[]
+  categories: ContentCategory[]
   isLoading: boolean
   error: string | null
   onCreate: (data: CategoryFormData) => Promise<void>
@@ -55,16 +53,12 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
   prefixDataTestId = 'category-table'
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<CatalogEntry | null>(null)
+  const [editingCategory, setEditingCategory] = useState<ContentCategory | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<CategoryFormData>({
-    defaultValues: {
-      code: '',
-      value: '',
-      displayOrder: 0
-    }
+    defaultValues: { name: '' }
   })
 
   const handleCreate = async (data: CategoryFormData) => {
@@ -106,13 +100,9 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
     }
   }
 
-  const openEditDialog = (category: CatalogEntry) => {
+  const openEditDialog = (category: ContentCategory) => {
     setEditingCategory(category)
-    form.reset({
-      code: category.code || '',
-      value: category.value || '',
-      displayOrder: category.displayOrder || 0
-    })
+    form.reset({ name: category.name || '' })
   }
 
   if (error) {
@@ -130,8 +120,6 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
     )
   }
 
-  const sortedCategories = [...categories].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-
   return (
     <div data-testid={prefixDataTestId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
@@ -145,20 +133,16 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
       <Table data-testid={`${prefixDataTestId}-table`}>
         <TableHeader>
           <TableRow>
-            <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
-            <TableHead>Display Order</TableHead>
+            <TableHead className="gba:w-[120px]">Entries</TableHead>
             <TableHead className="gba:w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedCategories.map(category => (
+          {categories.map(category => (
             <TableRow key={category.id} data-testid={`${prefixDataTestId}-row-${category.id}`}>
-              <TableCell>
-                <Badge variant="outline">{category.code}</Badge>
-              </TableCell>
-              <TableCell>{category.value}</TableCell>
-              <TableCell>{category.displayOrder}</TableCell>
+              <TableCell>{resolveContentCategoryName(category) || category.name}</TableCell>
+              <TableCell>{category.entryCount ?? 0}</TableCell>
               <TableCell>
                 <div className="gba:flex gba:gap-2">
                   <Button
@@ -195,24 +179,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
             <form onSubmit={form.handleSubmit(handleCreate)} className="gba:space-y-4">
               <FormField
                 control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code (UPPER_SNAKE_CASE)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="COMPANY_NEWS"
-                        data-testid={`${prefixDataTestId}-create-code-input`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="value"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
@@ -220,25 +187,7 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
                       <Input
                         {...field}
                         placeholder="Company News"
-                        data-testid={`${prefixDataTestId}-create-value-input`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Display Order</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
-                        data-testid={`${prefixDataTestId}-create-order-input`}
+                        data-testid={`${prefixDataTestId}-create-name-input`}
                       />
                     </FormControl>
                     <FormMessage />
@@ -263,49 +212,18 @@ export const CategoryTable: React.FC<CategoryTableProps> = ({
         <DialogContent data-testid={`${prefixDataTestId}-edit-dialog`}>
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
-            <DialogDescription>Update category details</DialogDescription>
+            <DialogDescription>Update category name</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleUpdate)} className="gba:space-y-4">
               <FormField
                 control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code (UPPER_SNAKE_CASE)</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid={`${prefixDataTestId}-edit-code-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="value"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid={`${prefixDataTestId}-edit-value-input`} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="displayOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Display Order</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        onChange={e => field.onChange(Number.parseInt(e.target.value, 10))}
-                        data-testid={`${prefixDataTestId}-edit-order-input`}
-                      />
+                      <Input {...field} data-testid={`${prefixDataTestId}-edit-name-input`} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
