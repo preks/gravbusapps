@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
+import { catalogEntryToIcpPersistedValue } from './icpCatalogPersistedValue'
 import { splitCatalogRef } from './icpLeadCriterionDefinitions'
 
 export interface IcpCatalogValueSelectProps {
@@ -24,26 +26,31 @@ export const IcpCatalogValueSelect: React.FC<IcpCatalogValueSelectProps> = ({
   disabled
 }) => {
   const { fetchCatalogEntries } = useCatalogEntries({ accessToken: accessToken ?? '' })
-  const [options, setOptions] = useState<Array<{ id: string; label: string }>>([])
+  const [entries, setEntries] = useState<CatalogEntry[]>([])
   const [loading, setLoading] = useState(false)
+
+  const options = useMemo(
+    () =>
+      entries.map(e => {
+        const persistedValue = catalogEntryToIcpPersistedValue(e)
+        const label = (e.value != null && String(e.value).trim()) || e.displayValue || e.code || e.id
+        return { entryId: e.id, persistedValue, label: String(label) }
+      }),
+    [entries]
+  )
 
   useEffect(() => {
     if (!accessToken || !catalogRef) {
-      setOptions([])
+      setEntries([])
       return
     }
     let cancelled = false
     setLoading(true)
     const { catalogIdentifier, version } = splitCatalogRef(catalogRef)
     void fetchCatalogEntries({ catalogIdentifier, version, limit: 500 })
-      .then(({ entries }) => {
+      .then(({ entries: list }) => {
         if (cancelled) return
-        setOptions(
-          entries.map(e => ({
-            id: e.id,
-            label: (e.value && String(e.value).trim()) || e.displayValue || e.code || e.id
-          }))
-        )
+        setEntries(list)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -67,7 +74,7 @@ export const IcpCatalogValueSelect: React.FC<IcpCatalogValueSelectProps> = ({
       </SelectTrigger>
       <SelectContent>
         {options.map(opt => (
-          <SelectItem key={opt.id} value={opt.id}>
+          <SelectItem key={opt.entryId} value={opt.persistedValue}>
             {opt.label}
           </SelectItem>
         ))}
