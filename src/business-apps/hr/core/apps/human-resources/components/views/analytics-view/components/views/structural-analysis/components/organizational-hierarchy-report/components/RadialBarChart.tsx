@@ -132,7 +132,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                         : totalEmployees > 0
                           ? Math.round((segment.employeeCount * 100) / totalEmployees)
                           : 0
-                    return `- ${segment.name} (${segment.employeeCount}, ${safeLevelPercentage}%)`
+                    return `${segment.name} (${segment.employeeCount}, ${safeLevelPercentage}%)`
                   })
                   .join('\n')
               : '-'
@@ -235,7 +235,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       segments:
         level.segments.length > 0
           ? level.segments
-              .map(segment => `- ${segment.name} (${segment.employeeCount}, ${segment.percentage}%)`)
+              .map(segment => `${segment.name} (${segment.employeeCount}, ${segment.percentage}%)`)
               .join('\n')
           : '-'
     }))
@@ -258,7 +258,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       segments:
         level.segments.length > 0
           ? level.segments
-              .map(segment => `- ${segment.name} (${segment.employeeCount}, ${segment.percentage}%)`)
+              .map(segment => `${segment.name} (${segment.employeeCount}, ${segment.percentage}%)`)
               .join('\n')
           : '-'
     }))
