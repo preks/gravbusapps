@@ -4,62 +4,110 @@
 
 import type { EmailSummarizeSuggestion, MessageSummaryResult, ThreadSummaryResult } from '../types'
 
-function normalizeMetadata(raw: unknown): Record<string, string> | undefined {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
-  const out: Record<string, string> = {}
-  for (const [key, v] of Object.entries(raw)) {
-    if (v == null) continue
-    if (typeof v === 'string') out[key] = v
-    else if (typeof v === 'number' || typeof v === 'boolean') out[key] = String(v)
+function asObject(raw: unknown): Record<string, unknown> | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null
   }
+  return raw as Record<string, unknown>
+}
+
+function getTrimmedString(v: unknown): string | undefined {
+  if (typeof v !== 'string') {
+    return undefined
+  }
+  const trimmed = v.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function getFiniteNumber(v: unknown): number | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  const valueAsString = getTrimmedString(v)
+  if (!valueAsString) return undefined
+  const parsedValue = Number(valueAsString)
+  return Number.isFinite(parsedValue) ? parsedValue : undefined
+}
+
+function getInteger(v: unknown): number | undefined {
+  const parsed = getFiniteNumber(v)
+  if (parsed === undefined || !Number.isInteger(parsed)) {
+    return undefined
+  }
+  return parsed
+}
+
+function normalizeMetadata(raw: unknown): Record<string, string> | undefined {
+  const objectValue = asObject(raw)
+  if (!objectValue) return undefined
+
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(objectValue)) {
+    if (value === null || value === undefined) continue
+    const stringValue = getTrimmedString(value)
+    if (stringValue) {
+      out[key] = stringValue
+      continue
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      out[key] = String(value)
+    }
+  }
+
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-function toFiniteNumber(v: unknown): number | undefined {
-  if (typeof v === 'number' && Number.isFinite(v)) return v
-  if (typeof v === 'string' && v.trim() !== '') {
-    const n = Number(v)
-    if (Number.isFinite(n)) return n
+function applyOptionalStringField(
+  suggestion: EmailSummarizeSuggestion,
+  key: keyof Pick<
+    EmailSummarizeSuggestion,
+    'details' | 'assignee' | 'dueAt' | 'startAt' | 'endAt' | 'integrationTarget'
+  >,
+  value: unknown
+): void {
+  const trimmedValue = getTrimmedString(value)
+  if (trimmedValue) {
+    suggestion[key] = trimmedValue
   }
-  return undefined
 }
 
 /** Parse one suggestion object; returns null if not representable */
 export function normalizeEmailSummarizeSuggestion(raw: unknown): EmailSummarizeSuggestion | null {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-  const o = raw as Record<string, unknown>
-  const title = typeof o.title === 'string' ? o.title.trim() : ''
+  const value = asObject(raw)
+  if (!value) return null
+
+  const title = getTrimmedString(value.title)
   if (!title) return null
 
-  const typeRaw = o.type
-  const type = typeof typeRaw === 'string' && typeRaw.trim() ? typeRaw.trim() : 'task'
+  const type = getTrimmedString(value.type) ?? 'task'
+  const suggestion: EmailSummarizeSuggestion = { type, title }
 
-  const integrationRaw = o.integrationTarget
-  const integrationTarget =
-    typeof integrationRaw === 'string' && integrationRaw.trim() ? integrationRaw.trim() : undefined
+  applyOptionalStringField(suggestion, 'details', value.details)
+  applyOptionalStringField(suggestion, 'assignee', value.assignee)
+  applyOptionalStringField(suggestion, 'dueAt', value.dueAt)
+  applyOptionalStringField(suggestion, 'startAt', value.startAt)
+  applyOptionalStringField(suggestion, 'endAt', value.endAt)
+  applyOptionalStringField(suggestion, 'integrationTarget', value.integrationTarget)
 
-  const meta = normalizeMetadata(o.metadata)
-
-  return {
-    type,
-    title,
-    ...(typeof o.details === 'string' && o.details.trim() ? { details: o.details.trim() } : {}),
-    ...(typeof o.assignee === 'string' && o.assignee.trim() ? { assignee: o.assignee.trim() } : {}),
-    ...(typeof o.dueAt === 'string' && o.dueAt.trim() ? { dueAt: o.dueAt.trim() } : {}),
-    ...(typeof o.startAt === 'string' && o.startAt.trim() ? { startAt: o.startAt.trim() } : {}),
-    ...(typeof o.endAt === 'string' && o.endAt.trim() ? { endAt: o.endAt.trim() } : {}),
-    ...(() => {
-      const c = toFiniteNumber(o.confidence)
-      return c !== undefined ? { confidence: c } : {}
-    })(),
-    ...(typeof o.evidence === 'string' && o.evidence.trim() ? { evidence: o.evidence.trim() } : {}),
-    ...(() => {
-      const mi = toFiniteNumber(o.messageIndex)
-      return mi !== undefined && Number.isInteger(mi) ? { messageIndex: mi } : {}
-    })(),
-    ...(integrationTarget ? { integrationTarget } : {}),
-    ...(meta ? { metadata: meta } : {})
+  const confidence = getFiniteNumber(value.confidence)
+  if (confidence !== undefined) {
+    suggestion.confidence = confidence
   }
+
+  const evidence = getTrimmedString(value.evidence)
+  if (evidence) {
+    suggestion.evidence = evidence
+  }
+
+  const messageIndex = getInteger(value.messageIndex)
+  if (messageIndex !== undefined) {
+    suggestion.messageIndex = messageIndex
+  }
+
+  const metadata = normalizeMetadata(value.metadata)
+  if (metadata) {
+    suggestion.metadata = metadata
+  }
+
+  return suggestion
 }
 
 export function normalizeSuggestionsArray(raw: unknown): EmailSummarizeSuggestion[] {

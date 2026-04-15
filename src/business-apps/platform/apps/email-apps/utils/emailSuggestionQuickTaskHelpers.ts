@@ -22,8 +22,9 @@ export function buildQuickTaskMessage(
 }
 
 export function dueDateForQuickTask(dueAt?: string): string {
-  if (!dueAt || !dueAt.trim()) return ''
-  const d = new Date(dueAt)
+  const trimmedDueAt = dueAt?.trim()
+  if (!trimmedDueAt) return ''
+  const d = new Date(trimmedDueAt)
   if (Number.isNaN(d.getTime())) return ''
   return d.toISOString().slice(0, 10)
 }

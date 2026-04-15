@@ -4,15 +4,16 @@ import type { EmailSummarizeSuggestion } from '../types'
 export function serializeMetadataForStableKey(metadata: Record<string, string> | undefined): string {
   if (!metadata || Object.keys(metadata).length === 0) return ''
   return Object.keys(metadata)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map(k => `${k}=${metadata[k]}`)
     .join('|')
 }
 
 export function hashString(str: string): number {
   let h = 0
-  for (let i = 0; i < str.length; i++) {
-    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0
+  for (const char of str) {
+    const codePoint = char.codePointAt(0) ?? 0
+    h = Math.trunc(Math.imul(31, h) + codePoint)
   }
   return h
 }

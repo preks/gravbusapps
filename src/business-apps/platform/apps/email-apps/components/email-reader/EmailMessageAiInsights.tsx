@@ -63,7 +63,7 @@ export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
   useEffect(() => {
     if (!open || !messageId || !accessToken) return
     if (loadState !== 'idle') return
-    void fetchInsights()
+    fetchInsights()
   }, [open, messageId, accessToken, loadState, fetchInsights])
 
   const handleToggle = () => {
@@ -94,11 +94,11 @@ export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
             <CaretDownIcon className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0" />
           )}
         </button>
-        {!open ? (
+        {open ? null : (
           <p className="gba:pl-7 gba:text-xs gba:text-muted-foreground/75" data-testid={`${testId}-hint`}>
             {t('reader-ai-insights-hint')}
           </p>
-        ) : null}
+        )}
       </div>
 
       {open && loadState === 'loading' && (

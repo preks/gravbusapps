@@ -18,11 +18,11 @@ export interface EmailSuggestionQuickTaskAssigneePickerLabels {
 }
 
 export interface EmailSuggestionQuickTaskAssigneePickerProps {
-  accessToken: string
-  selectedEmployees: EmployeeLiteOption[]
+  readonly accessToken: string
+  readonly selectedEmployees: EmployeeLiteOption[]
   onSelectedEmployeesChange: (next: EmployeeLiteOption[]) => void
-  testIdPrefix: string
-  labels: EmailSuggestionQuickTaskAssigneePickerLabels
+  readonly testIdPrefix: string
+  readonly labels: EmailSuggestionQuickTaskAssigneePickerLabels
 }
 
 export function EmailSuggestionQuickTaskAssigneePicker({
@@ -31,7 +31,7 @@ export function EmailSuggestionQuickTaskAssigneePicker({
   onSelectedEmployeesChange,
   testIdPrefix,
   labels
-}: EmailSuggestionQuickTaskAssigneePickerProps): React.ReactElement {
+}: Readonly<EmailSuggestionQuickTaskAssigneePickerProps>): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState('')
   const { employees, loading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
 
@@ -66,6 +66,43 @@ export function EmailSuggestionQuickTaskAssigneePicker({
     },
     [onSelectedEmployeesChange, selectedEmployees]
   )
+
+  let listContent: React.ReactNode
+  if (loading && availableEmployees.length === 0) {
+    listContent = <p className="gba:p-3 gba:text-xs gba:text-muted-foreground">{labels.loading}</p>
+  } else if (availableEmployees.length === 0) {
+    listContent = <p className="gba:p-3 gba:text-xs gba:text-muted-foreground">{labels.empty}</p>
+  } else {
+    listContent = (
+      <ul className="gba:divide-y gba:divide-border">
+        {availableEmployees.map(emp => (
+          <li key={assigneeIdFromEmployee(emp)}>
+            <button
+              type="button"
+              className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted/50"
+              onClick={() => toggleEmployee(emp)}
+              data-testid={`${testIdPrefix}-pick-assignee-${assigneeIdFromEmployee(emp)}`}
+            >
+              <Avatar className="gba:w-7 gba:h-7">
+                {toAvatarSrc(emp.pictureThumbnail) ? (
+                  <AvatarImage src={toAvatarSrc(emp.pictureThumbnail)} alt={emp.displayName} />
+                ) : null}
+                <AvatarFallback className="gba:text-xs">
+                  {(emp.displayName || '?')
+                    .split(' ')
+                    .map(p => p[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="gba:truncate">{emp.displayName}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    )
+  }
 
   return (
     <div className="gba:space-y-3 gba:pt-1">
@@ -120,39 +157,7 @@ export function EmailSuggestionQuickTaskAssigneePicker({
           />
         </div>
         <div className="gba:border gba:rounded-lg gba:max-h-40 gba:overflow-y-auto">
-          {loading && availableEmployees.length === 0 ? (
-            <p className="gba:p-3 gba:text-xs gba:text-muted-foreground">{labels.loading}</p>
-          ) : availableEmployees.length === 0 ? (
-            <p className="gba:p-3 gba:text-xs gba:text-muted-foreground">{labels.empty}</p>
-          ) : (
-            <ul className="gba:divide-y gba:divide-border">
-              {availableEmployees.map(emp => (
-                <li key={assigneeIdFromEmployee(emp)}>
-                  <button
-                    type="button"
-                    className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted/50"
-                    onClick={() => toggleEmployee(emp)}
-                    data-testid={`${testIdPrefix}-pick-assignee-${assigneeIdFromEmployee(emp)}`}
-                  >
-                    <Avatar className="gba:w-7 gba:h-7">
-                      {toAvatarSrc(emp.pictureThumbnail) ? (
-                        <AvatarImage src={toAvatarSrc(emp.pictureThumbnail)} alt={emp.displayName} />
-                      ) : null}
-                      <AvatarFallback className="gba:text-xs">
-                        {(emp.displayName || '?')
-                          .split(' ')
-                          .map(p => p[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="gba:truncate">{emp.displayName}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          {listContent}
           {hasMore && availableEmployees.length > 0 ? (
             <div className="gba:p-2 gba:border-t">
               <Button

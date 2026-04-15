@@ -26,6 +26,16 @@ export interface EmailSummarizeSuggestionsProps {
   'data-testid'?: string
 }
 
+function getItemShellClass(variant: EmailSummarizeSuggestionsProps['variant']): string {
+  if (variant === 'thread') {
+    return 'gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1'
+  }
+  if (variant === 'reader') {
+    return 'gba:rounded-md gba:border gba:border-border/40 gba:bg-muted/25 gba:p-2 gba:space-y-1'
+  }
+  return 'gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1'
+}
+
 export const EmailSummarizeSuggestions: React.FC<EmailSummarizeSuggestionsProps> = ({
   suggestions,
   variant,
@@ -53,12 +63,7 @@ export const EmailSummarizeSuggestions: React.FC<EmailSummarizeSuggestionsProps>
       ? 'gba:text-xs gba:text-decorative-foreground/65 gba:line-clamp-2'
       : 'gba:text-xs gba:text-muted-foreground gba:line-clamp-2'
 
-  const itemShellClass =
-    variant === 'thread'
-      ? 'gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1'
-      : variant === 'reader'
-        ? 'gba:rounded-md gba:border gba:border-border/40 gba:bg-muted/25 gba:p-2 gba:space-y-1'
-        : 'gba:rounded-md gba:border gba:border-border/60 gba:p-2.5 gba:space-y-1'
+  const itemShellClass = getItemShellClass(variant)
 
   const showConfidence = variant !== 'reader'
 

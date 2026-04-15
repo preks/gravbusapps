@@ -149,7 +149,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       setFlashIndex(index)
-      window.setTimeout(() => setFlashIndex(null), 2000)
+      globalThis.setTimeout(() => setFlashIndex(null), 2000)
     }
   }, [])
 

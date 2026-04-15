@@ -86,6 +86,120 @@ export interface EmailSummarizeSuggestionItemProps {
   createActionContext?: EmailSummarizeSuggestionsCreateActionContext
 }
 
+type TranslationFn = (key: string, vars?: Record<string, string | number>) => string
+
+function renderMessageReference(
+  params: Readonly<{
+    variant: EmailSummarizeSuggestionItemProps['variant']
+    messageIndex: EmailSummarizeSuggestion['messageIndex']
+    onJumpToMessageIndex?: (index: number) => void
+    testId: string
+    metaClass: string
+    t: TranslationFn
+  }>
+): React.ReactNode {
+  const { variant, messageIndex, onJumpToMessageIndex, testId, metaClass, t } = params
+  if (variant !== 'thread' || messageIndex === undefined || messageIndex === null) {
+    return null
+  }
+
+  if (onJumpToMessageIndex) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="gba:h-7 gba:px-2 gba:text-xs"
+        onClick={() => onJumpToMessageIndex(messageIndex)}
+        data-testid={`${testId}-jump`}
+      >
+        {t('email-suggestion-jump-message')}
+      </Button>
+    )
+  }
+
+  return (
+    <span className={metaClass} data-testid={`${testId}-message-ref`}>
+      {t('email-suggestion-message-ref', { index: messageIndex })}
+    </span>
+  )
+}
+
+function renderMetadataBlock(
+  params: Readonly<{
+    hasMeta: boolean
+    metaOpen: boolean
+    metaEntries: Array<[string, string]>
+    keyPrefix: string
+    testId: string
+    toggleMeta: () => void
+    t: TranslationFn
+  }>
+): React.ReactNode {
+  const { hasMeta, metaOpen, metaEntries, keyPrefix, testId, toggleMeta, t } = params
+  if (!hasMeta) {
+    return null
+  }
+
+  return (
+    <div className="gba:pt-1">
+      <button
+        type="button"
+        className="gba:text-xs gba:text-muted-foreground gba:underline-offset-2 hover:gba:underline"
+        onClick={toggleMeta}
+        data-testid={`${testId}-metadata-toggle`}
+      >
+        {metaOpen ? t('email-suggestion-metadata-hide') : t('email-suggestion-metadata-show')}
+      </button>
+      {metaOpen ? (
+        <ul
+          className="gba:mt-1.5 gba:list-none gba:space-y-1 gba:rounded-md gba:bg-muted/40 gba:p-2 gba:text-xs gba:text-muted-foreground"
+          data-testid={`${testId}-metadata-list`}
+        >
+          {metaEntries.map(([mk, mv]) => (
+            <li key={`${keyPrefix}-meta-${mk}`}>
+              <span className="gba:font-medium gba:text-foreground/80">{mk}:</span> {mv}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+function renderEvidence(
+  params: Readonly<{
+    evidence?: string
+    evidenceClass: string
+    evidenceNeedsTooltip: boolean
+    testId: string
+  }>
+): React.ReactNode {
+  const { evidence, evidenceClass, evidenceNeedsTooltip, testId } = params
+  if (!evidence) {
+    return null
+  }
+
+  if (!evidenceNeedsTooltip) {
+    return (
+      <p className={evidenceClass} data-testid={`${testId}-evidence`}>
+        {evidence}
+      </p>
+    )
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <p className={`${evidenceClass} gba:cursor-help`} data-testid={`${testId}-evidence`}>
+          {evidence}
+        </p>
+      </TooltipTrigger>
+      <TooltipContent className="gba:max-w-sm">{evidence}</TooltipContent>
+    </Tooltip>
+  )
+}
+
 export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItemProps> = ({
   suggestion: s,
   variant,
@@ -105,10 +219,43 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
   const evidenceNeedsTooltip = (s.evidence?.length ?? 0) > EVIDENCE_TRUNCATE
   const confidenceLow = showConfidence && s.confidence !== undefined && !isSuggestionConfidentEnough(s)
 
-  const target = s.integrationTarget && String(s.integrationTarget).trim() ? String(s.integrationTarget).trim() : null
+  const target = String(s.integrationTarget ?? '').trim()
+  const hasTarget = target.length > 0
 
   const metaEntries = s.metadata ? Object.entries(s.metadata) : []
   const hasMeta = metaEntries.length > 0
+  const detailRows = [
+    s.assignee ? { key: 'assignee', label: t('email-suggestion-assignee'), value: s.assignee, isDate: false } : null,
+    s.dueAt ? { key: 'dueAt', label: t('email-suggestion-due'), value: s.dueAt, isDate: true } : null,
+    s.startAt ? { key: 'startAt', label: t('email-suggestion-start'), value: s.startAt, isDate: true } : null,
+    s.endAt ? { key: 'endAt', label: t('email-suggestion-end'), value: s.endAt, isDate: true } : null
+  ].filter((item): item is { key: string; label: string; value: string; isDate: boolean } => item !== null)
+
+  const messageReference = renderMessageReference({
+    variant,
+    messageIndex: s.messageIndex,
+    onJumpToMessageIndex,
+    testId,
+    metaClass,
+    t
+  })
+
+  const metadataBlock = renderMetadataBlock({
+    hasMeta,
+    metaOpen,
+    metaEntries,
+    keyPrefix: key,
+    testId,
+    toggleMeta: () => setMetaOpen(o => !o),
+    t
+  })
+
+  const evidenceBlock = renderEvidence({
+    evidence: s.evidence,
+    evidenceClass,
+    evidenceNeedsTooltip,
+    testId
+  })
 
   return (
     <li className={itemShellClass} data-testid={`${testId}-item`}>
@@ -116,7 +263,7 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
         <Badge variant="secondary" className="gba:text-xs" data-testid={`${testId}-type`}>
           {typeLabel}
         </Badge>
-        {target ? (
+        {hasTarget ? (
           <Badge variant="outline" className="gba:text-xs gba:font-normal" data-testid={`${testId}-target`}>
             {integrationTargetLabel(target, t)}
           </Badge>
@@ -131,85 +278,17 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
             })}
           </span>
         )}
-        {variant === 'thread' && s.messageIndex !== undefined && s.messageIndex !== null && onJumpToMessageIndex ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gba:h-7 gba:px-2 gba:text-xs"
-            onClick={() => onJumpToMessageIndex(s.messageIndex!)}
-            data-testid={`${testId}-jump`}
-          >
-            {t('email-suggestion-jump-message')}
-          </Button>
-        ) : variant === 'thread' && s.messageIndex !== undefined && s.messageIndex !== null ? (
-          <span className={metaClass} data-testid={`${testId}-message-ref`}>
-            {t('email-suggestion-message-ref', { index: s.messageIndex })}
-          </span>
-        ) : null}
+        {messageReference}
       </div>
       <p className={itemTitleClass}>{s.title}</p>
       {s.details ? <p className={metaClass}>{s.details}</p> : null}
-      {s.assignee ? (
-        <p className={metaClass}>
-          <span className="gba:font-medium">{t('email-suggestion-assignee')}:</span> {s.assignee}
+      {detailRows.map(row => (
+        <p key={`${testId}-${row.key}`} className={metaClass}>
+          <span className="gba:font-medium">{row.label}:</span> {row.isDate ? formatCompactDate(row.value) : row.value}
         </p>
-      ) : null}
-      {s.dueAt ? (
-        <p className={metaClass}>
-          <span className="gba:font-medium">{t('email-suggestion-due')}:</span> {formatCompactDate(s.dueAt)}
-        </p>
-      ) : null}
-      {s.startAt ? (
-        <p className={metaClass}>
-          <span className="gba:font-medium">{t('email-suggestion-start')}:</span> {formatCompactDate(s.startAt)}
-        </p>
-      ) : null}
-      {s.endAt ? (
-        <p className={metaClass}>
-          <span className="gba:font-medium">{t('email-suggestion-end')}:</span> {formatCompactDate(s.endAt)}
-        </p>
-      ) : null}
-      {hasMeta ? (
-        <div className="gba:pt-1">
-          <button
-            type="button"
-            className="gba:text-xs gba:text-muted-foreground gba:underline-offset-2 hover:gba:underline"
-            onClick={() => setMetaOpen(o => !o)}
-            data-testid={`${testId}-metadata-toggle`}
-          >
-            {metaOpen ? t('email-suggestion-metadata-hide') : t('email-suggestion-metadata-show')}
-          </button>
-          {metaOpen ? (
-            <ul
-              className="gba:mt-1.5 gba:list-none gba:space-y-1 gba:rounded-md gba:bg-muted/40 gba:p-2 gba:text-xs gba:text-muted-foreground"
-              data-testid={`${testId}-metadata-list`}
-            >
-              {metaEntries.map(([mk, mv]) => (
-                <li key={`${key}-meta-${mk}`}>
-                  <span className="gba:font-medium gba:text-foreground/80">{mk}:</span> {mv}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
-      {s.evidence ? (
-        evidenceNeedsTooltip ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <p className={`${evidenceClass} gba:cursor-help`} data-testid={`${testId}-evidence`}>
-                {s.evidence}
-              </p>
-            </TooltipTrigger>
-            <TooltipContent className="gba:max-w-sm">{s.evidence}</TooltipContent>
-          </Tooltip>
-        ) : (
-          <p className={evidenceClass} data-testid={`${testId}-evidence`}>
-            {s.evidence}
-          </p>
-        )
-      ) : null}
+      ))}
+      {metadataBlock}
+      {evidenceBlock}
       {createActionContext ? (
         <div className="gba:pt-1">
           <EmailSuggestionCreateAction
