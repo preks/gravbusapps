@@ -18,3 +18,7 @@ export const getSpreadsheetServiceApiUrl = (): string => {
 export const isDedicatedSpreadsheetServiceEnabled = (): boolean => {
   return Boolean(env('NEXT_PUBLIC_SPREADSHEET_SERVICE_URL'))
 }
+
+export const getSpreadsheetApiBasePath = (): string => {
+  return '/v2/spreadsheets'
+}

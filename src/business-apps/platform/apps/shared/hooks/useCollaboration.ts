@@ -3,6 +3,7 @@ import type { Socket } from 'socket.io-client'
 import {
   CollaborationClient,
   createCollaborationClient,
+  createSpreadsheetCollaborationClient,
   DocumentParticipant,
   DocumentOperation
 } from '../services/CollaborationClient'
@@ -252,7 +253,8 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     }
 
     // Create client
-    const client = createCollaborationClient({
+    const createClient = entityType === 'spreadsheet' ? createSpreadsheetCollaborationClient : createCollaborationClient
+    const client = createClient({
       reconnectionAttempts: 10,
       connectionTimeout: 20000,
       serviceApiUrl: entityType === 'spreadsheet' ? getSpreadsheetServiceApiUrl() : undefined

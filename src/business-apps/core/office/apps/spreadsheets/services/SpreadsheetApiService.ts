@@ -20,11 +20,16 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../../../../platform/apps/shared/types/versioning'
-import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
+import {
+  getSpreadsheetApiBasePath,
+  getSpreadsheetServiceApiUrl
+} from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 
 const API_URL = getSpreadsheetServiceApiUrl()
 const SPREADSHEET_CORE_API_URL = getSpreadsheetServiceApiUrl()
+
+const spreadsheetEndpoint = (suffix = ''): string => `${getSpreadsheetApiBasePath()}${suffix}`
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
@@ -334,7 +339,7 @@ export const SpreadsheetApiService = {
     if (options?.limit) params.set('limit', options.limit.toString())
 
     const queryString = params.toString()
-    const endpoint = `/spreadsheets${queryString ? `?${queryString}` : ''}`
+    const endpoint = `${spreadsheetEndpoint()}${queryString ? `?${queryString}` : ''}`
 
     debugLog('listApps', endpoint)
 
@@ -374,7 +379,7 @@ export const SpreadsheetApiService = {
   async getApp(id: string): Promise<SpreadsheetApp | null> {
     try {
       debugLog('getApp', id)
-      const app = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}`)
+      const app = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${id}`))
       return mapApiAppToSpreadsheetApp(app)
     } catch (error) {
       console.error('Failed to get app:', error)
@@ -404,7 +409,7 @@ export const SpreadsheetApiService = {
       }))
     }
 
-    const created = await apiRequest<Record<string, unknown>>('/spreadsheets', {
+    const created = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(), {
       method: 'POST',
       body: JSON.stringify(payload)
     })
@@ -442,7 +447,7 @@ export const SpreadsheetApiService = {
     delete payload.relationships
     delete payload.sharedWith
 
-    const updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}`, {
+    const updated = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${id}`), {
       method: 'PATCH',
       body: JSON.stringify(payload)
     })
@@ -456,7 +461,7 @@ export const SpreadsheetApiService = {
   async deleteApp(id: string): Promise<boolean> {
     try {
       debugLog('deleteApp', id)
-      await apiRequest(`/spreadsheets/${id}`, { method: 'DELETE' })
+      await apiRequest(spreadsheetEndpoint(`/${id}`), { method: 'DELETE' })
       return true
     } catch (error) {
       console.error('Failed to delete app:', error)
@@ -470,7 +475,7 @@ export const SpreadsheetApiService = {
   async duplicateApp(id: string): Promise<SpreadsheetApp | null> {
     try {
       debugLog('duplicateApp', id)
-      const duplicated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}/duplicate`, {
+      const duplicated = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${id}/duplicate`), {
         method: 'POST'
       })
       return mapApiAppToSpreadsheetApp(duplicated)
@@ -490,7 +495,7 @@ export const SpreadsheetApiService = {
       debugLog('getSheet', appId, sheetId)
       const sheet = await apiRequestToBase<Record<string, unknown>>(
         SPREADSHEET_CORE_API_URL,
-        `/spreadsheets/${appId}/sheets/${sheetId}`
+        spreadsheetEndpoint(`/${appId}/sheets/${sheetId}`)
       )
       return mapApiResponseToSheet(sheet)
     } catch (error) {
@@ -514,7 +519,7 @@ export const SpreadsheetApiService = {
       data: sheet.data
     }
 
-    const created = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets`, {
+    const created = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${appId}/sheets`), {
       method: 'POST',
       body: JSON.stringify(payload)
     })
@@ -543,7 +548,7 @@ export const SpreadsheetApiService = {
       }
     })
 
-    const updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
+    const updated = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${appId}/sheets/${sheetId}`), {
       method: 'PATCH',
       body: JSON.stringify(payload)
     })
@@ -557,7 +562,7 @@ export const SpreadsheetApiService = {
   async deleteSheet(appId: string, sheetId: string): Promise<boolean> {
     try {
       debugLog('deleteSheet', appId, sheetId)
-      await apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}`, { method: 'DELETE' })
+      await apiRequest(spreadsheetEndpoint(`/${appId}/sheets/${sheetId}`), { method: 'DELETE' })
       return true
     } catch (error) {
       console.error('Failed to delete sheet:', error)
@@ -581,7 +586,7 @@ export const SpreadsheetApiService = {
       if (options?.limit) params.set('limit', options.limit.toString())
 
       const queryString = params.toString()
-      const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows${queryString ? `?${queryString}` : ''}`
+      const endpoint = `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/rows`)}${queryString ? `?${queryString}` : ''}`
 
       debugLog('getRows', endpoint)
 
@@ -619,7 +624,7 @@ export const SpreadsheetApiService = {
       params.set('page', page.toString())
       params.set('limit', pageSize.toString())
 
-      const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows?${params.toString()}`
+      const endpoint = `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/rows`)}?${params.toString()}`
       debugLog('getAllRows', endpoint)
 
       const response = await apiRequestToBase<PaginatedResponse<Record<string, unknown>>>(
@@ -644,7 +649,7 @@ export const SpreadsheetApiService = {
 
     const created = await apiRequestToBase<Record<string, unknown>>(
       SPREADSHEET_CORE_API_URL,
-      `/spreadsheets/${appId}/sheets/${sheetId}/rows`,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/rows`),
       {
         method: 'POST',
         body: JSON.stringify(data)
@@ -684,7 +689,7 @@ export const SpreadsheetApiService = {
 
     const updated = await apiRequestToBase<Record<string, unknown>>(
       SPREADSHEET_CORE_API_URL,
-      `/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/rows/${rowId}`),
       {
         method: 'PATCH',
         body: JSON.stringify(data)
@@ -715,9 +720,13 @@ export const SpreadsheetApiService = {
   async deleteRow(appId: string, sheetId: string, rowId: string): Promise<boolean> {
     try {
       debugLog('deleteRow', appId, sheetId, rowId)
-      await apiRequestToBase(SPREADSHEET_CORE_API_URL, `/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, {
-        method: 'DELETE'
-      })
+      await apiRequestToBase(
+        SPREADSHEET_CORE_API_URL,
+        spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/rows/${rowId}`),
+        {
+          method: 'DELETE'
+        }
+      )
       return true
     } catch (error) {
       console.error('Failed to delete row:', error)
@@ -737,7 +746,7 @@ export const SpreadsheetApiService = {
 
     const created = await apiRequestToBase<Array<Record<string, unknown>>>(
       SPREADSHEET_CORE_API_URL,
-      `/spreadsheets/${appId}/sheets/${sheetId}/rows/bulk`,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/rows/bulk`),
       {
         method: 'POST',
         body: JSON.stringify(rows)
@@ -768,7 +777,7 @@ export const SpreadsheetApiService = {
     })
     return apiRequestToBase<SpreadsheetBatchOperationResponse>(
       SPREADSHEET_CORE_API_URL,
-      `/spreadsheets/${appId}/sheets/${sheetId}/operations/batch`,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/operations/batch`),
       {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -785,7 +794,7 @@ export const SpreadsheetApiService = {
     rows: Array<Record<string, unknown>>
     version: number
   }> {
-    return apiRequestToBase(SPREADSHEET_CORE_API_URL, `/spreadsheets/${appId}/sheets/${sheetId}/snapshot`)
+    return apiRequestToBase(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/snapshot`))
   },
 
   async getSheetChangesSince(
@@ -800,7 +809,7 @@ export const SpreadsheetApiService = {
   }> {
     return apiRequestToBase(
       SPREADSHEET_CORE_API_URL,
-      `/spreadsheets/${appId}/sheets/${sheetId}/changes?sinceVersion=${sinceVersion}`
+      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/changes`)}?sinceVersion=${sinceVersion}`
     )
   },
 
@@ -820,7 +829,7 @@ export const SpreadsheetApiService = {
     try {
       const response = await apiRequestToBase<{ sheetId: string; version: number; saved: boolean }>(
         SPREADSHEET_CORE_API_URL,
-        `/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`,
+        spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/univer-snapshot`),
         {
           method: 'POST',
           body: JSON.stringify({
@@ -860,7 +869,7 @@ export const SpreadsheetApiService = {
         version: number
         updatedAt: string | null
         snapshot: Record<string, unknown> | null
-      }>(SPREADSHEET_CORE_API_URL, `/spreadsheets/${appId}/sheets/${sheetId}/univer-snapshot`)
+      }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/univer-snapshot`))
       supportsUniverSnapshotEndpoint = true
       return response
     } catch (error) {
@@ -1214,25 +1223,18 @@ export const SpreadsheetApiService = {
   },
 
   /**
-   * Restore a spreadsheet app to a previous version (creates a new version)
+   * Restore a spreadsheet app to a previous version.
+   * The backend now owns the restore checkpoint on the v2 endpoints.
    */
   async restoreVersion(appId: string, versionNumber: number): Promise<boolean> {
     try {
       // Call dedicated backend restore endpoint that handles everything (metadata + sheets + rows)
       const result = await apiRequest<{ success: boolean; message: string; restoredRows: number }>(
-        `/spreadsheets/${appId}/restore/${versionNumber}`,
+        spreadsheetEndpoint(`/${appId}/restore/${versionNumber}`),
         {
           method: 'POST'
         }
       )
-
-      if (result.success) {
-        // Create a new version marking it as a restore (like documents do)
-        await this.createVersion(appId, {
-          changeDescription: `Restored from version ${versionNumber}`,
-          isCheckpoint: true
-        })
-      }
 
       return result.success
     } catch (error) {
@@ -1510,7 +1512,7 @@ export const SpreadsheetApiService = {
 
   async publish(appId: string, input?: PublishInput): Promise<PublishMetadata | null> {
     try {
-      const response = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/publish`, {
+      const response = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${appId}/publish`), {
         method: 'POST',
         body: JSON.stringify(input || {})
       })
@@ -1529,7 +1531,7 @@ export const SpreadsheetApiService = {
 
   async unpublish(appId: string): Promise<boolean> {
     try {
-      await apiRequest(`/spreadsheets/${appId}/unpublish`, { method: 'POST' })
+      await apiRequest(spreadsheetEndpoint(`/${appId}/unpublish`), { method: 'POST' })
       return true
     } catch (error) {
       console.error('Failed to unpublish spreadsheet app:', error)
@@ -1539,7 +1541,7 @@ export const SpreadsheetApiService = {
 
   async updateStatus(appId: string, status: string): Promise<PublishMetadata | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/publish-status`, {
+      await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${appId}/publish-status`), {
         method: 'PATCH',
         body: JSON.stringify({ status })
       })

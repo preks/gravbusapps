@@ -38,6 +38,7 @@ export interface CollaborationWebSocketOptions {
   reconnectionAttempts?: number
   reconnectionDelayMax?: number
   path?: string
+  namespace?: string
   enablePollingFallback?: boolean
   serviceApiUrl?: string
 }
@@ -510,13 +511,14 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Resolve relative URLs (e.g., "/local-doc-api") against the current page origin
   const urlObj = new URL(serviceUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005')
   const servicePath = urlObj.pathname // e.g., '/document'
+  const namespace = options?.namespace || '/collaboration'
 
   // For localhost, use simple path; for production use service path
   const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
 
   // Socket.io namespace URL is: origin + namespace (NOT service path)
   // The namespace on the server is '/collaboration'
-  const wsUrl = `${urlObj.origin}/collaboration`
+  const wsUrl = `${urlObj.origin}${namespace}`
 
   // Socket.io path: for localhost use default, for production include service path
   const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
@@ -536,6 +538,7 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
 export function createSpreadsheetCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
   return createCollaborationClient({
     ...options,
+    namespace: '/v2/spreadsheet-collaboration',
     serviceApiUrl: getSpreadsheetServiceApiUrl()
   })
 }

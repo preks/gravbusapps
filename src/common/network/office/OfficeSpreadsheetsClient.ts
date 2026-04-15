@@ -1,74 +1,77 @@
 import type { RestClient } from '../rest/RestClient'
 import type { RequestOptions } from '../rest/RestClient'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
+
+const spreadsheetPath = (suffix = ''): string => `${getSpreadsheetApiBasePath()}${suffix}`
 
 export class OfficeSpreadsheetsClient {
   constructor(private readonly client: RestClient) {}
 
   list<T = any>(params?: string, options?: RequestOptions) {
-    return this.client.get<T>(`/spreadsheets${params ? `?${params}` : ''}`, options)
+    return this.client.get<T>(spreadsheetPath(params ? `?${params}` : ''), options)
   }
   get<T = any>(id: string, options?: RequestOptions) {
-    return this.client.get<T>(`/spreadsheets/${id}`, options)
+    return this.client.get<T>(spreadsheetPath(`/${id}`), options)
   }
   create<T = any>(body: any, options?: RequestOptions) {
-    return this.client.post<T>('/spreadsheets', body, options)
+    return this.client.post<T>(spreadsheetPath(), body, options)
   }
   update<T = any>(id: string, body: any, options?: RequestOptions) {
-    return this.client.patch<T>(`/spreadsheets/${id}`, body, options)
+    return this.client.patch<T>(spreadsheetPath(`/${id}`), body, options)
   }
   delete(id: string, options?: RequestOptions) {
-    return this.client.delete(`/spreadsheets/${id}`, options)
+    return this.client.delete(spreadsheetPath(`/${id}`), options)
   }
   duplicate<T = any>(id: string, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${id}/duplicate`, undefined, options)
+    return this.client.post<T>(spreadsheetPath(`/${id}/duplicate`), undefined, options)
   }
   getSheet<T = any>(appId: string, sheetId: string, options?: RequestOptions) {
-    return this.client.get<T>(`/spreadsheets/${appId}/sheets/${sheetId}`, options)
+    return this.client.get<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}`), options)
   }
   createSheet<T = any>(appId: string, body: any, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${appId}/sheets`, body, options)
+    return this.client.post<T>(spreadsheetPath(`/${appId}/sheets`), body, options)
   }
   updateSheet<T = any>(appId: string, sheetId: string, body: any, options?: RequestOptions) {
-    return this.client.patch<T>(`/spreadsheets/${appId}/sheets/${sheetId}`, body, options)
+    return this.client.patch<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}`), body, options)
   }
   deleteSheet(appId: string, sheetId: string, options?: RequestOptions) {
-    return this.client.delete(`/spreadsheets/${appId}/sheets/${sheetId}`, options)
+    return this.client.delete(spreadsheetPath(`/${appId}/sheets/${sheetId}`), options)
   }
   getSheetRows<T = any>(appId: string, sheetId: string, params?: string, options?: RequestOptions) {
-    return this.client.get<T>(`/spreadsheets/${appId}/sheets/${sheetId}/rows${params ? `?${params}` : ''}`, options)
+    return this.client.get<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows${params ? `?${params}` : ''}`), options)
   }
   createSheetRow<T = any>(appId: string, sheetId: string, body: any, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${appId}/sheets/${sheetId}/rows`, body, options)
+    return this.client.post<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows`), body, options)
   }
   getSheetRow<T = any>(appId: string, sheetId: string, rowId: string, options?: RequestOptions) {
-    return this.client.get<T>(`/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, options)
+    return this.client.get<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows/${rowId}`), options)
   }
   updateSheetRow<T = any>(appId: string, sheetId: string, rowId: string, body: any, options?: RequestOptions) {
-    return this.client.patch<T>(`/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, body, options)
+    return this.client.patch<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows/${rowId}`), body, options)
   }
   deleteSheetRow(appId: string, sheetId: string, rowId: string, options?: RequestOptions) {
-    return this.client.delete(`/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, options)
+    return this.client.delete(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows/${rowId}`), options)
   }
   reorderSheetRows<T = any>(appId: string, sheetId: string, body: any, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${appId}/sheets/${sheetId}/rows/reorder`, body, options)
+    return this.client.post<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows/reorder`), body, options)
   }
   bulkUpdateSheetRows<T = any>(appId: string, sheetId: string, body: any, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${appId}/sheets/${sheetId}/rows/bulk`, body, options)
+    return this.client.post<T>(spreadsheetPath(`/${appId}/sheets/${sheetId}/rows/bulk`), body, options)
   }
   restore<T = any>(appId: string, versionNumber: number, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${appId}/restore/${versionNumber}`, undefined, options)
+    return this.client.post<T>(spreadsheetPath(`/${appId}/restore/${versionNumber}`), undefined, options)
   }
   publish<T = any>(appId: string, body: any, options?: RequestOptions) {
-    return this.client.post<T>(`/spreadsheets/${appId}/publish`, body, options)
+    return this.client.post<T>(spreadsheetPath(`/${appId}/publish`), body, options)
   }
   unpublish(appId: string, options?: RequestOptions) {
-    return this.client.post(`/spreadsheets/${appId}/unpublish`, undefined, options)
+    return this.client.post(spreadsheetPath(`/${appId}/unpublish`), undefined, options)
   }
   getPublishStatus<T = any>(appId: string, options?: RequestOptions) {
-    return this.client.get<T>(`/spreadsheets/${appId}/publish-status`, options)
+    return this.client.get<T>(spreadsheetPath(`/${appId}/publish-status`), options)
   }
   updatePublishStatus<T = any>(appId: string, body: any, options?: RequestOptions) {
-    return this.client.patch<T>(`/spreadsheets/${appId}/publish-status`, body, options)
+    return this.client.patch<T>(spreadsheetPath(`/${appId}/publish-status`), body, options)
   }
   updateStatus<T = any>(appId: string, body: any, options?: RequestOptions) {
     return this.updatePublishStatus<T>(appId, body, options)
