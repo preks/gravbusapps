@@ -1,7 +1,8 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import type { BoardSheet } from '../../types'
+import translations from '../../_i18n'
 
 export interface BoardViewerFooterProps {
   sheets: BoardSheet[]
@@ -32,6 +33,8 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
   loadedRows,
   testId
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <footer className="gba:border-t gba:bg-card gba:px-6 gba:py-2 gba:flex gba:items-center gba:justify-between gba:flex-shrink-0">
       <div className="gba:flex gba:items-center gba:gap-1 gba:overflow-x-auto">
@@ -54,8 +57,13 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
       <div className="gba:flex gba:items-center gba:gap-2">
         <span className="gba:text-xs gba:text-muted-foreground">
           {hidePagination && loadedRows != null
-            ? `${loadedRows} of ${rowsTotal} ${rowsTotal === 1 ? 'row' : 'rows'}`
-            : `${rowsTotal} ${rowsTotal === 1 ? 'row' : 'rows'}${totalPages > 1 ? ` | Page ${page} of ${totalPages}` : ''}`}
+            ? t('board-viewer-loaded-summary', { loaded: loadedRows, total: rowsTotal })
+            : t('board-viewer-page-summary', {
+                total: rowsTotal,
+                page,
+                totalPages,
+                showPage: totalPages > 1
+              })}
         </span>
 
         {!hidePagination && totalPages > 1 && (
@@ -68,7 +76,7 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
               onClick={onPrevPage}
               data-testid={`${testId}-prev-page`}
             >
-              Prev
+              {t('common-prev')}
             </Button>
             <Button
               variant="ghost"
@@ -78,7 +86,7 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
               onClick={onNextPage}
               data-testid={`${testId}-next-page`}
             >
-              Next
+              {t('common-next')}
             </Button>
           </div>
         )}
@@ -91,7 +99,7 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
             onClick={onAddRow}
             data-testid={`${testId}-add-row`}
           >
-            <Plus className="gba:w-3 gba:h-3" /> Add row
+            <Plus className="gba:w-3 gba:h-3" /> {t('board-add-row')}
           </Button>
         )}
       </div>

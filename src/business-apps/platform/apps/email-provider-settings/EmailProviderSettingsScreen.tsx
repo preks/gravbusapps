@@ -3,9 +3,9 @@
  * OAuth credentials per tenant. Providers are displayed in separate tabs.
  */
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ChevronLeft, Loader2, AlertTriangle, Mail } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useProviderSettings } from './hooks/useProviderSettings'
@@ -13,19 +13,13 @@ import { useAssistantPolicySettings } from './hooks/useAssistantPolicySettings'
 import { ProviderSettingsCard } from './components/ProviderSettingsCard'
 import { ImapSmtpSettingsCard } from './components/ImapSmtpSettingsCard'
 import { AssistantPolicyCard } from './components/AssistantPolicyCard'
+import translations from './_i18n'
 
 export interface EmailProviderSettingsScreenProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
 type ProviderTab = 'microsoft' | 'google' | 'imap_smtp' | 'assistant_policy'
-
-const TABS: { key: ProviderTab; label: string }[] = [
-  { key: 'microsoft', label: 'Microsoft 365' },
-  { key: 'google', label: 'Google / Gmail' },
-  { key: 'imap_smtp', label: 'IMAP / SMTP' },
-  { key: 'assistant_policy', label: 'Assistant Policy' }
-]
 
 const REDIRECT_URI = typeof window !== 'undefined' ? `${window.location.origin}/platform/mail/oauth/callback` : ''
 
@@ -34,20 +28,36 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
   userInfo,
   'data-testid': testId = 'email-provider-settings'
 }) => {
-  const { settings, isLoading, error, saveSettings } = useProviderSettings(accessToken)
+  const { t } = useTranslation(translations)
+  const { settings, isLoading, error, errorFallbackKey, saveSettings } = useProviderSettings(accessToken)
   const {
     policy,
     isLoading: isPolicyLoading,
     isSaving: isPolicySaving,
     error: policyError,
+    errorFallbackKey: policyErrorFallbackKey,
     savePolicy
   } = useAssistantPolicySettings(accessToken)
   const [activeTab, setActiveTab] = useState<ProviderTab>('microsoft')
+  const tabs: { key: ProviderTab; label: string }[] = useMemo(
+    () => [
+      { key: 'microsoft', label: t('tab-microsoft') },
+      { key: 'google', label: t('tab-google') },
+      { key: 'imap_smtp', label: t('tab-imap-smtp') },
+      { key: 'assistant_policy', label: t('tab-assistant-policy') }
+    ],
+    [t]
+  )
   const isAdminUser = Boolean(
     (userInfo as { role?: string; roles?: string[] } | undefined)?.role === 'admin' ||
       (userInfo as { role?: string; roles?: string[] } | undefined)?.roles?.includes('admin')
   )
-  const visibleTabs = isAdminUser ? TABS : TABS.filter(tab => tab.key !== 'assistant_policy')
+  const visibleTabs = isAdminUser ? tabs : tabs.filter(tab => tab.key !== 'assistant_policy')
+  const displayedError =
+    error ||
+    policyError ||
+    (errorFallbackKey ? t(errorFallbackKey) : null) ||
+    (policyErrorFallbackKey ? t(policyErrorFallbackKey) : null)
 
   const activeSettings = settings.find(s => s.provider === activeTab)
 
@@ -61,6 +71,7 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
             size="icon"
             onClick={() => navigateTo('/platform/every-office/emails')}
             data-testid={`${testId}-back`}
+            aria-label={t('back-button-label')}
           >
             <ChevronLeft className="gba:w-5 gba:h-5" />
           </Button>
@@ -70,16 +81,13 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
               <Mail className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
             </div>
             <div>
-              <h1 className="gba:text-lg gba:font-semibold gba:text-foreground">Email Provider Settings</h1>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Configure OAuth credentials so users can connect their email accounts.
-              </p>
+              <h1 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('screen-title')}</h1>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('screen-description')}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Provider tabs */}
       <div className="gba:border-b gba:bg-card gba:px-6">
         <div className="gba:flex gba:gap-1">
           {visibleTabs.map(tab => {
@@ -115,10 +123,10 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
             </div>
           )}
 
-          {(error || policyError) && (
+          {displayedError && (
             <div className="gba:flex gba:items-center gba:gap-3 gba:p-4 gba:rounded-lg gba:bg-destructive-secondary gba:text-destructive-secondary-foreground">
               <AlertTriangle className="gba:w-5 gba:h-5 gba:flex-shrink-0" />
-              <p className="gba:text-sm">{error || policyError}</p>
+              <p className="gba:text-sm">{displayedError}</p>
             </div>
           )}
 
@@ -149,7 +157,6 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
             />
           )}
 
-          {/* Setup guide */}
           {!isLoading && activeTab !== 'assistant_policy' && <SetupGuide activeTab={activeTab} />}
         </div>
       </div>
@@ -159,36 +166,37 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
 
 /** Contextual setup guide shown below the active provider tab */
 function SetupGuide({ activeTab }: { activeTab: ProviderTab }) {
+  const { t } = useTranslation(translations)
   const guides: Record<Exclude<ProviderTab, 'assistant_policy'>, { title: string; steps: string[] }> = {
     microsoft: {
-      title: 'Microsoft Setup Guide',
+      title: t('setup-guide-microsoft-title'),
       steps: [
-        'Go to Azure Portal > App Registrations > New registration.',
-        'Choose "Web" as the platform type (not SPA) for reliable background sync.',
-        'Add the redirect URI shown above in Authentication > Web.',
-        'Create a Client Secret under Certificates & secrets.',
-        'Enable the required permissions and grant admin consent if needed.',
-        'After saving here, users can connect their Microsoft accounts from the Mail app.'
+        t('setup-guide-microsoft-step-1'),
+        t('setup-guide-microsoft-step-2'),
+        t('setup-guide-microsoft-step-3'),
+        t('setup-guide-microsoft-step-4'),
+        t('setup-guide-microsoft-step-5'),
+        t('setup-guide-microsoft-step-6')
       ]
     },
     google: {
-      title: 'Google Setup Guide',
+      title: t('setup-guide-google-title'),
       steps: [
-        'Go to Google Cloud Console > APIs & Services > Credentials.',
-        'Create an OAuth 2.0 Client ID (Web application type).',
-        'Add the redirect URI shown above under Authorized redirect URIs.',
-        'Enable the Gmail API in APIs & Services > Library.',
-        'Configure the OAuth consent screen with required scopes.',
-        'After saving here, users can connect their Google accounts from the Mail app.'
+        t('setup-guide-google-step-1'),
+        t('setup-guide-google-step-2'),
+        t('setup-guide-google-step-3'),
+        t('setup-guide-google-step-4'),
+        t('setup-guide-google-step-5'),
+        t('setup-guide-google-step-6')
       ]
     },
     imap_smtp: {
-      title: 'IMAP / SMTP Setup',
+      title: t('setup-guide-imap-smtp-title'),
       steps: [
-        'No external app registration needed.',
-        'Enable this provider to let users connect any email account manually.',
-        'Optionally pre-fill default server details so users only need their credentials.',
-        'Users will enter their email, password, and server details (if not pre-filled).'
+        t('setup-guide-imap-smtp-step-1'),
+        t('setup-guide-imap-smtp-step-2'),
+        t('setup-guide-imap-smtp-step-3'),
+        t('setup-guide-imap-smtp-step-4')
       ]
     }
   }
@@ -199,8 +207,8 @@ function SetupGuide({ activeTab }: { activeTab: ProviderTab }) {
     <div className="gba:p-4 gba:rounded-lg gba:bg-info-secondary gba:text-info-secondary-foreground">
       <h3 className="gba:font-medium gba:mb-2">{guide.title}</h3>
       <ol className="gba:text-sm gba:space-y-1 gba:list-decimal gba:list-inside">
-        {guide.steps.map((step, i) => (
-          <li key={i}>{step}</li>
+        {guide.steps.map(step => (
+          <li key={step}>{step}</li>
         ))}
       </ol>
     </div>

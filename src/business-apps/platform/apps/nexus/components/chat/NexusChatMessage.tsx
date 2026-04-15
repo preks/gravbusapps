@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Badge } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, Badge, useTranslation } from '@newwork/nw-design-system'
 import {
   Bot,
   FileText,
@@ -17,6 +17,7 @@ import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { parseSourceCitations } from '../../utils/cleanSourceCitations'
 import type { InlineWebCitation } from '../../utils/cleanSourceCitations'
 import type { NexusMessage, NexusSource, ArtifactType } from '../../types/nexus.types'
+import translations from '../../_i18n'
 
 interface WebSource {
   title: string
@@ -37,16 +38,79 @@ interface NexusChatMessageProps {
   testId?: string
 }
 
+const THINKING_STATUS_KEY_BY_TEXT: Record<string, string> = {
+  'Planning research strategy...': 'chat-status-planning-research-strategy',
+  'Searching internal knowledge base...': 'chat-status-searching-internal-knowledge',
+  'Time limit reached — assembling report from gathered sources...': 'chat-status-time-limit-reached',
+  'Gap analysis interrupted — proceeding with current sources...': 'chat-status-gap-analysis-interrupted',
+  'Research encountered an issue — generating report from collected sources...': 'chat-status-research-issue',
+  'Writing comprehensive research report...': 'chat-status-writing-research-report',
+  'Searching documents...': 'chat-status-searching-documents',
+  'Fetching live data...': 'chat-status-fetching-live-data',
+  'Searching the web...': 'message-searching-web',
+  'Web results obtained, processing...': 'chat-status-web-results-obtained',
+  'Classifying intent...': 'chat-status-classifying-intent',
+  'Generating document...': 'document-generating',
+  'Generating analysis...': 'analysis-generating',
+  'Generating slides...': 'chat-status-generating-slides',
+  'Refining artifact...': 'chat-status-refining-artifact',
+  'Planning data query...': 'chat-status-planning-data-query',
+  'Preparing response...': 'chat-status-preparing-response',
+  'Querying available data sources...': 'chat-status-querying-data-sources',
+  'Answering...': 'chat-status-answering',
+  'System data is not configured here — using tables instead...': 'chat-status-system-data-fallback',
+  'Processing results...': 'chat-status-processing-results',
+  'Writing answer...': 'chat-status-writing-answer',
+  'Still fetching missing details...': 'chat-status-fetching-missing-details'
+}
+
 const artifactIcons: Record<ArtifactType, typeof FileText> = {
   document: FileText,
   analysis: BarChart3,
   slides: Presentation
 }
 
-const artifactLabels: Record<ArtifactType, string> = {
-  document: 'Document',
-  analysis: 'Analysis',
-  slides: 'Presentation'
+const getArtifactLabel = (
+  artifactType: ArtifactType,
+  t: (key: string, args?: Record<string, number | string>) => string
+) => {
+  switch (artifactType) {
+    case 'document':
+      return t('artifact-type-document')
+    case 'analysis':
+      return t('artifact-type-analysis')
+    case 'slides':
+      return t('artifact-type-slides')
+  }
+}
+
+const getSourceTypeLabel = (
+  contentType: NexusSource['contentType'],
+  t: (key: string, args?: Record<string, number | string>) => string
+) => {
+  switch (contentType) {
+    case 'document':
+      return t('message-content-type-document')
+    case 'note':
+      return t('message-content-type-note')
+    case 'spreadsheet':
+      return t('message-content-type-spreadsheet')
+    case 'web':
+      return t('message-content-type-web')
+    default:
+      return contentType
+  }
+}
+
+const getLocalizedThinkingStatus = (
+  status: string | null | undefined,
+  t: (key: string, args?: Record<string, number | string>) => string
+) => {
+  if (!status) return null
+
+  const key = THINKING_STATUS_KEY_BY_TEXT[status]
+
+  return key ? t(key) : status
 }
 
 export const NexusChatMessage = ({
@@ -62,7 +126,9 @@ export const NexusChatMessage = ({
   onViewArtifact,
   testId = 'nexus-chat-message'
 }: NexusChatMessageProps) => {
+  const { t } = useTranslation(translations)
   const isUser = message.role === 'user'
+  const localizedThinkingStatus = getLocalizedThinkingStatus(thinkingStatus, t)
   const rawContent = isStreaming && streamingContent ? streamingContent : message.content
   const { content, webCitations } = useMemo(
     () => (isUser ? { content: rawContent, webCitations: [] } : parseSourceCitations(rawContent)),
@@ -86,9 +152,9 @@ export const NexusChatMessage = ({
           <p className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap">{message.content}</p>
         </div>
         <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0 gba:mt-0.5">
-          {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />}
+          {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || t('app-user-fallback')} />}
           <AvatarFallback className="gba:text-[10px] gba:font-semibold gba:bg-secondary gba:text-secondary-foreground">
-            {userName ? userName.charAt(0).toUpperCase() : 'U'}
+            {(userName || t('app-user-fallback')).charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
       </div>
@@ -114,14 +180,16 @@ export const NexusChatMessage = ({
               <MarkdownWithChipsRenderer content={content} accessToken={accessToken} variant="chat" />
               {webCitations.length > 0 && <InlineWebCitations citations={webCitations} testId={testId} />}
               {/* Show thinking status below content during streaming (e.g. deep research progress) */}
-              {isStreaming && thinkingStatus && (
+              {isStreaming && localizedThinkingStatus && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2 gba:pt-2 gba:border-t gba:border-border/50">
                   <div className="gba:flex gba:items-center gba:gap-1">
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce" />
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:150ms]" />
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:300ms]" />
                   </div>
-                  <span className="gba:text-xs gba:text-muted-foreground gba:animate-pulse">{thinkingStatus}</span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:animate-pulse">
+                    {localizedThinkingStatus}
+                  </span>
                 </div>
               )}
             </>
@@ -132,8 +200,10 @@ export const NexusChatMessage = ({
                 <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:150ms]" />
                 <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:300ms]" />
               </div>
-              {thinkingStatus && (
-                <span className="gba:text-xs gba:text-muted-foreground gba:animate-pulse">{thinkingStatus}</span>
+              {localizedThinkingStatus && (
+                <span className="gba:text-xs gba:text-muted-foreground gba:animate-pulse">
+                  {localizedThinkingStatus}
+                </span>
               )}
             </div>
           ) : null}
@@ -156,12 +226,12 @@ export const NexusChatMessage = ({
             })()}
             <div className="gba:text-left">
               <span className="gba:text-xs gba:font-semibold gba:text-foreground">
-                {artifactLabels[artifactType]} created
+                {t('message-artifact-created', { type: getArtifactLabel(artifactType, t) })}
               </span>
-              <span className="gba:text-[10px] gba:text-muted-foreground gba:block">Click to view on canvas</span>
+              <span className="gba:text-[10px] gba:text-muted-foreground gba:block">{t('message-click-to-view')}</span>
             </div>
             <Badge variant="secondary" className="gba:ml-auto gba:text-[10px]">
-              View
+              {t('message-view')}
             </Badge>
           </button>
         )}
@@ -207,6 +277,7 @@ const WebSearchSources = ({
   testId: string
   animate?: boolean
 }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(true)
   const [visibleCount, setVisibleCount] = useState(animate ? 0 : sources.length)
 
@@ -258,8 +329,8 @@ const WebSearchSources = ({
         <Globe className="gba:h-3.5 gba:w-3.5 gba:text-info" />
         <span className="gba:text-xs gba:font-semibold gba:text-foreground">
           {visibleCount < uniqueSources.length
-            ? 'Searching the web...'
-            : `Searched ${uniqueSources.length} site${uniqueSources.length > 1 ? 's' : ''}`}
+            ? t('message-searching-web')
+            : t('message-searched-sites', { count: uniqueSources.length })}
         </span>
         {isExpanded ? (
           <ChevronUp className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
@@ -297,6 +368,7 @@ const sourceIcons: Record<string, typeof FileText> = {
 }
 
 const SourceCitation = ({ sources, testId }: { sources: NexusSource[]; testId: string }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(false)
 
   const uniqueSources = useMemo(() => {
@@ -361,7 +433,7 @@ const SourceCitation = ({ sources, testId }: { sources: NexusSource[]; testId: s
         className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
         data-testid={`${testId}-sources-toggle`}
       >
-        <span className="gba:font-medium">Sources</span>
+        <span className="gba:font-medium">{t('message-sources')}</span>
         <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4">
           {uniqueSources.length}
         </Badge>
@@ -398,7 +470,7 @@ const SourceCitation = ({ sources, testId }: { sources: NexusSource[]; testId: s
                       variant="secondary"
                       className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4 gba:capitalize gba:flex-shrink-0"
                     >
-                      {isWeb ? 'web' : source.contentType}
+                      {getSourceTypeLabel(source.contentType, t)}
                     </Badge>
                     {isWeb && source.url ? (
                       <span className="gba:text-[10px] gba:text-muted-foreground/50 gba:ml-auto gba:flex-shrink-0">

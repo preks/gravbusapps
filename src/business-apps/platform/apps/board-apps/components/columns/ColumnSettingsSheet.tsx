@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { BoardColumn, BoardColumnType } from '../../types'
 import { CHANGEABLE_TYPES, CONFIG_REQUIRED_TYPES, getTypeLabel } from './columnTypeDefs'
@@ -21,6 +22,7 @@ import { ColumnTypeIcon } from '../table/ColumnTypeIcon'
 import { SelectOptionsEditor } from './SelectOptionsEditor'
 import { RelationConfigSection } from './RelationConfigSection'
 import { BoardApiService } from '../../services/BoardApiService'
+import translations from '../../_i18n'
 
 export interface ColumnSettingsSheetProps {
   open: boolean
@@ -47,6 +49,7 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
   onSave,
   'data-testid': testId = 'column-settings'
 }) => {
+  const { t } = useTranslation(translations)
   const [draft, setDraft] = useState<BoardColumn>({ ...column })
   const [boards, setBoards] = useState<BoardInfo[]>([])
 
@@ -115,7 +118,7 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
                 data-testid={`${testId}-type-readonly`}
               >
                 <ColumnTypeIcon type={draft.type} />
-                <span className="gba:text-xs">{getTypeLabel(draft.type)}</span>
+                <span className="gba:text-xs">{getTypeLabel(t, draft.type)}</span>
                 <span className="gba:text-[10px] gba:text-muted-foreground gba:ml-auto">cannot change type</span>
               </div>
             </div>
@@ -127,11 +130,11 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CHANGEABLE_TYPES.map(t => (
-                    <SelectItem key={t.type} value={t.type}>
+                  {CHANGEABLE_TYPES.map(typeDef => (
+                    <SelectItem key={typeDef.type} value={typeDef.type}>
                       <span className="gba:flex gba:items-center gba:gap-1.5">
-                        <ColumnTypeIcon type={t.type} />
-                        {t.label}
+                        <ColumnTypeIcon type={typeDef.type} />
+                        {t(typeDef.labelKey)}
                       </span>
                     </SelectItem>
                   ))}
