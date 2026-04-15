@@ -6,6 +6,7 @@
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { parseDocumentTocSnapshot } from './documentTocSnapshot'
+import { buildDocumentTocTextStyleCss, parseDocumentTocStyles } from './documentTocStyleUtils'
 import { escapeHtmlText } from './exportUtils'
 
 const DOCUMENT_TOC_NODE = 'documentTableOfContents'
@@ -14,6 +15,12 @@ export type DocumentTocExportLabels = {
   blockTitle: string
   emptyMessage: string
   untitledHeading: string
+}
+
+function normalizeMaxHeadingLevel(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(parsed)) return 3
+  return Math.max(1, Math.min(6, parsed))
 }
 
 function collectDocumentTocInstances(doc: PMNode): { pos: number; nodeSize: number; attrs: Record<string, unknown> }[] {
@@ -27,16 +34,27 @@ function collectDocumentTocInstances(doc: PMNode): { pos: number; nodeSize: numb
   return out
 }
 
+function buildStyleAttribute(css: string): string {
+  const trimmed = css.trim()
+  return trimmed ? ` style="${escapeHtmlText(trimmed)}"` : ''
+}
+
 function buildTocInnerHtml(attrs: Record<string, unknown>, labels: DocumentTocExportLabels): string {
   const showPageNumbers = attrs.showPageNumbers !== false
   const rightAlignPageNumbers = attrs.rightAlignPageNumbers !== false
   const tabLeader = attrs.tabLeader === 'none' ? 'none' : 'dot'
-  const headings = parseDocumentTocSnapshot(String(attrs.snapshotJson ?? '[]')).entries
+  const maxHeadingLevel = normalizeMaxHeadingLevel(attrs.maxHeadingLevel)
+  const tocStyles = parseDocumentTocStyles(String(attrs.stylesJson ?? ''))
+  const titleStyleAttr = buildStyleAttribute(buildDocumentTocTextStyleCss(tocStyles.title))
+  const entryStyleAttr = buildStyleAttribute(buildDocumentTocTextStyleCss(tocStyles.entries))
+  const headings = parseDocumentTocSnapshot(String(attrs.snapshotJson ?? '[]')).entries.filter(
+    entry => entry.level <= maxHeadingLevel
+  )
 
-  const titleHtml = `<div class="document-toc-print-title">${escapeHtmlText(labels.blockTitle)}</div>`
+  const titleHtml = `<div class="document-toc-print-title"${titleStyleAttr}>${escapeHtmlText(labels.blockTitle)}</div>`
 
   if (headings.length === 0) {
-    return `<div class="document-toc-print-inner">${titleHtml}<p class="document-toc-print-empty">${escapeHtmlText(labels.emptyMessage)}</p></div>`
+    return `<div class="document-toc-print-inner">${titleHtml}<p class="document-toc-print-empty"${entryStyleAttr}>${escapeHtmlText(labels.emptyMessage)}</p></div>`
   }
 
   const rows: string[] = [titleHtml]
@@ -52,12 +70,12 @@ function buildTocInnerHtml(attrs: Record<string, unknown>, labels: DocumentTocEx
           : '<span class="document-toc-print-leader-fill document-toc-print-leader-fill-gap"></span>'
       const pageCell =
         pageLabel !== ''
-          ? `<div class="document-toc-print-page-cell">${escapeHtmlText(pageLabel)}</div>`
+          ? `<div class="document-toc-print-page-cell"${entryStyleAttr}>${escapeHtmlText(pageLabel)}</div>`
           : '<div class="document-toc-print-page-cell"></div>'
       rows.push(
         `<div class="document-toc-print-row ${levelClass}">` +
           `<div class="document-toc-print-line document-toc-print-line-flex" role="presentation">` +
-          `<div class="document-toc-print-title-cell">${text}</div>` +
+          `<div class="document-toc-print-title-cell"${entryStyleAttr}>${text}</div>` +
           `<div class="document-toc-print-leader-cell" aria-hidden="true">${leaderInner}</div>` +
           `${pageCell}` +
           `</div></div>`
@@ -69,12 +87,14 @@ function buildTocInnerHtml(attrs: Record<string, unknown>, labels: DocumentTocEx
           : ''
       const pageHtml =
         pageLabel !== ''
-          ? `<span class="document-toc-print-page document-toc-print-page-inline">${escapeHtmlText(pageLabel)}</span>`
+          ? `<span class="document-toc-print-page document-toc-print-page-inline"${entryStyleAttr}>${escapeHtmlText(
+              pageLabel
+            )}</span>`
           : ''
       rows.push(
         `<div class="document-toc-print-row ${levelClass}">` +
           `<div class="document-toc-print-row-inline">` +
-          `<span class="document-toc-print-text document-toc-print-text-wrap">${text}</span>` +
+          `<span class="document-toc-print-text document-toc-print-text-wrap"${entryStyleAttr}>${text}</span>` +
           leaderHtml +
           pageHtml +
           `</div></div>`

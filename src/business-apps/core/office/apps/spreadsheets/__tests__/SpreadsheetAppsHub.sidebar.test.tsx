@@ -1,9 +1,7 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { SpreadsheetAppsHub } from '../SpreadsheetAppsHub'
 
 jest.mock('@newwork/nw-design-system', () => {
-  const React = require('react')
   const passthrough = ({ children, ...props }: any) => <div {...props}>{children}</div>
   const button = ({ children, ...props }: any) => <button {...props}>{children}</button>
   const input = ({ ...props }: any) => <input {...props} />
@@ -46,8 +44,8 @@ jest.mock('@/common/utils/navigationUtils', () => ({
   navigateTo: jest.fn()
 }))
 
-jest.mock('@/business-apps/platform/apps/shared/utils/documentServiceUrl', () => ({
-  getDocumentServiceApiUrl: () => 'http://localhost:3002/api/v1'
+jest.mock('@/common/utils/serviceResolver', () => ({
+  DOCUMENT_API_URL: 'http://localhost:3002/api/v1'
 }))
 
 jest.mock('../hooks/useSpreadsheetApps', () => ({

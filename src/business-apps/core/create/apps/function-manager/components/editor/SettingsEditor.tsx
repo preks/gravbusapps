@@ -13,7 +13,8 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { Copy, Plus, Trash2 } from 'lucide-react'
-import { fnsecretRefForId, parseFnsecretUuid } from '@/common/utils/fnsecretRef'
+import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
+import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
 export type ConfigRow = {
   key: string
@@ -51,8 +52,10 @@ export interface SettingsEditorProps {
   selectedConnectionId?: string | null
   onConnectionChange?: (connectionId: string | null) => void
   isLoadingConnections?: boolean
-  /** When set (even empty), enables stored-credential binding per row. */
+  /** When defined (including `[]`), enables the credential picker; options come from `credentialBindOptions` when non-empty, else from this list. */
   storedSecrets?: StoredSecretOption[]
+  /** Merged picker list (standalone credentials + bundle slots). When defined and non-empty, used instead of mapping `storedSecrets` alone. */
+  credentialBindOptions?: CredentialBindOption[]
   'data-testid'?: string
 }
 
@@ -64,10 +67,20 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
   onConnectionChange,
   isLoadingConnections = false,
   storedSecrets,
+  credentialBindOptions,
   'data-testid': testId = 'function-editor-settings'
 }) => {
   const safeRows = rows.length ? rows : [fallbackEmptyRow()]
   const secretsEnabled = storedSecrets !== undefined
+  const bindOptions: CredentialBindOption[] = React.useMemo(() => {
+    const fromSecrets = (storedSecrets || []).map(s => ({ secretId: s.id, label: s.displayName }))
+    // Parent passes merged list (credentials + bundle slots). Empty array must not hide credentials
+    // when bundle fetch failed but secrets loaded (or legacy callers omit bundle slots).
+    if (credentialBindOptions !== undefined && credentialBindOptions.length > 0) {
+      return credentialBindOptions
+    }
+    return fromSecrets
+  }, [credentialBindOptions, storedSecrets])
 
   const normalizedKeys = safeRows.map(r => String(r.key || '').trim())
   const keyCounts = React.useMemo(() => {
@@ -137,9 +150,9 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
               {secretsEnabled ? (
                 <>
                   {' '}
-                  Create stored credentials from Function Manager’s top-level <strong>Credentials</strong> tab; here,
-                  use <span className="gba:font-mono">Stored credential</span> per row to bind an{' '}
-                  <span className="gba:font-mono">fnsecret:…</span> reference instead of plaintext in saved config.
+                  Create credentials and credential bundles from Function Manager’s top-level <strong>Credentials</strong>{' '}
+                  tab; here, bind a stored credential per row as an <span className="gba:font-mono">fnsecret:…</span>{' '}
+                  reference instead of plaintext in saved config.
                 </>
               ) : null}
             </div>
@@ -209,68 +222,18 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
                     <div className="gba:text-xs gba:text-muted-foreground gba:sm:hidden">Value</div>
                   </div>
                   {secretsEnabled ? (
-                    <div className="gba:space-y-2">
-                      <Select
-                        value={(() => {
-                          const sid = parseFnsecretUuid(kv.value)
-                          const known = (storedSecrets || []).some(s => s.id.toLowerCase() === sid)
-                          return sid && known ? `ref:${sid}` : '__plain__'
-                        })()}
-                        onValueChange={v => {
-                          const next = [...safeRows]
-                          if (v === '__plain__') {
-                            const sid = parseFnsecretUuid(next[idx]?.value || '')
-                            next[idx] = { ...next[idx], value: sid ? '' : next[idx].value }
-                            onChange(next)
-                            return
-                          }
-                          if (v.startsWith('ref:')) {
-                            const id = v.slice(4)
-                            next[idx] = { ...next[idx], value: fnsecretRefForId(id) }
-                            onChange(next)
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="gba:h-9" data-testid={`${testId}-bind-${idx}`}>
-                          <SelectValue placeholder="Binding" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__plain__">Plain value</SelectItem>
-                          {(storedSecrets || []).map(s => (
-                            <SelectItem key={s.id} value={`ref:${s.id}`}>
-                              {s.displayName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {(() => {
-                        const sid = parseFnsecretUuid(kv.value)
-                        const known = sid && (storedSecrets || []).some(s => s.id.toLowerCase() === sid)
-                        if (known) {
-                          return (
-                            <div
-                              className="gba:text-xs gba:font-mono gba:text-muted-foreground gba:break-all"
-                              data-testid={`${testId}-ref-preview-${idx}`}
-                            >
-                              {kv.value}
-                            </div>
-                          )
-                        }
-                        return (
-                          <Input
-                            type="text"
-                            placeholder="Plain value (Function Manager → Credentials for stored credentials)"
-                            value={kv.value}
-                            onChange={e => {
-                              const n = [...safeRows]
-                              n[idx] = { ...n[idx], value: e.target.value }
-                              onChange(n)
-                            }}
-                            data-testid={`${testId}-value-${idx}`}
-                          />
-                        )
-                      })()}
-                    </div>
+                    <CredentialBindField
+                      value={kv.value}
+                      onChange={nextVal => {
+                        const n = [...safeRows]
+                        n[idx] = { ...n[idx], value: nextVal }
+                        onChange(n)
+                      }}
+                      bindOptions={bindOptions}
+                      plainInputType="text"
+                      plainPlaceholder="Plain value (use Credentials tab to store secrets)"
+                      data-testid={`${testId}-bind-${idx}`}
+                    />
                   ) : (
                     <Input
                       type="text"

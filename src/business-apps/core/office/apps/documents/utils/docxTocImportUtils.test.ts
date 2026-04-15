@@ -1,4 +1,5 @@
 import { enhanceImportedHtmlWithTableOfContents, parseDocumentXmlForTableOfContents } from './docxTocImportUtils'
+import { parseDocumentTocStyles } from './documentTocStyleUtils'
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
@@ -88,6 +89,64 @@ describe('docxTocImportUtils', () => {
     expect(toc?.snapshotJson).toContain('"text":"Custom styled entry"')
     expect(toc?.snapshotJson).toContain('"pageNumber":"12"')
     expect(toc?.snapshotJson).toContain('"level":2')
+  })
+
+  it('captures title and shared entry typography from Word field result paragraphs', () => {
+    const toc = parseDocumentXmlForTableOfContents(
+      minimalDocumentXml(`
+        <w:p>
+          <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+          <w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h </w:instrText></w:r>
+          <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+        </w:p>
+        <w:p>
+          <w:pPr><w:pStyle w:val="TOCHeading"/></w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+              <w:sz w:val="28"/>
+              <w:i/>
+              <w:color w:val="990000"/>
+            </w:rPr>
+            <w:t>Table of contents</w:t>
+          </w:r>
+        </w:p>
+        <w:p>
+          <w:pPr><w:pStyle w:val="TOC1"/></w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+              <w:sz w:val="22"/>
+              <w:b/>
+              <w:color w:val="123456"/>
+            </w:rPr>
+            <w:t>Styled entry</w:t>
+          </w:r>
+          <w:r><w:tab/></w:r>
+          <w:r><w:t>7</w:t></w:r>
+        </w:p>
+        <w:p>
+          <w:r><w:fldChar w:fldCharType="end"/></w:r>
+        </w:p>
+      `)
+    )
+
+    const styles = parseDocumentTocStyles(toc?.stylesJson)
+
+    expect(styles.title).toEqual({
+      fontFamily: 'Arial',
+      fontSizePt: 14,
+      bold: false,
+      italic: true,
+      color: '#990000'
+    })
+    expect(styles.entries).toEqual({
+      fontFamily: 'Calibri',
+      fontSizePt: 11,
+      bold: true,
+      italic: false,
+      color: '#123456'
+    })
   })
 
   it('injects a document-toc block into imported html', () => {

@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
-import type { DeepAgentSession, SessionConfig } from '../types/enterpriseAgent'
+import type { DeepAgentSession, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 
@@ -17,7 +17,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       activeEnterpriseSkillId?: string,
       fallbackSkillId?: string
     ) =>
-      client.post<{ session_id: string }>('/deep-agent/sessions', {
+      client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
         active_external_connection_ids: activeExternalConnectionIds,

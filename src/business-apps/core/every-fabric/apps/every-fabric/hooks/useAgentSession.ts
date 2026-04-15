@@ -5,7 +5,8 @@ import type {
   ChatMessage,
   DeepAgentSession,
   SessionConfig,
-  SkillLoadedEvent
+  SkillLoadedEvent,
+  StartSessionResponse
 } from '../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 import { useSessionStream } from './useSessionStream'
@@ -88,19 +89,167 @@ const toEpoch = (timestamp: string): number => {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
-export const useAgentSession = (sessionId: string | null, accessToken: string) => {
+function epochFromStreamEvent(event: AgentStreamEvent): number | null {
+  if (!('timestamp' in event) || typeof event.timestamp !== 'string') {
+    return null
+  }
+  return toEpoch(event.timestamp)
+}
+
+const currentTurnTrace = (events: AgentStreamEvent[]): AgentStreamEvent[] => {
+  if (events.length === 0) return events
+
+  let latestHumanSeq = -1
+  for (const event of events) {
+    if (event.type === 'agent_chunk' && event.role === 'human' && typeof event.seq === 'number') {
+      latestHumanSeq = Math.max(latestHumanSeq, event.seq)
+    }
+  }
+
+  if (latestHumanSeq < 0) return events
+  return events.filter(event => !('seq' in event) || typeof event.seq !== 'number' || event.seq >= latestHumanSeq)
+}
+
+const chunkStreamKey = (chunk: AgentChunkEvent): string | null => {
+  const raw = chunk.metadata?.stream_key
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw : null
+}
+
+const looksLikeInternalErrorLeak = (content: string): boolean => {
+  const normalized = content.toLowerCase()
+  return (
+    normalized.includes("client error '400 bad request'") ||
+    normalized.includes("client error '404 not found'") ||
+    normalized.includes("client error '500") ||
+    normalized.includes("client error '502") ||
+    normalized.includes("client error '503") ||
+    normalized.includes("client error '504") ||
+    normalized.includes('for more information check: https://developer.mozilla.org/') ||
+    normalized.includes('flow engine http error') ||
+    normalized.includes('functions service call failed') ||
+    normalized.includes('promptodm lookup failed')
+  )
+}
+
+function sessionTraceOrEmpty(mergedSession: DeepAgentSession | null | undefined): AgentStreamEvent[] {
+  return mergedSession?.trace ?? []
+}
+
+function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string | null {
+  const responseSnapshots = events
+    .filter(
+      (entry): entry is AgentChunkEvent =>
+        entry.type === 'agent_chunk' &&
+        entry.role === 'ai' &&
+        entry.chunk_kind === 'response_stream' &&
+        typeof entry.content === 'string' &&
+        entry.content.trim().length > 0
+    )
+    .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+
+  if (responseSnapshots.length === 0) {
+    return null
+  }
+
+  const primarySnapshots = responseSnapshots.filter(snapshot => chunkStreamKey(snapshot) !== 'continuation')
+  const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
+  const safeSnapshots = preferredSnapshots.filter(snapshot => !looksLikeInternalErrorLeak(snapshot.content.trim()))
+  if (safeSnapshots.length === 0) {
+    return ''
+  }
+
+  let stableContent = ''
+  for (const snapshot of safeSnapshots) {
+    const nextContent = snapshot.content.trim()
+    if (!nextContent) continue
+    if (!stableContent) {
+      stableContent = nextContent
+      continue
+    }
+    if (nextContent.length >= stableContent.length && nextContent.startsWith(stableContent)) {
+      stableContent = nextContent
+    }
+  }
+
+  return stableContent || safeSnapshots[safeSnapshots.length - 1].content.trim()
+}
+
+function buildStreamingContentFromLegacyThinking(events: AgentStreamEvent[]): string {
+  const legacyThinking = events
+    .filter(
+      (entry): entry is AgentChunkEvent =>
+        entry.type === 'agent_chunk' &&
+        entry.role === 'ai' &&
+        entry.chunk_kind === 'thinking' &&
+        typeof entry.content === 'string' &&
+        entry.content.trim().length > 0
+    )
+    .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+
+  if (legacyThinking.length === 0) {
+    return ''
+  }
+
+  return legacyThinking
+    .map(e => e.content.trim())
+    .filter(Boolean)
+    .join('\n\n')
+}
+
+function computeStreamingDisplayContent(
+  liveTurnEvents: AgentStreamEvent[],
+  lastReplyTimestamp: number,
+  isAgentRunning: boolean,
+  mergedStatus: DeepAgentSession['status'] | undefined
+): string {
+  const isActivelyRunning = isAgentRunning || mergedStatus === 'running'
+  if (!isActivelyRunning) {
+    return ''
+  }
+
+  if (lastReplyTimestamp > 0) {
+    const hasRecentEvents = liveTurnEvents.some(event => {
+      const t = epochFromStreamEvent(event)
+      return t !== null && t >= lastReplyTimestamp
+    })
+    if (!hasRecentEvents) {
+      return ''
+    }
+  }
+
+  const fromSnapshots = buildStreamingContentFromSnapshots(liveTurnEvents)
+  if (fromSnapshots !== null) {
+    return fromSnapshots
+  }
+
+  return buildStreamingContentFromLegacyThinking(liveTurnEvents)
+}
+
+export const useAgentSession = (
+  sessionId: string | null,
+  accessToken: string,
+  bootstrapSession?: DeepAgentSession | null
+) => {
   const client = useEnterpriseAgentClient(accessToken)
   const [streamVersion, setStreamVersion] = useState(0)
   const { messages: streamMessages, events, isConnected } = useSessionStream(sessionId, accessToken, streamVersion)
   const [session, setSession] = useState<DeepAgentSession | null>(null)
+  const [sessionLoadError, setSessionLoadError] = useState(false)
   // Tracks that a reply POST was sent and the agent is running, even before the stream delivers
   // new events. Terminal events clear this. Resets on session switch.
   const [isAgentRunning, setIsAgentRunning] = useState(false)
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
   const [activeSkill, setActiveSkill] = useState<ActiveSkillInfo | null>(null)
+  // Tracks when a new reply was just sent to prevent showing stale streaming content
+  const [lastReplyTimestamp, setLastReplyTimestamp] = useState<number>(0)
+
+  const matchedBootstrapSession = useMemo(
+    () => (bootstrapSession?.session_id === sessionId ? bootstrapSession : null),
+    [bootstrapSession, sessionId]
+  )
 
   const sessionRef = useRef<DeepAgentSession | null>(null)
-  sessionRef.current = session
+  sessionRef.current = session ?? matchedBootstrapSession
   const eventsRef = useRef<AgentStreamEvent[]>([])
   eventsRef.current = events
   // Track the event count at which we last processed a terminal, so the
@@ -111,9 +260,11 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     if (!sessionId) return null
     try {
       const s = await client.getSession(sessionId)
+      setSessionLoadError(false)
       setSession(s)
       return s
     } catch {
+      setSessionLoadError(true)
       return null
     }
   }, [sessionId, client])
@@ -122,9 +273,11 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     // Always wipe stale data immediately so switching sessions never shows the previous
     // session's messages while the new session loads.
     setSession(null)
+    setSessionLoadError(false)
     setIsAgentRunning(false)
     setOptimisticMessages([])
     setActiveSkill(null)
+    setLastReplyTimestamp(0)
     processedTerminalAtRef.current = -1
     if (!sessionId) {
       setStreamVersion(0)
@@ -203,18 +356,33 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     }
   }, [events])
 
+  // Clear lastReplyTimestamp once we receive fresh events from the new turn
+  useEffect(() => {
+    if (lastReplyTimestamp === 0 || events.length === 0) return
+
+    const hasFreshEvents = events.some(event => {
+      const eventTime = epochFromStreamEvent(event)
+      return eventTime !== null && eventTime >= lastReplyTimestamp
+    })
+
+    if (hasFreshEvents) {
+      setLastReplyTimestamp(0)
+    }
+  }, [events, lastReplyTimestamp])
+
   const mergedSession = useMemo((): DeepAgentSession | null => {
-    if (!session) return null
+    const restSession = session ?? matchedBootstrapSession
+    if (!restSession) return null
 
     // REST session status is AUTHORITATIVE for terminal states.
     // If REST says completed/failed/cancelled, that's the final answer.
     // SSE may have stale or intermediate terminal events (e.g. waiting_for_human)
     // that should not override a completed REST status.
-    const restStatus = session.status
+    const restStatus = restSession.status
     const isRestTerminal = restStatus === 'completed' || restStatus === 'failed' || restStatus === 'cancelled'
 
     if (isRestTerminal) {
-      return session // REST is authoritative, no overlay needed
+      return restSession // REST is authoritative, no overlay needed
     }
 
     // For non-terminal REST status, SSE terminal events provide real-time updates
@@ -222,20 +390,21 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     for (const ev of events) {
       if (ev.type === 'terminal') status = ev.status
     }
-    return { ...session, status }
-  }, [session, events])
+    return { ...restSession, status }
+  }, [session, matchedBootstrapSession, events])
 
   const messages: ChatMessage[] = useMemo(() => {
     // Production-grade approach: Server (REST session.trace) is the source of truth.
     // SSE streamMessages are ONLY used for real-time updates during active streaming.
     // Once the session reaches a terminal state, REST trace is authoritative.
 
-    const isSessionTerminal = mergedSession && isTerminalStatus(mergedSession.status)
+    const restSession = session ?? matchedBootstrapSession
+    const isRestTerminal = restSession && isTerminalStatus(restSession.status)
 
     // Get authoritative messages from REST session trace
     const traceMessages = mergedSession ? sessionToMessages(mergedSession) : []
 
-    if (isSessionTerminal && !isAgentRunning) {
+    if (isRestTerminal && !isAgentRunning) {
       // Session is complete - use REST trace as the single source of truth.
       // Trace is already in correct order from the server.
       return traceMessages
@@ -270,54 +439,88 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       // Neither has seq (optimistic messages): sort by timestamp
       return toEpoch(a.timestamp) - toEpoch(b.timestamp)
     })
-  }, [streamMessages, mergedSession, optimisticMessages, isAgentRunning])
+  }, [streamMessages, mergedSession, optimisticMessages, isAgentRunning, session, matchedBootstrapSession])
 
-  // Aggregate streaming content from agent_thinking messages for progressive display.
-  // This is used by StreamingAnswerBubble to show the AI response as it generates.
-  // We look at BOTH SSE stream messages AND the combined messages array to ensure
-  // we capture thinking content regardless of timing between SSE and REST updates.
-  const streamingContent = useMemo(() => {
-    // Only show streaming content while agent is actively working
-    const isActivelyRunning = isAgentRunning || mergedSession?.status === 'running'
-    if (!isActivelyRunning) {
-      return ''
-    }
+  const liveTurnEvents = useMemo(() => {
+    if (events.length > 0) return currentTurnTrace(events)
+    return currentTurnTrace(sessionTraceOrEmpty(mergedSession))
+  }, [events, mergedSession])
 
-    // First check SSE stream messages (real-time)
-    const sseThinking = streamMessages
-      .filter(
-        (m): m is ChatMessage & { content: string } => m.type === 'agent_thinking' && typeof m.content === 'string'
-      )
-      .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
-
-    if (sseThinking.length > 0) {
-      return sseThinking
-        .map(m => m.content.trim())
-        .filter(Boolean)
-        .join('\n\n')
-    }
-
-    // Fallback: check REST trace for any AI chunks if SSE hasn't delivered yet
-    const trace = mergedSession?.trace ?? []
-    const traceAiChunks = trace
+  // Extract greeting from the ENTIRE session history, not just current turn
+  // This ensures we only show one greeting at the very beginning
+  const streamingGreeting = useMemo(() => {
+    const allEvents = events.length > 0 ? events : sessionTraceOrEmpty(mergedSession)
+    const greetingEvents = allEvents
       .filter(
         (entry): entry is AgentChunkEvent =>
           entry.type === 'agent_chunk' &&
           entry.role === 'ai' &&
+          entry.chunk_kind === 'final' &&
           typeof entry.content === 'string' &&
           entry.content.trim().length > 0
       )
-      .slice(-5) // Last few chunks
+      .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
 
-    if (traceAiChunks.length > 0) {
-      return traceAiChunks
-        .map(e => e.content.trim())
-        .filter(Boolean)
-        .join('\n\n')
+    // Only return the FIRST greeting ever, not per-turn
+    return greetingEvents[0]?.content.trim() ?? ''
+  }, [events, mergedSession])
+
+  const streamingContent = useMemo(
+    () => computeStreamingDisplayContent(liveTurnEvents, lastReplyTimestamp, isAgentRunning, mergedSession?.status),
+    [isAgentRunning, liveTurnEvents, mergedSession?.status, lastReplyTimestamp]
+  )
+
+  // Extract agent reasoning/thinking from ALL session events (not filtered by turn)
+  // This ensures thinking is visible even after human-in-the-loop replies
+  const streamingThinking = useMemo(() => {
+    // Show thinking during active sessions, but also keep it visible briefly after completion
+    const allEvents = events.length > 0 ? events : sessionTraceOrEmpty(mergedSession)
+    const thinkingSnapshots = allEvents
+      .filter(
+        (entry): entry is AgentChunkEvent =>
+          entry.type === 'agent_chunk' &&
+          entry.role === 'ai' &&
+          entry.chunk_kind === 'agent_reasoning' &&
+          typeof entry.content === 'string' &&
+          entry.content.trim().length > 0
+      )
+      .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+
+    if (thinkingSnapshots.length > 0) {
+      // Get the latest/longest thinking snapshot (cumulative mode)
+      const latestThinking = thinkingSnapshots[thinkingSnapshots.length - 1]
+      return latestThinking.content.trim()
     }
 
     return ''
-  }, [streamMessages, isAgentRunning, mergedSession?.status, mergedSession?.trace])
+  }, [events, mergedSession])
+
+  // Extract the latest status update from agent_chunk events with chunk_kind='status'
+  // This provides real-time status headlines during agent initialization and execution
+  const statusHeadline = useMemo(() => {
+    // Clear status when session is completed/failed/cancelled
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return null
+    }
+
+    if (!events || events.length === 0) return null
+
+    // Get latest status event from the stream
+    const statusEvents = events
+      .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'status')
+      .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
+
+    if (statusEvents.length > 0) {
+      // Remove emoji prefix if present (backend adds 🔄)
+      return statusEvents[0].content.replace(/🔄\s*/, '')
+    }
+
+    return null
+  }, [events, mergedSession?.status])
 
   const startSession = useCallback(
     async (
@@ -326,15 +529,8 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       activeExternalConnectionIds?: string[],
       activeEnterpriseSkillId?: string,
       fallbackSkillId?: string
-    ) => {
-      const { session_id } = await client.startSession(
-        task,
-        config,
-        activeExternalConnectionIds,
-        activeEnterpriseSkillId,
-        fallbackSkillId
-      )
-      return session_id
+    ): Promise<StartSessionResponse> => {
+      return client.startSession(task, config, activeExternalConnectionIds, activeEnterpriseSkillId, fallbackSkillId)
     },
     [client]
   )
@@ -360,6 +556,7 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
       }
 
       setIsAgentRunning(true)
+      setLastReplyTimestamp(Date.now()) // Mark when we sent a new reply to prevent showing stale content
       const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput)
 
       try {
@@ -381,12 +578,17 @@ export const useAgentSession = (sessionId: string | null, accessToken: string) =
     session: mergedSession,
     messages,
     events,
+    streamingGreeting,
     streamingContent,
+    streamingThinking,
+    statusHeadline,
     isConnected,
     isStreaming: isAgentRunning || (!!mergedSession && mergedSession.status === 'running'),
     isWaitingForInput: mergedSession?.status === 'waiting_for_human',
+    sessionLoadError,
     activeSkill,
     startSession,
-    reply
+    reply,
+    retrySessionLoad: fetchSession
   }
 }

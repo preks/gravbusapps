@@ -1369,12 +1369,17 @@ export function usePaginationLayoutSnapshot({
         return
       }
 
-      const shouldDebounceForLocalTextChange =
-        transactionClassification?.kind === 'local-text' && !transactionClassification.touchesTableRegion
+      if (!isYjsSynced && transactionClassification?.touchesTableRegion) {
+        return
+      }
+
+      const shouldDebounceEditorTransaction =
+        transactionClassification?.touchesTableRegion === true ||
+        (transactionClassification?.kind === 'local-text' && !transactionClassification.touchesTableRegion)
 
       scheduleLayoutSnapshotRefresh(
         'editor-transaction',
-        !(debounceStructuralLayout || shouldDebounceForLocalTextChange)
+        !(debounceStructuralLayout || shouldDebounceEditorTransaction)
       )
     }
 

@@ -3,13 +3,7 @@ import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TagTable } from './components/TagTable'
 import { useContentTagOptions } from '@/common/data/content/hooks/useContentTagOptions'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  buildInsertContentTagMutation,
-  buildUpdateContentTagMutation,
-  buildDeleteContentTagMutation
-} from '@/common/data/content/queries/contentQueries'
-import type { ContentTag } from '@/common/data/content/types/contentTypes'
+import { useContentClient } from '@/common/network/content'
 
 export interface TagDataPageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -18,9 +12,8 @@ export interface TagDataPageProps extends BusinessAppContextProps {
 
 const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
   const [mutationError, setMutationError] = useState<string | null>(null)
-
-  const graphqlClient = useGraphQLClient(context.accessToken)
   const { options: tags, isLoading, error: fetchError, refetch } = useContentTagOptions(context.accessToken)
+  const contentClient = useContentClient(context.accessToken)
 
   const error = mutationError || (fetchError ? fetchError.message : null)
 
@@ -28,9 +21,7 @@ const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...
     async (data: { name: string }) => {
       setMutationError(null)
       try {
-        await graphqlClient.request<{ InsertContentTagOne: ContentTag }>(buildInsertContentTagMutation(), {
-          name: data.name
-        })
+        await contentClient.createContentTag({ name: data.name })
         await refetch()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to create tag'
@@ -38,15 +29,20 @@ const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch]
   )
 
   const handleUpdate = useCallback(
     async (id: string, data: { name: string }) => {
       setMutationError(null)
       try {
-        await graphqlClient.request<{ UpdateContentTagByPk: ContentTag }>(buildUpdateContentTagMutation(), {
+        const tagToUpdate = tags.find(tag => tag.id === id)
+        if (tagToUpdate?.version == null) {
+          throw new Error('Failed to update tag: version is missing')
+        }
+        await contentClient.updateContentTag({
           id,
+          version: tagToUpdate.version,
           name: data.name
         })
         await refetch()
@@ -56,14 +52,18 @@ const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch, tags]
   )
 
   const handleDelete = useCallback(
     async (id: string) => {
       setMutationError(null)
       try {
-        await graphqlClient.request(buildDeleteContentTagMutation(), { id })
+        const tagToDelete = tags.find(tag => tag.id === id)
+        if (tagToDelete?.version == null) {
+          throw new Error('Failed to delete tag: version is missing')
+        }
+        await contentClient.deleteContentTag(id, tagToDelete.version)
         await refetch()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete tag'
@@ -71,7 +71,7 @@ const TagDataPage: React.FC<TagDataPageProps> = ({ prefixDataTestId, onBack, ...
         throw err
       }
     },
-    [graphqlClient, refetch]
+    [contentClient, refetch, tags]
   )
 
   if (isLoading && tags.length === 0) {

@@ -12,6 +12,5 @@ export {
 export {
   getNestedValue,
   transformTaskToCalendarActivity,
-  transformActivityToCalendarActivity,
-  getEntityDisplayName
+  transformActivityToCalendarActivity
 } from './dataTransformers'

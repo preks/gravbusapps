@@ -9,6 +9,7 @@ interface AssetTableRowProps {
   asset: Asset
   accessToken: string
   dataTestIdPrefix: string
+  canDeleteAsset?: boolean
   onAssetClick?: (asset: Asset) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
@@ -22,6 +23,7 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
   asset,
   accessToken,
   dataTestIdPrefix,
+  canDeleteAsset = false,
   onAssetClick,
   onAllocateAsset,
   onUpdateAsset,
@@ -63,6 +65,7 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
             key={`action-button-${asset.id}-${asset.assetStatus}`}
             assetId={asset.id}
             assetStatus={asset.assetStatus}
+            canDeleteAsset={canDeleteAsset}
             accessToken={accessToken}
             dataTestIdPrefix={dataTestIdPrefix}
             onAllocateAsset={onAllocateAsset}

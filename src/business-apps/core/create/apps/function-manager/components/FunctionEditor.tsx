@@ -107,6 +107,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     buildTestIterationSnapshot,
 
     storedSecrets,
+    credentialBindOptions,
     refreshSecrets,
     onCreateStoredSecret,
     testOverrideRows,
@@ -248,6 +249,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           onOutputSchemaChange={setOutputSchema}
           onConfigKeysChange={setConfigKeys}
           storedSecrets={storedSecrets}
+          credentialBindOptions={credentialBindOptions}
           testOverrideRows={testOverrideRows}
           onTestOverrideRowsChange={setTestOverrideRows}
           testSchemaProperties={schemaProperties}

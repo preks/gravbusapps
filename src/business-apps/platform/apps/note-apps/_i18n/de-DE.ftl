@@ -102,6 +102,7 @@ time-days-ago-plural = Vor { $count } Tagen
 # FolderTreeSidebar
 folder-add-note-inside = Notiz hier hinzufügen
 folder-rename = Umbenennen
+menu-rename = Umbenennen
 folder-move-to = Verschieben nach...
 folder-folders = Ordner
 folder-new-note = Neue Notiz
@@ -471,6 +472,26 @@ translation-language-zh = Chinesisch
 translation-language-ja = Japanisch
 translation-language-ko = Koreanisch
 translation-language-ar = Arabisch
+
+# Quick Access
+qa-all-notes = Alle Notizen
+qa-favorites = Favoriten
+qa-pinned = Angepinnt
+qa-shared = Mit mir geteilt
+qa-recent = Zuletzt verwendet
+qa-archived = Archiviert
+
+# Tree sidebar
+tree-label = Notizen
+tree-empty = Keine Notizen im Baum
+tree-drag-hint = Ziehen, um Notizen neu anzuordnen oder zu verschachteln
+tree-drop-inside = Hier hinein ablegen
+tree-drop-after = Danach ablegen
+
+# Keyboard shortcuts
+shortcut-toggle-sidebar = Seitenleiste umschalten (⌘B)
+shortcut-new-note = Neue Notiz (⌘N)
+shortcut-search = Suchen (⌘K)
 
 # useNoteTree
 note-tree-load-failed = Notizbaum konnte nicht geladen werden

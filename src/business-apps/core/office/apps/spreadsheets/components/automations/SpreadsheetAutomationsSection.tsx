@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Card, CardContent, Button, Input, Skeleton, useTranslation } from '@newwork/nw-design-system'
 import { Zap, Search, RefreshCw, XCircle } from 'lucide-react'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
 import translations from '../../_i18n'
 import type { AutomationWithRuns, SpreadsheetAutomationsSectionProps } from './automationSectionTypes'
 import { fetchAccessibleSpreadsheets, fetchAutomationsForApp, fetchRunsForAutomation } from './automationSectionUtils'
@@ -23,7 +23,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
   const [runningAutomations, setRunningAutomations] = useState<Set<string>>(new Set())
   const [stoppingRuns, setStoppingRuns] = useState<Set<string>>(new Set())
 
-  const docServiceUrl = getDocumentServiceApiUrl().replace(/\/+$/, '')
+  const docServiceUrl = DOCUMENT_API_URL.replace(/\/+$/, '')
 
   const fetchAutomations = useCallback(async () => {
     if (!accessToken) {

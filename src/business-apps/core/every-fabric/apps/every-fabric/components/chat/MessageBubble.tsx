@@ -14,8 +14,9 @@ const AnimatedMessageWrapper: React.FC<{
   children: React.ReactNode
   messageId: string
   className?: string
+  disableEntranceAnimation?: boolean
   'data-testid'?: string
-}> = ({ children, messageId, className = '', 'data-testid': testId }) => {
+}> = ({ children, messageId, className = '', disableEntranceAnimation = false, 'data-testid': testId }) => {
   const [isNew, setIsNew] = useState(true)
   const mountedRef = useRef(false)
 
@@ -27,7 +28,8 @@ const AnimatedMessageWrapper: React.FC<{
     }
   }, [])
 
-  const animationClass = isNew ? 'gba:animate-in gba:fade-in gba:slide-in-from-bottom-2 gba:duration-200' : ''
+  const animationClass =
+    !disableEntranceAnimation && isNew ? 'gba:animate-in gba:fade-in gba:slide-in-from-bottom-2 gba:duration-200' : ''
 
   return (
     <div className={`${className} ${animationClass}`} data-testid={testId} data-message-id={messageId}>
@@ -186,7 +188,7 @@ export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }:
     case 'expert_call': {
       const content = message.content as Parameters<typeof ExpertCallRenderer>[0]
       return (
-        <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
           <ExpertCallRenderer {...content} />
         </AnimatedMessageWrapper>
       )
@@ -214,10 +216,36 @@ export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }:
       )
     }
 
+    case 'human_interrupt': {
+      const { question } = message.content as { question: string }
+      return (
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
+          <div className="gba:w-fit gba:max-w-full gba:px-1">
+            <div className="gba:flex gba:items-start gba:gap-2.5">
+              <div className="gba:flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted/55 gba:text-muted-foreground gba:shrink-0 gba:mt-0.5">
+                <span className="gba:text-[11px] gba:font-medium">?</span>
+              </div>
+              <div className="gba:flex-1">
+                <p className="gba:text-[12px] gba:font-semibold gba:text-foreground/90 gba:mb-0.5">
+                  Agent has a question
+                </p>
+                <p className="gba:text-[14px] gba:leading-6 gba:text-muted-foreground">{question}</p>
+              </div>
+            </div>
+          </div>
+        </AnimatedMessageWrapper>
+      )
+    }
+
     case 'final_answer': {
       const content = message.content as Parameters<typeof FinalAnswerRenderer>[0]
       return (
-        <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper
+          messageId={message.id}
+          className="gba:py-1"
+          disableEntranceAnimation
+          data-testid={`msg-${message.id}`}
+        >
           <FinalAnswerRenderer {...content} onViewArtifact={onViewArtifact} />
         </AnimatedMessageWrapper>
       )

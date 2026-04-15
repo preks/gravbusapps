@@ -142,6 +142,32 @@ export type StoredSecretListItem = {
   updatedAt?: string
 }
 
+export type SecretBundleSlotDto = {
+  slotId: string
+  slotKey: string
+  secretId: string
+}
+
+export type SecretBundleListItemDto = {
+  id: string
+  displayName: string
+  namespace: string
+  updatedAt: string
+  slotCount: number
+  slots?: SecretBundleSlotDto[]
+}
+
+export type SecretBundlesPageDto = {
+  items: SecretBundleListItemDto[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export type SecretBundleDetailDto = SecretBundleListItemDto & { slots: SecretBundleSlotDto[] }
+
+export type BlockingBundleRefDto = { id: string; displayName: string }
+
 /** Returned in 409 responses when DELETE /secrets/:id is blocked. */
 export type SecretReferenceLocation = {
   kind: 'function' | 'external_connection' | 'pm_tool'
@@ -158,6 +184,23 @@ export class FunctionsSecretDeleteConflictError extends Error {
     super(message)
     this.name = 'FunctionsSecretDeleteConflictError'
     this.locations = locations
+  }
+}
+
+/** Returned when DELETE /secret-bundles/:id is blocked (other bundles or fnsecret refs). */
+export class FunctionsBundleDeleteConflictError extends Error {
+  readonly statusCode = 409
+  readonly blockingBundles?: BlockingBundleRefDto[]
+  readonly locations?: SecretReferenceLocation[]
+
+  constructor(
+    message: string,
+    body: { blockingBundles?: BlockingBundleRefDto[]; locations?: SecretReferenceLocation[] }
+  ) {
+    super(message)
+    this.name = 'FunctionsBundleDeleteConflictError'
+    this.blockingBundles = body.blockingBundles
+    this.locations = body.locations
   }
 }
 
@@ -452,6 +495,72 @@ export class FunctionsServiceClient {
     if (!res.ok) {
       const msg = await this.readErrorMessage(res)
       throw new Error(msg || `DELETE /secrets failed: ${res.status}`)
+    }
+  }
+
+  async listSecretBundles(input?: {
+    limit?: number
+    offset?: number
+    namespace?: string
+    includeSlots?: boolean
+  }): Promise<SecretBundlesPageDto> {
+    const params: Record<string, string> = {}
+    if (input?.limit !== undefined) params.limit = String(input.limit)
+    if (input?.offset !== undefined) params.offset = String(input.offset)
+    if (input?.namespace) params.namespace = input.namespace
+    if (input?.includeSlots) params.includeSlots = 'true'
+    return await this.get<SecretBundlesPageDto>('/secret-bundles', params)
+  }
+
+  async getSecretBundle(bundleId: string): Promise<SecretBundleDetailDto> {
+    return await this.get<SecretBundleDetailDto>(`/secret-bundles/${encodeURIComponent(bundleId)}`)
+  }
+
+  async createSecretBundle(body: {
+    displayName: string
+    namespace?: string
+    slots: Array<{ slotKey: string; secretId: string }>
+  }): Promise<{ id: string }> {
+    return await this.postJson<{ id: string }>('/secret-bundles', body)
+  }
+
+  async updateSecretBundle(
+    bundleId: string,
+    body: { displayName?: string; slots?: Array<{ slotKey: string; secretId: string }> }
+  ): Promise<{ id: string }> {
+    return await this.patchJson<{ id: string }>(`/secret-bundles/${encodeURIComponent(bundleId)}`, body)
+  }
+
+  async deleteSecretBundle(bundleId: string): Promise<void> {
+    const res = await fetch(this.baseUrl + `/secret-bundles/${encodeURIComponent(bundleId)}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    })
+    if (res.status === 409) {
+      const text = await res.text()
+      let parsed: {
+        message?: string
+        blockingBundles?: BlockingBundleRefDto[]
+        locations?: SecretReferenceLocation[]
+      } = {}
+      try {
+        parsed = text ? (JSON.parse(text) as typeof parsed) : {}
+      } catch {
+        parsed = {}
+      }
+      throw new FunctionsBundleDeleteConflictError(
+        typeof parsed.message === 'string' && parsed.message.trim()
+          ? parsed.message.trim()
+          : 'Cannot delete credential bundle',
+        {
+          blockingBundles: Array.isArray(parsed.blockingBundles) ? parsed.blockingBundles : undefined,
+          locations: Array.isArray(parsed.locations) ? (parsed.locations as SecretReferenceLocation[]) : undefined
+        }
+      )
+    }
+    if (!res.ok) {
+      const msg = await this.readErrorMessage(res)
+      throw new Error(msg || `DELETE /secret-bundles failed: ${res.status}`)
     }
   }
 

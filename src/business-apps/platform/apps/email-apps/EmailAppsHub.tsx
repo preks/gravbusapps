@@ -559,6 +559,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           accessToken={accessToken}
           activeAccount={defaultAccount}
           employeeId={userInfo?.employeeDetails?.employeeId}
+          initiatorUserId={userInfo?.id}
           threadEnabled={threadViewEnabled}
           onToggleThreadView={() => {
             setThreadViewEnabled(prev => {

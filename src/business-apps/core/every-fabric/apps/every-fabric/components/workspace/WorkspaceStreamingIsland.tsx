@@ -85,7 +85,8 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
   const thinkingText = useMemo(() => {
     const chunks = messages
       .filter(
-        (m): m is ChatMessage & { content: string } => m.type === 'agent_thinking' && typeof m.content === 'string'
+        (m): m is ChatMessage & { content: string } =>
+          m.type === 'agent_thinking' && typeof m.content === 'string' && !m.content.startsWith('🔄') // Exclude status updates
       )
       .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
       .slice(-THINKING_TAIL)
@@ -161,7 +162,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
           )}
           {statusHeadline ? (
             <p
-              className="gba:mt-1.5 gba:text-xs gba:leading-snug gba:text-foreground/90 gba:line-clamp-2"
+              className="gba:mt-1.5 gba:text-xs gba:leading-snug gba:text-foreground/90 gba:line-clamp-2 gba:animate-in gba:fade-in gba:duration-200"
               data-testid="fabric-streaming-island-status-headline"
             >
               {statusHeadline}

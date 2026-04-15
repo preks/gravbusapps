@@ -19,6 +19,7 @@ import {
   GET_CURRENT_ALLOCATION,
   GET_EMPLOYEE_ASSET_BY_ID,
   GET_ASSET_IDS_BY_EMPLOYEE_IDS,
+  GET_ASSET_IDS_WITH_ALLOCATION_HISTORY,
   ALLOCATE_ASSET,
   AssetQueryVariables,
   AssetByIdVariables,
@@ -26,7 +27,8 @@ import {
   InsertAssetVariables,
   UpdateAssetVariables,
   DeleteAssetVariables,
-  AllocateAssetVariables
+  AllocateAssetVariables,
+  AssetIdsWithAllocationHistoryVariables
 } from '../queries/assetQueries'
 import { Asset, AssetAllocation, AssetStatistics, AssetStatus } from '../types'
 import { AssetProcessClient } from './AssetProcessClient'
@@ -426,6 +428,27 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
+  /** Returns asset IDs that have any allocation history. */
+  const getAssetIdsWithAllocationHistory = useCallback(
+    async (assetIds: string[]): Promise<string[]> => {
+      if (!assetIds.length) return []
+
+      try {
+        const uniqueAssetIds = [...new Set(assetIds)]
+        const result = await graphQLClient.request<{ EmployeeAsset: { assetId: string }[] }>(
+          GET_ASSET_IDS_WITH_ALLOCATION_HISTORY,
+          { assetIds: uniqueAssetIds } as AssetIdsWithAllocationHistoryVariables
+        )
+        const ids = result.EmployeeAsset?.map(row => row.assetId) ?? []
+        return [...new Set(ids)]
+      } catch (error) {
+        console.error('Error fetching asset IDs with allocation history:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
+
   const allocateAsset = useCallback(
     async (allocationData: Omit<AssetAllocation, 'id' | 'version' | 'isDeleted' | 'createdAt' | 'updatedAt'>) => {
       try {
@@ -500,6 +523,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
       getCurrentAllocation,
       getEmployeeAssetById,
       getAssetIdsByEmployeeIds,
+      getAssetIdsWithAllocationHistory,
       allocateAsset,
       deallocateAsset
     }),
@@ -514,6 +538,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
       getCurrentAllocation,
       getEmployeeAssetById,
       getAssetIdsByEmployeeIds,
+      getAssetIdsWithAllocationHistory,
       allocateAsset,
       deallocateAsset
     ]

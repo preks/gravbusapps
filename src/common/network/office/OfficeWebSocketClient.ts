@@ -1,4 +1,4 @@
-import { getOfficeWebSocketUrl } from '@/common/utils/serviceResolver'
+import { DOCUMENT_WEB_SOCKET_URL } from '@/common/utils/serviceResolver'
 import { io, type Socket } from 'socket.io-client'
 
 const OFFICE_CLIENT_VERSION = '1'
@@ -95,8 +95,8 @@ export class OfficeWebSocketClient {
   private accessToken = ''
   private reconnectAttempts = 0
   /**
-   * When set, used as the socket.io base URL. When omitted, `getOfficeWebSocketUrl()` is evaluated
-   * at connect time (and in connection status) so the client matches runtime document-service config.
+   * When set, used as the socket.io base URL. When omitted, `DOCUMENT_WEB_SOCKET_URL` is used
+   * so the client matches runtime document-service config.
    */
   private readonly explicitBaseUrl: string | undefined
   private readonly baseOptions: OfficeWebSocketOptions
@@ -109,7 +109,7 @@ export class OfficeWebSocketClient {
   }
 
   private resolveConnectBase(): { socketUrl: string; socketPath: string } {
-    const raw = this.explicitBaseUrl ?? getOfficeWebSocketUrl()
+    const raw = this.explicitBaseUrl ?? DOCUMENT_WEB_SOCKET_URL
     return resolveSocketTarget(raw)
   }
 

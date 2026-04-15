@@ -1,19 +1,24 @@
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Plus, Trash2, MessageSquare, X } from 'lucide-react'
 import type { NexusSession } from '../../types/nexus.types'
+import translations from '../../_i18n'
 
-const formatRelativeTime = (dateStr: string): string => {
+const formatRelativeTime = (
+  dateStr: string,
+  t: (key: string, args?: Record<string, number | string>) => string,
+  locale: string
+): string => {
   const date = new Date(dateStr)
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1) return t('sidebar-time-just-now')
+  if (minutes < 60) return t('sidebar-time-minutes-ago', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return t('sidebar-time-hours-ago', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  if (days < 7) return t('sidebar-time-days-ago', { count: days })
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(date)
 }
 
 interface NexusSidebarProps {
@@ -35,11 +40,15 @@ export const NexusSidebar = ({
   onClose,
   testId = 'nexus-sidebar'
 }: NexusSidebarProps) => {
+  const { t, locale } = useTranslation(translations)
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
-        <h2 className="gba:text-sm gba:font-bold gba:text-foreground gba:tracking-tight">Session History</h2>
+        <h2 className="gba:text-sm gba:font-bold gba:text-foreground gba:tracking-tight">
+          {t('sidebar-session-history')}
+        </h2>
         <Button
           variant="ghost"
           size="icon"
@@ -60,7 +69,7 @@ export const NexusSidebar = ({
           data-testid={`${testId}-new-session`}
         >
           <Plus className="gba:h-4 gba:w-4" />
-          <span className="gba:text-sm gba:font-medium">New Session</span>
+          <span className="gba:text-sm gba:font-medium">{t('sidebar-new-session')}</span>
         </Button>
       </div>
 
@@ -69,7 +78,7 @@ export const NexusSidebar = ({
         {sessions.length === 0 && (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:space-y-2">
             <MessageSquare className="gba:h-6 gba:w-6 gba:text-muted-foreground/40" />
-            <p className="gba:text-sm gba:text-muted-foreground">No sessions yet</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('sidebar-empty')}</p>
           </div>
         )}
 
@@ -84,9 +93,11 @@ export const NexusSidebar = ({
           >
             <MessageSquare className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0 gba:text-muted-foreground gba:mt-1" />
             <div className="gba:flex-1 gba:min-w-0">
-              <span className="gba:text-sm gba:truncate gba:block gba:font-medium">{session.title || 'Untitled'}</span>
+              <span className="gba:text-sm gba:truncate gba:block gba:font-medium">
+                {session.title || t('sidebar-untitled')}
+              </span>
               <span className="gba:text-[10px] gba:text-muted-foreground/70">
-                {formatRelativeTime(session.updatedAt || session.createdAt)}
+                {formatRelativeTime(session.updatedAt || session.createdAt, t, locale)}
               </span>
             </div>
             <Button

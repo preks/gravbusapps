@@ -298,6 +298,7 @@ notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
 notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
 notification-vacation-requested-success = Urlaub erfolgreich beantragt
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-communication-deleted-success = Kommunikationseintrag erfolgreich gelöscht.
 
 # Employee Record - Errors and states
 employee-record-error-title = Fehler
@@ -737,6 +738,11 @@ details-private-communication = Private Kommunikation
 details-emergency-contact = Notfallkontakt
 details-additional-attributes = Zusätzliche Attribute
 details-no-emergency-contact = Keine Notfallkontaktinformationen verfügbar
+details-communication-no-entries = Keine Kommunikationseinträge
+details-communication-add = Kommunikation hinzufügen
+delete-communication-confirm-title = Kommunikationseintrag löschen
+delete-communication-confirm-description = Möchten Sie diesen Kommunikationseintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+delete-communication-confirm-button = Löschen
 details-label-salutation = Anrede
 details-label-academic-titles = Akademische Titel
 details-label-first-name = Vorname

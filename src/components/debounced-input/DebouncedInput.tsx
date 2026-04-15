@@ -14,6 +14,8 @@ interface DebouncedInputProps {
   placeholder?: string
   /** Additional CSS class names */
   className?: string
+  /** Additional wrapper CSS class names */
+  containerClassName?: string
   /** Debounce delay in milliseconds */
   debounceDelay?: number
   /** Input aria-label for accessibility */
@@ -44,6 +46,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
       onChange,
       placeholder = 'Search...',
       className = '',
+      containerClassName = '',
       debounceDelay = 300,
       ariaLabel = 'Search',
       'data-testid': dataTestId = 'debounced-input',
@@ -79,7 +82,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
     }
 
     return (
-      <div className="gba:relative">
+      <div className={`gba:relative ${containerClassName}`}>
         {icon && (
           <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
             {icon}

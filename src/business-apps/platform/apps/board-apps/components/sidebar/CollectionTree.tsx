@@ -5,7 +5,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChevronRight,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react'
 import type { BoardCollection } from '../../types/collection'
 import type { BoardSummary } from '../../types/board'
+import translations from '../../_i18n'
 
 export interface CollectionTreeProps {
   collections: BoardCollection[]
@@ -61,6 +63,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   onOpenInSpaces,
   'data-testid': testId = 'collection-tree'
 }) => {
+  const { t } = useTranslation(translations)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [openBoardMenuId, setOpenBoardMenuId] = useState<string | null>(null)
@@ -85,7 +88,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   if (collections.length === 0) {
     return (
       <div className="gba:px-4 gba:py-3">
-        <p className="gba:text-xs gba:text-muted-foreground gba:text-center">No spaces yet</p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:text-center">{t('sidebar-no-spaces')}</p>
       </div>
     )
   }
@@ -161,27 +164,27 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" side="right" sideOffset={8}>
                     <DropdownMenuItem onClick={() => onAddBoardToCollection(collection.id)}>
-                      <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Add board
+                      <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('sidebar-add-board')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onShareCollection(collection.id)}>
-                      <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Share
+                      <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('common-share')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onRenameCollection(collection.id)}>
-                      <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Rename
+                      <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('common-rename')}
                     </DropdownMenuItem>
                     {onOpenInSpaces && (
                       <DropdownMenuItem onClick={() => onOpenInSpaces(collection.id)}>
-                        <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Open in Spaces
+                        <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('collection-open-in-spaces')}
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="gba:text-destructive"
                       onClick={() => {
-                        if (confirm('Delete this space? Boards will not be deleted.')) onDeleteCollection(collection.id)
+                        if (confirm(t('collection-delete-confirm'))) onDeleteCollection(collection.id)
                       }}
                     >
-                      <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Delete
+                      <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('common-delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -191,7 +194,9 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
             {isExpanded && (
               <div className="gba:ml-4 gba:space-y-0.5 gba:mt-0.5">
                 {boards.length === 0 ? (
-                  <p className="gba:text-xs gba:text-muted-foreground/70 gba:pl-6 gba:py-1">No boards</p>
+                  <p className="gba:text-xs gba:text-muted-foreground/70 gba:pl-6 gba:py-1">
+                    {t('collection-no-boards')}
+                  </p>
                 ) : (
                   boards.map(board => {
                     const isBoardActive = activeBoardId === board.id
@@ -235,12 +240,12 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                             <DropdownMenuContent align="start" side="right" sideOffset={8}>
                               {onShareBoard && (
                                 <DropdownMenuItem onClick={() => onShareBoard(board.id)}>
-                                  <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Share
+                                  <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('common-share')}
                                 </DropdownMenuItem>
                               )}
                               {onRenameBoard && (
                                 <DropdownMenuItem onClick={() => onRenameBoard(board.id)}>
-                                  <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Rename
+                                  <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('common-rename')}
                                 </DropdownMenuItem>
                               )}
                               {onDeleteBoard && (
@@ -249,11 +254,11 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                                   <DropdownMenuItem
                                     className="gba:text-destructive"
                                     onClick={() => {
-                                      if (confirm(`Delete "${board.name}"? This cannot be undone.`))
+                                      if (confirm(t('collection-delete-board-confirm', { boardName: board.name })))
                                         onDeleteBoard(board.id)
                                     }}
                                   >
-                                    <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> Delete
+                                    <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" /> {t('common-delete')}
                                   </DropdownMenuItem>
                                 </>
                               )}
@@ -270,7 +275,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
                   data-testid={`${testId}-add-board-${collection.id}`}
                 >
                   <Plus className="gba:w-3 gba:h-3" />
-                  <span>Add board</span>
+                  <span>{t('sidebar-add-board')}</span>
                 </button>
               </div>
             )}

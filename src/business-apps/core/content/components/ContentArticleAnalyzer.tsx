@@ -28,12 +28,14 @@ interface ContentArticleAnalyzerProps {
   contentEntry: ContentEntry
   accessToken: string
   userId: string | undefined
+  buttonLabel?: string
 }
 
 export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
   contentEntry,
   accessToken,
-  userId
+  userId,
+  buttonLabel
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -85,6 +87,12 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
       handleAnalyze()
     }
   }, [isPopoverOpen, analysis, isLoading, isLoadingDescendants, descendants, handleAnalyze])
+
+  useEffect(() => {
+    setAnalysis(null)
+    setError(null)
+    setIsPopoverOpen(false)
+  }, [contentEntry.id])
 
   const renderAnalysis = () => {
     if (isLoading || isLoadingDescendants) {
@@ -328,12 +336,14 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
         <div>
           <AiButton
             variant="default"
-            size="icon"
+            size={buttonLabel ? 'sm' : 'icon'}
             showIcon={true}
             icon={<SparkleIcon size={16} />}
             onClick={() => setIsPopoverOpen(true)}
             data-testid="content-article-analyzer-button"
-          />
+          >
+            {buttonLabel}
+          </AiButton>
         </div>
       </PopoverAnchor>
       <PopoverContent
