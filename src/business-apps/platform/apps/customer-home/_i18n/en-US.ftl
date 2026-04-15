@@ -65,7 +65,7 @@ office-drive-description = Organize, search, and share all your files in one pla
 office-whiteboards-title = Whiteboards
 office-whiteboards-description = Collaborate on an infinite canvas with shapes and diagrams.
 office-nexus-title = Nexus
-office-nexus-description = Generate documents, analyses, and presentations through AI conversation.
+office-nexus-description = Generate documents and analyses through AI conversation.
 office-nexus-badge = AI-Powered
 
 # EveryOne Section

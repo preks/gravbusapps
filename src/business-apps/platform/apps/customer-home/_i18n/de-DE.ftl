@@ -65,7 +65,7 @@ office-drive-description = Alle Dateien an einem Ort organisieren, suchen und te
 office-whiteboards-title = Whiteboards
 office-whiteboards-description = Zusammenarbeit auf unendlicher Leinwand mit Formen und Diagrammen.
 office-nexus-title = Nexus
-office-nexus-description = Dokumente, Analysen und Präsentationen per KI-Gespräch erzeugen.
+office-nexus-description = Dokumente und Analysen per KI-Gespräch erzeugen.
 office-nexus-badge = KI-gestützt
 
 # EveryOne Section
