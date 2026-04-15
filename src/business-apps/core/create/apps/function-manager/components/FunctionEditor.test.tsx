@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react'
 jest.mock('@newwork/nw-design-system/style', () => ({}))
 
 import { FunctionEditor } from './FunctionEditor'
+import { newEmptyConfigRow } from './editor/SettingsEditor'
 
 const useFunctionEditorStateMock = jest.fn()
 
@@ -119,6 +120,11 @@ function createFunctionEditorStateMock(overrides: Record<string, unknown> = {}) 
       lastError: 'Runtime error',
       lastResult: ''
     })),
+    storedSecrets: [],
+    refreshSecrets: jest.fn(),
+    onCreateStoredSecret: jest.fn(),
+    testOverrideRows: [newEmptyConfigRow()],
+    setTestOverrideRows: jest.fn(),
     ...overrides
   }
 }

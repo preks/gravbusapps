@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests'
+import { buildExpenseRequestOrderBy } from '../components/tabs/expense-requests-tab/config/expenseRequestOrderBy'
 import { CatalogEntry } from './useGetExpensePlans'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { makeCancellableRequest } from '../utils/cancellableRequest'
@@ -167,32 +168,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       where: whereClause
     }
 
-    if (sortField && sortOrder) {
-      const fieldMap: Record<string, string> = {
-        code: 'code',
-        title: 'title',
-        requestDate: 'requestDate',
-        startDate: 'startDate',
-        endDate: 'endDate',
-        status: 'status',
-        reimbursableAmount: 'reimbursableAmount',
-        totalAmount: 'totalAmount',
-        createdAt: 'createdAt',
-        updatedAt: 'updatedAt',
-        description: 'description',
-        currencyRef: 'currencyRef',
-        nonReimbursableAmount: 'nonReimbursableAmount'
-      }
-      const gqlField = fieldMap[sortField]
-      if (gqlField) {
-        const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
-        variables.orderBy = [{ [gqlField]: direction }]
-      } else {
-        variables.orderBy = [{ requestDate: 'DESC_NULLS_LAST' }]
-      }
-    } else {
-      variables.orderBy = [{ requestDate: 'DESC_NULLS_LAST' }]
-    }
+    variables.orderBy = buildExpenseRequestOrderBy(sortField, sortOrder)
 
     return variables
   }

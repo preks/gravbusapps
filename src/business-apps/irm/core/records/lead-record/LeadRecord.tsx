@@ -202,10 +202,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         fetchInvestmentTasksByLeadId(leadId)
       ])
 
-      // Sort by creation date (newest first)
-      const sortedActivities = (activitiesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+      // Sort notes and tasks by creation date (newest first). Activity order is applied in ActivitySection.
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -225,7 +222,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
-      setActivities(sortedActivities)
+      setActivities(activitiesData || [])
       setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)

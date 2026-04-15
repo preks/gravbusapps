@@ -45,5 +45,7 @@ export const realEstateInvestmentTargetFields: TargetFieldDefinition[] = [
 export const realEstateInvestmentImportConfig: ImportConfig = {
   entityType: 'real-estate-investment',
   domain: 'investment',
-  targetFields: realEstateInvestmentTargetFields
+  targetFields: realEstateInvestmentTargetFields,
+  investmentPayloadKey: 'realEstateInvestment',
+  investmentGroupCodeHint: 'REAL_ESTATE'
 }

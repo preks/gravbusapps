@@ -7,13 +7,17 @@ import React from 'react'
 import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
+import {
+  useEntityImport,
+  useEntityMappings,
+  useInvestmentTypeDefaults
+} from '@/common/components/common-relations/apps/data-import/hooks'
 import {
   FileUploadStep,
   MappingReviewStep,
-  ConversionResultStep,
-  ImportErrorCard
+  ConversionResultStep
 } from '@/common/components/common-relations/apps/data-import/components'
+import { ImportErrorCard } from '@/common/components/common-relations/apps/data-import/components/ImportErrorCard'
 import { liquidFundInvestmentImportConfig } from './config/liquidFundInvestmentImportConfig'
 import { ConvertedLiquidFundInvestment } from './types/liquidFundInvestmentImportTypes'
 import { convertToNestedLiquidFundInvestment } from './utils/convertToNestedStructure'
@@ -58,6 +62,10 @@ export const LiquidFundInvestmentImportView: React.FC<LiquidFundInvestmentImport
     unmappedSourceFields,
     setUnmappedSourceFields
   } = useEntityMappings(liquidFundInvestmentImportConfig.targetFields, agentResponse?.fieldMappings || [])
+  const investmentTypeDefaults = useInvestmentTypeDefaults(
+    context.accessToken,
+    liquidFundInvestmentImportConfig.investmentGroupCodeHint
+  )
 
   // Sync mappings and unmapped fields when agent response changes
   React.useEffect(() => {
@@ -69,7 +77,11 @@ export const LiquidFundInvestmentImportView: React.FC<LiquidFundInvestmentImport
 
   // Handle conversion with current mappings and transformation function
   const handleConvert = async () => {
-    await baseConvertData(mappings, undefined, convertToNestedLiquidFundInvestment)
+    const enforcedFieldsJson = investmentTypeDefaults.selectedType
+      ? JSON.stringify({ 'investment.investmentTypeRef': investmentTypeDefaults.selectedType })
+      : undefined
+
+    await baseConvertData(mappings, enforcedFieldsJson, convertToNestedLiquidFundInvestment)
   }
 
   return (
@@ -89,6 +101,7 @@ export const LiquidFundInvestmentImportView: React.FC<LiquidFundInvestmentImport
           isLoading={isLoading}
           onFileChange={handleFileChange}
           onAnalyze={analyzeWithAgent}
+          investmentTypeDefaults={investmentTypeDefaults}
           data-testid={`${testId}-upload-step`}
         />
       )}

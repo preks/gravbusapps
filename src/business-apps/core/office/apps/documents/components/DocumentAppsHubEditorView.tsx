@@ -122,6 +122,7 @@ export function DocumentAppsHubEditorView({
       <PagedDocumentEditor
         initialContent={parsedWordDocument.html}
         initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
+        initialFormatting={parsedWordDocument.formatting}
         onSave={async (title, content, formatting) => {
           const newDoc = await createDocument({
             title,

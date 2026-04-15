@@ -47,7 +47,16 @@ import bundleDoc from '../../../../../bundle-top-dependencies.json'
 import { PipelineOpenLink } from './PipelineOpenLink'
 import { safeExternalHttpUrl } from './safeExternalHttpUrl'
 
-type TopRow = { kind: string; name: string; rendered: number; gzip: number }
+/** Largest Rollup leaf modules under one top dependency bucket/asset (up to 3). */
+type DependencyLeafRow = { name: string; rendered: number; gzip: number }
+
+type TopRow = {
+  kind: string
+  name: string
+  rendered: number
+  gzip: number
+  leaves?: DependencyLeafRow[]
+}
 
 type BundleEntry = {
   chunkJsBytes?: number
@@ -514,27 +523,44 @@ export function BundleDashboard() {
                               <TableCell colSpan={5} className="gba:bg-muted/40 gba:align-top">
                                 <div className="gba:py-2 gba:px-1">
                                   <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-                                    Top buckets &amp; bundled assets (rendered / gzip)
+                                    Top dependencies (aggregated buckets / bundled assets). Each row can list up to two
+                                    largest Rollup leaf modules inside that dependency (rendered / gzip).
                                   </p>
                                   {top.length === 0 ? (
                                     <p className="gba:text-sm gba:text-muted-foreground">No top list for this entry.</p>
                                   ) : (
-                                    <ul className="gba:m-0 gba:list-none gba:space-y-1.5 gba:text-sm">
+                                    <ul className="gba:m-0 gba:list-none gba:space-y-3 gba:text-sm">
                                       {top.map((t, i) => (
-                                        <li
-                                          key={`${r.key}-top-${i}`}
-                                          className="gba:flex gba:flex-wrap gba:items-baseline gba:gap-2"
-                                        >
-                                          <Badge
-                                            variant={t.kind === 'asset' ? 'warning' : 'default'}
-                                            className="gba:shrink-0"
-                                          >
-                                            {t.kind}
-                                          </Badge>
-                                          <span className="gba:min-w-0 gba:break-all">{t.name}</span>
-                                          <span className="gba:text-muted-foreground gba:tabular-nums">
-                                            {fmtKb(t.rendered)} / {fmtKb(t.gzip)}
-                                          </span>
+                                        <li key={`${r.key}-top-${i}`} className="gba:space-y-1.5">
+                                          <div className="gba:flex gba:flex-wrap gba:items-baseline gba:gap-2">
+                                            <Badge
+                                              variant={t.kind === 'asset' ? 'warning' : 'default'}
+                                              className="gba:shrink-0"
+                                            >
+                                              {t.kind}
+                                            </Badge>
+                                            <span className="gba:min-w-0 gba:break-all">{t.name}</span>
+                                            <span className="gba:text-muted-foreground gba:tabular-nums">
+                                              {fmtKb(t.rendered)} / {fmtKb(t.gzip)}
+                                            </span>
+                                          </div>
+                                          {t.leaves && t.leaves.length > 0 && (
+                                            <ul className="gba:m-0 gba:list-none gba:space-y-1 gba:border-l gba:border-border gba:pl-3 gba:ml-1 gba:text-xs">
+                                              {t.leaves.map((leaf, li) => (
+                                                <li
+                                                  key={`${r.key}-top-${i}-leaf-${li}`}
+                                                  className="gba:flex gba:flex-wrap gba:items-baseline gba:gap-2"
+                                                >
+                                                  <span className="gba:min-w-0 gba:break-all gba:text-muted-foreground">
+                                                    {leaf.name}
+                                                  </span>
+                                                  <span className="gba:text-muted-foreground/90 gba:tabular-nums">
+                                                    {fmtKb(leaf.rendered)} / {fmtKb(leaf.gzip)}
+                                                  </span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          )}
                                         </li>
                                       ))}
                                     </ul>

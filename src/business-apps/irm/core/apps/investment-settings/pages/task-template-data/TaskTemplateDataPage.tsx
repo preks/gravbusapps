@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { TaskTemplateSettings } from '@/common/components/common-relations/setting-pages/task-template'
+import type { TaskTemplateEntitySelectBindings } from '@/common/components/common-relations/setting-pages/task-template/types'
+import { IRM_TASK_TEMPLATE_ENTITY_OPTIONS } from '@/common/components/common-relations/setting-pages/task-template/taskTemplateEntityOptions'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useInvestmentTaskTemplateSettings } from './hooks/useInvestmentTaskTemplateSettings'
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@newwork/nw-design-system'
-import { CatalogSelect } from '@/components/catalog-select'
 
 // NOTE: These enums differ from Sales domain
 // Sales: OWNER_EMPLOYEE, ACCOUNT_USER
@@ -37,55 +38,38 @@ const TaskTemplateDataPage: React.FC<TaskTemplateDataPageProps> = ({
   const { templates, isLoading, error, fetchTemplates, createTemplate, updateTemplate, deleteTemplate, retry } =
     useInvestmentTaskTemplateSettings(context)
 
-  // Fetch templates on mount
+  const {
+    entities,
+    loading: entitiesLoading,
+    searchEntities,
+    hasMore: entitiesHasMore,
+    loadMore: loadMoreEntities,
+    hydrateEntityById
+  } = useInvestmentEntities(context)
+
+  const entitySelect = useMemo<TaskTemplateEntitySelectBindings | undefined>(() => {
+    if (!context.accessToken) return undefined
+    return {
+      entities,
+      entitiesLoading,
+      hasMore: entitiesHasMore,
+      onEntitySearch: searchEntities,
+      onEntityLoadMore: loadMoreEntities,
+      hydrateEntityById
+    }
+  }, [
+    context.accessToken,
+    entities,
+    entitiesLoading,
+    entitiesHasMore,
+    searchEntities,
+    loadMoreEntities,
+    hydrateEntityById
+  ])
+
   useEffect(() => {
     fetchTemplates()
   }, [fetchTemplates])
-
-  const renderAdditionalFields = (form: any) =>
-    form.watch('schedulingType') === 'EVENTS' && (
-      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        <FormField
-          control={form.control}
-          name="investmentGroupRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Investment Group</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogIdentifier="InvestmentGroup:v1"
-                  value={field.value || null}
-                  onValueChange={field.onChange}
-                  data-testid={`${prefixDataTestId}-events-investment-group-select`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="investmentTypeRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Investment Type</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogIdentifier="InvestmentType:v1"
-                  parentField="investmentGroupRef"
-                  requireSourceForEnable={true}
-                  value={field.value || null}
-                  onValueChange={field.onChange}
-                  data-testid={`${prefixDataTestId}-events-investment-type-select`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-    )
 
   return (
     <div className={className} data-testid={`${prefixDataTestId}-container`}>
@@ -97,7 +81,6 @@ const TaskTemplateDataPage: React.FC<TaskTemplateDataPageProps> = ({
         onUpdate={updateTemplate}
         onDelete={deleteTemplate}
         onRetry={retry}
-        renderAdditionalFields={renderAdditionalFields}
         prefixDataTestId={prefixDataTestId}
         headerTitle="Investment Task Templates"
         headerDescription="Manage recurring task templates for investment processes and portfolio management"
@@ -118,12 +101,17 @@ const TaskTemplateDataPage: React.FC<TaskTemplateDataPageProps> = ({
             catalogIdentifier: 'InvestmentType:v1',
             prefetch: true,
             pageSize: 25,
-            parentField: 'investmentGroupRef' // Uni-directional: InvestmentGroup → InvestmentType (referencing form field name)
+            parentField: 'eventInvestmentGroupRef'
           }
         ]}
         taskTypeCatalogId="InvestmentTaskType"
         taskPriorityCatalogId="InvestmentTaskPriority"
-        hasEventConfig={true}
+        templateEntityConfig={{
+          entityTypeOptions: IRM_TASK_TEMPLATE_ENTITY_OPTIONS,
+          showInvestmentEventFilters: true,
+          prefixDataTestId,
+          entitySelect
+        }}
         assigneeTypes={INVESTMENT_ASSIGNEE_TYPES}
         holidayPolicies={INVESTMENT_HOLIDAY_POLICIES}
       />

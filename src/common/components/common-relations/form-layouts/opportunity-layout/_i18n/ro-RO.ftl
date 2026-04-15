@@ -9,5 +9,7 @@ opportunity-layout-pipeline = Pipeline și etapă
 opportunity-validation-ownerRequired = Proprietarul este obligatoriu
 opportunity-validation-nameRequired = Numele oportunității este obligatoriu
 opportunity-validation-stageRequiredWhenPipelineSelected = Etapa este obligatorie când Pipeline-ul este selectat
+opportunity-validation-pipelineRequired = Pipeline-ul este obligatoriu
+opportunity-validation-stageRequired = Etapa este obligatorie
 
 

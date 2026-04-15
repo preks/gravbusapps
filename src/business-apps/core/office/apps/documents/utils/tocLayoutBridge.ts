@@ -1,6 +1,7 @@
 import type { DocumentLayoutPageBodyBounds, DocumentLayoutPagePositionRange, DocumentLayoutPageSpan } from '../types'
 
 export type TocLayoutHints = {
+  layoutVersion?: number
   pageBounds?: DocumentLayoutPageBodyBounds[]
   mountedPageBodyBounds?: DocumentLayoutPageBodyBounds[]
   pagePositionRanges?: DocumentLayoutPagePositionRange[]

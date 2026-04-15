@@ -153,15 +153,11 @@ describe('spreadsheetCollaborationOperations', () => {
   })
 
   describe('createUniverConversionContext row/column resolution', () => {
-    it('resolves rowIndex by backend row id via fallback (rowIdToIndex uses _id, not _rowUuid)', () => {
+    it('rowIdToIndex maps persisted _rowUuid as well as canonical _id (cross-tab collab row id)', () => {
       const ctx = createUniverConversionContext(mockColumns, mockDataWithBackendIds)
-      expect(ctx.rowIdToIndex.get('uuid-row-1')).toBeUndefined()
+      expect(ctx.rowIdToIndex.get('uuid-row-1')).toBe(0)
       expect(ctx.rowIdToIndex.get('row_0')).toBe(0)
-
-      const fallbackIndex = mockDataWithBackendIds.findIndex(
-        row => String((row as { _rowUuid?: string })._rowUuid || '') === 'uuid-row-1'
-      )
-      expect(fallbackIndex).toBe(0)
+      expect(ctx.rowIndexToId.get(0)).toBe('row_0')
     })
 
     it('resolves colIndex by column name or id', () => {

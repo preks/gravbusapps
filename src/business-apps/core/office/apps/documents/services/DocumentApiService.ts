@@ -4,7 +4,6 @@
  * Connects to the document-service backend API for document management.
  */
 
-import DOMPurify from 'dompurify'
 import { officeClient } from '@/common/network/office/OfficeClient'
 import type {
   Document,
@@ -120,12 +119,7 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
     description: apiDoc.description as string | undefined,
-    content:
-      DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((apiDoc.content as string) || ''), {
-        USE_PROFILES: { html: true },
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-        ALLOW_DATA_ATTR: true
-      }) || '',
+    content: sanitizeDocumentHtmlForEditor((apiDoc.content as string) || ''),
     status: apiDoc.status as DocumentStatus,
     category: apiDoc.category as string | undefined,
     tags: apiDoc.tags as string[] | undefined,
@@ -152,12 +146,7 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
     id: apiTemplate.id as string,
     name: apiTemplate.name as string,
     description: apiTemplate.description as string | undefined,
-    content:
-      DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((apiTemplate.content as string) || ''), {
-        USE_PROFILES: { html: true },
-        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-        ALLOW_DATA_ATTR: true
-      }) || '',
+    content: sanitizeDocumentHtmlForEditor((apiTemplate.content as string) || ''),
     category: ((apiTemplate.category as TemplateCategory | undefined) ?? 'other') as TemplateCategory,
     context: apiTemplate.context as string | undefined,
     tags: (apiTemplate.tags as string[]) || [],
@@ -913,12 +902,7 @@ export const DocumentApiService = {
         documentId,
         {
           title: snapshot.title as string,
-          content:
-            DOMPurify.sanitize(sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''), {
-              USE_PROFILES: { html: true },
-              FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea'],
-              ALLOW_DATA_ATTR: true
-            }) || '',
+          content: sanitizeDocumentHtmlForEditor((snapshot.content as string) || ''),
           description: snapshot.description as string | undefined,
           tags: snapshot.tags as string[] | undefined,
           category: snapshot.category as string | undefined,

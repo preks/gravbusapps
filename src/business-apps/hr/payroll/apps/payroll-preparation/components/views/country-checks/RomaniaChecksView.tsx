@@ -1,8 +1,20 @@
 import React from 'react'
-import { Badge, Card, Table, TableHeader, TableBody, TableRow, TableCell, TableHead } from '@newwork/nw-design-system'
-import { UserIcon } from '@phosphor-icons/react'
+import {
+  Badge,
+  Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
 import type { PayrollEmployee } from '../../../types/payrollTypes'
 import { ReadinessStatusBadge, IssueCountBadge, FieldStatusBadge } from '../../shared/StatusBadge'
+import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface RomaniaChecksViewProps {
   employees: PayrollEmployee[]
@@ -55,17 +67,13 @@ export const RomaniaChecksView: React.FC<RomaniaChecksViewProps> = ({ employees,
                   <TableRow key={emp.id} data-testid={`payroll-prep-country-checks-ro-row-${emp.id}`}>
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <div className="gba:w-7 gba:h-7 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                          {emp.pictureThumbnail ? (
-                            <img
-                              src={`data:image/jpeg;base64,${emp.pictureThumbnail}`}
-                              alt=""
-                              className="gba:w-7 gba:h-7 gba:rounded-full gba:object-cover"
-                            />
-                          ) : (
-                            <UserIcon size={12} className="gba:text-muted-foreground" />
-                          )}
-                        </div>
+                        <Avatar size="sm" className="gba:h-7 gba:w-7 gba:flex-shrink-0">
+                          <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.displayName} />
+                          <AvatarFallback className="gba:text-xs gba:font-medium">
+                            {emp.firstName?.charAt(0) || ''}
+                            {emp.lastName?.charAt(0) || ''}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="gba:text-sm gba:font-medium gba:text-foreground">{emp.displayName}</span>
                       </div>
                     </TableCell>

@@ -184,12 +184,14 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Build dynamic schema
   const prospectSchema = useMemo(() => {
-    const existingFields = new Set(Object.keys(investmentOpportunitySchema.shape))
+    const existingFields = new Set(Object.keys(investmentOpportunitySchemaWithType.shape))
     const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition || null, existingFields)
-    return Object.keys(dynamicFields).length > 0
-      ? investmentOpportunitySchema.extend(dynamicFields)
-      : investmentOpportunitySchema
-  }, [investmentOpportunitySchema, formFieldsDefinition])
+    const extendedBase =
+      Object.keys(dynamicFields).length > 0
+        ? investmentOpportunitySchemaWithType.extend(dynamicFields)
+        : investmentOpportunitySchemaWithType
+    return addPipelineStageRefinement(extendedBase)
+  }, [formFieldsDefinition])
 
   // Create resolver dynamically based on schema
   const formResolver = useMemo(() => {

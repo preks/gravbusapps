@@ -14,6 +14,13 @@ const normalizeDateValue = (value: string): string => {
     return ''
   }
 
+  if (value.includes('T')) {
+    const isoDatePart = value.split('T')[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoDatePart)) {
+      return isoDatePart
+    }
+  }
+
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return value
   }
@@ -62,7 +69,11 @@ const rangesOverlap = (leftStart: string, leftEnd: string, rightStart: string, r
 export const getFirstDayOfCurrentMonthIso = () => {
   const now = new Date()
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-  return firstDay.toISOString().slice(0, 10)
+  const year = firstDay.getFullYear()
+  const month = `${firstDay.getMonth() + 1}`.padStart(2, '0')
+  const day = `${firstDay.getDate()}`.padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 export const validateAbsenceTypeVersion = ({

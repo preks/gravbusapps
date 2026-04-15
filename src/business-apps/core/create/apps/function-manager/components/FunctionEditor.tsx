@@ -15,14 +15,30 @@ export interface FunctionEditorProps extends BusinessAppContextProps {
   function?: LatestFunctionItem | null
   onSaved: () => void
   onBack?: () => void
+  /** Opens Function Manager → Credentials (tenant scope) and leaves the editor. */
+  onOpenTenantCredentials?: () => void
   heroTitle?: string
   heroSubtitle?: string
+  className?: string
+  'data-testid'?: string
 }
 
 const DATA_TEST_ID = 'function-editor'
 
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
-  const { mode, function: func, onSaved, accessToken, onBack, userInfo, heroTitle, heroSubtitle } = props
+  const {
+    mode,
+    function: func,
+    onSaved,
+    accessToken,
+    onBack,
+    onOpenTenantCredentials,
+    userInfo,
+    heroTitle,
+    heroSubtitle,
+    className,
+    'data-testid': testId = DATA_TEST_ID
+  } = props
   const [definitionTab, setDefinitionTab] = React.useState<FunctionDefinitionTab>('general')
   const [isFixingWithAi, setIsFixingWithAi] = React.useState(false)
   const [fixWithAiError, setFixWithAiError] = React.useState<string | null>(null)
@@ -88,7 +104,13 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     isTesting,
     testError,
     onTest,
-    buildTestIterationSnapshot
+    buildTestIterationSnapshot,
+
+    storedSecrets,
+    refreshSecrets,
+    onCreateStoredSecret,
+    testOverrideRows,
+    setTestOverrideRows
   } = useFunctionEditorState({ accessToken, mode, func })
 
   const handleSave = React.useCallback(() => onSave(onSaved), [onSave, onSaved])
@@ -225,6 +247,9 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
           onInputSchemaChange={setInputSchema}
           onOutputSchemaChange={setOutputSchema}
           onConfigKeysChange={setConfigKeys}
+          storedSecrets={storedSecrets}
+          testOverrideRows={testOverrideRows}
+          onTestOverrideRowsChange={setTestOverrideRows}
           testSchemaProperties={schemaProperties}
           testRequiredFields={requiredFields}
           testPayload={testPayloadObj}
@@ -249,7 +274,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   if (usesCreateLayoutHero) {
     return (
       <CreateLayout
-        testId={DATA_TEST_ID}
+        testId={testId}
         heroVariant="editor"
         heroIcon={Code}
         heroTitle={heroTitle}
@@ -263,6 +288,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             existing={existingSnapshot}
             onApply={applyDraft}
             onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
             onFixTestStateChange={({ isFixing, error }) => {
@@ -273,16 +299,21 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             data-testid="function-assistant"
           />
         }
-        canvasPanel={<div className="gba:overflow-y-auto gba:p-6">{mainContent}</div>}
+        canvasPanel={
+          <div className="gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:p-6">{mainContent}</div>
+        }
         chatPanelCollapsed={chatPanelCollapsed}
         onChatPanelCollapseChange={handleCollapseChange}
-        className="gba:flex-1 gba:min-h-0 gba:overflow-hidden"
+        className={className}
       />
     )
   }
 
   return (
-    <div data-testid={DATA_TEST_ID} className="gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full">
+    <div
+      data-testid={testId}
+      className={['gba:flex gba:flex-col gba:h-full gba:min-h-0 gba:w-full', className].filter(Boolean).join(' ')}
+    >
       <div className="gba:flex gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden gba:flex-row">
         <div className="gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-auto gba:p-6">{mainContent}</div>
 
@@ -294,6 +325,7 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
             existing={existingSnapshot}
             onApply={applyDraft}
             onOpenDefinitionTab={openDefinitionTab}
+            onOpenTenantCredentials={onOpenTenantCredentials}
             fixTestRequest={fixTestRequest}
             onFixTestRequestHandled={() => setFixTestRequest(null)}
             onFixTestStateChange={({ isFixing, error }) => {

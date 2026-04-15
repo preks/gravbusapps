@@ -1,15 +1,15 @@
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 /**
  * Map ContentGroup to entity type identifier
  */
 export const getEntityTypeFromContentGroup = (
-  contentGroupRef?: string | null
+  contentGroup?: string | null
 ): 'news-article' | 'knowledge-article' | 'document' | 'question' | null => {
-  if (!contentGroupRef) return null
+  if (!contentGroup) return null
 
-  switch (contentGroupRef) {
+  switch (contentGroup) {
     case ContentGroup.NEWS:
       return 'news-article'
     case ContentGroup.KNOWLEDGE:

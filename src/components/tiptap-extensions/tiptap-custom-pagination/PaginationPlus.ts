@@ -14,11 +14,12 @@ import type {
 } from './types'
 import { createStorageFromOptions, syncStorageFromOptions } from './utils'
 
-const REFRESH_META = 'RM_PAGES_REFRESH'
-const REFRESH_AND_STABILIZE_META = 'RM_PAGES_REFRESH_AND_STABILIZE'
+export const PAGINATION_REFRESH_META = 'RM_PAGES_REFRESH'
+export const PAGINATION_REFRESH_AND_STABILIZE_META = 'RM_PAGES_REFRESH_AND_STABILIZE'
 export const PAGINATION_OWNED_DOC_CHANGE_META = 'RM_PAGES_OWNED_DOC_CHANGE'
 const paginationKey = new PluginKey<DecorationSet>('rm-pages-pagination')
 const hardBreakKey = new PluginKey<DecorationSet>('rm-pages-hard-breaks')
+const squareWrapKey = new PluginKey<DecorationSet>('rm-pages-square-wrap')
 
 export { resolvePaginationWidgetTotalPages, resolveRunawayPageGrowth } from './paginationPageCountPolicy'
 export { markNextPaginationHydrationDocChange } from './paginationRuntimeBookkeeping'
@@ -123,6 +124,17 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       defaultOptions,
       syncStorageFromOptions
     })
+
+    const editorDom = this.editor.view.dom
+    editorDom.ownerDocument?.fonts?.ready
+      .then(() => {
+        if (!this.editor.isDestroyed) {
+          this.editor.commands.refreshPagesAndStabilize()
+        }
+      })
+      .catch(() => {
+        // fonts.ready rejection is non-fatal; skip the refresh.
+      })
   },
 
   onDestroy() {
@@ -137,8 +149,9 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       defaultOptions,
       paginationKey,
       hardBreakKey,
-      refreshMeta: REFRESH_META,
-      refreshAndStabilizeMeta: REFRESH_AND_STABILIZE_META,
+      squareWrapKey,
+      refreshMeta: PAGINATION_REFRESH_META,
+      refreshAndStabilizeMeta: PAGINATION_REFRESH_AND_STABILIZE_META,
       paginationOwnedDocChangeMeta: PAGINATION_OWNED_DOC_CHANGE_META,
       initialLayoutStabilizationMaxAttempts: INITIAL_LAYOUT_STABILIZATION_MAX_ATTEMPTS
     })
@@ -149,8 +162,8 @@ export const Pages = Extension.create<PagesOptions, PagesStorage>({
       editor: this.editor,
       extensionOptions: this.options,
       defaultOptions,
-      refreshMeta: REFRESH_META,
-      refreshAndStabilizeMeta: REFRESH_AND_STABILIZE_META,
+      refreshMeta: PAGINATION_REFRESH_META,
+      refreshAndStabilizeMeta: PAGINATION_REFRESH_AND_STABILIZE_META,
       syncStorageFromOptions
     })
   }

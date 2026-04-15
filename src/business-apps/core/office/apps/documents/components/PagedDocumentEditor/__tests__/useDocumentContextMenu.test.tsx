@@ -139,6 +139,23 @@ describe('useDocumentContextMenu helpers', () => {
     expect(state.imageSelection?.pos).toBe(0)
   })
 
+  it('selects a page-projected image via the stamped node position', () => {
+    const { editor, getSelection } = createImageEditor()
+    const projectedImageAnchor = document.createElement('span')
+    projectedImageAnchor.dataset.imagePageAnchor = 'true'
+    projectedImageAnchor.dataset.imageNodePos = '0'
+
+    syncContextMenuSelection(editor, {
+      clientX: 12,
+      clientY: 24,
+      target: projectedImageAnchor
+    })
+
+    expect(editor.view.posAtDOM).not.toHaveBeenCalled()
+    expect(editor.view.dispatch).toHaveBeenCalled()
+    expect(getSelection()).toBeInstanceOf(NodeSelection)
+  })
+
   it('keeps link actions available for a collapsed caret inside a link', () => {
     const editor = {
       state: {

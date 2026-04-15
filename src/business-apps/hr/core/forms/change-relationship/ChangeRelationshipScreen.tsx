@@ -9,7 +9,6 @@ import {
   SelectContent,
   SelectItem,
   DateInput,
-  FileUpload,
   useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -19,15 +18,29 @@ import flowSmall from '@/assets/icons/flowSmall.svg'
 import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
-import { useFileClient } from '@/common/network/files/useFileClient'
 import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { CongratulationsModal } from './CongratulationsModal'
 import { PhoneInput } from './components/PhoneInput'
-import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
+import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
+import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
+
+function toValidEmployeeDocumentId(value: unknown): string {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
+    return ''
+  }
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidPattern.test(trimmed) ? trimmed : ''
+}
 
 const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [firstName, setFirstName] = useState('')
@@ -37,8 +50,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isEmergencyContact, setIsEmergencyContact] = useState(false)
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
-  const [fileList, setFileList] = useState<any[]>([])
-  const [, setIsUploading] = useState(false)
   const [firstNameTouched, setFirstNameTouched] = useState(false)
   const [lastNameTouched, setLastNameTouched] = useState(false)
   const [phoneTouched, setPhoneTouched] = useState(false)
@@ -54,8 +65,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     userInfo,
     additionalData
   } as any)
-
-  const fileClient = useFileClient({ accessToken, userInfo })
 
   const employeeId =
     (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId || userInfo?.employeeDetails?.employeeId
@@ -86,6 +95,21 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         : null,
     [selectedRelationshipId, relationships]
   )
+  const selectedRelationshipDocumentId = toValidEmployeeDocumentId(selectedExisting?.relationshipDocumentId)
+  const relationshipDocumentSync = useEmployeeDocumentSync({
+    accessToken,
+    employeeId,
+    existingDocumentIds: selectedRelationshipDocumentId ? [selectedRelationshipDocumentId] : [],
+    enabled: Boolean(employeeId && selectedRelationshipDocumentId),
+    appName: 'employee-profile',
+    folderPath: employeeId ? `/documents/${employeeId}` : undefined
+  })
+
+  useEffect(() => {
+    if (!selectedRelationshipDocumentId) {
+      relationshipDocumentSync.setManagedFiles([])
+    }
+  }, [selectedRelationshipDocumentId, relationshipDocumentSync.setManagedFiles])
 
   // Determine if form values equal the prefilled values for an existing relationship
   const isUnchanged = useMemo(() => {
@@ -101,9 +125,20 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       Boolean(isEmergencyContact) === Boolean(selectedExisting.isEmergencyContact) &&
       (relationshipTypeId || '') === (selectedExisting.typeRef || '') &&
       normalizedCurrentBirth === normalizedOriginalBirth &&
-      fileList.length === 0
+      !relationshipDocumentSync.hasPendingNewUpload &&
+      !relationshipDocumentSync.hasRemovedInitialFiles
     )
-  }, [selectedExisting, firstName, lastName, phoneNumber, isEmergencyContact, relationshipTypeId, birthDate, fileList])
+  }, [
+    selectedExisting,
+    firstName,
+    lastName,
+    phoneNumber,
+    isEmergencyContact,
+    relationshipTypeId,
+    birthDate,
+    relationshipDocumentSync.hasPendingNewUpload,
+    relationshipDocumentSync.hasRemovedInitialFiles
+  ])
 
   const isSubmitDisabled = useMemo(() => {
     if (!isValid) return true
@@ -210,8 +245,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   // When user changes the relationship selection, prefill the form
   const handleRelationshipSelection = (value: string) => {
     setSelectedRelationshipId(value)
-    // Reset uploaded file state when switching selection
-    setFileList([])
+    relationshipDocumentSync.setManagedFiles([])
     if (value === 'new') {
       setFirstName('')
       setLastName('')
@@ -245,59 +279,15 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const handlePreSubmit = async () => {
     if (!employeeId) return {}
 
-    // Optional document upload (single file). If provided upload and attach meta.
-    let uploadedDocumentId: string | undefined
-    if (fileList.length > 0 && fileList[0].originFileObj) {
-      try {
-        setIsUploading(true)
-        const pathParams = { accessScope: 'public' } as const
-        const appName = 'userProfile'
-        const folderPath = `/pics/${employeeId}`
-        const uploadResponse = await fileClient.uploadFile(fileList[0].originFileObj as File, pathParams, {
-          appName,
-          folderPath
-        })
-        const rawFileId = String(uploadResponse.fileInfo.fileId || '')
-        const fileIdNoExt = rawFileId.replace(/\.[^/.]+$/, '')
+    const shouldClearRelationshipDocument =
+      relationshipDocumentSync.hasRemovedInitialFiles && !relationshipDocumentSync.hasPendingNewUpload
 
-        // Create EmployeeDocument via processes API (same pattern as ChangePersonalData)
-        try {
-          const processesBase = PROCESSES_BASE_URL
-          const createDocUrl = `${processesBase}/employee/employeeDocuments`
-          const body = {
-            employeeDocument: {
-              employeeId: employeeId,
-              documentGroup: 'DocumentGroup:v1:PERSONAL',
-              type: 'DocumentType:v1:20',
-              description: '',
-              name: uploadResponse?.fileInfo?.fileMetadata?.originalFileName || fileList[0].name,
-              file: rawFileId,
-              mimeType: uploadResponse?.fileInfo?.fileMetadata?.mimeType || fileList[0].type || '',
-              fileSize: (fileList[0].originFileObj as File).size || 0,
-              validFrom: new Date().toISOString()
-            }
-          } as any
-
-          const r = await fetch(createDocUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: accessToken ? `Bearer ${accessToken}` : ''
-            },
-            body: JSON.stringify(body)
-          })
-          const json = await r.json().catch(() => null)
-          uploadedDocumentId = json?.employeeDocument?.id || fileIdNoExt
-        } catch {
-          // Fallback to file id without extension if processes API fails
-          uploadedDocumentId = fileIdNoExt
-        }
-      } catch {
-        // Silent fail for upload; form can continue without a document
-      } finally {
-        setIsUploading(false)
-      }
-    }
+    const syncResult = await relationshipDocumentSync.syncDocuments({
+      documentGroup: 'DocumentGroup:v1:PERSONAL',
+      documentType: 'DocumentType:v1:20',
+      deleteFirst: true
+    })
+    const uploadedDocumentId = shouldClearRelationshipDocument ? null : syncResult.primaryDocumentId
 
     // Build payload with uploaded file info (like ChangeProfilePictureScreen)
     const selectedExisting =
@@ -314,7 +304,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       typeRef: relationshipTypeId || undefined,
       birthDate: birthDate ? (formatDateToISO(new Date(birthDate)) as string) : undefined,
       emergencyContact: isEmergencyContact,
-      relationshipDocument: uploadedDocumentId
+      relationshipDocument: uploadedDocumentId || null
     } as any
 
     const relationshipChange = {
@@ -333,6 +323,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             typeRef: selectedExisting.typeRef || '',
             birthDate: selectedExisting.birthDate || '',
             emergencyContact: Boolean(selectedExisting.isEmergencyContact),
+            relationshipDocumentId: selectedExisting.relationshipDocumentId || '',
             relationshipDocument: selectedExisting.relationshipDocumentId || ''
           }
         : {},
@@ -571,28 +562,25 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
           {/* Upload Document */}
           <div>
-            <Label>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload_document', 'Upload Document')}
-            </Label>
-            <div className="gba:mt-2" data-testid={formatDataTestId(prefixDataTestId, 'UploadDocument')}>
-              <FileUpload
-                multiple={false}
-                maxFiles={1}
-                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
-                layout="list"
-                preview="icon"
-                onFilesChange={(files: any[]) => {
-                  const mapped = (files || []).map((f: any) => ({
-                    uid: f.id,
-                    name: f.file?.name || 'file',
-                    status: 'done',
-                    originFileObj: f.file as File,
-                    type: (f.file as File)?.type
-                  }))
-                  setFileList(mapped)
-                }}
-              />
-            </div>
+            <EmployeeDocumentUploadField
+              key={`relationship-document-${selectedRelationshipId}-${selectedRelationshipDocumentId || 'none'}`}
+              name="relationshipDocumentUpload"
+              label={getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload_document', 'Upload Document')}
+              isLoading={relationshipDocumentSync.shouldShowInitialDocumentLoading}
+              isResolvingInitialDocuments={relationshipDocumentSync.isResolvingInitialDocuments}
+              hasExistingDocumentHint={Boolean(selectedRelationshipDocumentId)}
+              hasInitialDocumentCandidates={relationshipDocumentSync.hasInitialDocumentCandidates}
+              loadingMessage={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:relationship_form.loading_document',
+                'Loading document...'
+              )}
+              initialFiles={relationshipDocumentSync.initialUploadFiles}
+              onFilesChange={relationshipDocumentSync.onFilesChange}
+              accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+              maxFiles={1}
+              multiple={false}
+              dataTestId={formatDataTestId(prefixDataTestId, 'UploadDocument')}
+            />
           </div>
         </div>
       </div>

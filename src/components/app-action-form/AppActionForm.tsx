@@ -144,7 +144,7 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
 
   return (
     <div
-      className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4"
+      className="gba:flex gba:shrink-0 gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4"
       data-testid={`${dataTestId}-form-navigation`}
     >
       {/* Left side: Cancel and Back buttons */}
@@ -456,7 +456,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <Form {...(form as any)} schema={schema}>
           <form
             onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
-            className="gba:flex gba:flex-col gba:w-full gba:h-full"
+            className="gba:flex gba:flex-col gba:w-full gba:h-full gba:min-h-0"
             data-testid={`${dataTestId}-form`}
           >
             {children}
@@ -472,10 +472,13 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <Form {...(form as any)} schema={schema}>
           <form
             onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
-            className="gba:flex gba:flex-col gba:w-full gba:max-w-full gba:h-full"
+            className="gba:flex gba:flex-col gba:w-full gba:max-w-full gba:h-full gba:min-h-0"
             data-testid={`${dataTestId}-form`}
           >
-            <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
+            <div
+              className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:space-y-4 gba:pb-2"
+              data-testid={`${dataTestId}-form-content`}
+            >
               {children}
             </div>
             {formNavigation}
@@ -494,7 +497,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   }
 
   return (
-    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
+    <div className="gba:p-6 gba:h-full gba:min-h-0 gba:flex gba:flex-col" data-testid={dataTestId}>
       {message?.type === 'error' && (
         <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
           <CircleX className="gba:h-4 gba:w-4" />

@@ -108,5 +108,7 @@ export const liquidFundInvestmentTargetFields: TargetFieldDefinition[] = [
 export const liquidFundInvestmentImportConfig: ImportConfig = {
   entityType: 'liquid-fund-investment',
   domain: 'investment',
-  targetFields: liquidFundInvestmentTargetFields
+  targetFields: liquidFundInvestmentTargetFields,
+  investmentPayloadKey: 'liquidFundInvestment',
+  investmentGroupCodeHint: 'LIQUID_FUND'
 }

@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, XIcon } from 'lucide-react'
 import { useAbsenceCalendarData } from '../hooks/useAbsenceCalendarData'
-import { useAbsencePrevalidate } from '../hooks/useAbsencePrevalidate'
+import type { PrevalidateResult } from '@/business-apps/hr/core/hooks/useAbsencePrevalidate'
 import { getPrevalidateErrorPresentation } from '@/business-apps/hr/core/utils/absencePrevalidateLabels'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import formsTranslations from '../../_i18n'
@@ -24,6 +24,7 @@ interface AbsenceDateRangePickerProps {
   accessToken: string | undefined
   employeeId: string
   selectedTypeRef?: string
+  prevalidate?: PrevalidateResult
   disabled?: boolean
   'data-testid'?: string
 }
@@ -33,6 +34,17 @@ const formatDate = (d: Date): string =>
 
 const toLocalDateStr = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const formatSnapshotValue = (value: number): string => value.toFixed(2)
+
+const IDLE_PREVALIDATE: PrevalidateResult = {
+  effectiveDays: null,
+  workingDays: null,
+  errorCode: null,
+  errorTitle: null,
+  errorDetail: null,
+  isLoading: false
+}
 
 /**
  * Absence date range picker built on Calendar + Popover.
@@ -47,6 +59,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
   accessToken,
   employeeId,
   selectedTypeRef,
+  prevalidate = IDLE_PREVALIDATE,
   disabled = false,
   'data-testid': testId = 'absence-date-range-input'
 }) => {
@@ -56,9 +69,6 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
 
   const { approvedDates, pendingDates, blockedRequestDates, bankHolidayDates, entitlementSnapshot } =
     useAbsenceCalendarData(accessToken, employeeId, visibleMonth, selectedTypeRef)
-  const startDateStr = startDate ? toLocalDateStr(startDate) : null
-  const endDateStr = endDate ? toLocalDateStr(endDate) : null
-  const prevalidate = useAbsencePrevalidate(accessToken, employeeId, selectedTypeRef, startDateStr, endDateStr)
 
   const blockedDateSet = new Set([...blockedRequestDates, ...bankHolidayDates].map(toLocalDateStr))
 
@@ -107,19 +117,18 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
     if (prevalidate.errorCode) {
       const errorPresentation = getPrevalidateErrorPresentation(prevalidate.errorCode, prevalidate.errorDetail)
       return (
-        <div
-          className="gba:flex gba:flex-col gba:items-start gba:gap-1.5 gba:w-full gba:max-w-2xl"
-          data-testid="prevalidate-error"
-        >
+        <div className="gba:flex gba:max-w-md gba:flex-col gba:items-start gba:gap-1.5" data-testid="prevalidate-error">
           <Badge
             variant="destructive"
-            className="gba:max-w-full gba:whitespace-normal gba:break-words"
+            className="gba:h-auto gba:max-w-full gba:whitespace-normal gba:break-words gba:py-1 gba:text-left"
             data-testid="prevalidate-error-badge"
           >
-            {t(errorPresentation.messageKey) || errorPresentation.messageFallback}
+            <span className="gba:block gba:max-w-full gba:whitespace-normal gba:break-words">
+              {t(errorPresentation.messageKey) || errorPresentation.messageFallback}
+            </span>
           </Badge>
           <p
-            className="gba:text-xs gba:text-muted-foreground gba:max-w-full gba:whitespace-normal gba:break-words"
+            className="gba:max-w-md gba:text-xs gba:text-muted-foreground gba:whitespace-normal gba:break-words"
             data-testid="prevalidate-error-detail"
           >
             {t(errorPresentation.detailKey) || errorPresentation.detailFallback}
@@ -187,7 +196,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent className="gba:w-auto gba:p-0" align="start">
+      <PopoverContent className="gba:w-auto gba:min-w-fit gba:p-0" align="start">
         <Calendar
           mode="range"
           numberOfMonths={2}
@@ -230,19 +239,19 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
             <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
               <span>
                 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.balance_remaining', 'Remaining')}:{' '}
-                <strong>{entitlementSnapshot.remaining}</strong>
+                <strong>{formatSnapshotValue(entitlementSnapshot.remaining)}</strong>
               </span>
               <span>
                 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.balance_used_approved', 'Used approved')}:{' '}
-                {entitlementSnapshot.usedApproved}
+                {formatSnapshotValue(entitlementSnapshot.usedApproved)}
               </span>
               <span>
                 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.balance_used_pending', 'Used pending')}:{' '}
-                {entitlementSnapshot.usedPending}
+                {formatSnapshotValue(entitlementSnapshot.usedPending)}
               </span>
               <span>
                 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_form.balance_total', 'Total')}:{' '}
-                {entitlementSnapshot.totalEntitlement}
+                {formatSnapshotValue(entitlementSnapshot.totalEntitlement)}
               </span>
             </div>
             <div className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">

@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 /**
  * Entity field types (const object for better Vite compatibility)
@@ -264,10 +264,9 @@ export const useEntitySchemas = (options: UseEntitySchemasOptions = {}): UseEnti
       }
 
       // Get flow engine URL from environment
-      const flowEngineUrl =
-        env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+      const flowEngineUrl = CUSTOM_FLOW_ENGINE_API_URL
 
-      const url = `${flowEngineUrl}/api/entities?${params}`
+      const url = `${flowEngineUrl}/entities?${params}`
       console.debug('Fetching entity schemas', { url })
 
       const response = await fetch(url, {

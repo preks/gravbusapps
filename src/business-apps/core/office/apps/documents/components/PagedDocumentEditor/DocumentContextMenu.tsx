@@ -43,9 +43,11 @@ import {
 import type { Editor as TiptapEditor } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 import {
-  resolveImageWrapPreset,
+  resolveWordStyleWrapPreset,
+  resolveWordStyleWrapPresetUpdate,
+  type CustomImageAttributes,
   type ImageAlignment,
-  type ImageWrapMode
+  type WordStyleWrapPreset
 } from '@/components/tiptap-extensions/tiptap-custom-image'
 import type { SetTableStyleOptions } from '@/components/tiptap-extensions/tiptap-custom-tables/types'
 import { isAllowedHref } from '../../utils/linkUtils'
@@ -66,17 +68,6 @@ const SUBMENU_CONTENT_CLASS = 'gba:w-56 gba:text-sm'
 const MENU_ROW_CLASS = 'gba:h-8 gba:px-2.5 gba:text-sm'
 const MENU_ICON_CLASS = 'gba:h-3.5 gba:w-3.5'
 
-const IMAGE_WRAP_OPTIONS: ReadonlyArray<{ key: string; value: ImageWrapMode }> = [
-  { key: 'image-wrap-inline', value: 'inline' },
-  { key: 'image-wrap-left', value: 'square-left' },
-  { key: 'image-wrap-right', value: 'square-right' },
-  { key: 'image-wrap-tight', value: 'tight' },
-  { key: 'image-wrap-through', value: 'through' },
-  { key: 'image-wrap-center', value: 'top-bottom' },
-  { key: 'image-wrap-behind', value: 'behind' },
-  { key: 'image-wrap-in-front', value: 'front' }
-]
-
 const IMAGE_ALIGN_OPTIONS: ReadonlyArray<{
   key: string
   value: ImageAlignment
@@ -85,6 +76,14 @@ const IMAGE_ALIGN_OPTIONS: ReadonlyArray<{
   { key: 'editor-toolbar-align-left', value: 'left', icon: <AlignLeft className={MENU_ICON_CLASS} /> },
   { key: 'editor-toolbar-align-center', value: 'center', icon: <AlignCenter className={MENU_ICON_CLASS} /> },
   { key: 'editor-toolbar-align-right', value: 'right', icon: <AlignRight className={MENU_ICON_CLASS} /> }
+]
+
+const WORD_WRAP_OPTIONS: ReadonlyArray<{ key: string; value: WordStyleWrapPreset }> = [
+  { key: 'image-wrap-inline', value: 'inline' },
+  { key: 'image-wrap-square-left', value: 'square-left' },
+  { key: 'image-wrap-square-right', value: 'square-right' },
+  { key: 'image-wrap-behind', value: 'behind-text' },
+  { key: 'image-wrap-in-front', value: 'in-front-of-text' }
 ]
 
 type TableCanCommands = ReturnType<TiptapEditor['can']> & {
@@ -110,6 +109,27 @@ interface DocumentContextMenuProps extends PropsWithChildren {
 
 function focusEditor(editor: TiptapEditor | null) {
   editor?.commands.focus?.()
+}
+
+function updateContextMenuImageAttrs(
+  editor: TiptapEditor | null,
+  imageSelection: DocumentContextMenuState['imageSelection'],
+  nextAttrs: Record<string, unknown>
+) {
+  if (!editor || !imageSelection) {
+    return false
+  }
+
+  const tr = editor.state.tr
+  tr.setNodeMarkup(imageSelection.pos, undefined, {
+    ...imageSelection.attrs,
+    ...nextAttrs
+  })
+  tr.setSelection(NodeSelection.create(tr.doc, imageSelection.pos))
+  editor.view.dispatch(tr)
+  editor.commands.refreshPagesAndStabilize?.()
+  editor.view.focus()
+  return true
 }
 
 function CompactContextMenuItem({ className, ...props }: Readonly<ComponentProps<typeof ContextMenuItem>>) {
@@ -325,8 +345,13 @@ export function DocumentContextMenu({
     contextMenuState.linkHref && isAllowedHref(contextMenuState.linkHref) ? contextMenuState.linkHref : null
   const canCommands = editor?.can() as TableCanCommands | undefined
   const tableLayoutEnabled = canCommands?.setTableStyleOptions({ styleHeaderRow: true }) ?? false
+  const currentImageWrapAttrs = (contextMenuState.imageSelection?.attrs ?? {}) as CustomImageAttributes
   const selectedImageAlign = contextMenuState.imageSelection?.attrs.align ?? 'left'
-  const selectedImageWrap = (contextMenuState.imageSelection?.attrs.wrapMode as ImageWrapMode | undefined) ?? 'inline'
+  const selectedImageWrap = resolveWordStyleWrapPreset({
+    wrapMode: currentImageWrapAttrs.wrapMode,
+    align: selectedImageAlign as ImageAlignment,
+    wrapTextSide: currentImageWrapAttrs.wrapTextSide
+  })
   const tableStyleState = buildTableStyleState(
     (editor?.getAttributes('table') as Record<string, unknown> | undefined) ?? {}
   )
@@ -436,12 +461,14 @@ export function DocumentContextMenu({
                 <MenuLabel icon={<Type className={MENU_ICON_CLASS} />}>{t('image-context-wrap-text')}</MenuLabel>
               </CompactContextMenuSubTrigger>
               <CompactContextMenuSubContent>
-                {IMAGE_WRAP_OPTIONS.map(option => (
+                {WORD_WRAP_OPTIONS.map(option => (
                   <CompactContextMenuItem
                     key={option.value}
                     onSelect={() =>
-                      editor.commands.setImageLayout?.(
-                        resolveImageWrapPreset(option.value, contextMenuState.imageSelection?.attrs ?? {})
+                      updateContextMenuImageAttrs(
+                        editor,
+                        contextMenuState.imageSelection,
+                        resolveWordStyleWrapPresetUpdate(option.value, currentImageWrapAttrs)
                       )
                     }
                     data-testid={`${testId}-image-wrap-${option.value}`}

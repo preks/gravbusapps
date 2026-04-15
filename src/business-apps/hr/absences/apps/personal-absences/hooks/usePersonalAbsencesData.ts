@@ -17,6 +17,55 @@ import dayjs from 'dayjs'
 
 const PAGE_SIZE = 10
 
+type PersonalAbsenceEntitlement = {
+  type: {
+    id: string
+    value: string
+    objectValue?: {
+      color?: string
+      display?: boolean
+    }
+  }
+  approved: number
+  pending: number
+  total: number
+  available?: number
+  validFrom: string
+  validTo?: string | null
+}
+
+type BalanceLabelMode = 'with-total' | 'approved-only'
+
+const normalizeTypeMatchKey = (value?: string | null) => value?.trim().toLowerCase() || null
+
+const buildTypeMatchKeys = (...values: Array<string | undefined | null>) => {
+  const keys = values.map(value => normalizeTypeMatchKey(value)).filter((value): value is string => Boolean(value))
+
+  return Array.from(new Set(keys))
+}
+
+const matchesEntitlementToAbsence = (
+  entitlement: {
+    type: string
+    typeRef?: string
+    typeMatchKeys?: string[]
+  },
+  absence: Pick<AbsenceRow, 'type' | 'typeId' | 'typeRef' | 'typeParentEntryId'>
+) => {
+  const entitlementKeys = entitlement.typeMatchKeys?.length
+    ? entitlement.typeMatchKeys
+    : buildTypeMatchKeys(entitlement.typeRef, entitlement.type)
+  // Match balance cards by the concrete subtype identity only.
+  // Using the shared parent entry id causes sibling work-leave subtypes
+  // like School, Business Trip, and Remote to inherit each other's usage.
+  const absenceKeys = buildTypeMatchKeys(absence.typeRef, absence.typeId, absence.type)
+
+  return entitlementKeys.some(key => absenceKeys.includes(key))
+}
+
+const resolveBalanceLabelMode = (objectValue?: { checkEntitlement?: boolean } | null): BalanceLabelMode =>
+  objectValue?.checkEntitlement === false ? 'approved-only' : 'with-total'
+
 export function usePersonalAbsencesData(accessToken: string | undefined, employeeId: string | undefined) {
   const client = useGraphQLClient(accessToken)
   const rawStructureId = getCurrentActiveStructureId()
@@ -45,9 +94,12 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
         const mapped = mapType(ent.typeRef || ent.type)
         return {
           ...ent,
+          typeRef: ent.typeRef || ent.type,
+          typeMatchKeys: buildTypeMatchKeys(ent.typeRef, ent.type, mapped?.label),
           type: mapped?.label || ent.type,
           color: mapped?.color || ent.color,
-          display: mapped?.display === true
+          display: mapped?.display ?? true,
+          labelMode: resolveBalanceLabelMode(mapped?.objectValue)
         }
       }),
     [rawSnapshotEntitlements, mapType]
@@ -59,6 +111,101 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
     absenceEntitlements,
     refetch: refetchEmployeeData
   } = useEmployeeData(accessToken || '', structureId, employeeId || '')
+
+  const baseEntitlements = useMemo(() => {
+    const currentYear = dayjs().year()
+    const yearStart = dayjs(`${currentYear}-01-01`).startOf('day')
+    const yearEnd = dayjs(`${currentYear}-12-31`).endOf('day')
+    const entitlementMap = new Map<
+      string,
+      {
+        type: string
+        typeRef: string
+        typeMatchKeys: string[]
+        color?: string
+        labelMode: BalanceLabelMode
+        used: number
+        total: number
+        pending: number
+        available: number
+        display: boolean
+      }
+    >()
+
+    ;(absenceEntitlements as PersonalAbsenceEntitlement[]).forEach(entitlement => {
+      if (!entitlement?.type?.id || !entitlement.validFrom) {
+        return
+      }
+
+      const validFrom = dayjs(entitlement.validFrom)
+      const validTo = entitlement.validTo ? dayjs(entitlement.validTo) : null
+      const overlapsCurrentYear =
+        validFrom.isSameOrBefore(yearEnd) && (validTo === null || validTo.isSameOrAfter(yearStart))
+
+      if (!overlapsCurrentYear) {
+        return
+      }
+
+      const typeRef = entitlement.type.id
+      const mapped = mapType(typeRef)
+      const existing = entitlementMap.get(typeRef)
+      const total = Number(entitlement.total) || 0
+      const used = Number(entitlement.approved) || 0
+      const pending = Number(entitlement.pending) || 0
+      const available = Number(entitlement.available) || Math.max(0, total - used - pending)
+
+      if (existing) {
+        existing.total += total
+        existing.used += used
+        existing.pending += pending
+        existing.available += available
+        return
+      }
+
+      entitlementMap.set(typeRef, {
+        type: mapped?.label || entitlement.type.value || typeRef,
+        typeRef,
+        typeMatchKeys: buildTypeMatchKeys(typeRef, entitlement.type.value, mapped?.label),
+        color: mapped?.color || entitlement.type.objectValue?.color,
+        labelMode: resolveBalanceLabelMode(entitlement.type.objectValue ?? mapped?.objectValue),
+        used,
+        total,
+        pending,
+        available,
+        display: mapped?.display ?? entitlement.type.objectValue?.display ?? true
+      })
+    })
+
+    return Array.from(entitlementMap.values())
+  }, [absenceEntitlements, mapType])
+
+  const mergedEntitlements = useMemo(() => {
+    if (!baseEntitlements.length) {
+      return snapshotEntitlements
+    }
+
+    const mergedByType = new Map(baseEntitlements.map(entitlement => [entitlement.typeRef, entitlement]))
+
+    snapshotEntitlements.forEach(snapshotEntitlement => {
+      const typeRef = snapshotEntitlement.typeRef || snapshotEntitlement.type
+      const fallbackEntitlement = mergedByType.get(typeRef)
+      const fallbackMatchKeys = fallbackEntitlement?.typeMatchKeys || []
+      const snapshotMatchKeys = snapshotEntitlement.typeMatchKeys || []
+
+      mergedByType.set(typeRef, {
+        ...fallbackEntitlement,
+        ...snapshotEntitlement,
+        typeRef,
+        typeMatchKeys: Array.from(new Set([...fallbackMatchKeys, ...snapshotMatchKeys])),
+        type: snapshotEntitlement.type || fallbackEntitlement?.type || typeRef,
+        color: snapshotEntitlement.color || fallbackEntitlement?.color,
+        labelMode: fallbackEntitlement?.labelMode || snapshotEntitlement.labelMode || 'with-total',
+        display: snapshotEntitlement.display === true || fallbackEntitlement?.display === true
+      })
+    })
+
+    return Array.from(mergedByType.values())
+  }, [baseEntitlements, snapshotEntitlements])
 
   useProcessCompletion({
     onSuccess: () => {
@@ -119,15 +266,18 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
       })
       .then((res: any) => {
         const rows = (res?.EmployeeAbsence || []).map((a: any) => ({
+          // Use effective days first because some approved absence types do not populate workingDays consistently.
           id: a.id,
           type: a.type ? getCatalogValue(a.type) || '' : '',
+          typeId: a.type?.id || '',
+          typeRef: a.typeRef || '',
           typeColor: a.type?.objectValue?.color || '6366f1',
           typeParentEntryId: a.type?.parentEntryId || '',
           startDate: a.startDate,
           endDate: a.endDate,
           status: getAbsenceStatusLabel(a.status),
           originalStatus: a.status || '',
-          workingDays: a.workingDays ?? 0,
+          workingDays: a.effectiveDays ?? a.workingDays ?? a.calendarDays ?? 0,
           description: a.description || '',
           createdAt: a.createdAt
         }))
@@ -259,11 +409,128 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
   const totalPages = Math.ceil(filteredAbsences.length / PAGE_SIZE)
   const paginatedAbsences = filteredAbsences.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const displayEntitlements = useMemo(() => (snapshotEntitlements || []).filter(e => e.display), [snapshotEntitlements])
+  const approvedAbsences = useMemo(() => absences.filter(a => a.originalStatus === 'APPROVED'), [absences])
+
+  const absenceDerivedEntitlements = useMemo(() => {
+    const visibleTypeMap = new Map<
+      string,
+      {
+        type: string
+        typeRef: string
+        typeMatchKeys: string[]
+        color?: string
+        labelMode: BalanceLabelMode
+        used: number
+        total: number
+        pending: number
+        available: number
+        display: boolean
+      }
+    >()
+
+    absences.forEach(absence => {
+      const typeKey = absence.typeRef || absence.typeId || absence.typeParentEntryId || absence.type
+      if (!typeKey) {
+        return
+      }
+
+      const mapped = mapType(typeKey)
+      if (mapped?.display === false) {
+        return
+      }
+
+      const existing = visibleTypeMap.get(typeKey)
+      const status = absence.originalStatus
+      const absenceDays = Number(absence.workingDays) || 0
+
+      if (existing) {
+        if (status === 'APPROVED') {
+          existing.used += absenceDays
+        } else if (status === 'PENDING') {
+          existing.pending += absenceDays
+        }
+        return
+      }
+
+      visibleTypeMap.set(typeKey, {
+        type: mapped?.label || absence.type || typeKey,
+        typeRef: absence.typeRef || typeKey,
+        typeMatchKeys: buildTypeMatchKeys(absence.typeRef, absence.typeId, absence.type, mapped?.label),
+        color: mapped?.color,
+        labelMode: resolveBalanceLabelMode(mapped?.objectValue),
+        used: status === 'APPROVED' ? absenceDays : 0,
+        total: 0,
+        pending: status === 'PENDING' ? absenceDays : 0,
+        available: 0,
+        display: mapped?.display ?? true
+      })
+    })
+
+    return Array.from(visibleTypeMap.values())
+  }, [absences, mapType])
+
+  const entitlementsWithApprovedUsage = useMemo(() => {
+    const mergedByType = new Map(
+      mergedEntitlements.map(entitlement => [entitlement.typeRef || entitlement.type, { ...entitlement }])
+    )
+
+    absenceDerivedEntitlements.forEach(entitlement => {
+      const typeKey = entitlement.typeRef || entitlement.type
+      const existing = mergedByType.get(typeKey)
+      if (!existing) {
+        mergedByType.set(typeKey, { ...entitlement })
+        return
+      }
+
+      mergedByType.set(typeKey, {
+        ...entitlement,
+        ...existing,
+        typeRef: existing.typeRef || entitlement.typeRef,
+        typeMatchKeys: Array.from(new Set([...(existing.typeMatchKeys || []), ...(entitlement.typeMatchKeys || [])])),
+        type: existing.type || entitlement.type,
+        color: existing.color || entitlement.color,
+        labelMode: existing.labelMode || entitlement.labelMode,
+        display: existing.display ?? entitlement.display
+      })
+    })
+
+    return Array.from(mergedByType.values()).map(entitlement => {
+      const approvedDaysFromAbsences = approvedAbsences.reduce((sum, absence) => {
+        if (!matchesEntitlementToAbsence(entitlement, absence)) {
+          return sum
+        }
+
+        return sum + (absence.workingDays || 0)
+      }, 0)
+
+      return {
+        ...entitlement,
+        used: Math.max(Number(entitlement.used) || 0, approvedDaysFromAbsences),
+        total:
+          Number(entitlement.total) > 0
+            ? Number(entitlement.total)
+            : approvedDaysFromAbsences + (Number(entitlement.pending) || 0),
+        available:
+          Number(entitlement.total) > 0
+            ? Math.max(
+                0,
+                Number(entitlement.total) -
+                  Math.max(Number(entitlement.used) || 0, approvedDaysFromAbsences) -
+                  (Number(entitlement.pending) || 0)
+              )
+            : 0
+      }
+    })
+  }, [mergedEntitlements, absenceDerivedEntitlements, approvedAbsences])
+
+  const displayEntitlements = useMemo(
+    () => entitlementsWithApprovedUsage.filter(e => e.display),
+    [entitlementsWithApprovedUsage]
+  )
 
   const otherEntitlements = useMemo(
-    () => snapshotEntitlements?.filter(e => !e.display && e.used > 0) ?? [],
-    [snapshotEntitlements]
+    () => entitlementsWithApprovedUsage.filter(e => !e.display && e.used > 0),
+    [entitlementsWithApprovedUsage]
   )
 
   const ytdAbsentDays = useMemo(() => {

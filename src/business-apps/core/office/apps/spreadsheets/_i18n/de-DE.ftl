@@ -1087,10 +1087,14 @@ spreadsheet-save-just-now = Gerade gespeichert
 
 # Save / persistence indicator (viewer header)
 persist-cell-failed = Zellenänderungen konnten nicht gespeichert werden. Bitte erneut versuchen oder die Seite aktualisieren.
+collab-sync-save-failed = Synchronisierung über Collaboration fehlgeschlagen; Änderungen wurden zur direkten Speicherung eingereiht.
+collab-queue-trimmed-warn = Collaboration-Warteschlange wurde gekürzt. Wenn die Tabelle falsch aussieht, Seite neu laden.
 persist-row-update-failed = Zeilenänderungen konnten nicht gespeichert werden.
 persist-row-delete-failed = Zeile konnte nicht gelöscht werden.
 persist-rows-add-failed = Neue Zeilen konnten nicht gespeichert werden.
 persist-snapshot-failed = Das Tabellenlayout konnte nicht auf dem Server gespeichert werden.
+persist-recovery-failed = Speicherkonflikt konnte nicht behoben werden. Bitte die Seite neu laden.
+persist-snapshot-too-large = Die Formatierung konnte nicht gespeichert werden, da die Tabelle zu groß ist. Zelldaten werden weiterhin gespeichert.
 
 # Share App Dialog
 share-dialog-title = „{ $name }" teilen

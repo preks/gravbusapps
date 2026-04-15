@@ -16,6 +16,8 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
+import { insertWordLikeTable } from '../../utils/initialInsertedTableLayout'
 
 const MIN_ROWS = 1
 const MAX_ROWS = 30
@@ -28,6 +30,7 @@ export interface InsertTableDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly editor: Editor | null
+  readonly paginationConfig: PageLayoutPaginationConfig | null
   readonly 'data-testid'?: string
 }
 
@@ -35,6 +38,7 @@ export function InsertTableDialog({
   open,
   onOpenChange,
   editor,
+  paginationConfig,
   'data-testid': testId = 'document-insert-table-dialog'
 }: InsertTableDialogProps) {
   const { t } = useTranslation(translations)
@@ -111,9 +115,19 @@ export function InsertTableDialog({
     }
     setRowsError(null)
     setColsError(null)
-    editor?.chain().focus().insertTable({ rows: r, cols: c, withHeaderRow: false }).run()
+    if (!editor) {
+      return
+    }
+
+    insertWordLikeTable({
+      editor,
+      paginationConfig,
+      rows: r,
+      cols: c,
+      withHeaderRow: false
+    })
     onOpenChange(false)
-  }, [editor, rows, cols, onOpenChange, t, clamp])
+  }, [clamp, cols, editor, onOpenChange, paginationConfig, rows, t])
 
   const handleCancel = useCallback(() => {
     setRowsError(null)

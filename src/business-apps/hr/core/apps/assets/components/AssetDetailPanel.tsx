@@ -44,10 +44,12 @@ interface AssetDetailPanelProps {
   isOpen: boolean
   onClose: () => void
   accessToken: string
+  canDeleteAsset?: boolean
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+  onDeleteAsset?: (assetId: string) => void
   onGenerateDocument?: (assetId: string) => void
 }
 
@@ -115,10 +117,12 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   isOpen,
   onClose,
   accessToken,
+  canDeleteAsset = false,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
   onRetrieveAsset,
+  onDeleteAsset,
   onGenerateDocument
 }) => {
   if (!asset) return null
@@ -206,6 +210,18 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
       })
     }
 
+    if (canDeleteAsset && onDeleteAsset) {
+      actions.push({
+        category: labels.actions,
+        key: 'delete-asset',
+        label: labels.delete_asset,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onDeleteAsset(asset.id)
+        }
+      })
+    }
+
     if (isRetired && onGenerateDocument) {
       actions.push({
         category: labels.actions,
@@ -227,6 +243,8 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
     onUpdateAsset,
     onRetireAsset,
     onRetrieveAsset,
+    canDeleteAsset,
+    onDeleteAsset,
     onGenerateDocument
   ])
 

@@ -17,10 +17,10 @@ interface ConnectionsVisualizationProps {
 const TOOLS: ToolNode[] = [
   {
     id: 'ai-builder',
-    label: 'AI Builder',
+    label: 'Screen Builder',
     icon: Monitor,
     color: 'ai',
-    description: 'Build UI with AI',
+    description: 'Build UI screens',
     connections: ['flow', 'experts', 'functions', 'data', 'templates']
   },
   {
@@ -132,8 +132,8 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
             Everything connected. Infinitely powerful.
           </h2>
           <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-            Each tool in NEWWORK CREATE works seamlessly with others. Build complete solutions by combining AI Builder,
-            Flow, AI Task Experts, and more.
+            Each tool in NEWWORK CREATE works seamlessly with others. Build complete solutions by combining Screen
+            Builder, Flow, AI Task Experts, and more.
           </p>
         </div>
 

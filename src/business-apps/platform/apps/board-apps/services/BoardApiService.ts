@@ -1188,15 +1188,10 @@ export const BoardApiService = {
     schema: Array<{ name: string; label?: string; type?: string }>
     estimatedTotal?: number
   } | null> {
-    try {
-      return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/preview`, {
-        method: 'POST',
-        body: JSON.stringify({ connectorId, connectionId, query, limit })
-      })
-    } catch (err) {
-      console.error('External preview failed:', err instanceof Error ? err.message : err)
-      return null
-    }
+    return apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/preview`, {
+      method: 'POST',
+      body: JSON.stringify({ connectorId, connectionId, query, limit })
+    })
   },
 
   async startExternalSync(
@@ -1218,15 +1213,10 @@ export const BoardApiService = {
       refreshInterval?: number
     }
   ): Promise<{ runId: string } | null> {
-    try {
-      return await apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/start-sync`, {
-        method: 'POST',
-        body: JSON.stringify(params)
-      })
-    } catch (err) {
-      console.error('Start external sync failed:', err instanceof Error ? err.message : err)
-      return null
-    }
+    return apiRequest(`/boards/${boardId}/sheets/${sheetId}/external-sources/start-sync`, {
+      method: 'POST',
+      body: JSON.stringify(params)
+    })
   },
 
   async getExternalSyncRunStatus(

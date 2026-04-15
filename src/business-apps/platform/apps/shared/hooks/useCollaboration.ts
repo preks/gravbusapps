@@ -7,6 +7,20 @@ import {
   DocumentOperation
 } from '../services/CollaborationClient'
 
+const isCollabDebug = (): boolean => {
+  try {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    )
+      return true
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('nw-collab-debug') === 'true') return true
+  } catch {
+    /* SSR guard */
+  }
+  return false
+}
+
 type SocketParticipant = {
   odId?: string
   userId?: string
@@ -118,7 +132,7 @@ function updateParticipantSelection(prev: DocumentParticipant[], data: Selection
 }
 
 export interface UseCollaborationOptions {
-  entityType: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard'
+  entityType: 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard' | 'presentation'
   entityId: string
   enabled?: boolean
   accessToken?: string
@@ -129,14 +143,22 @@ export interface UseCollaborationOptions {
     version?: number
     timestamp: number
   }) => void
+  onOperationAckFailure?: (operation: DocumentOperation) => void
   onError?: (error: Error) => void
 }
+
+export type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
+
+export type DocumentOperationAckResult = { success: boolean; version?: number; error?: string }
 
 export interface UseCollaborationReturn {
   participants: DocumentParticipant[]
   isConnected: boolean
+  hasJoined: boolean
+  collaborationHealth: CollaborationHealth
   socket: Socket | null
   emitOperation: (operation: DocumentOperation) => void
+  emitDocumentOperationAsync: (operation: DocumentOperation) => Promise<DocumentOperationAckResult>
   emitCursor: (position: { line?: number; column?: number; offset?: number; path?: string[] }) => void
   emitSelection: (
     selection: {
@@ -169,18 +191,31 @@ export interface UseCollaborationReturn {
  * ```
  */
 export function useCollaboration(options: UseCollaborationOptions): UseCollaborationReturn {
-  const { entityType, entityId, enabled = true, accessToken, onOperationReceived, onError } = options
+  const {
+    entityType,
+    entityId,
+    enabled = true,
+    accessToken,
+    onOperationReceived,
+    onOperationAckFailure,
+    onError
+  } = options
 
   const [participants, setParticipants] = useState<DocumentParticipant[]>([])
   const [isConnected, setIsConnected] = useState(false)
+  const [hasJoined, setHasJoined] = useState(false)
+  const [collaborationHealth, setCollaborationHealth] = useState<CollaborationHealth>('reconnecting')
   const [socket, setSocket] = useState<Socket | null>(null)
 
   const clientRef = useRef<CollaborationClient | null>(null)
   const hasJoinedRef = useRef(false)
   const isJoiningRef = useRef(false)
   const joinAckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingOperationsRef = useRef<DocumentOperation[]>([])
-  const pendingCursorRef = useRef<{ line?: number; column?: number; offset?: number; path?: string[] } | null>(null)
+
+  const onOperationReceivedRef = useRef(onOperationReceived)
+  const onErrorRef = useRef(onError)
+  onOperationReceivedRef.current = onOperationReceived
+  onErrorRef.current = onError
 
   // Get auth token - prefer passed accessToken, then try localStorage
   const getAuthToken = useCallback((): string | null => {
@@ -220,14 +255,15 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     const token = getAuthToken()
     if (!token) {
       console.error('[useCollaboration] No auth token available')
-      onError?.(new Error('No authentication token available'))
+      onErrorRef.current?.(new Error('No authentication token available'))
       return
     }
 
     // Create client
     const client = createCollaborationClient({
       reconnectionAttempts: 10,
-      connectionTimeout: 20000
+      connectionTimeout: 20000,
+      onReconnectFailed: () => setCollaborationHealth('failed')
     })
 
     clientRef.current = client
@@ -243,30 +279,11 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
       }
     }
 
-    const flushPendingSpreadsheetEvents = () => {
-      if (entityType !== 'spreadsheet' || !client.getSocket()?.connected || !hasJoinedRef.current) return
-
-      const pendingOps = pendingOperationsRef.current
-      if (pendingOps.length > 0) {
-        pendingOperationsRef.current = []
-        pendingOps.forEach(op => {
-          client.sendDocumentOperation(entityType, entityId, op)
-        })
-      }
-
-      const pendingCursor = pendingCursorRef.current
-      if (pendingCursor) {
-        pendingCursorRef.current = null
-        client.sendCursorMove(entityType, entityId, pendingCursor)
-      }
-    }
-
     const joinRoomIfNeeded = () => {
       if (hasJoinedRef.current || isJoiningRef.current) return
       if (!client.getSocket()?.connected) return
       isJoiningRef.current = true
       clearJoinAckTimeout()
-      // Avoid getting stuck in "joining" when ack is dropped.
       joinAckTimeoutRef.current = setTimeout(() => {
         isJoiningRef.current = false
       }, 6000)
@@ -274,20 +291,23 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         setParticipants(rawParticipants.map(mapSocketParticipantToParticipant))
         hasJoinedRef.current = true
         isJoiningRef.current = false
+        setHasJoined(true)
         clearJoinAckTimeout()
-        flushPendingSpreadsheetEvents()
       })
     }
 
     const handleConnect = () => {
-      console.log('[useCollaboration] Connected to collaboration server')
+      if (isCollabDebug()) console.log('[useCollaboration] Connected to collaboration server')
       setIsConnected(true)
+      setCollaborationHealth('connected')
       joinRoomIfNeeded()
     }
 
     const handleDisconnect = () => {
-      console.log('[useCollaboration] Disconnected from collaboration server')
+      if (isCollabDebug()) console.log('[useCollaboration] Disconnected from collaboration server')
       setIsConnected(false)
+      setHasJoined(false)
+      setCollaborationHealth('reconnecting')
       hasJoinedRef.current = false
       isJoiningRef.current = false
       clearJoinAckTimeout()
@@ -304,21 +324,28 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
 
     // Handle user joined
     const handleUserJoined = (data: ParticipantEventData) => {
-      console.log('[useCollaboration] User joined:', data)
+      if (isCollabDebug()) console.log('[useCollaboration] User joined:', data)
       setParticipants(prev => addParticipantIfMissing(prev, data))
     }
     client.onUserJoined(handleUserJoined)
 
     // Handle user left
     const handleUserLeft = (data: { userId: string }) => {
-      console.log('[useCollaboration] User left:', data)
+      if (isCollabDebug()) console.log('[useCollaboration] User left:', data)
       setParticipants(prev => removeParticipant(prev, data.userId))
     }
     client.onUserLeft(handleUserLeft)
 
-    // Handle operation applied
+    // Handle operation applied (read handler from ref so callback identity does not recreate the socket)
     const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {
-      onOperationReceived?.(data)
+      if (isCollabDebug()) {
+        console.log('[useCollaboration] operation_applied (received)', {
+          opType: data.operation?.type,
+          version: data.version,
+          fromUserId: data.userId
+        })
+      }
+      onOperationReceivedRef.current?.(data)
     }
     client.onOperationApplied(handleOperationApplied)
 
@@ -342,24 +369,24 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
         client.leaveDocument(entityType, entityId)
         hasJoinedRef.current = false
       }
+      setHasJoined(false)
       client.disconnect()
       clientRef.current = null
       setSocket(null)
     }
-  }, [enabled, entityType, entityId, getAuthToken, onOperationReceived, onError])
+  }, [enabled, entityType, entityId, getAuthToken])
 
-  // Emit operation
+  // Emit operation — pass-through to the socket. Queuing is handled by entity-specific
+  // managers (e.g. SpreadsheetCollaborationManager) for types that need it.
   const emitOperation = useCallback(
     (operation: DocumentOperation) => {
       if (!clientRef.current?.isConnected()) {
-        console.warn('[useCollaboration] Cannot emit operation: not connected')
+        console.warn('[useCollaboration] Dropped operation (not connected):', operation.type)
         return
       }
       if (!hasJoinedRef.current && !isJoiningRef.current) {
         isJoiningRef.current = true
-        if (joinAckTimeoutRef.current) {
-          clearTimeout(joinAckTimeoutRef.current)
-        }
+        if (joinAckTimeoutRef.current) clearTimeout(joinAckTimeoutRef.current)
         joinAckTimeoutRef.current = setTimeout(() => {
           isJoiningRef.current = false
         }, 6000)
@@ -370,69 +397,62 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
             clearTimeout(joinAckTimeoutRef.current)
             joinAckTimeoutRef.current = null
           }
-          if (entityType === 'spreadsheet' && clientRef.current?.isConnected()) {
-            const pendingOps = pendingOperationsRef.current
-            pendingOperationsRef.current = []
-            pendingOps.forEach(op => {
-              clientRef.current?.sendDocumentOperation(entityType, entityId, op)
-            })
-            const pendingCursor = pendingCursorRef.current
-            if (pendingCursor) {
-              pendingCursorRef.current = null
-              clientRef.current.sendCursorMove(entityType, entityId, pendingCursor)
-            }
-          }
         })
-      } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
-        pendingOperationsRef.current.push(operation)
-        if (pendingOperationsRef.current.length > 100) {
-          pendingOperationsRef.current = pendingOperationsRef.current.slice(-100)
-        }
+        return
+      } else if (!hasJoinedRef.current) {
         return
       }
-
-      clientRef.current.sendDocumentOperation(entityType, entityId, operation)
+      clientRef.current.sendDocumentOperation(entityType, entityId, operation, onOperationAckFailure)
     },
-    [entityType, entityId]
+    [entityType, entityId, onOperationAckFailure]
   )
 
-  // Emit cursor position
-  const emitCursor = useCallback(
-    (position: { line?: number; column?: number; offset?: number; path?: string[] }) => {
-      if (!clientRef.current?.isConnected()) return
-      if (!hasJoinedRef.current && !isJoiningRef.current) {
-        isJoiningRef.current = true
-        if (joinAckTimeoutRef.current) {
-          clearTimeout(joinAckTimeoutRef.current)
-        }
-        joinAckTimeoutRef.current = setTimeout(() => {
-          isJoiningRef.current = false
-        }, 6000)
-        clientRef.current.joinDocument(entityType, entityId, () => {
-          hasJoinedRef.current = true
-          isJoiningRef.current = false
-          if (joinAckTimeoutRef.current) {
-            clearTimeout(joinAckTimeoutRef.current)
-            joinAckTimeoutRef.current = null
-          }
-          if (entityType === 'spreadsheet' && clientRef.current?.isConnected()) {
-            const pendingOps = pendingOperationsRef.current
-            pendingOperationsRef.current = []
-            pendingOps.forEach(op => {
-              clientRef.current?.sendDocumentOperation(entityType, entityId, op)
-            })
-            const pendingCursor = pendingCursorRef.current
-            if (pendingCursor) {
-              pendingCursorRef.current = null
-              clientRef.current.sendCursorMove(entityType, entityId, pendingCursor)
-            }
-          }
-        })
-      } else if (!hasJoinedRef.current && entityType === 'spreadsheet') {
-        pendingCursorRef.current = position
-        return
+  const emitDocumentOperationAsync = useCallback(
+    async (operation: DocumentOperation): Promise<DocumentOperationAckResult> => {
+      const client = clientRef.current
+      if (!client?.isConnected()) {
+        return { success: false, error: 'not_connected' }
       }
 
+      if (!hasJoinedRef.current) {
+        if (!isJoiningRef.current) {
+          isJoiningRef.current = true
+          if (joinAckTimeoutRef.current) clearTimeout(joinAckTimeoutRef.current)
+          joinAckTimeoutRef.current = setTimeout(() => {
+            isJoiningRef.current = false
+          }, 6000)
+          client.joinDocument(entityType, entityId, (rawParticipants: SocketParticipant[]) => {
+            setParticipants(rawParticipants.map(mapSocketParticipantToParticipant))
+            hasJoinedRef.current = true
+            isJoiningRef.current = false
+            setHasJoined(true)
+            if (joinAckTimeoutRef.current) {
+              clearTimeout(joinAckTimeoutRef.current)
+              joinAckTimeoutRef.current = null
+            }
+          })
+        }
+        const deadline = Date.now() + 8000
+        while (Date.now() < deadline) {
+          if (hasJoinedRef.current) break
+          await new Promise<void>(resolve => {
+            setTimeout(resolve, 40)
+          })
+        }
+        if (!hasJoinedRef.current) {
+          return { success: false, error: 'not_joined' }
+        }
+      }
+
+      return client.sendDocumentOperationAsync(entityType, entityId, operation)
+    },
+    [entityId, entityType, setParticipants]
+  )
+
+  // Emit cursor position — pass-through to the socket
+  const emitCursor = useCallback(
+    (position: { line?: number; column?: number; offset?: number; path?: string[] }) => {
+      if (!clientRef.current?.isConnected() || !hasJoinedRef.current) return
       clientRef.current.sendCursorMove(entityType, entityId, position)
     },
     [entityType, entityId]
@@ -475,8 +495,11 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
   return {
     participants,
     isConnected,
+    hasJoined,
+    collaborationHealth,
     socket,
     emitOperation,
+    emitDocumentOperationAsync,
     emitCursor,
     emitSelection,
     emitTypingStart,

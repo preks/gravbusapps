@@ -298,6 +298,7 @@ notification-sick-leave-reported-success = Concediul medical a fost raportat cu 
 notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+notification-communication-deleted-success = Înregistrarea de comunicare a fost ștearsă cu succes.
 
 # Employee Record - Errors and states
 employee-record-error-title = Eroare
@@ -551,6 +552,7 @@ add-skill-form-attach-verification-message-prefix = Încarcă un document pentru
 add-skill-form-attach-verification-message-suffix = .
 add-skill-form-update-level-for-prefix = Actualizează nivelul pentru competența 
 add-skill-form-attach-verification-upload-label = Încarcă document
+add-skill-form-loading-verification-document = Se încarcă documentul...
 add-skill-form-document-group = Categorie document
 add-skill-form-document-type = Tip document
 add-skill-form-select-document-group = Selectează categoria document
@@ -736,6 +738,11 @@ details-private-communication = Comunicare privată
 details-emergency-contact = Contact de urgență
 details-additional-attributes = Atribute suplimentare
 details-no-emergency-contact = Nu sunt disponibile informații despre contactul de urgență
+details-communication-no-entries = Nu există înregistrări de comunicare
+details-communication-add = Adaugă comunicare
+delete-communication-confirm-title = Șterge înregistrarea de comunicare
+delete-communication-confirm-description = Sigur doriți să ștergeți această înregistrare de comunicare? Această acțiune nu poate fi anulată.
+delete-communication-confirm-button = Șterge
 details-label-salutation = Salutare
 details-label-academic-titles = Titluri academice
 details-label-first-name = Prenume
@@ -890,3 +897,6 @@ service-requests-status-canceled = Anulat
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
 change-personal-data-pending-ok = OK
+
+# Change Address - Loading
+change-address-loading-form = Se încarcă formularul de adresă...

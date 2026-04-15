@@ -1,7 +1,7 @@
 import React from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import ArticleView from './ArticleView'
 import QuestionView from './QuestionView'
 import KnowledgeArticleView from './KnowledgeArticleView'
@@ -57,9 +57,9 @@ const ContentPage: React.FC<ContentPageProps> = ({
   const { t } = useTranslation(translations)
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Determine which view to render based on contentGroupRef
-  const isQuestion = item.contentGroupRef === ContentGroup.QUESTION
-  const isKnowledge = item.contentGroupRef === ContentGroup.KNOWLEDGE
+  // Determine which view to render based on contentGroup
+  const isQuestion = item.contentGroup === ContentGroup.QUESTION
+  const isKnowledge = item.contentGroup === ContentGroup.KNOWLEDGE
   const isPolicy = isPolicyContentEntry(item as any)
 
   const canMarkAsPolicy = Boolean(

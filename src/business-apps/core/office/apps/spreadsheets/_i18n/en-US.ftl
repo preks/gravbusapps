@@ -1087,10 +1087,14 @@ spreadsheet-save-just-now = Saved just now
 
 # Save / persistence indicator (viewer header)
 persist-cell-failed = Could not save cell changes. Try again or refresh the page.
+collab-sync-save-failed = Could not sync through collaboration; your edits were queued to save directly.
+collab-queue-trimmed-warn = Collaboration backlog was trimmed. If the sheet looks wrong, refresh the page.
 persist-row-update-failed = Could not save row changes.
 persist-row-delete-failed = Could not delete the row.
 persist-rows-add-failed = Could not save new rows.
 persist-snapshot-failed = Could not save sheet layout to the server.
+persist-recovery-failed = Could not recover from a save conflict. Please refresh the page.
+persist-snapshot-too-large = Sheet formatting could not be saved because the spreadsheet is too large. Cell data is still saved.
 
 # Share App Dialog
 share-dialog-title = Share "{ $name }"
