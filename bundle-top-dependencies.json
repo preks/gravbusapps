@@ -5918,9 +5918,9 @@
     ]
   },
   "core/create/apps/flow-creator": {
-    "bitbucketBuildNumber": 10807,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10807/",
-    "chunkJsBytes": 1046018,
+    "bitbucketBuildNumber": 10814,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10814/",
+    "chunkJsBytes": 1046011,
     "top": [
       {
         "kind": "bucket",
@@ -50325,9 +50325,9 @@
     ]
   },
   "hr/core/forms/create-new-absence": {
-    "bitbucketBuildNumber": 10770,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10770/",
-    "chunkJsBytes": 226045,
+    "bitbucketBuildNumber": 10814,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10814/",
+    "chunkJsBytes": 226033,
     "top": [
       {
         "kind": "bucket",
@@ -53705,9 +53705,9 @@
     ]
   },
   "hr/core/forms/job-position": {
-    "bitbucketBuildNumber": 10770,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10770/",
-    "chunkJsBytes": 131063,
+    "bitbucketBuildNumber": 10814,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10814/",
+    "chunkJsBytes": 133679,
     "top": [
       {
         "kind": "bucket",
@@ -53730,18 +53730,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 61736,
-        "gzip": 15416,
+        "rendered": 54683,
+        "gzip": 14608,
         "leaves": [
           {
-            "name": "src/business-apps/hr/core/forms/job-position/components/JobPositionForm.tsx",
-            "rendered": 13037,
-            "gzip": 2288
+            "name": "src/business-apps/hr/core/forms/job-position/context/JobPositionContext.tsx",
+            "rendered": 11335,
+            "gzip": 2382
           },
           {
-            "name": "src/business-apps/hr/core/forms/job-position/context/JobPositionContext.tsx",
-            "rendered": 11572,
-            "gzip": 2409
+            "name": "src/business-apps/hr/core/forms/job-position/components/JobPositionForm.tsx",
+            "rendered": 10935,
+            "gzip": 2136
           }
         ]
       },
@@ -53783,6 +53783,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/data",
+        "rendered": 16025,
+        "gzip": 4810,
+        "leaves": [
+          {
+            "name": "src/common/data/employee/useEmployeeSearch.ts",
+            "rendered": 4642,
+            "gzip": 1338
+          },
+          {
+            "name": "src/common/data/catalog/queries/catalogQueries.ts",
+            "rendered": 4449,
+            "gzip": 1117
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15729,
         "gzip": 3722,
@@ -53791,24 +53809,6 @@
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
             "rendered": 15729,
             "gzip": 3722
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/data",
-        "rendered": 6309,
-        "gzip": 1973,
-        "leaves": [
-          {
-            "name": "src/common/data/employee/useEmployeeSearch.ts",
-            "rendered": 4642,
-            "gzip": 1338
-          },
-          {
-            "name": "src/common/data/employee/queries/employeeQueries.ts",
-            "rendered": 1667,
-            "gzip": 635
           }
         ]
       },
@@ -87865,20 +87865,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10807,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10807/",
-    "chunkJsBytes": 1799558,
+    "bitbucketBuildNumber": 10814,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10814/",
+    "chunkJsBytes": 1799927,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1492224,
-        "gzip": 88684,
+        "rendered": 1492623,
+        "gzip": 89108,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1492224,
-            "gzip": 88684
+            "rendered": 1492623,
+            "gzip": 89108
           }
         ]
       },
@@ -101239,7 +101239,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-15T08:27:36.784Z",
+    "generatedAt": "2026-04-15T09:22:28.652Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
