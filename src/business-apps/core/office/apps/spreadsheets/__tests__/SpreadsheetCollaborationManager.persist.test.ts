@@ -61,6 +61,57 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(result.error).toBe('no_backend_rows')
   })
 
+  it('bypasses socket persistence for oversized cell batches', async () => {
+    const send = jest.fn().mockResolvedValue({ success: true, version: 1 })
+    const callbacks = makeCallbacks({
+      getBackendRowIdForUiRowId: ui => `backend-${ui}`
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setDocumentOperationAsync(send)
+    manager.setConnectionState(true, true)
+
+    const cells = Array.from({ length: 1600 }, (_, index) => ({
+      rowId: `ui-${index}`,
+      columnName: 'NameA',
+      value: `value-${index}`
+    }))
+
+    const result = await manager.persistCellsChangedToServer(cells)
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('payload_too_large')
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('chunks broadcast-only cell changes before emitting over socket', () => {
+    const emit = jest.fn()
+    const callbacks = makeCallbacks({
+      getBackendRowIdForUiRowId: ui => `backend-${ui}`
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setEmitFunctions(emit, jest.fn())
+    manager.setConnectionState(true, true)
+
+    const cells = Array.from({ length: 850 }, (_, index) => ({
+      rowId: `ui-${index}`,
+      columnName: 'NameA',
+      value: `value-${index}`
+    }))
+
+    manager.emitCellsChanged(cells)
+
+    expect(emit).toHaveBeenCalledTimes(3)
+    expect(emit.mock.calls[0]?.[0]).toMatchObject({
+      type: 'cells_changed',
+      broadcastOnly: true
+    })
+    const emittedCellCount = emit.mock.calls.reduce((sum, [operation]) => {
+      const cellBatch = (operation.data as { cells?: unknown[] } | undefined)?.cells ?? []
+      return sum + cellBatch.length
+    }, 0)
+    expect(emittedCellCount).toBe(850)
+  })
+
   it('flushes deferred cells once create-row mapping is known', async () => {
     const send = jest.fn().mockResolvedValue({ success: true, version: 9 })
     const callbacks = makeCallbacks({

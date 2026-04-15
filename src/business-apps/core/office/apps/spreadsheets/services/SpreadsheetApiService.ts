@@ -854,9 +854,7 @@ export const SpreadsheetApiService = {
         },
         delete_rows: async operation => {
           const rowIds = getOperationRowIds(operation)
-          for (const rowId of rowIds) {
-            await SpreadsheetApiService.deleteRow(appId, sheetId, String(rowId))
-          }
+          await Promise.all(rowIds.map(rowId => SpreadsheetApiService.deleteRow(appId, sheetId, String(rowId))))
           return { result: { deletedRows: rowIds.length } }
         }
       }
