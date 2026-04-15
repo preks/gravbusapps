@@ -6,9 +6,19 @@ interface UseEmailListItemLabelsArgs {
   message: EmailMessageSummary
   onAddLabels: (labels: AddLabelInput[]) => Promise<EmailLabel[] | null>
   onRemoveLabel: (label: string) => Promise<EmailLabel[] | null>
+  closeEditorOnSuccess?: boolean
+  onAddSuccess?: (updatedLabels: EmailLabel[]) => Promise<void> | void
+  onRemoveSuccess?: (updatedLabels: EmailLabel[]) => Promise<void> | void
 }
 
-export const useEmailListItemLabels = ({ message, onAddLabels, onRemoveLabel }: UseEmailListItemLabelsArgs) => {
+export const useEmailListItemLabels = ({
+  message,
+  onAddLabels,
+  onRemoveLabel,
+  closeEditorOnSuccess = false,
+  onAddSuccess,
+  onRemoveSuccess
+}: UseEmailListItemLabelsArgs) => {
   const [isLabelsExpanded, setIsLabelsExpanded] = useState(false)
   const {
     labelInput,
@@ -33,7 +43,10 @@ export const useEmailListItemLabels = ({ message, onAddLabels, onRemoveLabel }: 
     isEditorOpen: isLabelsExpanded,
     setIsEditorOpen: setIsLabelsExpanded,
     onAddLabels,
-    onRemoveLabel
+    onRemoveLabel,
+    closeEditorOnSuccess,
+    onAddSuccess,
+    onRemoveSuccess
   })
 
   return {

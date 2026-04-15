@@ -4,7 +4,7 @@ import { useEmailAssistant } from './useEmailAssistant'
 import { useFileAttachments } from './useFileAttachments'
 import { EmailApiService } from '../services/EmailApiService'
 import { buildHtmlBody, buildTextBody } from '../utils/composerUtils'
-import { createThreadComposeStateFromMode } from '../utils/threadComposeInit'
+import { createThreadComposeStateFromDraftMessage, createThreadComposeStateFromMode } from '../utils/threadComposeInit'
 import { trackEmailAssistantEvent } from '../utils/emailAssistantTelemetry'
 import type {
   ComposeMode,
@@ -22,6 +22,7 @@ interface UseThreadComposeControllerOptions {
   isOpen: boolean
   mode: ComposeMode
   replyToMessage?: EmailMessage | null
+  draftMessage?: EmailMessage | null
   accounts: EmailAccount[]
   defaultAccountId?: string
   onClose: () => void
@@ -77,6 +78,7 @@ export function useThreadComposeController({
   isOpen,
   mode,
   replyToMessage,
+  draftMessage,
   accounts,
   defaultAccountId,
   onClose,
@@ -162,14 +164,18 @@ export function useThreadComposeController({
     setAssistantCustomInstruction('')
     clearAttachments()
 
-    const nextState = createThreadComposeStateFromMode(mode, replyToMessage)
+    const nextState =
+      mode === 'new' && draftMessage
+        ? createThreadComposeStateFromDraftMessage(draftMessage)
+        : createThreadComposeStateFromMode(mode, replyToMessage)
+    setAccountId(draftMessage?.accountId || defaultAccountId || accounts[0]?.id || '')
     setToRecipients(nextState.toRecipients)
     setCcRecipients(nextState.ccRecipients)
     setBccRecipients(nextState.bccRecipients)
     setSubject(nextState.subject)
     setBody(nextState.body)
     setShowCcBcc(nextState.showCcBcc)
-  }, [isOpen, mode, replyToMessage, clearAttachments, clearPreviewDraft])
+  }, [isOpen, mode, replyToMessage, draftMessage, defaultAccountId, accounts, clearAttachments, clearPreviewDraft])
 
   useEffect(() => {
     if (!assistant.isEnabled) return
@@ -390,8 +396,8 @@ export function useThreadComposeController({
         subject,
         textBody: buildTextBody(body, signatureHtml),
         htmlBody: buildHtmlBody(body, signatureHtml),
-        inReplyTo: replyToMessage?.messageId,
-        threadId: replyToMessage?.threadId,
+        inReplyTo: draftMessage?.inReplyTo || replyToMessage?.messageId,
+        threadId: draftMessage?.threadId || replyToMessage?.threadId,
         attachments: attachments.length > 0 ? attachments : undefined
       }
 
@@ -418,6 +424,7 @@ export function useThreadComposeController({
     subject,
     body,
     signatureHtml,
+    draftMessage,
     replyToMessage,
     attachments,
     onRecipientsUsed,
@@ -435,8 +442,14 @@ export function useThreadComposeController({
       await EmailApiService.sendEmail({
         accountId,
         to: toRecipients,
+        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+        bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
         subject,
-        textBody: body,
+        textBody: buildTextBody(body, signatureHtml),
+        htmlBody: buildHtmlBody(body, signatureHtml),
+        inReplyTo: draftMessage?.inReplyTo || replyToMessage?.messageId,
+        threadId: draftMessage?.threadId || replyToMessage?.threadId,
+        attachments: attachments.length > 0 ? attachments : undefined,
         isDraft: true
       })
       toast.success(t('composer-toast-draft-saved'))
@@ -444,7 +457,20 @@ export function useThreadComposeController({
     } catch {
       toast.error(t('composer-toast-draft-failed'))
     }
-  }, [accountId, toRecipients, subject, body, t, onClose])
+  }, [
+    accountId,
+    toRecipients,
+    ccRecipients,
+    bccRecipients,
+    subject,
+    body,
+    signatureHtml,
+    draftMessage,
+    replyToMessage,
+    attachments,
+    t,
+    onClose
+  ])
 
   return {
     accountId,

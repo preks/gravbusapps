@@ -20,6 +20,7 @@ import { LabelSuggestionsList } from './labels/LabelSuggestionsList'
 interface EmailReaderProps {
   message: EmailMessage | null
   onCompose: (mode: ComposeMode, replyTo?: EmailMessage) => void
+  onEditDraft?: (draftMessage: EmailMessage) => void
   onDelete: (id: string) => void
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
@@ -39,6 +40,7 @@ interface EmailReaderProps {
 export const EmailReader: React.FC<EmailReaderProps> = ({
   message,
   onCompose,
+  onEditDraft,
   onDelete,
   onToggleStar,
   onArchive,
@@ -168,6 +170,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         message={message}
         threadEnabled={threadEnabled}
         onCompose={onCompose}
+        onEditDraft={onEditDraft}
         onArchive={onArchive}
         onDelete={onDelete}
         onRestore={onRestore}
