@@ -36,6 +36,7 @@ interface FabricContextValue {
   events: AgentStreamEvent[]
   streamingGreeting: string
   streamingContent: string
+  streamingThinking: string
   statusHeadline: string | null
   isStreaming: boolean
   isConnected: boolean
@@ -184,6 +185,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     events,
     streamingGreeting,
     streamingContent,
+    streamingThinking,
     statusHeadline,
     isConnected,
     isStreaming,
@@ -310,6 +312,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       events,
       streamingGreeting,
       streamingContent,
+      streamingThinking,
       statusHeadline,
       isStreaming,
       isConnected,
@@ -345,6 +348,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       events,
       streamingGreeting,
       streamingContent,
+      streamingThinking,
       statusHeadline,
       isStreaming,
       isConnected,
