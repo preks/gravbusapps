@@ -68,6 +68,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     parent_name?: string | null
     child_name?: string | null
   }
+  type SunburstDatasetRow = HierarchyEdgeRow
   interface ReportingChainDatasetRow {
     category: string
     value: number
@@ -112,9 +113,32 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     }
   }
 
-  const parseSunburstRowsToEdges = (sunburstRows: Array<{ category: string; value: number }>): HierarchyEdgeRow[] => {
+  const parseSunburstRowsToEdges = (sunburstRows: SunburstDatasetRow[]): HierarchyEdgeRow[] => {
     return sunburstRows
       .map(r => {
+        const val = Number(r?.value ?? 0)
+        if (!Number.isFinite(val)) return null
+
+        const parentIdFromColumns = String(r?.parent_id_text ?? '').trim()
+        const childIdFromColumns = String(r?.child_id_text ?? '').trim()
+        const parentNameFromColumns = String(r?.parent_name ?? '').trim()
+        const childNameFromColumns = String(r?.child_name ?? '').trim()
+
+        if (childIdFromColumns) {
+          const normalizedParentId = parentIdFromColumns === 'ROOT' ? '' : parentIdFromColumns
+          const resolvedChildName = childNameFromColumns || String(r?.category ?? '').trim() || 'Unknown'
+
+          return {
+            category: resolvedChildName,
+            value: val,
+            parent_id_text: normalizedParentId || null,
+            child_id_text: childIdFromColumns,
+            parent_name: parentNameFromColumns || null,
+            child_name: resolvedChildName
+          } as HierarchyEdgeRow
+        }
+
+        // Backward-compatible fallback while the dataset rolls out the additional columns.
         const rawCat = String(r?.category ?? '')
         const parts000 = rawCat.split('|000|')
         if (parts000.length < 4) return null
@@ -123,8 +147,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         const parentName = (parentNameRaw || '').trim()
         const childIdText = (childIdRaw || '').trim()
         const childName = (childNameRaw || '').trim()
-        const val = Number(r?.value ?? 0)
-        if (!Number.isFinite(val)) return null
+
         return {
           category: childName,
           value: val,
@@ -281,7 +304,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         ])
         spanDistRows = toRows<DatasetRow>(spanDistRes)
         reportingChainRows = toRows<ReportingChainDatasetRow>(reportingChainsRes)
-        const sunburstRows = toRows<{ category: string; value: number }>(sunburstRes)
+        const sunburstRows = toRows<SunburstDatasetRow>(sunburstRes)
 
         if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
           edgeRowsFromDataset = parseSunburstRowsToEdges(sunburstRows)

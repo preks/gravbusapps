@@ -266,6 +266,10 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     level = 0,
     parent = '-'
   ): Array<{ unit: string; value: number; level: number; parent: string }> => {
+    if (node?.level === -1 && Array.isArray(node?.children)) {
+      return node.children.flatMap((child: any) => flattenSunburst(child, 0, '-'))
+    }
+
     const current = [{ unit: node?.name ?? '-', value: Number(node?.value ?? 0), level, parent }]
     const children = Array.isArray(node?.children)
       ? node.children.flatMap((child: any) => flattenSunburst(child, level + 1, String(node?.name ?? '-')))
