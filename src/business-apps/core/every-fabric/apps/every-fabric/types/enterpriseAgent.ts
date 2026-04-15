@@ -37,7 +37,7 @@ export interface TodoItem {
   duration_ms?: number
 }
 
-export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool' | 'status' | 'response_stream'
+export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool' | 'status' | 'response_stream' | 'agent_reasoning'
 
 export interface AgentChunkEvent {
   type: 'agent_chunk'

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { ArrowLeftIcon } from '@phosphor-icons/react'
+import { ArrowLeftIcon, XIcon } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import type { AgentSettings } from './agentSettings.types'
 import { loadSettings, persistSettings } from './agentSettings.utils'
@@ -63,17 +63,29 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, onB
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="fabric-settings-screen">
       <div className="gba:shrink-0 gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-4 sm:gba:py-5">
-        <div className="gba:flex gba:items-center gba:gap-4">
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-10 gba:w-10 gba:rounded-full"
+              onClick={onBack}
+              data-testid="settings-back-button"
+            >
+              <ArrowLeftIcon className="gba:h-5 gba:w-5" />
+            </Button>
+            <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">Agent Settings</h1>
+          </div>
+
           <Button
             variant="ghost"
             size="icon"
-            className="gba:h-10 gba:w-10 gba:rounded-full"
+            className="gba:h-10 gba:w-10 gba:rounded-full gba:shrink-0"
             onClick={onBack}
-            data-testid="settings-back-button"
+            data-testid="settings-close-button"
           >
-            <ArrowLeftIcon className="gba:h-5 gba:w-5" />
+            <XIcon className="gba:h-5 gba:w-5" />
           </Button>
-          <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">Agent Settings</h1>
         </div>
       </div>
 
