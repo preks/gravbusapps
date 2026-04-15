@@ -58,13 +58,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     }
     return []
   }
-  const getValueByCategory = (rows: DatasetRow[], key: string): number => {
-    const row = rows.find(r => String(r.category).toLowerCase() === key.toLowerCase())
-    if (!row) return 0
-    const numericValue = typeof row.value === 'number' ? row.value : Number(row.value)
-    return Number.isFinite(numericValue) ? numericValue : 0
-  }
-
   interface HierarchyEdgeRow {
     // mandatory dataset columns
     category: string
@@ -272,16 +265,12 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       }
 
       // Execute datasets
-      let overviewRows: DatasetRow[] = []
-      let hierarchyRows: DatasetRow[] = []
       let spanDistRows: DatasetRow[] = []
       let reportingChainRows: ReportingChainDatasetRow[] = []
       // Sunburst: we'll first try orgHierarchySunburstData (edges encoded in category), else fall back to GraphQL
       let edgeRowsFromDataset: HierarchyEdgeRow[] = []
       if (datasetClient) {
-        const [overviewRes, hierarchyRes, spanDistRes, sunburstRes, reportingChainsRes] = await Promise.all([
-          datasetClient.executeQuery('structuralOverviewMetrics', QueryType.DATASET, { structureId }),
-          datasetClient.executeQuery('hierarchyDepthMetrics', QueryType.DATASET, { structureId }),
+        const [spanDistRes, sunburstRes, reportingChainsRes] = await Promise.all([
           datasetClient.executeQuery('spanOfControlDistribution', QueryType.DATASET, { structureId }),
           datasetClient
             .executeQuery('orgHierarchySunburstData', QueryType.DATASET, { structureId })
@@ -290,8 +279,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
             .executeQuery('reportingChainsDetails', QueryType.DATASET, { structureId, pageSize: 50 })
             .catch(() => ({ data: [] }))
         ])
-        overviewRows = toRows<DatasetRow>(overviewRes)
-        hierarchyRows = toRows<DatasetRow>(hierarchyRes)
         spanDistRows = toRows<DatasetRow>(spanDistRes)
         reportingChainRows = toRows<ReportingChainDatasetRow>(reportingChainsRes)
         const sunburstRows = toRows<{ category: string; value: number }>(sunburstRes)
@@ -321,51 +308,15 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         reportingChainRows.length > 0
           ? reportingChainRows.map(row => mapReportingChainDatasetRow(row, employeeCountByNodeId))
           : generateReportingChainAnalysis(organizationalNodes)
-      let reportingChainSummary = generateReportingChainSummary(reportingChainData)
+      const reportingChainSummary = generateReportingChainSummary(reportingChainData)
       const sunburstData = generateSunburstData(organizationalNodes)
 
       // Calculate overall statistics
-      let structuralStatistics = calculateStructuralStatistics(
+      const structuralStatistics = calculateStructuralStatistics(
         organizationalNodes,
         spanOfControlData,
         reportingChainSummary
       )
-
-      // Override with dataset metrics
-      if (overviewRows.length > 0 || hierarchyRows.length > 0) {
-        const dsTotalEmployees = getValueByCategory(overviewRows, 'total_employees')
-        const dsTotalManagers = getValueByCategory(overviewRows, 'total_managers')
-        const dsTotalUnits = getValueByCategory(overviewRows, 'total_units')
-        const dsAvgSpan = getValueByCategory(overviewRows, 'avg_span_of_control')
-        const dsHierarchyDepth = getValueByCategory(hierarchyRows, 'hierarchy_depth')
-        const dsAvgChain = getValueByCategory(hierarchyRows, 'avg_chain_length')
-        const dsMinChain = getValueByCategory(hierarchyRows, 'min_chain_length')
-        const dsMaxChain = getValueByCategory(hierarchyRows, 'max_chain_length')
-
-        structuralStatistics = {
-          ...structuralStatistics,
-          totalEmployees: dsTotalEmployees || structuralStatistics.totalEmployees,
-          totalManagers: dsTotalManagers || structuralStatistics.totalManagers,
-          totalUnits: dsTotalUnits || structuralStatistics.totalUnits,
-          averageSpanOfControl: dsAvgSpan || structuralStatistics.averageSpanOfControl,
-          hierarchyDepth: dsHierarchyDepth || structuralStatistics.hierarchyDepth,
-          maxDepth: dsHierarchyDepth || structuralStatistics.maxDepth,
-          averageReportingChainLength: dsAvgChain || structuralStatistics.averageReportingChainLength
-        }
-
-        // Keep span-of-control summary based on span distribution rows.
-        // structuralOverviewMetrics can be stale/mismatched and should not overwrite the cards.
-
-        // Override reporting chain summary cards from datasets when available
-        reportingChainSummary = {
-          ...reportingChainSummary,
-          averageChainLength: dsAvgChain || reportingChainSummary.averageChainLength,
-          minChainLength:
-            typeof dsMinChain === 'number' && dsMinChain > 0 ? dsMinChain : reportingChainSummary.minChainLength,
-          maxChainLength:
-            typeof dsMaxChain === 'number' && dsMaxChain > 0 ? dsMaxChain : reportingChainSummary.maxChainLength
-        }
-      }
 
       const integratedData: StructuralAnalysisIntegrationData = {
         organizationalNodes,
