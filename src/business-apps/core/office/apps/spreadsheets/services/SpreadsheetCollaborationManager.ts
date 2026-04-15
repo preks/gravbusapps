@@ -3,7 +3,7 @@
 import type { DocumentOperation } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
 import type { ApplyRemoteCellUpdateOptions, CellDimensionsPayload } from '../components/UniverSheetGrid'
 import type { SpreadsheetColumn } from '../types'
-import { createUniverConversionContext, parseA1Reference, toA1Reference } from '../utils/univerAdapter'
+import { createUniverConversionContext, parseA1Reference } from '../utils/univerAdapter'
 
 type ViewerRow = Record<string, unknown>
 
@@ -85,23 +85,6 @@ export interface CollaborationCallbacks {
   onPendingQueueTrimmed?: (droppedCount: number) => void
 }
 
-export type PersistCellsToServerResult = {
-  success: boolean
-  version?: number
-  error?: string
-  deferredUiRowIds?: string[]
-}
-
-type DeferredCollabCell = {
-  uiRowId: string
-  columnName: string
-  value: unknown
-  univerRow?: number
-  univerCol?: number
-}
-
-type ResolvedRowIdOverrides = ReadonlyMap<string, string>
-
 const MAX_PENDING_OPS = 200
 
 export type CollaborationOperation = {
@@ -116,14 +99,13 @@ const STRUCTURAL_OPS = new Set(['row_add', 'row_delete', 'column_add', 'column_d
 
 const STRUCTURAL_OP_TYPES = new Set(['add_rows', 'delete_rows'])
 const CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell', 'cells_changed'])
+const LIVE_PERSISTED_CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell'])
+const LIVE_STRUCTURAL_OP_TYPES = new Set(['row_add', 'row_delete', 'add_rows', 'delete_rows'])
 
 export class SpreadsheetCollaborationManager {
   private callbacks: CollaborationCallbacks
   private emitFn: ((op: DocumentOperation) => void) | null = null
   private emitCursorFn: ((pos: { path?: string[] }) => void) | null = null
-  private documentOpAsync:
-    | ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>)
-    | null = null
   private connected = false
   private joined = false
   private pendingOps: DocumentOperation[] = []
@@ -131,7 +113,6 @@ export class SpreadsheetCollaborationManager {
   private currentUserId: string | null = null
   private lastKnownVersion = 0
   private reconciling = false
-  private deferredCollabCells: DeferredCollabCell[] = []
   private collabDiagSeq = 0
 
   constructor(callbacks: CollaborationCallbacks) {
@@ -155,12 +136,6 @@ export class SpreadsheetCollaborationManager {
     this.emitCursorFn = emitCursor
   }
 
-  setDocumentOperationAsync(
-    fn: ((op: DocumentOperation) => Promise<{ success: boolean; version?: number; error?: string }>) | null
-  ): void {
-    this.documentOpAsync = fn
-  }
-
   setConnectionState(connected: boolean, joined: boolean): void {
     const wasDisconnected = !this.connected || !this.joined
     this.connected = connected
@@ -181,188 +156,8 @@ export class SpreadsheetCollaborationManager {
 
   // --- Sender ---
 
-  /**
-   * Broadcast cell changes to peers only (no DB write). Use after HTTP persist or form row update.
-   */
-  emitCellsChanged(
-    cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>
-  ): void {
-    const { collabCells } = this.buildCollabCellsForEmit(cells, { deferMissingBackendId: false })
-    if (collabCells.length === 0) return
-    this.collabDiag('collab_broadcast_enqueue', {
-      cellCount: collabCells.length,
-      withA1Ref: collabCells.filter(c => typeof c.cellRef === 'string' && c.cellRef.trim().length > 0).length
-    })
-    const sheetId = this.callbacks.getActiveSheetId()
-    this.enqueueOrSend({
-      type: 'cells_changed',
-      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
-      broadcastOnly: true
-    })
-  }
-
-  /**
-   * Persist cell changes through the collaboration gateway (broadcastOnly: false).
-   * Returns server ack result; updates local version when `version` is present.
-   */
-  async persistCellsChangedToServer(
-    cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>
-  ): Promise<PersistCellsToServerResult> {
-    const sheetId = this.callbacks.getActiveSheetId()
-    const { collabCells, deferredUiRowIds } = this.buildCollabCellsForEmit(cells, { deferMissingBackendId: true })
-
-    const MAX_DEFERRED = 400
-    for (const cell of cells) {
-      const ui = String(cell.rowId)
-      // Pass univerRow as fallback for row ID lookup
-      if (!this.callbacks.getBackendRowIdForUiRowId(ui, cell.univerRow)) {
-        this.deferredCollabCells.push({
-          uiRowId: ui,
-          columnName: cell.columnName,
-          value: cell.value,
-          univerRow: cell.univerRow,
-          univerCol: cell.univerCol
-        })
-        while (this.deferredCollabCells.length > MAX_DEFERRED) {
-          this.deferredCollabCells.shift()
-          this.callbacks.onPendingQueueTrimmed?.(1)
-          this.callbacks.onCollabDiagnostic?.('deferred_collab_trim', { maxDeferred: MAX_DEFERRED })
-        }
-      }
-    }
-
-    if (collabCells.length === 0) {
-      this.callbacks.onCollabDiagnostic?.('persist_deferred_no_backend_rows', {
-        deferredCount: this.deferredCollabCells.length
-      })
-      return {
-        success: false,
-        deferredUiRowIds: deferredUiRowIds.length > 0 ? deferredUiRowIds : undefined,
-        error: cells.length > 0 ? 'no_backend_rows' : undefined
-      }
-    }
-
-    const op: DocumentOperation = {
-      type: 'cells_changed',
-      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
-      broadcastOnly: false
-    }
-
-    const send = this.documentOpAsync
-    if (!send) {
-      return { success: false, error: 'no_async_channel', deferredUiRowIds }
-    }
-
-    this.collabDiag('collab_persist_attempt', {
-      cellCount: collabCells.length,
-      deferredUiInBatch: deferredUiRowIds.length
-    })
-    const result = await send(op)
-    this.collabDiag('collab_persist_result', {
-      success: result.success,
-      version: result.version != null ? result.version : undefined,
-      errorCode: result.success ? undefined : (result.error ?? 'unknown')
-    })
-    if (result.success && result.version != null) {
-      this.lastKnownVersion = Math.max(this.lastKnownVersion, result.version)
-      this.callbacks.onVersionUpdate(result.version)
-    }
-    return {
-      success: result.success,
-      version: result.version,
-      error: result.error,
-      deferredUiRowIds: deferredUiRowIds.length > 0 ? deferredUiRowIds : undefined
-    }
-  }
-
-  /** After local row data gains backend IDs, flush deferred collaboration cells. */
-  tryFlushDeferredCellEmits(resolvedRowIdOverrides?: ResolvedRowIdOverrides): void {
-    if (this.deferredCollabCells.length === 0) return
-    const remaining: DeferredCollabCell[] = []
-    const ready: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }> =
-      []
-    for (const d of this.deferredCollabCells) {
-      const backend =
-        resolvedRowIdOverrides?.get(d.uiRowId) ?? this.callbacks.getBackendRowIdForUiRowId(d.uiRowId, d.univerRow)
-      if (backend) {
-        ready.push({
-          rowId: d.uiRowId,
-          columnName: d.columnName,
-          value: d.value,
-          univerRow: d.univerRow,
-          univerCol: d.univerCol
-        })
-      } else {
-        remaining.push(d)
-      }
-    }
-    this.deferredCollabCells = remaining
-    if (remaining.length > 0) {
-      this.callbacks.onCollabDiagnostic?.('deferred_collab_cells_pending', { count: remaining.length })
-    }
-    if (ready.length === 0) return
-    const { collabCells } = this.buildCollabCellsForEmit(ready, {
-      deferMissingBackendId: false,
-      resolvedRowIdOverrides
-    })
-    if (collabCells.length === 0) {
-      this.deferredCollabCells = [...ready.map(cell => ({ ...cell, uiRowId: cell.rowId })), ...remaining]
-      return
-    }
-    const send = this.documentOpAsync
-    if (!send) {
-      this.deferredCollabCells = [...ready.map(cell => ({ ...cell, uiRowId: cell.rowId })), ...remaining]
-      return
-    }
-    const sheetId = this.callbacks.getActiveSheetId()
-    const op: DocumentOperation = {
-      type: 'cells_changed',
-      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
-      broadcastOnly: false
-    }
-    void send(op).then(result => {
-      if (!result.success) {
-        this.deferredCollabCells = [
-          ...ready.map(cell => ({ ...cell, uiRowId: cell.rowId })),
-          ...this.deferredCollabCells
-        ]
-        return
-      }
-      if (result.version != null) {
-        this.lastKnownVersion = Math.max(this.lastKnownVersion, result.version)
-        this.callbacks.onVersionUpdate(result.version)
-      }
-    })
-  }
-
-  private buildCollabCellsForEmit(
-    cells: Array<{ rowId: string; columnName: string; value: unknown; univerRow?: number; univerCol?: number }>,
-    options: { deferMissingBackendId: boolean; resolvedRowIdOverrides?: ResolvedRowIdOverrides }
-  ): { collabCells: CellsChangedCell[]; deferredUiRowIds: string[] } {
-    const collabCells: CellsChangedCell[] = []
-    const deferredUiRowIds: string[] = []
-    for (const cell of cells) {
-      // Pass univerRow as fallback for row ID lookup during conflict recovery
-      // when the Univer context and localSheetData may be temporarily out of sync
-      const backendRowId =
-        options.resolvedRowIdOverrides?.get(String(cell.rowId)) ??
-        this.callbacks.getBackendRowIdForUiRowId(String(cell.rowId), cell.univerRow)
-      if (!backendRowId) {
-        if (options.deferMissingBackendId) {
-          deferredUiRowIds.push(String(cell.rowId))
-        } else {
-          this.callbacks.onCollabDiagnostic?.('emit_skipped_no_backend_row', { uiRowCount: 1 })
-        }
-        continue
-      }
-      const entry: CellsChangedCell = { rowId: backendRowId, column: cell.columnName, value: cell.value }
-      if (cell.univerRow != null && cell.univerCol != null) {
-        entry.cellRef = toA1Reference(cell.univerRow, cell.univerCol)
-      }
-      collabCells.push(entry)
-    }
-    return { collabCells, deferredUiRowIds }
-  }
+  /** Compatibility no-op: spreadsheet cell writes must stay on HTTP batch paths. */
+  tryFlushDeferredCellEmits(): void {}
 
   emitCursor(path: string[]): void {
     const pos = { path }
@@ -393,11 +188,6 @@ export class SpreadsheetCollaborationManager {
     const { operation, version } = payload
     const activeSheetId = this.callbacks.getActiveSheetId()
 
-    if (this.currentUserId && payload.userId === this.currentUserId) {
-      this.collabDiag('collab_receive_skipped', { reason: 'own_user', opType: operation.type })
-      return
-    }
-
     if (operation.type === 'dimension_sync') {
       const d = operation.data as CellDimensionsPayload | undefined
       if (d?.sheetId === activeSheetId) {
@@ -414,8 +204,51 @@ export class SpreadsheetCollaborationManager {
 
     const opSheetId = this.getSheetIdFromData(operation.data)
     this.updateVersion(operation.data, version)
-    if (opSheetId === activeSheetId && STRUCTURAL_OPS.has(operation.type)) {
+    if (
+      opSheetId === activeSheetId &&
+      STRUCTURAL_OPS.has(operation.type) &&
+      !LIVE_STRUCTURAL_OP_TYPES.has(operation.type)
+    ) {
       this.callbacks.scheduleRemoteStructuralResync()
+    }
+
+    if (operation.type === 'batch_operations') {
+      const d = operation.data as
+        | {
+            sheetId?: string
+            operations?: Array<{ type?: string; data?: unknown }>
+          }
+        | undefined
+      if (!d?.sheetId || d.sheetId !== activeSheetId || !Array.isArray(d.operations) || d.operations.length === 0) {
+        this.collabDiag('collab_receive_skipped', { reason: 'invalid_batch_ops' })
+        return
+      }
+      this.handleBatchOperations(d.operations, version)
+      return
+    }
+
+    if (operation.type === 'row_update') {
+      this.handleRowUpdate(operation.data)
+      return
+    }
+
+    if (LIVE_PERSISTED_CELL_OP_TYPES.has(operation.type)) {
+      this.applyLivePersistedChanges(
+        [
+          {
+            operationType: operation.type,
+            payload: (operation.data as Record<string, unknown>) ?? {},
+            appliedVersion: typeof version === 'number' ? version : this.lastKnownVersion
+          }
+        ],
+        'single_op'
+      )
+      return
+    }
+
+    if (opSheetId === activeSheetId && LIVE_STRUCTURAL_OP_TYPES.has(operation.type)) {
+      this.callbacks.scheduleRemoteStructuralResync()
+      return
     }
 
     if (operation.type === 'cells_changed') {
@@ -514,6 +347,87 @@ export class SpreadsheetCollaborationManager {
       invalidA1Ref,
       cellRefsOnWireCount: refsOnWire.length,
       cellRefsCsv
+    })
+  }
+
+  private handleBatchOperations(
+    operations: Array<{ type?: string; data?: unknown }>,
+    version: number | undefined
+  ): void {
+    const deltaChanges: DeltaChange[] = []
+    let requiresStructuralResync = false
+
+    for (const operation of operations) {
+      const type = typeof operation.type === 'string' ? operation.type : ''
+      if (!type) continue
+
+      if (type === 'row_update') {
+        this.handleRowUpdate(operation.data)
+        continue
+      }
+
+      if (LIVE_STRUCTURAL_OP_TYPES.has(type)) {
+        requiresStructuralResync = true
+        continue
+      }
+
+      if (!LIVE_PERSISTED_CELL_OP_TYPES.has(type)) continue
+      if (!operation.data || typeof operation.data !== 'object') continue
+
+      deltaChanges.push({
+        operationType: type,
+        payload: operation.data as Record<string, unknown>,
+        appliedVersion: typeof version === 'number' ? version : this.lastKnownVersion
+      })
+    }
+
+    if (deltaChanges.length > 0) {
+      this.applyLivePersistedChanges(deltaChanges, 'batch_ops')
+    }
+    if (requiresStructuralResync) {
+      this.callbacks.scheduleRemoteStructuralResync()
+    }
+  }
+
+  private handleRowUpdate(data: unknown): void {
+    const d = data as
+      | {
+          sheetId?: string
+          rowId?: string
+          rowData?: Record<string, unknown>
+        }
+      | undefined
+    const activeSheetId = this.callbacks.getActiveSheetId()
+    if (!d?.sheetId || d.sheetId !== activeSheetId || !d.rowId || !d.rowData || typeof d.rowData !== 'object') {
+      this.collabDiag('collab_receive_skipped', { reason: 'invalid_row_update' })
+      return
+    }
+
+    const remoteRowId = String(d.rowId)
+    const normalizedUpdates: Record<string, unknown> = {}
+    for (const [columnKey, value] of Object.entries(d.rowData)) {
+      if (columnKey === '_updatedAt') continue
+      normalizedUpdates[this.resolveColumnName(columnKey)] = value
+    }
+    if (Object.keys(normalizedUpdates).length === 0) return
+
+    this.applyDataModelUpdates(new Map([[remoteRowId, normalizedUpdates]]))
+
+    for (const [columnName, value] of Object.entries(normalizedUpdates)) {
+      const { rowIndex, colIndex } = this.resolveCoordinates(columnName, remoteRowId)
+      if (rowIndex !== undefined && colIndex !== undefined && colIndex >= 0) {
+        this.callbacks.applyRemoteCellUpdate(rowIndex, colIndex, value, remoteRowId)
+      }
+    }
+  }
+
+  private applyLivePersistedChanges(changes: DeltaChange[], source: 'batch_ops' | 'single_op'): void {
+    if (changes.length === 0) return
+    const activeSheetId = this.callbacks.getActiveSheetId()
+    this.applyDeltaChanges(activeSheetId, changes)
+    this.collabDiag('collab_receive_persisted_ops', {
+      source,
+      changeCount: changes.length
     })
   }
 

@@ -335,7 +335,7 @@ function pruneExpiredRecentMutationEntries(entries: Map<string, number>, now: nu
 
 // Prioritizes the cellRef (A1 notation) for cursor position, falling back to raw row:/col: entries.
 // A1 references represent the sender's exact visual cell position and don't suffer from
-// row-index drift between the data array and Univer grid. 
+// row-index drift between the data array and Univer grid.
 function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   if (!path || path.length === 0) return null
 
@@ -354,6 +354,28 @@ function parseCursorPath(path?: string[]): { row: number; col: number } | null {
   if (!rowEntry) return null
   const row = Number(rowEntry.slice(4))
   if (!Number.isFinite(row) || row < 0) return null
+  return { row, col }
+}
+
+function parseLegacySpreadsheetCursorPath(
+  path: string[] | undefined,
+  sheetId: string,
+  context: ConversionContext | null,
+  columns: SpreadsheetColumn[]
+): { row: number; col: number } | null {
+  if (!path || path.length < 3 || path[0] !== sheetId || !context) return null
+
+  const rowId = String(path[1] ?? '')
+  const columnId = String(path[2] ?? '')
+  if (!rowId || !columnId) return null
+
+  const row = context.rowIdToIndex.get(rowId)
+  if (row == null) return null
+
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  const col = visibleColumns.findIndex(column => column.id === columnId || column.name === columnId)
+  if (col < 0) return null
+
   return { row, col }
 }
 
@@ -1309,11 +1331,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       Record<string, { top: number; left: number; width: number; height: number }>
     >({})
     const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null)
+    const legacyCursorContext = useMemo(() => createUniverConversionContext(columns, data), [columns, data])
     const remoteCursorOverlays = useMemo(
       () =>
         (props.participants ?? [])
           .map(participant => {
-            const parsed = parseCursorPath(participant.cursor?.path)
+            const parsed =
+              parseCursorPath(participant.cursor?.path) ||
+              parseLegacySpreadsheetCursorPath(participant.cursor?.path, sheet.id, legacyCursorContext, columns)
             if (!parsed) return null
             return {
               id: `${participant.socketId || participant.userId}`,
@@ -1326,7 +1351,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           .filter(
             (entry): entry is { id: string; userName: string; userColor: string; row: number; col: number } => !!entry
           ),
-      [props.participants]
+      [columns, legacyCursorContext, props.participants, sheet.id]
     )
 
     useEffect(() => {
@@ -1695,7 +1720,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             // under fast remote bursts (same refs applied, withA1Applied=1, but UI missing a value).
             const rowForApply = resolvedRow
             const colForApply = colIndex
-            const valueForApply = value
             debugRemoteApply('queue_setValue_microtask', {
               row0: rowForApply,
               col0: colForApply,
@@ -2632,36 +2656,44 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         if (!ctxBefore) return false
         const currentData = propsRef.current.data
         const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
-        if (newRowIndices.length > 0 && onDataChangeCb) {
-          const newRows = buildNewRowsFromCellMatrix({
-            newRowIndices,
-            cellValue,
-            ctx: ctxBefore,
-            colOffset,
-            rowOffset,
-            getClientRowId: (globalRowIndex: number) =>
-              getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
-          })
-          const nextData = [...currentData, ...newRows]
-          onDataChangeCb(nextData)
-          // Keep mapping up to date immediately so subsequent events in the same paste burst can resolve rowIds.
-          contextRef.current = overlaySparseRowIndexMappings(
-            createUniverConversionContext(propsRef.current.columns, nextData),
-            newRowIndices.map(rowIndex => {
-              const globalRowIndex = rowIndex + rowOffset
-              return {
-                rowIndex: globalRowIndex,
-                rowId: getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
-              }
-            })
-          )
-        }
+        const pendingNewRowsUpdate =
+          newRowIndices.length > 0 && onDataChangeCb
+            ? (() => {
+                const newRows = buildNewRowsFromCellMatrix({
+                  newRowIndices,
+                  cellValue,
+                  ctx: ctxBefore,
+                  colOffset,
+                  rowOffset,
+                  getClientRowId: (globalRowIndex: number) =>
+                    getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
+                })
+                const nextData = [...currentData, ...newRows]
+                const nextContext = overlaySparseRowIndexMappings(
+                  createUniverConversionContext(propsRef.current.columns, nextData),
+                  newRowIndices.map(rowIndex => {
+                    const globalRowIndex = rowIndex + rowOffset
+                    return {
+                      rowIndex: globalRowIndex,
+                      rowId: getOrCreateClientRowId(globalRowIndex, newRowClientIdByIndexRef.current)
+                    }
+                  })
+                )
+                return { nextData, nextContext }
+              })()
+            : null
 
-        const ctx = contextRef.current ?? ctxBefore
+        const ctx = pendingNewRowsUpdate?.nextContext ?? contextRef.current ?? ctxBefore
         const changedCells = collectChangedCells({ cellValue, ctx, rowOffset, colOffset, shouldSuppress })
 
         if (changedCells.length === 0) {
           return false
+        }
+
+        if (pendingNewRowsUpdate && onDataChangeCb) {
+          onDataChangeCb(pendingNewRowsUpdate.nextData)
+          // Only materialize inferred rows after we confirmed a real cell mutation.
+          contextRef.current = pendingNewRowsUpdate.nextContext
         }
 
         const signature = buildChangedCellSignature(changedCells)
@@ -2928,10 +2960,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
       let pendingCursorEmitTimeoutId: ReturnType<typeof setTimeout> | null = null
       let pendingCursorSelectionSyncTimeoutId: ReturnType<typeof setTimeout> | null = null
-     
+
       // Emits cursor position using A1 notation (cellRef) as the primary coordinate.
       // row:/col: entries are kept for backward compatibility.
-      const emitCursorByRowCol = (startRow: number, startColumn: number, force = false) => {
+      const emitCursorByRowCol = (startRow: number, startColumn: number) => {
         activeSelectionRef.current = { row: startRow, col: startColumn }
         const onCursorEmitCb = callbacksRef.current.onCursorEmit
         if (!onCursorEmitCb) return
@@ -2942,7 +2974,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         lastEmittedCursorPathRef.current = signature
         onCursorEmitCb({ path })
       }
-      const emitCursorFromWorksheetSelection = (force = false) => {
+      const emitCursorFromWorksheetSelection = () => {
         const workbook = univerAPIRef.current?.getActiveWorkbook?.()
         const worksheet = workbook?.getActiveSheet?.()
         const selection = (
@@ -2958,7 +2990,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (previous && (previous.row !== row || previous.col !== col)) {
             reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
           }
-          emitCursorByRowCol(row, col, force)
+          emitCursorByRowCol(row, col)
           return
         }
         const fromRange = extractActiveRangePosition(workbook)
@@ -2967,21 +2999,21 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (previous && (previous.row !== fromRange.row || previous.col !== fromRange.col)) {
             reconcileSingleCell(previous.row, previous.col, 'selection-reconcile')
           }
-          emitCursorByRowCol(fromRange.row, fromRange.col, force)
+          emitCursorByRowCol(fromRange.row, fromRange.col)
         }
       }
-      const scheduleCursorEmitFromWorksheetSelection = (force = false, delayMs = 80) => {
+      const scheduleCursorEmitFromWorksheetSelection = (delayMs = 80) => {
         if (pendingCursorSelectionSyncTimeoutId) {
           clearTimeout(pendingCursorSelectionSyncTimeoutId)
           pendingCursorSelectionSyncTimeoutId = null
         }
         pendingCursorSelectionSyncTimeoutId = setTimeout(() => {
           pendingCursorSelectionSyncTimeoutId = null
-          emitCursorFromWorksheetSelection(force)
+          emitCursorFromWorksheetSelection()
         }, delayMs)
       }
       const emitCursorFromSelectionEvent = () => {
-        scheduleCursorEmitFromWorksheetSelection(false, 80)
+        scheduleCursorEmitFromWorksheetSelection(80)
       }
       const selectionDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }

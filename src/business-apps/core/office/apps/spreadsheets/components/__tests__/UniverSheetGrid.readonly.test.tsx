@@ -140,6 +140,31 @@ describe('UniverSheetGrid read-only behavior', () => {
     expect(screen.getByTestId('univer-readonly-overlay')).toBeInTheDocument()
   })
 
+  it('renders remote cursor overlays from legacy spreadsheet cursor paths', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+        participants={[
+          {
+            userId: 'user-2',
+            userName: 'Alice',
+            userColor: '#ff0000',
+            socketId: 'socket-2',
+            cursor: { path: ['sheet-1', 'row-1', 'name'] },
+            lastActiveAt: new Date()
+          }
+        ]}
+      />
+    )
+
+    expect(screen.getByTitle('Alice')).toBeInTheDocument()
+  })
+
   it('passes the mounted grid host element to Univer (not null from early effect)', () => {
     render(
       <UniverSheetGrid
