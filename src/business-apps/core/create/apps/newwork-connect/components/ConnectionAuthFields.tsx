@@ -1,5 +1,7 @@
 import React from 'react'
 import { Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
+import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
 export type AuthType = 'none' | 'bearer' | 'basic' | 'custom-header'
 
@@ -62,9 +64,15 @@ interface ConnectionAuthFieldsProps {
   auth: AuthState
   onChange: (auth: AuthState) => void
   t: (key: string) => string
+  credentialBindOptions?: CredentialBindOption[]
 }
 
-export const ConnectionAuthFields: React.FC<ConnectionAuthFieldsProps> = ({ auth, onChange, t }) => {
+export const ConnectionAuthFields: React.FC<ConnectionAuthFieldsProps> = ({
+  auth,
+  onChange,
+  t,
+  credentialBindOptions
+}) => {
   const updateField = <K extends keyof AuthState>(key: K, value: AuthState[K]) => {
     onChange({ ...auth, [key]: value })
   }
@@ -87,13 +95,24 @@ export const ConnectionAuthFields: React.FC<ConnectionAuthFieldsProps> = ({ auth
       {auth.type === 'bearer' ? (
         <div className="gba:space-y-2">
           <Label>{t('connect-auth-bearer-token')}</Label>
-          <Input
-            type="password"
-            value={auth.bearerToken}
-            onChange={e => updateField('bearerToken', e.target.value)}
-            placeholder="eyJhbG..."
-            data-testid="newwork-connect-form-auth-bearer-token"
-          />
+          {credentialBindOptions?.length ? (
+            <CredentialBindField
+              value={auth.bearerToken}
+              onChange={v => updateField('bearerToken', v)}
+              bindOptions={credentialBindOptions}
+              plainInputType="password"
+              plainPlaceholder="eyJhbG..."
+              data-testid="newwork-connect-form-auth-bearer-token"
+            />
+          ) : (
+            <Input
+              type="password"
+              value={auth.bearerToken}
+              onChange={e => updateField('bearerToken', e.target.value)}
+              placeholder="eyJhbG..."
+              data-testid="newwork-connect-form-auth-bearer-token"
+            />
+          )}
         </div>
       ) : null}
 
@@ -109,12 +128,22 @@ export const ConnectionAuthFields: React.FC<ConnectionAuthFieldsProps> = ({ auth
           </div>
           <div className="gba:space-y-2">
             <Label>{t('connect-auth-password')}</Label>
-            <Input
-              type="password"
-              value={auth.basicPassword}
-              onChange={e => updateField('basicPassword', e.target.value)}
-              data-testid="newwork-connect-form-auth-password"
-            />
+            {credentialBindOptions?.length ? (
+              <CredentialBindField
+                value={auth.basicPassword}
+                onChange={v => updateField('basicPassword', v)}
+                bindOptions={credentialBindOptions}
+                plainInputType="password"
+                data-testid="newwork-connect-form-auth-password"
+              />
+            ) : (
+              <Input
+                type="password"
+                value={auth.basicPassword}
+                onChange={e => updateField('basicPassword', e.target.value)}
+                data-testid="newwork-connect-form-auth-password"
+              />
+            )}
           </div>
         </div>
       ) : null}
@@ -132,12 +161,22 @@ export const ConnectionAuthFields: React.FC<ConnectionAuthFieldsProps> = ({ auth
           </div>
           <div className="gba:space-y-2">
             <Label>{t('connect-auth-header-value')}</Label>
-            <Input
-              type="password"
-              value={auth.headerValue}
-              onChange={e => updateField('headerValue', e.target.value)}
-              data-testid="newwork-connect-form-auth-header-value"
-            />
+            {credentialBindOptions?.length ? (
+              <CredentialBindField
+                value={auth.headerValue}
+                onChange={v => updateField('headerValue', v)}
+                bindOptions={credentialBindOptions}
+                plainInputType="password"
+                data-testid="newwork-connect-form-auth-header-value"
+              />
+            ) : (
+              <Input
+                type="password"
+                value={auth.headerValue}
+                onChange={e => updateField('headerValue', e.target.value)}
+                data-testid="newwork-connect-form-auth-header-value"
+              />
+            )}
           </div>
         </div>
       ) : null}

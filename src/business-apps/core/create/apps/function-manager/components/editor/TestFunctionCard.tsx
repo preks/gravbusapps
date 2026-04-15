@@ -22,6 +22,8 @@ import {
 import { Check, Copy } from 'lucide-react'
 import { CodeEditor } from './CodeEditor'
 import { newEmptyConfigRow, type ConfigRow } from './SettingsEditor'
+import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
+import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
 export interface TestFunctionCardProps {
   source: string
@@ -32,6 +34,8 @@ export interface TestFunctionCardProps {
   onPayloadFieldChange: (key: string, value: unknown) => void
   testOverrideRows: ConfigRow[]
   onTestOverrideRowsChange: (rows: ConfigRow[]) => void
+  /** When set, value column can bind fnsecret refs like function settings. */
+  credentialBindOptions?: CredentialBindOption[]
   onTest: () => void
   isTesting: boolean
   testError: string | null
@@ -53,6 +57,7 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
   onPayloadFieldChange,
   testOverrideRows,
   onTestOverrideRowsChange,
+  credentialBindOptions,
   onTest,
   isTesting,
   testError,
@@ -184,18 +189,32 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
                 />
               </div>
               <div className="gba:space-y-1">
-                <Label className="gba:text-xs gba:text-muted-foreground">Plain value</Label>
-                <Input
-                  type="text"
-                  placeholder="override for test"
-                  value={kv.value}
-                  onChange={e => {
-                    const next = [...safeOverrideRows]
-                    next[idx] = { ...next[idx], value: e.target.value }
-                    onTestOverrideRowsChange(next)
-                  }}
-                  data-testid={`${testId}-override-value-${idx}`}
-                />
+                <Label className="gba:text-xs gba:text-muted-foreground">Value</Label>
+                {credentialBindOptions && credentialBindOptions.length ? (
+                  <CredentialBindField
+                    value={kv.value}
+                    onChange={nextVal => {
+                      const next = [...safeOverrideRows]
+                      next[idx] = { ...next[idx], value: nextVal }
+                      onTestOverrideRowsChange(next)
+                    }}
+                    bindOptions={credentialBindOptions}
+                    plainPlaceholder="override for test"
+                    data-testid={`${testId}-override-value-${idx}`}
+                  />
+                ) : (
+                  <Input
+                    type="text"
+                    placeholder="override for test"
+                    value={kv.value}
+                    onChange={e => {
+                      const next = [...safeOverrideRows]
+                      next[idx] = { ...next[idx], value: e.target.value }
+                      onTestOverrideRowsChange(next)
+                    }}
+                    data-testid={`${testId}-override-value-${idx}`}
+                  />
+                )}
               </div>
               <Button
                 type="button"

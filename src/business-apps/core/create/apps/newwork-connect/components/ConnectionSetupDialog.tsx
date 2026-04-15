@@ -42,6 +42,8 @@ import {
   extractAuthState,
   isAuthConfigKey
 } from './ConnectionAuthFields'
+import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
+import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
 
 type EditorState =
   | { mode: 'create'; provider: ConnectorProviderODM }
@@ -54,6 +56,8 @@ interface ConnectionSetupDialogProps {
   onCreate: (providerId: string, payload: ConnectorProviderInstantiationDetails) => Promise<void>
   onUpdate: (connectionId: string, payload: ExternalConnectionDetails) => Promise<void>
   t: (key: string, args?: Record<string, unknown>) => string
+  /** When provided, sensitive provider fields can bind stored credentials / bundle slots. */
+  credentialBindOptions?: CredentialBindOption[]
 }
 
 const parseJsonRecord = (value: string): Record<string, string> | null => {
@@ -71,7 +75,8 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
   onClose,
   onCreate,
   onUpdate,
-  t
+  t,
+  credentialBindOptions
 }) => {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -286,7 +291,14 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
             </div>
           ) : null}
 
-          {showAuthSection ? <ConnectionAuthFields auth={auth} onChange={setAuth} t={t} /> : null}
+          {showAuthSection ? (
+            <ConnectionAuthFields
+              auth={auth}
+              onChange={setAuth}
+              t={t}
+              credentialBindOptions={credentialBindOptions}
+            />
+          ) : null}
 
           {providerFields.length ? (
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
@@ -307,6 +319,16 @@ export const ConnectionSetupDialog: React.FC<ConnectionSetupDialogProps> = ({
                       onChange={e => handleFieldValueChange(field.key, e.target.value)}
                       placeholder={getFieldPlaceholder(t, field.key)}
                       required={field.required}
+                      data-testid={`newwork-connect-form-field-${field.key}`}
+                    />
+                  ) : credentialBindOptions?.length &&
+                    (field.fieldType === 'password' || field.fieldType === 'text' || field.fieldType === 'url') ? (
+                    <CredentialBindField
+                      value={fieldValues[field.key] || ''}
+                      onChange={v => handleFieldValueChange(field.key, v)}
+                      bindOptions={credentialBindOptions}
+                      plainInputType={field.fieldType === 'password' ? 'password' : 'text'}
+                      plainPlaceholder={getFieldPlaceholder(t, field.key)}
                       data-testid={`newwork-connect-form-field-${field.key}`}
                     />
                   ) : (
