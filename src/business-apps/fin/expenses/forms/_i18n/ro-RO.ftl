@@ -126,5 +126,11 @@ direction-return = Întors
 view-table = Tabel
 view-timeline = Cronologie
 
+# ============================================
+# Profile — SAP / HR reference (plan & request wizards)
+# ============================================
+
+missing-sap-wizard-title = Lipsește codul SAP
+missing-sap-wizard-description = Codul SAP lipsește din profilul dumneavoastră. Vă rugăm să contactați Departamentul Contabilitate pentru a furniza datele lipsă înainte de a începe o cerere de decont.
 
 
