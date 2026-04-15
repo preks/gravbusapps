@@ -31,6 +31,8 @@ menu-new-text-title = Notă text
 menu-new-text-description = Tastați cu tastatura
 menu-new-handwriting-title = Notă manuscrisă
 menu-new-handwriting-description = Scrieți cu Apple Pencil
+menu-new-folder-title = Folder nou
+menu-new-folder-description = Organizați notițele în grupuri
 menu-new-template-title = Din șablon
 menu-new-template-description = Alegeți un șablon
 
@@ -84,6 +86,10 @@ toast-link-copied = Link copiat în clipboard
 toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
 toast-text-note-created = Notă text creată
+toast-folder-created = Folder creat
+toast-note-moved = Notă mutată în folder
+toast-move-failed = Mutarea notei a eșuat
+folder-new-folder-name = Folder nou
 
 # Relative time
 time-just-now = Acum
@@ -96,6 +102,7 @@ time-days-ago-plural = acum { $count } zile
 # FolderTreeSidebar
 folder-add-note-inside = Adăugați notă aici
 folder-rename = Redenumire
+menu-rename = Redenumire
 folder-move-to = Mutați la...
 folder-folders = Foldere
 folder-new-note = Notă nouă
@@ -465,6 +472,26 @@ translation-language-zh = Chineză
 translation-language-ja = Japoneză
 translation-language-ko = Coreeană
 translation-language-ar = Arabă
+
+# Quick Access
+qa-all-notes = Toate notițele
+qa-favorites = Favorite
+qa-pinned = Fixate
+qa-shared = Partajate cu mine
+qa-recent = Recente
+qa-archived = Arhivate
+
+# Tree sidebar
+tree-label = Note
+tree-empty = Nu există note în arbore
+tree-drag-hint = Trageți pentru a reordona sau grupa notițele
+tree-drop-inside = Plasează în interior
+tree-drop-after = Plasează după
+
+# Keyboard shortcuts
+shortcut-toggle-sidebar = Comută panoul lateral (⌘B)
+shortcut-new-note = Notă nouă (⌘N)
+shortcut-search = Căutare (⌘K)
 
 # useNoteTree
 note-tree-load-failed = Încărcarea arborelui de note a eșuat

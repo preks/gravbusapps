@@ -35,13 +35,25 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   }
-  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers })
+  const url = `${API_URL}${endpoint}`
+  const response = await fetch(url, { ...options, headers })
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
     throw new Error(error.message || `API Error: ${response.status}`)
   }
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('text/html')) {
+    console.warn(`[SlidesApi] Endpoint returned HTML instead of JSON: ${endpoint}`)
+    throw new Error(`API endpoint not available: ${endpoint}`)
+  }
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  if (!text) return null as T
+  try {
+    return JSON.parse(text)
+  } catch {
+    console.warn(`[SlidesApi] Invalid JSON from ${endpoint}:`, text.slice(0, 200))
+    throw new Error(`Invalid response from API: ${endpoint}`)
+  }
 }
 
 interface PaginatedResponse<T> {

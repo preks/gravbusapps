@@ -18,8 +18,7 @@ import type {
 } from '../types/automation'
 import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { CUSTOM_FLOW_ENGINE_API_URL, DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
 import { getSpreadsheetBasePath } from '../utils/spreadsheetPaths'
 import { fetchBulkCollectionEntitySelectOptions } from '../utils/entitySelectOptionsResolver'
 
@@ -521,7 +520,7 @@ export class SpreadsheetAutomationService {
     options?: { persistMode?: 'upsert' | 'create-only' }
   ): Promise<string | null> {
     const persistMode = options?.persistMode ?? 'upsert'
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
     const spreadsheetAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
 
     const backendCandidate =
@@ -600,7 +599,7 @@ export class SpreadsheetAutomationService {
     const { automation, recipients } = params
     const executedAt = new Date().toISOString()
 
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
 
     let backendId: string
     try {
@@ -1804,7 +1803,7 @@ export class SpreadsheetAutomationService {
   > {
     try {
       // Document-service lists flows and filters by tags (supports bulk_collection + excel_collection).
-      const aggregateUrl = `${getDocumentServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
+      const aggregateUrl = `${DOCUMENT_API_URL.replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
 
       const queryParams = new URLSearchParams({
         spreadsheetId: params.spreadsheetId,
@@ -2423,7 +2422,7 @@ export class SpreadsheetAutomationService {
 
   private async markDocumentRunSubmissionComplete(copyAppId: string): Promise<boolean> {
     try {
-      const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+      const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
       const markRes = await fetch(`${docBase}/automations/runs/submissions/complete`, {
         method: 'POST',
         headers: {

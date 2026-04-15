@@ -6,7 +6,6 @@
  */
 
 import DOMPurify from 'dompurify'
-import JSZip from 'jszip'
 import { ensurePagesStyles } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationStyles'
 import { resolveWordLikeImageLayout } from '@/components/tiptap-extensions/tiptap-custom-image'
 import {
@@ -27,6 +26,7 @@ import {
   ensureSvgRootHasExplicitPixelSize,
   parseSvgIntrinsicSizeFromMarkup
 } from './signatureSvgIntrinsic'
+import { createJSZip } from './jsZipCompat'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -1975,7 +1975,7 @@ export async function exportToOdt(title: string, htmlContent: string): Promise<v
   const odfContent = htmlToOdfXml(safeHtml)
   const safeTitle = escapeHtmlText(title || 'Document')
 
-  const zip = new JSZip()
+  const zip = createJSZip()
 
   // mimetype MUST be first entry and uncompressed (ODF spec requirement)
   zip.file('mimetype', 'application/vnd.oasis.opendocument.text', { compression: 'STORE' })

@@ -7,7 +7,6 @@
  */
 
 import { env } from '@/common/env/EnvUtils'
-import { getDocumentOfficeWebSocketBaseUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface ServicePathConfig {
   servicePath: string
@@ -87,6 +86,10 @@ export const CUSTOM_FLOW_ENGINE_API_URL = normalizeCustomFlowEngineApiBaseUrl(
     apiPath: '/api'
   })
 )
+export const CONTENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_CONTENT_API_URL', {
+  servicePath: '/processes/content',
+  apiPath: ''
+})
 export const CUSTOMER_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOMER_RELATIONS_API_URL', {
   servicePath: '/processes/customer-relations',
   apiPath: ''
@@ -95,29 +98,10 @@ export const DOCUMENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_API_URL'
   servicePath: '/document',
   apiPath: '/api/v1'
 })
-/**
- * Office collaboration WebSocket base URL (engine path is derived by OfficeWebSocketClient).
- * Resolved on each call so it matches runtime `nw-envs` / document REST configuration, not only values
- * available at the first `serviceResolver` import.
- *
- * Spreadsheet collaboration uses `getSpreadsheetCollaborationWebSocketBaseUrl()` instead, which applies
- * extra corrections when `NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL` disagrees with the document REST host.
- */
-export function getOfficeWebSocketUrl(): string {
-  const explicitWs = env('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL')
-  if (explicitWs?.trim()) {
-    const trimmed = explicitWs.trim()
-    return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
-  }
-  try {
-    return getDocumentOfficeWebSocketBaseUrl()
-  } catch {
-    return resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
-      servicePath: '/document',
-      apiPath: ''
-    })
-  }
-}
+export const DOCUMENT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_DOCUMENT_WEB_SOCKET_URL', {
+  servicePath: '/document',
+  apiPath: ''
+})
 export const EMPLOYEE_EXPENSE_API_URL = resolveServiceUrl('NEXT_PUBLIC_EMPLOYEE_EXPENSE_API_URL', {
   servicePath: '/processes/employee-expense',
   apiPath: ''

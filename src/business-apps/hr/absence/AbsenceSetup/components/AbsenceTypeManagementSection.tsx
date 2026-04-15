@@ -72,6 +72,8 @@ export function AbsenceTypeManagementSection({
               items={typeSection.items}
               isLoading={typeSection.isLoading}
               onAdd={typeSection.onAdd}
+              onSelect={typeSection.onSelect}
+              sortOptions={typeSection.sortOptions}
               onEdit={typeSection.onEdit}
               onDelete={typeSection.onDelete}
               addButtonTestId={typeSection.addButtonTestId}
@@ -95,6 +97,8 @@ export function AbsenceTypeManagementSection({
               items={versionSection.items}
               isLoading={versionSection.isLoading}
               onAdd={versionSection.onAdd}
+              onSelect={versionSection.onSelect}
+              sortOptions={versionSection.sortOptions}
               onEdit={versionSection.onEdit}
               onDelete={versionSection.onDelete}
               addButtonTestId={versionSection.addButtonTestId}

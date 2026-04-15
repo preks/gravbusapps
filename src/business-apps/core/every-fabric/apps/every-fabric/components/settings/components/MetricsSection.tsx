@@ -3,6 +3,7 @@ import { ChartBarIcon } from '@phosphor-icons/react'
 import type { DeepAgentSession } from '../../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { SectionHeader, MetricCard } from './SettingsShared'
+import { MetricsGridSkeleton } from './SkeletonLoader'
 
 type MetricsRange = '7d' | '30d' | 'all'
 const MILLISECONDS_PER_DAY = 86_400_000
@@ -90,7 +91,7 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
         </div>
 
         {isLoading ? (
-          <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">Loading metrics...</p>
+          <MetricsGridSkeleton />
         ) : (
           <>
             <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mb-2.5 sm:gba:mb-3">

@@ -121,10 +121,16 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
     }
   }
 
-  if (chunk.role === 'ai') {
+  if (chunk.chunk_kind === 'response_stream') {
+    return null
+  }
+
+  if (chunk.role === 'ai' || chunk.role === 'system') {
+    // Status updates get their own message type
+    const isStatus = chunk.chunk_kind === 'status'
     return {
       id: chunk.event_id,
-      type: 'agent_thinking' as ChatMessageType,
+      type: isStatus ? 'agent_status' : 'agent_thinking',
       timestamp: chunk.timestamp,
       content: chunk.content,
       isStreaming: chunk.chunk_kind !== 'final'
@@ -504,6 +510,7 @@ export function messageTypeLabel(type: ChatMessageType): string {
   const labels: Record<ChatMessageType, string> = {
     user_input: 'You',
     agent_thinking: 'Thinking',
+    agent_status: 'Status',
     plan: 'Plan created',
     tool_call: 'Tool called',
     tool_result: 'Tool result',

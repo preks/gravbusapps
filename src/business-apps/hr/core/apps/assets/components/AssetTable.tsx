@@ -21,6 +21,7 @@ interface AssetTableProps extends BusinessAppContextProps {
   onSearchChange?: (search: string) => void
   onSortChange?: (field: string, order: 'ASC' | 'DESC' | '') => void
   onAssetClick?: (asset: Asset) => void
+  isAssetDeletable?: (asset: Asset) => boolean
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
@@ -44,6 +45,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   onSearchChange: _onSearchChange,
   onSortChange,
   onAssetClick,
+  isAssetDeletable,
   onAllocateAsset,
   onUpdateAsset,
   onRetireAsset,
@@ -166,6 +168,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                   asset={asset}
                   accessToken={accessToken}
                   dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                  canDeleteAsset={isAssetDeletable?.(asset) ?? false}
                   onAssetClick={onAssetClick}
                   onAllocateAsset={onAllocateAsset}
                   onUpdateAsset={onUpdateAsset}

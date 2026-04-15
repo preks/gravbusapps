@@ -40,12 +40,12 @@ function hasSubtitle(displayName: string, normalizedTask: string): boolean {
 
 const ExpertCallStatusIcon: React.FC<{ status: 'running' | 'done' | 'failed' }> = ({ status }) => {
   if (status === 'running') {
-    return <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-primary" />
+    return <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-sky-600" />
   }
   if (status === 'done') {
-    return <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-green-500" />
+    return <CheckIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
   }
-  return <XIcon className="gba:h-3.5 gba:w-3.5 gba:text-destructive" />
+  return <XIcon className="gba:h-3 gba:w-3 gba:text-destructive" />
 }
 
 export const ExpertCallRenderer = ({
@@ -63,41 +63,44 @@ export const ExpertCallRenderer = ({
 
   return (
     <div
-      className="gba:overflow-hidden gba:rounded-xl gba:border gba:border-border gba:bg-muted/28"
+      className="gba:overflow-hidden gba:rounded-lg gba:border gba:border-border/60 gba:bg-background"
       data-testid={`enterprise-agent-expert-${agentId}`}
     >
-      <div className="gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-3">
-        <span className="gba:flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
-          <ShareNetworkIcon className="gba:h-4 gba:w-4" />
+      <div className="gba:flex gba:items-start gba:gap-2 gba:px-2.5 gba:py-1.5">
+        <span className="gba:flex gba:h-6 gba:w-6 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
+          <ShareNetworkIcon className="gba:h-3 gba:w-3" />
         </span>
         <div className="gba:flex-1 gba:min-w-0">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:mb-1">
-            <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-1.5 gba:gap-y-0.5">
+            <span className="gba:text-[9px] gba:font-semibold gba:uppercase gba:tracking-[0.14em] gba:text-muted-foreground/80">
               Enterprise expert:
             </span>
-            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
+            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:leading-none gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
               {displayName}
             </span>
             {durationMs !== undefined && (
-              <span className="gba:text-[11px] gba:text-muted-foreground/65">{(durationMs / 1000).toFixed(2)}s</span>
+              <span className="gba:text-[10px] gba:text-muted-foreground/60">{(durationMs / 1000).toFixed(2)}s</span>
             )}
           </div>
-          <p className="gba:text-xs gba:text-muted-foreground gba:leading-5 gba:line-clamp-2">{subtitle}</p>
+          {subtitle ? (
+            <p className="gba:mt-0.5 gba:text-[11px] gba:leading-4 gba:text-muted-foreground/85 gba:line-clamp-2">
+              {subtitle}
+            </p>
+          ) : null}
+          {(output || outputPreview) && (
+            <div className="gba:mt-1">
+              {output ? (
+                <MarkdownWithChipsRenderer content={output} />
+              ) : (
+                <p className="gba:text-[11px] gba:leading-4 gba:text-muted-foreground gba:truncate">{outputPreview}</p>
+              )}
+            </div>
+          )}
         </div>
-        <div className="gba:shrink-0 gba:pt-0.5">
+        <div className="gba:flex gba:h-6 gba:shrink-0 gba:items-center">
           <ExpertCallStatusIcon status={status} />
         </div>
       </div>
-
-      {(output || outputPreview) && (
-        <div className="gba:border-t gba:border-border gba:bg-background gba:px-4 gba:py-3">
-          {output ? (
-            <MarkdownWithChipsRenderer content={output} />
-          ) : (
-            <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{outputPreview}</p>
-          )}
-        </div>
-      )}
     </div>
   )
 }

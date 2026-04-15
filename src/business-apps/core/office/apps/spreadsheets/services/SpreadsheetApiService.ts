@@ -20,10 +20,10 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../../../../platform/apps/shared/types/versioning'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 
-const API_URL = getDocumentServiceApiUrl()
+const API_URL = DOCUMENT_API_URL
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {

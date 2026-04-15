@@ -3,6 +3,7 @@ import { CaretDownIcon, CaretUpIcon, DownloadSimpleIcon, PackageIcon, StarIcon }
 import type { EnterpriseSkill } from '../../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { SectionHeader } from './SettingsShared'
+import { SkillsListSkeleton } from './SkeletonLoader'
 
 interface SkillsSectionProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
@@ -71,7 +72,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
 
   const renderSkillList = () => {
     if (isLoading) {
-      return <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">Loading skills...</p>
+      return <SkillsListSkeleton />
     }
 
     if (filteredSkills.length === 0) {
@@ -92,7 +93,6 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
           data-testid={`settings-skill-${skill.skill_id}`}
         >
           <div className="gba:flex gba:items-start gba:gap-3 gba:p-3">
-            {skill.icon && <span className="gba:text-lg gba:leading-none gba:shrink-0 gba:mt-0.5">{skill.icon}</span>}
             <div className="gba:flex-1 gba:min-w-0">
               <div className="gba:flex gba:items-center gba:gap-1.5">
                 <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{skill.name}</p>

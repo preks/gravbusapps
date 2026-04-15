@@ -1,5 +1,6 @@
 export interface ContentType {
   id: string
+  version?: number | null
   name?: string | null
   nameI18n?: Record<string, string> | null
   contentGroup?: string | null
@@ -13,6 +14,7 @@ export interface ContentType {
 
 export interface ContentCategory {
   id: string
+  version?: number | null
   name?: string | null
   nameI18n?: Record<string, string> | null
   contentEntryCategoriesAggregate?: {
@@ -25,6 +27,7 @@ export interface ContentCategory {
 
 export interface ContentTag {
   id: string
+  version?: number | null
   name?: string | null
   nameI18n?: Record<string, string> | null
   contentEntryTagsAggregate?: {

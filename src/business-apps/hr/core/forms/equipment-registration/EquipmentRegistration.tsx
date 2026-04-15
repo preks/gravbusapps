@@ -877,9 +877,14 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           const currentStatus = form.watch('status') || existingAsset?.assetStatus
           const isAllocated = !!currentAllocation
           const isInRepair = currentStatus === AssetStatus.UNDER_REPAIR
+          const isPending = currentStatus === AssetStatus.PENDING
 
           // Determine available status options based on current state
           const availableStatuses: AssetStatus[] = []
+
+          if (isPending) {
+            availableStatuses.push(AssetStatus.PENDING)
+          }
 
           // Can always set to "In Repair" if status is "Available" or "Allocated"
           if (currentStatus === AssetStatus.AVAILABLE || currentStatus === AssetStatus.ALLOCATED) {
@@ -911,7 +916,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                   <Label htmlFor="status" data-testid="status-label">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')} *
                   </Label>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isPending}>
                     <SelectTrigger id="status" data-testid="status-select">
                       <SelectValue
                         placeholder={getTranslationFromI18nKeyAndLabel(
@@ -921,6 +926,11 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                       />
                     </SelectTrigger>
                     <SelectContent>
+                      {availableStatuses.includes(AssetStatus.PENDING) && (
+                        <SelectItem value={AssetStatus.PENDING} data-testid="status-pending">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')}
+                        </SelectItem>
+                      )}
                       {availableStatuses.includes(AssetStatus.AVAILABLE) && (
                         <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
                           {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')}

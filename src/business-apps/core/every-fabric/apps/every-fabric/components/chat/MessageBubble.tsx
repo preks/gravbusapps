@@ -14,8 +14,9 @@ const AnimatedMessageWrapper: React.FC<{
   children: React.ReactNode
   messageId: string
   className?: string
+  disableEntranceAnimation?: boolean
   'data-testid'?: string
-}> = ({ children, messageId, className = '', 'data-testid': testId }) => {
+}> = ({ children, messageId, className = '', disableEntranceAnimation = false, 'data-testid': testId }) => {
   const [isNew, setIsNew] = useState(true)
   const mountedRef = useRef(false)
 
@@ -27,7 +28,8 @@ const AnimatedMessageWrapper: React.FC<{
     }
   }, [])
 
-  const animationClass = isNew ? 'gba:animate-in gba:fade-in gba:slide-in-from-bottom-2 gba:duration-200' : ''
+  const animationClass =
+    !disableEntranceAnimation && isNew ? 'gba:animate-in gba:fade-in gba:slide-in-from-bottom-2 gba:duration-200' : ''
 
   return (
     <div className={`${className} ${animationClass}`} data-testid={testId} data-message-id={messageId}>
@@ -186,7 +188,7 @@ export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }:
     case 'expert_call': {
       const content = message.content as Parameters<typeof ExpertCallRenderer>[0]
       return (
-        <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
           <ExpertCallRenderer {...content} />
         </AnimatedMessageWrapper>
       )
@@ -217,7 +219,12 @@ export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }:
     case 'final_answer': {
       const content = message.content as Parameters<typeof FinalAnswerRenderer>[0]
       return (
-        <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper
+          messageId={message.id}
+          className="gba:py-1"
+          disableEntranceAnimation
+          data-testid={`msg-${message.id}`}
+        >
           <FinalAnswerRenderer {...content} onViewArtifact={onViewArtifact} />
         </AnimatedMessageWrapper>
       )
