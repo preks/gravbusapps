@@ -177,6 +177,7 @@ hr-analytics-total = total
 hr-analytics-companies = Companii
 hr-analytics-cost-centers = Centre de cost
 hr-analytics-countries = Țări
+hr-analytics-unknown = Necunoscut
 hr-analytics-total-workdays = Zile totale de lucru
 hr-analytics-total-workdays-description = Zile de lucru cumulate pentru toate entitățile
 hr-analytics-avg-workdays-entity = Zile medii/entitate

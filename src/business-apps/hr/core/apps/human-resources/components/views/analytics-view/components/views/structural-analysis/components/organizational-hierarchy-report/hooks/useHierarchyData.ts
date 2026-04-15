@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 import {
   SunburstNode,
@@ -80,16 +80,17 @@ export const useHierarchyDataIntegration = (context: BusinessAppContextProps): H
 
     try {
       const structureId = getCurrentActiveStructureId() ?? ''
+      const localeCode = getCurrentActiveUserLocale() ?? 'en-US'
 
       const [locationAlternativeRes, companyAlternativeRes, costCenterAlternativeRes, statsRes] = await Promise.all([
         datasetClient
-          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'location' })
+          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'location', localeCode })
           .catch(() => ({ data: [] })),
         datasetClient
-          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'company' })
+          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'company', localeCode })
           .catch(() => ({ data: [] })),
         datasetClient
-          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'costcenter' })
+          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'costcenter', localeCode })
           .catch(() => ({ data: [] })),
         datasetClient?.executeQuery('orgHierarchyStats', QueryType.DATASET, { structureId }).catch(() => ({ data: [] }))
       ])

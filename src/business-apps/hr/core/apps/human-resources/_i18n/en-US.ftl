@@ -317,6 +317,7 @@ hr-analytics-total = total
 hr-analytics-companies = Companies
 hr-analytics-cost-centers = Cost Centers
 hr-analytics-countries = Countries
+hr-analytics-unknown = Unknown
 hr-analytics-total-workdays = Total Workdays
 hr-analytics-total-workdays-description = Cumulative workdays across all entities
 hr-analytics-avg-workdays-entity = Avg Workdays/Entity

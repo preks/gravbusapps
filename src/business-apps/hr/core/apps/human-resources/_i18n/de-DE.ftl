@@ -294,6 +294,7 @@ hr-analytics-total = gesamt
 hr-analytics-companies = Unternehmen
 hr-analytics-cost-centers = Kostenstellen
 hr-analytics-countries = Länder
+hr-analytics-unknown = Unbekannt
 hr-analytics-total-workdays = Gesamtarbeitstage
 hr-analytics-total-workdays-description = Kumulierte Arbeitstage über alle Einheiten
 hr-analytics-avg-workdays-entity = Ø Arbeitstage/Einheit

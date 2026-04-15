@@ -75,7 +75,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
     datasetRows.forEach(rawRow => {
       const levelNumber = Number(rawRow.level ?? 0)
       const safeLevel = Number.isFinite(levelNumber) ? levelNumber : 0
-      const category = String(rawRow.category ?? 'Unknown').trim() || 'Unknown'
+      const rawCategory = String(rawRow.category ?? '').trim()
+      const category = rawCategory.length > 0 && rawCategory !== 'Unknown' ? rawCategory : t('hr-analytics-unknown')
       const employeeCountRaw = Number(rawRow.value ?? 0)
       const employeeCount = Number.isFinite(employeeCountRaw) ? employeeCountRaw : 0
       const levelTotalRaw = Number(rawRow.level_total_employees ?? 0)
@@ -285,11 +286,25 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             ? t('hr-analytics-by-cost-center')
             : t('hr-analytics-by-location')
       const title = `${t('hr-analytics-detailed-level-report')} - ${modeLabel}`
+      const exportRowsForFormat =
+        format === 'excel'
+          ? detailedLevelExportRows.map(row => ({
+              ...row,
+              segments:
+                typeof row.segments === 'string'
+                  ? row.segments
+                      .split('\n')
+                      .map(segment => segment.trim())
+                      .filter(segment => segment.length > 0)
+                      .join('; ')
+                  : row.segments
+            }))
+          : detailedLevelExportRows
 
       if (format === 'excel') {
-        await exportTableToExcel(title, detailedLevelExportColumns, detailedLevelExportRows)
+        await exportTableToExcel(title, detailedLevelExportColumns, exportRowsForFormat)
       } else {
-        await exportTableToPdf(title, detailedLevelExportColumns, detailedLevelExportRows)
+        await exportTableToPdf(title, detailedLevelExportColumns, exportRowsForFormat)
       }
     } finally {
       setExportingFormat(null)
@@ -312,7 +327,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       datasetRows.forEach(rawRow => {
         const levelNumber = Number(rawRow.level ?? 0)
         const safeLevel = Number.isFinite(levelNumber) ? levelNumber : 0
-        const category = String(rawRow.category ?? 'Unknown').trim() || 'Unknown'
+        const rawCategory = String(rawRow.category ?? '').trim()
+        const category = rawCategory.length > 0 && rawCategory !== 'Unknown' ? rawCategory : t('hr-analytics-unknown')
         const employeeCountRaw = Number(rawRow.value ?? 0)
         const employeeCount = Number.isFinite(employeeCountRaw) ? employeeCountRaw : 0
         const levelTotalRaw = Number(rawRow.level_total_employees ?? 0)
