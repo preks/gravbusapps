@@ -7,6 +7,8 @@ chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Memento-uri
+chat-shell-disabled-title = Chat indisponibil
+chat-shell-disabled-description = Acest panou este dezactivat momentan pentru workspace-ul tău.
 
 # Dashboard
 dashboard-error-loadData = Nu s-au putut încărca datele panoului de bord

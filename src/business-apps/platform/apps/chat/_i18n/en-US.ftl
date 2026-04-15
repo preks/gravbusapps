@@ -7,6 +7,8 @@ chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Reminders
+chat-shell-disabled-title = Chat unavailable
+chat-shell-disabled-description = This panel is currently disabled for your workspace.
 
 # Dashboard
 dashboard-error-loadData = Unable to load dashboard data
