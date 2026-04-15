@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react'
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
 import { useDeferredInsightsAnalytics } from '../../hooks/useDeferredInsightsAnalytics'
@@ -34,12 +35,12 @@ import {
   CoverageOverview
 } from '../../types/types'
 import { formatMinutes, toDateString, toLocalDateKey, getPlannedMinutesForDate } from '../../utils/timeUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InsightsAbsenceAnalytics } from './InsightsAbsenceAnalytics'
 import { fetchTeamDetailedAbsences, getActiveLocale, isVacationAbsence } from '../../utils/teamTimeDomain'
+import { translateMyTeamTimeText } from '../../useMyTeamTimeTranslation'
 
 const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
-  getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.insights.${key}`, fallback, vars)
+  translateMyTeamTimeText(key, fallback, vars)
 
 const DAILY_HOURS_BUFFER_RATIO = 1.15
 const OVERTIME_WARNING_RATIO = 0.06
@@ -316,7 +317,7 @@ const renderCoverageCardContent = (
   if (coverageLoading) {
     return (
       <div className="gba:text-center gba:py-4 gba:text-muted-foreground gba:text-sm">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+        {translateMyTeamTimeText('loading', 'Loading...')}
       </div>
     )
   }
@@ -414,6 +415,80 @@ const CapabilityCoverageRow: React.FC<{ cap: CapabilityCoverage }> = ({ cap }) =
 }
 
 type CapEntry = { id: string; name: string; holders: string[]; absentHolders: string[] }
+
+type MatrixCoverageBucket = {
+  id: string
+  name: string
+  employees: any[]
+  absentEmployees: any[]
+}
+
+type MutableMatrixCoverageBucket = MatrixCoverageBucket & {
+  employeeIds: Set<string>
+  absentEmployeeIds: Set<string>
+}
+
+const normalizeMatrixTeamName = (name?: string): string => (name || '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+const getMatrixBucketKey = (matrixUnit?: { id?: string; name?: string }): string => {
+  const normalizedName = normalizeMatrixTeamName(matrixUnit?.name)
+
+  if (normalizedName) {
+    return `matrix-name:${normalizedName}`
+  }
+
+  return `matrix-id:${matrixUnit?.id || 'unknown'}`
+}
+
+const getMatrixBucketName = (matrixUnit?: { name?: string }): string =>
+  (matrixUnit?.name || '').trim() || t('unnamed_matrix_team', 'Unnamed matrix team')
+
+const buildMatrixCoverageBuckets = (employees: any[], absentIds: Set<string>): MatrixCoverageBucket[] => {
+  const matrixMap = new Map<string, MutableMatrixCoverageBucket>()
+
+  employees.forEach((emp: any) => {
+    const matrixUnits: any[] = emp.employeePosition?.matrixUnitEmployees || []
+
+    matrixUnits.forEach((mu: any) => {
+      const matrixUnit = mu?.matrixUnit
+      const key = getMatrixBucketKey(matrixUnit)
+
+      if (!matrixMap.has(key)) {
+        matrixMap.set(key, {
+          id: key,
+          name: getMatrixBucketName(matrixUnit),
+          employees: [],
+          absentEmployees: [],
+          employeeIds: new Set<string>(),
+          absentEmployeeIds: new Set<string>()
+        })
+      }
+
+      const matrixBucket = matrixMap.get(key)
+
+      if (!matrixBucket) {
+        return
+      }
+
+      if (!matrixBucket.employeeIds.has(emp.id)) {
+        matrixBucket.employeeIds.add(emp.id)
+        matrixBucket.employees.push(emp)
+      }
+
+      if (absentIds.has(emp.id) && !matrixBucket.absentEmployeeIds.has(emp.id)) {
+        matrixBucket.absentEmployeeIds.add(emp.id)
+        matrixBucket.absentEmployees.push(emp)
+      }
+    })
+  })
+
+  return Array.from(matrixMap.values()).map(bucket => ({
+    id: bucket.id,
+    name: bucket.name,
+    employees: bucket.employees,
+    absentEmployees: bucket.absentEmployees
+  }))
+}
 
 const buildCapabilityMap = (employees: any[], absentIds: Set<string>): Map<string, CapEntry> => {
   const capMap = new Map<string, CapEntry>()
@@ -526,24 +601,9 @@ const parseCoverageResult = (result: any): CoverageOverview => {
     if (absentIds.has(emp.id)) unit.absentEmployees.push(emp)
   })
 
-  const matrixMap = new Map<string, { id: string; name: string; employees: any[]; absentEmployees: any[] }>()
-  employees.forEach((emp: any) => {
-    const matrixUnits: any[] = emp.employeePosition?.matrixUnitEmployees || []
-    matrixUnits.forEach((mu: any) => {
-      const key = mu.matrixUnit.id
-      if (!matrixMap.has(key))
-        matrixMap.set(key, { id: key, name: mu.matrixUnit.name, employees: [], absentEmployees: [] })
-      const m = matrixMap.get(key)!
-      if (!m.employees.some(existingEmployee => existingEmployee.id === emp.id)) {
-        m.employees.push(emp)
-      }
-      if (absentIds.has(emp.id) && !m.absentEmployees.some(absentEmployee => absentEmployee.id === emp.id)) {
-        m.absentEmployees.push(emp)
-      }
-    })
-  })
+  const matrixBuckets = buildMatrixCoverageBuckets(employees, absentIds)
 
-  const matrixTeams: MatrixTeamCoverage[] = Array.from(matrixMap.values()).map(matrix => {
+  const matrixTeams: MatrixTeamCoverage[] = matrixBuckets.map(matrix => {
     const capMap = buildCapabilityMap(matrix.employees, absentIds)
     const capabilities = buildCapabilities(capMap)
     const mCov = calcCoverage(matrix.employees.length, matrix.absentEmployees.length)
@@ -569,7 +629,7 @@ const parseCoverageResult = (result: any): CoverageOverview => {
 
   const orgUnits: OrgUnitCoverage[] = Array.from(orgUnitMap.values()).map(ou => {
     const ouCov = calcCoverage(ou.employees.length, ou.absentEmployees.length)
-    const impactedMatrixTeams = Array.from(matrixMap.values())
+    const impactedMatrixTeams = matrixBuckets
       .map(matrix => {
         const orgMembersInMatrix = matrix.employees
           .filter((e: any) => e.employeePosition?.organizationalUnit?.id === ou.id)
@@ -839,7 +899,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
       .then(absences => {
         const employeeIdsWithRecentPto = new Set(
           absences
-            .filter(absence => absence.status === 'APPROVED' && isVacationAbsence(absence))
+            .filter(absence => isApprovedAbsenceStatus(absence.status) && isVacationAbsence(absence))
             .map(absence => absence.employeeId)
         )
         setRecentPtoEmployeeIds(employeeIdsWithRecentPto)
@@ -929,7 +989,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   if (isLoading) {
     return (
       <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+        {translateMyTeamTimeText('loading', 'Loading...')}
       </div>
     )
   }
@@ -1144,7 +1204,7 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
         <InsightsAbsenceAnalytics {...props} />
       ) : (
         <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:py-10 gba:text-center gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+          {translateMyTeamTimeText('loading', 'Loading...')}
         </div>
       )}
 
