@@ -246,7 +246,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
   onCall,
   onVideoCall
 }) => {
-  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+  const chatTeamEnabled = useFeature<boolean>(Feature.Core.ChatTeam.Key)
   const CallIcon = PhoneIcon
   const VideoCallIcon = VideoCameraIcon
 
@@ -302,7 +302,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
             </p>
 
             <div className="gba:flex gba:gap-2">
-              {teamChatEnabled && (
+              {chatTeamEnabled && (
                 <Button
                   variant="secondary"
                   size="lg"
