@@ -102,6 +102,12 @@ export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   selectedFilters: string[]
   onFilterChange: (filters: Record<string, any>) => void
 
+  // Persistence — initial values loaded from localStorage
+  initialFilters?: Record<string, any>
+  initialSorting?: Array<{ id: string; desc: boolean }>
+  initialVisibleColumns?: string[]
+  onSaveVisibleColumns?: (columns: string[]) => void
+
   // Date range filters
   startDateAfter?: string
   startDateBefore?: string

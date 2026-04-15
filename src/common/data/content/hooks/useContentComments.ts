@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ContentRole } from '../types/contentEnums'
+import { ContentRole } from '../constants/contentConstants'
 import type { ContentEntry } from '../types/contentEntryTypes'
 import {
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,

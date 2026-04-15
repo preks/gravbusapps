@@ -8,6 +8,7 @@ import {
   getPageLayoutHeights,
   getPageSpacerHeight,
   measureHeaderFooterContentHeights,
+  resolveDefaultHeaderFooterMeasurement,
   resolveDirectChildPaginationElement,
   resolvePageBodyWrapBands,
   resolveMountedPaginationPageNumbers,
@@ -43,6 +44,46 @@ const paginationHeightMeasurementCache = new WeakMap<HTMLElement, PaginationHeig
 const paginationMeasuredWindowCache = new WeakMap<HTMLElement, PaginationMeasuredWindowCache>()
 const paginationStylePropertyCache = new WeakMap<HTMLElement, Map<string, string>>()
 const documentHasTablesCache = new WeakMap<PMNode, boolean>()
+
+function hashMeasurementValue(value: unknown): string {
+  const text = typeof value === 'string' ? value : value === null || value === undefined ? '' : JSON.stringify(value)
+  let hash = 0
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0
+  }
+
+  return hash.toString(36)
+}
+
+function resolveHeaderFooterMeasurementSignature(storage: PagesStorage, options: PagesOptions): string {
+  return [
+    storage.headerHTML,
+    storage.headerJSON,
+    storage.footerHTML,
+    storage.footerJSON,
+    storage.headerFirstPageHTML,
+    storage.headerFirstPageJSON,
+    storage.footerFirstPageHTML,
+    storage.footerFirstPageJSON,
+    storage.headerOddHTML,
+    storage.headerOddJSON,
+    storage.headerEvenHTML,
+    storage.headerEvenJSON,
+    storage.footerOddHTML,
+    storage.footerOddJSON,
+    storage.footerEvenHTML,
+    storage.footerEvenJSON,
+    options.documentTitle,
+    options.pageNumberRegion,
+    options.pageNumberNumeralStyle,
+    options.pageNumberStartAt,
+    options.pageNumberAlignment,
+    options.pageNumberShowOnFirstPage
+  ]
+    .map(hashMeasurementValue)
+    .join('|')
+}
 
 function sortPageBodyBandsIfNeeded<T extends { pageNumber: number }>(bands: T[]): T[] {
   for (let index = 1; index < bands.length; index += 1) {
@@ -188,7 +229,8 @@ function createMeasuredWindowKey(
     options.pageGap,
     options.differentFirstPage ? 'first' : 'shared',
     options.differentOddEven ? 'odd-even' : 'default',
-    storage.activeEditorType ?? 'body'
+    storage.activeEditorType ?? 'body',
+    resolveHeaderFooterMeasurementSignature(storage, options)
   ].join('|')
 }
 
@@ -235,8 +277,12 @@ export function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesS
   let smallestBodyHeight = Number.POSITIVE_INFINITY
 
   pageNumbersToMeasure.forEach(pageNumber => {
-    const headerHeight = measured.headerHeights.get(pageNumber) ?? options.headerHeight
-    const footerHeight = measured.footerHeights.get(pageNumber) ?? options.footerHeight
+    const headerHeight =
+      measured.headerHeights.get(pageNumber) ??
+      resolveDefaultHeaderFooterMeasurement(storage, options, 'header', pageNumber, pageCount)
+    const footerHeight =
+      measured.footerHeights.get(pageNumber) ??
+      resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', pageNumber, pageCount)
     const layout = getPageLayoutHeights(storage.pageFormat, storage, headerHeight, footerHeight)
 
     smallestBodyHeight = Math.min(smallestBodyHeight, layout.bodyHeight)
@@ -248,11 +294,17 @@ export function applyMeasuredPageHeightsToView(view: EditorView, storage: PagesS
     )
   })
 
-  const firstPageHeaderHeight = measured.headerHeights.get(1) ?? options.headerHeight
-  const firstPageFooterHeight = measured.footerHeights.get(1) ?? options.footerHeight
+  const firstPageHeaderHeight =
+    measured.headerHeights.get(1) ?? resolveDefaultHeaderFooterMeasurement(storage, options, 'header', 1, pageCount)
+  const firstPageFooterHeight =
+    measured.footerHeights.get(1) ?? resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', 1, pageCount)
   const generalPageNumber = Math.max(2, pageCount + 1)
-  const generalHeaderHeight = measured.headerHeights.get(generalPageNumber) ?? options.headerHeight
-  const generalFooterHeight = measured.footerHeights.get(generalPageNumber) ?? options.footerHeight
+  const generalHeaderHeight =
+    measured.headerHeights.get(generalPageNumber) ??
+    resolveDefaultHeaderFooterMeasurement(storage, options, 'header', generalPageNumber, pageCount)
+  const generalFooterHeight =
+    measured.footerHeights.get(generalPageNumber) ??
+    resolveDefaultHeaderFooterMeasurement(storage, options, 'footer', generalPageNumber, pageCount)
 
   setCachedStyleProperty(
     view.dom,

@@ -171,6 +171,7 @@ export function PagedDocumentEditorDialogHost({
           open={showInsertTableDialog}
           onOpenChange={setShowInsertTableDialog}
           editor={activeEditor}
+          paginationConfig={paginationConfig}
           data-testid="document-insert-table-dialog"
         />
       )}

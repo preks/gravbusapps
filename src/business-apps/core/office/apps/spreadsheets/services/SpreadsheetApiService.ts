@@ -20,10 +20,10 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../../../../platform/apps/shared/types/versioning'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 
-const API_URL = getDocumentServiceApiUrl()
+const API_URL = DOCUMENT_API_URL
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
@@ -49,6 +49,16 @@ export class SpreadsheetApiRequestError extends Error {
     this.status = status
     this.details = details
   }
+}
+
+/** Server sheet version from operations/batch 409 (Nest ConflictException body). */
+export function getSpreadsheetBatchConflictServerVersion(details: unknown): number | undefined {
+  if (!details || typeof details !== 'object') return undefined
+  const o = details as Record<string, unknown>
+  const raw = o.currentVersion
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
+  return undefined
 }
 
 /**
@@ -407,7 +417,9 @@ export const SpreadsheetApiService = {
         permission: mapPermission(app.permission as string | undefined),
         isShared: app.isShared as boolean | undefined,
         isOwner: !app.isShared,
-        sharedBy: app.sharedBy as string | undefined
+        sharedBy: app.sharedBy as string | undefined,
+        sharedWithCount: (app.sharedCount as number | undefined) ?? (app.sharedWithCount as number | undefined),
+        sharedPreviewUserIds: (app.sharedPreviewUserIds as string[] | undefined) ?? []
       }
     })
   },

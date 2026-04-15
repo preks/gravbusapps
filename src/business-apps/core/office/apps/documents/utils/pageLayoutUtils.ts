@@ -14,6 +14,8 @@ import type {
 
 /** 96 DPI: 1 cm = 96/2.54 px */
 export const CM_TO_PX = 96 / 2.54
+export const TWIPS_PER_INCH = 1440
+export const TWIPS_PER_CM = TWIPS_PER_INCH / 2.54
 
 /** Default margins in cm (1 inch). */
 export const DEFAULT_MARGIN_CM = 2.54
@@ -77,6 +79,26 @@ export function marginCmToPx(cm: number): number {
  */
 export function marginPxToCm(px: number): number {
   return Math.round((px / CM_TO_PX) * 100) / 100
+}
+
+export function cmToTwips(cm: number): number {
+  return Math.round(cm * TWIPS_PER_CM)
+}
+
+export function inToTwips(inches: number): number {
+  return Math.round(inches * TWIPS_PER_INCH)
+}
+
+export function pxToTwips(px: number): number {
+  return Math.round((px / 96) * TWIPS_PER_INCH)
+}
+
+export function twipsToCm(twips: number): number {
+  return Math.round((twips / TWIPS_PER_CM) * 100) / 100
+}
+
+export function twipsToPx(twips: number): number {
+  return Math.round((twips / TWIPS_PER_INCH) * 96)
 }
 
 export type ResolvedDocumentPageLayout = Required<
@@ -235,6 +257,61 @@ export function getPrintStyleConfigFromFormatting(formatting?: DocumentFormattin
     lineHeight: typeof formatting?.lineHeight === 'number' ? String(formatting.lineHeight) : '1.15',
     textColor: '#1a1a1a',
     pageColor: layout.pageColor ?? DEFAULT_PAGE_COLOR
+  }
+}
+
+export interface DocxPageSetup {
+  pageWidthTwips: number
+  pageHeightTwips: number
+  orientation: 'portrait' | 'landscape'
+  marginTopTwips: number
+  marginRightTwips: number
+  marginBottomTwips: number
+  marginLeftTwips: number
+  headerDistanceTwips: number
+  footerDistanceTwips: number
+}
+
+function resolvePageDimensionsCm(layout: ResolvedDocumentPageLayout): { widthCm: number; heightCm: number } {
+  if (layout.pageSize === 'CUSTOM') {
+    return {
+      widthCm: layout.customPageWidthCm ?? PAGE_SIZE_LABELS.A4.widthCm,
+      heightCm: layout.customPageHeightCm ?? PAGE_SIZE_LABELS.A4.heightCm
+    }
+  }
+
+  const preset = PAGE_SIZE_LABELS[layout.pageSize]
+  return {
+    widthCm: preset.widthCm,
+    heightCm: preset.heightCm
+  }
+}
+
+function resolveMarginTwips(value: number, unit: 'cm' | 'in'): number {
+  return unit === 'in' ? inToTwips(value) : cmToTwips(value)
+}
+
+export function getDocxPageSetupFromFormatting(formatting?: DocumentFormatting | null): DocxPageSetup {
+  const layout = resolvePageLayout(formatting)
+  const pages = getPagesConfigFromFormatting(formatting)
+  const dimensions = resolvePageDimensionsCm(layout)
+  const pageWidthCm = layout.orientation === 'landscape' ? dimensions.heightCm : dimensions.widthCm
+  const pageHeightCm = layout.orientation === 'landscape' ? dimensions.widthCm : dimensions.heightCm
+  const marginUnit = layout.marginUnit === 'in' ? 'in' : 'cm'
+  const paginationConfig = getPaginationConfigFromFormatting(formatting)
+  const defaultHeaderDistancePx = pages.headerTopMargin ?? Math.round((paginationConfig?.marginTop ?? 0) / 2)
+  const defaultFooterDistancePx = pages.footerBottomMargin ?? Math.round((paginationConfig?.marginBottom ?? 0) / 2)
+
+  return {
+    pageWidthTwips: cmToTwips(pageWidthCm),
+    pageHeightTwips: cmToTwips(pageHeightCm),
+    orientation: layout.orientation,
+    marginTopTwips: resolveMarginTwips(layout.margins.top, marginUnit),
+    marginRightTwips: resolveMarginTwips(layout.margins.right, marginUnit),
+    marginBottomTwips: resolveMarginTwips(layout.margins.bottom, marginUnit),
+    marginLeftTwips: resolveMarginTwips(layout.margins.left, marginUnit),
+    headerDistanceTwips: pxToTwips(defaultHeaderDistancePx),
+    footerDistanceTwips: pxToTwips(defaultFooterDistancePx)
   }
 }
 

@@ -31,6 +31,8 @@ import type {
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import translations from '../_i18n'
+import { useCredentialBindOptions } from '@/common/hooks/useCredentialBindOptions'
+import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
 type ToolType = 'mcp'
 type McpAuthType = 'none' | 'bearer' | 'basic' | 'header' | 'oauth_client_credentials'
 
@@ -46,6 +48,7 @@ export interface ToolEditorProps extends BusinessAppContextProps {
 export const ToolEditor: React.FC<ToolEditorProps> = props => {
   const { mode, tool, onClose, onSaved, onCreate, onUpdate, accessToken } = props
   const { t } = useTranslation(translations)
+  const { credentialBindOptions } = useCredentialBindOptions(accessToken)
   const [name, setName] = useState('')
   const toolType: ToolType = 'mcp'
   const pmClient = usePromptManagerClient(accessToken)
@@ -477,12 +480,22 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
               {authType === 'bearer' && (
                 <div className="gba:space-y-2">
                   <Label>Bearer Token</Label>
-                  <Input
-                    type="password"
-                    value={bearerToken}
-                    onChange={e => setConfigValue('auth.bearerToken', e.target.value)}
-                    data-testid="tool-editor-mcp-bearer-token"
-                  />
+                  {credentialBindOptions.length ? (
+                    <CredentialBindField
+                      value={bearerToken}
+                      onChange={v => setConfigValue('auth.bearerToken', v)}
+                      bindOptions={credentialBindOptions}
+                      plainInputType="password"
+                      data-testid="tool-editor-mcp-bearer-token"
+                    />
+                  ) : (
+                    <Input
+                      type="password"
+                      value={bearerToken}
+                      onChange={e => setConfigValue('auth.bearerToken', e.target.value)}
+                      data-testid="tool-editor-mcp-bearer-token"
+                    />
+                  )}
                 </div>
               )}
 
@@ -496,13 +509,24 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                       placeholder="Username"
                       data-testid="tool-editor-mcp-basic-username"
                     />
-                    <Input
-                      type="password"
-                      value={basicPassword}
-                      onChange={e => setConfigValue('auth.basicPassword', e.target.value)}
-                      placeholder="Password"
-                      data-testid="tool-editor-mcp-basic-password"
-                    />
+                    {credentialBindOptions.length ? (
+                      <CredentialBindField
+                        value={basicPassword}
+                        onChange={v => setConfigValue('auth.basicPassword', v)}
+                        bindOptions={credentialBindOptions}
+                        plainInputType="password"
+                        plainPlaceholder="Password"
+                        data-testid="tool-editor-mcp-basic-password"
+                      />
+                    ) : (
+                      <Input
+                        type="password"
+                        value={basicPassword}
+                        onChange={e => setConfigValue('auth.basicPassword', e.target.value)}
+                        placeholder="Password"
+                        data-testid="tool-editor-mcp-basic-password"
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -517,13 +541,24 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                       placeholder="Header name"
                       data-testid="tool-editor-mcp-header-name"
                     />
-                    <Input
-                      type="password"
-                      value={headerValue}
-                      onChange={e => setConfigValue('auth.headerValue', e.target.value)}
-                      placeholder="Header value"
-                      data-testid="tool-editor-mcp-header-value"
-                    />
+                    {credentialBindOptions.length ? (
+                      <CredentialBindField
+                        value={headerValue}
+                        onChange={v => setConfigValue('auth.headerValue', v)}
+                        bindOptions={credentialBindOptions}
+                        plainInputType="password"
+                        plainPlaceholder="Header value"
+                        data-testid="tool-editor-mcp-header-value"
+                      />
+                    ) : (
+                      <Input
+                        type="password"
+                        value={headerValue}
+                        onChange={e => setConfigValue('auth.headerValue', e.target.value)}
+                        placeholder="Header value"
+                        data-testid="tool-editor-mcp-header-value"
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -545,13 +580,24 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                         placeholder="Client ID"
                         data-testid="tool-editor-mcp-oauth-client-id"
                       />
-                      <Input
-                        type="password"
-                        value={oauthClientSecret}
-                        onChange={e => setConfigValue('auth.oauth.clientSecret', e.target.value)}
-                        placeholder="Client Secret"
-                        data-testid="tool-editor-mcp-oauth-client-secret"
-                      />
+                      {credentialBindOptions.length ? (
+                        <CredentialBindField
+                          value={oauthClientSecret}
+                          onChange={v => setConfigValue('auth.oauth.clientSecret', v)}
+                          bindOptions={credentialBindOptions}
+                          plainInputType="password"
+                          plainPlaceholder="Client Secret"
+                          data-testid="tool-editor-mcp-oauth-client-secret"
+                        />
+                      ) : (
+                        <Input
+                          type="password"
+                          value={oauthClientSecret}
+                          onChange={e => setConfigValue('auth.oauth.clientSecret', e.target.value)}
+                          placeholder="Client Secret"
+                          data-testid="tool-editor-mcp-oauth-client-secret"
+                        />
+                      )}
                     </div>
                     <Input
                       value={oauthScope}

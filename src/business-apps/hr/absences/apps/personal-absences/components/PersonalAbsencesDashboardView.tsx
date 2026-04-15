@@ -13,8 +13,8 @@ interface PersonalAbsencesDashboardViewProps {
   onShowCalendar: () => void
   employeeId?: string
   isLoading: boolean
-  displayEntitlements: { type: string; used: number; total: number }[]
-  otherEntitlements: { type: string; used: number; total: number }[]
+  displayEntitlements: { type: string; used: number; total: number; labelMode?: 'with-total' | 'approved-only' }[]
+  otherEntitlements: { type: string; used: number; total: number; labelMode?: 'with-total' | 'approved-only' }[]
   ytdAbsentDays: number
   ytdTotalWorkingDays: number
   wellnessInsight: string | null

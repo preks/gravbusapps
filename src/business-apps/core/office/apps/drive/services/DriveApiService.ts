@@ -336,6 +336,34 @@ export class DriveApiService {
     return apiRequest(`/slides/${id}`)
   }
 
+  static async renameDocument(documentId: string, title: string): Promise<{ id: string; title: string }> {
+    return apiRequest<{ id: string; title: string }>(`/documents/${documentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
+  }
+
+  static async renameNote(noteId: string, title: string): Promise<{ id: string; title?: string }> {
+    return apiRequest<{ id: string; title?: string }>(`/notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
+  }
+
+  static async renameSpreadsheetApp(spreadsheetId: string, name: string): Promise<{ id: string; name: string }> {
+    return apiRequest<{ id: string; name: string }>(`/spreadsheets/${spreadsheetId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name })
+    })
+  }
+
+  static async renameSlide(slideId: string, title: string): Promise<{ id: string; title: string }> {
+    return apiRequest<{ id: string; title: string }>(`/slides/${slideId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
+  }
+
   static async renameFile(fileId: string, name: string): Promise<DriveItem> {
     return apiRequest<DriveItem>(`/drive/files/${fileId}`, {
       method: 'PATCH',

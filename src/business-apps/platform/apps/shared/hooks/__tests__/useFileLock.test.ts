@@ -1,7 +1,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { useFileLock } from '../useFileLock'
+import { resolveNextResolvedState, useFileLock } from '../useFileLock'
 
 describe('useFileLock', () => {
+  it('reuses the previous state object when resolved lock state is unchanged', () => {
+    const previousState = {
+      lock: null,
+      isLocking: false,
+      isUnlocking: false,
+      isChecking: false,
+      error: null,
+      canEdit: true,
+      isLockedByMe: false
+    }
+
+    expect(resolveNextResolvedState(previousState, null, 'user-1')).toBe(previousState)
+  })
+
   it('starts blocked when blockEditingUntilLockResolved is enabled', async () => {
     const apiService = {
       lockFile: jest.fn(),

@@ -23,6 +23,7 @@ export interface UseExpensePlansTableFiltersParams {
   setFilters: (filters: string[]) => void
   onFiltersChange?: () => void
   currencyStats: CurrencyStat[]
+  widgetTopDestinationFilterTokens?: string[]
 }
 
 export function useExpensePlansTableFilters({
@@ -39,7 +40,8 @@ export function useExpensePlansTableFilters({
   setEndDateRange,
   setFilters,
   onFiltersChange,
-  currencyStats
+  currencyStats,
+  widgetTopDestinationFilterTokens = []
 }: Readonly<UseExpensePlansTableFiltersParams>) {
   const filterConfiguration = useMemo(
     () =>
@@ -92,7 +94,8 @@ export function useExpensePlansTableFilters({
       setEffectiveDateRange,
       setStartDateRange,
       setEndDateRange,
-      onFiltersChange
+      onFiltersChange,
+      widgetTopDestinationFilterTokens
     ]
   )
 

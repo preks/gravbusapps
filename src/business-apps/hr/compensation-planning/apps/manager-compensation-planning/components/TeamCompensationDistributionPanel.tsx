@@ -1,23 +1,31 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
-import { formatCurrency } from '@/common/utils/numberFormatter'
+import { useTranslation } from '@newwork/nw-design-system'
+import { ChartPieSliceIcon, CoinsIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
+import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
+import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/numberFormatter'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { distributeToEmployees } from '../../../utils/budgetCalculations'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
-import {
-  BudgetDistributionMethodSelector,
-  budgetDistributionMethodTitleKey
-} from '../../compensation-planning/components/views/BudgetDistributionMethodSelector'
+import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
+import { budgetDistributionMethodTitleKey } from '../../compensation-planning/components/views/BudgetDistributionMethodSelector'
 import { useManagerPlanningStore } from '../hooks/useManagerPlanningStore'
+import {
+  type ManagerEmployeeBudgetRowStateMap,
+  useManagerTeamProposalSubmit
+} from '../hooks/useManagerTeamProposalSubmit'
 import { useManagerTeamCompensationDataDisplay } from '../hooks/useManagerTeamCompensationDataDisplay'
 import { useManagerTeamEmployeeCustomBudgetMaps } from '../hooks/useManagerTeamEmployeeCustomBudgetMaps'
 import translations from '../_i18n'
-import { TeamCompensationEmployeeDistributionList } from './TeamCompensationEmployeeDistributionList'
+import { TeamCompensationDistributionSplitPanel } from './TeamCompensationDistributionSplitPanel'
 import { TeamCompensationSaveAllocationsDialog } from './TeamCompensationSaveAllocationsDialog'
 
-const EXCLUDED_DISTRIBUTION_METHODS = ['proportional_headcount'] as const
+const TEAM_BUDGET_KPI_COLORS = {
+  totalBudget: 'var(--nw-color-primary-500)',
+  pool: 'var(--nw-color-success-500)',
+  allocation: 'var(--nw-color-info-500)'
+} as const
 
 export interface TeamCompensationDistributionPanelProps {
   teamMembers: TeamMemberCompensationData[]
@@ -25,16 +33,23 @@ export interface TeamCompensationDistributionPanelProps {
   totalFiltered: number
   loading: boolean
   error: string | null
-  companyToolbarEnd: React.ReactNode
   totalSalaryBudget: number | null
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
+  activeCompensationBudgetPlanId: string | null
   currencyCode: string
   accessToken: string | undefined
   managerEmployeeId: string | undefined
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
+  /** Local REST row ids and draft/submitted status from this session (after save allocations). */
+  employeeBudgetRowState: ManagerEmployeeBudgetRowStateMap
+  /** Called after save dialog persists rows (merge returned ids into parent state). */
+  onMergeSavedRowIds: (createdIdsByEmployeeId?: Record<string, string>) => void
+  /** After manager batch-submits drafts, parent locks editing. */
+  proposalsLockedAfterSubmit: boolean
+  onDraftProposalsSubmitted: () => void
   onSaved?: () => void
 }
 
@@ -44,16 +59,20 @@ export function TeamCompensationDistributionPanel({
   totalFiltered,
   loading,
   error,
-  companyToolbarEnd,
   totalSalaryBudget,
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
+  activeCompensationBudgetPlanId,
   currencyCode,
   accessToken,
   managerEmployeeId,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
+  employeeBudgetRowState,
+  onMergeSavedRowIds,
+  proposalsLockedAfterSubmit,
+  onDraftProposalsSubmitted,
   onSaved
 }: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
@@ -61,7 +80,7 @@ export function TeamCompensationDistributionPanel({
   const { distributionMethod, setDistributionMethod } = useManagerPlanningStore()
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
 
-  const dataDisplay = useManagerTeamCompensationDataDisplay(teamMembers)
+  const dataDisplay = useManagerTeamCompensationDataDisplay()
 
   useEffect(() => {
     if (distributionMethod === 'proportional_headcount') {
@@ -82,7 +101,8 @@ export function TeamCompensationDistributionPanel({
     [teamMembers]
   )
 
-  const distributionEmployeesForList = useMemo(() => teamMembers.map(m => ({ id: m.employeeId })), [teamMembers])
+  /** Table order for rows not yet in the user’s custom input-order queue (see useManagerTeamEmployeeCustomBudgetMaps). */
+  const distributionEmployeesForList = useMemo(() => filteredRows.map(m => ({ id: m.employeeId })), [filteredRows])
 
   const {
     customBudgetByEmployeeId,
@@ -107,6 +127,10 @@ export function TeamCompensationDistributionPanel({
     }
     return distributeToEmployees(pool, employeeInputsFull, distributionMethod)
   }, [distributionMethod, previewCustomAllocationByEmployeeId, activePool, employeeInputsFull])
+
+  const totalPreviewAllocated = useMemo(() => {
+    return teamMembers.reduce((sum, m) => sum + (allocationFullTeam.get(m.employeeId) ?? 0), 0)
+  }, [teamMembers, allocationFullTeam])
 
   const allocationByEmployeeId = useMemo(() => {
     const map = new Map<string, number>()
@@ -141,113 +165,173 @@ export function TeamCompensationDistributionPanel({
   const [saveAllocationsDialogOpen, setSaveAllocationsDialogOpen] = useState(false)
 
   const listsReady = loading === false && salaryBudgetLoading === false
-  const canShowSaveAction = Boolean(accessToken && managerEmployeeId && teamMembers.length > 0 && listsReady)
+  const canShowSaveAction = Boolean(
+    accessToken && managerEmployeeId && teamMembers.length > 0 && listsReady && !proposalsLockedAfterSubmit
+  )
 
-  const distributionPreviewSummary = salaryBudgetLoading ? null : activePool != null ? (
-    <div
-      className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted/30 gba:px-4 gba:py-3"
-      data-testid="manager-team-distribution-pool-summary"
-    >
-      <p className="gba:text-sm gba:text-foreground">
-        {tBudget('budget-distribution-preview-pool-summary', {
-          amount: formatCurrency(activePool, currencyCode),
+  const {
+    submitDraftProposals,
+    submitting,
+    errorMessage: submitError,
+    draftCount
+  } = useManagerTeamProposalSubmit({
+    accessToken,
+    managerEmployeeId,
+    restClient,
+    companyId: selectedCompanyId,
+    activeCompensationBudgetPlanId,
+    teamMembers,
+    allocationByEmployeeId: allocationFullTeam,
+    planOuRowIdByOrganizationalUnitId,
+    managerOrganizationalUnitId,
+    employeeBudgetRowState,
+    onDraftsSubmitted: onDraftProposalsSubmitted,
+    tError: t
+  })
+
+  const canSubmitProposals = Boolean(
+    accessToken && managerEmployeeId && draftCount > 0 && !proposalsLockedAfterSubmit && !submitting && listsReady
+  )
+
+  const teamBudgetKpiWidgets = useMemo((): WidgetItem[] | null => {
+    if (activePool == null) {
+      return null
+    }
+    const unallocatedRounded = roundMoney2(Math.max(0, activePool - totalPreviewAllocated))
+    const kpiMoney = {
+      currency: extractCurrencyCode(currencyCode),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+    return [
+      {
+        key: 'manager-team-total-budget',
+        title: t('budget-summary-total-available'),
+        value:
+          totalSalaryBudget == null
+            ? t('budget-summary-placeholder-value')
+            : formatCurrencyString(totalSalaryBudget, kpiMoney),
+        valueIsString: true,
+        prefix: <CurrencyCircleDollarIcon size={24} />,
+        color: TEAM_BUDGET_KPI_COLORS.totalBudget,
+        span: { xs: 24, sm: 8, lg: 8 }
+      },
+      {
+        key: 'manager-team-distribution-pool-summary',
+        title: tBudget('budget-distribution-pool-primary-label'),
+        value: formatCurrencyString(activePool, kpiMoney),
+        valueIsString: true,
+        prefix: <CoinsIcon size={24} />,
+        color: TEAM_BUDGET_KPI_COLORS.pool,
+        span: { xs: 24, sm: 8, lg: 8 },
+        description: tBudget('budget-distribution-using-method', {
           method: tBudget(budgetDistributionMethodTitleKey(distributionMethod))
-        })}
-      </p>
-    </div>
-  ) : selectedCompanyId != null && salaryBudgetError == null && totalSalaryBudget === 0 ? (
-    <p className="gba:w-full gba:text-sm gba:text-muted-foreground" data-testid="manager-team-distribution-pool-zero">
-      {tBudget('budget-distribution-preview-pool-zero')}
-    </p>
-  ) : null
+        })
+      },
+      {
+        key: 'manager-team-budget-allocation',
+        title: t('manager-team-budget-allocation-card-title'),
+        value: formatCurrencyString(unallocatedRounded, kpiMoney),
+        valueIsString: true,
+        prefix: <ChartPieSliceIcon size={24} />,
+        color: TEAM_BUDGET_KPI_COLORS.allocation,
+        span: { xs: 24, sm: 8, lg: 8 }
+      }
+    ]
+  }, [activePool, currencyCode, distributionMethod, t, tBudget, totalPreviewAllocated, totalSalaryBudget])
 
-  const cardTitle = t('team-summary', { count: totalFiltered })
+  const contextPoolSection = useMemo(() => {
+    if (salaryBudgetLoading) {
+      return null
+    }
+    if (teamBudgetKpiWidgets != null) {
+      return (
+        <WidgetGroup
+          className="gba:py-0"
+          widgets={teamBudgetKpiWidgets}
+          skeletonCount={3}
+          cardsClassName="gba:sm:grid-cols-3"
+          data-testid="manager-team-budget-kpi-cards"
+        />
+      )
+    }
+    if (
+      selectedCompanyId != null &&
+      salaryBudgetError == null &&
+      totalSalaryBudget !== null &&
+      totalSalaryBudget <= 0
+    ) {
+      return (
+        <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-team-distribution-pool-zero">
+          {tBudget('budget-distribution-preview-pool-zero')}
+        </p>
+      )
+    }
+    return null
+  }, [salaryBudgetError, salaryBudgetLoading, selectedCompanyId, teamBudgetKpiWidgets, tBudget, totalSalaryBudget])
 
   return (
-    <DataDisplay
-      data-testid="manager-team-compensation-display"
-      titleSections={[
-        {
-          id: 'team-members',
-          label: t('table-section-title'),
-          metadata: { count: totalFiltered, isLoading: loading }
-        }
-      ]}
-      currentSection="team-members"
-      toolbarDensity="default"
-      searchValue={dataDisplay.searchQuery}
-      searchPlaceholder={t('search-placeholder')}
-      onSearchChange={dataDisplay.setSearchQuery}
-      filters={dataDisplay.filtersObject}
-      filterConfiguration={dataDisplay.filterConfiguration}
-      onFilterChange={dataDisplay.handleFilterChangeFromDisplay}
-      enableLiveFiltering
-      filterSheetTitle={t('filter-sheet-title')}
-      filterSheetDescription={t('filter-sheet-description')}
-      sorting={dataDisplay.sorting}
-      sortableColumns={dataDisplay.sortableColumns}
-      onSortingChange={dataDisplay.handleSortingChange}
-      primaryAction={
-        canShowSaveAction
-          ? {
-              label: t('manager-team-save-allocations'),
-              onClick: () => {
-                setSaveAllocationsDialogOpen(true)
-              }
-            }
-          : undefined
-      }
-      secondaryActions={companyToolbarEnd}
-    >
-      <div className="gba:flex gba:flex-col gba:gap-4">
-        <TeamCompensationSaveAllocationsDialog
-          open={saveAllocationsDialogOpen}
-          onOpenChange={setSaveAllocationsDialogOpen}
-          accessToken={accessToken}
-          managerEmployeeId={managerEmployeeId}
-          restClient={restClient}
-          teamMembers={teamMembers}
-          allocationByEmployeeId={allocationFullTeam}
-          distributionMethod={distributionMethod}
-          distributionPool={activePool}
-          currencyCode={currencyCode}
-          planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
-          managerOrganizationalUnitId={managerOrganizationalUnitId}
-          onSaved={onSaved}
-        />
-        <div className="gba:flex gba:flex-col gba:gap-3">
-          <BudgetDistributionMethodSelector
-            selectedMethod={distributionMethod}
-            onMethodChange={setDistributionMethod}
-            disabled={loading}
-            sectionTitle={t('manager-team-distribution-method-section')}
-            t={tBudget}
-            excludedMethods={EXCLUDED_DISTRIBUTION_METHODS}
-          />
-          <div className="gba:w-full gba:min-w-0">{distributionPreviewSummary}</div>
-        </div>
+    <>
+      <TeamCompensationSaveAllocationsDialog
+        open={saveAllocationsDialogOpen}
+        onOpenChange={setSaveAllocationsDialogOpen}
+        accessToken={accessToken}
+        managerEmployeeId={managerEmployeeId}
+        restClient={restClient}
+        teamMembers={teamMembers}
+        allocationByEmployeeId={allocationFullTeam}
+        distributionMethod={distributionMethod}
+        distributionPool={activePool}
+        currencyCode={currencyCode}
+        planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
+        managerOrganizationalUnitId={managerOrganizationalUnitId}
+        onSaved={createdIds => {
+          onMergeSavedRowIds(createdIds)
+          onSaved?.()
+        }}
+      />
+      <div className="gba:flex gba:flex-col gba:gap-4" data-testid="manager-team-distribution-layout">
+        <div data-testid="manager-team-compensation-context">{contextPoolSection}</div>
 
-        <TeamCompensationEmployeeDistributionList
-          sortedMembers={filteredRows}
-          distributionPool={activePool}
+        {proposalsLockedAfterSubmit ? (
+          <p className="gba:text-sm gba:text-muted-foreground" data-testid="manager-team-proposals-readonly-hint">
+            {t('manager-team-proposals-readonly-hint')}
+          </p>
+        ) : null}
+
+        {submitError ? (
+          <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-submit-proposals-error">
+            {submitError}
+          </p>
+        ) : null}
+
+        <TeamCompensationDistributionSplitPanel
+          distributionMethod={distributionMethod}
+          setDistributionMethod={setDistributionMethod}
+          loading={loading}
+          proposalsLockedAfterSubmit={proposalsLockedAfterSubmit}
+          filteredRows={filteredRows}
+          totalFiltered={totalFiltered}
+          activePool={activePool}
           allocationByEmployeeId={allocationByEmployeeId}
           currencyCode={currencyCode}
-          loading={loading}
           error={error}
-          selectedMethod={distributionMethod}
           customBudgetByEmployeeId={customBudgetByEmployeeId}
-          onCustomAmountRawChange={handleCustomAmountRawChange}
-          onCustomPercentRawChange={handleCustomPercentRawChange}
-          onCustomModeChange={handleCustomModeChange}
+          handleCustomAmountRawChange={handleCustomAmountRawChange}
+          handleCustomPercentRawChange={handleCustomPercentRawChange}
+          handleCustomModeChange={handleCustomModeChange}
           performanceFallbackToEqual={performanceFallbackToEqual}
           performancePartialScores={performancePartialScores}
           totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
           grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
-          cardTitle={cardTitle}
-          tBudget={tBudget}
-          emptyMessage={t('table-empty')}
+          dataDisplay={dataDisplay}
+          canSubmitProposals={canSubmitProposals}
+          submitting={submitting}
+          submitDraftProposals={submitDraftProposals}
+          canShowSaveAction={canShowSaveAction}
+          onOpenSaveAllocations={() => setSaveAllocationsDialogOpen(true)}
         />
       </div>
-    </DataDisplay>
+    </>
   )
 }

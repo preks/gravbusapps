@@ -34,6 +34,34 @@ export interface ImageOverlayMount {
   wrapperOffsetTop: number
 }
 
+export function areImageOverlayMountsEqual(left: ImageOverlayMount | null, right: ImageOverlayMount | null): boolean {
+  if (left === right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  return (
+    left.layer === right.layer &&
+    left.pageNumber === right.pageNumber &&
+    left.anchorLeft === right.anchorLeft &&
+    left.anchorTop === right.anchorTop &&
+    left.anchorWidth === right.anchorWidth &&
+    left.anchorHeight === right.anchorHeight &&
+    left.anchorLeftInLayer === right.anchorLeftInLayer &&
+    left.anchorTopInLayer === right.anchorTopInLayer &&
+    left.blockLeftInLayer === right.blockLeftInLayer &&
+    left.blockTopInLayer === right.blockTopInLayer &&
+    left.blockTop === right.blockTop &&
+    left.blockLeft === right.blockLeft &&
+    left.blockWidth === right.blockWidth &&
+    left.wrapperOffsetLeft === right.wrapperOffsetLeft &&
+    left.wrapperOffsetTop === right.wrapperOffsetTop
+  )
+}
+
 interface ResolvedImagePageMountMetrics {
   pageBodyLayer: HTMLElement
   pageNumber: number

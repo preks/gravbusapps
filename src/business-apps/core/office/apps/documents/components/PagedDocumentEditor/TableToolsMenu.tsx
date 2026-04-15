@@ -26,7 +26,6 @@ type TableCanCommands = ReturnType<Editor['can']> & {
 type TableChain = ReturnType<Editor['chain']> & {
   duplicateRow: () => TableChain
   duplicateColumn: () => TableChain
-  setTableWidth: (width: string) => TableChain
   setTableWidthMode: (mode: string) => TableChain
   setTableLayout: (options: { width?: string; align?: 'left' | 'center' | 'right'; mode?: string }) => TableChain
   setTableAlign: (align: 'left' | 'center' | 'right') => TableChain
@@ -59,17 +58,6 @@ export function TableToolsMenu({ editor, t, testId, onOpenSidebar }: Readonly<Ta
   const tableToolsEnabled = useMemo(() => isInsideTable(editor), [editor, editor.state])
   const canCommands = editor.can() as TableCanCommands
   const runTableChain = () => editor.chain().focus() as TableChain
-
-  const promptTableWidth = useCallback(() => {
-    if (!tableToolsEnabled) return
-
-    const currentWidth = String(editor.getAttributes('table').tableWidth ?? '100%')
-    const nextWidth = globalThis.prompt(t('editor-toolbar-table-width-prompt'), currentWidth)
-
-    if (nextWidth == null) return
-
-    runTableChain().setTableWidth(nextWidth).run()
-  }, [editor, t, tableToolsEnabled])
 
   const promptBackgroundColor = useCallback(() => {
     if (!tableToolsEnabled) return
@@ -115,8 +103,7 @@ export function TableToolsMenu({ editor, t, testId, onOpenSidebar }: Readonly<Ta
   const canToggleHeaderRow = tableToolsEnabled && canCommands.toggleHeaderRow()
   const canToggleHeaderColumn = tableToolsEnabled && canCommands.toggleHeaderColumn()
   const canToggleHeaderCell = tableToolsEnabled && canCommands.toggleHeaderCell()
-  const canSetTableLayout =
-    tableToolsEnabled && canCommands.setTableLayout({ width: '100%', align: 'left', mode: 'manual' })
+  const canSetTableLayout = tableToolsEnabled && canCommands.setTableLayout({ align: 'left', mode: 'manual' })
   const canSetCellTextAlign = tableToolsEnabled && canCommands.setCellAttribute('cellTextAlign', 'center')
   const canSetCellVerticalAlign = tableToolsEnabled && canCommands.setCellAttribute('cellVerticalAlign', 'middle')
   const canSetCellBackground = tableToolsEnabled && canCommands.setCellAttribute('backgroundColor', '#FFF2CC')
@@ -252,6 +239,13 @@ export function TableToolsMenu({ editor, t, testId, onOpenSidebar }: Readonly<Ta
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          onSelect={() => runTableChain().setTableWidthMode('manual').run()}
+          disabled={!canSetTableLayout}
+          data-testid={`${testId}-table-width-manual`}
+        >
+          {t('table-sidebar-width-mode-manual')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
           onSelect={() => runTableChain().setTableWidthMode('auto-fit-window').run()}
           disabled={!canSetTableLayout}
           data-testid={`${testId}-table-width-autofit-window`}
@@ -264,34 +258,6 @@ export function TableToolsMenu({ editor, t, testId, onOpenSidebar }: Readonly<Ta
           data-testid={`${testId}-table-width-autofit-content`}
         >
           {t('editor-toolbar-table-width-autofit-content')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => runTableChain().setTableLayout({ width: '100%', mode: 'manual' }).run()}
-          disabled={!canSetTableLayout}
-          data-testid={`${testId}-table-width-full`}
-        >
-          {t('editor-toolbar-table-width-full')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => runTableChain().setTableLayout({ width: '50%', mode: 'manual' }).run()}
-          disabled={!canSetTableLayout}
-          data-testid={`${testId}-table-width-half`}
-        >
-          {t('editor-toolbar-table-width-half')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => runTableChain().setTableLayout({ width: '14cm', mode: 'manual' }).run()}
-          disabled={!canSetTableLayout}
-          data-testid={`${testId}-table-width-fixed`}
-        >
-          {t('editor-toolbar-table-width-fixed')}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={promptTableWidth}
-          disabled={!canSetTableLayout}
-          data-testid={`${testId}-table-width-custom`}
-        >
-          {t('editor-toolbar-table-width-custom')}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => runTableChain().setTableAlign('left').run()}

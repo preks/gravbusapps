@@ -6,6 +6,9 @@ import path from 'node:path'
 
 export const TOP_COMBINED_DEFAULT = 20
 
+/** How many largest Rollup leaf modules to attach under each top-20 dependency row. */
+export const TOP_LEAVES_PER_DEPENDENCY = 2
+
 /** Map a visualizer module path to an aggregation bucket (npm package name or src/other). */
 export function bucketForPath(fullPath) {
   const norm = fullPath.replace(/\\/g, '/').replace(/^\/+/, '')
@@ -114,6 +117,27 @@ export function shortPathForLog(rel) {
   return s
 }
 
+/**
+ * Full display path for bundle reports (no ellipsis).
+ * - Paths under the repo `src/` tree → `src/...` (repo-relative).
+ * - Paths under `node_modules/` → `node_modules/...` only. The raw analyzer `rel` often prefixes those with the
+ *   entry chunk and absolute path (e.g. `platform/.../index.js/C:/.../node_modules/pkg/...`); we strip the noise.
+ * - Otherwise returns the normalized string as-is.
+ * @param {string} rel
+ */
+export function fullPathForBundleReport(rel) {
+  const n = rel.replace(/\\/g, '/')
+  const i = n.indexOf('/src/')
+  if (i !== -1) {
+    const afterSrc = n.slice(i + 5)
+    return `src/${afterSrc}`
+  }
+  const nm = 'node_modules/'
+  const j = n.indexOf(nm)
+  if (j !== -1) return n.slice(j)
+  return n
+}
+
 export function listAllBundledAssets(raw) {
   const { tree, nodeParts } = raw
   const leaves = []
@@ -149,6 +173,55 @@ export function topCombinedBucketsAndAssets(raw, n = TOP_COMBINED_DEFAULT) {
   return [...bucketRows, ...assetRows].sort((a, b) => b.rendered - a.rendered).slice(0, n)
 }
 
+/**
+ * Largest Rollup leaves belonging to one top-row dependency (same bucket or same asset label).
+ * @param {object} raw
+ * @param {{ kind: string, name: string }} row
+ * @param {number} [limit]
+ * @returns {{ name: string, rendered: number, gzip: number }[]}
+ */
+export function topLeavesForDependency(raw, row, limit = TOP_LEAVES_PER_DEPENDENCY) {
+  const { tree, nodeParts } = raw
+  const leaves = []
+  collectLeaves(tree, [], leaves)
+
+  const candidates = []
+  if (row.kind === 'bucket') {
+    for (const { rel, uid } of leaves) {
+      if (bucketForPath(rel) !== row.name) continue
+      const part = nodeParts[uid]
+      if (!part) continue
+      candidates.push({
+        rel,
+        rendered: part.renderedLength ?? 0,
+        gzip: part.gzipLength ?? 0
+      })
+    }
+  } else if (row.kind === 'asset') {
+    for (const { rel, uid } of leaves) {
+      const leafName = leafFileNameFromRel(rel)
+      if (!isBundledAssetLeaf(rel, leafName)) continue
+      if (shortPathForLog(rel) !== row.name) continue
+      const part = nodeParts[uid]
+      if (!part) continue
+      candidates.push({
+        rel,
+        rendered: part.renderedLength ?? 0,
+        gzip: part.gzipLength ?? 0
+      })
+    }
+  }
+
+  return candidates
+    .sort((a, b) => b.rendered - a.rendered)
+    .slice(0, limit)
+    .map(({ rel, rendered, gzip }) => ({
+      name: fullPathForBundleReport(rel),
+      rendered,
+      gzip
+    }))
+}
+
 export function getChunkJsBytes(projectRoot, entryKey) {
   const chunkJs = path.join(projectRoot, 'dist', entryKey, 'index.js')
   if (!fs.existsSync(chunkJs)) return 0
@@ -174,9 +247,13 @@ export function buildBundleEntryPayload({
   pipelineUrl = null,
   chunkJsBytes: chunkJsBytesOverride = null
 }) {
-  const top = topCombinedBucketsAndAssets(raw, topN)
-  const chunkJsBytes =
-    chunkJsBytesOverride != null ? chunkJsBytesOverride : getChunkJsBytes(projectRoot, entryKey)
+  const topRows = topCombinedBucketsAndAssets(raw, topN)
+  const top = topRows.map(row => {
+    const leaves = topLeavesForDependency(raw, row)
+    if (!leaves.length) return row
+    return { ...row, leaves }
+  })
+  const chunkJsBytes = chunkJsBytesOverride != null ? chunkJsBytesOverride : getChunkJsBytes(projectRoot, entryKey)
   return {
     bitbucketBuildNumber,
     pipelineUrl,

@@ -65,6 +65,9 @@ interface AccountSelectProps {
   // Component behavior
   disabled?: boolean
 
+  /** When false, hides opportunity–account type catalog (e.g. CRM activity “related account” picker) */
+  showAccountType?: boolean
+
   // Note: multiple mode is automatically detected from value type
   // - Array value = multiple mode
   // - Single value = single mode
@@ -83,7 +86,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   onLoadMore,
   accountContacts = [],
   initialAccount,
-  disabled = false
+  disabled = false,
+  showAccountType = true
   // onNewAccount - can be added later if needed
 }) => {
   // Helper function to extract ID from value (string or object)
@@ -478,16 +482,18 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   )}
                 </div>
 
-                {/* Account Type Select - fixed width, never shrink */}
-                <div className="gba:w-48 gba:flex-shrink-0">
-                  <CatalogSelect
-                    catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
-                    value={accountValue.accountType || ''}
-                    onValueChange={accountType => handleAccountTypeChange(index, accountType)}
-                    data-testid={formatDataTestId(dataTestId || 'account-list', `account-type-${index}`)}
-                    placeholder="Select type..."
-                  />
-                </div>
+                {/* Account type (IRM opportunity roles) — hidden for simple CRM pickers */}
+                {showAccountType ? (
+                  <div className="gba:w-48 gba:flex-shrink-0">
+                    <CatalogSelect
+                      catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
+                      value={accountValue.accountType || ''}
+                      onValueChange={accountType => handleAccountTypeChange(index, accountType)}
+                      data-testid={formatDataTestId(dataTestId || 'account-list', `account-type-${index}`)}
+                      placeholder="Select type..."
+                    />
+                  </div>
+                ) : null}
 
                 {/* Remove Button */}
                 <Button

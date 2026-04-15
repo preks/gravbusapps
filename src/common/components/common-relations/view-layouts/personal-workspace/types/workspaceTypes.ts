@@ -39,6 +39,9 @@ export interface GenericActivity {
   lead?: { id: string; name: string } | null
   opportunityId?: string | null
   opportunity?: { id: string; name: string } | null
+  /** IRM-only; optional on type for workspace adapters that load investment activities */
+  investmentId?: string | null
+  investment?: { id?: string; name?: string; code?: string | null; pictureThumbnail?: string | null } | null
 }
 
 /**

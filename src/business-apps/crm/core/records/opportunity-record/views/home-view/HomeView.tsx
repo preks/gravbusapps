@@ -1,5 +1,7 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -19,7 +21,13 @@ import {
 } from '@/common/data/customer/constants/customerConstants'
 import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
 import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
-import { buildCustomerNotePayload } from '@/common/data/customer/types/customerNoteTypes'
+import noteSectionI18n from '@/common/components/common-relations/record-sections/note-section/_i18n'
+import {
+  buildCustomerNotePayload,
+  buildCustomerNextStepNotePayload,
+  isCrmNoteNextStepType,
+  isCrmNoteRegularType
+} from '@/common/data/customer/types/customerNoteTypes'
 import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
@@ -69,6 +77,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   accessToken,
   ...props
 }) => {
+  const { t } = useTranslation(noteSectionI18n)
+  const regularOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteRegularType), [notes])
+  const nextStepOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteNextStepType), [notes])
+
   const fileClient = useFileClient({ accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -329,7 +341,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               activityTypeCatalog: ACTIVITY_TYPE,
               buildActivityPayload: buildCustomerActivityPayload,
               alignment: 'right',
-              preSubmit: activityPreSubmit
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
             }
           },
           {
@@ -339,7 +352,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ...props,
               accessToken,
               opportunityId,
-              notes: notes,
+              notes: regularOpportunityNotes,
               noteActionProps: {
                 contextsArray: [FlowContextName.customerNoteCreate],
                 externalContextData: { opportunityId },
@@ -353,6 +366,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 emptyStateBehavior: 'enable'
               },
               buildNotePayload: buildCustomerNotePayload,
+              preSubmit: notePreSubmit
+            }
+          },
+          {
+            id: 'next-steps-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              accessToken,
+              opportunityId,
+              sectionTitle: t('notes-next-steps-section-title'),
+              emptyStateTitle: t('notes-next-steps-empty-title'),
+              emptyStateDescription: t('notes-next-steps-empty-description'),
+              quickAddTriggerLabel: t('notes-next-steps-add-quick'),
+              notes: nextStepOpportunityNotes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.customerNoteCreate],
+                externalContextData: {
+                  opportunityId,
+                  opportunity: opportunityId,
+                  crmNote: { opportunity: opportunityId, noteType: 'NEXT_STEP_NOTE' }
+                },
+                prefixDataTestId: 'opportunity-next-steps',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-next-step-entity',
+                emptyStateBehavior: 'enable'
+              },
+              buildNotePayload: buildCustomerNextStepNotePayload,
               preSubmit: notePreSubmit
             }
           }

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getOperationBadge } from './utils/displayUtils'
+import { toCustomerNote } from '@/common/data/customer/mappers/customerRelatedEntityMappers'
+import type { CustomerNote } from '@/common/data/customer/types/customerNoteTypes'
 
 interface CrmNoteDisplayProps {
   noteId: string
@@ -9,19 +11,8 @@ interface CrmNoteDisplayProps {
   operation?: 'create' | 'update' | 'delete' | 'read'
 }
 
-interface CrmNote {
-  id: string
-  title?: string
-  text?: string
-  createdAt: string
-  authorEmployee?: {
-    firstName: string
-    lastName: string
-  }
-}
-
 export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessToken, operation }) => {
-  const [note, setNote] = useState<CrmNote | null>(null)
+  const [note, setNote] = useState<CustomerNote | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
@@ -36,9 +27,11 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
           query GetCrmNote($id: uuid!) {
             CrmNote_by_pk(id: $id) {
               id
-              title
-              text
+              noteTitle
+              noteText
+              noteType
               createdAt
+              createdBy
               authorEmployee {
                 firstName
                 lastName
@@ -47,10 +40,10 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
           }
         `
 
-        const result = await graphqlClient.request<{ CrmNote_by_pk: CrmNote }>(query, { id: noteId })
+        const result = await graphqlClient.request<{ CrmNote_by_pk: Record<string, unknown> }>(query, { id: noteId })
 
         if (result.CrmNote_by_pk) {
-          setNote(result.CrmNote_by_pk)
+          setNote(toCustomerNote(result.CrmNote_by_pk))
         } else {
           setError('Note not found')
         }
@@ -69,6 +62,15 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
 
   const operationBadge = getOperationBadge(operation)
 
+  const cardSubtitle = useMemo(() => {
+    if (!note) return undefined
+    const authorLine = note.authorEmployee
+      ? `By ${note.authorEmployee.firstName ?? ''} ${note.authorEmployee.lastName ?? ''}`.trim()
+      : undefined
+    const variationHint = note.noteType === 'NEXT_STEP_NOTE' ? 'Next step' : undefined
+    return [authorLine, variationHint].filter(Boolean).join(' · ') || undefined
+  }, [note])
+
   const icon = (
     <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-primary-secondary gba:flex gba:items-center gba:justify-center">
       <svg className="gba:h-6 gba:w-6 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,9 +87,7 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
   return (
     <EntityCard
       title={note?.title || 'Note'}
-      subtitle={
-        note?.authorEmployee ? `By ${note.authorEmployee.firstName} ${note.authorEmployee.lastName}` : undefined
-      }
+      subtitle={cardSubtitle}
       description={note?.text}
       icon={icon}
       status={operationBadge?.text}

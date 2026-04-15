@@ -127,7 +127,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     ]
   )
 
-  const { getAllocationsForAsset, getAssetById } = useAssetService(props)
+  const { getAllocationsForAsset, getAssetById, getAssetIdsWithAllocationHistory } = useAssetService(props)
   const assetProcessClient = useMemo(() => {
     const client = new AssetProcessClient()
     if (props.accessToken) {
@@ -150,6 +150,8 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [assets, getAssetById, getAllocationsForAsset]
   )
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<any[]>([])
+  const [selectedAssetAllocationsLoaded, setSelectedAssetAllocationsLoaded] = useState(false)
+  const [deletableAssetIds, setDeletableAssetIds] = useState<Set<string>>(new Set())
 
   const getAssetIdFromUrl = useCallback((): string | null => {
     if (typeof window === 'undefined') {
@@ -188,21 +190,59 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   useEffect(() => {
     if (!selectedAsset) {
       setSelectedAssetAllocations([])
+      setSelectedAssetAllocationsLoaded(false)
       return
     }
 
     const loadAllocations = async () => {
+      setSelectedAssetAllocationsLoaded(false)
       try {
         const allocations = await getAllocationsForAsset(selectedAsset.id)
         setSelectedAssetAllocations(allocations)
       } catch (error) {
         console.error('Error loading allocations:', error)
         setSelectedAssetAllocations([])
+      } finally {
+        setSelectedAssetAllocationsLoaded(true)
       }
     }
 
     loadAllocations()
   }, [selectedAsset, getAllocationsForAsset])
+
+  useEffect(() => {
+    const availableAssetIds = assets.filter(asset => asset.assetStatus === AssetStatus.AVAILABLE).map(asset => asset.id)
+
+    if (!availableAssetIds.length) {
+      setDeletableAssetIds(new Set())
+      return
+    }
+
+    let isActive = true
+
+    const loadDeleteEligibility = async () => {
+      try {
+        const assignedAssetIds = await getAssetIdsWithAllocationHistory(availableAssetIds)
+        if (!isActive) {
+          return
+        }
+
+        const assignedAssetIdSet = new Set(assignedAssetIds)
+        setDeletableAssetIds(new Set(availableAssetIds.filter(assetId => !assignedAssetIdSet.has(assetId))))
+      } catch (error) {
+        console.error('Error loading asset delete eligibility:', error)
+        if (isActive) {
+          setDeletableAssetIds(new Set())
+        }
+      }
+    }
+
+    void loadDeleteEligibility()
+
+    return () => {
+      isActive = false
+    }
+  }, [assets, getAssetIdsWithAllocationHistory])
 
   useEffect(() => {
     if (!pendingAssetId) {
@@ -351,18 +391,29 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   const handleDeleteAsset = useCallback(
     (assetId: string) => {
-      const asset = assets.find(item => item.id === assetId)
-      if (asset) {
-        setSelectedAsset(asset)
+      const asset = assets.find(item => item.id === assetId) || (selectedAsset?.id === assetId ? selectedAsset : null)
+      if (!asset || asset.assetStatus !== AssetStatus.AVAILABLE) {
+        return
       }
+
+      const canDeleteAssetFromPanel =
+        selectedAsset?.id === assetId && selectedAssetAllocationsLoaded && selectedAssetAllocations.length === 0
+
+      if (!deletableAssetIds.has(asset.id) && !canDeleteAssetFromPanel) {
+        return
+      }
+
+      setSelectedAsset(asset)
       dialogs.openDelete(assetId)
     },
-    [assets, dialogs]
+    [assets, deletableAssetIds, dialogs, selectedAsset, selectedAssetAllocations, selectedAssetAllocationsLoaded]
   )
 
   const handleConfirmDeleteAsset = useCallback(
     async (notes: string) => {
-      if (!dialogs.deletingAssetId) {
+      const trimmedNotes = notes.trim()
+
+      if (!dialogs.deletingAssetId || !trimmedNotes) {
         return
       }
 
@@ -371,6 +422,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         (selectedAsset?.id === dialogs.deletingAssetId ? selectedAsset : null)
 
       if (!assetToDelete) {
+        return
+      }
+
+      if (trimmedNotes === (assetToDelete.notes || '').trim()) {
         return
       }
 
@@ -389,7 +444,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           assetCategoryRef: assetToDelete.assetCategoryRef,
           currencyRef: assetToDelete.currencyRef,
           siteLocation: assetToDelete.siteLocationId,
-          notes,
+          notes: trimmedNotes,
           disposalStatus: assetToDelete.disposalStatus,
           disposalOutcomeRef: assetToDelete.disposalOutcomeRef,
           disposalDate: assetToDelete.disposalDate,
@@ -518,6 +573,24 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [hasActiveFilters, searchQuery, tAssets]
   )
 
+  const isAssetDeletable = useCallback(
+    (asset: Asset) => asset.assetStatus === AssetStatus.AVAILABLE && deletableAssetIds.has(asset.id),
+    [deletableAssetIds]
+  )
+
+  const canDeleteSelectedAsset = useMemo(() => {
+    if (!selectedAsset || selectedAsset.assetStatus !== AssetStatus.AVAILABLE) {
+      return false
+    }
+
+    const listedAsset = assets.find(asset => asset.id === selectedAsset.id)
+    if (listedAsset) {
+      return deletableAssetIds.has(selectedAsset.id)
+    }
+
+    return selectedAssetAllocationsLoaded && selectedAssetAllocations.length === 0
+  }, [assets, deletableAssetIds, selectedAsset, selectedAssetAllocations, selectedAssetAllocationsLoaded])
+
   return (
     <div data-testid="assets-app">
       <PageLayout
@@ -599,6 +672,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
                   onSearchChange={handleSearchChange}
                   onSortChange={handleSortChange}
                   onAssetClick={handleAssetClick}
+                  isAssetDeletable={isAssetDeletable}
                   onAllocateAsset={handleAllocateAsset}
                   onUpdateAsset={handleUpdateAsset}
                   onRetireAsset={handleRetireAsset}
@@ -618,6 +692,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         isOpen={isPanelOpen}
         onClose={handlePanelClose}
         accessToken={props.accessToken}
+        canDeleteAsset={canDeleteSelectedAsset}
         onAllocateAsset={handleAllocateAsset}
         onUpdateAsset={handleUpdateAsset}
         onRetireAsset={handleRetireAsset}

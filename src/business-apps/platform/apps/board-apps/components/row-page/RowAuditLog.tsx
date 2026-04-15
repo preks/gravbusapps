@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Avatar, AvatarImage, AvatarFallback, Spinner } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Plus, Pencil, Trash2, ArrowUpDown, Download, LayoutGrid, Settings, Share2, Copy } from 'lucide-react'
 import type { BoardAuditLogEntry, BoardAuditChange } from '../../types'
 import { BoardApiService } from '../../services/BoardApiService'
 import { useAuditActorLookup, type ActorInfo } from '../../hooks/useAuditActorLookup'
 import { formatDistanceToNow } from 'date-fns'
+import translations from '../../_i18n'
 
 interface RowAuditLogProps {
   boardId: string
@@ -14,21 +15,30 @@ interface RowAuditLogProps {
   'data-testid'?: string
 }
 
-export const ACTION_META: Record<
-  string,
-  { label: string; Icon: React.FC<{ className?: string }>; colorClass: string }
-> = {
-  'row.created': { label: 'Created', Icon: Plus, colorClass: 'gba:text-emerald-500' },
-  'row.updated': { label: 'Updated', Icon: Pencil, colorClass: 'gba:text-blue-500' },
-  'row.deleted': { label: 'Deleted', Icon: Trash2, colorClass: 'gba:text-destructive' },
-  'row.reordered': { label: 'Reordered', Icon: ArrowUpDown, colorClass: 'gba:text-muted-foreground' },
-  'rows.imported': { label: 'Imported', Icon: Download, colorClass: 'gba:text-purple-500' },
-  'sheet.updated': { label: 'Sheet updated', Icon: LayoutGrid, colorClass: 'gba:text-muted-foreground' },
-  'board.created': { label: 'Board created', Icon: Plus, colorClass: 'gba:text-emerald-500' },
-  'board.updated': { label: 'Board updated', Icon: Settings, colorClass: 'gba:text-muted-foreground' },
-  'board.deleted': { label: 'Board deleted', Icon: Trash2, colorClass: 'gba:text-destructive' },
-  'board.shared': { label: 'Shared', Icon: Share2, colorClass: 'gba:text-blue-500' },
-  'board.duplicated': { label: 'Duplicated', Icon: Copy, colorClass: 'gba:text-muted-foreground' }
+export function getActionMeta(
+  t: (key: string, args?: Record<string, unknown>) => string
+): Record<string, { label: string; Icon: React.FC<{ className?: string }>; colorClass: string }> {
+  return {
+    'row.created': { label: t('audit-action-created'), Icon: Plus, colorClass: 'gba:text-emerald-500' },
+    'row.updated': { label: t('audit-action-updated'), Icon: Pencil, colorClass: 'gba:text-blue-500' },
+    'row.deleted': { label: t('audit-action-deleted'), Icon: Trash2, colorClass: 'gba:text-destructive' },
+    'row.reordered': { label: t('audit-action-reordered'), Icon: ArrowUpDown, colorClass: 'gba:text-muted-foreground' },
+    'rows.imported': { label: t('audit-action-imported'), Icon: Download, colorClass: 'gba:text-purple-500' },
+    'sheet.updated': {
+      label: t('audit-action-sheet-updated'),
+      Icon: LayoutGrid,
+      colorClass: 'gba:text-muted-foreground'
+    },
+    'board.created': { label: t('audit-action-board-created'), Icon: Plus, colorClass: 'gba:text-emerald-500' },
+    'board.updated': {
+      label: t('audit-action-board-updated'),
+      Icon: Settings,
+      colorClass: 'gba:text-muted-foreground'
+    },
+    'board.deleted': { label: t('audit-action-board-deleted'), Icon: Trash2, colorClass: 'gba:text-destructive' },
+    'board.shared': { label: t('audit-action-shared'), Icon: Share2, colorClass: 'gba:text-blue-500' },
+    'board.duplicated': { label: t('audit-action-duplicated'), Icon: Copy, colorClass: 'gba:text-muted-foreground' }
+  }
 }
 
 export function formatAuditValue(val: unknown): string {
@@ -86,8 +96,10 @@ export function AuditEntry({
   actorInfo?: ActorInfo
   rowContext?: AuditRowContext
 }) {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(false)
-  const meta = ACTION_META[entry.action] ?? {
+  const actionMeta = getActionMeta(t)
+  const meta = actionMeta[entry.action] ?? {
     label: entry.action,
     Icon: Settings,
     colorClass: 'gba:text-muted-foreground'
@@ -107,7 +119,7 @@ export function AuditEntry({
 
   const contextLine = (() => {
     if (entry.action === 'rows.imported' && metaImportCount) {
-      return `${metaImportCount} rows (${metaImportMode || 'append'})`
+      return `${metaImportCount} ${t('common-rows').toLowerCase()} (${metaImportMode || 'append'})`
     }
     if (metaDescription) return metaDescription
     return null
@@ -167,9 +179,7 @@ export function AuditEntry({
             className="gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:mt-0.5 gba:transition-colors"
             data-testid="audit-toggle-changes"
           >
-            {expanded
-              ? 'Hide changes'
-              : `${entry.changes!.length} field${entry.changes!.length !== 1 ? 's' : ''} changed`}
+            {expanded ? t('audit-hide-changes') : t('audit-field-changes', { count: entry.changes!.length })}
           </button>
         )}
 
@@ -186,6 +196,7 @@ export const RowAuditLog: React.FC<RowAuditLogProps> = ({
   accessToken,
   'data-testid': testId = 'row-audit-log'
 }) => {
+  const { t } = useTranslation(translations)
   const [entries, setEntries] = useState<BoardAuditLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -204,12 +215,12 @@ export const RowAuditLog: React.FC<RowAuditLogProps> = ({
         setTotalPages(res.totalPages)
         setPage(p)
       } catch {
-        setError('Could not load activity.')
+        setError(t('audit-load-failed'))
       } finally {
         setIsLoading(false)
       }
     },
-    [boardId, sheetId, rowId]
+    [boardId, sheetId, rowId, t]
   )
 
   useEffect(() => {
@@ -235,7 +246,7 @@ export const RowAuditLog: React.FC<RowAuditLogProps> = ({
   if (!entries.length) {
     return (
       <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-10" data-testid={testId}>
-        No activity yet.
+        {t('board-no-activity')}
       </div>
     )
   }

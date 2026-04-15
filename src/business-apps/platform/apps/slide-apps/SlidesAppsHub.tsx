@@ -51,8 +51,8 @@ import {
   Upload,
   SortAsc,
   SortDesc,
-  X,
-  Wand2
+  X
+  // Wand2 — re-enable when "Generate with AI" menu item is restored
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -531,6 +531,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-blank-description')}</div>
           </div>
         </DropdownMenuItem>
+        {/* TODO: Re-enable "Generate with AI" once the feature is stable
         <DropdownMenuItem onClick={() => setShowGenerateDialogChat(true)}>
           <Wand2 className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
           <div>
@@ -540,6 +541,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             </div>
           </div>
         </DropdownMenuItem>
+        */}
         <DropdownMenuItem onClick={() => setShowTemplateBrowserDialog(true)}>
           <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
           <div>

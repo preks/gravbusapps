@@ -12,15 +12,14 @@ import {
 import { MessageCircle, Folder, ChevronRight, CheckCircle, Share2 } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup, resolveContentTypeName } from '@/common/data/content/constants/contentConstants'
 import { VoteButtons, type VoteState } from '@/common/components/content'
 import { EmployeeHoverCard } from '@/common/components/employee'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useContentTypes } from '../../hooks/useContentTypes'
-import { useCatalogEntries } from '@/common/data/catalog'
+import { useContentTypeSelect } from '@/common/data/content/hooks/useContentTypeSelect'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
@@ -55,37 +54,15 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const { t } = useTranslation(translations)
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedContentTypeRef, setSelectedContentTypeRef] = useState<string | null>(null)
+  const [selectedContentTypeId, setSelectedContentTypeId] = useState<string | null>(null)
 
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
 
-  // Fetch ContentGroup QUESTION entry to get its ID
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: accessToken || '' })
-  const [questionGroupId, setQuestionGroupId] = useState<string | null>(null)
-
-  // Load QUESTION ContentGroup ID
-  React.useEffect(() => {
-    const loadQuestionGroupId = async () => {
-      try {
-        const result = await fetchCatalogEntriesByIdentifier('ContentGroup', {
-          limit: 1,
-          offset: 0
-        })
-        const questionEntry = result.entries.find(entry => entry.code === 'QUESTION')
-        if (questionEntry) {
-          setQuestionGroupId(questionEntry.id)
-        }
-      } catch (err) {
-        console.error('Error loading QUESTION group ID:', err)
-      }
-    }
-    if (accessToken) {
-      loadQuestionGroupId()
-    }
-  }, [accessToken, fetchCatalogEntriesByIdentifier])
-
-  // Load ContentTypes for QUESTION
-  const { types: contentTypes } = useContentTypes({ accessToken: accessToken || '' }, questionGroupId)
+  const {
+    options: contentTypes,
+    hasMore: contentTypesHasMore,
+    loadMore: loadMoreContentTypes
+  } = useContentTypeSelect(accessToken, ContentGroup.QUESTION)
 
   // Find catalog IDs for +1 and -1 reactions from the map
   // The map has entries like: '+1' -> 'ContentReaction:v1:+1'
@@ -96,15 +73,15 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: ContentGroup.QUESTION,
-      contentTypeRef: selectedContentTypeRef || undefined,
+      contentGroup: ContentGroup.QUESTION,
+      contentTypeId: selectedContentTypeId || undefined,
       search: searchQuery,
       limit: loadedCount,
       offset: 0,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, loadedCount, selectedContentTypeRef]
+    [searchQuery, loadedCount, selectedContentTypeId]
   )
 
   // Memoize query options to prevent infinite re-renders
@@ -115,11 +92,9 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         'title',
         'preview',
         'picture',
-        'contentGroupRef',
-        'contentTypeRef',
-        'creatorEmployee',
         'contentGroup',
         'contentType',
+        'creatorEmployee',
         'createdAt',
         'contentEntryTags',
         'childContentEntries',
@@ -226,7 +201,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   }
 
   const handleCategoryClick = (categoryId: string | null) => {
-    setSelectedContentTypeRef(categoryId)
+    setSelectedContentTypeId(categoryId)
     setLoadedCount(PAGE_SIZE)
   }
 
@@ -329,7 +304,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 <button
                   onClick={() => handleCategoryClick(null)}
                   className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                    selectedContentTypeRef === null
+                    selectedContentTypeId === null
                       ? 'gba:bg-primary gba:text-primary-foreground'
                       : 'gba:hover:bg-accent gba:text-foreground'
                   }`}
@@ -342,24 +317,33 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                   <ChevronRight className="gba:w-4 gba:h-4" />
                 </button>
 
-                {contentTypes.map(type => (
+                {contentTypes.map(opt => (
                   <button
-                    key={type.id}
-                    onClick={() => handleCategoryClick(type.id)}
+                    key={opt.value}
+                    onClick={() => handleCategoryClick(opt.value)}
                     className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
-                      selectedContentTypeRef === type.id
+                      selectedContentTypeId === opt.value
                         ? 'gba:bg-primary gba:text-primary-foreground'
                         : 'gba:hover:bg-accent gba:text-foreground'
                     }`}
-                    data-testid={`question-category-${type.code?.toLowerCase()}`}
+                    data-testid={`question-category-${opt.value}`}
                   >
                     <span className="gba:flex gba:items-center gba:gap-2">
                       <Folder className="gba:w-4 gba:h-4" />
-                      {type.value}
+                      {opt.label}
                     </span>
                     <ChevronRight className="gba:w-4 gba:h-4" />
                   </button>
                 ))}
+                {contentTypesHasMore && (
+                  <button
+                    onClick={loadMoreContentTypes}
+                    className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground gba:hover:bg-accent gba:rounded-md gba:transition-colors"
+                    data-testid="question-category-load-more"
+                  >
+                    Load more...
+                  </button>
+                )}
               </nav>
             </Card>
           </div>
@@ -394,7 +378,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 const votes: VoteState = getVoteCounts(question.id || '')
                 const commentCount = question.childContentEntriesAggregate?.aggregate?.count || 0
                 const hasAcceptedAnswer = question.childContentEntries?.some(answer => answer.accepted) || false
-                const tagNames = question.contentEntryTags?.map(t => t.contentTag?.value).filter(Boolean) || []
+                const tagNames = question.contentEntryTags?.map(t => t.contentTag?.name).filter(Boolean) || []
 
                 return (
                   <button
@@ -444,8 +428,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                               Answered
                             </Badge>
                           )}
-                          <Badge variant={getStatusVariant(question.contentType?.value || '')} className="gba:text-xs">
-                            {question.contentType?.value || 'OPEN'}
+                          <Badge
+                            variant={getStatusVariant(resolveContentTypeName(question.contentType))}
+                            className="gba:text-xs"
+                          >
+                            {resolveContentTypeName(question.contentType) || 'OPEN'}
                           </Badge>
                           {tagNames.slice(0, 3).map(tag => (
                             <Badge key={tag} variant="outline" className="gba:text-xs">
@@ -499,7 +486,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                             )}
                           </div>
                           {(() => {
-                            const entityType = getEntityTypeFromContentGroup(question.contentGroupRef)
+                            const entityType = getEntityTypeFromContentGroup(question.contentGroup)
                             return entityType ? (
                               <AppAction
                                 variant="custom"

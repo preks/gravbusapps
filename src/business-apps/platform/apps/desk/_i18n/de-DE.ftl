@@ -7,11 +7,11 @@ hero-tag-notes = Notizen
 hero-headline = Ihr Inhalt. Gebündelt.
 hero-subtitle = Dokumente erstellen, Tabellen aufbauen und Notizen festhalten. Alles in einem nahtlosen Arbeitsbereich.
 hero-nav-aria-label = Office-Apps
-hero-nav-documents = Doku
+hero-nav-documents = Docs
 hero-nav-spreadsheets = Tabellen
 hero-nav-notes = Notizen
 hero-nav-slides = Folien
-hero-nav-drive = Ablage
+hero-nav-drive = Drive
 hero-nav-spaces = Räume
 hero-nav-emails = Mail
 
@@ -34,6 +34,8 @@ app-slides-title = Folien
 app-slides-description = Präsentationen mit Live-Zusammenarbeit erstellen
 app-whiteboards-title = Whiteboards
 app-whiteboards-description = Zusammenarbeit auf unendlicher Leinwand mit Formen, Diagrammen und Haftnotizen
+app-drive-title = Drive
+app-drive-description = Alle Ihre Dateien an einem Ort organisieren, durchsuchen und teilen
 
 # Quick Actions
 search-placeholder = Dokumente, Tabellen und Notizen durchsuchen...
@@ -43,6 +45,7 @@ search-create-document = Dokument erstellen
 search-create-spreadsheet = Tabelle erstellen
 search-create-note = Notiz erstellen
 search-create-presentation = Präsentation erstellen
+search-create-whiteboard = Whiteboard erstellen
 search-navigate = navigieren
 search-open = öffnen
 search-close = schließen
@@ -62,6 +65,8 @@ type-spreadsheets = Tabellen
 type-notes = Notizen
 type-presentations = Präsentationen
 type-slides = Folien
+type-whiteboard = Whiteboard
+type-whiteboards = Whiteboards
 
 # Relative time
 time-just-now = Gerade eben

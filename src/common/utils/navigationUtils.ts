@@ -46,6 +46,8 @@ export const Navigation = {
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
+  /** Manager / supervisor team salary proposal workspace (compensation planning). */
+  HR_COMPENSATION_MANAGER_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/manager-compensation-planning`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
   HR_ABSENCE_SETUP: `${NAVIGATION_BASE_PATH}/hr/absence/apps/absence-setup`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
@@ -95,6 +97,9 @@ export const Navigation = {
   OFFICE_SPACES: `${NAVIGATION_BASE_PATH}/every-office/spaces`,
   OFFICE_SPREADSHEETS: `${NAVIGATION_BASE_PATH}/every-office/spreadsheets`,
   OFFICE_WHITEBOARDS: `${NAVIGATION_BASE_PATH}/every-office/whiteboards`,
+
+  // Core Apps
+  EVERY_FABRIC: `${NAVIGATION_BASE_PATH}/every-fabric`,
 
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
@@ -155,6 +160,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
+  [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
   [Navigation.HR_ABSENCE_SETUP]: 'hr/absence/apps/absence-setup',
   [`${NAVIGATION_BASE_PATH}/hr/absence/apps/AbsenceSetup`]: 'hr/absence/apps/absence-setup',
@@ -206,12 +212,15 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.OFFICE_SPREADSHEETS]: 'core/office/apps/spreadsheets',
   [Navigation.OFFICE_WHITEBOARDS]: 'core/office/apps/whiteboards',
 
+  // EveryFabric
+  [Navigation.EVERY_FABRIC]: 'core/every-fabric/apps/every-fabric',
+
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',
   [Navigation.CREATE_CONNECT]: 'core/create/apps/newwork-connect',
   [Navigation.CREATE_FUNCTION_MANAGER]: 'core/create/apps/function-manager',
   [Navigation.CREATE_PROMPT_MANAGER]: 'core/create/apps/prompt-manager',
-  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/ai-builder',
+  [Navigation.CREATE_SCREEN_BUILDER]: 'core/create/apps/screen-builder',
   [Navigation.CREATE_AI_BUILDER]: 'core/create/apps/ai-orchestrator',
   [Navigation.CREATE_AI_BUILDER_ADMIN]: 'core/create/apps/ai-builder-admin',
   [Navigation.CREATE_AI_ORCHESTRATOR_ADMIN]: 'core/create/apps/ai-builder-admin',
@@ -323,7 +332,6 @@ export const navigateTo = (
     // Parse URL and add cache-busting parameter
     try {
       const urlObj = new URL(baseTargetUrl, window.location.origin)
-      // Add cache-busting parameter to force content refresh via SPA navigation
       urlObj.searchParams.set('_refresh', Date.now().toString())
       const urlToNavigate = urlObj.pathname + urlObj.search + (urlObj.hash || '')
 

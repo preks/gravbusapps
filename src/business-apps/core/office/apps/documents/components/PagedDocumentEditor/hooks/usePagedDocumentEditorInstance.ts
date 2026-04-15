@@ -121,6 +121,8 @@ export interface UsePagedDocumentEditorInstanceParams {
   documentId?: string
   documentTitle?: string
   initialTitle?: string
+  collaborationBindingSeed?: number
+  onCollaborationFirstRender?: () => void
   editorContent: string
   editorEditable: boolean
   ydoc: import('yjs').Doc
@@ -147,6 +149,8 @@ export function usePagedDocumentEditorInstance({
   documentId,
   documentTitle,
   initialTitle,
+  collaborationBindingSeed = 0,
+  onCollaborationFirstRender,
   editorContent,
   editorEditable,
   ydoc,
@@ -170,12 +174,18 @@ export function usePagedDocumentEditorInstance({
   const isCollaborationMode = Boolean(documentId)
 
   const collaborationExtension = useMemo(
-    () => (documentId ? Collaboration.configure({ document: ydoc }) : null),
-    [documentId, ydoc]
+    () =>
+      documentId
+        ? Collaboration.configure({
+            document: ydoc,
+            onFirstRender: onCollaborationFirstRender
+          })
+        : null,
+    [documentId, collaborationBindingSeed, onCollaborationFirstRender, ydoc]
   )
   const yjsCursorExtension = useMemo(
     () => (documentId ? createYjsCursorExtension(awareness) : null),
-    [documentId, awareness]
+    [documentId, collaborationBindingSeed, awareness]
   )
 
   const headerFooterExtensions = useMemo(
@@ -327,6 +337,7 @@ export function usePagedDocumentEditorInstance({
     isCollaborationMode
       ? [
           documentId,
+          collaborationBindingSeed,
           editorEditable,
           extensions,
           handlePaste,

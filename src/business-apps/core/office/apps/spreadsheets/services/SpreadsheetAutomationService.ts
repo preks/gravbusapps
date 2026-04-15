@@ -18,41 +18,12 @@ import type {
 } from '../types/automation'
 import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
-import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { CUSTOM_FLOW_ENGINE_API_URL, DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
 import { getSpreadsheetBasePath } from '../utils/spreadsheetPaths'
 import { fetchBulkCollectionEntitySelectOptions } from '../utils/entitySelectOptionsResolver'
 
-// Flow engine API base URL for tasks, flows, etc.
-// Develop flow engine uses /api/... (not /api/v1/...) for tasks and flows
-const getFlowEngineApiUrl = () => {
-  const envUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-
-  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-    const normalized = envUrl.trim().replace(/\/+$/, '')
-    // Strip /api/v1 suffix - develop flow engine serves tasks/flows at /api/... not /api/v1/...
-    if (normalized.endsWith('/api/v1')) {
-      return normalized.slice(0, -3) // remove 'v1' (3 chars) -> .../flow-engine/api/
-    }
-    return normalized.includes('/api') ? normalized : `${normalized}/api`
-  }
-
-  if (baseUrl) {
-    const normalized = baseUrl.trim().replace(/\/+$/, '')
-    return `${normalized}/flow-engine/api`
-  }
-
-  if (typeof globalThis.location !== 'undefined') {
-    const { protocol, host } = globalThis.location
-    return `${protocol}//${host}/flow-engine/api`
-  }
-
-  return '/flow-engine/api'
-}
-
-// execute-dynamic lives at /api/templates/execute-dynamic (not under /api/v1) on develop flow engine
-const getExecuteDynamicUrl = () => `${getFlowEngineBaseUrl()}/api/templates/execute-dynamic`
+// execute-dynamic lives at /templates/execute-dynamic on the flow engine API
+const getExecuteDynamicUrl = () => `${CUSTOM_FLOW_ENGINE_API_URL}/templates/execute-dynamic`
 
 const isSpreadsheetAutomationDebugEnabled = (): boolean => {
   try {
@@ -173,7 +144,7 @@ export class SpreadsheetAutomationService {
 
   constructor(accessToken: string, apiBaseUrl?: string) {
     this.accessToken = accessToken
-    this.apiBaseUrl = apiBaseUrl || getFlowEngineApiUrl()
+    this.apiBaseUrl = apiBaseUrl || CUSTOM_FLOW_ENGINE_API_URL
     automationDebug('[SpreadsheetAutomationService] Initialized with API URL:', this.apiBaseUrl)
   }
 
@@ -549,7 +520,7 @@ export class SpreadsheetAutomationService {
     options?: { persistMode?: 'upsert' | 'create-only' }
   ): Promise<string | null> {
     const persistMode = options?.persistMode ?? 'upsert'
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
     const spreadsheetAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
 
     const backendCandidate =
@@ -628,7 +599,7 @@ export class SpreadsheetAutomationService {
     const { automation, recipients } = params
     const executedAt = new Date().toISOString()
 
-    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
 
     let backendId: string
     try {
@@ -1832,7 +1803,7 @@ export class SpreadsheetAutomationService {
   > {
     try {
       // Document-service lists flows and filters by tags (supports bulk_collection + excel_collection).
-      const aggregateUrl = `${getDocumentServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
+      const aggregateUrl = `${DOCUMENT_API_URL.replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
 
       const queryParams = new URLSearchParams({
         spreadsheetId: params.spreadsheetId,
@@ -2451,7 +2422,7 @@ export class SpreadsheetAutomationService {
 
   private async markDocumentRunSubmissionComplete(copyAppId: string): Promise<boolean> {
     try {
-      const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+      const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
       const markRes = await fetch(`${docBase}/automations/runs/submissions/complete`, {
         method: 'POST',
         headers: {

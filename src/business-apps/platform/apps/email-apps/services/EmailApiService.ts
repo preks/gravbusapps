@@ -10,6 +10,10 @@ import {
   parseEmailAssistantPolicy,
   parseEmailAssistantResponse
 } from '../utils/emailAssistantParsers'
+import {
+  normalizeMessageSummaryResult,
+  normalizeThreadSummaryResultSuggestions
+} from '../utils/emailSummarizeSuggestionNormalize'
 import type {
   EmailAccount,
   EmailFolder,
@@ -23,6 +27,7 @@ import type {
   SendEmailRequest,
   ExternalCalendarEvent,
   ThreadSummaryResult,
+  MessageSummaryResult,
   EmailAssistantCapabilities,
   EmailAssistantDraftRequest,
   EmailAssistantPolicy,
@@ -154,9 +159,10 @@ export const EmailApiService = {
   },
 
   async summarizeThread(threadId: string): Promise<ThreadSummaryResult> {
-    return apiRequest<ThreadSummaryResult>(`/emails/threads/${threadId}/summarize`, {
+    const result = await apiRequest<ThreadSummaryResult>(`/emails/threads/${threadId}/summarize`, {
       method: 'POST'
     })
+    return normalizeThreadSummaryResultSuggestions({ ...result, suggestions: result.suggestions ?? [] })
   },
 
   async sendEmail(data: SendEmailRequest): Promise<EmailMessage> {
@@ -204,11 +210,13 @@ export const EmailApiService = {
 
   /**
    * AI-summarize a single email message.
-   * Returns a concise summary suitable for CRM activity descriptions.
+   * Returns summary text plus structured suggestions (tasks, follow-ups, etc.).
    */
-  async summarizeMessage(messageId: string): Promise<string> {
-    const result = await apiRequest<{ summary: string }>(`/emails/messages/${messageId}/summarize`, { method: 'POST' })
-    return result.summary
+  async summarizeMessage(messageId: string): Promise<MessageSummaryResult> {
+    const result = await apiRequest<MessageSummaryResult>(`/emails/messages/${messageId}/summarize`, {
+      method: 'POST'
+    })
+    return normalizeMessageSummaryResult(result)
   },
 
   /**

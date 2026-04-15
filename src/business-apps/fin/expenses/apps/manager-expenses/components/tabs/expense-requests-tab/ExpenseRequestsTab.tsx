@@ -49,7 +49,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string[]>(['PENDING'])
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null)
   const [requestTypeFilter, setRequestTypeFilter] = useState<string[]>([])
   const [effectiveDateRange, setEffectiveDateRange] = useState<DateRange>(null)

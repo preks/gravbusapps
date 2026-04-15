@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
@@ -47,6 +48,8 @@ const CustomerOpportunityStatistics: React.FC<{
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('crm:customer-opportunity-preferences:v1')
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
 
   // State to trigger statistics refresh (re-mounts CustomerOpportunityStatistics via key prop)
@@ -164,6 +167,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
       enableExport
       exportFilenamePrefix="opportunities"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

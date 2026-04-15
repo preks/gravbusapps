@@ -144,17 +144,13 @@ function shouldVirtualizeWindowedChrome(pageBreakEls: HTMLElement[], totalPages:
 }
 
 /**
- * Keep page 1 chrome restorable when page 1 remains mounted but the virtual window omits page 1 in
- * `activePageNumbers`, so `.rm-first-page-header` is not parked (`data-layout-chrome-mounted` / pointer-events).
+ * Keep chrome mounted for every page that still belongs to the mounted window so edge pages do not
+ * fall back to parked placeholder heights while they remain visible.
  */
 export function resolveEffectiveChromeActivePageNumbers(
   viewportModel: Pick<DocumentLayoutViewportModel, 'activePageNumbers' | 'mountedPageNumbers'>
 ): Set<number> {
-  const activePages = new Set(viewportModel.activePageNumbers)
-  if (viewportModel.mountedPageNumbers.includes(1)) {
-    activePages.add(1)
-  }
-  return activePages
+  return new Set([...viewportModel.activePageNumbers, ...viewportModel.mountedPageNumbers])
 }
 
 function resolvePagesToRefresh(

@@ -113,6 +113,11 @@ export class SocketIoYjsProvider {
   private retrySyncTimeout: number | null = null
   private pendingLocalDocUpdates: Uint8Array[] = []
   private pendingLocalAwarenessUpdates: Uint8Array[] = []
+  private pendingRemoteDocUpdates: Uint8Array[] = []
+  private remoteDocFlushTimerId: ReturnType<typeof setTimeout> | null = null
+  private pendingLocalDocFlush: Uint8Array[] = []
+  private localDocFlushTimerId: ReturnType<typeof setTimeout> | null = null
+  private isApplyingRemoteDocUpdate = false
   private readonly syncAckTimeoutMs: number
 
   constructor(options: SocketIoYjsProviderOptions) {
@@ -164,8 +169,18 @@ export class SocketIoYjsProvider {
       window.clearTimeout(this.retrySyncTimeout)
       this.retrySyncTimeout = null
     }
+    if (this.remoteDocFlushTimerId !== null) {
+      clearTimeout(this.remoteDocFlushTimerId)
+      this.remoteDocFlushTimerId = null
+    }
+    if (this.localDocFlushTimerId !== null) {
+      clearTimeout(this.localDocFlushTimerId)
+      this.localDocFlushTimerId = null
+    }
     this.pendingLocalDocUpdates = []
+    this.pendingLocalDocFlush = []
     this.pendingLocalAwarenessUpdates = []
+    this.pendingRemoteDocUpdates = []
 
     this.socket.off('connect', this.handleSocketConnect)
     this.socket.off('yjs_update', this.handleRemoteYjsUpdate)
@@ -185,8 +200,24 @@ export class SocketIoYjsProvider {
     this.synced = next
     this.onSyncedChange?.(next)
 
-    // Flush any local updates that happened before the initial sync completed.
-    if (next && this.pendingLocalDocUpdates.length > 0) {
+    if (!next) {
+      if (this.localDocFlushTimerId !== null) {
+        clearTimeout(this.localDocFlushTimerId)
+        this.localDocFlushTimerId = null
+      }
+      const buffered = this.pendingLocalDocFlush.splice(0)
+      if (buffered.length > 0) {
+        const merged = buffered.length === 1 ? buffered[0] : Y.mergeUpdates(buffered)
+        this.socket.emit('yjs_update', {
+          documentId: this.documentId,
+          entityType: this.entityType,
+          update: uint8ArrayToBase64(merged)
+        })
+      }
+      return
+    }
+
+    if (this.pendingLocalDocUpdates.length > 0) {
       const updates = this.pendingLocalDocUpdates.splice(0)
       updates.forEach(update => {
         this.socket.emit('yjs_update', {
@@ -196,7 +227,7 @@ export class SocketIoYjsProvider {
         })
       })
     }
-    if (next && this.pendingLocalAwarenessUpdates.length > 0) {
+    if (this.pendingLocalAwarenessUpdates.length > 0) {
       const updates = this.pendingLocalAwarenessUpdates.splice(0)
       updates.forEach(update => {
         this.socket.emit('yjs_awareness_update', {
@@ -267,6 +298,7 @@ export class SocketIoYjsProvider {
 
     if (response.status === 'ready') {
       const fragmentLength = this.applyDocState(response.state)
+      this.queueLocalDiffAfterFullSync(response.state)
       await this.onReadyStateApplied?.({
         source: 'sync',
         status: response.status,
@@ -284,6 +316,28 @@ export class SocketIoYjsProvider {
     }
     this.setSynced(true)
     return true
+  }
+
+  /**
+   * After applying a full server snapshot, compute whatever the local ydoc has
+   * that the server state didn't know about (e.g. TipTap's initial empty paragraph,
+   * written to the ydoc before the provider listener was registered) and queue it
+   * for sending so other peers can resolve Yjs predecessor dependencies.
+   */
+  private queueLocalDiffAfterFullSync(serverStateBase64: string): void {
+    try {
+      const serverStateBytes = base64ToUint8Array(serverStateBase64)
+      const tempDoc = new Y.Doc()
+      Y.applyUpdate(tempDoc, serverStateBytes)
+      const serverSV = Y.encodeStateVector(tempDoc)
+      tempDoc.destroy()
+      const localDiff = Y.encodeStateAsUpdate(this.ydoc, serverSV)
+      if (localDiff.length > 2) {
+        this.pendingLocalDocUpdates.push(localDiff)
+      }
+    } catch (error) {
+      console.error('[SocketIoYjsProvider] queueLocalDiffAfterFullSync failed:', error)
+    }
   }
 
   private async flushLayoutAfterBootstrap(): Promise<void> {
@@ -322,11 +376,12 @@ export class SocketIoYjsProvider {
   }
 
   /**
-   * Rich-text entities bootstrap through TipTap's `default` XML fragment.
-   * Whiteboards use arrays/maps only, so waiting for that fragment would stall forever.
+   * Rich-text entities (document, note) bootstrap through TipTap's `default` XML fragment.
+   * Slides and whiteboards use Yjs arrays/maps only and never populate that fragment,
+   * so waiting for it would stall forever and block sync from completing.
    */
   private requiresDefaultXmlBootstrapGuard(): boolean {
-    return this.entityType !== 'whiteboard'
+    return this.entityType === 'document' || this.entityType === 'note'
   }
 
   private async handleBootstrapInitializer(
@@ -414,11 +469,14 @@ export class SocketIoYjsProvider {
   private applyDocState(stateBase64: string): number {
     try {
       const stateBytes = base64ToUint8Array(stateBase64)
-      Y.applyUpdate(this.ydoc, stateBytes, 'remote')
+      this.isApplyingRemoteDocUpdate = true
+      try {
+        Y.applyUpdate(this.ydoc, stateBytes)
+      } finally {
+        this.isApplyingRemoteDocUpdate = false
+      }
       this.onRemoteDocumentChange?.()
-
-      const fragment = this.ydoc.getXmlFragment('default')
-      return fragment.length
+      return this.ydoc.getXmlFragment('default').length
     } catch (error) {
       console.error('[SocketIoYjsProvider] Failed applying doc state:', error)
       return -1
@@ -444,6 +502,7 @@ export class SocketIoYjsProvider {
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
       const fragmentLength = this.applyDocState(event.state)
+      this.queueLocalDiffAfterFullSync(event.state)
       void this.onReadyStateApplied?.({
         source: 'event',
         status: 'ready',
@@ -454,6 +513,37 @@ export class SocketIoYjsProvider {
       }
       this.setSynced(true)
     })
+  }
+
+  private scheduleRemoteDocFlush() {
+    if (this.remoteDocFlushTimerId !== null) return
+    this.remoteDocFlushTimerId = setTimeout(() => {
+      this.remoteDocFlushTimerId = null
+      this.flushRemoteDocUpdates()
+    }, 50)
+  }
+
+  private flushRemoteDocUpdates() {
+    const updates = this.pendingRemoteDocUpdates.splice(0)
+    if (updates.length === 0) return
+    const merged = updates.length === 1 ? updates[0] : Y.mergeUpdates(updates)
+    this.isApplyingRemoteDocUpdate = true
+    try {
+      Y.applyUpdate(this.ydoc, merged)
+    } finally {
+      this.isApplyingRemoteDocUpdate = false
+    }
+    this.onRemoteDocumentChange?.()
+  }
+
+  private flushLocalDocUpdates = () => {
+    this.localDocFlushTimerId = null
+    if (this.destroyed || !this.synced) return
+    const updates = this.pendingLocalDocFlush.splice(0)
+    if (updates.length === 0) return
+    const merged = updates.length === 1 ? updates[0] : Y.mergeUpdates(updates)
+    const updateBase64 = uint8ArrayToBase64(merged)
+    this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
   }
 
   private readonly handleRemoteYjsUpdate = (event: {
@@ -467,7 +557,8 @@ export class SocketIoYjsProvider {
     if (eventEntityType !== this.entityType) return
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
-      this.applyDocState(event.update)
+      this.pendingRemoteDocUpdates.push(base64ToUint8Array(event.update))
+      this.scheduleRemoteDocFlush()
     })
   }
 
@@ -482,15 +573,16 @@ export class SocketIoYjsProvider {
     })
   }
 
-  private handleLocalYjsUpdate = (_update: Uint8Array, origin: unknown) => {
+  private handleLocalYjsUpdate = (_update: Uint8Array) => {
     if (this.destroyed) return
-    if (origin === 'remote') return
+    if (this.isApplyingRemoteDocUpdate) return
 
-    const updateBase64 = uint8ArrayToBase64(_update)
     if (this.synced) {
-      this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
+      this.pendingLocalDocFlush.push(_update)
+      if (this.localDocFlushTimerId === null) {
+        this.localDocFlushTimerId = setTimeout(this.flushLocalDocUpdates, 50)
+      }
     } else {
-      // Buffer until initial sync completes to avoid losing early edits made before ready state arrives.
       this.pendingLocalDocUpdates.push(_update)
     }
     this.onLocalDocumentChange?.()
