@@ -127,7 +127,6 @@ composer-mode-edit-draft = Editează ciorna
 composer-mode-reply = Răspunde
 composer-mode-reply-all = Răspunde la toate
 composer-mode-forward = Trimite mai departe
-composer-mode-edit-draft = Editează ciorna
 composer-from = De la
 composer-to = Către
 composer-cc = Cc
