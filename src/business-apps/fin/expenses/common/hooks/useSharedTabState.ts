@@ -3,6 +3,16 @@ import type { SortingState } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyDropdown } from '../components/CurrencyDropdown'
 
+/** Pushes `contentHeader` to the parent shell when it changes (e.g. statistics strip). */
+export function useSyncContentHeader(
+  contentHeader: React.ReactNode,
+  onContentHeaderChange?: (header: React.ReactNode) => void
+) {
+  useEffect(() => {
+    onContentHeaderChange?.(contentHeader)
+  }, [onContentHeaderChange, contentHeader])
+}
+
 export function useCurrencyInit(
   mostUsedCurrency: string | null | undefined,
   setCurrency: (code: string) => void,

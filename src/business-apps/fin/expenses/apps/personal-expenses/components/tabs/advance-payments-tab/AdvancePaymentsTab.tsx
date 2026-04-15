@@ -1,18 +1,17 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, ReactNode } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
-// import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies';
 import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
-import { PROCESS_COMPLETION_EVENT_NAMES } from '@/business-apps/fin/expenses/common/constants/processCompletionEventNames'
+import { useProcessRefresh } from '@/business-apps/fin/expenses/common/hooks/useProcessRefresh'
+import { useSyncContentHeader } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
 }
 
 const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
-  // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -21,10 +20,12 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [props.accessToken, props.userInfo]
   )
 
-  // Table refresh trigger state
-  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0)
+  const bumpTableRefresh = useCallback(() => {
+    setTableRefreshTrigger(prev => prev + 1)
+  }, [])
+  useProcessRefresh(bumpTableRefresh)
 
-  // Use the enhanced advance payment filters hook
   const {
     searchTerm,
     setSearchTerm,
@@ -42,7 +43,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     filtersVersion
   } = useAdvancePaymentFilters()
 
-  // Create memoized content header with statistics component
   const contentHeader = useMemo(() => {
     const selectedCurrencyRef = getSelectedCurrencyRef(selectedFilters || [], 'Currency:v1:EUR')
     const refreshKey = JSON.stringify({
@@ -71,14 +71,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     filtersVersion
   ])
 
-  // Update the content header when it changes
-  useEffect(() => {
-    if (props.onContentHeaderChange) {
-      props.onContentHeaderChange(contentHeader)
-    }
-  }, [props.onContentHeaderChange, contentHeader])
+  useSyncContentHeader(contentHeader, props.onContentHeaderChange)
 
-  // Handle search term changes from table
   const handleSearchChange = useCallback(
     (term: string) => {
       setSearchTerm(term)
@@ -86,7 +80,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [setSearchTerm]
   )
 
-  // Handle filter changes (enforce single selection for currency)
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       if (filterId.startsWith('currency:')) {
@@ -99,54 +92,9 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [handleDataFilterChange, selectedFilters, setFilters]
   )
 
-  // Note: clearing handled via handleClearAllFiltersNoParams and setFilters([])
-  // Wrapper for clear all filters without parameters (for table clearFilters prop)
   const handleClearAllFiltersNoParams = useCallback(() => {
-    // Use the enhanced setFilters which handles clearing all filters properly
     setFilters([])
   }, [setFilters])
-
-  // Process completion event listener to refresh data
-  useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
-      try {
-        if (event.detail?.resolution === 'success') {
-          // Trigger table refresh by updating a state that forces re-render
-          setTableRefreshTrigger(prev => prev + 1)
-
-          return
-        }
-      } catch (err) {
-        console.error('Error handling process completion:', err)
-      }
-    }
-
-    const handleAllEvents = (event: any) => {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event)
-      }
-    }
-
-    PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
-
-    const originalDispatchEvent = window.dispatchEvent
-    window.dispatchEvent = function (event: Event) {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event)
-      }
-      return originalDispatchEvent.call(this, event)
-    }
-
-    return () => {
-      PROCESS_COMPLETION_EVENT_NAMES.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
-
-      window.dispatchEvent = originalDispatchEvent
-    }
-  }, [])
 
   return (
     <AdvancePaymentsTable

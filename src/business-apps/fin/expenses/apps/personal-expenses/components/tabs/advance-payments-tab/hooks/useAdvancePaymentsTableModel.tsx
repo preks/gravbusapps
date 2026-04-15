@@ -10,9 +10,13 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useGetAdvancePayments, type AdvancePayment } from '../../../../hooks/useGetAdvancePayments'
 import { useAdvancePaymentCurrencies } from '../../../../hooks/useAdvancePaymentCurrencies'
 import { resolveSelectedCurrencyCode, applyCurrencyChange } from '../../../../utils/tableUtils'
+import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
 import { createPersonalAdvancePaymentFilterConfig } from '../config/advancePaymentFilterConfig'
-import { advancePaymentDefaultVisibleColumnIds } from '../config/advancePaymentAvailableColumns'
+import {
+  advancePaymentAvailableColumns,
+  advancePaymentDefaultVisibleColumnIds
+} from '../config/advancePaymentAvailableColumns'
 import { createAdvancePaymentColumns } from '../columns/advancePaymentColumns'
 import { AdvancePaymentRowActions } from '../components/AdvancePaymentRowActions'
 import type { AdvancePaymentsDataBodyProps } from '../components/AdvancePaymentsDataBody'
@@ -119,7 +123,8 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     [props.selectedFilters, props.onFilterChange, props.setAmountRange, props.setAdvanceRange]
   )
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...advancePaymentDefaultVisibleColumnIds])
+  const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...advancePaymentDefaultVisibleColumnIds])
+  const visibleColumnIds = useVisibleColumns(rawVisibleColumns, advancePaymentAvailableColumns)
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(props.selectedFilters || [], currencyStats),
@@ -420,8 +425,8 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       onSortingChange: handleSortingChange,
       primaryAction,
       secondaryActions,
-      visibleColumns,
-      onVisibleColumnsChange: setVisibleColumns,
+      visibleColumns: visibleColumnIds,
+      onVisibleColumnsChange: setRawVisibleColumns,
       filterSheetTitle: tPersonal('filter-advance-payments-title'),
       filterSheetDescription: tPersonal('filter-advance-payments-description'),
       items: items || [],
@@ -445,7 +450,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     handleSortingChange,
     primaryAction,
     secondaryActions,
-    visibleColumns,
+    visibleColumnIds,
     tPersonal,
     items,
     columns,
