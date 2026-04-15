@@ -12189,20 +12189,20 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 10853,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10853/",
-    "chunkJsBytes": 1208137,
+    "bitbucketBuildNumber": 10857,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10857/",
+    "chunkJsBytes": 1210955,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1549373,
-        "gzip": 331605,
+        "rendered": 1557784,
+        "gzip": 333422,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 136471,
-            "gzip": 26181
+            "rendered": 142018,
+            "gzip": 27255
           },
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/components/automations/AutomationWizard.tsx",
@@ -87910,20 +87910,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10853,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10853/",
-    "chunkJsBytes": 1803457,
+    "bitbucketBuildNumber": 10857,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10857/",
+    "chunkJsBytes": 1804061,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1496471,
-        "gzip": 88978,
+        "rendered": 1497121,
+        "gzip": 89225,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1496471,
-            "gzip": 88978
+            "rendered": 1497121,
+            "gzip": 89225
           }
         ]
       },
@@ -100325,20 +100325,20 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 10853,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10853/",
-    "chunkJsBytes": 1208142,
+    "bitbucketBuildNumber": 10857,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10857/",
+    "chunkJsBytes": 1210960,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1549373,
-        "gzip": 331605,
+        "rendered": 1557784,
+        "gzip": 333422,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 136471,
-            "gzip": 26181
+            "rendered": 142018,
+            "gzip": 27255
           },
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/components/automations/AutomationWizard.tsx",
@@ -101547,7 +101547,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-15T18:46:23.339Z",
+    "generatedAt": "2026-04-15T19:20:24.892Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
