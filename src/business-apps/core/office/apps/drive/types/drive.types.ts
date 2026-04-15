@@ -1,4 +1,11 @@
-export type DriveItemType = 'document' | 'note' | 'spreadsheet_app' | 'slide' | 'drive_file' | 'drive_folder'
+export type DriveItemType =
+  | 'document'
+  | 'note'
+  | 'spreadsheet_app'
+  | 'slide'
+  | 'whiteboard'
+  | 'drive_file'
+  | 'drive_folder'
 
 export type DriveSection = 'my-drive' | 'shared' | 'recent' | 'favorites' | 'trash'
 
@@ -77,6 +84,14 @@ export interface DriveSearchResult {
   updatedAt: string
 }
 
+export interface TrashedDriveItemDetail {
+  entityType: DriveItemType
+  entityId: string
+  name: string
+  trashedAt: string
+  autoDeleteAt: string
+}
+
 export interface DriveFavorite {
   id: string
   userId: string
@@ -131,6 +146,8 @@ export function getItemIcon(type: DriveItemType): string {
       return 'Presentation'
     case 'drive_file':
       return 'File'
+    case 'whiteboard':
+      return 'Scribble'
     case 'drive_folder':
       return 'Folder'
     default:
@@ -148,6 +165,8 @@ export function getItemLabel(type: DriveItemType): string {
       return 'Spreadsheet'
     case 'slide':
       return 'Slides'
+    case 'whiteboard':
+      return 'Whiteboard'
     case 'drive_file':
       return 'File'
     case 'drive_folder':

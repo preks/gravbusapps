@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'editor'
+type HubView = 'list' | 'editor' | 'trash'
 type SidebarSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'archived'
 
 export interface UseNoteAppsHubUrlStateParams {
@@ -111,6 +111,12 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
     loadAttemptedRef.current = noteId
     initialNoteIdRef.current = null
     initialViewRef.current = null
+    if (view === 'trash') {
+      setSelectedNoteId(noteId)
+      setCurrentView('trash')
+      return
+    }
+
     loadNoteById(noteId).then(note => {
       if (!note) {
         loadAttemptedRef.current = null
@@ -184,6 +190,12 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
       }
 
       if (state?.noteId) {
+        if (state.view === 'trash') {
+          setSelectedNoteId(state.noteId)
+          setCurrentView('trash')
+          return
+        }
+
         loadNoteById(state.noteId).then(note => {
           if (!note) return
           setSelectedNoteId(state.noteId!)

@@ -45,6 +45,7 @@ sh-tab-tasks = My tasks
 sh-tab-recent = Recent
 sh-tab-automations = Automations
 sh-tab-favorites = Favorites
+sh-tab-trash = Trash
 
 # Upload view
 upload-cancel = Cancel

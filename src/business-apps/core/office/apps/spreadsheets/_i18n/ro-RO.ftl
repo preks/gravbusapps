@@ -45,6 +45,7 @@ sh-tab-tasks = Sarcinile mele
 sh-tab-recent = Recente
 sh-tab-automations = Automatizări
 sh-tab-favorites = Favorite
+sh-tab-trash = Coș de gunoi
 
 # Upload view
 upload-cancel = Anulare

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor'
+type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor' | 'trash'
 type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
 
 export interface UseSpreadsheetAppsHubUrlStateParams {
@@ -114,6 +114,12 @@ export function useSpreadsheetAppsHubUrlState(
     initialViewRef.current = null
 
     const loadFromUrl = async () => {
+      if (view === 'trash') {
+        setSelectedAppId(appId)
+        setCurrentView('trash')
+        return
+      }
+
       const decodedFilePath = filePath ? decodeURIComponent(filePath) : undefined
       let app = await loadAppById(appId, decodedFilePath)
 
@@ -177,6 +183,12 @@ export function useSpreadsheetAppsHubUrlState(
       }
 
       if (state?.appId) {
+        if (state.view === 'trash') {
+          setSelectedAppId(state.appId)
+          setCurrentView('trash')
+          return
+        }
+
         loadAppById(state.appId).then(app => {
           if (!app) {
             onLoadFailed?.(state.appId)

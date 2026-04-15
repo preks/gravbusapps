@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates'
-type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates' | 'trash'
+type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'trash'
 
 export interface UseDocumentAppsHubUrlStateParams {
   currentView: HubView
   currentDocumentId: string | null
   isLoadingDocument: boolean
-  loadDocumentById: (id: string) => Promise<unknown | null>
+  loadDocumentById: (id: string) => Promise<{ trashedAt?: string | null } | null>
   setCurrentView: (view: HubView) => void
   setSelectedDocumentId: (id: string | null) => void
   activeSection: SidebarSection
@@ -16,7 +16,7 @@ export interface UseDocumentAppsHubUrlStateParams {
 }
 
 export interface UseDocumentAppsHubUrlStateReturn {
-  updateUrl: (docId: string | null, view?: HubView) => void
+  updateUrl: (docId: string | null, view?: HubView, sectionOverride?: SidebarSection | null) => void
   resetLoadAttempt: () => void
 }
 
@@ -50,8 +50,9 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
   const [urlSearch, setUrlSearch] = useState(window.location.search)
 
   const updateUrl = useCallback(
-    (docId: string | null, view?: HubView) => {
+    (docId: string | null, view?: HubView, sectionOverride?: SidebarSection | null) => {
       const urlParams = new URLSearchParams(window.location.search)
+      const nextSection = sectionOverride === undefined ? activeSection : sectionOverride
       if (docId) {
         urlParams.set('docId', docId)
         if (view) urlParams.set('view', view)
@@ -60,15 +61,15 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
         urlParams.delete('view')
       }
       // Always preserve section in URL (even when no document is selected)
-      if (activeSection && activeSection !== 'my-documents') {
-        urlParams.set('section', activeSection)
+      if (nextSection && nextSection !== 'my-documents') {
+        urlParams.set('section', nextSection)
       } else {
         urlParams.delete('section')
       }
       const newUrl = urlParams.toString()
         ? `${window.location.pathname}?${urlParams.toString()}`
         : window.location.pathname
-      window.history.pushState({ docId, view, section: activeSection }, '', newUrl)
+      window.history.pushState({ docId, view, section: nextSection ?? undefined }, '', newUrl)
     },
     [activeSection]
   )
@@ -113,6 +114,18 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
     loadAttemptedRef.current = docId
     initialDocIdRef.current = null
     initialViewRef.current = null
+    if (view === 'trash') {
+      loadDocumentById(docId).then(doc => {
+        if (!doc) {
+          loadAttemptedRef.current = null
+          return
+        }
+        setSelectedDocumentId(docId)
+        setCurrentView(doc.trashedAt ? 'trash' : 'editor')
+      })
+      return
+    }
+
     loadDocumentById(docId).then(doc => {
       if (!doc) {
         loadAttemptedRef.current = null
@@ -187,6 +200,15 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
       }
 
       if (state?.docId) {
+        if (state.view === 'trash') {
+          loadDocumentById(state.docId).then(doc => {
+            if (!doc) return
+            setSelectedDocumentId(state.docId!)
+            setCurrentView(doc.trashedAt ? 'trash' : 'editor')
+          })
+          return
+        }
+
         loadDocumentById(state.docId).then(doc => {
           if (!doc) return
           setSelectedDocumentId(state.docId!)

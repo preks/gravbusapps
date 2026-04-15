@@ -7,7 +7,7 @@ dh-tab-shared = Shared
 dh-tab-templates = Templates
 dh-tab-favorites = Favorites
 dh-tab-recent = Recent
-dh-tab-archived = Archived
+dh-tab-trash = Trash
 
 # Sidebar (legacy keys kept for compatibility)
 sidebar-back-to-desk = Back to Desk
@@ -22,7 +22,7 @@ sidebar-shared = Shared with me
 sidebar-templates = Templates
 sidebar-favorites = Favorites
 sidebar-recent = Recent
-sidebar-archived = Archived
+sidebar-trash = Trash
 sidebar-storage = Storage
 sidebar-storage-cloud = Cloud storage
 sidebar-storage-local = Local storage
@@ -47,9 +47,11 @@ header-sort = Sort
 header-search-placeholder = Search documents...
 header-refresh = Refresh
 sort-name = Name
+sort-trashed = Trashed on
 sort-modified = Modified
 sort-created = Created
 table-owner = Owner
+table-trashed = Trashed on
 menu-open = Open
 menu-share = Share
 menu-manage-sharing = Manage sharing
@@ -58,7 +60,12 @@ menu-duplicate = Duplicate
 menu-send-for-approval = Send for Approval
 menu-remove-favorite = Remove from favorites
 menu-add-favorite = Add to favorites
-menu-delete = Delete
+menu-delete = Move to trash
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{$name}" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = {$count} items will be moved to trash. You can restore them within 30 days.
+delete-confirm-action = Move to trash
+delete-confirm-cancel = Cancel
 
 # Upload and templates
 common-cancel = Cancel
@@ -75,8 +82,8 @@ empty-favorites-title = No favorites yet
 empty-favorites-description = Star your frequently used documents to see them here.
 empty-shared-title = Nothing shared with you
 empty-shared-description = When someone shares a document with you, it will appear here.
-empty-archived-title = No archived documents
-empty-archived-description = Archived documents will appear here.
+empty-trash-title = No trashed documents
+empty-trash-description = Documents moved to trash will appear here.
 empty-default-title = No documents yet
 empty-default-description = Create your first document to get started.
 empty-create-document = Create Document
@@ -92,12 +99,14 @@ title-untitled = Untitled
 title-untitled-document = Untitled Document
 
 # Toasts and confirmations
-confirm-delete = Are you sure you want to delete this document?
+confirm-delete = Are you sure you want to move this document to trash?
 toast-duplicated = Document duplicated
 toast-removed-favorites = Removed from favorites
 toast-added-favorites = Added to favorites
 toast-link-copied = Link copied to clipboard
 toast-pdf-uploaded = PDF uploaded successfully
+toast-restored = Document restored
+toast-restore-failed = Failed to restore document
 
 # Shared tooltip
 shared-with-count = Shared with { $count } { $count ->
@@ -127,6 +136,13 @@ editor-status-saved-now = Saved just now
 editor-status-saved-minute = Saved 1 minute ago
 editor-status-saved-minutes = Saved { $count } minutes ago
 editor-status-saved-at = Saved at { $time }
+trashed-readonly-title = This document is in trash
+trashed-readonly-description = "{ $title }" is in trash and opens in view-only mode until it is restored.
+trashed-readonly-owner-note = To edit this document again, take it out of trash.
+trashed-readonly-shared-note = To edit this document again, ask the owner to take it out of trash.
+trashed-readonly-go-home = Go to Docs home screen
+trashed-readonly-restore = Take out of trash
+trashed-readonly-restoring = Restoring...
 
 # PDF viewer
 pdf-back = Back
@@ -1045,7 +1061,7 @@ preview-card-status-saved = Saved
 preview-card-status-pending = Pending Approval
 preview-card-status-approved = Approved
 preview-card-status-rejected = Rejected
-preview-card-status-archived = Archived
+preview-card-status-archived = Trash
 preview-card-just-now = Just now
 preview-card-minutes-ago = { $count } minutes ago
 preview-card-hour-ago = 1 hour ago
@@ -1059,7 +1075,7 @@ preview-card-export = Export
 preview-card-share = Share
 preview-card-manage-sharing = Manage Sharing
 preview-card-send-approval = Send for Approval
-preview-card-delete = Delete
+preview-card-delete = Move to trash
 preview-card-words = { $count } words
 preview-card-awaiting = Awaiting approval from { $count } { $count ->
   [one] person
@@ -1153,8 +1169,8 @@ doc-apps-error-load-document = Failed to load document
 doc-apps-toast-document-created = Document created successfully
 doc-apps-toast-create-failed = Failed to create document
 doc-apps-toast-save-failed = Failed to save document
-doc-apps-toast-document-deleted = Document deleted
-doc-apps-toast-delete-failed = Failed to delete document
+doc-apps-toast-document-deleted = Document moved to trash
+doc-apps-toast-delete-failed = Failed to move document to trash
 doc-apps-toast-document-duplicated = Document duplicated
 doc-apps-toast-duplicate-failed = Failed to duplicate document
 doc-apps-toast-share-success = Document shared successfully

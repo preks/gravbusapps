@@ -45,6 +45,7 @@ sh-tab-tasks = Meine Aufgaben
 sh-tab-recent = Zuletzt verwendet
 sh-tab-automations = Automatisierungen
 sh-tab-favorites = Favoriten
+sh-tab-trash = Papierkorb
 
 # Upload view
 upload-cancel = Abbrechen

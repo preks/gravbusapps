@@ -20,6 +20,8 @@ import { useResizableSidebar } from './hooks/useResizableSidebar'
 import { useNoteTreeDragDrop } from './hooks/useNoteTreeDragDrop'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
+import { OfficeTrashList } from '../shared/components/OfficeTrashList'
+import { OfficeTrashStateView } from '../shared/components/OfficeTrashStateView'
 
 import { NoteApiService } from './services/NoteApiService'
 import type { NoteSummary, CreateNoteInput, NoteColor, NoteTreeNode } from './types'
@@ -29,7 +31,7 @@ export interface NoteAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'editor'
+type HubView = 'list' | 'editor' | 'trash'
 
 const QUICK_ACCESS_TO_SECTION: Record<QuickAccessSection, string> = {
   'all-notes': 'my-notes',
@@ -352,6 +354,16 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       }
     },
     [loadNote, updateUrl, noteTree]
+  )
+
+  const handleOpenTrashedNote = useCallback(
+    (id: string) => {
+      setSelectedNoteId(id)
+      noteTree.setSelectedId(id)
+      setCurrentView('trash')
+      updateUrl(id, 'trash')
+    },
+    [noteTree, updateUrl]
   )
 
   const handleOpenFolder = useCallback(
@@ -707,6 +719,56 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       onResizeStart={sidebar.handleMouseDown}
     />
   ) : null
+
+  if (currentView === 'trash' && selectedNoteId) {
+    return (
+      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+        {sidebarElement}
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:p-6">
+          <OfficeTrashStateView
+            accessToken={accessToken}
+            entityType="note"
+            entityId={selectedNoteId}
+            title="This note is in trash"
+            description="Trashed notes are read-only until you restore them. You can restore it now or delete it permanently."
+            onBack={handleBack}
+            onRestoreComplete={async () => {
+              setSelectedNoteId(null)
+              setCurrentView('list')
+              updateUrl(null)
+              await refreshNotes()
+            }}
+            onDeleteComplete={() => {
+              setSelectedNoteId(null)
+              setCurrentView('list')
+              updateUrl(null)
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (currentView === 'list' && activeSection === 'archived') {
+    return (
+      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
+        {sidebarElement}
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:p-6">
+          <OfficeTrashList
+            accessToken={accessToken}
+            entityType="note"
+            emptyTitle="No trashed notes"
+            emptyDescription="Notes moved to trash will appear here."
+            onOpenItem={item => handleOpenTrashedNote(item.id)}
+            onItemsChanged={() => {
+              void refreshNotes()
+              noteTree.loadTree()
+            }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   // Editor view
   if (currentView === 'editor' && currentNote) {

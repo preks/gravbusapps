@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'editor'
-type SidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'archived'
+type HubView = 'list' | 'editor' | 'trash'
+type SidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'trash'
 
 export interface UseSlidesHubUrlStateParams {
   currentView: HubView
@@ -108,6 +108,16 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     loadAttemptedRef.current = slideId
     initialSlideIdRef.current = null
     initialViewRef.current = null
+    if (view === 'trash') {
+      if (!initialLoadCompleteRef.current) {
+        initialLoadCompleteRef.current = true
+        onInitialLoadComplete?.()
+      }
+      setSelectedSlideId(slideId)
+      setCurrentView('trash')
+      return
+    }
+
     loadSlideById(slideId).then(slide => {
       if (!initialLoadCompleteRef.current) {
         initialLoadCompleteRef.current = true
@@ -160,6 +170,12 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
       }
 
       if (state?.slideId) {
+        if (state.view === 'trash') {
+          setSelectedSlideId(state.slideId)
+          setCurrentView('trash')
+          return
+        }
+
         loadSlideById(state.slideId).then(slide => {
           if (!slide) return
           setSelectedSlideId(state.slideId!)

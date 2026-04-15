@@ -67,6 +67,8 @@ export function mapApiDocumentToDocument(apiDoc: RecordData): Document {
     createdAt: apiDoc.createdAt as string,
     updatedAt: apiDoc.updatedAt as string,
     createdBy: apiDoc.ownerId as string,
+    spaceId: (apiDoc.spaceId as string | null | undefined) ?? null,
+    trashedAt: (apiDoc.trashedAt as string | null | undefined) ?? null,
     version: (apiDoc.currentVersion as number) || 1,
     versionHistory: [],
     formatting: apiDoc.formatting as Document['formatting'],
@@ -107,6 +109,8 @@ export function mapApiDocToSummary(doc: RecordData): DocumentSummary {
     createdAt: doc.createdAt as string,
     updatedAt: doc.updatedAt as string,
     createdBy: doc.ownerId as string,
+    spaceId: (doc.spaceId as string | null | undefined) ?? null,
+    trashedAt: (doc.trashedAt as string | null | undefined) ?? null,
     wordCount: (doc.wordCount as number) || 0,
     approvalStatus: (doc.status === 'pending_approval'
       ? 'pending'
@@ -453,6 +457,19 @@ export async function getDocumentById(
     return mapApiDocumentToDocument(document)
   } catch {
     return null
+  }
+}
+
+export async function getDocumentForOpenById(
+  officeClient: OfficeClient,
+  id: string,
+  options?: { fresh?: boolean }
+): Promise<Document | null> {
+  try {
+    const document = await officeClient.documents.getTrashedPreview<RecordData>(id)
+    return mapApiDocumentToDocument(document)
+  } catch {
+    return getDocumentById(officeClient, id, options)
   }
 }
 

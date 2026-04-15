@@ -3,7 +3,7 @@ import type { SlideSummary } from '../types'
 
 export type SlideHubSortBy = 'name' | 'modified' | 'created'
 export type SlideHubSortOrder = 'asc' | 'desc'
-export type SlideHubSidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'archived'
+export type SlideHubSidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'trash'
 
 export interface UseSlidesHubFilteringParams {
   slides: SlideSummary[]

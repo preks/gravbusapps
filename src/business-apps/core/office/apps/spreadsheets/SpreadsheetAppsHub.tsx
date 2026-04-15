@@ -77,6 +77,8 @@ import { ShareAppDialog } from './components/ShareAppDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { OfficeTrashStateView } from '@/business-apps/platform/apps/shared/components/OfficeTrashStateView'
 
 // Hooks
 import { useSpreadsheetApps } from './hooks/useSpreadsheetApps'
@@ -105,7 +107,7 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'viewer' | 'editor'
+type HubView = 'list' | 'upload' | 'viewer' | 'editor' | 'trash'
 type SidebarSection = SpreadsheetSection
 const TASK_DEBUG_PREFIX = '[SpreadsheetTasksDebug]'
 
@@ -797,6 +799,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [loadApp, updateUrl, apps]
   )
 
+  const handleOpenTrashedApp = useCallback(
+    (id: string) => {
+      setSelectedAppId(id)
+      setCurrentView('trash')
+      updateUrl(id, 'trash')
+    },
+    [updateUrl]
+  )
+
   const handleEditApp = useCallback(
     async (id: string) => {
       const appSummary = apps.find(a => a.id === id)
@@ -1392,6 +1403,73 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         </DropdownMenuContent>
       </DropdownMenu>
     )
+
+    if (currentView === 'trash' && selectedAppId) {
+      return (
+        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+          <SpreadsheetHero
+            activeSection={activeSection as SpreadsheetSection}
+            onSectionChange={s => setActiveSection(s as SidebarSection)}
+            tabBadges={heroTabBadges}
+            newButton={heroNewButton}
+            t={t}
+            data-testid={`${testId}-hero`}
+          />
+          <main className="gba:flex-1 gba:overflow-auto gba:p-6">
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+              <OfficeTrashStateView
+                accessToken={accessToken}
+                entityType="spreadsheet_app"
+                entityId={selectedAppId}
+                title="This spreadsheet is in trash"
+                description="Trashed spreadsheets are read-only until you restore them. You can restore it now or delete it permanently."
+                onBack={handleBack}
+                onRestoreComplete={async () => {
+                  setSelectedAppId(null)
+                  setCurrentView('list')
+                  updateUrl(null)
+                  await refreshApps()
+                }}
+                onDeleteComplete={() => {
+                  setSelectedAppId(null)
+                  setCurrentView('list')
+                  updateUrl(null)
+                }}
+              />
+            </div>
+          </main>
+        </div>
+      )
+    }
+
+    if (currentView === 'list' && activeSection === 'trash') {
+      return (
+        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+          <SpreadsheetHero
+            activeSection={activeSection as SpreadsheetSection}
+            onSectionChange={s => setActiveSection(s as SidebarSection)}
+            tabBadges={heroTabBadges}
+            newButton={heroNewButton}
+            t={t}
+            data-testid={`${testId}-hero`}
+          />
+          <main className="gba:flex-1 gba:overflow-auto gba:p-6">
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+              <OfficeTrashList
+                accessToken={accessToken}
+                entityType="spreadsheet_app"
+                emptyTitle="No trashed spreadsheets"
+                emptyDescription="Spreadsheets moved to trash will appear here."
+                onOpenItem={item => handleOpenTrashedApp(item.id)}
+                onItemsChanged={() => {
+                  void refreshApps()
+                }}
+              />
+            </div>
+          </main>
+        </div>
+      )
+    }
 
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>

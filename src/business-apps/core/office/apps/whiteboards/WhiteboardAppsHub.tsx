@@ -43,6 +43,8 @@ import { WhiteboardEditorWithAi } from './components/WhiteboardEditorWithAi'
 import { ShareWhiteboardDialog } from './components/ShareWhiteboardDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { RenameWhiteboardDialog } from './components/RenameWhiteboardDialog'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { OfficeTrashStateView } from '@/business-apps/platform/apps/shared/components/OfficeTrashStateView'
 import translations from './_i18n'
 import type { WhiteboardSummary } from './types'
 
@@ -50,14 +52,22 @@ export interface WhiteboardAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'editor'
-type SidebarSection = 'my-whiteboards' | 'shared' | 'favorites' | 'recent'
+type HubView = 'list' | 'editor' | 'trash'
+type SidebarSection = 'my-whiteboards' | 'shared' | 'favorites' | 'recent' | 'trash'
 
 function readWhiteboardIdFromUrl(): string | null {
   try {
     return new URLSearchParams(window.location.search).get('whiteboardId')
   } catch {
     return null
+  }
+}
+
+function readWhiteboardViewFromUrl(): HubView {
+  try {
+    return new URLSearchParams(window.location.search).get('view') === 'trash' ? 'trash' : 'editor'
+  } catch {
+    return 'editor'
   }
 }
 
@@ -83,10 +93,13 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
   const { t } = useTranslation(translations)
 
   const wbFromUrlOnMount = readWhiteboardIdFromUrl()
-  const [currentView, setCurrentView] = useState<HubView>(() => (wbFromUrlOnMount ? 'editor' : 'list'))
+  const initialView = wbFromUrlOnMount ? readWhiteboardViewFromUrl() : 'list'
+  const [currentView, setCurrentView] = useState<HubView>(() => initialView)
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeSection, setActiveSection] = useState<SidebarSection>('my-whiteboards')
+  const [activeSection, setActiveSection] = useState<SidebarSection>(() =>
+    initialView === 'trash' ? 'trash' : 'my-whiteboards'
+  )
   const [selectedWhiteboardId, setSelectedWhiteboardId] = useState<string | null>(() => wbFromUrlOnMount)
   const [sortBy] = useState<'updatedAt' | 'createdAt' | 'title'>('updatedAt')
   const [sortOrder] = useState<'ASC' | 'DESC'>('DESC')
@@ -136,6 +149,12 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
   const handleOpen = useCallback((id: string) => {
     setSelectedWhiteboardId(id)
     setCurrentView('editor')
+  }, [])
+
+  const handleOpenTrashedWhiteboard = useCallback((id: string) => {
+    setSelectedWhiteboardId(id)
+    setActiveSection('trash')
+    setCurrentView('trash')
   }, [])
 
   const handleBack = useCallback(() => {
@@ -193,6 +212,127 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
     )
   }
 
+  if (currentView === 'trash' && selectedWhiteboardId) {
+    return (
+      <div className="gba:flex gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
+        <div className="gba:w-56 gba:border-r gba:border-border gba:bg-card gba:flex gba:flex-col gba:p-3 gba:gap-1">
+          <Button
+            className="gba:w-full gba:justify-start gba:mb-4"
+            onClick={handleCreate}
+            data-testid={`${testId}-create`}
+          >
+            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+            {t('whiteboard-create')}
+          </Button>
+
+          {(
+            [
+              { key: 'my-whiteboards', icon: Home, label: t('whiteboard-my-whiteboards') },
+              { key: 'shared', icon: Users, label: t('whiteboard-shared-with-me') },
+              { key: 'favorites', icon: Star, label: t('whiteboard-favorites') },
+              { key: 'recent', icon: Clock, label: t('whiteboard-recent') },
+              { key: 'trash', icon: Trash2, label: 'Trash' }
+            ] as const
+          ).map(item => (
+            <Button
+              key={item.key}
+              variant={activeSection === item.key ? 'secondary' : 'ghost'}
+              className="gba:w-full gba:justify-start"
+              onClick={() => setActiveSection(item.key)}
+              data-testid={`${testId}-sidebar-${item.key}`}
+            >
+              <item.icon className="gba:h-4 gba:w-4 gba:mr-2" />
+              {item.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:border-border">
+            <h1 className="gba:text-xl gba:font-semibold">{t('whiteboard-hub-title')}</h1>
+          </div>
+
+          <main className="gba:flex-1 gba:overflow-auto gba:p-6">
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+              <OfficeTrashStateView
+                accessToken={accessToken}
+                entityType="whiteboard"
+                entityId={selectedWhiteboardId}
+                title="This whiteboard is in trash"
+                description="Trashed whiteboards are read-only until you restore them. You can restore it now or delete it permanently."
+                onBack={handleBack}
+                onRestoreComplete={async () => {
+                  setSelectedWhiteboardId(null)
+                  setCurrentView('list')
+                  await refresh()
+                }}
+                onDeleteComplete={() => {
+                  setSelectedWhiteboardId(null)
+                  setCurrentView('list')
+                }}
+              />
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  }
+
+  if (activeSection === 'trash') {
+    return (
+      <div className="gba:flex gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
+        <div className="gba:w-56 gba:border-r gba:border-border gba:bg-card gba:flex gba:flex-col gba:p-3 gba:gap-1">
+          <Button
+            className="gba:w-full gba:justify-start gba:mb-4"
+            onClick={handleCreate}
+            data-testid={`${testId}-create`}
+          >
+            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+            {t('whiteboard-create')}
+          </Button>
+
+          {(
+            [
+              { key: 'my-whiteboards', icon: Home, label: t('whiteboard-my-whiteboards') },
+              { key: 'shared', icon: Users, label: t('whiteboard-shared-with-me') },
+              { key: 'favorites', icon: Star, label: t('whiteboard-favorites') },
+              { key: 'recent', icon: Clock, label: t('whiteboard-recent') },
+              { key: 'trash', icon: Trash2, label: 'Trash' }
+            ] as const
+          ).map(item => (
+            <Button
+              key={item.key}
+              variant={activeSection === item.key ? 'secondary' : 'ghost'}
+              className="gba:w-full gba:justify-start"
+              onClick={() => setActiveSection(item.key)}
+              data-testid={`${testId}-sidebar-${item.key}`}
+            >
+              <item.icon className="gba:h-4 gba:w-4 gba:mr-2" />
+              {item.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
+          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:border-border">
+            <h1 className="gba:text-xl gba:font-semibold">{t('whiteboard-hub-title')}</h1>
+          </div>
+
+          <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
+            <OfficeTrashList
+              accessToken={accessToken}
+              entityType="whiteboard"
+              emptyTitle="No trashed whiteboards"
+              emptyDescription="Whiteboards moved to trash will appear here."
+              onOpenItem={item => handleOpenTrashedWhiteboard(item.id)}
+              onItemsChanged={refresh}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:flex gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
@@ -211,7 +351,8 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
             { key: 'my-whiteboards', icon: Home, label: t('whiteboard-my-whiteboards') },
             { key: 'shared', icon: Users, label: t('whiteboard-shared-with-me') },
             { key: 'favorites', icon: Star, label: t('whiteboard-favorites') },
-            { key: 'recent', icon: Clock, label: t('whiteboard-recent') }
+            { key: 'recent', icon: Clock, label: t('whiteboard-recent') },
+            { key: 'trash', icon: Trash2, label: 'Trash' }
           ] as const
         ).map(item => (
           <Button

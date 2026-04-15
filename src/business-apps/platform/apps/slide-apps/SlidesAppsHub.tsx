@@ -57,6 +57,8 @@ import {
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { OfficeTrashStateView } from '@/business-apps/platform/apps/shared/components/OfficeTrashStateView'
 import { SlidesHero } from './components/SlidesHero'
 import type { SlideSection } from './components/SlidesHero'
 import { useSlides } from './hooks/useSlides'
@@ -84,7 +86,7 @@ export interface SlidesAppsHubProps extends BusinessAppContextProps {
 }
 
 type ViewMode = 'grid' | 'list'
-type HubView = 'list' | 'editor'
+type HubView = 'list' | 'editor' | 'trash'
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -294,6 +296,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       }
     },
     [loadSlide, updateUrl]
+  )
+
+  const handleOpenTrashedSlide = useCallback(
+    (id: string) => {
+      setSelectedSlideId(id)
+      setCurrentView('trash')
+      updateUrl(id, 'trash')
+    },
+    [updateUrl]
   )
 
   /** Go back to list or return URL */
@@ -560,6 +571,69 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       </DropdownMenuContent>
     </DropdownMenu>
   )
+
+  if (currentView === 'trash' && selectedSlideId) {
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        <SlidesHero
+          activeSection={activeSection as SlideSection}
+          onSectionChange={s => setActiveSection(s as SlideHubSidebarSection)}
+          newButton={heroNewButton}
+          t={t}
+          data-testid={`${testId}-hero`}
+        />
+        <main className="gba:flex-1 gba:overflow-auto gba:p-6">
+          <OfficeTrashStateView
+            accessToken={accessToken ?? ''}
+            entityType="slide"
+            entityId={selectedSlideId}
+            title="This slide deck is in trash"
+            description="Trashed slide decks are read-only until you restore them. You can restore it now or delete it permanently."
+            onBack={handleBack}
+            onRestoreComplete={async () => {
+              setSelectedSlideId(null)
+              setCurrentView('list')
+              updateUrl(null)
+              await refreshSlides()
+            }}
+            onDeleteComplete={() => {
+              setSelectedSlideId(null)
+              setCurrentView('list')
+              updateUrl(null)
+            }}
+          />
+        </main>
+      </div>
+    )
+  }
+
+  if (currentView === 'list' && activeSection === 'trash') {
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        <SlidesHero
+          activeSection={activeSection as SlideSection}
+          onSectionChange={s => setActiveSection(s as SlideHubSidebarSection)}
+          newButton={heroNewButton}
+          t={t}
+          data-testid={`${testId}-hero`}
+        />
+        <main className="gba:flex-1 gba:overflow-auto gba:p-6">
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+            <OfficeTrashList
+              accessToken={accessToken ?? ''}
+              entityType="slide"
+              emptyTitle="No trashed slide decks"
+              emptyDescription="Slide decks moved to trash will appear here."
+              onOpenItem={item => handleOpenTrashedSlide(item.id)}
+              onItemsChanged={() => {
+                void refreshSlides()
+              }}
+            />
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
