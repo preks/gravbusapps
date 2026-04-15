@@ -99,7 +99,7 @@ app-open = Öffnen
 # Nexus Teaser
 nexus-title = Nexus
 nexus-badge = KI-gestützt
-nexus-description = Ihr intelligenter Inhaltsarbeitsbereich. Dokumente, Analysen und Präsentationen per Gespräch erzeugen.
+nexus-description = Ihr intelligenter Inhaltsarbeitsbereich. Dokumente und Analysen per Gespräch erzeugen.
 nexus-try = Nexus testen
 
 # Activity visualization

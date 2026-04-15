@@ -34,7 +34,7 @@ interface NexusChatMessageProps {
   thinkingStatus?: string | null
   thinkingSources?: WebSource[]
   artifactType?: ArtifactType
-  onViewArtifact?: () => void
+  onViewArtifact?: (artifactId: string) => void
   testId?: string
 }
 
@@ -52,7 +52,6 @@ const THINKING_STATUS_KEY_BY_TEXT: Record<string, string> = {
   'Classifying intent...': 'chat-status-classifying-intent',
   'Generating document...': 'document-generating',
   'Generating analysis...': 'analysis-generating',
-  'Generating slides...': 'chat-status-generating-slides',
   'Refining artifact...': 'chat-status-refining-artifact',
   'Planning data query...': 'chat-status-planning-data-query',
   'Preparing response...': 'chat-status-preparing-response',
@@ -212,7 +211,12 @@ export const NexusChatMessage = ({
         {/* Artifact indicator */}
         {message.artifactId && artifactType && (
           <button
-            onClick={onViewArtifact}
+            type="button"
+            onClick={() => {
+              if (message.artifactId) {
+                onViewArtifact?.(message.artifactId)
+              }
+            }}
             className="gba:flex gba:items-center gba:gap-2.5 gba:px-3.5 gba:py-2.5 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:hover:bg-accent/50 gba:transition-all gba:duration-200 gba:cursor-pointer gba:w-full gba:group"
             data-testid={`${testId}-artifact-link`}
           >

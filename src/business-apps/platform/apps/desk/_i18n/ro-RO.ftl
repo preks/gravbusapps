@@ -99,7 +99,7 @@ app-open = Deschide
 # Nexus Teaser
 nexus-title = Nexus
 nexus-badge = Bazat pe AI
-nexus-description = Spațiul tău inteligent de conținut. Generează documente, analize și prezentări prin conversație.
+nexus-description = Spațiul tău inteligent de conținut. Generează documente și analize prin conversație.
 nexus-try = Încearcă Nexus
 
 # Activity visualization

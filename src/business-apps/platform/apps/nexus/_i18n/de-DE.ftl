@@ -35,7 +35,6 @@ chat-status-searching-documents = Dokumente werden durchsucht...
 chat-status-fetching-live-data = Live-Daten werden geladen...
 chat-status-web-results-obtained = Webergebnisse erhalten, werden verarbeitet...
 chat-status-classifying-intent = Absicht wird klassifiziert...
-chat-status-generating-slides = Slides werden erstellt...
 chat-status-refining-artifact = Artefakt wird verfeinert...
 chat-status-planning-data-query = Datenabfrage wird geplant...
 chat-status-preparing-response = Antwort wird vorbereitet...
@@ -68,7 +67,7 @@ message-content-type-spreadsheet = Tabelle
 message-content-type-web = Web
 
 # Empty canvas
-canvas-hero-description = Dein KI-gestützter Arbeitsbereich. Erstelle Dokumente, Analysen, Präsentationen und frage Live-Daten ab.
+canvas-hero-description = Dein KI-gestützter Arbeitsbereich. Erstelle Dokumente, Analysen und frage Live-Daten ab.
 canvas-title = Was möchtest du erstellen?
 canvas-description = Wähle unten einen Einstiegspunkt oder öffne den Chat, um alles zu fragen.
 canvas-open-chat-title = Unterhaltung starten
@@ -79,8 +78,6 @@ canvas-suggestion-document-title = Dokument erstellen
 canvas-suggestion-document-description = Erstelle Berichte, Memos, Vorschläge oder Zusammenfassungen aus deinen Inhalten
 canvas-suggestion-analysis-title = Analyse erstellen
 canvas-suggestion-analysis-description = Erstelle Dashboards mit KPIs, Diagrammen, Tabellen und wichtigen Erkenntnissen
-canvas-suggestion-presentation-title = Präsentation erstellen
-canvas-suggestion-presentation-description = Erstelle professionelle Foliensätze aus deinen Inhalten
 canvas-suggestion-data-title = Systemdaten abfragen
 canvas-suggestion-data-description = Hole echte HR-, CRM- oder Finanzdaten von NEWWORK (aktiviere zuerst den Datenzugriff)
 
@@ -93,15 +90,16 @@ artifact-action-saving = Speichern...
 artifact-action-saved = Gespeichert
 artifact-action-updated = Aktualisiert
 artifact-action-copy = Kopieren
+artifact-open-in-documents = In Dokumenten öffnen
 artifact-save-document = In Dokumente speichern
-artifact-save-slides = In Slides speichern
 artifact-update-document = Dokumente aktualisieren
-artifact-update-slides = Slides aktualisieren
 artifact-saved-in-documents = In Dokumenten
-artifact-saved-in-slides = In Slides
+artifact-legacy-slides-title = Präsentationen werden in Nexus nicht mehr unterstützt
+artifact-legacy-slides-description = Diese Präsentation kann in Nexus nicht mehr geöffnet oder aktualisiert werden. Erstellen Sie stattdessen ein Dokument oder eine Analyse.
 canvas-toast-saved-success = Erfolgreich gespeichert - { $message }
 canvas-toast-updated-success = Erfolgreich aktualisiert - { $message }
 canvas-toast-save-failed = Speichern fehlgeschlagen - { $message }
+canvas-toast-open-not-ready = Das Dokument wird noch vorbereitet. Bitte versuchen Sie es in ein paar Sekunden erneut.
 canvas-toast-copied = In die Zwischenablage kopiert
 
 # Document renderer
@@ -122,16 +120,3 @@ analysis-loading-step-metrics = Kennzahlen werden extrahiert
 analysis-loading-step-insights = Erkenntnisse werden generiert
 analysis-loading-step-visualizations = Visualisierungen werden erstellt
 analysis-loading-step-compiling = Bericht wird zusammengestellt
-
-# Slides
-slides-section = Abschnitt { $number }
-slides-layout-title-cover = Titelblatt
-slides-layout-thank-you = Danke
-slides-layout-agenda = Agenda
-slides-layout-bullets = Aufzählungen
-slides-layout-section-divider = Abschnittstrenner
-slides-layout-two-column = Zwei Spalten
-slides-layout-key-takeaway = Kernaussage
-slides-layout-key-metrics = Kennzahlen
-slides-layout-process-flow = Prozessablauf
-slides-layout-timeline = Zeitachse
