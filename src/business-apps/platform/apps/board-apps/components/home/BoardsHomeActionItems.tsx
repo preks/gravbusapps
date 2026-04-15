@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react'
-import { Card, Badge } from '@newwork/nw-design-system'
+import { Card, Badge, useTranslation } from '@newwork/nw-design-system'
 import { AlertTriangle, Clock, CalendarClock, ShieldAlert, CheckCircle2, ChevronRight, ChevronDown } from 'lucide-react'
 import type { MyWorkResponse, MyWorkItem } from '../../types'
+import translations from '../../_i18n'
 
 interface BoardsHomeActionItemsProps {
   myWork: MyWorkResponse | null
@@ -19,16 +20,16 @@ const DOT_BG: Record<string, string> = {
   primary: 'gba:bg-desk-badge-golden'
 }
 
-function formatDeadline(deadline?: string): string {
+function formatDeadline(t: (key: string, args?: Record<string, unknown>) => string, deadline?: string): string {
   if (!deadline) return ''
   const today = new Date()
   const d = new Date(deadline + 'T00:00:00')
   const diffDays = Math.round((d.getTime() - today.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Tomorrow'
-  if (diffDays === -1) return 'Yesterday'
-  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`
-  return `In ${diffDays}d`
+  if (diffDays === 0) return t('home-deadline-today')
+  if (diffDays === 1) return t('home-deadline-tomorrow')
+  if (diffDays === -1) return t('home-deadline-yesterday')
+  if (diffDays < 0) return t('home-deadline-overdue', { count: Math.abs(diffDays) })
+  return t('home-deadline-in-days', { count: diffDays })
 }
 
 function isOverdue(deadline?: string): boolean {
@@ -42,14 +43,16 @@ function isOverdue(deadline?: string): boolean {
 function TaskRow({
   item,
   onNavigate,
-  testId
+  testId,
+  t
 }: {
   item: MyWorkItem
   onNavigate: (boardId: string, sheetId: string, rowId: string) => void
   testId: string
+  t: (key: string, args?: Record<string, unknown>) => string
 }) {
   const dotBg = DOT_BG[item.statusColor || 'muted'] || 'gba:bg-muted-foreground/40'
-  const deadlineText = formatDeadline(item.deadline)
+  const deadlineText = formatDeadline(t, item.deadline)
   const overdue = isOverdue(item.deadline)
 
   return (
@@ -91,11 +94,13 @@ const MAX_VISIBLE = 10
 function SectionBlock({
   section,
   onNavigate,
-  testId
+  testId,
+  t
 }: {
   section: UrgencySection
   onNavigate: (boardId: string, sheetId: string, rowId: string) => void
   testId: string
+  t: (key: string, args?: Record<string, unknown>) => string
 }) {
   const [showAll, setShowAll] = useState(false)
   const visible = showAll ? section.items : section.items.slice(0, MAX_VISIBLE)
@@ -123,6 +128,7 @@ function SectionBlock({
             item={item}
             onNavigate={onNavigate}
             testId={`${testId}-${section.key}-${item.rowId}`}
+            t={t}
           />
         ))}
       </div>
@@ -134,7 +140,7 @@ function SectionBlock({
             onClick={() => setShowAll(s => !s)}
             data-testid={`${testId}-${section.key}-toggle`}
           >
-            {showAll ? 'Show less' : `Show ${section.items.length - MAX_VISIBLE} more`}
+            {showAll ? t('home-show-less') : t('home-show-more', { count: section.items.length - MAX_VISIBLE })}
           </button>
         </div>
       )}
@@ -148,6 +154,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
   onNavigateToItem,
   'data-testid': testId = 'boards-home-actions'
 }) => {
+  const { t } = useTranslation(translations)
   const sections = useMemo<UrgencySection[]>(() => {
     if (!myWork) return []
     const all: UrgencySection[] = []
@@ -155,7 +162,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
     if (myWork.overdue.length > 0) {
       all.push({
         key: 'overdue',
-        title: 'Overdue',
+        title: t('home-section-overdue'),
         icon: <AlertTriangle className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden" />,
         items: myWork.overdue,
         colorClass: 'gba:text-desk-badge-golden'
@@ -164,7 +171,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
     if (myWork.dueToday.length > 0) {
       all.push({
         key: 'today',
-        title: 'Due today',
+        title: t('home-section-due-today'),
         icon: <Clock className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden/70" />,
         items: myWork.dueToday,
         colorClass: 'gba:text-desk-badge-golden/70'
@@ -173,7 +180,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
     if (myWork.dueThisWeek.length > 0) {
       all.push({
         key: 'week',
-        title: 'This week',
+        title: t('home-section-this-week'),
         icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />,
         items: myWork.dueThisWeek,
         colorClass: 'gba:text-muted-foreground'
@@ -182,7 +189,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
     if (myWork.upcoming.length > 0) {
       all.push({
         key: 'upcoming',
-        title: 'Upcoming',
+        title: t('home-section-upcoming'),
         icon: <CalendarClock className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/70" />,
         items: myWork.upcoming,
         colorClass: 'gba:text-muted-foreground/70'
@@ -191,14 +198,14 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
     if (myWork.blocked.length > 0) {
       all.push({
         key: 'blocked',
-        title: 'Blocked',
+        title: t('home-section-blocked'),
         icon: <ShieldAlert className="gba:w-3.5 gba:h-3.5 gba:text-desk-badge-golden" />,
         items: myWork.blocked,
         colorClass: 'gba:text-desk-badge-golden'
       })
     }
     return all
-  }, [myWork])
+  }, [myWork, t])
 
   const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0)
 
@@ -226,8 +233,8 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
       <Card className="gba:overflow-hidden" data-testid={testId}>
         <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:px-5 gba:py-10">
           <CheckCircle2 className="gba:w-8 gba:h-8 gba:text-muted-foreground gba:mb-3" />
-          <p className="gba:text-sm gba:font-semibold gba:text-foreground">All caught up</p>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">No tasks need your attention right now.</p>
+          <p className="gba:text-sm gba:font-semibold gba:text-foreground">{t('home-all-caught-up')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('home-no-action-items')}</p>
         </div>
       </Card>
     )
@@ -237,7 +244,7 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
     <Card className="gba:overflow-hidden" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-4">
         <div className="gba:flex gba:items-center gba:gap-2.5">
-          <h2 className="gba:text-base gba:font-semibold gba:text-foreground">My Tasks</h2>
+          <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{t('home-my-tasks')}</h2>
           <Badge variant="secondary" className="gba:text-xs gba:tabular-nums">
             {totalItems}
           </Badge>
@@ -245,12 +252,12 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
         <div className="gba:flex gba:items-center gba:gap-1.5">
           {(myWork?.overdue.length ?? 0) > 0 && (
             <Badge className="gba:text-xs gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:border-0">
-              {myWork!.overdue.length} overdue
+              {t('home-overdue', { count: myWork!.overdue.length })}
             </Badge>
           )}
           {(myWork?.dueToday.length ?? 0) > 0 && (
             <Badge className="gba:text-xs gba:bg-desk-badge-golden/60 gba:text-desk-badge-golden-foreground gba:border-0">
-              {myWork!.dueToday.length} today
+              {t('home-today', { count: myWork!.dueToday.length })}
             </Badge>
           )}
         </div>
@@ -258,12 +265,12 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
 
       <div className="gba:divide-y gba:divide-border">
         {sections.map(section => (
-          <SectionBlock key={section.key} section={section} onNavigate={onNavigateToItem} testId={testId} />
+          <SectionBlock key={section.key} section={section} onNavigate={onNavigateToItem} testId={testId} t={t} />
         ))}
       </div>
 
       {(myWork?.recentlyCompleted.length ?? 0) > 0 && (
-        <CompletedSection items={myWork!.recentlyCompleted} onNavigate={onNavigateToItem} testId={testId} />
+        <CompletedSection items={myWork!.recentlyCompleted} onNavigate={onNavigateToItem} testId={testId} t={t} />
       )}
     </Card>
   )
@@ -272,11 +279,13 @@ export const BoardsHomeActionItems: React.FC<BoardsHomeActionItemsProps> = ({
 function CompletedSection({
   items,
   onNavigate,
-  testId
+  testId,
+  t
 }: {
   items: MyWorkItem[]
   onNavigate: (boardId: string, sheetId: string, rowId: string) => void
   testId: string
+  t: (key: string, args?: Record<string, unknown>) => string
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -289,7 +298,7 @@ function CompletedSection({
       >
         <CheckCircle2 className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
         <span className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground gba:flex-1">
-          Completed
+          {t('home-completed')}
         </span>
         <Badge
           variant="outline"
@@ -309,6 +318,7 @@ function CompletedSection({
               item={item}
               onNavigate={onNavigate}
               testId={`${testId}-completed-${item.rowId}`}
+              t={t}
             />
           ))}
         </div>

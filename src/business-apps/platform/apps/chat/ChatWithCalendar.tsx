@@ -388,7 +388,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                 startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
                 data-testid={`${prefixDataTestId}-dashboard-tab`}
               >
-                Dashboard
+                {t('chat-tab-dashboard')}
               </TabSwitchTrigger>
             )}
             {isInSidepanel && (

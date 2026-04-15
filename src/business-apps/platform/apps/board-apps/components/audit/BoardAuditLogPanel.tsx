@@ -1,27 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Button, Spinner } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { X, Activity, Filter } from 'lucide-react'
 import type { BoardAuditLogEntry, BoardAuditAction, BoardSheet, BoardRow } from '../../types'
 import { getPrimaryColumn } from '../../types'
 import { BoardApiService } from '../../services/BoardApiService'
 import { useAuditActorLookup } from '../../hooks/useAuditActorLookup'
-import { AuditEntry, ACTION_META, type AuditRowContext } from '../row-page/RowAuditLog'
-
-const ACTION_FILTER_GROUPS: { label: string; actions: BoardAuditAction[] }[] = [
-  {
-    label: 'Board',
-    actions: ['board.created', 'board.updated', 'board.deleted', 'board.shared', 'board.duplicated']
-  },
-  {
-    label: 'Sheet',
-    actions: ['sheet.updated']
-  },
-  {
-    label: 'Rows',
-    actions: ['row.created', 'row.updated', 'row.deleted', 'row.reordered', 'rows.imported']
-  }
-]
+import { AuditEntry, getActionMeta, type AuditRowContext } from '../row-page/RowAuditLog'
+import translations from '../../_i18n'
 
 export interface BoardAuditLogPanelProps {
   boardId: string
@@ -46,6 +32,22 @@ export const BoardAuditLogPanel: React.FC<BoardAuditLogPanelProps> = ({
   onRowClick,
   'data-testid': testId = 'board-audit-log-panel'
 }) => {
+  const { t } = useTranslation(translations)
+  const actionMeta = getActionMeta(t)
+  const actionFilterGroups: { label: string; actions: BoardAuditAction[] }[] = [
+    {
+      label: t('audit-filter-board'),
+      actions: ['board.created', 'board.updated', 'board.deleted', 'board.shared', 'board.duplicated']
+    },
+    {
+      label: t('audit-filter-sheet'),
+      actions: ['sheet.updated']
+    },
+    {
+      label: t('audit-filter-rows'),
+      actions: ['row.created', 'row.updated', 'row.deleted', 'row.reordered', 'rows.imported']
+    }
+  ]
   const [entries, setEntries] = useState<BoardAuditLogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -107,12 +109,12 @@ export const BoardAuditLogPanel: React.FC<BoardAuditLogPanelProps> = ({
         setTotalPages(res.totalPages)
         setPage(p)
       } catch {
-        setError('Could not load activity.')
+        setError(t('audit-load-failed'))
       } finally {
         setIsLoading(false)
       }
     },
-    [boardId]
+    [boardId, t]
   )
 
   useEffect(() => {
@@ -145,8 +147,8 @@ export const BoardAuditLogPanel: React.FC<BoardAuditLogPanelProps> = ({
 
   const activeFilterLabel = useMemo(() => {
     if (!filterAction) return null
-    return ACTION_META[filterAction]?.label ?? filterAction
-  }, [filterAction])
+    return actionMeta[filterAction]?.label ?? filterAction
+  }, [actionMeta, filterAction])
 
   if (!open) return null
 
@@ -197,7 +199,7 @@ export const BoardAuditLogPanel: React.FC<BoardAuditLogPanelProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
             <Activity className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
             <div className="gba:min-w-0">
-              <h2 className="gba:text-sm gba:font-semibold gba:truncate">Board Activity</h2>
+              <h2 className="gba:text-sm gba:font-semibold gba:truncate">{t('board-activity-title')}</h2>
               <p className="gba:text-[11px] gba:text-muted-foreground gba:truncate">{boardName}</p>
             </div>
           </div>
@@ -238,11 +240,11 @@ export const BoardAuditLogPanel: React.FC<BoardAuditLogPanelProps> = ({
               >
                 All
               </button>
-              {ACTION_FILTER_GROUPS.map(group => (
+              {actionFilterGroups.map(group => (
                 <div key={group.label} className="gba:flex gba:items-center gba:gap-0.5">
                   <span className="gba:text-[10px] gba:text-muted-foreground/50 gba:mx-1">{group.label}:</span>
                   {group.actions.map(action => {
-                    const meta = ACTION_META[action]
+                    const meta = actionMeta[action]
                     if (!meta) return null
                     return (
                       <button
@@ -279,7 +281,7 @@ export const BoardAuditLogPanel: React.FC<BoardAuditLogPanelProps> = ({
           ) : entries.length === 0 ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16">
               <Activity className="gba:w-8 gba:h-8 gba:text-muted-foreground/30 gba:mb-3" />
-              <p className="gba:text-sm gba:text-muted-foreground">No activity yet.</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('board-no-activity')}</p>
             </div>
           ) : (
             <div className="gba:px-4 gba:py-3">

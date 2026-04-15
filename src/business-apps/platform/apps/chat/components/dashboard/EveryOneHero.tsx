@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import translations from '../../_i18n'
 
 interface EveryOneHeroProps {
   userName?: string
@@ -7,14 +9,14 @@ interface EveryOneHeroProps {
 }
 
 /**
- * Get time-based greeting
+ * Select the greeting key for the current time.
  */
-function getGreeting(): string {
+function getGreetingKey(): string {
   const hour = new Date().getHours()
-  if (hour >= 5 && hour < 12) return 'Good morning'
-  if (hour >= 12 && hour < 17) return 'Good afternoon'
-  if (hour >= 17 && hour < 21) return 'Good evening'
-  return 'Good night'
+  if (hour >= 5 && hour < 12) return 'dashboard-hero-goodMorning'
+  if (hour >= 12 && hour < 17) return 'dashboard-hero-goodAfternoon'
+  if (hour >= 17 && hour < 21) return 'dashboard-hero-goodEvening'
+  return 'dashboard-hero-goodNight'
 }
 
 /**
@@ -22,7 +24,8 @@ function getGreeting(): string {
  * Uses the same styling as SpaceHero - CSS-only animated background with white text
  */
 export const EveryOneHero: React.FC<EveryOneHeroProps> = ({ userName, 'data-testid': testId = 'everyone-hero' }) => {
-  const greeting = useMemo(() => getGreeting(), [])
+  const { t } = useTranslation(translations)
+  const greeting = useMemo(() => t(getGreetingKey()), [t])
   const firstName = useMemo(() => {
     if (!userName) return ''
     return userName.split(' ')[0]
@@ -64,7 +67,7 @@ export const EveryOneHero: React.FC<EveryOneHeroProps> = ({ userName, 'data-test
 
             {/* Tagline */}
             <p className="gba:text-sm gba:text-white/50 gba:max-w-xl" data-testid={`${testId}-tagline`}>
-              Your communication hub. Connect, collaborate, and stay in sync with your team.
+              {t('dashboard-hero-tagline')}
             </p>
           </div>
         </div>

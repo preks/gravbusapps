@@ -1,11 +1,73 @@
 # Chat Translations - Romanian
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Panou de bord
 chat-fullscreen-button = Deschide în ecran complet
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Memento-uri
+
+# Dashboard
+dashboard-error-loadData = Nu s-au putut încărca datele panoului de bord
+dashboard-hero-goodMorning = Bună dimineața
+dashboard-hero-goodAfternoon = Bună ziua
+dashboard-hero-goodEvening = Bună seara
+dashboard-hero-goodNight = Noapte bună
+dashboard-hero-tagline = Centrul tău de comunicare. Conectează-te, colaborează și rămâi sincronizat cu echipa ta.
+dashboard-common-you = Tu
+dashboard-personalStats-title = Activitatea ta
+dashboard-personalStats-messagesSent = Mesaje trimise
+dashboard-personalStats-conversations = Conversații
+dashboard-personalStats-callMinutes = Minute de apel
+dashboard-personalStats-avgPerDay = Medie pe zi
+dashboard-personalStats-memberDays = Zile ca membru
+dashboard-personalStats-active = Activ
+dashboard-personalStats-longTimeMember = Membru de mult timp
+dashboard-globalStats-title = Activitatea companiei
+dashboard-globalStats-activeNow = Activi acum
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Mesaje astăzi
+dashboard-globalStats-totalUsers = Utilizatori total
+dashboard-globalStats-totalCallTime = Timp total de apel
+dashboard-globalStats-totalPlatformMessages = Total mesaje pe platformă
+dashboard-globalStats-todayDelta = +{$count} astăzi
+dashboard-globalStats-allTime = Din toată perioada pe platformă
+dashboard-globalStats-topReactions = Reacții de top
+dashboard-globalStats-noReactions = Încă nu există reacții
+dashboard-topContacts-title = Contactele mele
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Cele mai contactate
+dashboard-topContacts-maybeReachOut = Poate ar trebui să contactezi
+dashboard-topContacts-emptyTitle = Încă nu există contacte
+dashboard-topContacts-emptyDescription = Începe să discuți cu colegii pentru a-ți vedea contactele aici.
+dashboard-topContacts-noSuggestions = Nicio sugestie
+dashboard-topContacts-contactMeta = {$messageCount} mes. · {$relativeTime}
+dashboard-topContacts-today = Astăzi
+dashboard-topContacts-yesterday = Ieri
+dashboard-topContacts-daysAgo = acum {$count} zile
+dashboard-topContacts-weeksAgo = acum {$count} săptămâni
+dashboard-topContacts-monthsAgo = acum {$count} luni
+dashboard-upcomingMeetings-title = Întâlniri viitoare
+dashboard-upcomingMeetings-next7Days = Următoarele 7 zile
+dashboard-upcomingMeetings-emptyTitle = Nu există întâlniri viitoare
+dashboard-upcomingMeetings-emptyDescription = Programul tău este liber
+dashboard-upcomingMeetings-error = Nu s-au putut încărca întâlnirile
+dashboard-upcomingMeetings-open = Deschide
+dashboard-upcomingMeetings-join = Intră
+dashboard-upcomingMeetings-now = Acum
+dashboard-upcomingMeetings-started = Începută
+dashboard-upcomingMeetings-startingNow = Începe acum
+dashboard-upcomingMeetings-inMinutes = Peste {$minutes} min
+dashboard-upcomingMeetings-inHours = Peste {$hours}h
+dashboard-upcomingMeetings-tomorrow = Mâine
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} punct pe agendă
+ *[other] {$count} puncte pe agendă
+}
+dashboard-upcomingMeetings-showMore = Arată încă {$count}
+dashboard-upcomingMeetings-showMoreWithTotal = Arată încă {$count} ({$total} în total)
+dashboard-upcomingMeetings-showLess = Arată mai puțin
 
 # Chat Main
 chat-appHeader = Chat
@@ -463,6 +525,19 @@ reminders-goToEveryAI = Mergi la fila EveryAI și cere să setezi un memento
 reminders-loadingReminders = Se încarcă memento-urile...
 reminders-failedToLoad = Nu s-au putut încărca memento-urile
 reminders-tryAgain = Încearcă din nou
+reminders-newReminder = Memento Nou
+reminders-title = Titlu
+reminders-titlePlaceholder = De ce ar trebui să îți amintești?
+reminders-message = Mesaj (opțional)
+reminders-messagePlaceholder = Detalii suplimentare...
+reminders-dateTime = Dată și oră
+reminders-create = Creează memento
+reminders-creating = Se creează...
+reminders-cancel = Anulează
+reminders-created = Memento creat!
+reminders-createFailed = Nu s-a putut crea memento-ul
+reminders-titleRequired = Introdu un titlu
+reminders-dateTimeRequired = Selectează o dată și o oră
 
 # Calendar
 calendar-title = Calendar
@@ -578,6 +653,8 @@ calendar-monthly = Lunar
 calendar-endDate = Data sfârșit
 calendar-reminders = Memento-uri
 calendar-color = Culoare
+calendar-aiTranscription = Transcriere AI a întâlnirii
+calendar-aiTranscriptionDescription = Transcrie automat și salvează conversația întâlnirii pentru toți participanții
 calendar-cancel = Anulează
 calendar-createMeeting = Creează Întâlnire
 calendar-saveChanges = Salvează Modificările

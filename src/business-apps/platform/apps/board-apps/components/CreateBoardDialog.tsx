@@ -3,9 +3,10 @@
  */
 
 import React, { useEffect, useRef } from 'react'
-import { Button, Input, Label, Dialog, DialogContent, DialogFooter } from '@newwork/nw-design-system'
+import { Button, Input, Label, Dialog, DialogContent, DialogFooter, useTranslation } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import translations from '../_i18n'
 
 export interface CreateBoardDialogProps {
   open: boolean
@@ -24,6 +25,7 @@ export const CreateBoardDialog: React.FC<CreateBoardDialogProps> = ({
   onSubmit,
   'data-testid': testId = 'create-board-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -55,9 +57,9 @@ export const CreateBoardDialog: React.FC<CreateBoardDialogProps> = ({
               <Plus className="gba:w-5 gba:h-5 gba:text-inverse" />
             </div>
             <h2 className="gba:font-funnel-display gba:text-xl gba:font-light gba:text-inverse gba:tracking-tight">
-              New Board
+              {t('create-board-title')}
             </h2>
-            <p className="gba:text-sm gba:text-inverse/50 gba:mt-1">Give your board a name to get started.</p>
+            <p className="gba:text-sm gba:text-inverse/50 gba:mt-1">{t('create-board-description')}</p>
           </div>
         </div>
 
@@ -66,11 +68,11 @@ export const CreateBoardDialog: React.FC<CreateBoardDialogProps> = ({
             htmlFor="board-name"
             className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider"
           >
-            Board name
+            {t('create-board-name-label')}
           </Label>
           <Input
             id="board-name"
-            placeholder="My Board"
+            placeholder={t('create-board-name-placeholder')}
             value={name}
             onChange={e => onNameChange(e.target.value)}
             className="gba:mt-2"
@@ -84,7 +86,7 @@ export const CreateBoardDialog: React.FC<CreateBoardDialogProps> = ({
 
         <DialogFooter className="gba:px-6 gba:pb-5 gba:pt-0">
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} data-testid={`${testId}-cancel`}>
-            Cancel
+            {t('common-cancel')}
           </Button>
           <Button
             size="sm"
@@ -93,7 +95,7 @@ export const CreateBoardDialog: React.FC<CreateBoardDialogProps> = ({
             className="gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:border-0 gba:hover:bg-desk-badge-golden/90"
             data-testid={`${testId}-submit`}
           >
-            Create Board
+            {t('create-board-submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

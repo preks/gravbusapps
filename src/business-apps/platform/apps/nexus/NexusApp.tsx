@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useNexusSocket } from './hooks/useNexusSocket'
 import { useNexusSessions } from './hooks/useNexusSessions'
@@ -9,6 +10,7 @@ import { NexusLayout } from './components/layout/NexusLayout'
 import { NexusSidebar } from './components/layout/NexusSidebar'
 import { NexusChat } from './components/chat/NexusChat'
 import { ArtifactCanvas } from './components/canvas/ArtifactCanvas'
+import translations from './_i18n'
 
 export interface NexusAppProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -17,8 +19,9 @@ export interface NexusAppProps extends BusinessAppContextProps {
 const TEST_ID = 'nexus'
 
 export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => {
+  const { t } = useTranslation(translations)
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
-  const userName = userInfo?.givenName || userInfo?.userName || 'User'
+  const userName = userInfo?.givenName || userInfo?.userName || t('app-user-fallback')
 
   const [scope, setScope] = useState<'all' | 'space' | 'none'>('all')
   const [spaceId, setSpaceId] = useState<string | null>(null)
@@ -247,7 +250,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground"
         data-testid={`${TEST_ID}-no-auth`}
       >
-        Authentication required
+        {t('app-auth-required')}
       </div>
     )
   }

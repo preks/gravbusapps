@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Eye } from 'lucide-react'
 import type {
   BoardRow,
@@ -17,6 +17,7 @@ import type {
 import { getPrimaryColumn } from '../types'
 import { BoardKanbanView, BoardCalendarView, BoardTimelineView, BoardFormView, BoardDashboardView } from '../views'
 import { BoardTableView } from '../views/BoardTableView'
+import translations from '../_i18n'
 
 export interface BoardViewContentProps {
   scrollParent?: HTMLDivElement | null
@@ -106,6 +107,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onCellBlur,
   testId
 }) => {
+  const { t } = useTranslation(translations)
   const [kanbanGroupColumn, setKanbanGroupColumn] = useState<string | null>(null)
   const [kanbanCardFields, setKanbanCardFields] = useState<string[]>([])
 
@@ -142,7 +144,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   const hiddenBar =
     hiddenColumns.length > 0 && onUpdateColumn ? (
       <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-muted/30 gba:flex-wrap">
-        <span className="gba:text-xs gba:text-muted-foreground">Hidden:</span>
+        <span className="gba:text-xs gba:text-muted-foreground">{t('common-hidden')}</span>
         {hiddenColumns.map(col => (
           <Button
             key={col.id}
