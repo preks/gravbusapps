@@ -1,5 +1,12 @@
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@newwork/nw-design-system'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { FileSearch, FileX, FolderOpen } from 'lucide-react'
+import translations from '../../_i18n'
 
 interface Space {
   id: string
@@ -23,14 +30,15 @@ export const NexusScopeSelector = ({
   onSpaceChange,
   testId = 'nexus-scope-selector'
 }: NexusScopeSelectorProps) => {
+  const { t } = useTranslation(translations)
   const selectedSpace = spaces.find(s => s.id === spaceId)
 
   const getLabel = () => {
-    if (scope === 'none') return 'None'
+    if (scope === 'none') return t('scope-none')
     if (scope === 'space' && selectedSpace) {
       return selectedSpace.name.length > 12 ? `${selectedSpace.name.slice(0, 12)}...` : selectedSpace.name
     }
-    return 'All'
+    return t('scope-all')
   }
 
   const getIcon = () => {
@@ -66,11 +74,11 @@ export const NexusScopeSelector = ({
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={() => handleSelect('none')} data-testid={`${testId}-none`}>
           <FileX className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
-          None {scope === 'none' ? '(active)' : ''}
+          {t('scope-none')} {scope === 'none' ? t('scope-active') : ''}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleSelect('all')} data-testid={`${testId}-all`}>
           <FileSearch className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
-          All my content {scope === 'all' ? '(active)' : ''}
+          {t('scope-all-content')} {scope === 'all' ? t('scope-active') : ''}
         </DropdownMenuItem>
         {spaces.map(space => (
           <DropdownMenuItem
@@ -79,7 +87,7 @@ export const NexusScopeSelector = ({
             data-testid={`${testId}-space-${space.id}`}
           >
             <FolderOpen className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
-            {space.name} {scope === 'space' && spaceId === space.id ? '(active)' : ''}
+            {space.name} {scope === 'space' && spaceId === space.id ? t('scope-active') : ''}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

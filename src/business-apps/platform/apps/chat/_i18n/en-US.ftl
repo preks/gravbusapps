@@ -1,11 +1,73 @@
 # Chat Translations - English
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Dashboard
 chat-fullscreen-button = Open in Fullscreen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
 chat-tab-reminders = Reminders
+
+# Dashboard
+dashboard-error-loadData = Unable to load dashboard data
+dashboard-hero-goodMorning = Good morning
+dashboard-hero-goodAfternoon = Good afternoon
+dashboard-hero-goodEvening = Good evening
+dashboard-hero-goodNight = Good night
+dashboard-hero-tagline = Your communication hub. Connect, collaborate, and stay in sync with your team.
+dashboard-common-you = You
+dashboard-personalStats-title = Your activity
+dashboard-personalStats-messagesSent = Messages sent
+dashboard-personalStats-conversations = Conversations
+dashboard-personalStats-callMinutes = Call minutes
+dashboard-personalStats-avgPerDay = Avg per day
+dashboard-personalStats-memberDays = Member days
+dashboard-personalStats-active = Active
+dashboard-personalStats-longTimeMember = Long-time member
+dashboard-globalStats-title = Company activity
+dashboard-globalStats-activeNow = Active now
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Messages today
+dashboard-globalStats-totalUsers = Total users
+dashboard-globalStats-totalCallTime = Total call time
+dashboard-globalStats-totalPlatformMessages = Total platform messages
+dashboard-globalStats-todayDelta = +{$count} today
+dashboard-globalStats-allTime = All time across the platform
+dashboard-globalStats-topReactions = Top reactions
+dashboard-globalStats-noReactions = No reactions yet
+dashboard-topContacts-title = My people
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Most contacted
+dashboard-topContacts-maybeReachOut = Maybe reach out
+dashboard-topContacts-emptyTitle = No contacts yet
+dashboard-topContacts-emptyDescription = Start chatting with colleagues to see your contacts here.
+dashboard-topContacts-noSuggestions = No suggestions
+dashboard-topContacts-contactMeta = {$messageCount} msgs · {$relativeTime}
+dashboard-topContacts-today = Today
+dashboard-topContacts-yesterday = Yesterday
+dashboard-topContacts-daysAgo = {$count} days ago
+dashboard-topContacts-weeksAgo = {$count} weeks ago
+dashboard-topContacts-monthsAgo = {$count} months ago
+dashboard-upcomingMeetings-title = Upcoming meetings
+dashboard-upcomingMeetings-next7Days = Next 7 days
+dashboard-upcomingMeetings-emptyTitle = No upcoming meetings
+dashboard-upcomingMeetings-emptyDescription = Your schedule is clear
+dashboard-upcomingMeetings-error = Unable to load meetings
+dashboard-upcomingMeetings-open = Open
+dashboard-upcomingMeetings-join = Join
+dashboard-upcomingMeetings-now = Now
+dashboard-upcomingMeetings-started = Started
+dashboard-upcomingMeetings-startingNow = Starting now
+dashboard-upcomingMeetings-inMinutes = In {$minutes} min
+dashboard-upcomingMeetings-inHours = In {$hours}h
+dashboard-upcomingMeetings-tomorrow = Tomorrow
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} agenda item
+ *[other] {$count} agenda items
+}
+dashboard-upcomingMeetings-showMore = Show {$count} more
+dashboard-upcomingMeetings-showMoreWithTotal = Show {$count} more ({$total} total)
+dashboard-upcomingMeetings-showLess = Show less
 
 # Chat Main
 chat-appHeader = Chat

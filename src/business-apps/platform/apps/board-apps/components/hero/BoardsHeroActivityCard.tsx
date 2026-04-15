@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Skeleton, useTranslation } from '@newwork/nw-design-system'
 import { SlidersHorizontal } from 'lucide-react'
 import type { BoardSummary } from '../../types'
+import translations from '../../_i18n'
 
 interface BoardsHeroActivityCardProps {
   boards: BoardSummary[]
@@ -25,17 +26,17 @@ function dotForBoard(board: BoardSummary): DotColor {
   return 'muted'
 }
 
-function formatRelative(dateString: string): string {
+function formatRelative(t: (key: string, args?: Record<string, unknown>) => string, dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime()
   const mins = Math.floor(diffMs / 60_000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return t('hero-activity-just-now')
+  if (mins < 60) return t('hero-activity-minutes-ago', { count: mins })
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return t('hero-activity-hours-ago', { count: hrs })
   const days = Math.floor(hrs / 24)
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days}d ago`
-  return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (days === 1) return t('hero-activity-yesterday')
+  if (days < 7) return t('hero-activity-days-ago', { count: days })
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(dateString))
 }
 
 /**
@@ -48,6 +49,7 @@ export const BoardsHeroActivityCard: React.FC<BoardsHeroActivityCardProps> = ({
   onOpenBoard,
   'data-testid': testId = 'boards-hero-activity'
 }) => {
+  const { t } = useTranslation(translations)
   const recentBoards = useMemo(
     () => [...boards].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 5),
     [boards]
@@ -57,7 +59,7 @@ export const BoardsHeroActivityCard: React.FC<BoardsHeroActivityCardProps> = ({
     <Card className="gba:h-full gba:overflow-hidden" data-testid={testId}>
       <CardHeader className="gba:pb-3">
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:text-sm gba:font-semibold">What's New / What Changed</CardTitle>
+          <CardTitle className="gba:text-sm gba:font-semibold">{t('hero-activity-title')}</CardTitle>
           <button
             className="gba:w-7 gba:h-7 gba:flex gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-accent gba:transition-colors"
             data-testid={`${testId}-filter`}
@@ -80,7 +82,7 @@ export const BoardsHeroActivityCard: React.FC<BoardsHeroActivityCardProps> = ({
             ))}
           </div>
         ) : recentBoards.length === 0 ? (
-          <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No board activity yet.</p>
+          <p className="gba:text-sm gba:text-muted-foreground gba:py-4">{t('hero-activity-empty')}</p>
         ) : (
           <div className="gba:space-y-0">
             {recentBoards.map((board, i) => {
@@ -102,9 +104,9 @@ export const BoardsHeroActivityCard: React.FC<BoardsHeroActivityCardProps> = ({
                       {board.name}
                     </p>
                     <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:leading-relaxed">
-                      {board.rowCount > 0 ? `${board.rowCount.toLocaleString()} rows · ` : ''}
-                      {board.sheetCount} sheet{board.sheetCount !== 1 ? 's' : ''} · {formatRelative(board.updatedAt)}
-                      {board.isShared ? ' · Shared' : ''}
+                      {board.rowCount > 0 ? `${t('hero-activity-rows', { count: board.rowCount })} · ` : ''}
+                      {t('hero-activity-sheets', { count: board.sheetCount })} · {formatRelative(t, board.updatedAt)}
+                      {board.isShared ? ` · ${t('hero-activity-shared')}` : ''}
                     </p>
                   </div>
                 </button>

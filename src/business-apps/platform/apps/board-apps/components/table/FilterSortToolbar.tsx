@@ -4,13 +4,22 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react'
-import { Button, Badge, Popover, PopoverContent, PopoverTrigger, Spinner } from '@newwork/nw-design-system'
+import {
+  Button,
+  Badge,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { Filter, ArrowUpDown, Plus, X, Search } from 'lucide-react'
 import type { BoardColumn, BoardQuickFilter, ViewFilter, ViewSort, FilterConnector } from '../../types'
 import { getDefaultOperator } from '../../utils/filterOperators'
 import { FilterRow } from './FilterRow'
 import { SortRow } from './SortRow'
 import { QuickFiltersBar } from './QuickFiltersBar'
+import translations from '../../_i18n'
 
 interface FilterSortToolbarProps {
   columns: BoardColumn[]
@@ -65,6 +74,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
   onDeleteQuickFilter,
   'data-testid': testId = 'filter-sort-toolbar'
 }) => {
+  const { t } = useTranslation(translations)
   const [filterOpen, setFilterOpen] = useState(false)
   const [sortOpen, setSortOpen] = useState(false)
 
@@ -74,10 +84,10 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
     onAddFilter({
       id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       column: col.name,
-      operator: getDefaultOperator(col.type),
+      operator: getDefaultOperator(t, col.type),
       value: ''
     })
-  }, [columns, onAddFilter])
+  }, [columns, onAddFilter, t])
 
   const handleAddSort = useCallback(() => {
     const usedCols = new Set(sorts.map(s => s.column))
@@ -97,8 +107,10 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
 
   const filterSummary = useMemo(() => {
     if (filters.length === 0) return null
-    return filters.length === 1 ? `1 filter` : `${filters.length} filters`
-  }, [filters.length])
+    return filters.length === 1
+      ? t('table-filter-summary-single')
+      : t('table-filter-summary-multiple', { count: filters.length })
+  }, [filters.length, t])
 
   const sortSummary = useMemo(() => {
     if (sorts.length === 0) return null
@@ -106,8 +118,8 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
       const col = columns.find(c => c.name === sorts[0].column)
       return `${col?.label || sorts[0].column} ${sorts[0].direction === 'asc' ? '↑' : '↓'}`
     }
-    return `${sorts.length} sorts`
-  }, [sorts, columns])
+    return t('table-sort-summary-multiple', { count: sorts.length })
+  }, [sorts, columns, t])
 
   return (
     <div
@@ -124,7 +136,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
           type="text"
           value={quickSearch}
           onChange={e => onQuickSearchChange(e.target.value)}
-          placeholder="Search..."
+          placeholder={t('common-search-placeholder')}
           className="gba:h-7 gba:pl-7 gba:pr-7 gba:text-xs gba:rounded-md gba:border gba:border-border gba:bg-background gba:outline-none gba:focus:ring-1 gba:focus:ring-primary gba:w-44 gba:transition-all gba:placeholder-muted-foreground"
           data-testid={`${testId}-search`}
         />
@@ -142,7 +154,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
             data-testid={`${testId}-filter-btn`}
           >
             <Filter className="gba:w-3 gba:h-3" />
-            {filterSummary || 'Filter'}
+            {filterSummary || t('table-filter-button')}
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -153,7 +165,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
           <div className="gba:flex gba:flex-col gba:gap-2">
             {filters.length > 0 && (
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                <span className="gba:text-xs gba:text-muted-foreground">Match</span>
+                <span className="gba:text-xs gba:text-muted-foreground">{t('table-filter-match')}</span>
                 <Button
                   variant={connector === 'and' ? 'secondary' : 'ghost'}
                   size="sm"
@@ -172,7 +184,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
                 >
                   OR
                 </Button>
-                <span className="gba:text-xs gba:text-muted-foreground">conditions</span>
+                <span className="gba:text-xs gba:text-muted-foreground">{t('table-filter-conditions')}</span>
               </div>
             )}
 
@@ -184,7 +196,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
                 onUpdate={onUpdateFilter}
                 onRemove={onRemoveFilter}
                 onSaveAsQuickFilter={onAddQuickFilter ? filter => onAddQuickFilter(filter) : undefined}
-                connectorLabel={i === 0 ? 'Where' : connector.toUpperCase()}
+                connectorLabel={i === 0 ? t('table-filter-where') : connector.toUpperCase()}
                 data-testid={`${testId}-filter-${i}`}
               />
             ))}
@@ -196,7 +208,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
               onClick={handleAddFilter}
               data-testid={`${testId}-add-filter`}
             >
-              <Plus className="gba:w-3 gba:h-3" /> Add filter
+              <Plus className="gba:w-3 gba:h-3" /> {t('table-add-filter')}
             </Button>
           </div>
         </PopoverContent>
@@ -212,7 +224,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
             data-testid={`${testId}-sort-btn`}
           >
             <ArrowUpDown className="gba:w-3 gba:h-3" />
-            {sortSummary || 'Sort'}
+            {sortSummary || t('table-sort-button')}
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -240,7 +252,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
               onClick={handleAddSort}
               data-testid={`${testId}-add-sort`}
             >
-              <Plus className="gba:w-3 gba:h-3" /> Add sort
+              <Plus className="gba:w-3 gba:h-3" /> {t('table-add-sort')}
             </Button>
           </div>
         </PopoverContent>
@@ -267,7 +279,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
           <div className="gba:h-4 gba:w-px gba:bg-border" />
           {filteredCount < totalCount && (
             <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-              {filteredCount} of {totalCount}
+              {t('table-filtered-count', { filtered: filteredCount, total: totalCount })}
             </Badge>
           )}
           <Button
@@ -277,7 +289,7 @@ export const FilterSortToolbar: React.FC<FilterSortToolbarProps> = ({
             onClick={onClearAll}
             data-testid={`${testId}-clear-all`}
           >
-            <X className="gba:w-3 gba:h-3" /> Clear
+            <X className="gba:w-3 gba:h-3" /> {t('table-clear-button')}
           </Button>
         </>
       )}

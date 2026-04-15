@@ -14,6 +14,7 @@ import {
 import { UsersIcon, FileTextIcon, AddressBookIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -703,7 +704,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     activityTypeCatalog: ACTIVITY_TYPE,
                     buildActivityPayload: buildInvestmentActivityPayload,
                     alignment: 'right',
-                    preSubmit: activityPreSubmit
+                    preSubmit: activityPreSubmit,
+                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
                   }
                 },
                 {

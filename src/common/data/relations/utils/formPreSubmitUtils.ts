@@ -84,6 +84,13 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
         const findReferenceEntityId = (): string => {
           const additionalId = additionalEntityIdFields.map(field => data[field]).find(Boolean)
           if (additionalId) return additionalId
+          const rid = data.relatedEntityId
+          if (rid && typeof rid === 'string') {
+            if (data.opportunityId === rid) return rid
+            if (data.leadId === rid) return rid
+            if (data.contactId === rid) return rid
+            if (data.accountId === rid) return rid
+          }
           if (data.accountId) return data.accountId
           if (data.contactId) return data.contactId
           if (data.leadId) return data.leadId

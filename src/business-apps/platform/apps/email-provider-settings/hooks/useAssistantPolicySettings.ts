@@ -7,6 +7,7 @@ export interface UseAssistantPolicySettingsResult {
   isLoading: boolean
   isSaving: boolean
   error: string | null
+  errorFallbackKey: string | null
   savePolicy: (payload: EmailAssistantPolicyUpdateRequest) => Promise<void>
   refreshPolicy: () => Promise<void>
 }
@@ -16,17 +17,23 @@ export function useAssistantPolicySettings(accessToken: string): UseAssistantPol
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorFallbackKey, setErrorFallbackKey] = useState<string | null>(null)
 
   const loadPolicy = useCallback(async () => {
     if (!accessToken) return
     setIsLoading(true)
     setError(null)
+    setErrorFallbackKey(null)
     try {
       EmailApiService.setAccessToken(accessToken)
       const response = await EmailApiService.getAssistantPolicy()
       setPolicy(response)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load assistant policy')
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setErrorFallbackKey('error-load-assistant-policy')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -41,12 +48,17 @@ export function useAssistantPolicySettings(accessToken: string): UseAssistantPol
       if (!accessToken) return
       setIsSaving(true)
       setError(null)
+      setErrorFallbackKey(null)
       try {
         EmailApiService.setAccessToken(accessToken)
         const updated = await EmailApiService.updateAssistantPolicy(payload)
         setPolicy(updated)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save assistant policy')
+        if (err instanceof Error) {
+          setError(err.message)
+        } else {
+          setErrorFallbackKey('error-save-assistant-policy')
+        }
         throw err
       } finally {
         setIsSaving(false)
@@ -60,6 +72,7 @@ export function useAssistantPolicySettings(accessToken: string): UseAssistantPol
     isLoading,
     isSaving,
     error,
+    errorFallbackKey,
     savePolicy,
     refreshPolicy: loadPolicy
   }

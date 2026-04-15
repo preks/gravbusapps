@@ -1,3 +1,5 @@
 export { createActivityColumns, activitySortableColumns, activityAvailableColumns } from './activityColumns'
 export type { ActivityColumnsConfig } from './activityColumns'
+export { ActivityTableReferenceCell } from './ActivityTableReferenceCell'
+export type { ActivityTableReferenceCellProps, ActivityTableReferenceEmptyVariant } from './ActivityTableReferenceCell'
 export { activityFilterConfig } from './activityFilterConfig'
