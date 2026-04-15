@@ -11,6 +11,7 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 import CommunicationCard from './components/CommunicationCard'
+import RelationshipsCard from './components/RelationshipsCard'
 
 interface DetailsTabProps {
   employee: Employee
@@ -322,7 +323,21 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Additional Attributes - moved from Summary tab */}
+        <CommunicationCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
+
+        <RelationshipsCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
+
+        {/* Additional Attributes */}
         {(() => {
           const props = employee?.additionalProperties || {}
           const items = Object.entries(props)
@@ -356,13 +371,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             </Card>
           )
         })()}
-
-        <CommunicationCard
-          employee={employee}
-          accessToken={accessToken}
-          isSelfView={isSelfView}
-          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-        />
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>

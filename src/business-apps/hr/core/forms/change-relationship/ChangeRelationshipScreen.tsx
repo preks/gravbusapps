@@ -69,7 +69,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const employeeId =
     (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId || userInfo?.employeeDetails?.employeeId
 
-  const initialPayload = useMemo(() => (additionalData as any) || {}, [additionalData])
+  const initialPayload = useMemo(
+    () => (additionalData as any)?.psi_taskPayload?.psi_initialParameters ?? (additionalData as any) ?? {},
+    [additionalData]
+  )
+  const isEditMode = Boolean(initialPayload?.relationship?.id)
   const [successOpen, setSuccessOpen] = useState(false)
   const preSubmitResolverRef = useRef<((payload: any) => void) | null>(null)
   const pendingPayloadRef = useRef<any>(null)
@@ -390,7 +394,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.relationship', 'Relationship')}
             </Label>
             <div className="gba:mt-2">
-              <Select value={selectedRelationshipId} onValueChange={handleRelationshipSelection}>
+              <Select value={selectedRelationshipId} onValueChange={handleRelationshipSelection} disabled={!isEditMode}>
                 <SelectTrigger data-testid="flw_changeRelationship_selectRelationship">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
@@ -403,14 +407,16 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                   <SelectItem value="new">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.add_new', 'Add New Relationship')}
                   </SelectItem>
-                  {(relationships || []).map((rel: any) => (
-                    <SelectItem key={rel.id} value={rel.id}>
-                      {`${rel.firstName || ''} ${rel.lastName || ''}`.trim() || '—'}
-                      {rel.typeRef && relationshipTypeLabelById[rel.typeRef]
-                        ? ` – ${relationshipTypeLabelById[rel.typeRef]}`
-                        : ''}
-                    </SelectItem>
-                  ))}
+                  {isEditMode
+                    ? (relationships || []).map((rel: any) => (
+                        <SelectItem key={rel.id} value={rel.id}>
+                          {`${rel.firstName || ''} ${rel.lastName || ''}`.trim() || '—'}
+                          {rel.typeRef && relationshipTypeLabelById[rel.typeRef]
+                            ? ` – ${relationshipTypeLabelById[rel.typeRef]}`
+                            : ''}
+                        </SelectItem>
+                      ))
+                    : null}
                 </SelectContent>
               </Select>
             </div>
