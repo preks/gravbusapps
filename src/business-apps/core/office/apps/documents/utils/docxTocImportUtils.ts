@@ -1,10 +1,17 @@
 // DOCX table-of-contents import helpers for Word field results.
 
-import JSZip from 'jszip'
 import { createDocumentTocSnapshot, stringifyDocumentTocSnapshot } from './documentTocSnapshot'
+import {
+  DEFAULT_DOCUMENT_TOC_STYLES,
+  type DocumentTocTextStyle,
+  normalizeDocumentTocTextStyle,
+  stringifyDocumentTocStyles
+} from './documentTocStyleUtils'
+import { JSZipCompat } from './jsZipCompat'
 
 export interface ImportedDocxTableOfContents {
   snapshotJson: string
+  stylesJson: string
   showPageNumbers: boolean
   rightAlignPageNumbers: boolean
   tabLeader: 'dot' | 'none'
@@ -21,6 +28,7 @@ type ParsedParagraph = {
   hasEnd: boolean
   instrText: string
   indentLeftTwips: number | null
+  textStyle: DocumentTocTextStyle | null
 }
 
 function elementLocalName(el: Element): string {
@@ -40,6 +48,14 @@ function firstChildByLocalName(parent: Element, localName: string): Element | nu
     if (elementLocalName(child) === localName) return child
   }
   return null
+}
+
+function readAttributeValue(element: Element | null, attributeName: string): string | null {
+  if (!element) {
+    return null
+  }
+
+  return element.getAttribute(`w:${attributeName}`) ?? element.getAttribute(attributeName)
 }
 
 function normalizeWhitespace(text: string): string {
@@ -63,6 +79,61 @@ function readParagraphText(paragraph: Element): string {
     .map(segment => normalizeWhitespace(segment))
     .join('\t')
     .trim()
+}
+
+function isWordBooleanTrue(element: Element | null): boolean {
+  if (!element) {
+    return false
+  }
+
+  const value = readAttributeValue(element, 'val')?.trim().toLowerCase()
+  return value !== '0' && value !== 'false' && value !== 'off'
+}
+
+function readParagraphTextStyle(paragraph: Element): DocumentTocTextStyle | null {
+  const runs = descendantsByLocalName(paragraph, 'r')
+  const runWithContent = runs.find(
+    run => descendantsByLocalName(run, 't').length > 0 || descendantsByLocalName(run, 'tab').length > 0
+  )
+  const runProps = runWithContent
+    ? descendantsByLocalName(runWithContent, 'rPr')[0]
+    : descendantsByLocalName(paragraph, 'rPr')[0]
+
+  if (!runProps) {
+    return null
+  }
+
+  const fonts = firstChildByLocalName(runProps, 'rFonts')
+  const fontSize = firstChildByLocalName(runProps, 'sz')
+  const bold = firstChildByLocalName(runProps, 'b')
+  const italic = firstChildByLocalName(runProps, 'i')
+  const color = firstChildByLocalName(runProps, 'color')
+  const fontFamily = readAttributeValue(fonts, 'ascii') ?? readAttributeValue(fonts, 'hAnsi') ?? ''
+  const fontSizeHalfPoints = Number.parseInt(readAttributeValue(fontSize, 'val') ?? '', 10)
+  const colorValue = readAttributeValue(color, 'val')
+  const normalizedColor =
+    colorValue && colorValue.toLowerCase() !== 'auto' && /^[0-9a-fA-F]{6}$/.test(colorValue) ? `#${colorValue}` : null
+  const hasExplicitStyle =
+    Boolean(fontFamily) ||
+    Number.isFinite(fontSizeHalfPoints) ||
+    bold !== null ||
+    italic !== null ||
+    normalizedColor !== null
+
+  if (!hasExplicitStyle) {
+    return null
+  }
+
+  return normalizeDocumentTocTextStyle(
+    {
+      fontFamily,
+      fontSizePt: Number.isFinite(fontSizeHalfPoints) && fontSizeHalfPoints > 0 ? fontSizeHalfPoints / 2 : null,
+      bold: isWordBooleanTrue(bold),
+      italic: isWordBooleanTrue(italic),
+      color: normalizedColor
+    },
+    DEFAULT_DOCUMENT_TOC_STYLES.entries
+  )
 }
 
 function readParagraph(paragraph: Element): ParsedParagraph {
@@ -93,7 +164,8 @@ function readParagraph(paragraph: Element): ParsedParagraph {
     hasSeparate,
     hasEnd,
     instrText,
-    indentLeftTwips: Number.isFinite(indentLeftTwips) ? indentLeftTwips : null
+    indentLeftTwips: Number.isFinite(indentLeftTwips) ? indentLeftTwips : null,
+    textStyle: readParagraphTextStyle(paragraph)
   }
 }
 
@@ -205,6 +277,8 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
     let isReadingResult = false
     let instruction = ''
     let titleText: string | null = null
+    let titleStyle: DocumentTocTextStyle | null = null
+    let entryStyle: DocumentTocTextStyle | null = null
     const entries: Array<ReturnType<typeof parseFieldResultEntry>> = []
 
     for (const paragraph of paragraphs) {
@@ -214,6 +288,8 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
         isReadingResult = false
         instruction = ''
         titleText = null
+        titleStyle = null
+        entryStyle = null
         entries.length = 0
       }
 
@@ -248,6 +324,10 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
 
         return {
           snapshotJson: stringifyDocumentTocSnapshot(snapshot),
+          stylesJson: stringifyDocumentTocStyles({
+            title: titleStyle ?? DEFAULT_DOCUMENT_TOC_STYLES.title,
+            entries: entryStyle ?? DEFAULT_DOCUMENT_TOC_STYLES.entries
+          }),
           showPageNumbers: config.showPageNumbers,
           rightAlignPageNumbers: true,
           tabLeader: config.tabLeader,
@@ -260,7 +340,13 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
       if (isReadingResult && isTocField) {
         if (isTocTitleParagraph(paragraph) && paragraph.text.trim()) {
           titleText = paragraph.text.trim()
+          if (paragraph.textStyle) {
+            titleStyle = paragraph.textStyle
+          }
           continue
+        }
+        if (!entryStyle && paragraph.textStyle) {
+          entryStyle = paragraph.textStyle
         }
         entries.push(parseFieldResultEntry(paragraph))
       }
@@ -274,7 +360,7 @@ export function parseDocumentXmlForTableOfContents(xml: string): ImportedDocxTab
 
 export async function parseDocxTableOfContents(arrayBuffer: ArrayBuffer): Promise<ImportedDocxTableOfContents | null> {
   try {
-    const zip = await JSZip.loadAsync(arrayBuffer)
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
     const entry = zip.file('word/document.xml')
     if (!entry) return null
     return parseDocumentXmlForTableOfContents(await entry.async('string'))
@@ -288,6 +374,7 @@ function buildTocElement(doc: Document, toc: ImportedDocxTableOfContents): HTMLE
   element.setAttribute('data-document-toc', '')
   element.className = 'document-table-of-contents'
   element.setAttribute('data-toc-snapshot', toc.snapshotJson)
+  element.setAttribute('data-toc-styles', toc.stylesJson)
   element.setAttribute('data-toc-show-page-numbers', String(toc.showPageNumbers))
   element.setAttribute('data-toc-right-align-page-numbers', String(toc.rightAlignPageNumbers))
   element.setAttribute('data-toc-tab-leader', toc.tabLeader)
@@ -431,6 +518,7 @@ function inferTableOfContentsFromHtml(html: string): ImportedDocxTableOfContents
             layoutVersion: null
           })
         ),
+        stylesJson: stringifyDocumentTocStyles(DEFAULT_DOCUMENT_TOC_STYLES),
         showPageNumbers: entries.some(entry => Boolean(entry.pageNumber)),
         rightAlignPageNumbers: true,
         tabLeader: 'dot',

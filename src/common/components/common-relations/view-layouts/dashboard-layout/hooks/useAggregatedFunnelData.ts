@@ -23,13 +23,6 @@ export interface AggregatedFunnelConfig {
   version?: string
 }
 
-/** Stage type from catalog for funnel ordering and labels */
-export interface CatalogStageType {
-  code: string
-  name: string
-  order: number
-}
-
 // Helper: Format stage names to proper case
 const toProperCase = (str: string): string => {
   return str
@@ -100,7 +93,6 @@ const fetchDistinctStageTypes = async (
         ${config.stageFieldPath} {
           type
           value
-          additionalValue1
         }
       }
     }
@@ -118,15 +110,38 @@ const fetchDistinctStageTypes = async (
     if (!stage) return
 
     const stageType = stage.type
-    const stageOrder = Number.parseInt(stage.additionalValue1 || '999', 10)
-
     if (stageType && !stageTypeMap.has(stageType)) {
       const formattedName = toProperCase(stageType.replace(/_/g, ' '))
-      stageTypeMap.set(stageType, { order: stageOrder, name: formattedName })
+      stageTypeMap.set(stageType, { order: 999, name: formattedName })
     }
   })
 
   return stageTypeMap
+}
+
+// Helper: Get displayOrder and name per stage type code from the SalesPipelineStageType catalog
+const fetchStageTypeOrderMap = async (
+  graphqlClient: any,
+  catalogIdentifier: string
+): Promise<Map<string, { order: number; name: string }>> => {
+  const result = await graphqlClient.request(`
+    query GetStageTypeDisplayOrder {
+      CatalogEntry(
+        where: { catalog: { identifier: { _eq: "${catalogIdentifier}" } }, isDeleted: { _eq: false } }
+        orderBy: { displayOrder: ASC }
+      ) { code value displayOrder }
+    }
+  `)
+  const orderMap = new Map<string, { order: number; name: string }>()
+  result.CatalogEntry?.forEach((entry: any, index: number) => {
+    if (entry.code) {
+      orderMap.set(entry.code, {
+        order: entry.displayOrder ?? index,
+        name: toProperCase((entry.value ?? entry.code).replace(/_/g, ' '))
+      })
+    }
+  })
+  return orderMap
 }
 
 // Helper: Fetch or reuse cached static data
@@ -180,11 +195,31 @@ const fetchOrReuseCachedData = async ({
   )
   setAvailableCurrencies(uniqueCurrencies.length > 0 ? uniqueCurrencies : ['EUR'])
 
-  // Fetch stage types
+  // Fetch stage types from opportunity data
   const stageTypeMap = await fetchDistinctStageTypes(graphqlClient, config, currentYearStart, currentYearEnd)
 
   if (stageTypeMap.size === 0) {
     return null
+  }
+
+  // If configured, use SalesPipelineStageType catalog to get the correct displayOrder per type code
+  // (salesPipelineStage.displayOrder is local pipeline position, not the global type order)
+  // Also adds catalog stages not yet in the map so they show with 0 opps
+  if (config.stageTypeCatalog) {
+    const orderMap = await fetchStageTypeOrderMap(graphqlClient, config.stageTypeCatalog)
+    // Remove stages not defined in the catalog
+    stageTypeMap.forEach((_, typeCode) => {
+      if (!orderMap.has(typeCode)) stageTypeMap.delete(typeCode)
+    })
+    // Update order for existing stages + add catalog stages with 0 opps
+    orderMap.forEach((catalogInfo, typeCode) => {
+      const existing = stageTypeMap.get(typeCode)
+      if (existing) {
+        existing.order = catalogInfo.order
+      } else {
+        stageTypeMap.set(typeCode, { order: catalogInfo.order, name: catalogInfo.name })
+      }
+    })
   }
 
   // Cache static data for reuse
@@ -205,8 +240,6 @@ export interface UseAggregatedFunnelDataProps {
   currentYear?: number | null // null means no year filter
   enabled?: boolean
   config: AggregatedFunnelConfig
-  /** When provided, funnel stages and order come from this catalog (CRM/IRM stage type catalog) */
-  catalogStageTypes?: CatalogStageType[]
 }
 
 export interface UseAggregatedFunnelDataReturn {
@@ -236,8 +269,7 @@ export const useAggregatedFunnelData = ({
   selectedCurrency = 'EUR',
   currentYear = null, // null means no year filter
   enabled = true,
-  config,
-  catalogStageTypes
+  config
 }: UseAggregatedFunnelDataProps): UseAggregatedFunnelDataReturn => {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -320,52 +352,24 @@ export const useAggregatedFunnelData = ({
       const { hasYearFilter, currentYearStart, currentYearEnd } = prepareYearFilter(currentYear)
       const currencyFilter = selectedCurrency ? `Currency:v1:${selectedCurrency}` : null
 
-      let stageTypeMap: Map<string, StageInfo>
-      let stageTypes: string[]
-      let includeZeroCountStages: boolean
+      const map = await fetchOrReuseCachedData({
+        graphqlClient,
+        config,
+        dateRange: hasYearFilter ? { start: currentYearStart!, end: currentYearEnd! } : undefined,
+        cacheParams: { pipelineRefsKey, currentYear: currentYear ?? 'all' },
+        staticDataCache,
+        setAvailableCurrencies
+      })
 
-      if (catalogStageTypes && catalogStageTypes.length > 0) {
-        // Catalog-driven: use stage types from CRM/IRM stage type catalog
-        stageTypeMap = new Map(catalogStageTypes.map(s => [s.code, { order: s.order, name: s.name }]))
-        stageTypes = catalogStageTypes.map(s => s.code)
-        includeZeroCountStages = true
-        // Fetch currencies only (no cache reuse for catalog path)
-        const uniqueCurrencies = await fetchDistinctCurrencies(
-          graphqlClient,
-          config,
-          currentYearStart,
-          currentYearEnd,
-          config.stageFieldPath
-        )
-        setAvailableCurrencies(uniqueCurrencies.length > 0 ? uniqueCurrencies : ['EUR'])
-      } else {
-        // Data-driven: discover stage types from opportunities
-        const map = await fetchOrReuseCachedData({
-          graphqlClient,
-          config,
-          dateRange: hasYearFilter
-            ? {
-                start: currentYearStart!,
-                end: currentYearEnd!
-              }
-            : undefined,
-          cacheParams: {
-            pipelineRefsKey,
-            currentYear: currentYear ?? 'all'
-          },
-          staticDataCache,
-          setAvailableCurrencies
-        })
-
-        if (!map) {
-          setAggregatedFunnel([])
-          setTotalPipelineValue(0)
-          return
-        }
-        stageTypeMap = map
-        stageTypes = Array.from(stageTypeMap.keys())
-        includeZeroCountStages = false
+      if (!map) {
+        setAggregatedFunnel([])
+        setTotalPipelineValue(0)
+        return
       }
+
+      const stageTypeMap = map
+      const stageTypes = Array.from(stageTypeMap.keys())
+      const includeZeroCountStages = !!config.stageTypeCatalog
 
       const buildStageAggregate = (stageType: string) => {
         // Create valid GraphQL alias (replace special characters)
@@ -423,7 +427,7 @@ export const useAggregatedFunnelData = ({
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, pipelineRefsKey, selectedCurrency, currentYear, enabled, config, graphqlClient, catalogStageTypes])
+  }, [accessToken, pipelineRefsKey, selectedCurrency, currentYear, enabled, config, graphqlClient])
 
   useEffect(() => {
     if (enabled) {

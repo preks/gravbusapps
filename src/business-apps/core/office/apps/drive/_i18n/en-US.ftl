@@ -45,6 +45,7 @@ empty-trash-desc = Items you delete will appear here for 30 days
 action-open = Open
 action-move = Move to...
 action-rename = Rename
+rename-dialog-error = Could not rename item. Please try again.
 action-star = Add to favorites
 action-unstar = Remove from favorites
 action-trash = Move to trash

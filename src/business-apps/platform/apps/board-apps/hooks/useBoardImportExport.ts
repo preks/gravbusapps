@@ -3,8 +3,10 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import type { BoardColumn } from '../types'
+import translations from '../_i18n'
 
 export interface UseBoardImportExportReturn {
   isImporting: boolean
@@ -28,6 +30,7 @@ export interface UseBoardImportExportReturn {
 }
 
 export function useBoardImportExport(accessToken: string): UseBoardImportExportReturn {
+  const { t } = useTranslation(translations)
   const [isImporting, setIsImporting] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,16 +52,16 @@ export function useBoardImportExport(accessToken: string): UseBoardImportExportR
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ rows, mode })
         })
-        if (!response.ok) throw new Error('Import failed')
+        if (!response.ok) throw new Error(t('error-import-failed'))
         return response.json()
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Import failed')
+        setError(err instanceof Error ? err.message : t('error-import-failed'))
         return null
       } finally {
         setIsImporting(false)
       }
     },
-    [apiUrl, accessToken]
+    [apiUrl, accessToken, t]
   )
 
   const importCSV = useCallback(
@@ -71,7 +74,7 @@ export function useBoardImportExport(accessToken: string): UseBoardImportExportR
     ): Promise<{ imported: number } | null> => {
       const rows = parseCSV(csvText, columns)
       if (rows.length === 0) {
-        setError('No valid rows found in CSV')
+        setError(t('error-import-no-valid-csv'))
         return null
       }
       return importJSON(boardId, sheetId, rows, mode)
@@ -87,17 +90,17 @@ export function useBoardImportExport(accessToken: string): UseBoardImportExportR
         const response = await fetch(`${apiUrl}/boards/${boardId}/sheets/${sheetId}/export?format=json`, {
           headers: { Authorization: `Bearer ${accessToken}` }
         })
-        if (!response.ok) throw new Error('Export failed')
+        if (!response.ok) throw new Error(t('error-export-failed'))
         const data = await response.json()
         return data.rows || []
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Export failed')
+        setError(err instanceof Error ? err.message : t('error-export-failed'))
         return null
       } finally {
         setIsExporting(false)
       }
     },
-    [apiUrl, accessToken]
+    [apiUrl, accessToken, t]
   )
 
   const exportCSV = useCallback(

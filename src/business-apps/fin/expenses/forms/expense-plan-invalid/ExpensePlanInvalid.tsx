@@ -2,7 +2,9 @@ import React from 'react'
 import { Divider, Typography } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import expenseFormsTranslations from '../_i18n'
 
 import { showToast } from '../../utils/notificationUtils'
 import { EVENTS } from '../../utils/constants'
@@ -20,6 +22,8 @@ interface ExpensePlanInvalidContentProps {
  * @returns Expense Plan Invalid Content component
  */
 const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ onCancel }) => {
+  const { t } = useTranslation(expenseFormsTranslations)
+
   return (
     <div
       className="gba:mx-auto gba:flex gba:flex-col"
@@ -86,10 +90,7 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
           style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
           data-testid="expense-plan-invalid-validation-message"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.invalid_profile_text_plan',
-            'Code/SAP number missing in your profile. Please reach out to your administration to provide the missing data before starting an expense plan.'
-          )}
+          {t('missing-sap-wizard-description')}
         </p>
       </div>
 

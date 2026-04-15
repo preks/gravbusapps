@@ -2,7 +2,7 @@
  * In-document table of contents (Word-style block): live heading list with optional page numbers.
  */
 
-import React, { useCallback, useMemo } from 'react'
+import * as React from 'react'
 import type { NodeViewProps } from '@tiptap/react'
 import { NodeViewWrapper, useEditorState } from '@tiptap/react'
 import {
@@ -15,6 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { createSafePaginationSelection } from '@/components/tiptap-extensions/tiptap-custom-pagination/paginationLayoutHelpers'
 import { isDocumentTocStructurallyStale, parseDocumentTocSnapshot } from '../../../utils/documentTocSnapshot'
+import { buildDocumentTocTextStyleObject, parseDocumentTocStyles } from '../../../utils/documentTocStyleUtils'
 import { getDocumentTocLayoutHints } from '../../../utils/tocLayoutBridge'
 import { scrollEditorSelectionNodeIntoView } from '../commentSidebarNavigation'
 import translations from '../../../_i18n'
@@ -26,6 +27,7 @@ type DocumentTocOpenFormatEventDetail = {
 }
 
 export function DocumentTableOfContentsView({ editor, node, getPos, selected }: Readonly<NodeViewProps>) {
+  const { useCallback, useMemo } = React
   const { t } = useTranslation(translations)
 
   const tocBlockEnd = useMemo(() => {
@@ -46,6 +48,16 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
   const maxHeadingLevel = useMemo(
     () => Math.max(1, Math.min(6, Number(node.attrs.maxHeadingLevel ?? 3))),
     [node.attrs.maxHeadingLevel]
+  )
+  const tocStyles = useMemo(() => parseDocumentTocStyles(String(node.attrs.stylesJson ?? '')), [node.attrs.stylesJson])
+  const titleStyle = useMemo(() => buildDocumentTocTextStyleObject(tocStyles.title), [tocStyles.title])
+  const entryStyle = useMemo(() => buildDocumentTocTextStyleObject(tocStyles.entries), [tocStyles.entries])
+  const emptyStateStyle = useMemo(
+    () => ({
+      ...entryStyle,
+      color: tocStyles.entries.color ?? 'var(--nw-muted-foreground)'
+    }),
+    [entryStyle, tocStyles.entries.color]
   )
   const visibleEntries = useMemo(
     () => snapshot.entries.filter(entry => entry.level <= maxHeadingLevel),
@@ -123,32 +135,34 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
   }, [editor.commands, getPos])
 
   return (
-    <React.Fragment>
+    <NodeViewWrapper
+      as="div"
+      className={`document-table-of-contents gba:my-3 gba:w-full gba:max-w-full ${
+        selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
+      }`}
+      data-document-toc=""
+      contentEditable={false}
+      data-testid="document-table-of-contents"
+      onMouseDown={(event: MouseEvent) => {
+        const target = event.target
+        if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
+          return
+        }
+        const pos = getPos()
+        if (typeof pos !== 'number') return
+        editor.chain().focus().setNodeSelection(pos).run()
+      }}
+    >
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <NodeViewWrapper
-            as="div"
-            className={`document-table-of-contents gba:my-3 gba:w-full gba:max-w-full gba:rounded-md gba:border gba:border-border/60 gba:p-3 ${
-              selected ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
-            }`}
-            data-document-toc=""
-            contentEditable={false}
-            data-testid="document-table-of-contents"
-            onMouseDown={(event: MouseEvent) => {
-              const target = event.target
-              if (target instanceof HTMLElement && target.closest('button[data-testid^="document-toc-line"]')) {
-                return
-              }
-              const pos = getPos()
-              if (typeof pos !== 'number') return
-              editor.chain().focus().setNodeSelection(pos).run()
-            }}
-          >
-            <div className="gba:mb-3 gba:text-base gba:font-semibold gba:text-foreground">
+          <div className="gba:w-full">
+            <div className="gba:mb-3 gba:text-base gba:text-foreground" style={titleStyle}>
               {t('document-toc-block-title')}
             </div>
             {visibleEntries.length === 0 ? (
-              <p className="gba:m-0 gba:text-sm gba:text-muted-foreground">{t('document-toc-empty')}</p>
+              <p className="gba:m-0 gba:text-sm" style={emptyStateStyle}>
+                {t('document-toc-empty')}
+              </p>
             ) : (
               <div className="gba:m-0 gba:space-y-1 gba:p-0">
                 {visibleEntries.map((entry, idx) => {
@@ -157,7 +171,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                     'gba:pl-10'
                   const pageLabel = showPageNumbers ? (entry.pageNumber ?? t('document-toc-page-unknown')) : ''
                   const titleBaseClass =
-                    'gba:block gba:min-w-0 gba:w-full gba:text-left gba:text-base gba:leading-snug gba:text-foreground gba:whitespace-normal gba:break-words gba:overflow-wrap-anywhere'
+                    'gba:block gba:min-w-0 gba:w-full gba:bg-transparent gba:border-0 gba:p-0 gba:text-left gba:leading-snug gba:whitespace-normal gba:break-words gba:overflow-wrap-anywhere'
                   const titleClass = titleBaseClass
                   const titleNode =
                     canFollowHeadingLinks && entry.pos > 0 ? (
@@ -166,12 +180,13 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                         onMouseDown={event => event.stopPropagation()}
                         onClick={() => scrollToHeading(entry.pos)}
                         className={`${titleClass} gba:text-left hover:gba:underline`}
+                        style={entryStyle}
                         data-testid={`document-toc-line-${idx}`}
                       >
                         {entry.text || t('title-untitled')}
                       </button>
                     ) : (
-                      <span className={titleClass} data-testid={`document-toc-line-${idx}`}>
+                      <span className={titleClass} style={entryStyle} data-testid={`document-toc-line-${idx}`}>
                         {entry.text || t('title-untitled')}
                       </span>
                     )
@@ -192,7 +207,10 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                             <span className="gba:min-w-8 gba:flex-1 gba:shrink-0" aria-hidden />
                           )}
                           {pageLabel !== '' ? (
-                            <span className="gba:shrink-0 gba:min-w-8 gba:text-right gba:text-base gba:tabular-nums gba:text-foreground">
+                            <span
+                              className="gba:shrink-0 gba:min-w-8 gba:text-right gba:tabular-nums"
+                              style={entryStyle}
+                            >
                               {pageLabel}
                             </span>
                           ) : (
@@ -209,7 +227,9 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                             />
                           ) : null}
                           {pageLabel !== '' ? (
-                            <span className="gba:text-base gba:tabular-nums gba:text-foreground">{pageLabel}</span>
+                            <span className="gba:tabular-nums" style={entryStyle}>
+                              {pageLabel}
+                            </span>
                           ) : null}
                         </div>
                       )}
@@ -218,7 +238,7 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
                 })}
               </div>
             )}
-          </NodeViewWrapper>
+          </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="gba:w-64" data-testid="document-toc-context-menu">
           {showPageNumbers ? (
@@ -238,6 +258,6 @@ export function DocumentTableOfContentsView({ editor, node, getPos, selected }: 
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-    </React.Fragment>
+    </NodeViewWrapper>
   )
 }

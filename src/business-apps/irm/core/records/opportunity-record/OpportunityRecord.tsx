@@ -21,6 +21,7 @@ import {
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
@@ -1096,7 +1097,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     },
                     activityTypeCatalog: ACTIVITY_TYPE,
                     buildActivityPayload: buildInvestmentActivityPayload,
-                    preSubmit: activityPreSubmit
+                    preSubmit: activityPreSubmit,
+                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
                   }
                 },
                 {

@@ -3,8 +3,10 @@ import {
   FunctionsServiceClient,
   type LatestFunctionItem,
   type ConnectorKind,
-  type FunctionConnectionBinding
+  type FunctionConnectionBinding,
+  type SecretBundleListItemDto
 } from '@/common/network/functions/FunctionsServiceClient'
+import { buildCredentialBindOptions } from '@/common/utils/credentialBindOptions'
 import type { StoredSecretOption } from '../components/editor/SettingsEditor'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
@@ -83,6 +85,12 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const [error, setError] = useState<string | null>(null)
 
   const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
+  const [credentialBundleItems, setCredentialBundleItems] = useState<SecretBundleListItemDto[]>([])
+
+  const credentialBindOptions = useMemo(
+    () => buildCredentialBindOptions(storedSecrets, credentialBundleItems),
+    [storedSecrets, credentialBundleItems]
+  )
 
   const refreshSecrets = useCallback(async () => {
     try {
@@ -95,6 +103,12 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
       )
     } catch {
       setStoredSecrets([])
+    }
+    try {
+      const bundlesPage = await client.listSecretBundles({ limit: 100, offset: 0, includeSlots: true })
+      setCredentialBundleItems(bundlesPage?.items || [])
+    } catch {
+      setCredentialBundleItems([])
     }
   }, [client])
 
@@ -615,6 +629,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     runTestCase,
 
     storedSecrets,
+    credentialBindOptions,
     refreshSecrets,
     onCreateStoredSecret,
     testOverrideRows,

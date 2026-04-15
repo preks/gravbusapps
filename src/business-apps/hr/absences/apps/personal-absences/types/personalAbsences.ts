@@ -4,6 +4,8 @@
 export interface AbsenceRow {
   id: string
   type: string
+  typeId: string
+  typeRef: string
   typeColor: string
   typeParentEntryId: string
   startDate: string

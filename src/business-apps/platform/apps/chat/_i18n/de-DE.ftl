@@ -1,11 +1,75 @@
 # Chat Translations - German
 
 # Main Component - ChatWithCalendar
+chat-tab-dashboard = Übersicht
 chat-fullscreen-button = Im Vollbildmodus öffnen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Kalender
 chat-tab-reminders = Erinnerungen
+chat-shell-disabled-title = Chat nicht verfügbar
+chat-shell-disabled-description = Dieses Panel ist für Ihren Workspace derzeit deaktiviert.
+
+# Dashboard
+dashboard-error-loadData = Dashboard-Daten konnten nicht geladen werden
+dashboard-hero-goodMorning = Guten Morgen
+dashboard-hero-goodAfternoon = Guten Tag
+dashboard-hero-goodEvening = Guten Abend
+dashboard-hero-goodNight = Gute Nacht
+dashboard-hero-tagline = Ihre Kommunikationszentrale. Vernetzen Sie sich, arbeiten Sie zusammen und bleiben Sie mit Ihrem Team synchron.
+dashboard-common-you = Sie
+dashboard-personalStats-title = Ihre Aktivität
+dashboard-personalStats-messagesSent = Gesendete Nachrichten
+dashboard-personalStats-conversations = Unterhaltungen
+dashboard-personalStats-callMinutes = Gesprächsminuten
+dashboard-personalStats-avgPerDay = Durchschnitt pro Tag
+dashboard-personalStats-memberDays = Mitgliedstage
+dashboard-personalStats-active = Aktiv
+dashboard-personalStats-longTimeMember = Langjähriges Mitglied
+dashboard-globalStats-title = Aktivität im Unternehmen
+dashboard-globalStats-activeNow = Jetzt aktiv
+dashboard-globalStats-live = Live
+dashboard-globalStats-messagesToday = Nachrichten heute
+dashboard-globalStats-totalUsers = Nutzer insgesamt
+dashboard-globalStats-totalCallTime = Gesamte Gesprächszeit
+dashboard-globalStats-totalPlatformMessages = Nachrichten auf der Plattform insgesamt
+dashboard-globalStats-todayDelta = +{$count} heute
+dashboard-globalStats-allTime = Gesamte Zeit auf der Plattform
+dashboard-globalStats-topReactions = Top-Reaktionen
+dashboard-globalStats-noReactions = Noch keine Reaktionen
+dashboard-topContacts-title = Meine Kontakte
+dashboard-topContacts-online = Online
+dashboard-topContacts-mostContacted = Am häufigsten kontaktiert
+dashboard-topContacts-maybeReachOut = Vielleicht kontaktieren
+dashboard-topContacts-emptyTitle = Noch keine Kontakte
+dashboard-topContacts-emptyDescription = Beginnen Sie mit Kollegen zu chatten, damit Ihre Kontakte hier angezeigt werden.
+dashboard-topContacts-noSuggestions = Keine Vorschläge
+dashboard-topContacts-contactMeta = {$messageCount} Nachr. · {$relativeTime}
+dashboard-topContacts-today = Heute
+dashboard-topContacts-yesterday = Gestern
+dashboard-topContacts-daysAgo = vor {$count} Tagen
+dashboard-topContacts-weeksAgo = vor {$count} Wochen
+dashboard-topContacts-monthsAgo = vor {$count} Monaten
+dashboard-upcomingMeetings-title = Bevorstehende Termine
+dashboard-upcomingMeetings-next7Days = Nächste 7 Tage
+dashboard-upcomingMeetings-emptyTitle = Keine bevorstehenden Termine
+dashboard-upcomingMeetings-emptyDescription = Ihr Kalender ist frei
+dashboard-upcomingMeetings-error = Termine konnten nicht geladen werden
+dashboard-upcomingMeetings-open = Öffnen
+dashboard-upcomingMeetings-join = Beitreten
+dashboard-upcomingMeetings-now = Jetzt
+dashboard-upcomingMeetings-started = Begonnen
+dashboard-upcomingMeetings-startingNow = Startet jetzt
+dashboard-upcomingMeetings-inMinutes = In {$minutes} Min.
+dashboard-upcomingMeetings-inHours = In {$hours} Std.
+dashboard-upcomingMeetings-tomorrow = Morgen
+dashboard-upcomingMeetings-agendaItems = {$count ->
+  [one] {$count} Tagesordnungspunkt
+ *[other] {$count} Tagesordnungspunkte
+}
+dashboard-upcomingMeetings-showMore = {$count} weitere anzeigen
+dashboard-upcomingMeetings-showMoreWithTotal = {$count} weitere anzeigen ({$total} insgesamt)
+dashboard-upcomingMeetings-showLess = Weniger anzeigen
 
 # Chat Main
 chat-appHeader = Chat
@@ -591,6 +655,8 @@ calendar-monthly = Monatlich
 calendar-endDate = Enddatum
 calendar-reminders = Erinnerungen
 calendar-color = Farbe
+calendar-aiTranscription = KI-Besprechungstranskription
+calendar-aiTranscriptionDescription = Besprechungsgespräche automatisch transkribieren und für alle Teilnehmer speichern
 calendar-cancel = Abbrechen
 calendar-createMeeting = Termin erstellen
 calendar-saveChanges = Änderungen speichern
