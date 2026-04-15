@@ -47,11 +47,14 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
             },
             {
               value: MyTimeTabEnum.SmartBooking,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.title', 'Smart Booking')
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.smart_booking.title',
+                'Project Time Booking'
+              )
             },
             {
               value: MyTimeTabEnum.History,
-              label: t('history')
+              label: t('tab_history')
             },
             {
               value: MyTimeTabEnum.EveryAIAssistant,
