@@ -6,7 +6,7 @@ export const filterTravelRegionsByExpenseItemsCurrency = (
   mainRule: any,
   otherRules: any[]
 ): { sameRuleCurrency: boolean; valuesArray: any[] } => {
-  if (!items || !items.length || !mainRule || !otherRules) {
+  if (!items?.length || !mainRule || !otherRules) {
     return { sameRuleCurrency: false, valuesArray: otherRules || [] }
   }
 

@@ -47,8 +47,8 @@ export const createBorderCrossingTransformer = () => {
     let previousLocation: TripData | null = null
 
     for (const location of locations) {
-      if (!(location && location.tripDateTime)) {
-        location.tripDateTime = (previousLocation && previousLocation.tripDateTime) || '' // use the previous location's date time
+      if (!location?.tripDateTime) {
+        location.tripDateTime = previousLocation?.tripDateTime || '' // use the previous location's date time
       }
       if (previousLocation && location && location.countryRef !== previousLocation.countryRef) {
         switch (location.pointType) {
@@ -171,11 +171,11 @@ export const getValidLocality = (employeeAddresses: any[]): string => {
     return ''
   }
   const primary = employeeAddresses.find(address => address.type === ADDRESS_TYPES_ENUM.value.PRIMARY)
-  if (primary && primary.locality && primary.locality.trim()) {
+  if (primary?.locality?.trim()) {
     return primary.locality
   }
   const secondary = employeeAddresses.find(
-    address => address.type === ADDRESS_TYPES_ENUM.value.SECONDARY && address.locality && address.locality.trim()
+    address => address.type === ADDRESS_TYPES_ENUM.value.SECONDARY && address.locality?.trim()
   )
   return secondary ? secondary.locality : ''
 }
@@ -207,9 +207,7 @@ export const getLatestRejectCommentFromCommentList = (commentList: any[] | undef
   if (!commentList || !Array.isArray(commentList)) {
     return null
   }
-  const filteredArray = commentList.filter(
-    (comment: any) => comment.commentType && comment.commentType.toUpperCase().includes('REJECT')
-  )
+  const filteredArray = commentList.filter((comment: any) => comment.commentType?.toUpperCase()?.includes('REJECT'))
 
   return filteredArray.length > 0
     ? [...filteredArray].sort(
