@@ -140,7 +140,7 @@ export const useCommunicationFormState = ({
 
     initialAppliedRef.current = true
 
-    const typeId = entry.typeRef && types.find(t => t.id === entry.typeRef) ? entry.typeRef : undefined
+    const typeId = entry.typeRef && types.some(t => t.id === entry.typeRef) ? entry.typeRef : undefined
 
     const prefillValue = normalizePhoneNumber(entry.value || '', entry.channelRef, channels)
     const prefillPurpose = entry.purpose || 'PRIVATE'
