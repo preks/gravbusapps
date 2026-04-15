@@ -89,6 +89,102 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     bottleneck_nodes?: string | null
   }
 
+  const mapSpanDistributionRowToSpanOfControl = (r: DatasetRow): SpanOfControlData => {
+    const rawDirectReports = typeof r.value === 'number' ? r.value : Number(r.value)
+    const directReports = Number.isFinite(rawDirectReports) ? rawDirectReports : 0
+    let efficiency: SpanOfControlData['efficiency']
+    if (directReports > 7) {
+      efficiency = 'Overloaded'
+    } else if (directReports >= 3) {
+      efficiency = 'Optimal'
+    } else {
+      efficiency = 'Underutilized'
+    }
+    let recommendation: string
+    if (efficiency === 'Overloaded') {
+      recommendation = t('hr-analytics-recommendation-overloaded')
+    } else if (efficiency === 'Underutilized') {
+      recommendation = t('hr-analytics-recommendation-underutilized')
+    } else {
+      recommendation = t('hr-analytics-recommendation-optimal')
+    }
+    return {
+      managerId: r.category,
+      managerName: r.manager_name?.trim() || r.category,
+      organizationalUnit: r.organizational_unit_name?.trim() || r.manager_name?.trim() || r.category,
+      directReports,
+      managerLevel: null,
+      efficiency,
+      recommendation
+    }
+  }
+
+  const parseSunburstRowsToEdges = (sunburstRows: Array<{ category: string; value: number }>): HierarchyEdgeRow[] => {
+    return sunburstRows
+      .map(r => {
+        const rawCat = String(r?.category ?? '')
+        const parts000 = rawCat.split('|000|')
+        if (parts000.length < 4) return null
+        const [parentIdRaw, parentNameRaw, childIdRaw, childNameRaw] = parts000
+        const parentIdText = (parentIdRaw || '').trim() === 'ROOT' ? '' : (parentIdRaw || '').trim()
+        const parentName = (parentNameRaw || '').trim()
+        const childIdText = (childIdRaw || '').trim()
+        const childName = (childNameRaw || '').trim()
+        const val = Number(r?.value ?? 0)
+        if (!Number.isFinite(val)) return null
+        return {
+          category: childName,
+          value: val,
+          parent_id_text: parentIdText || null,
+          child_id_text: childIdText || null,
+          parent_name: parentName || null,
+          child_name: childName || null
+        } as HierarchyEdgeRow
+      })
+      .filter(Boolean) as HierarchyEdgeRow[]
+  }
+
+  const depthPenaltyForChainLength = (chainLength: number): number => {
+    if (chainLength > 6) return 20
+    if (chainLength > 4) return 10
+    return 0
+  }
+
+  const mapReportingChainDatasetRow = (
+    row: ReportingChainDatasetRow,
+    employeeCountByNodeId: Map<string, number>
+  ): ReportingChainData => {
+    const numericChainLength = typeof row.value === 'number' ? row.value : Number(row.value)
+    const chainLength = Number.isFinite(numericChainLength) ? Math.max(0, Math.round(numericChainLength)) : 0
+    const rawNodeCount =
+      typeof row.chain_node_count === 'number' ? row.chain_node_count : Number(row.chain_node_count ?? 0)
+    const levels = Number.isFinite(rawNodeCount) ? Math.max(1, Math.round(rawNodeCount)) : Math.max(1, chainLength + 1)
+    const rawBottleneckCount =
+      typeof row.bottleneck_count === 'number' ? row.bottleneck_count : Number(row.bottleneck_count ?? 0)
+    const bottleneckCount = Number.isFinite(rawBottleneckCount) ? Math.max(0, Math.round(rawBottleneckCount)) : 0
+    const bottleneckList = (row.bottleneck_nodes ?? '')
+      .split(',')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+    const fallbackBottlenecks =
+      bottleneckCount > 0 && bottleneckList.length === 0 ? [t('hr-analytics-bottlenecks-identified')] : bottleneckList
+    const leafEmployeeCount = row.leaf_id_text ? (employeeCountByNodeId.get(String(row.leaf_id_text)) ?? 0) : 0
+    const depthPenalty = depthPenaltyForChainLength(chainLength)
+    const bottleneckPenalty = Math.min(30, bottleneckCount * 10)
+    const efficiency = Math.max(50, 95 - depthPenalty - bottleneckPenalty)
+
+    return {
+      chainId: String(row.category),
+      topManager: row.root_name?.trim() || row.branch_name?.trim() || t('hr-analytics-top-org-unit'),
+      levels,
+      totalEmployees: leafEmployeeCount,
+      averageSpanOfControl: 0,
+      chainPath: row.chain_path?.trim() || row.chain_path_without_root?.trim() || '',
+      bottlenecks: fallbackBottlenecks,
+      efficiency
+    }
+  }
+
   const buildNodesFromEdges = (edgeRows: HierarchyEdgeRow[]): OrganizationalNode[] => {
     type MutableNode = OrganizationalNode & { childrenIds?: string[] }
 
@@ -201,30 +297,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         const sunburstRows = toRows<{ category: string; value: number }>(sunburstRes)
 
         if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
-          edgeRowsFromDataset = sunburstRows
-            .map(r => {
-              // Parse encoded edge using the standardized "|000|" separator
-              const rawCat = String(r?.category ?? '')
-              const parts000 = rawCat.split('|000|')
-              if (parts000.length < 4) return null
-              const [parentIdRaw, parentNameRaw, childIdRaw, childNameRaw] = parts000
-              const parentIdText = (parentIdRaw || '').trim() === 'ROOT' ? '' : (parentIdRaw || '').trim()
-              const parentName = (parentNameRaw || '').trim()
-              const childIdText = (childIdRaw || '').trim()
-              const childName = (childNameRaw || '').trim()
-              const val = Number(r?.value ?? 0)
-              // Keep zero-value rows; they are needed for correct totals/structure
-              if (!Number.isFinite(val)) return null
-              return {
-                category: childName,
-                value: val,
-                parent_id_text: parentIdText || null,
-                child_id_text: childIdText || null,
-                parent_name: parentName || null,
-                child_name: childName || null
-              } as HierarchyEdgeRow
-            })
-            .filter(Boolean) as HierarchyEdgeRow[]
+          edgeRowsFromDataset = parseSunburstRowsToEdges(sunburstRows)
         }
       }
 
@@ -239,71 +312,14 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       // Generate analysis data (prefer dataset rows for span-of-control distribution)
       const spanOfControlData: SpanOfControlData[] =
         spanDistRows.length > 0
-          ? spanDistRows.map<SpanOfControlData>(r => {
-              const rawDirectReports = typeof r.value === 'number' ? r.value : Number(r.value)
-              const directReports = Number.isFinite(rawDirectReports) ? rawDirectReports : 0
-              const efficiency = directReports > 7 ? 'Overloaded' : directReports >= 3 ? 'Optimal' : 'Underutilized'
-              const recommendation =
-                efficiency === 'Overloaded'
-                  ? t('hr-analytics-recommendation-overloaded')
-                  : efficiency === 'Underutilized'
-                    ? t('hr-analytics-recommendation-underutilized')
-                    : t('hr-analytics-recommendation-optimal')
-              return {
-                managerId: r.category, // category is manager id from dataset
-                managerName: r.manager_name?.trim() || r.category,
-                organizationalUnit: r.organizational_unit_name?.trim() || r.manager_name?.trim() || r.category,
-                directReports,
-                managerLevel: null,
-                efficiency,
-                recommendation
-              }
-            })
+          ? spanDistRows.map(r => mapSpanDistributionRowToSpanOfControl(r))
           : generateSpanOfControlAnalysis(organizationalNodes)
       const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
       const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
       const employeeCountByNodeId = new Map(organizationalNodes.map(node => [node.id, node.employeeCount]))
       const reportingChainData: ReportingChainData[] =
         reportingChainRows.length > 0
-          ? reportingChainRows.map(row => {
-              const numericChainLength = typeof row.value === 'number' ? row.value : Number(row.value)
-              const chainLength = Number.isFinite(numericChainLength) ? Math.max(0, Math.round(numericChainLength)) : 0
-              const rawNodeCount =
-                typeof row.chain_node_count === 'number' ? row.chain_node_count : Number(row.chain_node_count ?? 0)
-              const levels = Number.isFinite(rawNodeCount)
-                ? Math.max(1, Math.round(rawNodeCount))
-                : Math.max(1, chainLength + 1)
-              const rawBottleneckCount =
-                typeof row.bottleneck_count === 'number' ? row.bottleneck_count : Number(row.bottleneck_count ?? 0)
-              const bottleneckCount = Number.isFinite(rawBottleneckCount)
-                ? Math.max(0, Math.round(rawBottleneckCount))
-                : 0
-              const bottleneckList = (row.bottleneck_nodes ?? '')
-                .split(',')
-                .map(item => item.trim())
-                .filter(item => item.length > 0)
-              const fallbackBottlenecks =
-                bottleneckCount > 0 && bottleneckList.length === 0
-                  ? [t('hr-analytics-bottlenecks-identified')]
-                  : bottleneckList
-              const leafEmployeeCount = row.leaf_id_text
-                ? (employeeCountByNodeId.get(String(row.leaf_id_text)) ?? 0)
-                : 0
-              const depthPenalty = chainLength > 6 ? 20 : chainLength > 4 ? 10 : 0
-              const bottleneckPenalty = Math.min(30, bottleneckCount * 10)
-              const efficiency = Math.max(50, 95 - depthPenalty - bottleneckPenalty)
-
-              return {
-                chainId: String(row.category),
-                topManager: row.root_name?.trim() || row.branch_name?.trim() || t('hr-analytics-top-org-unit'),
-                levels,
-                totalEmployees: leafEmployeeCount,
-                averageSpanOfControl: 0,
-                chainPath: row.chain_path?.trim() || row.chain_path_without_root?.trim() || '',
-                bottlenecks: fallbackBottlenecks,
-                efficiency
-              }
-            })
+          ? reportingChainRows.map(row => mapReportingChainDatasetRow(row, employeeCountByNodeId))
           : generateReportingChainAnalysis(organizationalNodes)
       let reportingChainSummary = generateReportingChainSummary(reportingChainData)
       const sunburstData = generateSunburstData(organizationalNodes)

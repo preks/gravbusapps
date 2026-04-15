@@ -21,8 +21,14 @@ import {
   CardContent,
   Button
 } from '@newwork/nw-design-system'
-import { ChartPieIcon, ChartBarIcon, BuildingsIcon, UsersIcon, TreeStructureIcon } from '@phosphor-icons/react'
-import { ArrowClockwiseIcon } from '@phosphor-icons/react'
+import {
+  ArrowClockwiseIcon,
+  ChartPieIcon,
+  ChartBarIcon,
+  BuildingsIcon,
+  UsersIcon,
+  TreeStructureIcon
+} from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
 import AnalyticsDataTable from '../../shared/AnalyticsDataTable'

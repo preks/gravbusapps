@@ -37,6 +37,60 @@ export interface RadialBarChartProps extends SunburstVisualizationProps {
   alternativeViewData?: Record<ViewMode, AlternativeViewDatasetRow[]>
 }
 
+type TranslateFn = (key: string) => string
+
+const segmentHeaderLabelForViewMode = (viewMode: ViewMode, t: TranslateFn): string => {
+  if (viewMode === 'company') return t('hr-analytics-companies')
+  if (viewMode === 'costcenter') return t('hr-analytics-cost-centers')
+  return t('hr-analytics-countries')
+}
+
+const byViewModeLabel = (viewMode: ViewMode, t: TranslateFn): string => {
+  if (viewMode === 'company') return t('hr-analytics-by-company')
+  if (viewMode === 'costcenter') return t('hr-analytics-by-cost-center')
+  return t('hr-analytics-by-location')
+}
+
+type HierarchyStats = SunburstVisualizationProps['statistics']
+
+const hierarchyDimensionForViewMode = (
+  viewMode: ViewMode,
+  statistics: HierarchyStats,
+  t: TranslateFn
+): {
+  title: string
+  value: string
+  IconComponent: typeof BankIcon
+  iconColor: string
+  footer: string
+} => {
+  if (viewMode === 'company') {
+    return {
+      title: t('hr-analytics-companies'),
+      value: statistics.companiesCount.toLocaleString(),
+      IconComponent: BankIcon,
+      iconColor: 'var(--nw-entity-order)',
+      footer: t('hr-analytics-by-company')
+    }
+  }
+  if (viewMode === 'costcenter') {
+    return {
+      title: t('hr-analytics-cost-centers'),
+      value: statistics.costCentersCount.toLocaleString(),
+      IconComponent: CurrencyCircleDollarIcon,
+      iconColor: 'var(--nw-entity-department)',
+      footer: t('hr-analytics-by-cost-center')
+    }
+  }
+  return {
+    title: t('hr-analytics-countries'),
+    value: statistics.countriesRepresented.toLocaleString(),
+    IconComponent: GlobeIcon,
+    iconColor: 'var(--nw-entity-location)',
+    footer: t('hr-analytics-by-location')
+  }
+}
+
 const RadialBarChart: React.FC<RadialBarChartProps> = ({
   statistics,
   tableData,
@@ -127,12 +181,12 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
             row.segments.length > 0
               ? row.segments
                   .map(segment => {
-                    const safeLevelPercentage =
-                      segment.percentageOfLevel > 0
-                        ? segment.percentageOfLevel
-                        : totalEmployees > 0
-                          ? Math.round((segment.employeeCount * 100) / totalEmployees)
-                          : 0
+                    let safeLevelPercentage = 0
+                    if (segment.percentageOfLevel > 0) {
+                      safeLevelPercentage = segment.percentageOfLevel
+                    } else if (totalEmployees > 0) {
+                      safeLevelPercentage = Math.round((segment.employeeCount * 100) / totalEmployees)
+                    }
                     return `${segment.name} (${segment.employeeCount}, ${safeLevelPercentage}%)`
                   })
                   .join('\n')
@@ -141,15 +195,11 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       })
   }, [alternativeViewData, statistics.totalEmployees, viewMode])
 
-  const segmentHeaderLabel =
-    viewMode === 'company'
-      ? t('hr-analytics-companies')
-      : viewMode === 'costcenter'
-        ? t('hr-analytics-cost-centers')
-        : t('hr-analytics-countries')
+  const segmentHeaderLabel = segmentHeaderLabelForViewMode(viewMode, t)
 
-  const hierarchyKpiCards: KpiCardData[] = useMemo(
-    () => [
+  const hierarchyKpiCards: KpiCardData[] = useMemo(() => {
+    const dynamicDimension = hierarchyDimensionForViewMode(viewMode, statistics, t)
+    return [
       {
         id: 'org-hierarchy-total-employees',
         title: t('hr-analytics-total-employees'),
@@ -176,41 +226,14 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       },
       {
         id: 'org-hierarchy-dynamic-dimension',
-        title:
-          viewMode === 'company'
-            ? t('hr-analytics-companies')
-            : viewMode === 'costcenter'
-              ? t('hr-analytics-cost-centers')
-              : t('hr-analytics-countries'),
-        value:
-          viewMode === 'company'
-            ? statistics.companiesCount.toLocaleString()
-            : viewMode === 'costcenter'
-              ? statistics.costCentersCount.toLocaleString()
-              : statistics.countriesRepresented.toLocaleString(),
-        icon: (
-          <Icon
-            icon={viewMode === 'company' ? BankIcon : viewMode === 'costcenter' ? CurrencyCircleDollarIcon : GlobeIcon}
-            size="sm"
-            decorative
-          />
-        ),
-        iconColor:
-          viewMode === 'company'
-            ? 'var(--nw-entity-order)'
-            : viewMode === 'costcenter'
-              ? 'var(--nw-entity-department)'
-              : 'var(--nw-entity-location)',
-        footer:
-          viewMode === 'company'
-            ? t('hr-analytics-by-company')
-            : viewMode === 'costcenter'
-              ? t('hr-analytics-by-cost-center')
-              : t('hr-analytics-by-location')
+        title: dynamicDimension.title,
+        value: dynamicDimension.value,
+        icon: <Icon icon={dynamicDimension.IconComponent} size="sm" decorative />,
+        iconColor: dynamicDimension.iconColor,
+        footer: dynamicDimension.footer
       }
-    ],
-    [statistics, t, viewMode]
-  )
+    ]
+  }, [statistics, t, viewMode])
 
   const detailedLevelExportColumns = useMemo(
     () => [
@@ -518,12 +541,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         title={
           <div className="gba:flex gba:items-center">
             <ChartBarIcon size={16} className="gba:mr-2" />
-            {t('hr-analytics-organizational-hierarchy')} -{' '}
-            {viewMode === 'company'
-              ? t('hr-analytics-by-company')
-              : viewMode === 'costcenter'
-                ? t('hr-analytics-by-cost-center')
-                : t('hr-analytics-by-location')}
+            {t('hr-analytics-organizational-hierarchy')} - {byViewModeLabel(viewMode, t)}
           </div>
         }
       >
@@ -564,13 +582,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       <AnalyticsDataTable
         dataTestId="OrganizationalHierarchyReport-DetailedLevelReport-Table"
         title={t('hr-analytics-data-table', {
-          title: `${t('hr-analytics-detailed-level-report')} - ${
-            viewMode === 'company'
-              ? t('hr-analytics-by-company')
-              : viewMode === 'costcenter'
-                ? t('hr-analytics-by-cost-center')
-                : t('hr-analytics-by-location')
-          }`
+          title: `${t('hr-analytics-detailed-level-report')} - ${byViewModeLabel(viewMode, t)}`
         })}
         description={t('hr-analytics-detailed-breakdown-of-distribution')}
         entriesText={t('hr-analytics-total-entries', { count: detailedLevelTableRows.length })}

@@ -1,11 +1,22 @@
 import React from 'react'
 import { Typography, Table, Tag, Tooltip as AntTooltip } from 'antd'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip, ReferenceLine } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
 import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes'
 import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
+
+const spanBarFillForEfficiency = (efficiency: string): string => {
+  switch (efficiency) {
+    case 'Underutilized':
+      return 'var(--nw-warning)'
+    case 'Overloaded':
+      return 'var(--nw-destructive)'
+    default:
+      return 'var(--nw-success)'
+  }
+}
 
 interface SpanOfControlChartProps {
   data: SpanOfControlData[]
@@ -85,7 +96,8 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       directReports: item.directReports,
       efficiency: item.efficiency,
       managerLevel: item.managerLevel,
-      organizationalUnit: item.organizationalUnit
+      organizationalUnit: item.organizationalUnit,
+      fill: spanBarFillForEfficiency(item.efficiency)
     }))
     .sort((a, b) => b.directReports - a.directReports)
 
@@ -147,17 +159,6 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
     }
   ]
 
-  const getBarColor = (efficiency: string) => {
-    switch (efficiency) {
-      case 'Underutilized':
-        return 'var(--nw-warning)'
-      case 'Overloaded':
-        return 'var(--nw-destructive)'
-      default:
-        return 'var(--nw-success)'
-    }
-  }
-
   return (
     <div data-testid={`${prefixDataTestId}-SpanOfControlChart`} className="gba:grid gba:gap-6">
       {/* Summary Statistics */}
@@ -203,16 +204,10 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
                 label={{ value: '7', fill: 'var(--nw-destructive)', position: 'top' }}
               />
               <Tooltip
-                labelFormatter={(_, payload) =>
-                  payload && payload[0] && payload[0].payload ? String(payload[0].payload.fullName) : ''
-                }
+                labelFormatter={(_, payload) => String(payload?.[0]?.payload?.fullName ?? '')}
                 formatter={value => [value, t('hr-analytics-direct-reports')]}
               />
-              <Bar dataKey="directReports" radius={[4, 4, 0, 0]}>
-                {chartData.map(entry => (
-                  <Cell key={`cell-${entry.managerId}`} fill={getBarColor(entry.efficiency)} />
-                ))}
-              </Bar>
+              <Bar dataKey="directReports" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
