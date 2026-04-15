@@ -145,9 +145,24 @@ export const getAbsenceTypeVersionFormValues = (
   }
 }
 
+const buildAbsenceTypeVersionTranslations = (
+  formValues: AbsenceTypeVersionFormValues,
+  fallbackValue: string,
+  includeEmptyTranslations: boolean
+): CatalogEntry['translations'] => {
+  const translations: CatalogEntry['translations'] = [
+    { localeCode: 'en-US', value: formValues.translations.enUS.trim() || fallbackValue },
+    { localeCode: 'de-DE', value: formValues.translations.deDE.trim() },
+    { localeCode: 'ro-RO', value: formValues.translations.roRO.trim() }
+  ]
+
+  return includeEmptyTranslations ? translations : translations.filter(item => item.value)
+}
+
 export const buildAbsenceTypeVersionPayload = (
   formValues: AbsenceTypeVersionFormValues,
-  absenceTypes: AbsenceType[]
+  absenceTypes: AbsenceType[],
+  includeEmptyTranslations = false
 ): {
   code: string
   value: string
@@ -170,11 +185,7 @@ export const buildAbsenceTypeVersionPayload = (
       validFrom: formValues.validFrom,
       validTo: formValues.validTo
     }),
-    translations: [
-      { localeCode: 'en-US', value: formValues.translations.enUS.trim() || fallbackValue },
-      { localeCode: 'de-DE', value: formValues.translations.deDE.trim() },
-      { localeCode: 'ro-RO', value: formValues.translations.roRO.trim() }
-    ].filter(item => item.value)
+    translations: buildAbsenceTypeVersionTranslations(formValues, fallbackValue, includeEmptyTranslations)
   }
 }
 
