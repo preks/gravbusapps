@@ -291,52 +291,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Emergency Contact Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-emergency">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-emergency-contact')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="emergency-contact-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="emergency-contact-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            <div className="gba:flex gba:flex-col gba:gap-2">
-              {emergencyContactData && emergencyContactData.length > 0 ? (
-                emergencyContactData.map(items => (
-                  <div key={`emergency-contact-${items.map(item => `${item.label}-${item.value}`).join('|')}`}>
-                    {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
-                  </div>
-                ))
-              ) : (
-                <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
-                  {t('details-no-emergency-contact')}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <CommunicationCard
-          employee={employee}
-          accessToken={accessToken}
-          isSelfView={isSelfView}
-          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-        />
-
-        <RelationshipsCard
-          employee={employee}
-          accessToken={accessToken}
-          isSelfView={isSelfView}
-          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-        />
-
         {/* Additional Attributes */}
         {(() => {
           const props = employee?.additionalProperties || {}
@@ -371,6 +325,52 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             </Card>
           )
         })()}
+
+        <CommunicationCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
+
+        <RelationshipsCard
+          employee={employee}
+          accessToken={accessToken}
+          isSelfView={isSelfView}
+          employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+        />
+
+        {/* Emergency Contact Card - Always visible but values may be masked */}
+        <Card data-testid="details-section-emergency">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-lg gba:font-semibold">{t('details-emergency-contact')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="emergency-contact-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="emergency-contact-action"
+                accessToken={accessToken}
+                autoExecute={true}
+              />
+            </div>
+            <div className="gba:flex gba:flex-col gba:gap-2">
+              {emergencyContactData && emergencyContactData.length > 0 ? (
+                emergencyContactData.map(items => (
+                  <div key={`emergency-contact-${items.map(item => `${item.label}-${item.value}`).join('|')}`}>
+                    {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+                  </div>
+                ))
+              ) : (
+                <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
+                  {t('details-no-emergency-contact')}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>

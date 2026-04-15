@@ -232,19 +232,32 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       )
     : ''
 
-  // Initialize selection and fields if flow provided an existing relationship
+  // Initialize selection and fields if flow provided an existing relationship.
+  // Waits for `relationships` to load so the form can resolve the full record
+  // (including typeRef) from its own GraphQL data.
   useEffect(() => {
-    const rel = initialPayload?.relationship
-    if (rel && rel.id) {
-      setSelectedRelationshipId(rel.id)
-      setFirstName(rel.firstName || '')
-      setLastName(rel.lastName || '')
-      setRelationshipTypeId(rel.typeRef || '')
-      setBirthDate(rel.birthDate ? dayjs(rel.birthDate).format('YYYY-MM-DD') : '')
-      setPhoneNumber(rel.phoneNumber || '')
-      setIsEmergencyContact(Boolean(rel.isEmergencyContact))
+    const relPayload = initialPayload?.relationship
+    if (!relPayload?.id) return
+
+    const loaded = (relationships || []).find((r: any) => r.id === relPayload.id)
+    if (loaded) {
+      setSelectedRelationshipId(loaded.id)
+      setFirstName(loaded.firstName || '')
+      setLastName(loaded.lastName || '')
+      setRelationshipTypeId(loaded.typeRef || '')
+      setBirthDate(loaded.birthDate ? dayjs(loaded.birthDate).format('YYYY-MM-DD') : '')
+      setPhoneNumber(loaded.phoneNumber || '')
+      setIsEmergencyContact(Boolean(loaded.isEmergencyContact))
+    } else {
+      setSelectedRelationshipId(relPayload.id)
+      setFirstName(relPayload.firstName || '')
+      setLastName(relPayload.lastName || '')
+      setRelationshipTypeId(relPayload.typeRef || '')
+      setBirthDate(relPayload.birthDate ? dayjs(relPayload.birthDate).format('YYYY-MM-DD') : '')
+      setPhoneNumber(relPayload.phoneNumber || '')
+      setIsEmergencyContact(Boolean(relPayload.isEmergencyContact))
     }
-  }, [initialPayload])
+  }, [initialPayload, relationships])
 
   // When user changes the relationship selection, prefill the form
   const handleRelationshipSelection = (value: string) => {

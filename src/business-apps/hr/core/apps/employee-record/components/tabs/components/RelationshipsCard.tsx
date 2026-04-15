@@ -89,7 +89,13 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
             id: deleteTarget.id,
             version: deleteTarget.version,
             employeeId: employee.id,
-            isDeleted: true
+            firstName: deleteTarget.firstName || '',
+            lastName: deleteTarget.lastName || '',
+            phoneNumber: deleteTarget.phoneNumber || '',
+            email: deleteTarget.email || '',
+            typeRef: deleteTarget.typeRef || '',
+            birthDate: deleteTarget.birthDate || '',
+            emergencyContact: deleteTarget.isEmergencyContact
           }
         })
       })

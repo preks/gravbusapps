@@ -23,13 +23,15 @@ interface UseCommunicationFormStateProps {
   types: Array<{ id: string; label: string; value?: string }>
   communications: any[]
   loading: boolean
+  initialCommunicationId?: string
 }
 
 export const useCommunicationFormState = ({
   channels,
   types,
   communications,
-  loading
+  loading,
+  initialCommunicationId
 }: UseCommunicationFormStateProps) => {
   const [channelType, setChannelType] = useState<string | undefined>(undefined)
   const [valueType, setValueType] = useState<string | undefined>(undefined)
@@ -44,6 +46,7 @@ export const useCommunicationFormState = ({
   const previousCountryRef = useRef<CountryCode | ''>('')
   const isManualCountryChangeRef = useRef<boolean>(false)
   const skipNextParseRef = useRef<boolean>(false)
+  const initialAppliedRef = useRef<boolean>(false)
 
   const primaryTypeId = useMemo(() => {
     const t = types.find(x => (x.label || x.value || '').toLowerCase() === 'primary')
@@ -126,13 +129,45 @@ export const useCommunicationFormState = ({
     return Boolean(match)
   }, [communications, channelType, purpose, primaryTypeId])
 
+  const pendingInit = Boolean(initialCommunicationId) && !initialAppliedRef.current
+
   useEffect(() => {
+    if (initialAppliedRef.current || !initialCommunicationId) return
+    if (!communications?.length || !channels?.length) return
+
+    const entry = communications.find((c: any) => c.id === initialCommunicationId)
+    if (!entry) return
+
+    initialAppliedRef.current = true
+
+    const typeId = entry.typeRef && types.find(t => t.id === entry.typeRef) ? entry.typeRef : undefined
+
+    const prefillValue = normalizePhoneNumber(entry.value || '', entry.channelRef, channels)
+    const prefillPurpose = entry.purpose || 'PRIVATE'
+
+    setChannelType(entry.channelRef)
+    if (typeId) setValueType(typeId)
+    setValue(prefillValue)
+    setPurpose(prefillPurpose)
+    setBaseline({
+      channelRef: entry.channelRef,
+      typeRefId: typeId,
+      value: prefillValue,
+      purpose: prefillPurpose,
+      version: typeof entry.version === 'number' ? entry.version : undefined,
+      id: entry.id
+    })
+  }, [initialCommunicationId, communications, channels, types])
+
+  useEffect(() => {
+    if (pendingInit) return
     if (!channelType && channels && channels.length > 0) {
       setChannelType(channels[0].id)
     }
-  }, [channelType, channels])
+  }, [channelType, channels, pendingInit])
 
   useEffect(() => {
+    if (pendingInit) return
     if (!channelType) return
     if (baseline && baseline.channelRef === channelType) return
 
@@ -175,9 +210,10 @@ export const useCommunicationFormState = ({
       version: typeof existing?.version === 'number' ? existing.version : undefined,
       id: existing?.id
     })
-  }, [channelType, channels, types, latestByChannelRef, baseline, communications])
+  }, [channelType, channels, types, latestByChannelRef, baseline, communications, pendingInit])
 
   useEffect(() => {
+    if (pendingInit) return
     if (!channelType || !valueType) return
     if (baseline && baseline.channelRef === channelType && baseline.typeRefId === valueType) return
 
@@ -227,9 +263,10 @@ export const useCommunicationFormState = ({
       version: undefined,
       id: undefined
     })
-  }, [channelType, valueType, purpose, communications, baseline, channels, isPhoneType])
+  }, [channelType, valueType, purpose, communications, baseline, channels, isPhoneType, pendingInit])
 
   useEffect(() => {
+    if (pendingInit) return
     if (!channelType || !valueType || !purpose) return
     if (
       baseline &&
@@ -273,9 +310,10 @@ export const useCommunicationFormState = ({
       version: undefined,
       id: undefined
     })
-  }, [channelType, valueType, purpose, communications, baseline, channels])
+  }, [channelType, valueType, purpose, communications, baseline, channels, pendingInit])
 
   useEffect(() => {
+    if (pendingInit) return
     if (valueType === secondaryTypeId && !hasPrimaryForSelection) {
       setValueType(undefined)
       setValue('')
