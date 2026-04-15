@@ -36,43 +36,7 @@ import { setByExternalCustomComponent } from '../../expense-request-wizard/utils
 import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils'
 import expenseFormsTranslations from '../../_i18n'
 import { tripLocationPointsEqual } from '../../expense-request-wizard/utils/tripLocationPointEquality'
-
-/**
- * Filters travel regions based on expense items' currency
- * @param items - Expense items with currency information
- * @param mainRule - Home region rule
- * @param otherRules - All available travel regions
- * @returns Filtered travel regions and flag indicating if all items use the same currency
- */
-const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
-  if (!items || !items.length || !mainRule || !otherRules) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const ruleCurrency = mainRule.currency?.id
-  if (!ruleCurrency) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const allMatch = items.every(item => item.currencyId === ruleCurrency || item.currency === ruleCurrency)
-
-  if (allMatch) {
-    return {
-      sameRuleCurrency: true,
-      valuesArray: otherRules.filter(rule => rule.currency?.id === ruleCurrency)
-    }
-  }
-
-  return {
-    sameRuleCurrency: false,
-    valuesArray: otherRules.filter(rule =>
-      items.some(item => {
-        const itemCurrency = item.currencyId || item.currency
-        return itemCurrency === rule.currency?.id
-      })
-    )
-  }
-}
+import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
 
 export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const { accessToken, additionalData } = props
@@ -114,7 +78,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
     // Then filter by expense items currency if items exist
     if (expenseItems && expenseItems.length > 0 && expenseRulesData?.homeRegionRule?.length > 0) {
-      return filterRules(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions).valuesArray
+      return filterTravelRegionsByExpenseItemsCurrency(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions)
+        .valuesArray
     }
 
     return baseRegions

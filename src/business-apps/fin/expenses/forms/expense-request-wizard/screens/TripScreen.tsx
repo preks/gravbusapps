@@ -38,14 +38,8 @@ import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefa
 import { tripLocationPointsEqual } from '../utils/tripLocationPointEquality'
 import expenseFormsTranslations from '../../_i18n'
 import expenseRequestWizardTranslations from '../_i18n'
+import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
 
-/**
- * Filters travel regions based on expense items' currency
- * @param items - Expense items with currency information
- * @param mainRule - Home region rule
- * @param otherRules - All available travel regions
- * @returns Filtered travel regions and flag indicating if all items use the same currency
- */
 /**
  * Returns trip data array from expense request (from request trip or from plan).
  * Reduces cognitive complexity in loadInitialTripData.
@@ -58,36 +52,6 @@ function getTripDataArrayFromRequest(expenseRequestData: any): any[] {
   if (tripFromRequest) return byPk.expenseRequestTrip
   if (byPk.expensePlan?.expenseRequestTrip) return byPk.expensePlan.expenseRequestTrip
   return []
-}
-
-const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
-  if (!items || !items.length || !mainRule || !otherRules) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const ruleCurrency = mainRule.currency?.id
-  if (!ruleCurrency) {
-    return { sameRuleCurrency: false, valuesArray: otherRules || [] }
-  }
-
-  const allMatch = items.every(item => item.currencyId === ruleCurrency || item.currency === ruleCurrency)
-
-  if (allMatch) {
-    return {
-      sameRuleCurrency: true,
-      valuesArray: otherRules.filter(rule => rule.currency?.id === ruleCurrency)
-    }
-  }
-
-  return {
-    sameRuleCurrency: false,
-    valuesArray: otherRules.filter(rule =>
-      items.some(item => {
-        const itemCurrency = item.currencyId || item.currency
-        return itemCurrency === rule.currency?.id
-      })
-    )
-  }
 }
 
 export const TripScreen: React.FC<TripScreenProps> = props => {
@@ -132,7 +96,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
     // Then filter by expense items currency if items exist
     if (expenseItems && expenseItems.length > 0 && expenseRulesData?.homeRegionRule?.length > 0) {
-      return filterRules(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions).valuesArray
+      return filterTravelRegionsByExpenseItemsCurrency(expenseItems, expenseRulesData.homeRegionRule[0], baseRegions)
+        .valuesArray
     }
 
     return baseRegions
