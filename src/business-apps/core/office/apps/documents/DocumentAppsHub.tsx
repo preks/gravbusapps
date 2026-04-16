@@ -752,46 +752,126 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const shouldRenderEditorView =
     currentView === 'editor' || (currentView === 'trash' && Boolean(currentDocument)) || currentView === 'review'
 
+  const sharedDocumentDialogs = (
+    <>
+      {/* Send for Approval Dialog */}
+      {documentForApproval && (
+        <SendForApprovalDialog
+          open={approvalDialogOpen}
+          onOpenChange={open => {
+            setApprovalDialogOpen(open)
+            if (!open) setDocumentForApproval(null)
+          }}
+          documentId={documentForApproval}
+          documentTitle={documents.find(d => d.id === documentForApproval)?.title || t('title-untitled-document')}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          accessToken={accessToken}
+          shareDocument={shareDocument}
+          onApprovalSent={async () => {
+            if (documentForApproval) {
+              await refreshDocuments()
+              if (currentDocument?.id === documentForApproval) {
+                await loadDocument(documentForApproval)
+              }
+            }
+            setDocumentForApproval(null)
+          }}
+          data-testid={`${testId}-approval-dialog`}
+        />
+      )}
+
+      {/* Share Document Dialog */}
+      {documentForShare && (
+        <ShareDocumentDialog
+          open={shareDialogOpen}
+          onOpenChange={open => {
+            setShareDialogOpen(open)
+            if (!open) setDocumentForShare(null)
+          }}
+          documentId={documentForShare}
+          documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          accessToken={accessToken}
+          shareDocument={shareDocument}
+          onShareComplete={async () => {
+            refreshDocuments()
+            await refreshSharedUsersForDocument(documentForShare)
+          }}
+          data-testid={`${testId}-share-dialog`}
+        />
+      )}
+
+      {/* Manage Shares Dialog */}
+      {documentForManageShares && (
+        <ManageSharesDialog
+          open={manageSharesDialogOpen}
+          onOpenChange={open => {
+            setManageSharesDialogOpen(open)
+            if (!open) setDocumentForManageShares(null)
+          }}
+          documentId={documentForManageShares}
+          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
+          accessToken={accessToken}
+          onSharesChanged={async () => {
+            refreshDocuments()
+            await refreshSharedUsersForDocument(documentForManageShares)
+          }}
+          onAddMoreUsers={() => {
+            setManageSharesDialogOpen(false)
+            setDocumentForShare(documentForManageShares)
+            setShareDialogOpen(true)
+          }}
+          data-testid={`${testId}-manage-shares-dialog`}
+        />
+      )}
+    </>
+  )
+
   if (shouldRenderEditorView) {
     return (
-      <DocumentAppsHubEditorView
-        currentView={currentView}
-        templateBeingEdited={templateBeingEdited}
-        setTemplateBeingEdited={setTemplateBeingEdited}
-        setSessionEntityContext={setSessionEntityContext}
-        parsedWordDocument={parsedWordDocument}
-        setParsedWordDocument={setParsedWordDocument}
-        setSelectedDocumentId={setSelectedDocumentId}
-        currentDocument={currentDocument}
-        currentDocumentPermission={currentDocumentPermission ?? ''}
-        createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
-        loadDocument={loadDocument}
-        updateDocument={updateDocument}
-        updateTemplate={updateTemplate}
-        updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
-        onNavigateToDocumentReview={handleNavigateToDocumentReview}
-        setCurrentView={v => setCurrentView(v as HubView)}
-        setActiveSection={s => setActiveSection(s as SidebarSection)}
-        handleBack={handleBack}
-        handleSendForApprovalClick={handleSendForApprovalClick}
-        currentUserId={currentUserId}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        templateEditorRef={templateEditorRef}
-        effectiveEntityContext={effectiveEntityContext ?? ''}
-        isTrashedDocument={isTrashedDocument}
-        canRestoreTrashedDocument={canManageTrashedDocument}
-        isRestoringTrashedDocument={isRestoringTrashedDocument}
-        onGoToDocsHome={handleGoToDocsHome}
-        onRestoreTrashedDocument={handleRestoreTrashedDocument}
-        onApprovalResolved={async () => {
-          await refreshDocuments()
-          if (currentDocument?.id) {
-            await loadDocument(currentDocument.id)
-          }
-        }}
-        testId={testId}
-      />
+      <>
+        <DocumentAppsHubEditorView
+          currentView={currentView}
+          templateBeingEdited={templateBeingEdited}
+          setTemplateBeingEdited={setTemplateBeingEdited}
+          setSessionEntityContext={setSessionEntityContext}
+          parsedWordDocument={parsedWordDocument}
+          setParsedWordDocument={setParsedWordDocument}
+          setSelectedDocumentId={setSelectedDocumentId}
+          currentDocument={currentDocument}
+          currentDocumentPermission={currentDocumentPermission ?? ''}
+          createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
+          loadDocument={loadDocument}
+          updateDocument={updateDocument}
+          updateTemplate={updateTemplate}
+          updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
+          onNavigateToDocumentReview={handleNavigateToDocumentReview}
+          setCurrentView={v => setCurrentView(v as HubView)}
+          setActiveSection={s => setActiveSection(s as SidebarSection)}
+          handleBack={handleBack}
+          handleSendForApprovalClick={handleSendForApprovalClick}
+          currentUserId={currentUserId}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          templateEditorRef={templateEditorRef}
+          effectiveEntityContext={effectiveEntityContext ?? ''}
+          isTrashedDocument={isTrashedDocument}
+          canRestoreTrashedDocument={canManageTrashedDocument}
+          isRestoringTrashedDocument={isRestoringTrashedDocument}
+          onGoToDocsHome={handleGoToDocsHome}
+          onRestoreTrashedDocument={handleRestoreTrashedDocument}
+          onApprovalResolved={async () => {
+            await refreshDocuments()
+            if (currentDocument?.id) {
+              await loadDocument(currentDocument.id)
+            }
+          }}
+          testId={testId}
+        />
+        {sharedDocumentDialogs}
+      </>
     )
   }
 
@@ -1582,78 +1662,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         data-testid={`${testId}-trash-confirm`}
       />
 
-      {/* Send for Approval Dialog */}
-      {documentForApproval && (
-        <SendForApprovalDialog
-          open={approvalDialogOpen}
-          onOpenChange={open => {
-            setApprovalDialogOpen(open)
-            if (!open) setDocumentForApproval(null)
-          }}
-          documentId={documentForApproval}
-          documentTitle={documents.find(d => d.id === documentForApproval)?.title || t('title-untitled-document')}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          accessToken={accessToken}
-          shareDocument={shareDocument}
-          onApprovalSent={async () => {
-            if (documentForApproval) {
-              await refreshDocuments()
-              if (currentDocument?.id === documentForApproval) {
-                await loadDocument(documentForApproval)
-              }
-            }
-            setDocumentForApproval(null)
-          }}
-          data-testid={`${testId}-approval-dialog`}
-        />
-      )}
-
-      {/* Share Document Dialog */}
-      {documentForShare && (
-        <ShareDocumentDialog
-          open={shareDialogOpen}
-          onOpenChange={open => {
-            setShareDialogOpen(open)
-            if (!open) setDocumentForShare(null)
-          }}
-          documentId={documentForShare}
-          documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          accessToken={accessToken}
-          shareDocument={shareDocument}
-          onShareComplete={async () => {
-            refreshDocuments()
-            await refreshSharedUsersForDocument(documentForShare)
-          }}
-          data-testid={`${testId}-share-dialog`}
-        />
-      )}
-
-      {/* Manage Shares Dialog */}
-      {documentForManageShares && (
-        <ManageSharesDialog
-          open={manageSharesDialogOpen}
-          onOpenChange={open => {
-            setManageSharesDialogOpen(open)
-            if (!open) setDocumentForManageShares(null)
-          }}
-          documentId={documentForManageShares}
-          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
-          accessToken={accessToken}
-          onSharesChanged={async () => {
-            refreshDocuments()
-            await refreshSharedUsersForDocument(documentForManageShares)
-          }}
-          onAddMoreUsers={() => {
-            setManageSharesDialogOpen(false)
-            setDocumentForShare(documentForManageShares)
-            setShareDialogOpen(true)
-          }}
-          data-testid={`${testId}-manage-shares-dialog`}
-        />
-      )}
+      {sharedDocumentDialogs}
 
       <Dialog open={createWithAiDialogOpen} onOpenChange={setCreateWithAiDialogOpen}>
         <DialogContent data-testid={`${testId}-create-with-ai-dialog`}>

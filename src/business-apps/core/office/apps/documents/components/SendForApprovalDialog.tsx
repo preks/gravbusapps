@@ -22,8 +22,7 @@ import {
   Spinner,
   Avatar,
   AvatarImage,
-  AvatarFallback,
-  Checkbox
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { Send, Search, User, X, Calendar, AlertCircle, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -285,33 +284,29 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
                 <div className="gba:relative gba:z-50">
                   <div className="gba:max-h-40 gba:overflow-y-auto gba:border gba:rounded-md gba:bg-card gba:shadow-lg">
                     <div className="gba:p-1">
-                      {filteredResults.map(user => {
-                        const isSelected = selectedUsers.some(u => u.id === user.id)
-                        return (
-                          <button
-                            key={user.id}
-                            type="button"
-                            className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-md hover:gba:bg-muted gba:transition-colors gba:text-left"
-                            onClick={() => toggleUser(user)}
-                          >
-                            <Checkbox checked={isSelected} className="gba:pointer-events-none" />
-                            <Avatar className="gba:h-8 gba:w-8">
-                              {user.pictureThumbnail && (
-                                <AvatarImage src={getAvatarUrl(user.pictureThumbnail)} alt={user.displayName} />
-                              )}
-                              <AvatarFallback className="gba:text-xs">{getInitials(user.displayName)}</AvatarFallback>
-                            </Avatar>
-                            <div className="gba:flex-1 gba:min-w-0">
-                              <p className="gba:font-medium gba:text-sm gba:truncate">{user.displayName}</p>
-                              {(user.jobPositionName || user.organizationalUnitName) && (
-                                <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                                  {[user.jobPositionName, user.organizationalUnitName].filter(Boolean).join(' • ')}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
+                      {filteredResults.map(user => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-md hover:gba:bg-muted gba:transition-colors gba:text-left"
+                          onClick={() => toggleUser(user)}
+                        >
+                          <Avatar className="gba:h-8 gba:w-8">
+                            {user.pictureThumbnail && (
+                              <AvatarImage src={getAvatarUrl(user.pictureThumbnail)} alt={user.displayName} />
+                            )}
+                            <AvatarFallback className="gba:text-xs">{getInitials(user.displayName)}</AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <p className="gba:font-medium gba:text-sm gba:truncate">{user.displayName}</p>
+                            {(user.jobPositionName || user.organizationalUnitName) && (
+                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                                {[user.jobPositionName, user.organizationalUnitName].filter(Boolean).join(' • ')}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
