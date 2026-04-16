@@ -49,19 +49,27 @@ function mapCompanyRowToSaveInput(raw: Record<string, unknown>) {
   }
 }
 
+export interface ReduceOrgUnitBudgetPoolOptions {
+  /** When set (e.g. supervisor approve-all), persisted on the org-unit row instead of the previous status. */
+  orgUnitBudgetPlanStatus?: BudgetPlanStatusApi
+}
+
 /**
  * Reduces `compensation_budget_plan_organizational_unit.salary_budget_amount` by the consumed allocation
  * and refreshes `salary_budget_percent` vs the parent company pool; then touches the company row (same as HR Distribute).
+ * With `orgUnitBudgetPlanStatus`, still runs an UPDATE when the consumed amount is zero (status-only change).
  */
 export async function reduceOrgUnitBudgetPoolByAmount(
   graphqlClient: GraphQLClient,
   restClient: RestClient,
   accessToken: string,
   planOuRowId: string,
-  amountConsumedFromPool: number
+  amountConsumedFromPool: number,
+  options?: ReduceOrgUnitBudgetPoolOptions
 ): Promise<void> {
   const delta = roundMoney2(amountConsumedFromPool)
-  if (delta <= 0) {
+  const statusOverride = options?.orgUnitBudgetPlanStatus
+  if (delta <= 0 && statusOverride == null) {
     return
   }
 
@@ -74,7 +82,7 @@ export async function reduceOrgUnitBudgetPoolByAmount(
     throw new Error('Org unit budget row not found')
   }
 
-  const companyBudgetRowId = String(ou.compensationBudgetPlanCompanyId ?? '')
+  const companyBudgetRowId = graphqlUnknownToString(ou.compensationBudgetPlanCompanyId)
   if (!companyBudgetRowId) {
     throw new Error('Org unit budget row missing company budget reference')
   }
@@ -99,13 +107,13 @@ export async function reduceOrgUnitBudgetPoolByAmount(
   }
 
   const unitPayload = {
-    id: String(ou.id),
+    id: graphqlUnknownToString(ou.id),
     version: ouVersion,
     salaryBudgetAmount: nextOuAmount,
     salaryBudgetPercent: nextOuPercent,
     bonusBudgetAmount: num(ou.bonusBudgetAmount),
     bonusBudgetPercent: num(ou.bonusBudgetPercent),
-    budgetPlanStatus: coerceOuStatus(ou.budgetPlanStatus),
+    budgetPlanStatus: statusOverride ?? coerceOuStatus(ou.budgetPlanStatus),
     compensationBudgetPlanCompany: companyBudgetRowId,
     organizationalUnit: graphqlUnknownToString(ou.organizationalUnitId)
   }

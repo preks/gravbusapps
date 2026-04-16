@@ -41,5 +41,7 @@ export async function rollupTeamOrgUnitBudgetAfterSupervisorApprovals(
     )
   )
 
-  await reduceOrgUnitBudgetPoolByAmount(graphqlClient, restClient, accessToken, planOuRowId, totalApprovedIncrease)
+  await reduceOrgUnitBudgetPoolByAmount(graphqlClient, restClient, accessToken, planOuRowId, totalApprovedIncrease, {
+    orgUnitBudgetPlanStatus: 'BUDGET_PLAN_APPROVED'
+  })
 }
