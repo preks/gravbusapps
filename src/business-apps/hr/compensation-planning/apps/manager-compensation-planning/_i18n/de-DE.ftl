@@ -112,9 +112,12 @@ manager-team-save-saving = Wird gespeichert…
 manager-team-save-no-token = Zum Speichern müssen Sie angemeldet sein.
 manager-team-save-no-employee = Zum Speichern wird Ihr Mitarbeiterprofil benötigt.
 manager-team-save-missing-plan-ou = Für die Organisationseinheit von {$name} fehlt eine Gehaltsbudget-Zeile in diesem Plan. Bitte zuerst das Unternehmensbudget vervollständigen.
+manager-team-save-missing-budget-context = Der Teambudget-Kontext ist noch nicht geladen. Warten Sie, bis das Budget geladen ist, oder laden Sie die Seite neu, und versuchen Sie es erneut.
 manager-team-save-custom-exceeds-pool = Die benutzerdefinierten Zuweisungen übersteigen den Erhöhungspool. Bitte Beträge anpassen.
 manager-team-save-error = Zuweisungen konnten nicht gespeichert werden. {$message}
 manager-team-save-error-generic = Beim Speichern ist ein Fehler aufgetreten.
+manager-team-review-submitted-proposals = Eingereichte Vorschläge prüfen ({$count})
+manager-team-review-submitted-proposals-aria = Freigabe öffnen für {$count} eingereichte Vorschläge
 manager-team-submit-proposals = Vorschläge einreichen
 manager-team-submitting = Wird eingereicht…
 manager-team-submit-no-drafts = Speichern Sie mindestens eine Zuweisung im Budgetplan, bevor Sie einreichen. Verteilen und im Dialog speichern.
@@ -133,7 +136,34 @@ supervisor-review-submitted-count = { $count ->
   *[other] {$count} eingereichte Vorschläge zur Prüfung.
 }
 supervisor-review-busy = Wird ausgeführt…
-supervisor-review-approve-all = Alle genehmigen
+supervisor-review-approve-selected = Ausgewählte genehmigen
+supervisor-review-none-selected = Wählen Sie mindestens einen Vorschlag aus.
+supervisor-review-selection-hint = Genehmigen oder zurücksenden Sie nur eingereichte Zeilen. Entwürfe sind zur Orientierung sichtbar und hier nicht auswählbar.
+supervisor-review-draft-in-table = { $count ->
+  [one] 1 Zuweisung ist noch ein Entwurf (in dieser Liste schreibgeschützt).
+  *[other] {$count} Zuweisungen sind noch Entwürfe (in dieser Liste schreibgeschützt).
+}
+supervisor-review-select-all-aria = Alle eingereichten Vorschläge auswählen
+supervisor-review-row-select-aria = Vorschlag für { $name } auswählen
+supervisor-review-row-draft-checkbox-aria = { $name } — Entwurf (kann hier nicht genehmigt oder zurückgesendet werden)
+supervisor-review-col-employee = Mitarbeitende
+supervisor-review-col-increase-pct = Erhöhung %
+supervisor-review-col-increase-amount = Erhöhungsbetrag
+supervisor-review-col-new-salary = Vorgeschlagenes Gehalt
+supervisor-review-col-status = Status
+supervisor-review-col-justification = Begründung
+budget-plan-status-unknown = Unbekannt
+budget-plan-status-draft = Entwurf
+budget-plan-status-submitted = Eingereicht
+budget-plan-status-approved = Genehmigt
+budget-plan-status-rejected = Abgelehnt
+budget-plan-status-sent-back = Zurückgesendet
+budget-plan-status-executed = Ausgeführt
+supervisor-review-employee-unknown = Mitarbeitende (nicht in Teamliste)
+supervisor-review-table-section-title = Vorschläge
+supervisor-review-table-search-placeholder = Suche nach Name, Beträgen oder Begründung…
+supervisor-review-table-empty-filtered = Keine Vorschläge entsprechen Ihrer Suche.
+supervisor-review-table-empty-none = Keine Vorschläge zum Anzeigen.
 supervisor-review-send-back = Zurücksenden
 supervisor-review-send-back-notes-required = Bitte Notizen für das Team hinzufügen, bevor Sie zurücksenden.
 supervisor-review-send-back-title = An Team zurücksenden

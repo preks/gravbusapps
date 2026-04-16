@@ -6,6 +6,8 @@ import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/number
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
+import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
+import type { ManagerOrgUnitBudgetSnapshot } from '../hooks/useManagerTeamSalaryBudget'
 import { distributeToEmployees } from '../../../utils/budgetCalculations'
 import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
@@ -43,6 +45,8 @@ export interface TeamCompensationDistributionPanelProps {
   managerEmployeeId: string | undefined
   planOuRowIdByOrganizationalUnitId: ReadonlyMap<string, string>
   managerOrganizationalUnitId: string | null
+  managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
+  orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
   /** Local REST row ids and draft/submitted status from this session (after save allocations). */
   employeeBudgetRowState: ManagerEmployeeBudgetRowStateMap
   /** Called after save dialog persists rows (merge returned ids into parent state). */
@@ -51,6 +55,10 @@ export interface TeamCompensationDistributionPanelProps {
   proposalsLockedAfterSubmit: boolean
   onDraftProposalsSubmitted: () => void
   onSaved?: () => void
+  /** When true, show entry to supervisor review (same URL flow as HR Submissions → Review team). */
+  canNavigateToSupervisorReview?: boolean
+  submittedProposalsForReviewCount?: number
+  onNavigateToSupervisorReview?: () => void
 }
 
 export function TeamCompensationDistributionPanel({
@@ -69,11 +77,16 @@ export function TeamCompensationDistributionPanel({
   managerEmployeeId,
   planOuRowIdByOrganizationalUnitId,
   managerOrganizationalUnitId,
+  managerCompanyBudgetRow,
+  orgUnitBudgetSnapshotsByPlanRowId,
   employeeBudgetRowState,
   onMergeSavedRowIds,
   proposalsLockedAfterSubmit,
   onDraftProposalsSubmitted,
-  onSaved
+  onSaved,
+  canNavigateToSupervisorReview = false,
+  submittedProposalsForReviewCount = 0,
+  onNavigateToSupervisorReview
 }: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -285,6 +298,8 @@ export function TeamCompensationDistributionPanel({
         currencyCode={currencyCode}
         planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
         managerOrganizationalUnitId={managerOrganizationalUnitId}
+        managerCompanyBudgetRow={managerCompanyBudgetRow}
+        orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
         onSaved={createdIds => {
           onMergeSavedRowIds(createdIds)
           onSaved?.()
@@ -330,6 +345,9 @@ export function TeamCompensationDistributionPanel({
           submitDraftProposals={submitDraftProposals}
           canShowSaveAction={canShowSaveAction}
           onOpenSaveAllocations={() => setSaveAllocationsDialogOpen(true)}
+          canNavigateToSupervisorReview={canNavigateToSupervisorReview}
+          submittedProposalsForReviewCount={submittedProposalsForReviewCount}
+          onNavigateToSupervisorReview={onNavigateToSupervisorReview}
         />
       </div>
     </>

@@ -36,6 +36,8 @@ export interface SaveCompensationBudgetPlanRestBody {
 
 export interface CompensationBudgetPlanOrganizationalUnitRestPayload {
   id?: string
+  /** Required on UPDATE (`changeMode: 'UPDATE'`) — process validation rejects null/missing version. */
+  version?: number
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   bonusBudgetAmount: number

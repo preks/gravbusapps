@@ -45,6 +45,9 @@ export interface TeamCompensationDistributionSplitPanelProps {
   submitDraftProposals: () => void | Promise<void>
   canShowSaveAction: boolean
   onOpenSaveAllocations: () => void
+  canNavigateToSupervisorReview?: boolean
+  submittedProposalsForReviewCount?: number
+  onNavigateToSupervisorReview?: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -71,7 +74,10 @@ export function TeamCompensationDistributionSplitPanel({
   submitting,
   submitDraftProposals,
   canShowSaveAction,
-  onOpenSaveAllocations
+  onOpenSaveAllocations,
+  canNavigateToSupervisorReview = false,
+  submittedProposalsForReviewCount = 0,
+  onNavigateToSupervisorReview
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -85,6 +91,20 @@ export function TeamCompensationDistributionSplitPanel({
           {tBudget('budget-distribution-split-panel-title')}
         </CardTitle>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+          {canNavigateToSupervisorReview && onNavigateToSupervisorReview ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gba:shrink-0"
+              onClick={() => onNavigateToSupervisorReview()}
+              data-testid="manager-team-open-supervisor-review"
+              aria-label={t('manager-team-review-submitted-proposals-aria', {
+                count: submittedProposalsForReviewCount
+              })}
+            >
+              {t('manager-team-review-submitted-proposals', { count: submittedProposalsForReviewCount })}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="secondary"

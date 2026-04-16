@@ -112,9 +112,12 @@ manager-team-save-saving = Saving…
 manager-team-save-no-token = You must be signed in to save.
 manager-team-save-no-employee = Your employee profile is required to save.
 manager-team-save-missing-plan-ou = No salary budget row for this plan on {$name}’s org unit. Complete company budget setup first.
+manager-team-save-missing-budget-context = Team budget context is not loaded yet. Wait for the budget to finish loading or refresh the page, then try again.
 manager-team-save-custom-exceeds-pool = Total custom allocations exceed the increase pool. Adjust amounts before saving.
 manager-team-save-error = Could not save allocations. {$message}
 manager-team-save-error-generic = Something went wrong while saving.
+manager-team-review-submitted-proposals = Review submitted proposals ({$count})
+manager-team-review-submitted-proposals-aria = Open supervisor review for {$count} submitted proposal(s)
 manager-team-submit-proposals = Submit proposals
 manager-team-submitting = Submitting…
 manager-team-submit-no-drafts = Save at least one allocation to the budget plan before submitting. Use Distribute, then save in the dialog.
@@ -133,7 +136,34 @@ supervisor-review-submitted-count = { $count ->
   *[other] {$count} submitted proposals to review.
 }
 supervisor-review-busy = Working…
-supervisor-review-approve-all = Approve all
+supervisor-review-approve-selected = Approve selected
+supervisor-review-none-selected = Select at least one proposal.
+supervisor-review-selection-hint = Approve or send back only submitted rows. Draft rows are visible for context and cannot be selected here.
+supervisor-review-draft-in-table = { $count ->
+  [one] 1 allocation is still in draft (read-only in this list).
+  *[other] {$count} allocations are still in draft (read-only in this list).
+}
+supervisor-review-select-all-aria = Select all submitted proposals
+supervisor-review-row-select-aria = Select proposal for { $name }
+supervisor-review-row-draft-checkbox-aria = { $name } — draft (not selectable for approve or send back)
+supervisor-review-col-employee = Employee
+supervisor-review-col-increase-pct = Increase %
+supervisor-review-col-increase-amount = Increase amount
+supervisor-review-col-new-salary = Proposed salary
+supervisor-review-col-status = Status
+supervisor-review-col-justification = Justification
+budget-plan-status-unknown = Unknown
+budget-plan-status-draft = Draft
+budget-plan-status-submitted = Submitted
+budget-plan-status-approved = Approved
+budget-plan-status-rejected = Rejected
+budget-plan-status-sent-back = Sent back
+budget-plan-status-executed = Executed
+supervisor-review-employee-unknown = Employee (not in team list)
+supervisor-review-table-section-title = Proposals
+supervisor-review-table-search-placeholder = Search by name, amounts, or justification…
+supervisor-review-table-empty-filtered = No proposals match your search.
+supervisor-review-table-empty-none = No proposals to show.
 supervisor-review-send-back = Send back
 supervisor-review-send-back-notes-required = Add notes for the team before sending back.
 supervisor-review-send-back-title = Send back to team

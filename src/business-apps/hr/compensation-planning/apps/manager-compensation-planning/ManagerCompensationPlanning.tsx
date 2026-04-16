@@ -19,6 +19,7 @@ import { ArrowLeftIcon } from '@phosphor-icons/react'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentUrlWithUpdatedSearchParams, navigateTo } from '@/common/utils/navigationUtils'
+import { useCompensationBudgetPlanEmployeesByOrgUnitIds } from '../../hooks/useCompensationBudgetPlanEmployeesByOrgUnitIds'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
@@ -160,6 +161,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     error: salaryBudgetError,
     refetch: refetchSalaryBudget,
     planOuRowIdByOrganizationalUnitId,
+    orgUnitBudgetSnapshotsByPlanRowId,
+    managerCompanyBudgetRow,
     managerOrganizationalUnitId,
     activeCompensationBudgetPlanId
   } = useManagerTeamSalaryBudget({
@@ -169,7 +172,77 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     teamMembers
   })
 
+  const managerPlanOuRowId = useMemo(() => {
+    if (supervisorReview != null) {
+      return undefined
+    }
+    if (managerOrganizationalUnitId == null) {
+      return undefined
+    }
+    return planOuRowIdByOrganizationalUnitId.get(managerOrganizationalUnitId)
+  }, [supervisorReview, managerOrganizationalUnitId, planOuRowIdByOrganizationalUnitId])
+
+  const orgUnitBudgetIdsForSubmittedProbe = useMemo(
+    () => (managerPlanOuRowId != null ? [managerPlanOuRowId] : []),
+    [managerPlanOuRowId]
+  )
+
+  const { rows: planEmployeeRowsForSubmittedCount, refetch: refetchSubmittedProposalsProbe } =
+    useCompensationBudgetPlanEmployeesByOrgUnitIds(accessToken, orgUnitBudgetIdsForSubmittedProbe)
+
+  const submittedProposalsForReviewCount = useMemo(
+    () => planEmployeeRowsForSubmittedCount.filter(r => r.budgetPlanStatus === 'BUDGET_PLAN_SUBMITTED').length,
+    [planEmployeeRowsForSubmittedCount]
+  )
+
+  const supervisorReviewTeamLabel = useMemo(() => {
+    if (managerOrganizationalUnitId == null) {
+      return ''
+    }
+    const m = teamMembers.find(tm => tm.organizationalUnitId === managerOrganizationalUnitId)
+    return (m?.orgUnitName?.trim() || managerOrganizationalUnitId) ?? ''
+  }, [teamMembers, managerOrganizationalUnitId])
+
+  const navigateToSupervisorReview = useCallback(() => {
+    if (selectedCompanyId == null || managerOrganizationalUnitId == null || managerPlanOuRowId == null) {
+      return
+    }
+    const next = getCurrentUrlWithUpdatedSearchParams({
+      supervisorReview: '1',
+      companyId: selectedCompanyId,
+      orgUnitId: managerOrganizationalUnitId,
+      planOuRowId: managerPlanOuRowId,
+      teamLabel: supervisorReviewTeamLabel || managerOrganizationalUnitId
+    })
+    navigateTo(next)
+  }, [managerOrganizationalUnitId, managerPlanOuRowId, selectedCompanyId, supervisorReviewTeamLabel])
+
+  const canNavigateToSupervisorReview = useMemo(
+    () =>
+      supervisorReview == null &&
+      selectedCompanyId != null &&
+      managerOrganizationalUnitId != null &&
+      managerPlanOuRowId != null &&
+      submittedProposalsForReviewCount > 0,
+    [
+      managerOrganizationalUnitId,
+      managerPlanOuRowId,
+      selectedCompanyId,
+      submittedProposalsForReviewCount,
+      supervisorReview
+    ]
+  )
+
   const teamCurrencyCode = teamMembers[0]?.currency ?? 'EUR'
+
+  const supervisorEmployeeDisplayNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tm of teamMembers) {
+      const label = tm.displayName || `${tm.firstName} ${tm.lastName}`.trim() || tm.employeeCode
+      map.set(tm.employeeId, label)
+    }
+    return map
+  }, [teamMembers])
 
   const employeeIdsForPerformance = useMemo(() => [...new Set(teamMembers.map(m => m.employeeId))], [teamMembers])
 
@@ -223,7 +296,14 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       return next
     })
     setProposalsLocked(true)
-  }, [])
+    void refetchSubmittedProposalsProbe()
+  }, [refetchSubmittedProposalsProbe])
+
+  const onSupervisorReviewDataChanged = useCallback(() => {
+    void refetchSalaryBudget()
+    void refetchTeam()
+    void refetchSubmittedProposalsProbe()
+  }, [refetchSalaryBudget, refetchSubmittedProposalsProbe, refetchTeam])
 
   const pipeline = useTeamMembersPipeline({
     members: teamMembersWithPerformance,
@@ -325,6 +405,9 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
               supervisorEmployeeId={employeeId}
               planOuRowId={supervisorReview.planOuRowId}
               organizationalUnitLabel={supervisorReview.teamLabel || supervisorReview.orgUnitId}
+              currencyCode={teamCurrencyCode}
+              employeeDisplayNameById={supervisorEmployeeDisplayNameById}
+              onSupervisorReviewDataChanged={onSupervisorReviewDataChanged}
             />
           </div>
         </div>
@@ -373,6 +456,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             managerEmployeeId={employeeId}
             planOuRowIdByOrganizationalUnitId={planOuRowIdByOrganizationalUnitId}
             managerOrganizationalUnitId={managerOrganizationalUnitId}
+            managerCompanyBudgetRow={managerCompanyBudgetRow}
+            orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
             employeeBudgetRowState={employeeBudgetRows}
             onMergeSavedRowIds={mergeSavedRowIds}
             proposalsLockedAfterSubmit={proposalsLocked}
@@ -381,6 +466,9 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
               void refetchSalaryBudget()
               void refetchTeam()
             }}
+            canNavigateToSupervisorReview={canNavigateToSupervisorReview}
+            submittedProposalsForReviewCount={submittedProposalsForReviewCount}
+            onNavigateToSupervisorReview={navigateToSupervisorReview}
           />
         </div>
       </div>

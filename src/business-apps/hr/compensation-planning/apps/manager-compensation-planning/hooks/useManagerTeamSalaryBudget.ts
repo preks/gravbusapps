@@ -12,6 +12,19 @@ import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
 import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from '../../../utils/graphqlUnknownToString'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 
+/** Snapshot of one `compensation_budget_plan_organizational_unit` row (same fields as LIST by company budget). */
+export interface ManagerOrgUnitBudgetSnapshot {
+  id: string
+  version: number
+  compensationBudgetPlanCompanyId: string
+  organizationalUnitId: string
+  salaryBudgetAmount: number
+  salaryBudgetPercent: number
+  bonusBudgetAmount: number
+  bonusBudgetPercent: number
+  budgetPlanStatus: string
+}
+
 interface CompanyBudgetPlanOption {
   id: string
   compensationBudgetPlanId: string
@@ -162,6 +175,10 @@ export function useManagerTeamSalaryBudget(params: {
   const [planOuRowIdByOrganizationalUnitId, setPlanOuRowIdByOrganizationalUnitId] = useState<
     ReadonlyMap<string, string>
   >(() => new Map())
+  const [orgUnitBudgetSnapshotsByPlanRowId, setOrgUnitBudgetSnapshotsByPlanRowId] = useState<
+    ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
+  >(() => new Map())
+  const [managerCompanyBudgetRow, setManagerCompanyBudgetRow] = useState<CompensationBudgetPlanCompanyRow | null>(null)
   const [managerOrganizationalUnitId, setManagerOrganizationalUnitId] = useState<string | null>(null)
   const [activeCompensationBudgetPlanId, setActiveCompensationBudgetPlanId] = useState<string | null>(null)
 
@@ -170,6 +187,8 @@ export function useManagerTeamSalaryBudget(params: {
       setTotalSalaryBudget(null)
       setError(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
+      setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
+      setManagerCompanyBudgetRow(null)
       setManagerOrganizationalUnitId(null)
       setActiveCompensationBudgetPlanId(null)
       return
@@ -195,6 +214,8 @@ export function useManagerTeamSalaryBudget(params: {
       if (relevantOuIds.size === 0) {
         setTotalSalaryBudget(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
+        setManagerCompanyBudgetRow(null)
         setActiveCompensationBudgetPlanId(null)
         return
       }
@@ -208,6 +229,8 @@ export function useManagerTeamSalaryBudget(params: {
       if (!companyBudgetId) {
         setTotalSalaryBudget(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
+        setManagerCompanyBudgetRow(null)
         setActiveCompensationBudgetPlanId(null)
         return
       }
@@ -215,26 +238,40 @@ export function useManagerTeamSalaryBudget(params: {
       const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
       setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
 
+      const pickedCompanyRow = companyRows.find(r => r.id === companyBudgetId) ?? null
+      setManagerCompanyBudgetRow(pickedCompanyRow)
+
       const ouResult = await graphqlClient.request<{
-        CompensationBudgetPlanOrganizationalUnit: Array<{
-          id: string
-          organizationalUnitId: string
-          salaryBudgetAmount: unknown
-        }>
+        CompensationBudgetPlanOrganizationalUnit: Array<Record<string, unknown>>
       }>(LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET, {
         compensationBudgetPlanCompanyId: companyBudgetId
       })
 
       const rows = ouResult.CompensationBudgetPlanOrganizationalUnit ?? []
       const ouPlanRowMap = new Map<string, string>()
+      const snapshotByPlanRowId = new Map<string, ManagerOrgUnitBudgetSnapshot>()
       for (const r of rows) {
-        const ouId = String(r.organizationalUnitId)
-        const rowId = String(r.id)
+        const ouId = String(r.organizationalUnitId ?? '')
+        const rowId = String(r.id ?? '')
         if (ouId && rowId && !ouPlanRowMap.has(ouId)) {
           ouPlanRowMap.set(ouId, rowId)
         }
+        if (rowId) {
+          snapshotByPlanRowId.set(rowId, {
+            id: rowId,
+            version: num(r.version),
+            compensationBudgetPlanCompanyId: String(r.compensationBudgetPlanCompanyId ?? ''),
+            organizationalUnitId: ouId,
+            salaryBudgetAmount: num(r.salaryBudgetAmount),
+            salaryBudgetPercent: num(r.salaryBudgetPercent),
+            bonusBudgetAmount: num(r.bonusBudgetAmount),
+            bonusBudgetPercent: num(r.bonusBudgetPercent),
+            budgetPlanStatus: graphqlUnknownToString(r.budgetPlanStatus)
+          })
+        }
       }
       setPlanOuRowIdByOrganizationalUnitId(ouPlanRowMap)
+      setOrgUnitBudgetSnapshotsByPlanRowId(snapshotByPlanRowId)
 
       let amount = 0
       for (const r of rows) {
@@ -249,6 +286,8 @@ export function useManagerTeamSalaryBudget(params: {
       setError(message)
       setTotalSalaryBudget(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
+      setOrgUnitBudgetSnapshotsByPlanRowId(new Map())
+      setManagerCompanyBudgetRow(null)
       setActiveCompensationBudgetPlanId(null)
     } finally {
       setLoadingBudget(false)
@@ -265,6 +304,8 @@ export function useManagerTeamSalaryBudget(params: {
     error,
     refetch: fetchBudgetTotal,
     planOuRowIdByOrganizationalUnitId,
+    orgUnitBudgetSnapshotsByPlanRowId,
+    managerCompanyBudgetRow,
     managerOrganizationalUnitId,
     activeCompensationBudgetPlanId
   }

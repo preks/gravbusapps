@@ -31,6 +31,14 @@ function percentOfPool(amount: number, pool: number): number {
   return Math.round((10000 * amount) / pool) / 100
 }
 
+/** Increase budget as % of payroll baseline (aligns company row amount/percent after Distribute). */
+function salaryIncreasePercentOfPayrollBaseline(amount: number, currentTotalSalaryCost: number): number {
+  if (currentTotalSalaryCost <= 0 || !Number.isFinite(amount) || !Number.isFinite(currentTotalSalaryCost)) {
+    return 0
+  }
+  return Math.round((10000 * amount) / currentTotalSalaryCost) / 100
+}
+
 export interface BudgetDistributionDistributeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,6 +47,7 @@ export interface BudgetDistributionDistributeDialogProps {
   sortedOrgUnits: CompanyOrganizationalUnit[]
   orgUnitBudgetRows: CompensationBudgetPlanOrganizationalUnitRow[]
   allocationByOrgUnitId: ReadonlyMap<string, number>
+  /** Current company salary-increase pool (from `salary_budget_amount` / resolve); basis for OU % and remainder. */
   distributionPool: number | null
   currencyCode: string
   companyBudgetRow: CompensationBudgetPlanCompanyRow | null
@@ -78,8 +87,8 @@ export function BudgetDistributionDistributeDialog({
       return
     }
     setErrorMessage(null)
-    setSelectedOuIds(new Set(saveableOrgUnits.map(u => u.id)))
-  }, [open, saveableOrgUnits])
+    setSelectedOuIds(new Set())
+  }, [open])
 
   const toggleOu = useCallback((ouId: string, checked: boolean) => {
     setSelectedOuIds(prev => {
@@ -142,6 +151,7 @@ export function BudgetDistributionDistributeDialog({
 
         if (!isInsert && row) {
           unitPayload.id = row.id
+          unitPayload.version = row.version
         }
 
         await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
@@ -150,13 +160,23 @@ export function BudgetDistributionDistributeDialog({
         })
       }
 
+      /** Undistributed company pool: current pool minus amounts assigned to org units in this save (supports later batches). */
+      const sumAllocatedThisBatch = roundMoney2(
+        ids.reduce((sum, ouId) => sum + roundMoney2(allocationByOrgUnitId.get(ouId) ?? 0), 0)
+      )
+      const poolBefore = roundMoney2(distributionPool ?? 0)
+      const nextCompanySalaryAmount = roundMoney2(Math.max(0, poolBefore - sumAllocatedThisBatch))
+      const nextCompanySalaryPercent = salaryIncreasePercentOfPayrollBaseline(
+        nextCompanySalaryAmount,
+        companyBudgetRow.currentTotalSalaryCost
+      )
       const companyBody = buildSaveCompensationBudgetPlanCompanyUpdateBody({
         id: companyBudgetRow.id,
         version: companyBudgetRow.version,
         compensationBudgetPlanId: companyBudgetRow.compensationBudgetPlanId,
         companyId: companyBudgetRow.companyId,
-        salaryBudgetAmount: companyBudgetRow.salaryBudgetAmount,
-        salaryBudgetPercent: companyBudgetRow.salaryBudgetPercent,
+        salaryBudgetAmount: nextCompanySalaryAmount,
+        salaryBudgetPercent: nextCompanySalaryPercent,
         currentTotalSalaryCost: companyBudgetRow.currentTotalSalaryCost,
         currencyRef: companyBudgetRow.currencyRef
       })
