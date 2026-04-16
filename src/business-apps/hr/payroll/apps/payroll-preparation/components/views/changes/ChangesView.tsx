@@ -219,19 +219,19 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
                     <TableCell className="gba:text-sm gba:text-foreground">{change.fieldName}</TableCell>
                     <TableCell>
                       <Badge variant="destructive" className="gba:line-through">
-                        {change.oldValue || '—'}
+                        {change.oldValue || '-'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="success">{change.newValue || '—'}</Badge>
+                      <Badge variant="success">{change.newValue || '-'}</Badge>
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">
-                      {change.effectiveDate ? new Date(change.effectiveDate).toLocaleDateString() : '—'}
+                      {change.effectiveDate ? new Date(change.effectiveDate).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell className="gba:text-sm gba:text-muted-foreground">
-                      {change.changedAt ? new Date(change.changedAt).toLocaleDateString() : '—'}
+                      {change.changedAt ? new Date(change.changedAt).toLocaleDateString() : '-'}
                     </TableCell>
-                    <TableCell className="gba:text-sm gba:text-muted-foreground">{change.changedBy || '—'}</TableCell>
+                    <TableCell className="gba:text-sm gba:text-muted-foreground">{change.changedBy || '-'}</TableCell>
                   </TableRow>
                 ))
               )}

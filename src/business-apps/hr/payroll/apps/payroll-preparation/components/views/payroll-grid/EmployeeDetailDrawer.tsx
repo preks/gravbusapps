@@ -5,6 +5,7 @@ import { XIcon, UserIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollCountry } from '../../../types/payrollTypes'
 import { ReadinessStatusBadge, SeverityBadge } from '../../shared/StatusBadge'
 import { Navigation, navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { payrollIssueCodeTitle } from '../../../utils/payrollIssueCodeLabels'
 
 interface EmployeeDetailDrawerProps {
   employee: PayrollEmployee | null
@@ -25,7 +26,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 const Field: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
   <div className="gba:flex gba:justify-between gba:py-1.5 gba:text-sm">
     <span className="gba:text-muted-foreground">{label}</span>
-    <span className="gba:text-foreground gba:font-medium gba:text-right gba:max-w-[60%]">{value || '—'}</span>
+    <span className="gba:text-foreground gba:font-medium gba:text-right gba:max-w-[60%]">{value || '-'}</span>
   </div>
 )
 
@@ -43,6 +44,15 @@ function formatOptionalValue(value: number | null | undefined): string | null {
   }
 
   return String(value)
+}
+
+/** Matches Changes tab / payroll grid date display for `PayrollChangeEvent.effectiveDate`. */
+function formatChangeEffectiveDate(isoDate: string | undefined): string {
+  if (!isoDate) {
+    return '-'
+  }
+
+  return new Date(isoDate).toLocaleDateString()
 }
 
 export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ employee, country, onClose, t }) => {
@@ -195,8 +205,10 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
           {country === 'DE' && (
             <Section title={t('country-de')}>
               <Field label={t('de-tax-id')} value={employee.taxId || t('label-missing')} />
+              <Field label={t('de-elstam')} value={employee.elstamStatus || t('label-missing')} />
               <Field label={t('de-social-insurance')} value={employee.socialInsuranceNumber || t('label-missing')} />
               <Field label={t('de-health-insurance')} value={employee.healthInsuranceName || t('label-missing')} />
+              <Field label={t('de-eau')} value={employee.eauStatus || t('label-missing')} />
               <Field label={t('de-employment-type')} value={employee.employmentTypeFlag || t('label-not-set')} />
             </Section>
           )}
@@ -204,6 +216,16 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
           {country === 'RO' && (
             <Section title={t('country-ro')}>
               <Field label={t('ro-cnp')} value={employee.socialInsuranceNumber || t('label-missing')} />
+              <Field
+                label={t('ro-medical-cert')}
+                value={
+                  employee.sickLeaveDays > 0 ? (
+                    <Badge variant="warning">{t('ro-medical-cert')}</Badge>
+                  ) : (
+                    <Badge variant="secondary">{t('label-not-applicable')}</Badge>
+                  )
+                }
+              />
             </Section>
           )}
 
@@ -211,9 +233,16 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
             <Section title={`${t('employee-detail-issues')} (${openIssues.length})`}>
               <div className="gba:space-y-3">
                 {openIssues.map(issue => (
-                  <Card key={issue.id} className="gba:p-3">
-                    <div className="gba:flex gba:items-start gba:justify-between gba:mb-1">
-                      <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
+                  <Card
+                    key={issue.id}
+                    className="gba:p-3"
+                    data-issue-code={issue.issueCode}
+                    data-testid={`payroll-prep-employee-issue-${issue.id}`}
+                  >
+                    <div className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:mb-1">
+                      <p className="gba:text-sm gba:font-medium gba:text-foreground gba:min-w-0">
+                        {payrollIssueCodeTitle(issue.issueCode, t)}
+                      </p>
                       <SeverityBadge severity={issue.severity} t={t} />
                     </div>
                     <p className="gba:text-sm gba:text-foreground gba:mb-1">{issue.message}</p>
@@ -231,14 +260,16 @@ export const EmployeeDetailDrawer: React.FC<EmployeeDetailDrawerProps> = ({ empl
                   <div key={change.id} className="gba:text-sm gba:py-2 gba:border-b gba:border-border">
                     <div className="gba:flex gba:justify-between">
                       <span className="gba:font-medium gba:text-foreground">{change.fieldName}</span>
-                      <span className="gba:text-xs gba:text-muted-foreground">{change.effectiveDate}</span>
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {formatChangeEffectiveDate(change.effectiveDate)}
+                      </span>
                     </div>
                     <div className="gba:flex gba:gap-2 gba:text-xs gba:mt-1">
                       <Badge variant="destructive" className="gba:line-through">
-                        {change.oldValue || '—'}
+                        {change.oldValue || '-'}
                       </Badge>
                       <span className="gba:text-muted-foreground">&rarr;</span>
-                      <Badge variant="success">{change.newValue || '—'}</Badge>
+                      <Badge variant="success">{change.newValue || '-'}</Badge>
                     </div>
                   </div>
                 ))}

@@ -58,7 +58,14 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
     loading,
     error,
     refetch: refetchEmployees
-  } = usePayrollEmployees(accessToken, activeRun ? selectedCompanyId : null, activeMonth, activeYear, detectedCountry)
+  } = usePayrollEmployees(
+    accessToken,
+    activeRun ? selectedCompanyId : null,
+    activeMonth,
+    activeYear,
+    detectedCountry,
+    t
+  )
   const summary = usePayrollSummary(employees)
 
   const {

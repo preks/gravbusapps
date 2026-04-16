@@ -17,10 +17,11 @@ import { getPictureDataUrl } from '../../../utils/imageUtils'
 
 interface GermanyChecksViewProps {
   employees: PayrollEmployee[]
+  onSelectEmployee: (employee: PayrollEmployee) => void
   t: (key: string) => string
 }
 
-export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees, t }) => {
+export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees, onSelectEmployee, t }) => {
   const deIssues = employees.reduce((sum, emp) => {
     return sum + emp.issues.filter(i => i.issueCode.startsWith('DE_') && i.status === 'open').length
   }, 0)
@@ -33,7 +34,7 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
       >
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-            {t('country-de')} — {t('country-checks-title')}
+            {t('country-de')} - {t('country-checks-title')}
           </h3>
           <p className="gba:text-sm gba:text-muted-foreground">
             {employees.length} {t('summary-total').toLowerCase()}, {deIssues} {t('grid-issues').toLowerCase()}
@@ -64,7 +65,12 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
                 const hasBlockers = deOpenIssues.some(i => i.severity === 'blocker')
 
                 return (
-                  <TableRow key={emp.id} data-testid={`payroll-prep-country-checks-de-row-${emp.id}`}>
+                  <TableRow
+                    key={emp.id}
+                    className="gba:cursor-pointer gba:hover:bg-muted"
+                    data-testid={`payroll-prep-country-checks-de-row-${emp.id}`}
+                    onClick={() => onSelectEmployee(emp)}
+                  >
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Avatar size="sm" className="gba:h-7 gba:w-7 gba:flex-shrink-0">

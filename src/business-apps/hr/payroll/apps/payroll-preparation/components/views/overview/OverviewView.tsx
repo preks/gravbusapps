@@ -39,6 +39,32 @@ interface OverviewViewProps {
 
 type BadgeVariant = 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'
 
+/** One place to tune KPI pictogram size (icon + box). */
+const KPI_ICON_SIZE_PX = 32
+const KPI_ICON_CLASS = 'gba:h-8 gba:w-8 gba:shrink-0'
+const KPI_ICON_BOX_CLASS = 'gba:h-12 gba:w-12'
+
+function KpiGlyph(props: Readonly<{ icon: React.ElementType; weight?: 'fill' | 'duotone' }>) {
+  const { icon: Icon, weight = 'fill' } = props
+  return <Icon size={KPI_ICON_SIZE_PX} weight={weight} className={KPI_ICON_CLASS} aria-hidden />
+}
+
+function kpiIconContainerClass(variant: BadgeVariant): string {
+  switch (variant) {
+    case 'success':
+      return 'gba:bg-success gba:text-success-foreground'
+    case 'warning':
+      return 'gba:bg-warning gba:text-warning-foreground'
+    case 'destructive':
+      return 'gba:bg-destructive gba:text-destructive-foreground'
+    case 'secondary':
+      return 'gba:bg-secondary gba:text-secondary-foreground'
+    case 'outline':
+    default:
+      return 'gba:border gba:border-border gba:bg-muted/50 gba:text-foreground'
+  }
+}
+
 interface KpiCardProps {
   label: string
   value: number
@@ -54,27 +80,29 @@ interface ReadinessSegmentConfig {
   label: string
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
-  <Card className="gba:p-4">
-    <div className="gba:flex gba:flex-row gba:items-center gba:gap-3">
-      <Badge
-        variant={variant}
-        className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:flex gba:items-center gba:justify-center"
-      >
-        {icon}
-      </Badge>
-      <div className="gba:min-w-0">
-        <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
-        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
+const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => {
+  return (
+    <Card className="gba:p-4">
+      <div className="gba:flex gba:flex-row gba:items-center gba:gap-4">
+        <div
+          className={`gba:flex ${KPI_ICON_BOX_CLASS} gba:shrink-0 gba:items-center gba:justify-center gba:rounded-xl ${kpiIconContainerClass(variant)}`}
+          aria-hidden
+        >
+          {icon}
+        </div>
+        <div className="gba:min-w-0">
+          <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
+        </div>
       </div>
-    </div>
-  </Card>
-)
+    </Card>
+  )
+}
 
 function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const formatted = formatPlatformDate(dateStr, 'date.short')
-  return formatted ?? '—'
+  return formatted ?? '-'
 }
 
 function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
@@ -199,43 +227,43 @@ function RunDashboardView({
       {
         label: t('summary-total'),
         value: summary.totalEmployees,
-        icon: <UsersIcon size={24} />,
+        icon: <KpiGlyph icon={UsersIcon} />,
         variant: 'outline' as const
       },
       {
         label: t('summary-ready'),
         value: summary.readyCount,
-        icon: <CheckCircleIcon size={24} weight="fill" />,
+        icon: <KpiGlyph icon={CheckCircleIcon} />,
         variant: 'success' as const
       },
       {
         label: t('summary-warning'),
         value: summary.warningCount,
-        icon: <WarningIcon size={24} weight="fill" />,
+        icon: <KpiGlyph icon={WarningIcon} />,
         variant: 'warning' as const
       },
       {
         label: t('summary-blocked'),
         value: summary.blockedCount,
-        icon: <XCircleIcon size={24} weight="fill" />,
+        icon: <XCircleIcon size={KPI_ICON_SIZE_PX} weight="fill" className={KPI_ICON_CLASS} />,
         variant: 'destructive' as const
       },
       {
         label: t('summary-excluded'),
         value: summary.excludedCount,
-        icon: <MinusCircleIcon size={24} weight="fill" />,
+        icon: <KpiGlyph icon={MinusCircleIcon} />,
         variant: 'secondary' as const
       },
       {
         label: t('summary-blockers'),
         value: summary.openBlockers,
-        icon: <ShieldWarningIcon size={24} weight="fill" />,
+        icon: <KpiGlyph icon={ShieldWarningIcon} />,
         variant: 'destructive' as const
       },
       {
         label: t('summary-changed'),
         value: summary.changedSinceLastPayroll,
-        icon: <ArrowsClockwiseIcon size={24} />,
+        icon: <KpiGlyph icon={ArrowsClockwiseIcon} />,
         variant: 'outline' as const
       }
     ],

@@ -11,7 +11,7 @@ import {
   GET_ACTIVE_STRUCTURE,
   GET_COMPANY_ADDRESSES
 } from '../queries/payrollQueries'
-import { runAllValidations, resetIssueIdCounter } from '../utils/validationRules'
+import { runAllValidations, resetIssueIdCounter, type IssueTranslator } from '../utils/validationRules'
 import { parseDurationToMinutes, getPlannedMinutesForDate, toLocalDateKey } from '../utils/timeUtils'
 import { DEFAULT_PAYROLL_COUNTRY, DEFAULT_PAYROLL_CURRENCY } from '../utils/payrollDefaults'
 import type { PayrollEmployee, PayrollCountry, PayrollSummary, PayrollGridFilters } from '../types/payrollTypes'
@@ -482,9 +482,13 @@ function buildPayrollChanges(
   return changes
 }
 
-function applyReadinessAndEligibility(payrollEmployee: PayrollEmployee, country: PayrollCountry): void {
+function applyReadinessAndEligibility(
+  payrollEmployee: PayrollEmployee,
+  country: PayrollCountry,
+  translateIssue: IssueTranslator
+): void {
   resetIssueIdCounter()
-  const issues = runAllValidations(payrollEmployee, country)
+  const issues = runAllValidations(payrollEmployee, country, translateIssue)
   payrollEmployee.issues = issues
 
   const blockers = issues.filter(i => i.severity === 'blocker' && i.status === 'open')
@@ -570,7 +574,8 @@ function buildPayrollEmployee(
   bonusMap: Map<string, RawBonus[]>,
   country: PayrollCountry,
   payrollMonth: number,
-  payrollYear: number
+  payrollYear: number,
+  translateIssue: IssueTranslator
 ): PayrollEmployee {
   const emp = pos.employee
   const wc = emp.workingCondition?.[0]
@@ -660,7 +665,7 @@ function buildPayrollEmployee(
     exportEligible: true
   }
 
-  applyReadinessAndEligibility(payrollEmp, country)
+  applyReadinessAndEligibility(payrollEmp, country, translateIssue)
 
   return payrollEmp
 }
@@ -670,7 +675,8 @@ export function usePayrollEmployees(
   companyId: string | null,
   month: number,
   year: number,
-  country: PayrollCountry | null
+  country: PayrollCountry | null,
+  translateIssue: IssueTranslator
 ) {
   const client = useGraphqlClient(accessToken)
   const [employees, setEmployees] = useState<PayrollEmployee[]>([])
@@ -720,7 +726,17 @@ export function usePayrollEmployees(
       const allEmployees = positions
         .filter(p => p.employee?.id)
         .map(pos =>
-          buildPayrollEmployee(pos, salaryMap, absenceMap, attendanceMap, bonusMap, effectiveCountry, month, year)
+          buildPayrollEmployee(
+            pos,
+            salaryMap,
+            absenceMap,
+            attendanceMap,
+            bonusMap,
+            effectiveCountry,
+            month,
+            year,
+            translateIssue
+          )
         )
 
       const payrollEmployees = allEmployees.filter(e => e.payrollRelevant !== false)
@@ -731,7 +747,7 @@ export function usePayrollEmployees(
     } finally {
       setLoading(false)
     }
-  }, [accessToken, client, companyId, month, year, country])
+  }, [accessToken, client, companyId, month, year, country, translateIssue])
 
   useEffect(() => {
     fetchData()
@@ -746,14 +762,7 @@ export function useFilteredEmployees(employees: PayrollEmployee[], filters: Payr
 
     if (filters.search) {
       const q = filters.search.toLowerCase()
-      filtered = filtered.filter(
-        e =>
-          e.firstName.toLowerCase().includes(q) ||
-          e.lastName.toLowerCase().includes(q) ||
-          e.fullName.toLowerCase().includes(q) ||
-          e.code.toLowerCase().includes(q) ||
-          e.employeeId.toLowerCase().includes(q)
-      )
+      filtered = filtered.filter(e => e.fullName.toLowerCase().includes(q))
     }
 
     if (filters.readinessStatus !== 'all') {

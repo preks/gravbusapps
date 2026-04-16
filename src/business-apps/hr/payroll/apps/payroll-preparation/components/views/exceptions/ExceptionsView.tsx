@@ -11,6 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ArrowsClockwiseIcon, WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
+import { payrollIssueCodeTitle } from '../../../utils/payrollIssueCodeLabels'
 import { SeverityBadge } from '../../shared/StatusBadge'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -259,6 +260,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
               <Card
                 key={issueKey}
                 className={`gba:p-4 gba:transition-colors ${isAddressed ? 'gba:opacity-50' : 'gba:hover:bg-muted/50'}`}
+                data-issue-code={issue.issueCode}
                 data-testid={`payroll-prep-exception-card-${issueKey}`}
               >
                 <div className="gba:flex gba:items-start gba:gap-3">
@@ -290,8 +292,13 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                           {issue.employeeCode}
                         </span>
                       </div>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                        <span
+                          className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate"
+                          title={issue.issueCode}
+                        >
+                          {payrollIssueCodeTitle(issue.issueCode, t)}
+                        </span>
                         <SeverityBadge severity={issue.severity} t={t} />
                       </div>
                     </div>

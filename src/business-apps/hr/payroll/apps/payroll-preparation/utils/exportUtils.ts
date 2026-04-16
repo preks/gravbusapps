@@ -185,6 +185,55 @@ export function generateExceptionsCSV(employees: PayrollEmployee[]): string {
   return [headerRow, ...dataRows].join('\n')
 }
 
+export async function generateExceptionsXLSX(employees: PayrollEmployee[]): Promise<Blob> {
+  const headers = [
+    'Employee ID',
+    'Employee Name',
+    'Issue Code',
+    'Category',
+    'Severity',
+    'Message',
+    'Recommended Action',
+    'Status'
+  ]
+
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'Payroll Preparation'
+  workbook.created = new Date()
+
+  const dataSheet = workbook.addWorksheet('Exceptions')
+  const headerRow = dataSheet.addRow(headers)
+  const HEADER_BG = 'FFF2F2F2'
+
+  headerRow.eachCell(cell => {
+    cell.font = { bold: true }
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } }
+    cell.border = { bottom: { style: 'thin' } }
+  })
+
+  for (const emp of employees) {
+    for (const issue of emp.issues) {
+      dataSheet.addRow([
+        emp.employeeId,
+        emp.fullName,
+        issue.issueCode,
+        issue.category,
+        issue.severity,
+        issue.message,
+        issue.recommendedAction,
+        issue.status
+      ])
+    }
+  }
+
+  dataSheet.columns.forEach(col => {
+    col.width = Math.max(16, (col.header?.toString().length ?? 0) + 4)
+  })
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+}
+
 export async function generatePayrollXLSX(
   employees: PayrollEmployee[],
   payrollRun: PayrollRun,
