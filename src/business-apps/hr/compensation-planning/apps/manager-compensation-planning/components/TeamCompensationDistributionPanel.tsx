@@ -13,10 +13,6 @@ import compensationPlanningTranslations from '../../compensation-planning/_i18n'
 import { roundMoney2 } from '../../compensation-planning/utils/parseCustomBudgetInputs'
 import { budgetDistributionMethodTitleKey } from '../../compensation-planning/components/views/BudgetDistributionMethodSelector'
 import { useManagerPlanningStore } from '../hooks/useManagerPlanningStore'
-import {
-  type ManagerEmployeeBudgetRowStateMap,
-  useManagerTeamProposalSubmit
-} from '../hooks/useManagerTeamProposalSubmit'
 import { useManagerTeamCompensationDataDisplay } from '../hooks/useManagerTeamCompensationDataDisplay'
 import { useManagerTeamEmployeeCustomBudgetMaps } from '../hooks/useManagerTeamEmployeeCustomBudgetMaps'
 import translations from '../_i18n'
@@ -39,7 +35,6 @@ export interface TeamCompensationDistributionPanelProps {
   salaryBudgetLoading: boolean
   salaryBudgetError: string | null
   selectedCompanyId: string | null
-  activeCompensationBudgetPlanId: string | null
   currencyCode: string
   accessToken: string | undefined
   managerEmployeeId: string | undefined
@@ -47,18 +42,11 @@ export interface TeamCompensationDistributionPanelProps {
   managerOrganizationalUnitId: string | null
   managerCompanyBudgetRow: CompensationBudgetPlanCompanyRow | null
   orgUnitBudgetSnapshotsByPlanRowId: ReadonlyMap<string, ManagerOrgUnitBudgetSnapshot>
-  /** Local REST row ids and draft/submitted status from this session (after save allocations). */
-  employeeBudgetRowState: ManagerEmployeeBudgetRowStateMap
   /** Called after save dialog persists rows (merge returned ids into parent state). */
   onMergeSavedRowIds: (createdIdsByEmployeeId?: Record<string, string>) => void
-  /** After manager batch-submits drafts, parent locks editing. */
+  /** After manager submits proposals from the modal, parent locks editing. */
   proposalsLockedAfterSubmit: boolean
-  onDraftProposalsSubmitted: () => void
   onSaved?: () => void
-  /** When true, show entry to supervisor review (same URL flow as HR Submissions → Review team). */
-  canNavigateToSupervisorReview?: boolean
-  submittedProposalsForReviewCount?: number
-  onNavigateToSupervisorReview?: () => void
 }
 
 export function TeamCompensationDistributionPanel({
@@ -71,7 +59,6 @@ export function TeamCompensationDistributionPanel({
   salaryBudgetLoading,
   salaryBudgetError,
   selectedCompanyId,
-  activeCompensationBudgetPlanId,
   currencyCode,
   accessToken,
   managerEmployeeId,
@@ -79,14 +66,9 @@ export function TeamCompensationDistributionPanel({
   managerOrganizationalUnitId,
   managerCompanyBudgetRow,
   orgUnitBudgetSnapshotsByPlanRowId,
-  employeeBudgetRowState,
   onMergeSavedRowIds,
   proposalsLockedAfterSubmit,
-  onDraftProposalsSubmitted,
-  onSaved,
-  canNavigateToSupervisorReview = false,
-  submittedProposalsForReviewCount = 0,
-  onNavigateToSupervisorReview
+  onSaved
 }: Readonly<TeamCompensationDistributionPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -180,30 +162,6 @@ export function TeamCompensationDistributionPanel({
   const listsReady = loading === false && salaryBudgetLoading === false
   const canShowSaveAction = Boolean(
     accessToken && managerEmployeeId && teamMembers.length > 0 && listsReady && !proposalsLockedAfterSubmit
-  )
-
-  const {
-    submitDraftProposals,
-    submitting,
-    errorMessage: submitError,
-    draftCount
-  } = useManagerTeamProposalSubmit({
-    accessToken,
-    managerEmployeeId,
-    restClient,
-    companyId: selectedCompanyId,
-    activeCompensationBudgetPlanId,
-    teamMembers,
-    allocationByEmployeeId: allocationFullTeam,
-    planOuRowIdByOrganizationalUnitId,
-    managerOrganizationalUnitId,
-    employeeBudgetRowState,
-    onDraftsSubmitted: onDraftProposalsSubmitted,
-    tError: t
-  })
-
-  const canSubmitProposals = Boolean(
-    accessToken && managerEmployeeId && draftCount > 0 && !proposalsLockedAfterSubmit && !submitting && listsReady
   )
 
   const teamBudgetKpiWidgets = useMemo((): WidgetItem[] | null => {
@@ -314,12 +272,6 @@ export function TeamCompensationDistributionPanel({
           </p>
         ) : null}
 
-        {submitError ? (
-          <p className="gba:text-sm gba:text-destructive" data-testid="manager-team-submit-proposals-error">
-            {submitError}
-          </p>
-        ) : null}
-
         <TeamCompensationDistributionSplitPanel
           distributionMethod={distributionMethod}
           setDistributionMethod={setDistributionMethod}
@@ -340,14 +292,8 @@ export function TeamCompensationDistributionPanel({
           totalSalaryCostAcrossEmployees={totalSalaryCostAcrossEmployees}
           grandTotalPositivePerformanceScores={grandTotalPositivePerformanceScores}
           dataDisplay={dataDisplay}
-          canSubmitProposals={canSubmitProposals}
-          submitting={submitting}
-          submitDraftProposals={submitDraftProposals}
           canShowSaveAction={canShowSaveAction}
-          onOpenSaveAllocations={() => setSaveAllocationsDialogOpen(true)}
-          canNavigateToSupervisorReview={canNavigateToSupervisorReview}
-          submittedProposalsForReviewCount={submittedProposalsForReviewCount}
-          onNavigateToSupervisorReview={onNavigateToSupervisorReview}
+          onOpenSubmitProposals={() => setSaveAllocationsDialogOpen(true)}
         />
       </div>
     </>

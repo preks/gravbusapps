@@ -44,7 +44,6 @@ export function useSupervisorSubmittedProposalsTableModel(
     }
     return enrichedRows.filter(row => {
       const name = row.employeeDisplayName.toLowerCase()
-      const just = (row.justification ?? '').toLowerCase()
       const amounts = [
         String(row.proposedSalaryIncreaseAmount),
         String(row.proposedSalaryIncreasePercent),
@@ -52,9 +51,7 @@ export function useSupervisorSubmittedProposalsTableModel(
       ].join(' ')
       const statusLabel = formatBudgetPlanStatusLabelForDisplay(row.budgetPlanStatus, t).toLowerCase()
       const rawStatus = (row.budgetPlanStatus ?? '').toLowerCase()
-      return (
-        name.includes(q) || just.includes(q) || amounts.includes(q) || statusLabel.includes(q) || rawStatus.includes(q)
-      )
+      return name.includes(q) || amounts.includes(q) || statusLabel.includes(q) || rawStatus.includes(q)
     })
   }, [debouncedSearch, enrichedRows, t])
 
@@ -90,8 +87,7 @@ export function useSupervisorSubmittedProposalsTableModel(
       { id: 'proposedSalaryIncreasePercent', label: t('supervisor-review-col-increase-pct') },
       { id: 'proposedSalaryIncreaseAmount', label: t('supervisor-review-col-increase-amount') },
       { id: 'proposedNewSalary', label: t('supervisor-review-col-new-salary') },
-      { id: 'budgetPlanStatus', label: t('supervisor-review-col-status') },
-      { id: 'justification', label: t('supervisor-review-col-justification') }
+      { id: 'budgetPlanStatus', label: t('supervisor-review-col-status') }
     ],
     [t]
   )

@@ -28,8 +28,7 @@ const COL = {
   employee: { size: 220, minSize: 160 },
   pct: { size: 120, minSize: 100 },
   money: { size: 140, minSize: 120 },
-  status: { size: 180, minSize: 160 },
-  justification: { size: 280, minSize: 200 }
+  status: { size: 180, minSize: 160 }
 } as const
 
 const STATUS_META = { align: 'left' as const, type: 'text' as const }
@@ -181,22 +180,6 @@ export function buildSupervisorSubmittedProposalsTableColumns(
         }
         return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
       }
-    },
-    {
-      id: 'justification',
-      accessorKey: 'justification',
-      header: columnHeader(t, 'supervisor-review-col-justification'),
-      size: COL.justification.size,
-      minSize: COL.justification.minSize,
-      meta: { align: 'left', type: 'text' },
-      cell: ({ row }) => {
-        const j = row.original.justification?.trim()
-        return (
-          <span className={`${TABLE_BODY} gba:max-w-md gba:truncate`} title={row.original.justification ?? undefined}>
-            {j ? j : '—'}
-          </span>
-        )
-      }
     }
   ]
 }
@@ -207,6 +190,5 @@ export const SUPERVISOR_SUBMITTED_PROPOSALS_DATA_COLUMN_IDS = [
   'proposedSalaryIncreasePercent',
   'proposedSalaryIncreaseAmount',
   'proposedNewSalary',
-  'budgetPlanStatus',
-  'justification'
+  'budgetPlanStatus'
 ] as const

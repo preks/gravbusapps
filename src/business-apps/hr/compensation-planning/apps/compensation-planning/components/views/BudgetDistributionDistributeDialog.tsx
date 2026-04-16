@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Checkbox,
@@ -71,6 +71,8 @@ export function BudgetDistributionDistributeDialog({
   const [selectedOuIds, setSelectedOuIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** Avoid resetting checkbox state when parent re-renders while the dialog stays open. */
+  const hasInitializedSelectionForOpenRef = useRef(false)
 
   const saveableOrgUnits = useMemo(() => sortedOrgUnits.filter(u => u.id !== UNASSIGNED_ORG_UNIT_ID), [sortedOrgUnits])
 
@@ -84,11 +86,26 @@ export function BudgetDistributionDistributeDialog({
 
   useEffect(() => {
     if (!open) {
+      hasInitializedSelectionForOpenRef.current = false
       return
     }
     setErrorMessage(null)
-    setSelectedOuIds(new Set())
-  }, [open])
+    if (hasInitializedSelectionForOpenRef.current) {
+      return
+    }
+    if (saveableOrgUnits.length === 0) {
+      return
+    }
+    hasInitializedSelectionForOpenRef.current = true
+    const next = new Set<string>()
+    for (const u of saveableOrgUnits) {
+      const raw = allocationByOrgUnitId.get(u.id) ?? 0
+      if (roundMoney2(raw) > 0) {
+        next.add(u.id)
+      }
+    }
+    setSelectedOuIds(next)
+  }, [open, saveableOrgUnits, allocationByOrgUnitId])
 
   const toggleOu = useCallback((ouId: string, checked: boolean) => {
     setSelectedOuIds(prev => {
@@ -139,12 +156,13 @@ export function BudgetDistributionDistributeDialog({
         const salaryBudgetPercent = percentOfPool(salaryBudgetAmount, distributionPool)
         const isInsert = row == null
 
+        /** Org-unit slice after HR distribute starts as DRAFT; department submissions UI labels this "Allocated". */
         const unitPayload: CompensationBudgetPlanOrganizationalUnitRestPayload = {
           salaryBudgetAmount,
           salaryBudgetPercent,
           bonusBudgetAmount: 0,
           bonusBudgetPercent: 0,
-          budgetPlanStatus: 'BUDGET_PLAN_APPROVED',
+          budgetPlanStatus: 'BUDGET_PLAN_DRAFT',
           compensationBudgetPlanCompany: companyBudgetRow.id,
           organizationalUnit: ouId
         }

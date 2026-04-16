@@ -6,7 +6,6 @@ import {
   saveCompensationBudgetPlanOrganizationalUnit
 } from '../../../api/saveCompensationBudgetPlan'
 import { GET_COMPENSATION_BUDGET_PLAN_COMPANY_ROW_BY_ID } from '../../../queries/budgetPlanQueries'
-import type { BudgetPlanStatusApi } from '../../../types/budgetPlanGraphqlEnums'
 import type { TeamMemberCompensationData } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import { graphqlUnknownToStringOrNull } from '../../../utils/graphqlUnknownToString'
@@ -27,14 +26,6 @@ function percentOfPool(amount: number, pool: number): number {
     return 0
   }
   return Math.round((10000 * amount) / pool) / 100
-}
-
-function coerceOuStatus(raw: string): BudgetPlanStatusApi {
-  const s = raw.trim()
-  if (s === '') {
-    return 'BUDGET_PLAN_APPROVED'
-  }
-  return s as BudgetPlanStatusApi
 }
 
 function mapCompanyRowToSaveInput(raw: Record<string, unknown>) {
@@ -122,6 +113,7 @@ export async function persistManagerTeamBudgetAfterAllocations(input: {
     const nextOuAmount = Math.max(0, roundMoney2(currentOuAmount - totalAllocated))
     const nextOuPercent = percentOfPool(nextOuAmount, companyPool)
 
+    /** After manager submits proposals from the modal, move org-unit slice from DRAFT → SUBMITTED (UI: “Proposals submitted”). */
     await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {
       changeMode: 'UPDATE',
       compensationBudgetPlanOrganizationalUnit: {
@@ -131,7 +123,7 @@ export async function persistManagerTeamBudgetAfterAllocations(input: {
         salaryBudgetPercent: nextOuPercent,
         bonusBudgetAmount: roundMoney2(snap.bonusBudgetAmount),
         bonusBudgetPercent: snap.bonusBudgetPercent,
-        budgetPlanStatus: coerceOuStatus(snap.budgetPlanStatus),
+        budgetPlanStatus: 'BUDGET_PLAN_SUBMITTED',
         compensationBudgetPlanCompany: snap.compensationBudgetPlanCompanyId,
         organizationalUnit: snap.organizationalUnitId
       }

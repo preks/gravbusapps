@@ -40,14 +40,8 @@ export interface TeamCompensationDistributionSplitPanelProps {
   totalSalaryCostAcrossEmployees: number
   grandTotalPositivePerformanceScores: number
   dataDisplay: { searchQuery: string; setSearchQuery: (value: string) => void }
-  canSubmitProposals: boolean
-  submitting: boolean
-  submitDraftProposals: () => void | Promise<void>
   canShowSaveAction: boolean
-  onOpenSaveAllocations: () => void
-  canNavigateToSupervisorReview?: boolean
-  submittedProposalsForReviewCount?: number
-  onNavigateToSupervisorReview?: () => void
+  onOpenSubmitProposals: () => void
 }
 
 export function TeamCompensationDistributionSplitPanel({
@@ -70,14 +64,8 @@ export function TeamCompensationDistributionSplitPanel({
   totalSalaryCostAcrossEmployees,
   grandTotalPositivePerformanceScores,
   dataDisplay,
-  canSubmitProposals,
-  submitting,
-  submitDraftProposals,
   canShowSaveAction,
-  onOpenSaveAllocations,
-  canNavigateToSupervisorReview = false,
-  submittedProposalsForReviewCount = 0,
-  onNavigateToSupervisorReview
+  onOpenSubmitProposals
 }: Readonly<TeamCompensationDistributionSplitPanelProps>) {
   const { t } = useTranslation(translations)
   const { t: tBudget } = useTranslation(compensationPlanningTranslations)
@@ -91,38 +79,14 @@ export function TeamCompensationDistributionSplitPanel({
           {tBudget('budget-distribution-split-panel-title')}
         </CardTitle>
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-          {canNavigateToSupervisorReview && onNavigateToSupervisorReview ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="gba:shrink-0"
-              onClick={() => onNavigateToSupervisorReview()}
-              data-testid="manager-team-open-supervisor-review"
-              aria-label={t('manager-team-review-submitted-proposals-aria', {
-                count: submittedProposalsForReviewCount
-              })}
-            >
-              {t('manager-team-review-submitted-proposals', { count: submittedProposalsForReviewCount })}
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            className="gba:shrink-0"
-            disabled={!canSubmitProposals}
-            onClick={() => void submitDraftProposals()}
-            data-testid="manager-team-submit-proposals"
-          >
-            {submitting ? t('manager-team-submitting') : t('manager-team-submit-proposals')}
-          </Button>
           <Button
             type="button"
             className="gba:shrink-0"
             disabled={!canShowSaveAction}
-            onClick={onOpenSaveAllocations}
-            data-testid="manager-team-save-allocations-open"
+            onClick={onOpenSubmitProposals}
+            data-testid="manager-team-submit-proposals-open"
           >
-            {t('manager-team-save-allocations')}
+            {t('manager-team-submit-proposals-toolbar')}
           </Button>
         </div>
       </CardHeader>

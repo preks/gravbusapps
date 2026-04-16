@@ -25,6 +25,8 @@ submissions-table-empty-no-org-unit-rows = Nu există încă rânduri de buget p
 submissions-table-empty-filtered = Niciun buget pe unitate organizațională nu corespunde căutării sau filtrelor.
 submissions-table-col-org-unit = Departamente
 submissions-table-col-company-budget-plan = Buget companie / plan
+submissions-table-col-proposed-new-salary = Salariu nou propus
+submissions-table-col-org-unit-current-total-salary = Salariu total curent
 submissions-table-col-review = Revizuire
 submissions-table-review-team = Revizuiește echipa
 
@@ -47,6 +49,8 @@ budget-plan-update-dialog-title = Editează ciclul de compensare
 budget-plan-update-submit = Actualizează
 budget-plan-status-unknown = Necunoscut
 budget-plan-status-draft = Ciornă
+budget-plan-status-org-unit-allocated = Alocat
+budget-plan-status-org-unit-proposals-submitted = Propuneri trimise
 budget-plan-status-submitted = Trimis
 budget-plan-status-approved = Aprobat
 budget-plan-status-rejected = Respins

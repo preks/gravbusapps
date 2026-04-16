@@ -18,8 +18,12 @@ import {
 import { ArrowLeftIcon } from '@phosphor-icons/react'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentUrlWithUpdatedSearchParams, navigateTo } from '@/common/utils/navigationUtils'
-import { useCompensationBudgetPlanEmployeesByOrgUnitIds } from '../../hooks/useCompensationBudgetPlanEmployeesByOrgUnitIds'
+import {
+  buildPlatformUrl,
+  getCurrentUrlWithUpdatedSearchParams,
+  navigateTo,
+  Navigation
+} from '@/common/utils/navigationUtils'
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
@@ -35,8 +39,6 @@ import { useManagerTeamSalaryBudget } from './hooks/useManagerTeamSalaryBudget'
 
 import { TeamCompensationDistributionPanel } from './components/TeamCompensationDistributionPanel'
 import { SupervisorOrgUnitProposalReview } from './components/SupervisorOrgUnitProposalReview'
-import type { ManagerEmployeeBudgetRowEntry } from './hooks/useManagerTeamProposalSubmit'
-
 import translations from './_i18n'
 
 interface SupervisorReviewUrl {
@@ -44,6 +46,8 @@ interface SupervisorReviewUrl {
   orgUnitId: string
   planOuRowId: string
   teamLabel: string
+  /** Set when opening review from HR Department submissions — back navigates there, not team compensation. */
+  reviewSource: 'department-submissions' | null
 }
 
 function parseSupervisorReviewUrl(): SupervisorReviewUrl | null {
@@ -61,7 +65,14 @@ function parseSupervisorReviewUrl(): SupervisorReviewUrl | null {
   if (!companyId || !orgUnitId || !planOuRowId) {
     return null
   }
-  return { companyId, orgUnitId, planOuRowId, teamLabel }
+  const reviewSource = p.get('reviewSource')
+  return {
+    companyId,
+    orgUnitId,
+    planOuRowId,
+    teamLabel,
+    reviewSource: reviewSource === 'department-submissions' ? 'department-submissions' : null
+  }
 }
 
 export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = context => {
@@ -124,10 +135,22 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
       supervisorReview: null,
       orgUnitId: null,
       planOuRowId: null,
-      teamLabel: null
+      teamLabel: null,
+      reviewSource: null
     })
     navigateTo(next)
   }, [])
+
+  const navigateToDepartmentSubmissions = useCallback(() => {
+    if (!supervisorReview) {
+      return
+    }
+    const url = buildPlatformUrl(Navigation.HR_COMPENSATION_PLANNING, {
+      companyId: supervisorReview.companyId,
+      view: 'submissions'
+    })
+    navigateTo(url, { fullPage: true })
+  }, [supervisorReview])
 
   useDefaultCompanyForCurrentUser(
     accessToken,
@@ -163,75 +186,13 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     planOuRowIdByOrganizationalUnitId,
     orgUnitBudgetSnapshotsByPlanRowId,
     managerCompanyBudgetRow,
-    managerOrganizationalUnitId,
-    activeCompensationBudgetPlanId
+    managerOrganizationalUnitId
   } = useManagerTeamSalaryBudget({
     accessToken,
     companyId: effectiveCompanyId,
     managerEmployeeId: employeeId,
     teamMembers
   })
-
-  const managerPlanOuRowId = useMemo(() => {
-    if (supervisorReview != null) {
-      return undefined
-    }
-    if (managerOrganizationalUnitId == null) {
-      return undefined
-    }
-    return planOuRowIdByOrganizationalUnitId.get(managerOrganizationalUnitId)
-  }, [supervisorReview, managerOrganizationalUnitId, planOuRowIdByOrganizationalUnitId])
-
-  const orgUnitBudgetIdsForSubmittedProbe = useMemo(
-    () => (managerPlanOuRowId != null ? [managerPlanOuRowId] : []),
-    [managerPlanOuRowId]
-  )
-
-  const { rows: planEmployeeRowsForSubmittedCount, refetch: refetchSubmittedProposalsProbe } =
-    useCompensationBudgetPlanEmployeesByOrgUnitIds(accessToken, orgUnitBudgetIdsForSubmittedProbe)
-
-  const submittedProposalsForReviewCount = useMemo(
-    () => planEmployeeRowsForSubmittedCount.filter(r => r.budgetPlanStatus === 'BUDGET_PLAN_SUBMITTED').length,
-    [planEmployeeRowsForSubmittedCount]
-  )
-
-  const supervisorReviewTeamLabel = useMemo(() => {
-    if (managerOrganizationalUnitId == null) {
-      return ''
-    }
-    const m = teamMembers.find(tm => tm.organizationalUnitId === managerOrganizationalUnitId)
-    return (m?.orgUnitName?.trim() || managerOrganizationalUnitId) ?? ''
-  }, [teamMembers, managerOrganizationalUnitId])
-
-  const navigateToSupervisorReview = useCallback(() => {
-    if (selectedCompanyId == null || managerOrganizationalUnitId == null || managerPlanOuRowId == null) {
-      return
-    }
-    const next = getCurrentUrlWithUpdatedSearchParams({
-      supervisorReview: '1',
-      companyId: selectedCompanyId,
-      orgUnitId: managerOrganizationalUnitId,
-      planOuRowId: managerPlanOuRowId,
-      teamLabel: supervisorReviewTeamLabel || managerOrganizationalUnitId
-    })
-    navigateTo(next)
-  }, [managerOrganizationalUnitId, managerPlanOuRowId, selectedCompanyId, supervisorReviewTeamLabel])
-
-  const canNavigateToSupervisorReview = useMemo(
-    () =>
-      supervisorReview == null &&
-      selectedCompanyId != null &&
-      managerOrganizationalUnitId != null &&
-      managerPlanOuRowId != null &&
-      submittedProposalsForReviewCount > 0,
-    [
-      managerOrganizationalUnitId,
-      managerPlanOuRowId,
-      selectedCompanyId,
-      submittedProposalsForReviewCount,
-      supervisorReview
-    ]
-  )
 
   const teamCurrencyCode = teamMembers[0]?.currency ?? 'EUR'
 
@@ -263,47 +224,23 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     [teamMembers, scoreByEmployeeId]
   )
 
-  const [employeeBudgetRows, setEmployeeBudgetRows] = useState<Record<string, ManagerEmployeeBudgetRowEntry>>({})
   const [proposalsLocked, setProposalsLocked] = useState(false)
 
   useEffect(() => {
-    setEmployeeBudgetRows({})
     setProposalsLocked(false)
   }, [selectedCompanyId])
 
   const mergeSavedRowIds = useCallback((ids?: Record<string, string>) => {
-    if (!ids) {
+    if (!ids || Object.keys(ids).length === 0) {
       return
     }
-    setEmployeeBudgetRows(prev => {
-      const next = { ...prev }
-      for (const [employeeId, rowId] of Object.entries(ids)) {
-        next[employeeId] = { rowId, status: 'draft' }
-      }
-      return next
-    })
-  }, [])
-
-  const onDraftProposalsSubmitted = useCallback(() => {
-    setEmployeeBudgetRows(prev => {
-      const next = { ...prev }
-      for (const key of Object.keys(next)) {
-        const entry = next[key]
-        if (entry.status === 'draft') {
-          next[key] = { rowId: entry.rowId, status: 'submitted' }
-        }
-      }
-      return next
-    })
     setProposalsLocked(true)
-    void refetchSubmittedProposalsProbe()
-  }, [refetchSubmittedProposalsProbe])
+  }, [])
 
   const onSupervisorReviewDataChanged = useCallback(() => {
     void refetchSalaryBudget()
     void refetchTeam()
-    void refetchSubmittedProposalsProbe()
-  }, [refetchSalaryBudget, refetchSubmittedProposalsProbe, refetchTeam])
+  }, [refetchSalaryBudget, refetchTeam])
 
   const pipeline = useTeamMembersPipeline({
     members: teamMembersWithPerformance,
@@ -387,6 +324,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     }
 
     if (supervisorReview) {
+      const backFromHrSubmissions = supervisorReview.reviewSource === 'department-submissions'
       return (
         <div className="gba:min-h-0 gba:overflow-auto gba:bg-background" data-testid="manager-compensation-data-body">
           <div className="gba:flex gba:w-full gba:flex-col gba:gap-3 gba:px-4 gba:pb-4 gba:pt-0">
@@ -395,10 +333,12 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
               variant="ghost"
               className="gba:-ms-2 gba:self-start gba:gap-2 gba:px-2"
               data-testid="manager-compensation-exit-supervisor-review"
-              onClick={exitSupervisorReviewMode}
+              onClick={backFromHrSubmissions ? navigateToDepartmentSubmissions : exitSupervisorReviewMode}
             >
               <ArrowLeftIcon className="gba:size-4" aria-hidden />
-              {t('supervisor-review-back-to-team')}
+              {backFromHrSubmissions
+                ? t('supervisor-review-back-to-department-submissions')
+                : t('supervisor-review-back-to-team')}
             </Button>
             <SupervisorOrgUnitProposalReview
               accessToken={accessToken}
@@ -450,7 +390,6 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             salaryBudgetLoading={salaryBudgetLoading}
             salaryBudgetError={salaryBudgetError}
             selectedCompanyId={effectiveCompanyId}
-            activeCompensationBudgetPlanId={activeCompensationBudgetPlanId}
             currencyCode={teamCurrencyCode}
             accessToken={accessToken}
             managerEmployeeId={employeeId}
@@ -458,17 +397,12 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             managerOrganizationalUnitId={managerOrganizationalUnitId}
             managerCompanyBudgetRow={managerCompanyBudgetRow}
             orgUnitBudgetSnapshotsByPlanRowId={orgUnitBudgetSnapshotsByPlanRowId}
-            employeeBudgetRowState={employeeBudgetRows}
             onMergeSavedRowIds={mergeSavedRowIds}
             proposalsLockedAfterSubmit={proposalsLocked}
-            onDraftProposalsSubmitted={onDraftProposalsSubmitted}
             onSaved={() => {
               void refetchSalaryBudget()
               void refetchTeam()
             }}
-            canNavigateToSupervisorReview={canNavigateToSupervisorReview}
-            submittedProposalsForReviewCount={submittedProposalsForReviewCount}
-            onNavigateToSupervisorReview={navigateToSupervisorReview}
           />
         </div>
       </div>

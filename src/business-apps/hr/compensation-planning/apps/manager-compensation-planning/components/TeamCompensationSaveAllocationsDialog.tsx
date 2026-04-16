@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -20,6 +20,7 @@ import {
   validateCustomPoolForSelected,
   validatePlanOuForAllSelected
 } from '../utils/teamCompensationSaveAllocationsWorkflow'
+import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
 import translations from '../_i18n'
 import { TeamCompensationSaveAllocationsDialogRows } from './TeamCompensationSaveAllocationsDialogRows'
 
@@ -65,6 +66,8 @@ export function TeamCompensationSaveAllocationsDialog({
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  /** Avoid resetting checkbox state when parent re-renders while the dialog stays open. */
+  const hasInitializedSelectionForOpenRef = useRef(false)
 
   const sortedMembers = useMemo(
     () => [...teamMembers].sort((a, b) => a.displayName.localeCompare(b.displayName)),
@@ -81,11 +84,26 @@ export function TeamCompensationSaveAllocationsDialog({
 
   useEffect(() => {
     if (!open) {
+      hasInitializedSelectionForOpenRef.current = false
       return
     }
     setErrorMessage(null)
-    setSelectedEmployeeIds(new Set())
-  }, [open])
+    if (hasInitializedSelectionForOpenRef.current) {
+      return
+    }
+    if (sortedMembers.length === 0) {
+      return
+    }
+    hasInitializedSelectionForOpenRef.current = true
+    const next = new Set<string>()
+    for (const m of sortedMembers) {
+      const raw = allocationByEmployeeId.get(m.employeeId) ?? 0
+      if (roundMoney2(raw) > 0) {
+        next.add(m.employeeId)
+      }
+    }
+    setSelectedEmployeeIds(next)
+  }, [open, sortedMembers, allocationByEmployeeId])
 
   const toggleEmployee = useCallback((employeeId: string, checked: boolean) => {
     setSelectedEmployeeIds(prev => {

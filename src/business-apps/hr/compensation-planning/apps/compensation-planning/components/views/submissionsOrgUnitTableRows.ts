@@ -2,6 +2,7 @@ import type {
   CompensationBudgetPlanCompanyRow,
   CompensationBudgetPlanListItem
 } from '../../hooks/useBudgetSetupForCompany'
+import { roundMoney2 } from '../../../../utils/budgetAmountPercentSync'
 import { formatBudgetPlanChosenLabel } from './budgetSetupPlanTableRows'
 import { formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 
@@ -30,6 +31,10 @@ export interface SubmissionsOrgUnitTableRow {
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   budgetPlanStatus: string
+  /** Aggregated annual salary for employees in this org unit (workforce baseline). */
+  organizationalUnitCurrentTotalSalary: number
+  /** Sum of employee `proposed_new_salary` for this org-unit budget row (GraphQL does not expose OU-level field). */
+  proposedNewSalary: number
 }
 
 export function buildSubmissionsOrgUnitTableRows(
@@ -38,6 +43,8 @@ export function buildSubmissionsOrgUnitTableRows(
   plans: CompensationBudgetPlanListItem[],
   orgUnitNameById: Map<string, string>,
   teamOrgUnitNameById: ReadonlyMap<string, string>,
+  orgUnitCurrentTotalSalaryById: ReadonlyMap<string, number>,
+  proposedNewSalarySumByOrgUnitBudgetRowId: ReadonlyMap<string, number>,
   defaultCurrencyCode: string
 ): SubmissionsOrgUnitTableRow[] {
   return orgRows.map(raw => {
@@ -61,7 +68,9 @@ export function buildSubmissionsOrgUnitTableRows(
       displayCurrency,
       salaryBudgetAmount: raw.salaryBudgetAmount,
       salaryBudgetPercent: raw.salaryBudgetPercent,
-      budgetPlanStatus: raw.budgetPlanStatus ?? ''
+      budgetPlanStatus: raw.budgetPlanStatus ?? '',
+      organizationalUnitCurrentTotalSalary: roundMoney2(orgUnitCurrentTotalSalaryById.get(ouId) ?? 0),
+      proposedNewSalary: roundMoney2(proposedNewSalarySumByOrgUnitBudgetRowId.get(raw.id) ?? 0)
     }
   })
 }
