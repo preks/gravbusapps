@@ -16,7 +16,11 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  Separator
+  Separator,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
   TrendingDown,
@@ -142,37 +146,48 @@ const isAIAnalyzedSignal = (signal: FlightRiskSignal): boolean => {
 
 // Signal Breakdown Component
 const SignalBreakdown: React.FC<{ signals: FlightRiskSignal[] }> = ({ signals }) => (
-  <div className="gba:space-y-3">
-    {signals.map(signal => {
-      const isAI = isAIAnalyzedSignal(signal)
-      return (
-        <div key={signal.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-md gba:bg-muted/50">
-          <div className="gba:flex-shrink-0">{getSignalIcon(signal.category)}</div>
-          <div className="gba:flex-1 gba:min-w-0">
-            <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-1">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                <span className="gba:text-sm gba:font-medium gba:truncate">{signal.name}</span>
-                {isAI && (
-                  <span
-                    className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:rounded gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
-                    title="Analyzed by AI"
-                  >
-                    <Sparkles size={10} />
-                    AI
-                  </span>
-                )}
+  <TooltipProvider>
+    <div className="gba:space-y-3">
+      {signals.map(signal => {
+        const isAI = isAIAnalyzedSignal(signal)
+        return (
+          <div key={signal.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-md gba:bg-muted/50">
+            <div className="gba:flex-shrink-0">{getSignalIcon(signal.category)}</div>
+            <div className="gba:flex-1 gba:min-w-0">
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-1">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                  <span className="gba:text-sm gba:font-medium gba:truncate">{signal.name}</span>
+                  {isAI && (
+                    <span
+                      className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:rounded gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
+                      title="Analyzed by AI"
+                    >
+                      <Sparkles size={10} />
+                      AI
+                    </span>
+                  )}
+                </div>
+                <Badge variant={getScoreBadgeVariant(signal.normalizedScore)} className="gba:flex-shrink-0">
+                  {signal.normalizedScore}%
+                </Badge>
               </div>
-              <Badge variant={getScoreBadgeVariant(signal.normalizedScore)} className="gba:flex-shrink-0">
-                {signal.normalizedScore}%
-              </Badge>
+              <Progress value={signal.normalizedScore} className="gba:h-1" />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:truncate gba:cursor-help">
+                    {signal.description}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="gba:max-w-xs gba:text-xs">{signal.description}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <Progress value={signal.normalizedScore} className="gba:h-1" />
-            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:truncate">{signal.description}</p>
           </div>
-        </div>
-      )
-    })}
-  </div>
+        )
+      })}
+    </div>
+  </TooltipProvider>
 )
 
 // Intervention Card Component

@@ -13,6 +13,7 @@ import {
   RawFeedback,
   RawAbsence
 } from '../types/flightRisk.types'
+import { getTrackState } from '../../employee-record/components/tabs/performance-evaluation/utils/performanceGoalsSummary'
 
 // Signal weights - configurable based on organization preferences
 export const SIGNAL_WEIGHTS: Record<SignalCategory, number> = {
@@ -24,73 +25,98 @@ export const SIGNAL_WEIGHTS: Record<SignalCategory, number> = {
   sentiment: 0.15
 }
 
+const getWholeMonthsBetween = (startDate: Date, endDate: Date): number => {
+  let months =
+    (endDate.getUTCFullYear() - startDate.getUTCFullYear()) * 12 + (endDate.getUTCMonth() - startDate.getUTCMonth())
+
+  if (endDate.getUTCDate() < startDate.getUTCDate()) {
+    months -= 1
+  }
+
+  return Math.max(0, months)
+}
+
+interface TenureRiskBand {
+  score: number
+  description: string
+}
+
+const getTenureRiskBand = (tenureMonths: number): TenureRiskBand => {
+  if (tenureMonths < 3) return { score: 10, description: 'Too new, not enough signal' }
+  if (tenureMonths < 6) return { score: 25, description: 'Probation period' }
+  if (tenureMonths < 12) return { score: 50, description: 'First year adjustment' }
+  if (tenureMonths < 18) return { score: 75, description: 'Peak risk starts' }
+  if (tenureMonths < 30) return { score: 85, description: 'Peak turnover zone (18-30 months)' }
+  if (tenureMonths < 48) return { score: 60, description: 'Declining risk' }
+  if (tenureMonths < 60) return { score: 40, description: 'Established' }
+
+  return { score: 20, description: 'Long-tenured, low risk' }
+}
+
 /**
  * Calculate tenure risk score
  * Peak risk at 18-24 months (highest turnover period)
  * Lower risk for new hires (<6 months) and long-tenured (>5 years)
  */
 export const calculateTenureRiskScore = (tenureMonths: number): number => {
-  if (tenureMonths < 3) return 10 // Too new, not enough signal
-  if (tenureMonths < 6) return 25 // Probation period
-  if (tenureMonths < 12) return 50 // First year
-  if (tenureMonths < 18) return 75 // Peak risk starts
-  if (tenureMonths < 30) return 85 // Peak risk zone (18-30 months)
-  if (tenureMonths < 48) return 60 // Declining risk
-  if (tenureMonths < 60) return 40 // Established
-  return 20 // Long-tenured, lower flight risk
+  return getTenureRiskBand(tenureMonths).score
 }
 
 /**
  * Get description for tenure risk
  */
 export const getTenureRiskDescription = (tenureMonths: number): string => {
-  if (tenureMonths < 6) return 'New employee, building engagement'
-  if (tenureMonths < 18) return 'First year - critical retention period'
-  if (tenureMonths < 30) return 'Peak turnover risk window (18-30 months)'
-  if (tenureMonths < 48) return 'Established employee'
-  return 'Long-tenured, strong retention likelihood'
+  return getTenureRiskBand(tenureMonths).description
 }
 
 /**
  * Calculate performance trajectory risk score
  * Analyzes goal progress trends over time
  */
-export const calculatePerformanceRiskScore = (goals: RawPerformanceGoal[]): number => {
-  if (goals.length === 0) return 50 // No data = medium baseline
+const isGoalBehindTarget = (goal: RawPerformanceGoal): boolean => {
+  return goal.status === 'AT_RISK' || goal.status === 'BEHIND_TARGET' || getTrackState(goal) === 'BEHIND_TARGET'
+}
+
+const getPerformanceRiskAssessment = (goals: RawPerformanceGoal[]): { score: number; description: string } => {
+  if (goals.length === 0) {
+    return {
+      score: 50,
+      description: 'No performance goals set'
+    }
+  }
 
   const activeGoals = goals.filter(g => !['ACHIEVED', 'NOT_ACHIEVED'].includes(g.status))
 
   if (activeGoals.length === 0) {
-    // All goals completed - check success rate
     const achievedCount = goals.filter(g => g.status === 'ACHIEVED').length
     const successRate = achievedCount / goals.length
-    return Math.round((1 - successRate) * 50) // Low risk if successful
+    return {
+      score: Math.round((1 - successRate) * 50),
+      description: `All goals completed; success rate ${Math.round(successRate * 100)}%`
+    }
   }
 
-  const behindCount = activeGoals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'AT_RISK').length
-
+  const behindCount = activeGoals.filter(isGoalBehindTarget).length
   const avgProgress = activeGoals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / activeGoals.length
-
-  // Higher score = higher risk
   const progressRisk = 100 - avgProgress
   const statusRisk = (behindCount / activeGoals.length) * 100
+  const score = Math.round(progressRisk * 0.6 + statusRisk * 0.4)
 
-  return Math.round(progressRisk * 0.6 + statusRisk * 0.4)
+  return {
+    score,
+    description: `Progress risk ${Math.round(progressRisk)}% from avg progress ${Math.round(avgProgress)}%; status risk ${Math.round(statusRisk)}% (${behindCount}/${activeGoals.length} active goals behind target or at risk).`
+  }
+}
+
+export const calculatePerformanceRiskScore = (goals: RawPerformanceGoal[]): number => {
+  return getPerformanceRiskAssessment(goals).score
 }
 
 /**
  * Get description for performance risk
  */
 export const getPerformanceRiskDescription = (goals: RawPerformanceGoal[]): string => {
-  if (goals.length === 0) return 'No performance goals set'
-
-  const activeGoals = goals.filter(g => !['ACHIEVED', 'NOT_ACHIEVED'].includes(g.status))
-
-  const behindCount = activeGoals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'AT_RISK').length
-
-  if (behindCount === 0) return 'All goals on track'
-  if (behindCount === 1) return '1 goal behind target'
-  return `${behindCount} goals behind target`
+  return getPerformanceRiskAssessment(goals).description
 }
 
 /**
@@ -132,49 +158,93 @@ export const getAbsenceRiskDescription = (absences: RawAbsence[], tenureMonths: 
 /**
  * Calculate engagement risk score (based on feedback frequency)
  */
+const getLatestFeedbackDate = (feedback: RawFeedback[]): Date | null => {
+  if (feedback.length === 0) return null
+
+  const latestFeedbackTimestamp = Math.max(...feedback.map(entry => new Date(entry.feedbackDate).getTime()))
+  return Number.isNaN(latestFeedbackTimestamp) ? null : new Date(latestFeedbackTimestamp)
+}
+
+const getEngagementRiskAssessment = (
+  feedbackReceived: RawFeedback[],
+  feedbackFromManager: RawFeedback[],
+  tenureMonths: number
+): { score: number; description: string } => {
+  const receivedCount = feedbackReceived.length
+  const managerFeedbackCount = feedbackFromManager.length
+
+  if (managerFeedbackCount === 0) {
+    if (tenureMonths > 6) {
+      return {
+        score: 80,
+        description: 'No manager feedback recorded after 6+ months tenure'
+      }
+    }
+
+    return {
+      score: 20,
+      description: 'New employee, still within the initial feedback window'
+    }
+  }
+
+  const expectedManagerFeedback = Math.floor(Math.min(tenureMonths, 12) / 3)
+  const managerFeedbackGap = Math.max(0, expectedManagerFeedback - managerFeedbackCount)
+  const latestManagerFeedbackDate = getLatestFeedbackDate(feedbackFromManager)
+  const daysSinceManagerFeedback = latestManagerFeedbackDate
+    ? Math.floor((Date.now() - latestManagerFeedbackDate.getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+
+  if (daysSinceManagerFeedback > 180) {
+    return {
+      score: 75,
+      description: `Last manager feedback ${Math.floor(daysSinceManagerFeedback / 30)} months ago`
+    }
+  }
+
+  if (daysSinceManagerFeedback > 90) {
+    return {
+      score: 55,
+      description: `Last manager feedback ${Math.floor(daysSinceManagerFeedback / 30)} months ago`
+    }
+  }
+
+  if (managerFeedbackGap > 2) {
+    return {
+      score: 50,
+      description: `Manager feedback gap: expected ${expectedManagerFeedback}, recorded ${managerFeedbackCount}`
+    }
+  }
+
+  if (receivedCount < 2 && tenureMonths > 12) {
+    return {
+      score: 40,
+      description: 'Fewer than 2 feedback entries after 12+ months tenure'
+    }
+  }
+
+  return {
+    score: 20,
+    description: 'Regular manager feedback cadence'
+  }
+}
+
 export const calculateEngagementRiskScore = (
   feedbackReceived: RawFeedback[],
   feedbackFromManager: RawFeedback[],
   tenureMonths: number
 ): number => {
-  const receivedCount = feedbackReceived.length
-  const managerFeedbackCount = feedbackFromManager.length
-
-  // Expected: at least 1 feedback per quarter from manager
-  const expectedManagerFeedback = Math.max(1, Math.floor(Math.min(tenureMonths, 12) / 3))
-  const managerFeedbackGap = Math.max(0, expectedManagerFeedback - managerFeedbackCount)
-
-  // Days since last manager feedback
-  let daysSinceManagerFeedback = 365
-  if (feedbackFromManager.length > 0) {
-    const lastFeedbackDate = new Date(feedbackFromManager[0].feedbackDate)
-    daysSinceManagerFeedback = Math.floor((Date.now() - lastFeedbackDate.getTime()) / (1000 * 60 * 60 * 24))
-  }
-
-  // No feedback in 6+ months = high risk
-  if (managerFeedbackCount === 0 && tenureMonths > 6) return 80
-  if (daysSinceManagerFeedback > 180) return 75
-  if (daysSinceManagerFeedback > 90) return 55
-  if (managerFeedbackGap > 2) return 50
-  if (receivedCount < 2 && tenureMonths > 12) return 40
-  return 20
+  return getEngagementRiskAssessment(feedbackReceived, feedbackFromManager, tenureMonths).score
 }
 
 /**
  * Get description for engagement risk
  */
-export const getEngagementRiskDescription = (feedbackFromManager: RawFeedback[], tenureMonths: number): string => {
-  if (feedbackFromManager.length === 0) {
-    return tenureMonths > 6 ? 'No feedback from manager recorded' : 'New employee, building relationship'
-  }
-
-  const lastFeedbackDate = new Date(feedbackFromManager[0].feedbackDate)
-  const daysSince = Math.floor((Date.now() - lastFeedbackDate.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (daysSince > 180) return `No manager feedback in ${Math.floor(daysSince / 30)} months`
-  if (daysSince > 90) return 'Manager feedback over 3 months ago'
-  if (daysSince > 30) return 'Recent manager engagement'
-  return 'Active manager engagement'
+export const getEngagementRiskDescription = (
+  feedbackReceived: RawFeedback[],
+  feedbackFromManager: RawFeedback[],
+  tenureMonths: number
+): string => {
+  return getEngagementRiskAssessment(feedbackReceived, feedbackFromManager, tenureMonths).description
 }
 
 /**
@@ -245,7 +315,12 @@ export const getSentimentRiskDescription = (
 const monthsSinceDate = (dateStr: string): number => {
   const date = new Date(dateStr)
   const now = new Date()
-  return (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth())
+
+  if (Number.isNaN(date.getTime())) {
+    return 0
+  }
+
+  return getWholeMonthsBetween(date, now)
 }
 
 /**
@@ -291,39 +366,92 @@ const getSalaryRatioRisk = (currentSalary?: number, teamMedianSalary?: number): 
   return 0
 }
 
-const getCompensationRaiseRisk = (tenureMonths: number, salaryHistory: SalaryChangeRecord[]): number => {
+const formatRaiseTimingDescription = (monthsSinceRaise: number, pointsAdded: number): string => {
+  if (pointsAdded === 0) {
+    return `Recent raise ${monthsSinceRaise} months ago (+0)`
+  }
+
+  if (monthsSinceRaise > 24) {
+    return `No raise in ${Math.floor(monthsSinceRaise / 12)} years (+${pointsAdded})`
+  }
+
+  return `Last raise ${monthsSinceRaise} months ago (+${pointsAdded})`
+}
+
+const formatSalaryRatioDescription = (currentSalary: number, teamMedianSalary: number, pointsAdded: number): string => {
+  const ratio = (currentSalary / teamMedianSalary) * 100
+  return `Current salary is ${ratio.toFixed(0)}% of same-currency team median (+${pointsAdded})`
+}
+
+const getFallbackCompensationDescription = (tenureMonths: number): string => {
+  if (tenureMonths > 24) {
+    return 'No salary history available; 24+ months tenure suggests a compensation review may be overdue'
+  }
+  if (tenureMonths > 18) {
+    return 'No salary history available; employee is approaching the typical compensation review window'
+  }
+  if (tenureMonths > 12) {
+    return 'No salary history available; employee is in the moderate compensation-risk window'
+  }
+
+  return 'No salary history available; new hire is likely still on the original offer'
+}
+
+const getCompensationRiskAssessment = (
+  tenureMonths: number,
+  salaryHistory?: SalaryChangeRecord[],
+  currentSalary?: number,
+  teamMedianSalary?: number
+): { score: number; description: string } => {
+  if (!salaryHistory || salaryHistory.length === 0) {
+    return {
+      score: getTenureBasedCompensationRisk(tenureMonths),
+      description: getFallbackCompensationDescription(tenureMonths)
+    }
+  }
+
+  const descriptionParts: string[] = []
+  let riskScore = 0
   const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
 
   if (raises.length === 0) {
     if (tenureMonths > 12) {
-      return 35
+      riskScore += 35
+      descriptionParts.push('No raises recorded after 12+ months tenure (+35)')
+    } else {
+      descriptionParts.push('No raises recorded yet, but tenure is under 12 months')
     }
-    return 0
+  } else {
+    const lastRaise = raises[0]
+    const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
+    const timingRisk = getMonthsSinceRaiseRisk(monthsSinceRaise)
+    const previousAmount = lastRaise.previousAmount as number
+    const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - previousAmount) / previousAmount) * 100
+    const raisePercentRisk = getRaisePercentRisk(raisePercent, monthsSinceRaise)
+
+    riskScore += timingRisk + raisePercentRisk
+    descriptionParts.push(formatRaiseTimingDescription(monthsSinceRaise, timingRisk))
+
+    if (raisePercentRisk > 0) {
+      descriptionParts.push(`Last raise ${raisePercent.toFixed(1)}% is below 3% (+${raisePercentRisk})`)
+    } else {
+      descriptionParts.push(`Last raise ${raisePercent.toFixed(1)}% is within the expected range (+0)`)
+    }
   }
 
-  const lastRaise = raises[0]
-  const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
-  const prevAmount = lastRaise.previousAmount as number
-  const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
+  const salaryRatioRisk = getSalaryRatioRisk(currentSalary, teamMedianSalary)
+  riskScore += salaryRatioRisk
 
-  return getMonthsSinceRaiseRisk(monthsSinceRaise) + getRaisePercentRisk(raisePercent, monthsSinceRaise)
-}
+  if (currentSalary && teamMedianSalary && teamMedianSalary > 0) {
+    descriptionParts.push(formatSalaryRatioDescription(currentSalary, teamMedianSalary, salaryRatioRisk))
+  } else {
+    descriptionParts.push('No same-currency team median available')
+  }
 
-const buildCompensationDescriptionFromRaise = (lastRaise: SalaryChangeRecord): string => {
-  const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
-  const prevAmount = lastRaise.previousAmount as number
-  const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
-
-  if (monthsSinceRaise > 24) {
-    return `No raise in ${Math.floor(monthsSinceRaise / 12)} years`
+  return {
+    score: Math.min(100, Math.max(0, riskScore)),
+    description: descriptionParts.join('; ')
   }
-  if (monthsSinceRaise > 18) {
-    return `Last raise ${monthsSinceRaise} months ago`
-  }
-  if (raisePercent < 3) {
-    return `Last raise was ${raisePercent.toFixed(1)}% (below inflation)`
-  }
-  return `Last raise ${monthsSinceRaise} months ago (+${raisePercent.toFixed(1)}%)`
 }
 
 const getInterventionDefinition = (
@@ -379,14 +507,7 @@ export const calculateCompensationRiskScore = (
   currentSalary?: number,
   teamMedianSalary?: number
 ): number => {
-  if (!salaryHistory || salaryHistory.length === 0) {
-    return getTenureBasedCompensationRisk(tenureMonths)
-  }
-
-  const raiseRisk = getCompensationRaiseRisk(tenureMonths, salaryHistory)
-  const salaryRatioRisk = getSalaryRatioRisk(currentSalary, teamMedianSalary)
-  const riskScore = raiseRisk + salaryRatioRisk
-  return Math.min(100, Math.max(0, riskScore))
+  return getCompensationRiskAssessment(tenureMonths, salaryHistory, currentSalary, teamMedianSalary).score
 }
 
 /**
@@ -398,24 +519,7 @@ export const getCompensationRiskDescription = (
   currentSalary?: number,
   teamMedianSalary?: number
 ): string => {
-  if (!salaryHistory || salaryHistory.length === 0) {
-    if (tenureMonths > 24) return 'May need compensation review'
-    if (tenureMonths > 18) return 'Approaching compensation review period'
-    return 'Recent compensation likely competitive'
-  }
-
-  const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
-
-  if (raises.length > 0) {
-    return buildCompensationDescriptionFromRaise(raises[0])
-  }
-
-  // Check if below median
-  if (currentSalary && teamMedianSalary && currentSalary < teamMedianSalary * 0.9) {
-    return 'Below team median salary'
-  }
-
-  return 'No salary change history available'
+  return getCompensationRiskAssessment(tenureMonths, salaryHistory, currentSalary, teamMedianSalary).description
 }
 
 /**
@@ -526,7 +630,10 @@ export const calculateTenureMonths = (hireDate: string | undefined): number => {
 
   const hire = new Date(hireDate)
   const now = new Date()
-  const months = (now.getFullYear() - hire.getFullYear()) * 12 + (now.getMonth() - hire.getMonth())
 
-  return Math.max(0, months)
+  if (Number.isNaN(hire.getTime())) {
+    return 0
+  }
+
+  return getWholeMonthsBetween(hire, now)
 }
