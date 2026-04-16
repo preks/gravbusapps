@@ -16,6 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 import { FileText, Download, Copy, AlertCircle } from 'lucide-react'
 import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient'
+import type { StepDataRow, StepDataResponse } from '@/common/network/flows/useFlowProgressClient'
 import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatarsBatch'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import type { StepAssignmentInfo } from '../types'
@@ -44,28 +45,6 @@ interface TimeInsights {
   minutesSinceLastUpdate: number
   workflowStartTime: string
   lastActivityTime?: string
-}
-
-interface StepDataRow {
-  flowId: string
-  taskId: string
-  userId: string
-  userName: string
-  timestamp: string
-  stepTitle: string
-  formData: { [key: string]: any }
-}
-
-interface StepDataResponse {
-  data: StepDataRow[]
-  totalCount: number
-  hasMore: boolean
-  stepIndex: number
-  flowId: string
-  pagination: {
-    offset: number
-    limit: number
-  }
 }
 
 interface FlowDetailData {
@@ -190,19 +169,17 @@ function isFileLikeObject(value: unknown): value is Record<string, any> {
 function normalizeFileReference(value: unknown): NormalizedFileReference | null {
   if (!isFileLikeObject(value)) return null
 
-  const candidate = value as Record<string, any>
-  const fileMetadata =
-    candidate.fileMetadata && typeof candidate.fileMetadata === 'object' ? candidate.fileMetadata : undefined
-  const downloadPath = candidate.downloadPath || candidate.path
-  const fileName = candidate.fileName || fileMetadata?.originalFileName || candidate.fileId
+  const fileMetadata = value.fileMetadata && typeof value.fileMetadata === 'object' ? value.fileMetadata : undefined
+  const downloadPath = value.downloadPath || value.path
+  const fileName = value.fileName || fileMetadata?.originalFileName || value.fileId
 
   if (!downloadPath || !fileName) return null
 
   return {
     fileName,
-    mimeType: candidate.mimeType || fileMetadata?.mimeType,
-    uploadedAt: candidate.uploadedAt || fileMetadata?.updatedAt,
-    fileSize: typeof candidate.fileSize === 'number' ? candidate.fileSize : undefined,
+    mimeType: value.mimeType || fileMetadata?.mimeType,
+    uploadedAt: value.uploadedAt || fileMetadata?.updatedAt,
+    fileSize: typeof value.fileSize === 'number' ? value.fileSize : undefined,
     downloadPath
   }
 }
@@ -289,17 +266,12 @@ const FileValueDisplay: React.FC<FileValueDisplayProps> = ({ files, accessToken,
         return (
           <div
             key={`${file.downloadPath}-${file.fileName}`}
-            className={`gba:flex gba:items-start gba:justify-between gba:gap-2 ${
-              compact ? 'gba:min-w-0' : 'gba:min-w-0'
-            }`}
+            className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:min-w-0"
           >
             <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:gap-2">
               <FileText className="gba:mt-0.5 gba:h-4 gba:w-4 gba:flex-shrink-0 gba:text-blue-500" />
               <div className="gba:min-w-0 gba:flex-1">
-                <div
-                  className={`gba:truncate gba:font-medium gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-sm'}`}
-                  title={file.fileName}
-                >
+                <div className="gba:truncate gba:font-medium gba:text-foreground gba:text-sm" title={file.fileName}>
                   {file.fileName}
                 </div>
                 {metaParts.length ? (
@@ -694,7 +666,7 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
                 avatarUrl: employee?.avatarUrl,
                 timestamp: submittedRow?.timestamp,
                 status: submittedRow ? 'Submitted' : getPendingStatusLabel(step),
-                formData: submittedRow?.formData || {},
+                formData: submittedRow?.inputData || {},
                 hasSubmission: Boolean(submittedRow)
               }
             })
@@ -710,7 +682,7 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
                     avatarUrl: employeeMap.get(row.userId)?.avatarUrl,
                     timestamp: row.timestamp,
                     status: 'Submitted',
-                    formData: row.formData,
+                    formData: row.inputData,
                     hasSubmission: true
                   }))
 
@@ -787,7 +759,7 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
                         </div>
                       </div>
                     </div>
-                    <SingleFormData formData={submittedRows[0].formData} accessToken={accessToken} />
+                    <SingleFormData formData={submittedRows[0].inputData} accessToken={accessToken} />
                   </div>
                 ) : tableRows.length === 1 ? (
                   <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:px-3 gba:py-3">

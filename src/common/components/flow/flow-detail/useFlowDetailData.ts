@@ -240,7 +240,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
             : {}
 
         Object.entries(rawStepAssignments as Record<string, any>).forEach(([stepReference, entry]) => {
-          const stepMatch = stepReference.match(/^step_(\d+)$/)
+          const stepMatch = /^step_(\d+)$/.exec(stepReference)
           if (!stepMatch) return
 
           const stepIndex = Number(stepMatch[1])
@@ -249,7 +249,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
           const directUsers = entry?.assignment?.targets?.users
           if (Array.isArray(directUsers)) {
             directUsers.forEach((userId: unknown) => {
-              const normalized = String(userId || '').trim()
+              const normalized = typeof userId === 'string' ? userId.trim() : ''
               if (normalized) assignedUserIds.add(normalized)
             })
           }
@@ -257,7 +257,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
           const resolvedUsers = entry?.resolvedConfig?.users
           if (Array.isArray(resolvedUsers)) {
             resolvedUsers.forEach((userId: unknown) => {
-              const normalized = String(userId || '').trim()
+              const normalized = typeof userId === 'string' ? userId.trim() : ''
               if (normalized) assignedUserIds.add(normalized)
             })
           }
