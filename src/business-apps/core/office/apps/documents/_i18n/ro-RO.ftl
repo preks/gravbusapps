@@ -341,6 +341,9 @@ review-error-load-title = Revizia nu a putut fi încărcată
 review-error-load-description = Nu am putut încărca această revizie acum. Încercați din nou sau reveniți și redeschideți-o.
 review-error-back = Înapoi
 review-error-retry = Încercați din nou
+review-dialog-title-fallback = Revizie document
+review-dialog-description = Previzualizare doar pentru citire a versiunii trimise pentru aprobare.
+review-dialog-close = Închide
 
 # Create template dialog
 create-template-title = Creați șablon

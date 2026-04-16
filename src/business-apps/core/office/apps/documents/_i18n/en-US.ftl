@@ -353,6 +353,9 @@ review-error-load-title = Review could not be loaded
 review-error-load-description = We could not load this review right now. Please try again, or go back and reopen it.
 review-error-back = Go back
 review-error-retry = Try again
+review-dialog-title-fallback = Document review
+review-dialog-description = Read-only preview of the version submitted for approval.
+review-dialog-close = Close
 
 # Create template dialog
 create-template-title = Create template

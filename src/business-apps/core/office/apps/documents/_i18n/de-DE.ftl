@@ -341,6 +341,9 @@ review-error-load-title = Prufung konnte nicht geladen werden
 review-error-load-description = Diese Prufung konnte gerade nicht geladen werden. Bitte versuchen Sie es erneut oder gehen Sie zuruck und offnen Sie sie neu.
 review-error-back = Zuruck
 review-error-retry = Erneut versuchen
+review-dialog-title-fallback = Dokumentenprufung
+review-dialog-description = Schreibgeschutzte Vorschau der zur Genehmigung eingereichten Version.
+review-dialog-close = Schliessen
 
 # Create template dialog
 create-template-title = Vorlage erstellen

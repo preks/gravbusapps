@@ -33,7 +33,8 @@ import {
   XCircle,
   AlertCircle,
   Calendar,
-  Sparkles
+  Sparkles,
+  Eye
 } from 'lucide-react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -60,6 +61,7 @@ import { calculateDueDateCriticality, getCriticalityBadgeVariant } from '../util
 import { getInitials } from '../utils/avatarUtils'
 import { uploadFilesForTaskCompletion } from '../utils/taskFileUpload'
 import { officeClient } from '@/common/network/office/OfficeClient'
+import { DocumentApprovalReviewDialog } from '@/business-apps/core/office/apps/documents/components'
 import { TaskAiSection } from './TaskAiSection'
 import { AiToolbar } from './AiToolbar'
 import { useAiAssistant, useAiCapabilities } from '../hooks/useAi'
@@ -268,6 +270,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [aiUsedForComment, setAiUsedForComment] = useState(false)
   const [participantsExpanded, setParticipantsExpanded] = useState(false)
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false)
   const allLinks = (task.links as Array<{ name: string; url: string; type?: string; metadata?: any }>) || []
   const entityLink = allLinks.find(link => link.type?.startsWith('entity:'))
   const documentApprovalRequestId = resolveDocumentApprovalRequestId(task, entityLink)
@@ -394,6 +397,51 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const isApprovalTask = task.availableActions?.canReject === true
   const isAcknowledgeTask = task.name?.toLowerCase().includes('acknowledge')
   const requiresRejectionComment = Boolean(isCurrentDocumentApprovalTask && isApprovalTask)
+
+  const canShowDocumentReview = Boolean(isCurrentDocumentApprovalTask && documentApprovalRequestId)
+
+  const documentReviewPrompt = canShowDocumentReview ? (
+    <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/30">
+      <CardContent className="gba:flex gba:flex-col gba:gap-3 gba:pt-4 sm:gba:flex-row sm:gba:items-center sm:gba:justify-between">
+        <div className="gba:flex gba:items-start gba:gap-3">
+          <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary/10">
+            <Eye className="gba:h-4 gba:w-4 gba:text-primary" />
+          </div>
+          <div className="gba:min-w-0">
+            <div className="gba:text-sm gba:font-semibold gba:text-foreground">
+              {t('document-approval-review-title')}
+            </div>
+            <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
+              {t('document-approval-review-description')}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsReviewDialogOpen(true)}
+          data-testid="task-document-review-open"
+          className="gba:shrink-0"
+        >
+          <Eye className="gba:mr-2 gba:h-4 gba:w-4" />
+          {t('document-approval-review-open')}
+        </Button>
+      </CardContent>
+    </Card>
+  ) : null
+
+  const documentReviewDialog =
+    canShowDocumentReview && documentApprovalRequestId ? (
+      <DocumentApprovalReviewDialog
+        open={isReviewDialogOpen}
+        onOpenChange={setIsReviewDialogOpen}
+        source={{ kind: 'approvalRequest', approvalRequestId: documentApprovalRequestId }}
+        accessToken={accessToken}
+        bannerMode="metadataOnly"
+        description={t('document-approval-review-description')}
+        testId="task-document-review-dialog"
+      />
+    ) : null
 
   // Get completion details title based on task type
   const getCompletionDetailsTitle = () => {
@@ -1026,8 +1074,398 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
+      <>
+        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
+          {/* Task Header */}
+          <TaskDetailHeader
+            title={taskTitle}
+            creatorName={creatorName}
+            showEmployeeInfo={!!creatorUserId}
+            employeeData={
+              creatorEmployeeData
+                ? {
+                    displayName: creatorEmployeeData.displayName,
+                    firstName: creatorEmployeeData.firstName,
+                    lastName: creatorEmployeeData.lastName,
+                    avatarUrl: formatAvatarUrl(creatorEmployeeData.pictureThumbnail),
+                    position: creatorEmployeeData.position
+                  }
+                : undefined
+            }
+            isLoadingEmployee={isLoadingCreator}
+            onClose={onClose}
+          />
+
+          {/* Scrollable Content - Simple Blink Task View */}
+          <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
+            {/* Due Date & Starting Date - hidden for meeting-invite (Blink view) */}
+            {(task.dueDate || task.scheduledAt) && task.tags?.app !== 'meeting-invite' && (
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
+                {task.scheduledAt && (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Calendar className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                      {t('task-start-date-label')}:
+                    </span>
+                    <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
+                  </div>
+                )}
+                {task.dueDate &&
+                  (() => {
+                    const criticality = calculateDueDateCriticality(task.dueDate, t)
+                    if (!criticality) return null
+                    let Icon = CheckCircle
+                    if (criticality.status === 'overdue') Icon = AlertCircle
+                    else if (criticality.status === 'warning') Icon = Clock
+                    let criticalityClass = 'gba:text-success'
+                    if (criticality.status === 'overdue') criticalityClass = 'gba:text-destructive'
+                    else if (criticality.status === 'warning') criticalityClass = 'gba:text-warning'
+                    return (
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Icon className={`gba:w-4 gba:h-4 ${criticalityClass}`} />
+                        <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                          {t('task-due-date-label')}:
+                        </span>
+                        <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.dueDate)}</span>
+                        <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
+                      </div>
+                    )
+                  })()}
+              </div>
+            )}
+
+            {/* Meeting invite: meeting name, date, time, Please respond - Blink view */}
+            {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
+              <div
+                className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
+                data-testid="task-details-meeting-invite-body"
+              >
+                <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
+                  {task.tags?.meetingDateStr && (
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+                      <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                      <span>{task.tags.meetingDateStr}</span>
+                    </div>
+                  )}
+                  {task.tags?.meetingTimeStr && (
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+                      <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                      <span>{task.tags.meetingTimeStr}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
+                </p>
+                {task.tags?.transcriptionEnabled === 'true' && (
+                  <div
+                    className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
+                    data-testid="task-details-meeting-recording-notice"
+                  >
+                    <span
+                      className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                      aria-hidden
+                    />
+                    <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                      {t('task-details-meeting-recording-notice', {
+                        defaultValue: 'Recording and transcription. By joining, you consent to being included.'
+                      })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* AI Summary & Suggestions */}
+            <TaskAiSection
+              taskId={task.id}
+              source={task.source}
+              accessToken={accessToken}
+              urgencyScore={task.ai?.urgencyScore}
+              currentUserPriority={task.userState?.userPriority}
+              onPriorityApplied={() => onTaskUpdated()}
+            />
+
+            {/* Completion Details - Only show for completed tasks */}
+            {isCompleted && (
+              <Card className="gba:border-success/50 gba:bg-success/5">
+                <CardHeader>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
+                    <CardTitle className="gba:text-base">{getCompletionDetailsTitle()}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="gba:space-y-4">
+                  {/* Completed At */}
+                  {task.completedAt && (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                        {t('task-completion-completed-at')}:
+                      </div>
+                      <div className="gba:text-sm gba:font-medium">{formatDateTime(task.completedAt)}</div>
+                    </div>
+                  )}
+
+                  {/* Outcome */}
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                      {t('task-completion-outcome')}:
+                    </div>
+                    <div>
+                      <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
+                        {t('task-completion-outcome-completed')}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Comment (if available) */}
+                  {task.sourceMetadata?.completionComment && (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
+                        {t('task-completion-comment')}:
+                      </div>
+                      <div className="gba:text-sm gba:italic gba:text-muted-foreground">
+                        "{task.sourceMetadata.completionComment}"
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Task instruction message - above links, dark and prominent */}
+            {(task.message || task.description) && (
+              <div className="gba:space-y-3">
+                {isMarkdownMessageTask ? (
+                  <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+                ) : (
+                  <p className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
+                    {task.message || task.description}
+                  </p>
+                )}
+                {/* Blue hint explaining what to do */}
+                {!isCompleted && (otherLinks.length > 0 || documentLinks.length > 0) && (
+                  <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-info-secondary gba:p-4">
+                    <Info className="gba:h-5 gba:w-5 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
+                    <p className="gba:text-sm gba:leading-relaxed gba:text-info-secondary-foreground">
+                      {t('task-details-blink-instruction-hint', {
+                        defaultValue:
+                          'Open the link below to access your assigned copy, complete it, and return here to submit.'
+                      })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Entity Reference (if linked to an entity) */}
+            {entityType && entityId && entityName && (
+              <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/20">
+                <CardContent className="gba:pt-4">
+                  <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                    {t('task-details-related-to')}
+                  </div>
+                  <a
+                    href={entityDisplayUrl || '#'}
+                    onClick={e => {
+                      e.preventDefault()
+                      if (entityDisplayUrl) {
+                        navigateTo(entityDisplayUrl)
+                      }
+                    }}
+                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
+                    data-testid="task-entity-reference-link"
+                  >
+                    <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+                    <Badge variant="outline" className="gba:text-xs">
+                      {entityType}
+                    </Badge>
+                    <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">
+                      {entityName}
+                    </span>
+                    <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+                  </a>
+                </CardContent>
+              </Card>
+            )}
+
+            {documentReviewPrompt}
+
+            {/* Document Attachments (if any) */}
+            {documentLinks.length > 0 && (
+              <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/30">
+                <CardContent className="gba:pt-4">
+                  <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
+                    {t('task-details-attachments', { count: documentLinks.length })}
+                  </div>
+                  <div className="gba:space-y-2">
+                    {documentLinks.map(link => (
+                      <a
+                        key={link.url || link.name}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                        data-testid={`task-document-link-${link.name}`}
+                      >
+                        <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                        <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                          {link.name}
+                        </span>
+                        <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
+            {displayLinks.length > 0 && (
+              <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
+                  {linksSectionTitle}
+                </div>
+                <div className="gba:space-y-2">
+                  {displayLinks.map(link => (
+                    <a
+                      key={link.url || link.name}
+                      href={link.url}
+                      onClick={e => {
+                        // For internal links, use navigateTo instead of opening new tab
+                        if (link.type?.startsWith('internal:')) {
+                          e.preventDefault()
+                          navigateTo(link.url)
+                        }
+                      }}
+                      target={link.type?.startsWith('internal:') ? undefined : '_blank'}
+                      rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                      data-testid={`task-other-link-${link.name}`}
+                    >
+                      <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                        {link.name}
+                      </span>
+                      <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Meeting participants - separate block for meeting-invite (Blink); uses API when open, with status */}
+            {task.tags?.app === 'meeting-invite' &&
+              ((meetingParticipantsLoading && meetingIdForFetch) ||
+                (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
+              (() => {
+                if (meetingParticipantsLoading && meetingIdForFetch) {
+                  return (
+                    <div
+                      className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+                      data-testid="task-details-meeting-participants"
+                    >
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                        {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
+                      </div>
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        {t('task-details-form-loading', { defaultValue: 'Loading...' })}
+                      </p>
+                    </div>
+                  )
+                }
+                const list = meetingParticipantsDisplayList
+                if (!list || list.length === 0) return null
+                const hasStatus = list.some((p: { status?: string }) => p.status != null)
+                const showCollapse = list.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+                const visibleList =
+                  showCollapse && !participantsExpanded ? list.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD) : list
+                const hiddenCount = list.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+                return (
+                  <div
+                    className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+                    data-testid="task-details-meeting-participants"
+                  >
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                      {t('task-details-meeting-participants-with-count', {
+                        count: list.length,
+                        defaultValue: `Participants (${list.length})`
+                      })}
+                    </div>
+                    <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
+                      {visibleList.map((p: MeetingParticipantDisplay, idx: number) => (
+                        <MeetingParticipantRow
+                          key={p.userId || idx}
+                          participant={p}
+                          idx={idx}
+                          employeeMap={meetingParticipantEmployeeMap}
+                          formatAvatarUrl={formatAvatarUrl}
+                          getInitials={getInitials}
+                          t={t}
+                          navigateTo={navigateTo}
+                          buildPlatformUrl={buildPlatformUrl}
+                          hasStatus={hasStatus}
+                        />
+                      ))}
+                    </ul>
+                    {showCollapse && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setParticipantsExpanded(prev => !prev)}
+                        className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
+                        data-testid="task-details-meeting-participants-toggle"
+                      >
+                        {(() => {
+                          if (participantsExpanded) {
+                            return (
+                              <>
+                                <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
+                                {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
+                              </>
+                            )
+                          }
+                          return (
+                            <>
+                              <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
+                              {t('task-details-meeting-participants-show-more', {
+                                defaultValue: 'Show {{count}} more',
+                                count: hiddenCount
+                              })}
+                            </>
+                          )
+                        })()}
+                      </Button>
+                    )}
+                  </div>
+                )
+              })()}
+
+            {/* Brief description - skip redundant "Complete Meeting Invitation: ..." for meeting-invite */}
+            {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
+
+            {/* Info Alert for Blink tasks - only show when not completed */}
+            {!isCompleted && (
+              <Alert>
+                <Info className="gba:h-4 gba:w-4" />
+                <AlertDescription className="gba:text-sm">{t('task-details-blink-info')}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          {/* Footer with Complete button for active Blink tasks */}
+          <TaskDetailFooter task={task} onTaskAction={handleTaskAction} isLoading={isCompleting} />
+        </div>
+        {documentReviewDialog}
+      </>
+    )
+  }
+
+  // For non-Blink cFlow tasks, use the full form view
+  return (
+    <>
       <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
-        {/* Task Header */}
+        {/* Task Header - Using shared TaskDetailHeader component */}
         <TaskDetailHeader
           title={taskTitle}
           creatorName={creatorName}
@@ -1047,9 +1485,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           onClose={onClose}
         />
 
-        {/* Scrollable Content - Simple Blink Task View */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
-          {/* Due Date & Starting Date - hidden for meeting-invite (Blink view) */}
+          {/* Due Date & Starting Date Section - hidden for meeting-invite */}
           {(task.dueDate || task.scheduledAt) && task.tags?.app !== 'meeting-invite' && (
             <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
               {task.scheduledAt && (
@@ -1059,19 +1496,30 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
                 </div>
               )}
+
               {task.dueDate &&
                 (() => {
                   const criticality = calculateDueDateCriticality(task.dueDate, t)
                   if (!criticality) return null
-                  let Icon = CheckCircle
-                  if (criticality.status === 'overdue') Icon = AlertCircle
-                  else if (criticality.status === 'warning') Icon = Clock
-                  let criticalityClass = 'gba:text-success'
-                  if (criticality.status === 'overdue') criticalityClass = 'gba:text-destructive'
-                  else if (criticality.status === 'warning') criticalityClass = 'gba:text-warning'
+
+                  const Icon =
+                    criticality.status === 'overdue'
+                      ? AlertCircle
+                      : criticality.status === 'warning'
+                        ? Clock
+                        : CheckCircle
+
                   return (
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Icon className={`gba:w-4 gba:h-4 ${criticalityClass}`} />
+                      <Icon
+                        className={`gba:w-4 gba:h-4 ${
+                          criticality.status === 'overdue'
+                            ? 'gba:text-destructive'
+                            : criticality.status === 'warning'
+                              ? 'gba:text-warning'
+                              : 'gba:text-success'
+                        }`}
+                      />
                       <span className="gba:text-sm gba:font-medium gba:text-foreground">
                         {t('task-due-date-label')}:
                       </span>
@@ -1083,7 +1531,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
-          {/* Meeting invite: meeting name, date, time, Please respond - Blink view */}
+          {/* Meeting invite: meeting name, date, time, Please respond */}
           {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
             <div
               className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
@@ -1134,13 +1582,16 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             currentUserPriority={task.userState?.userPriority}
             onPriorityApplied={() => onTaskUpdated()}
           />
-
           {/* Completion Details - Only show for completed tasks */}
           {isCompleted && (
             <Card className="gba:border-success/50 gba:bg-success/5">
               <CardHeader>
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
+                  {task.sourceMetadata?.outcome === 'REJECTED' ? (
+                    <XCircle className="gba:h-5 gba:w-5 gba:text-destructive" />
+                  ) : (
+                    <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
+                  )}
                   <CardTitle className="gba:text-base">{getCompletionDetailsTitle()}</CardTitle>
                 </div>
               </CardHeader>
@@ -1155,15 +1606,47 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                   </div>
                 )}
 
-                {/* Outcome */}
+                {/* Outcome - Show based on actual outcome */}
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
                     {t('task-completion-outcome')}:
                   </div>
                   <div>
-                    <Badge variant="secondary" className="gba:bg-success/10 gba:text-success gba:border-success/20">
-                      {t('task-completion-outcome-completed')}
-                    </Badge>
+                    {(() => {
+                      const successBadgeClass = 'gba:bg-success/10 gba:text-success gba:border-success/20'
+                      const destructiveBadgeClass =
+                        'gba:bg-destructive/10 gba:text-destructive gba:border-destructive/20'
+
+                      if (task.sourceMetadata?.outcome === 'REJECTED') {
+                        return (
+                          <Badge variant="secondary" className={destructiveBadgeClass}>
+                            {t('task-completion-outcome-rejected')}
+                          </Badge>
+                        )
+                      }
+
+                      if (isApprovalTask) {
+                        return (
+                          <Badge variant="secondary" className={successBadgeClass}>
+                            {t('task-completion-outcome-approved')}
+                          </Badge>
+                        )
+                      }
+
+                      if (isAcknowledgeTask) {
+                        return (
+                          <Badge variant="secondary" className={successBadgeClass}>
+                            {t('task-completion-outcome-acknowledged')}
+                          </Badge>
+                        )
+                      }
+
+                      return (
+                        <Badge variant="secondary" className={successBadgeClass}>
+                          {t('task-completion-outcome-completed')}
+                        </Badge>
+                      )
+                    })()}
                   </div>
                 </div>
 
@@ -1182,84 +1665,119 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </Card>
           )}
 
-          {/* Task instruction message - above links, dark and prominent */}
-          {(task.message || task.description) && (
-            <div className="gba:space-y-3">
-              {isMarkdownMessageTask ? (
-                <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-              ) : (
-                <p className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
-                  {task.message || task.description}
-                </p>
-              )}
-              {/* Blue hint explaining what to do */}
-              {!isCompleted && (otherLinks.length > 0 || documentLinks.length > 0) && (
-                <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-info-secondary gba:p-4">
-                  <Info className="gba:h-5 gba:w-5 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
-                  <p className="gba:text-sm gba:leading-relaxed gba:text-info-secondary-foreground">
-                    {t('task-details-blink-instruction-hint', {
-                      defaultValue:
-                        'Open the link below to access your assigned copy, complete it, and return here to submit.'
-                    })}
-                  </p>
-                </div>
-              )}
+          {/* Entity Reference (if linked to an entity) - Same for all cFlow tasks */}
+          {entityType && entityId && entityName && (
+            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                {t('task-details-related-to')}
+              </div>
+              <a
+                href={entityDisplayUrl || '#'}
+                onClick={e => {
+                  e.preventDefault()
+                  if (entityDisplayUrl) {
+                    navigateTo(entityDisplayUrl)
+                  }
+                }}
+                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
+                data-testid="task-entity-reference-link"
+              >
+                <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+                <Badge variant="outline" className="gba:text-xs">
+                  {entityType}
+                </Badge>
+                <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
+                <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+              </a>
             </div>
           )}
 
-          {/* Entity Reference (if linked to an entity) */}
-          {entityType && entityId && entityName && (
-            <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/20">
-              <CardContent className="gba:pt-4">
-                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                  {t('task-details-related-to')}
-                </div>
-                <a
-                  href={entityDisplayUrl || '#'}
-                  onClick={e => {
-                    e.preventDefault()
-                    if (entityDisplayUrl) {
-                      navigateTo(entityDisplayUrl)
-                    }
-                  }}
-                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
-                  data-testid="task-entity-reference-link"
-                >
-                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-                  <Badge variant="outline" className="gba:text-xs">
-                    {entityType}
-                  </Badge>
-                  <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
-                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
-                </a>
-              </CardContent>
-            </Card>
+          {documentReviewPrompt}
+
+          {/* Document Attachments (if any) - Same for all cFlow tasks */}
+          {documentLinks.length > 0 && (
+            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
+                {t('task-details-attachments', { count: documentLinks.length })}
+              </div>
+              <div className="gba:space-y-2">
+                {documentLinks.map(link => (
+                  <a
+                    key={link.url || link.name}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                    data-testid={`task-document-link-${link.name}`}
+                  >
+                    <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                      {link.name}
+                    </span>
+                    <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
           )}
 
-          {/* Document Attachments (if any) */}
-          {documentLinks.length > 0 && (
-            <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/30">
-              <CardContent className="gba:pt-4">
-                <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
-                  {t('task-details-attachments', { count: documentLinks.length })}
-                </div>
-                <div className="gba:space-y-2">
-                  {documentLinks.map(link => (
-                    <a
-                      key={link.url || link.name}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                      data-testid={`task-document-link-${link.name}`}
-                    >
-                      <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                        {link.name}
-                      </span>
-                      <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                    </a>
-                  ))}
+          {/* For meeting-invite: Form first, then Related Links. Otherwise: Related Links then Form. */}
+          {task.tags?.app === 'meeting-invite' && visibleTaskForm.length > 0 && (
+            <Card>
+              <CardContent>
+                {Object.keys(fieldErrors).length > 0 && (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <AlertTitle>
+                      {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <ul className="gba:list-disc gba:list-inside gba:space-y-1">
+                        {Object.entries(fieldErrors).map(([fieldName, error]) => (
+                          <li key={fieldName}>{error}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="gba:space-y-4">
+                  {visibleTaskForm.map((input: any, index: number) => {
+                    const fieldName = input.name || input.id || `field_${index}`
+                    const fieldValue = formValues[fieldName]
+                    const fieldError = fieldErrors[fieldName]
+                    const isLoadingData = !formInitialized
+                    const displayValue = getFieldDisplayValue(
+                      isLoadingData,
+                      fieldValue,
+                      input.value,
+                      input.defaultValue
+                    )
+                    const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
+
+                    return (
+                      <div key={fieldName}>
+                        <InputRenderer
+                          input={input}
+                          index={index}
+                          readOnly={isFieldReadOnly}
+                          value={displayValue}
+                          onChange={value => {
+                            if (!isFieldReadOnly) {
+                              if (fieldError) {
+                                setFieldErrors(prev => {
+                                  const next = { ...prev }
+                                  delete next[fieldName]
+                                  return next
+                                })
+                              }
+                              setFormValues(prev => ({ ...prev, [fieldName]: value }))
+                            }
+                          }}
+                        />
+                        {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
+                      </div>
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -1297,7 +1815,72 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
           )}
 
-          {/* Meeting participants - separate block for meeting-invite (Blink); uses API when open, with status */}
+          {/* Form Section - for non-meeting-invite (or when meeting-invite has no form); no "Form" title */}
+          {task.tags?.app !== 'meeting-invite' && visibleTaskForm.length > 0 && (
+            <Card>
+              <CardContent>
+                {Object.keys(fieldErrors).length > 0 && (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <AlertTitle>
+                      {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <ul className="gba:list-disc gba:list-inside gba:space-y-1">
+                        {Object.values(fieldErrors).map((error, idx) => (
+                          <li key={idx}>{error}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="gba:space-y-4">
+                  {visibleTaskForm.map((input: any, index: number) => {
+                    const fieldName = input.name || input.id || `field_${index}`
+                    const fieldValue = formValues[fieldName]
+                    const fieldError = fieldErrors[fieldName]
+                    const isLoadingData = !formInitialized
+                    const displayValue = getFieldDisplayValue(
+                      isLoadingData,
+                      fieldValue,
+                      input.value,
+                      input.defaultValue
+                    )
+                    const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
+
+                    return (
+                      <div key={fieldName}>
+                        <InputRenderer
+                          input={input}
+                          index={index}
+                          readOnly={isFieldReadOnly}
+                          value={displayValue}
+                          onChange={value => {
+                            if (!isFieldReadOnly) {
+                              if (fieldError) {
+                                setFieldErrors(prev => {
+                                  const next = { ...prev }
+                                  delete next[fieldName]
+                                  return next
+                                })
+                              }
+                              setFormValues({
+                                ...formValues,
+                                [fieldName]: value
+                              })
+                            }
+                          }}
+                        />
+                        {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Meeting participants - after Form; uses API when open, with latest status */}
           {task.tags?.app === 'meeting-invite' &&
             ((meetingParticipantsLoading && meetingIdForFetch) ||
               (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
@@ -1384,601 +1967,95 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               )
             })()}
 
-          {/* Brief description - skip redundant "Complete Meeting Invitation: ..." for meeting-invite */}
+          {/* Description - scheduled task markdown; meeting-invite: only location/description (skip redundant "Complete Meeting Invitation: ...") */}
           {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
 
-          {/* Info Alert for Blink tasks - only show when not completed */}
-          {!isCompleted && (
-            <Alert>
-              <Info className="gba:h-4 gba:w-4" />
-              <AlertDescription className="gba:text-sm">{t('task-details-blink-info')}</AlertDescription>
-            </Alert>
+          {/* Comment Section - Only for active tasks with complete/reject actions */}
+          {!isCompleted && (task.availableActions?.canComplete || task.availableActions?.canReject) && (
+            <div className="gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Switch
+                  id="show-comment"
+                  checked={showComment}
+                  onCheckedChange={setShowComment}
+                  data-testid="comment-toggle"
+                />
+                <Label
+                  htmlFor="show-comment"
+                  className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
+                >
+                  <MessageSquare className="gba:h-4 gba:w-4" />
+                  {t('task-details-add-comment')}{' '}
+                  {requiresRejectionComment ? (
+                    <span className="gba:text-muted-foreground">({t('task-details-rejection-comment-hint')})</span>
+                  ) : (
+                    !showComment && t('task-details-optional')
+                  )}
+                </Label>
+              </div>
+
+              {showComment && (
+                <div className="gba:space-y-2">
+                  {/* AI Error display */}
+                  {aiError && (
+                    <div className="gba:text-sm gba:text-destructive gba:bg-destructive/10 gba:px-3 gba:py-2 gba:rounded-md">
+                      {aiError}
+                    </div>
+                  )}
+
+                  <Textarea
+                    id="comment"
+                    placeholder={
+                      requiresRejectionComment
+                        ? t('task-details-comment-placeholder-reject')
+                        : t('task-details-comment-placeholder')
+                    }
+                    value={comment}
+                    onChange={e => {
+                      setComment(e.target.value)
+                      // Clear AI used flag when user manually edits after AI
+                      if (aiUsedForComment && e.target.value !== suggestedReply) {
+                        // User modified the AI suggestion - still counts as AI-assisted
+                      }
+                    }}
+                    rows={4}
+                    className="gba:w-full"
+                    data-testid="task-comment-input"
+                  />
+
+                  {/* AI Toolbar */}
+                  {isAiAvailable && (
+                    <AiToolbar
+                      currentText={comment}
+                      isLoading={isAiLoading}
+                      onSuggest={handleAiSuggest}
+                      onImprove={handleAiImprove}
+                      onTone={handleAiTone}
+                      onExpand={handleAiExpand}
+                      onShorten={handleAiShorten}
+                      onCustom={handleAiCustom}
+                      hasText={comment.trim().length > 0}
+                      disabled={isCompleting}
+                    />
+                  )}
+
+                  {/* AI assisted indicator */}
+                  {aiUsedForComment && (
+                    <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                      <Sparkles className="gba:h-3 gba:w-3" />
+                      <span>{t('ai-assistant-ai-assisted')}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Footer with Complete button for active Blink tasks */}
+        {/* Sticky Footer with Actions - Auto-generated from task.availableActions */}
         <TaskDetailFooter task={task} onTaskAction={handleTaskAction} isLoading={isCompleting} />
       </div>
-    )
-  }
-
-  // For non-Blink cFlow tasks, use the full form view
-  return (
-    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
-      {/* Task Header - Using shared TaskDetailHeader component */}
-      <TaskDetailHeader
-        title={taskTitle}
-        creatorName={creatorName}
-        showEmployeeInfo={!!creatorUserId}
-        employeeData={
-          creatorEmployeeData
-            ? {
-                displayName: creatorEmployeeData.displayName,
-                firstName: creatorEmployeeData.firstName,
-                lastName: creatorEmployeeData.lastName,
-                avatarUrl: formatAvatarUrl(creatorEmployeeData.pictureThumbnail),
-                position: creatorEmployeeData.position
-              }
-            : undefined
-        }
-        isLoadingEmployee={isLoadingCreator}
-        onClose={onClose}
-      />
-
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
-        {/* Due Date & Starting Date Section - hidden for meeting-invite */}
-        {(task.dueDate || task.scheduledAt) && task.tags?.app !== 'meeting-invite' && (
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
-            {task.scheduledAt && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Calendar className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-start-date-label')}:</span>
-                <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
-              </div>
-            )}
-
-            {task.dueDate &&
-              (() => {
-                const criticality = calculateDueDateCriticality(task.dueDate, t)
-                if (!criticality) return null
-
-                const Icon =
-                  criticality.status === 'overdue'
-                    ? AlertCircle
-                    : criticality.status === 'warning'
-                      ? Clock
-                      : CheckCircle
-
-                return (
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Icon
-                      className={`gba:w-4 gba:h-4 ${
-                        criticality.status === 'overdue'
-                          ? 'gba:text-destructive'
-                          : criticality.status === 'warning'
-                            ? 'gba:text-warning'
-                            : 'gba:text-success'
-                      }`}
-                    />
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-due-date-label')}:</span>
-                    <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.dueDate)}</span>
-                    <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
-                  </div>
-                )
-              })()}
-          </div>
-        )}
-
-        {/* Meeting invite: meeting name, date, time, Please respond */}
-        {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
-          <div
-            className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
-            data-testid="task-details-meeting-invite-body"
-          >
-            <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
-              {task.tags?.meetingDateStr && (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-                  <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                  <span>{task.tags.meetingDateStr}</span>
-                </div>
-              )}
-              {task.tags?.meetingTimeStr && (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-                  <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                  <span>{task.tags.meetingTimeStr}</span>
-                </div>
-              )}
-            </div>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
-            </p>
-            {task.tags?.transcriptionEnabled === 'true' && (
-              <div
-                className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
-                data-testid="task-details-meeting-recording-notice"
-              >
-                <span
-                  className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-                  aria-hidden
-                />
-                <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                  {t('task-details-meeting-recording-notice', {
-                    defaultValue: 'Recording and transcription. By joining, you consent to being included.'
-                  })}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* AI Summary & Suggestions */}
-        <TaskAiSection
-          taskId={task.id}
-          source={task.source}
-          accessToken={accessToken}
-          urgencyScore={task.ai?.urgencyScore}
-          currentUserPriority={task.userState?.userPriority}
-          onPriorityApplied={() => onTaskUpdated()}
-        />
-        {/* Completion Details - Only show for completed tasks */}
-        {isCompleted && (
-          <Card className="gba:border-success/50 gba:bg-success/5">
-            <CardHeader>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                {task.sourceMetadata?.outcome === 'REJECTED' ? (
-                  <XCircle className="gba:h-5 gba:w-5 gba:text-destructive" />
-                ) : (
-                  <CheckCircle className="gba:h-5 gba:w-5 gba:text-success" />
-                )}
-                <CardTitle className="gba:text-base">{getCompletionDetailsTitle()}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="gba:space-y-4">
-              {/* Completed At */}
-              {task.completedAt && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
-                    {t('task-completion-completed-at')}:
-                  </div>
-                  <div className="gba:text-sm gba:font-medium">{formatDateTime(task.completedAt)}</div>
-                </div>
-              )}
-
-              {/* Outcome - Show based on actual outcome */}
-              <div className="gba:flex gba:items-start gba:gap-3">
-                <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
-                  {t('task-completion-outcome')}:
-                </div>
-                <div>
-                  {(() => {
-                    const successBadgeClass = 'gba:bg-success/10 gba:text-success gba:border-success/20'
-                    const destructiveBadgeClass = 'gba:bg-destructive/10 gba:text-destructive gba:border-destructive/20'
-
-                    if (task.sourceMetadata?.outcome === 'REJECTED') {
-                      return (
-                        <Badge variant="secondary" className={destructiveBadgeClass}>
-                          {t('task-completion-outcome-rejected')}
-                        </Badge>
-                      )
-                    }
-
-                    if (isApprovalTask) {
-                      return (
-                        <Badge variant="secondary" className={successBadgeClass}>
-                          {t('task-completion-outcome-approved')}
-                        </Badge>
-                      )
-                    }
-
-                    if (isAcknowledgeTask) {
-                      return (
-                        <Badge variant="secondary" className={successBadgeClass}>
-                          {t('task-completion-outcome-acknowledged')}
-                        </Badge>
-                      )
-                    }
-
-                    return (
-                      <Badge variant="secondary" className={successBadgeClass}>
-                        {t('task-completion-outcome-completed')}
-                      </Badge>
-                    )
-                  })()}
-                </div>
-              </div>
-
-              {/* Comment (if available) */}
-              {task.sourceMetadata?.completionComment && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <div className="gba:text-sm gba:text-muted-foreground gba:w-32 gba:flex-shrink-0">
-                    {t('task-completion-comment')}:
-                  </div>
-                  <div className="gba:text-sm gba:italic gba:text-muted-foreground">
-                    "{task.sourceMetadata.completionComment}"
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Entity Reference (if linked to an entity) - Same for all cFlow tasks */}
-        {entityType && entityId && entityName && (
-          <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-            <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-              {t('task-details-related-to')}
-            </div>
-            <a
-              href={entityDisplayUrl || '#'}
-              onClick={e => {
-                e.preventDefault()
-                if (entityDisplayUrl) {
-                  navigateTo(entityDisplayUrl)
-                }
-              }}
-              className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
-              data-testid="task-entity-reference-link"
-            >
-              <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-              <Badge variant="outline" className="gba:text-xs">
-                {entityType}
-              </Badge>
-              <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
-              <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
-            </a>
-          </div>
-        )}
-
-        {/* Document Attachments (if any) - Same for all cFlow tasks */}
-        {documentLinks.length > 0 && (
-          <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-            <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-              {t('task-details-attachments', { count: documentLinks.length })}
-            </div>
-            <div className="gba:space-y-2">
-              {documentLinks.map(link => (
-                <a
-                  key={link.url || link.name}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                  data-testid={`task-document-link-${link.name}`}
-                >
-                  <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
-                  <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                    {link.name}
-                  </span>
-                  <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* For meeting-invite: Form first, then Related Links. Otherwise: Related Links then Form. */}
-        {task.tags?.app === 'meeting-invite' && visibleTaskForm.length > 0 && (
-          <Card>
-            <CardContent>
-              {Object.keys(fieldErrors).length > 0 && (
-                <Alert variant="destructive" className="gba:mb-4">
-                  <AlertTitle>
-                    {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
-                  </AlertTitle>
-                  <AlertDescription>
-                    <ul className="gba:list-disc gba:list-inside gba:space-y-1">
-                      {Object.entries(fieldErrors).map(([fieldName, error]) => (
-                        <li key={fieldName}>{error}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="gba:space-y-4">
-                {visibleTaskForm.map((input: any, index: number) => {
-                  const fieldName = input.name || input.id || `field_${index}`
-                  const fieldValue = formValues[fieldName]
-                  const fieldError = fieldErrors[fieldName]
-                  const isLoadingData = !formInitialized
-                  const displayValue = getFieldDisplayValue(isLoadingData, fieldValue, input.value, input.defaultValue)
-                  const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
-
-                  return (
-                    <div key={fieldName}>
-                      <InputRenderer
-                        input={input}
-                        index={index}
-                        readOnly={isFieldReadOnly}
-                        value={displayValue}
-                        onChange={value => {
-                          if (!isFieldReadOnly) {
-                            if (fieldError) {
-                              setFieldErrors(prev => {
-                                const next = { ...prev }
-                                delete next[fieldName]
-                                return next
-                              })
-                            }
-                            setFormValues(prev => ({ ...prev, [fieldName]: value }))
-                          }
-                        }}
-                      />
-                      {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
-        {displayLinks.length > 0 && (
-          <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-            <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">{linksSectionTitle}</div>
-            <div className="gba:space-y-2">
-              {displayLinks.map(link => (
-                <a
-                  key={link.url || link.name}
-                  href={link.url}
-                  onClick={e => {
-                    // For internal links, use navigateTo instead of opening new tab
-                    if (link.type?.startsWith('internal:')) {
-                      e.preventDefault()
-                      navigateTo(link.url)
-                    }
-                  }}
-                  target={link.type?.startsWith('internal:') ? undefined : '_blank'}
-                  rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
-                  className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                  data-testid={`task-other-link-${link.name}`}
-                >
-                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-                  <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                    {link.name}
-                  </span>
-                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Form Section - for non-meeting-invite (or when meeting-invite has no form); no "Form" title */}
-        {task.tags?.app !== 'meeting-invite' && visibleTaskForm.length > 0 && (
-          <Card>
-            <CardContent>
-              {Object.keys(fieldErrors).length > 0 && (
-                <Alert variant="destructive" className="gba:mb-4">
-                  <AlertTitle>
-                    {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
-                  </AlertTitle>
-                  <AlertDescription>
-                    <ul className="gba:list-disc gba:list-inside gba:space-y-1">
-                      {Object.values(fieldErrors).map((error, idx) => (
-                        <li key={idx}>{error}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="gba:space-y-4">
-                {visibleTaskForm.map((input: any, index: number) => {
-                  const fieldName = input.name || input.id || `field_${index}`
-                  const fieldValue = formValues[fieldName]
-                  const fieldError = fieldErrors[fieldName]
-                  const isLoadingData = !formInitialized
-                  const displayValue = getFieldDisplayValue(isLoadingData, fieldValue, input.value, input.defaultValue)
-                  const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
-
-                  return (
-                    <div key={fieldName}>
-                      <InputRenderer
-                        input={input}
-                        index={index}
-                        readOnly={isFieldReadOnly}
-                        value={displayValue}
-                        onChange={value => {
-                          if (!isFieldReadOnly) {
-                            if (fieldError) {
-                              setFieldErrors(prev => {
-                                const next = { ...prev }
-                                delete next[fieldName]
-                                return next
-                              })
-                            }
-                            setFormValues({
-                              ...formValues,
-                              [fieldName]: value
-                            })
-                          }
-                        }}
-                      />
-                      {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Meeting participants - after Form; uses API when open, with latest status */}
-        {task.tags?.app === 'meeting-invite' &&
-          ((meetingParticipantsLoading && meetingIdForFetch) ||
-            (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
-          (() => {
-            if (meetingParticipantsLoading && meetingIdForFetch) {
-              return (
-                <div
-                  className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
-                  data-testid="task-details-meeting-participants"
-                >
-                  <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                    {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
-                  </div>
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {t('task-details-form-loading', { defaultValue: 'Loading...' })}
-                  </p>
-                </div>
-              )
-            }
-            const list = meetingParticipantsDisplayList
-            if (!list || list.length === 0) return null
-            const hasStatus = list.some((p: { status?: string }) => p.status != null)
-            const showCollapse = list.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
-            const visibleList =
-              showCollapse && !participantsExpanded ? list.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD) : list
-            const hiddenCount = list.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
-            return (
-              <div
-                className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
-                data-testid="task-details-meeting-participants"
-              >
-                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                  {t('task-details-meeting-participants-with-count', {
-                    count: list.length,
-                    defaultValue: `Participants (${list.length})`
-                  })}
-                </div>
-                <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
-                  {visibleList.map((p: MeetingParticipantDisplay, idx: number) => (
-                    <MeetingParticipantRow
-                      key={p.userId || idx}
-                      participant={p}
-                      idx={idx}
-                      employeeMap={meetingParticipantEmployeeMap}
-                      formatAvatarUrl={formatAvatarUrl}
-                      getInitials={getInitials}
-                      t={t}
-                      navigateTo={navigateTo}
-                      buildPlatformUrl={buildPlatformUrl}
-                      hasStatus={hasStatus}
-                    />
-                  ))}
-                </ul>
-                {showCollapse && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setParticipantsExpanded(prev => !prev)}
-                    className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
-                    data-testid="task-details-meeting-participants-toggle"
-                  >
-                    {(() => {
-                      if (participantsExpanded) {
-                        return (
-                          <>
-                            <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
-                            {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
-                          </>
-                        )
-                      }
-                      return (
-                        <>
-                          <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
-                          {t('task-details-meeting-participants-show-more', {
-                            defaultValue: 'Show {{count}} more',
-                            count: hiddenCount
-                          })}
-                        </>
-                      )
-                    })()}
-                  </Button>
-                )}
-              </div>
-            )
-          })()}
-
-        {/* Description - scheduled task markdown; meeting-invite: only location/description (skip redundant "Complete Meeting Invitation: ...") */}
-        {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
-
-        {/* Comment Section - Only for active tasks with complete/reject actions */}
-        {!isCompleted && (task.availableActions?.canComplete || task.availableActions?.canReject) && (
-          <div className="gba:space-y-3">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Switch
-                id="show-comment"
-                checked={showComment}
-                onCheckedChange={setShowComment}
-                data-testid="comment-toggle"
-              />
-              <Label
-                htmlFor="show-comment"
-                className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
-              >
-                <MessageSquare className="gba:h-4 gba:w-4" />
-                {t('task-details-add-comment')}{' '}
-                {requiresRejectionComment ? (
-                  <span className="gba:text-muted-foreground">({t('task-details-rejection-comment-hint')})</span>
-                ) : (
-                  !showComment && t('task-details-optional')
-                )}
-              </Label>
-            </div>
-
-            {showComment && (
-              <div className="gba:space-y-2">
-                {/* AI Error display */}
-                {aiError && (
-                  <div className="gba:text-sm gba:text-destructive gba:bg-destructive/10 gba:px-3 gba:py-2 gba:rounded-md">
-                    {aiError}
-                  </div>
-                )}
-
-                <Textarea
-                  id="comment"
-                  placeholder={
-                    requiresRejectionComment
-                      ? t('task-details-comment-placeholder-reject')
-                      : t('task-details-comment-placeholder')
-                  }
-                  value={comment}
-                  onChange={e => {
-                    setComment(e.target.value)
-                    // Clear AI used flag when user manually edits after AI
-                    if (aiUsedForComment && e.target.value !== suggestedReply) {
-                      // User modified the AI suggestion - still counts as AI-assisted
-                    }
-                  }}
-                  rows={4}
-                  className="gba:w-full"
-                  data-testid="task-comment-input"
-                />
-
-                {/* AI Toolbar */}
-                {isAiAvailable && (
-                  <AiToolbar
-                    currentText={comment}
-                    isLoading={isAiLoading}
-                    onSuggest={handleAiSuggest}
-                    onImprove={handleAiImprove}
-                    onTone={handleAiTone}
-                    onExpand={handleAiExpand}
-                    onShorten={handleAiShorten}
-                    onCustom={handleAiCustom}
-                    hasText={comment.trim().length > 0}
-                    disabled={isCompleting}
-                  />
-                )}
-
-                {/* AI assisted indicator */}
-                {aiUsedForComment && (
-                  <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                    <Sparkles className="gba:h-3 gba:w-3" />
-                    <span>{t('ai-assistant-ai-assisted')}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Sticky Footer with Actions - Auto-generated from task.availableActions */}
-      <TaskDetailFooter task={task} onTaskAction={handleTaskAction} isLoading={isCompleting} />
-    </div>
+      {documentReviewDialog}
+    </>
   )
 }
