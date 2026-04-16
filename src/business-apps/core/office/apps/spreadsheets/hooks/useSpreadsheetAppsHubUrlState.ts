@@ -8,7 +8,7 @@ export interface UseSpreadsheetAppsHubUrlStateParams {
   currentView: HubView
   currentAppId: string | null
   isLoadingApps: boolean
-  loadAppById: (appId: string, filePath?: string) => Promise<unknown | null>
+  loadAppById: (appId: string, filePath?: string, options?: { allowTrashed?: boolean }) => Promise<unknown | null>
   setSelectedAppId: (id: string | null) => void
   setCurrentView: (view: HubView) => void
   activeSection: SidebarSection
@@ -18,7 +18,7 @@ export interface UseSpreadsheetAppsHubUrlStateParams {
 }
 
 export interface UseSpreadsheetAppsHubUrlStateReturn {
-  updateUrl: (appId: string | null, view?: HubView, filePath?: string | null) => void
+  updateUrl: (appId: string | null, view?: HubView, filePath?: string | null, section?: SidebarSection) => void
   resetLoadAttempt: () => void
 }
 
@@ -57,8 +57,9 @@ export function useSpreadsheetAppsHubUrlState(
   const initialViewRef = useRef(getUrlParams().view)
 
   const updateUrl = useCallback(
-    (appId: string | null, view?: HubView, filePath?: string | null) => {
+    (appId: string | null, view?: HubView, filePath?: string | null, section?: SidebarSection) => {
       const urlParams = new URLSearchParams(globalThis.location.search)
+      const nextSection = section ?? activeSection
       if (appId) {
         urlParams.set('appId', appId)
         if (view) urlParams.set('view', view)
@@ -72,15 +73,15 @@ export function useSpreadsheetAppsHubUrlState(
         urlParams.delete('view')
         urlParams.delete('filePath')
       }
-      if (activeSection && activeSection !== 'my-files') {
-        urlParams.set('section', activeSection)
+      if (nextSection && nextSection !== 'my-files') {
+        urlParams.set('section', nextSection)
       } else {
         urlParams.delete('section')
       }
       const newUrl = urlParams.toString()
         ? `${globalThis.location.pathname}?${urlParams.toString()}`
         : globalThis.location.pathname
-      globalThis.history.pushState({ appId, view, filePath, section: activeSection }, '', newUrl)
+      globalThis.history.pushState({ appId, view, filePath, section: nextSection }, '', newUrl)
     },
     [activeSection]
   )
@@ -115,6 +116,11 @@ export function useSpreadsheetAppsHubUrlState(
 
     const loadFromUrl = async () => {
       if (view === 'trash') {
+        const trashedApp = await loadAppById(appId, undefined, { allowTrashed: true })
+        if (!trashedApp) {
+          onLoadFailed?.(appId)
+          return
+        }
         setSelectedAppId(appId)
         setCurrentView('trash')
         return
@@ -184,8 +190,14 @@ export function useSpreadsheetAppsHubUrlState(
 
       if (state?.appId) {
         if (state.view === 'trash') {
-          setSelectedAppId(state.appId)
-          setCurrentView('trash')
+          loadAppById(state.appId, undefined, { allowTrashed: true }).then(app => {
+            if (!app) {
+              onLoadFailed?.(state.appId!)
+              return
+            }
+            setSelectedAppId(state.appId!)
+            setCurrentView('trash')
+          })
           return
         }
 

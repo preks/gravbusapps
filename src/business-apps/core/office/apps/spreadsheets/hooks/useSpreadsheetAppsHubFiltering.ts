@@ -103,7 +103,7 @@ function filterBySection(params: {
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         .slice(0, 10)
     case 'trash':
-      return visibleApps
+      return []
     case 'home':
     default:
       return visibleApps

@@ -76,9 +76,11 @@ import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
 import { ShareAppDialog } from './components/ShareAppDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
+import { TrashedSpreadsheetReadonlyDialog } from './components/TrashedSpreadsheetReadonlyDialog'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
-import { OfficeTrashStateView } from '@/business-apps/platform/apps/shared/components/OfficeTrashStateView'
+import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
+import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 
 // Hooks
 import { useSpreadsheetApps } from './hooks/useSpreadsheetApps'
@@ -498,6 +500,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
+  const [trashSearchQuery, setTrashSearchQuery] = useState('')
   const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
   const [pendingTaskAppIds, setPendingTaskAppIds] = useState<Set<string>>(new Set())
   const [completedTaskAppIds, setCompletedTaskAppIds] = useState<Set<string>>(new Set())
@@ -525,6 +528,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [newAppName, setNewAppName] = useState('')
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-files')
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [pendingTrashApps, setPendingTrashApps] = useState<Array<{ id: string; name: string }>>([])
+  const [isMovingAppsToTrash, setIsMovingAppsToTrash] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
@@ -532,6 +538,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Data state
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [appToPromote, setAppToPromote] = useState<SpreadsheetApp | null>(null)
+  const [isRestoringTrashedApp, setIsRestoringTrashedApp] = useState(false)
+  const [isDeletingTrashedApp, setIsDeletingTrashedApp] = useState(false)
 
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
@@ -582,6 +590,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     revokeAccess,
     getSharedUsers,
     refreshApps,
+    clearCurrentApp,
     addRow,
     updateRow,
     updateSheet
@@ -703,6 +712,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         : 0,
     [activeSection, filteredApps, completedTaskAppIds, pendingTaskAppIds]
   )
+  const heroTabBadges = useMemo(
+    () => ({
+      tasks: { count: pendingTaskCount, highlight: pendingTaskCount > 0 }
+    }),
+    [pendingTaskCount]
+  )
   const taskDisplayedApps = useMemo(
     () =>
       filterTaskDisplayedApps(activeSection, taskStatusFilter, filteredApps, pendingTaskAppIds, completedTaskAppIds),
@@ -800,12 +815,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const handleOpenTrashedApp = useCallback(
-    (id: string) => {
-      setSelectedAppId(id)
-      setCurrentView('trash')
-      updateUrl(id, 'trash')
+    async (id: string) => {
+      const app = await loadApp(id, undefined, { allowTrashed: true })
+      if (app) {
+        setSelectedAppId(id)
+        setCurrentView('trash')
+        updateUrl(id, 'trash', app.filePath, 'trash')
+      }
     },
-    [updateUrl]
+    [loadApp, updateUrl]
   )
 
   const handleEditApp = useCallback(
@@ -850,23 +868,68 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [updateApp, updateSheet, loadApp, updateUrl]
   )
 
+  const requestMoveAppsToTrash = useCallback((appsToTrash: Array<{ id: string; name: string }>) => {
+    if (appsToTrash.length === 0) {
+      return
+    }
+
+    setPendingTrashApps(appsToTrash)
+    setTrashConfirmOpen(true)
+  }, [])
+
   const handleDeleteApp = useCallback(
-    async (id: string) => {
-      if (confirm(t('delete-confirm'))) {
-        const success = await deleteApp(id)
-        if (success && selectedAppId === id) {
-          setSelectedAppId(null)
-          setCurrentView('list')
-          updateUrl(null)
+    (id: string, name?: string) => {
+      const appName = name || apps.find(app => app.id === id)?.name || currentApp?.name || t('title-untitled')
+      requestMoveAppsToTrash([{ id, name: appName }])
+    },
+    [apps, currentApp?.name, requestMoveAppsToTrash, t]
+  )
+
+  const confirmMoveAppsToTrash = useCallback(async () => {
+    if (pendingTrashApps.length === 0) {
+      return
+    }
+
+    setIsMovingAppsToTrash(true)
+
+    try {
+      const trashedAppIds = new Set<string>()
+
+      for (const pendingApp of pendingTrashApps) {
+        const success = await deleteApp(pendingApp.id)
+        if (success) {
+          trashedAppIds.add(pendingApp.id)
         }
+      }
+
+      if (selectedAppId && trashedAppIds.has(selectedAppId)) {
+        setSelectedAppId(null)
+        setCurrentView('list')
+        updateUrl(null)
+      }
+
+      if (trashedAppIds.size > 0) {
         setSelectedApps(prev => {
           const next = new Set(prev)
-          next.delete(id)
+          trashedAppIds.forEach(id => next.delete(id))
           return next
         })
       }
+    } finally {
+      setIsMovingAppsToTrash(false)
+      setPendingTrashApps([])
+    }
+  }, [deleteApp, pendingTrashApps, selectedAppId, updateUrl])
+
+  const handleTrashConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !isMovingAppsToTrash) {
+        setPendingTrashApps([])
+      }
+
+      setTrashConfirmOpen(open)
     },
-    [deleteApp, selectedAppId, updateUrl, t]
+    [isMovingAppsToTrash]
   )
 
   const handleDuplicateApp = useCallback(
@@ -1110,7 +1173,70 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [promoteToDatabase, updateApp]
   )
 
+  const isTrashedApp = Boolean(currentApp?.trashedAt)
+  const canManageTrashedApp = Boolean(isTrashedApp && currentAppPermission === 'owner')
+
+  const handleRestoreTrashedApp = useCallback(async () => {
+    if (!currentApp?.id || !canManageTrashedApp) {
+      return
+    }
+
+    setIsRestoringTrashedApp(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems([{ entityType: 'spreadsheet_app', entityId: currentApp.id }])
+      const restoredApp = await loadApp(currentApp.id)
+      if (!restoredApp) {
+        return
+      }
+
+      setSelectedAppId(currentApp.id)
+      setActiveSection('my-files')
+      setCurrentView('viewer')
+      updateUrl(currentApp.id, 'viewer', restoredApp.filePath, 'my-files')
+      toast.success(t('toast-restored'))
+      await refreshApps()
+    } catch (error) {
+      console.error('[SpreadsheetAppsHub] Failed to restore trashed spreadsheet:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsRestoringTrashedApp(false)
+    }
+  }, [accessToken, canManageTrashedApp, currentApp?.id, loadApp, refreshApps, t, updateUrl])
+
+  const handleDeleteTrashedAppPermanently = useCallback(async () => {
+    if (!currentApp?.id || !canManageTrashedApp) {
+      return
+    }
+
+    setIsDeletingTrashedApp(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.deleteTrashedItem('spreadsheet_app', currentApp.id)
+      clearCurrentApp()
+      setSelectedAppId(null)
+      setCurrentView('list')
+      setActiveSection('trash')
+      updateUrl(null, undefined, undefined, 'trash')
+      await refreshApps()
+    } catch (error) {
+      console.error('[SpreadsheetAppsHub] Failed to permanently delete trashed spreadsheet:', error)
+      toast.error(t('toast-delete-permanently-failed'))
+    } finally {
+      setIsDeletingTrashedApp(false)
+    }
+  }, [accessToken, canManageTrashedApp, clearCurrentApp, currentApp?.id, refreshApps, t, updateUrl])
+
   const handleBack = useCallback(() => {
+    if (currentView === 'trash') {
+      clearCurrentApp()
+      setSelectedAppId(null)
+      setCurrentView('list')
+      setActiveSection('trash')
+      updateUrl(null, undefined, undefined, 'trash')
+      return
+    }
+
     // Check if there's a space return URL in sessionStorage (takes priority)
     try {
       const spaceReturnUrl = sanitizeSameOriginReturnUrl(sessionStorage.getItem('space_return_url'))
@@ -1134,7 +1260,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
     // Full page navigation matches prod host routing and avoids dev-only history + popstate gaps.
     navigateTo(Navigation.OFFICE_SPREADSHEETS, { fullPage: true })
-  }, [])
+  }, [clearCurrentApp, currentView, updateUrl])
 
   /** Header Spreadsheets breadcrumb: hub route only (does not consume space_return_url / returnUrl). */
   const handleSpreadsheetHubHome = useCallback(() => {
@@ -1261,7 +1387,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const renderViewerContent = useCallback(
     (app: SpreadsheetApp) => {
-      const canEdit = currentAppPermission === 'owner' || currentAppPermission === 'edit'
+      const isReadonlyTrashView = Boolean(app.trashedAt)
+      const canEdit = !isReadonlyTrashView && (currentAppPermission === 'owner' || currentAppPermission === 'edit')
 
       return (
         <>
@@ -1269,7 +1396,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             app={app}
             onBack={handleBack}
             onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
-            onShare={() => handleShareApp(app.id)}
+            onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
             onAppRefreshNeeded={canEdit ? handleAppRefreshNeeded : undefined}
@@ -1279,12 +1406,30 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             // Keep hub-level replay off: SpreadsheetAppViewer persists Univer edits via row/cell ops.
             onDataChange={undefined}
             isEditing={canEdit}
+            isTrashedApp={isReadonlyTrashView}
             accessToken={accessToken}
             userId={currentUserId}
             data-testid={`${testId}-viewer`}
           />
 
-          {selectedAppForShare && (
+          {isReadonlyTrashView ? (
+            <TrashedSpreadsheetReadonlyDialog
+              spreadsheetTitle={app.name}
+              canManage={canManageTrashedApp}
+              isRestoring={isRestoringTrashedApp}
+              isDeleting={isDeletingTrashedApp}
+              onBackToTrash={handleBack}
+              onRestore={() => {
+                void handleRestoreTrashedApp()
+              }}
+              onDeletePermanently={() => {
+                void handleDeleteTrashedAppPermanently()
+              }}
+              data-testid={`${testId}-trashed-spreadsheet-dialog`}
+            />
+          ) : null}
+
+          {selectedAppForShare && !isReadonlyTrashView && (
             <ShareAppDialog
               open={shareDialogOpen}
               onOpenChange={handleShareDialogOpenChange}
@@ -1312,12 +1457,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       currentUserName,
       handleAppRefreshNeeded,
       handleBack,
+      handleDeleteTrashedAppPermanently,
       handleOpenViewerEditor,
       handleRefreshShares,
+      handleRestoreTrashedApp,
       handleShare,
       handleShareApp,
       handleSpreadsheetHubHome,
       handleUnshare,
+      isDeletingTrashedApp,
+      isRestoringTrashedApp,
+      canManageTrashedApp,
       selectedAppForShare,
       setShareDialogOpen,
       sharedUsers,
@@ -1351,7 +1501,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const renderCurrentView = () => {
-    if (currentView === 'viewer' && currentApp) {
+    if ((currentView === 'viewer' || currentView === 'trash') && currentApp) {
       return (
         <div
           className="gba:flex gba:w-full gba:flex-col gba:overflow-hidden gba:h-dvh gba:min-h-0"
@@ -1404,44 +1554,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       </DropdownMenu>
     )
 
-    if (currentView === 'trash' && selectedAppId) {
-      return (
-        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-          <SpreadsheetHero
-            activeSection={activeSection as SpreadsheetSection}
-            onSectionChange={s => setActiveSection(s as SidebarSection)}
-            tabBadges={heroTabBadges}
-            newButton={heroNewButton}
-            t={t}
-            data-testid={`${testId}-hero`}
-          />
-          <main className="gba:flex-1 gba:overflow-auto gba:p-6">
-            <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
-              <OfficeTrashStateView
-                accessToken={accessToken}
-                entityType="spreadsheet_app"
-                entityId={selectedAppId}
-                title="This spreadsheet is in trash"
-                description="Trashed spreadsheets are read-only until you restore them. You can restore it now or delete it permanently."
-                onBack={handleBack}
-                onRestoreComplete={async () => {
-                  setSelectedAppId(null)
-                  setCurrentView('list')
-                  updateUrl(null)
-                  await refreshApps()
-                }}
-                onDeleteComplete={() => {
-                  setSelectedAppId(null)
-                  setCurrentView('list')
-                  updateUrl(null)
-                }}
-              />
-            </div>
-          </main>
-        </div>
-      )
-    }
-
     if (currentView === 'list' && activeSection === 'trash') {
       return (
         <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
@@ -1453,17 +1565,40 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             t={t}
             data-testid={`${testId}-hero`}
           />
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
+            <div className="gba:relative">
+              <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+              <Input
+                placeholder={t('header-search-placeholder')}
+                value={trashSearchQuery}
+                onChange={e => setTrashSearchQuery(e.target.value)}
+                className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
+                data-testid={`${testId}-trash-search`}
+              />
+            </div>
+          </div>
           <main className="gba:flex-1 gba:overflow-auto gba:p-6">
             <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
               <OfficeTrashList
                 accessToken={accessToken}
                 entityType="spreadsheet_app"
-                emptyTitle="No trashed spreadsheets"
-                emptyDescription="Spreadsheets moved to trash will appear here."
+                emptyTitle={t('empty-trash-title')}
+                emptyDescription={t('empty-trash-description')}
+                layout="list"
+                searchQuery={trashSearchQuery}
+                listControls={{
+                  refreshLabel: t('header-refresh'),
+                  sortNameLabel: t('sort-name'),
+                  sortTrashedOnLabel: t('sort-trashed'),
+                  trashedOnColumnLabel: t('table-trashed'),
+                  defaultSortBy: 'trashedAt',
+                  defaultSortOrder: 'desc'
+                }}
                 onOpenItem={item => handleOpenTrashedApp(item.id)}
                 onItemsChanged={() => {
                   void refreshApps()
                 }}
+                data-testid={`${testId}-trash-list`}
               />
             </div>
           </main>
@@ -1476,9 +1611,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         <SpreadsheetHero
           activeSection={activeSection}
           onSectionChange={s => setActiveSection(s)}
-          tabBadges={{
-            tasks: { count: pendingTaskCount, highlight: pendingTaskCount > 0 }
-          }}
+          tabBadges={heroTabBadges}
           newButton={heroNewButton}
           t={t}
           data-testid={`${testId}-hero`}
@@ -1592,9 +1725,19 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             size="sm"
                             className="gba:h-7 gba:text-xs gba:text-destructive"
                             onClick={() => {
-                              if (confirm(t('action-delete-confirm', { count: selectedApps.size }))) {
-                                selectedApps.forEach(id => handleDeleteApp(id))
-                              }
+                              requestMoveAppsToTrash(
+                                Array.from(selectedApps)
+                                  .map(id => {
+                                    const app = apps.find(item => item.id === id)
+                                    if (!app) return null
+
+                                    return {
+                                      id: app.id,
+                                      name: app.name
+                                    }
+                                  })
+                                  .filter((app): app is { id: string; name: string } => app !== null)
+                              )
                             }}
                           >
                             <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
@@ -2019,7 +2162,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         className="gba:text-destructive"
-                                        onClick={() => handleDeleteApp(app.id)}
+                                        onClick={() => handleDeleteApp(app.id, app.name)}
                                       >
                                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-delete-spreadsheet')}
@@ -2151,7 +2294,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       className="gba:text-destructive"
-                                      onClick={() => handleDeleteApp(app.id)}
+                                      onClick={() => handleDeleteApp(app.id, app.name)}
                                     >
                                       <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                       {t('action-delete-spreadsheet')}
@@ -2211,6 +2354,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onRefreshShares={handleRefreshShares}
           />
         )}
+
+        <DeleteConfirmDialog
+          open={trashConfirmOpen}
+          onOpenChange={handleTrashConfirmOpenChange}
+          itemNames={pendingTrashApps.map(app => app.name)}
+          onConfirm={() => {
+            void confirmMoveAppsToTrash()
+          }}
+          isDeleting={isMovingAppsToTrash}
+          t={t}
+          data-testid={`${testId}-trash-confirm`}
+        />
 
         {/* Manage {t('action-share')}s Dialog */}
         {selectedAppForManageShares && (
