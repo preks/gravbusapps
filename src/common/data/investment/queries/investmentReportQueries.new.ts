@@ -422,6 +422,7 @@ const buildRealEstateInvestmentReportFragment = (fieldSet: Set<string>): string 
         scope
         size
         sizeMeasurementUnitRef
+        sizeMeasurementUnit { ${CATALOG_ENTRY} }
         numberOfUnits
         occupancyPercent
         annualNetColdRent
