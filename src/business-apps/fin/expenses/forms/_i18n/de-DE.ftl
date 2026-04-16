@@ -126,5 +126,13 @@ direction-return = Rückfahrt
 view-table = Tabelle
 view-timeline = Zeitachse
 
+# ============================================
+# Profile — SAP / HR reference (plan & request wizards)
+# ============================================
 
+missing-sap-wizard-title = SAP-Nummer fehlt
+missing-sap-wizard-description = Die SAP-Nummer fehlt in Ihrem Profil. Bitte wenden Sie sich an die Buchhaltung, um die fehlenden Angaben zu ergänzen, bevor Sie eine Abrechnungsanfrage starten.
 
+# Trip — Start vs. erste Zieldestination (Anfrage- & Plan-Assistent)
+
+trip-start-equals-first-destination = Die Zieldestination scheint mit dem Startort identisch zu sein. Bitte prüfen Sie die Eingabe.

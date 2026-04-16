@@ -116,6 +116,22 @@ const STRUCTURAL_OPS = new Set(['row_add', 'row_delete', 'column_add', 'column_d
 
 const STRUCTURAL_OP_TYPES = new Set(['add_rows', 'delete_rows'])
 const CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell', 'cells_changed'])
+const MAX_CELLS_PER_SOCKET_EMIT = 400
+const MAX_BYTES_PER_SOCKET_EMIT = 256 * 1024
+const MAX_CELLS_FOR_SOCKET_PERSIST = 1500
+const MAX_BYTES_FOR_SOCKET_PERSIST = 512 * 1024
+const JSON_CHUNK_OVERHEAD_BYTES = 64
+
+const UTF8_ENCODER = typeof TextEncoder === 'undefined' ? null : new TextEncoder()
+
+function measureSerializedBytes(value: unknown): number {
+  try {
+    const serialized = JSON.stringify(value) ?? ''
+    return UTF8_ENCODER ? UTF8_ENCODER.encode(serialized).length : serialized.length
+  } catch {
+    return 0
+  }
+}
 
 export class SpreadsheetCollaborationManager {
   private callbacks: CollaborationCallbacks
@@ -189,16 +205,21 @@ export class SpreadsheetCollaborationManager {
   ): void {
     const { collabCells } = this.buildCollabCellsForEmit(cells, { deferMissingBackendId: false })
     if (collabCells.length === 0) return
+    const { chunks, estimatedBytes } = this.chunkCellsForSocket(collabCells)
     this.collabDiag('collab_broadcast_enqueue', {
       cellCount: collabCells.length,
+      chunkCount: chunks.length,
+      estimatedBytes,
       withA1Ref: collabCells.filter(c => typeof c.cellRef === 'string' && c.cellRef.trim().length > 0).length
     })
     const sheetId = this.callbacks.getActiveSheetId()
-    this.enqueueOrSend({
-      type: 'cells_changed',
-      data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
-      broadcastOnly: true
-    })
+    for (const chunk of chunks) {
+      this.enqueueOrSend({
+        type: 'cells_changed',
+        data: { sheetId, cells: chunk } satisfies CellsChangedPayload,
+        broadcastOnly: true
+      })
+    }
   }
 
   /**
@@ -242,6 +263,20 @@ export class SpreadsheetCollaborationManager {
       }
     }
 
+    const estimatedBytes = this.estimateCellsPayloadBytes(collabCells)
+    if (collabCells.length > MAX_CELLS_FOR_SOCKET_PERSIST || estimatedBytes > MAX_BYTES_FOR_SOCKET_PERSIST) {
+      this.collabDiag('collab_persist_bypass_http', {
+        cellCount: collabCells.length,
+        estimatedBytes,
+        deferredUiInBatch: deferredUiRowIds.length
+      })
+      return {
+        success: false,
+        error: 'payload_too_large',
+        deferredUiRowIds: deferredUiRowIds.length > 0 ? deferredUiRowIds : undefined
+      }
+    }
+
     const op: DocumentOperation = {
       type: 'cells_changed',
       data: { sheetId, cells: collabCells } satisfies CellsChangedPayload,
@@ -255,6 +290,7 @@ export class SpreadsheetCollaborationManager {
 
     this.collabDiag('collab_persist_attempt', {
       cellCount: collabCells.length,
+      estimatedBytes,
       deferredUiInBatch: deferredUiRowIds.length
     })
     const result = await send(op)
@@ -362,6 +398,40 @@ export class SpreadsheetCollaborationManager {
       collabCells.push(entry)
     }
     return { collabCells, deferredUiRowIds }
+  }
+
+  private estimateCellsPayloadBytes(cells: CellsChangedCell[]): number {
+    return measureSerializedBytes({ cells }) + JSON_CHUNK_OVERHEAD_BYTES
+  }
+
+  private chunkCellsForSocket(cells: CellsChangedCell[]): { chunks: CellsChangedCell[][]; estimatedBytes: number } {
+    const chunks: CellsChangedCell[][] = []
+    let currentChunk: CellsChangedCell[] = []
+    let currentChunkBytes = JSON_CHUNK_OVERHEAD_BYTES
+    let estimatedBytes = JSON_CHUNK_OVERHEAD_BYTES
+
+    for (const cell of cells) {
+      const cellBytes = Math.max(measureSerializedBytes(cell), 8) + 1
+      estimatedBytes += cellBytes
+
+      const wouldExceedCount = currentChunk.length >= MAX_CELLS_PER_SOCKET_EMIT
+      const wouldExceedBytes = currentChunk.length > 0 && currentChunkBytes + cellBytes > MAX_BYTES_PER_SOCKET_EMIT
+
+      if (wouldExceedCount || wouldExceedBytes) {
+        chunks.push(currentChunk)
+        currentChunk = []
+        currentChunkBytes = JSON_CHUNK_OVERHEAD_BYTES
+      }
+
+      currentChunk.push(cell)
+      currentChunkBytes += cellBytes
+    }
+
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk)
+    }
+
+    return { chunks, estimatedBytes }
   }
 
   emitCursor(path: string[]): void {

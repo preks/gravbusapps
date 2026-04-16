@@ -91,11 +91,11 @@ export const ProfileHeaderActions: React.FC<ProfileHeaderActionsProps> = ({
   onVideoCall
 }) => {
   const { t } = useTranslation(translations)
-  const teamChatEnabled = useFeature<boolean>(Feature.Core.TeamChat.Key)
+  const chatTeamEnabled = useFeature<boolean>(Feature.Core.ChatTeam.Key)
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
-      {teamChatEnabled && (
+      {chatTeamEnabled && (
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="gba:inline-flex">

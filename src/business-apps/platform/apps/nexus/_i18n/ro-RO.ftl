@@ -35,7 +35,6 @@ chat-status-searching-documents = Se caută documente...
 chat-status-fetching-live-data = Se încarcă date live...
 chat-status-web-results-obtained = Rezultatele web au fost obținute, se procesează...
 chat-status-classifying-intent = Se clasifică intenția...
-chat-status-generating-slides = Se generează slides...
 chat-status-refining-artifact = Se rafinează artefactul...
 chat-status-planning-data-query = Se planifică interogarea datelor...
 chat-status-preparing-response = Se pregătește răspunsul...
@@ -68,7 +67,7 @@ message-content-type-spreadsheet = Tabel
 message-content-type-web = Web
 
 # Empty canvas
-canvas-hero-description = Spațiul tău de lucru cu AI. Generează documente, construiește analize, creează prezentări și interoghează date live.
+canvas-hero-description = Spațiul tău de lucru cu AI. Generează documente, construiește analize și interoghează date live.
 canvas-title = Ce ai vrea să creezi?
 canvas-description = Alege un punct de pornire de mai jos sau deschide chatul ca să întrebi orice.
 canvas-open-chat-title = Începe o conversație
@@ -79,8 +78,6 @@ canvas-suggestion-document-title = Generează un document
 canvas-suggestion-document-description = Creează rapoarte, note, propuneri sau rezumate din conținutul tău
 canvas-suggestion-analysis-title = Creează o analiză
 canvas-suggestion-analysis-description = Construiește dashboard-uri cu KPI-uri, grafice, tabele și perspective cheie
-canvas-suggestion-presentation-title = Creează o prezentare
-canvas-suggestion-presentation-description = Generează slide deck-uri profesionale din conținutul tău
 canvas-suggestion-data-title = Interoghează datele din sistem
 canvas-suggestion-data-description = Preia date reale HR, CRM sau financiare din NEWWORK (activează mai întâi Acces la date)
 
@@ -93,15 +90,16 @@ artifact-action-saving = Se salvează...
 artifact-action-saved = Salvat
 artifact-action-updated = Actualizat
 artifact-action-copy = Copiază
+artifact-open-in-documents = Deschide în Documente
 artifact-save-document = Salvează în Documente
-artifact-save-slides = Salvează în Slides
 artifact-update-document = Actualizează Documente
-artifact-update-slides = Actualizează Slides
 artifact-saved-in-documents = În Documente
-artifact-saved-in-slides = În Slides
+artifact-legacy-slides-title = Prezentările nu mai sunt acceptate în Nexus
+artifact-legacy-slides-description = Această prezentare nu mai poate fi deschisă sau actualizată în Nexus. Creează în schimb un document sau o analiză.
 canvas-toast-saved-success = Salvat cu succes - { $message }
 canvas-toast-updated-success = Actualizat cu succes - { $message }
 canvas-toast-save-failed = Salvarea a eșuat - { $message }
+canvas-toast-open-not-ready = Documentul este încă pregătit. Încercați din nou peste câteva secunde.
 canvas-toast-copied = Copiat în clipboard
 
 # Document renderer
@@ -122,16 +120,3 @@ analysis-loading-step-metrics = Se extrag indicatorii cheie
 analysis-loading-step-insights = Se generează perspectivele
 analysis-loading-step-visualizations = Se construiesc vizualizările
 analysis-loading-step-compiling = Se compilează raportul
-
-# Slides
-slides-section = Secțiunea { $number }
-slides-layout-title-cover = Copertă
-slides-layout-thank-you = Mulțumesc
-slides-layout-agenda = Agendă
-slides-layout-bullets = Puncte-cheie
-slides-layout-section-divider = Separator de secțiune
-slides-layout-two-column = Două coloane
-slides-layout-key-takeaway = Concluzie cheie
-slides-layout-key-metrics = Indicatori cheie
-slides-layout-process-flow = Flux de proces
-slides-layout-timeline = Cronologie

@@ -50,9 +50,6 @@ export const JobPositionProvider: React.FC<{
   // State for managing organizational unit search
   const [organizationalUnitSearch, setOrganizationalUnitSearch] = useState<string | undefined>(undefined)
 
-  // State for lazy loading optional fields
-  const [enableJobProfiles, setEnableJobProfiles] = useState(false)
-
   // Hook for fetching job position by ID
   const { fetchJobPosition } = useGetJobPositionById(accessToken)
 
@@ -100,7 +97,12 @@ export const JobPositionProvider: React.FC<{
     hasMore: hasMoreJobProfiles,
     loadMore: loadMoreJobProfiles,
     searchProfiles: searchJobProfilesInternal
-  } = useJobProfiles({ accessToken, search: jobProfileSearch, enabled: enableJobProfiles })
+  } = useJobProfiles({
+    accessToken,
+    search: jobProfileSearch,
+    enabled: true,
+    jobFunctionId: formValues.jobFunctionId || undefined
+  })
 
   // Use the organizational units hook with search parameter
   const {
@@ -108,8 +110,7 @@ export const JobPositionProvider: React.FC<{
     loading: organizationalUnitsLoading,
     error: organizationalUnitsError,
     hasMore: hasMoreOrganizationalUnits,
-    loadMore: loadMoreOrganizationalUnits,
-    searchUnits: searchOrganizationalUnitsInternal
+    loadMore: loadMoreOrganizationalUnits
   } = useOrganizationalUnits({ accessToken, structureId, search: organizationalUnitSearch })
 
   // Debug logging removed for performance
@@ -123,14 +124,10 @@ export const JobPositionProvider: React.FC<{
     [searchJobProfilesInternal]
   )
 
-  // Wrapper function for organizational unit search that updates the search state
-  const searchOrganizationalUnits = useCallback(
-    (searchTerm?: string) => {
-      setOrganizationalUnitSearch(searchTerm)
-      searchOrganizationalUnitsInternal(searchTerm)
-    },
-    [searchOrganizationalUnitsInternal]
-  )
+  // Wrapper function for organizational unit search that updates the search state (hook refetches when `search` changes)
+  const searchOrganizationalUnits = useCallback((searchTerm?: string) => {
+    setOrganizationalUnitSearch(searchTerm)
+  }, [])
 
   // Use real hooks for job families, functions, level groups, and levels
   const {
@@ -410,7 +407,6 @@ export const JobPositionProvider: React.FC<{
         hasMoreJobProfiles,
         jobProfilesError,
         jobProfilesLoading,
-        enableJobProfilesLoading: () => setEnableJobProfiles(true),
         // Organizational unit specific methods
         searchOrganizationalUnits,
         loadMoreOrganizationalUnits,

@@ -33,7 +33,7 @@ interface NexusChatProps {
   scope: 'all' | 'space' | 'none'
   spaceId: string | null
   spaces: Space[]
-  activeArtifact: NexusArtifact | null
+  artifactsById: Record<string, NexusArtifact>
   sessionTitle?: string
   llmProvider?: string
   dataAccessEnabled: boolean
@@ -50,6 +50,8 @@ interface NexusChatProps {
   onSpaceChange: (spaceId: string | null) => void
   onNewSession: () => void
   onOpenHistory: () => void
+  /** Focus the canvas (e.g. after clicking “View” on an artifact teaser in the transcript). */
+  onViewArtifact?: (artifactId: string) => void
   testId?: string
 }
 
@@ -67,7 +69,7 @@ export const NexusChat = ({
   scope,
   spaceId,
   spaces,
-  activeArtifact,
+  artifactsById,
   sessionTitle,
   llmProvider,
   dataAccessEnabled,
@@ -84,6 +86,7 @@ export const NexusChat = ({
   onSpaceChange,
   onNewSession,
   onOpenHistory,
+  onViewArtifact,
   testId = 'nexus-chat'
 }: NexusChatProps) => {
   const { t } = useTranslation(translations)
@@ -180,9 +183,8 @@ export const NexusChat = ({
             userName={userName}
             userAvatarUrl={userAvatarUrl}
             accessToken={accessToken}
-            artifactType={
-              message.artifactId && activeArtifact?.id === message.artifactId ? activeArtifact.type : undefined
-            }
+            artifactType={message.artifactId ? artifactsById[message.artifactId]?.type : undefined}
+            onViewArtifact={onViewArtifact}
             thinkingSources={messageWebSources?.[message.id]}
           />
         ))}

@@ -309,6 +309,17 @@ function normalizeCellMatrix(value: unknown): SheetCellMatrix | undefined {
   return value && typeof value === 'object' ? (value as SheetCellMatrix) : undefined
 }
 
+export function isClearLikeMutationCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  if (!normalized) return false
+
+  return (
+    normalized.includes('clear-range') ||
+    normalized.includes('delete-selection') ||
+    normalized.includes('deleteselectioncommand')
+  )
+}
+
 function readWorksheetCellValue(
   worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
   row: number,
@@ -351,10 +362,11 @@ function resolveAxisOffset(bounds: SheetCellBounds, rangeStart: number, rangeEnd
   return !looksAbsolute && looksRelative ? rangeStart : 0
 }
 
-function deriveCellMatrixFromRanges(
+export function deriveCellMatrixFromRanges(
   worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
   ranges: SheetRangeShape[],
-  maxCells = 10000
+  maxCells = 10000,
+  preserveUndefinedAsNull = false
 ): SheetCellMatrix | undefined {
   const derived: SheetCellMatrix = {}
   let visited = 0
@@ -363,6 +375,11 @@ function deriveCellMatrixFromRanges(
   const addCellValue = (row: number, col: number) => {
     visited += 1
     if (limitReached()) return
+    if (preserveUndefinedAsNull) {
+      if (!derived[row]) derived[row] = {}
+      derived[row][col] = null
+      return
+    }
     const value = readWorksheetCellValue(worksheet, row, col)
     if (value === undefined) return
     if (!derived[row]) derived[row] = {}
@@ -2524,15 +2541,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }) => {
           if (readOnlyRef.current) return
           const payload = params?.payload
+          const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
           let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
-          if (!cellValue) {
+          const workbook = univerAPIRef.current?.getActiveWorkbook()
+          const worksheet = workbook?.getActiveSheet()
+          const ranges = (payload?.params?.range ??
+            params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
+            []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+
+          if (preserveUndefinedAsNull) {
+            cellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, true)
+          } else if (!cellValue) {
             // Fallback: derive changed values from effected ranges when mutation payload
             // does not provide `cellValue` (observed in some Univer command variants).
-            const workbook = univerAPIRef.current?.getActiveWorkbook()
-            const worksheet = workbook?.getActiveSheet()
-            const ranges = (payload?.params?.range ??
-              params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
-              []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
             cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
           }
           // Paste/edit mutations can use different internal command ids across Univer versions.

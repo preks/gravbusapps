@@ -99,7 +99,7 @@ app-open = Open
 # Nexus Teaser (Nexus kept as product name)
 nexus-title = Nexus
 nexus-badge = AI-Powered
-nexus-description = Your intelligent content workspace. Generate documents, analyses, and presentations through conversation.
+nexus-description = Your intelligent content workspace. Generate documents and analyses through conversation.
 nexus-try = Try Nexus
 
 # Activity visualization
