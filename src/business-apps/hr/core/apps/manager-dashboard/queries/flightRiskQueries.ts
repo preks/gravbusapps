@@ -60,7 +60,13 @@ export const GET_FLIGHT_RISK_DATA = `
       status
       startDate
       dueDate
+      updatedAt
       completionDate
+      employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
+        id
+        progressPercent
+        updateTime
+      }
     }
     
     # Feedback received by team members (for sentiment analysis)

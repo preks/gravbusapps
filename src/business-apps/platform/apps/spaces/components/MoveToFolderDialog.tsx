@@ -14,10 +14,12 @@ import {
   DialogDescription,
   Button,
   Input,
-  ScrollArea
+  ScrollArea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Folder, Search, Loader2, Home, Check } from 'lucide-react'
 import type { SpaceFolder } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface MoveToFolderDialogProps {
   open: boolean
@@ -55,6 +57,7 @@ export const MoveToFolderDialog: React.FC<MoveToFolderDialogProps> = ({
   onMove,
   'data-testid': testId = 'move-to-folder-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [isMoving, setIsMoving] = useState(false)
@@ -101,10 +104,10 @@ export const MoveToFolderDialog: React.FC<MoveToFolderDialogProps> = ({
               <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
                 <Folder className="gba:w-4 gba:h-4 gba:text-primary" />
               </div>
-              Move to folder
+              {t('move-to-folder-title')}
             </DialogTitle>
             <DialogDescription className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-              Select a destination for {itemLabel}
+              {t('move-to-folder-description', { item: itemLabel })}
             </DialogDescription>
           </DialogHeader>
 
@@ -113,7 +116,7 @@ export const MoveToFolderDialog: React.FC<MoveToFolderDialogProps> = ({
             <Input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search folders..."
+              placeholder={t('common-search-folders-placeholder')}
               className="gba:pl-10 gba:h-10"
               data-testid={`${testId}-search`}
             />
@@ -149,9 +152,9 @@ export const MoveToFolderDialog: React.FC<MoveToFolderDialogProps> = ({
                     selectedFolderId === null ? 'gba:text-primary' : 'gba:text-foreground'
                   }`}
                 >
-                  Root
+                  {t('common-root')}
                 </p>
-                <p className="gba:text-xs gba:text-muted-foreground">No folder (top level)</p>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('common-no-folder-top-level')}</p>
               </div>
               {selectedFolderId === null && <Check className="gba:w-4 gba:h-4 gba:text-primary" />}
             </button>
@@ -190,7 +193,7 @@ export const MoveToFolderDialog: React.FC<MoveToFolderDialogProps> = ({
             {/* Empty state */}
             {options.length === 0 && searchQuery && (
               <div className="gba:text-center gba:py-8">
-                <p className="gba:text-sm gba:text-muted-foreground">No folders match your search</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('move-to-folder-empty-search')}</p>
               </div>
             )}
           </div>
@@ -199,16 +202,16 @@ export const MoveToFolderDialog: React.FC<MoveToFolderDialogProps> = ({
         {/* Footer */}
         <div className="gba:p-4 gba:flex gba:justify-end gba:gap-2 gba:bg-muted/20">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isMoving}>
-            Cancel
+            {t('common-cancel')}
           </Button>
           <Button onClick={handleMove} disabled={isMoving} data-testid={`${testId}-move`}>
             {isMoving ? (
               <>
                 <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:animate-spin" />
-                Moving...
+                {t('move-to-folder-moving')}
               </>
             ) : (
-              'Move here'
+              t('common-move-here')
             )}
           </Button>
         </div>

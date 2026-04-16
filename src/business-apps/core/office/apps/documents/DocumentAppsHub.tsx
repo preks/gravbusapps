@@ -93,6 +93,9 @@ import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLook
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
+import { OfficeTrashList } from '@/business-apps/platform/apps/shared/components/OfficeTrashList'
+import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
+import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 
 // Entities / context
 import { getContextForCategory, getContextForEntityKeys } from './entities'
@@ -194,6 +197,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [createWithAiDialogOpen, setCreateWithAiDialogOpen] = useState(false)
   const [createWithAiTitle, setCreateWithAiTitle] = useState('Untitled Document')
   const [createWithAiAbout, setCreateWithAiAbout] = useState('')
+  const [trashSearchQuery, setTrashSearchQuery] = useState('')
+  const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
+  const [pendingTrashDocument, setPendingTrashDocument] = useState<{ id: string; name: string } | null>(null)
+  const [isMovingToTrash, setIsMovingToTrash] = useState(false)
+  const [isRestoringTrashedDocument, setIsRestoringTrashedDocument] = useState(false)
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
   const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
@@ -290,6 +298,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   const fetchPage = useCallback(
     (page: number) => {
+      if (activeSection === 'trash') {
+        return
+      }
       serverPageRef.current = page
       refreshDocuments({
         section: activeSection === 'templates' ? undefined : activeSection,
@@ -305,7 +316,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   )
 
   useEffect(() => {
-    if (activeSection !== 'templates') {
+    if (activeSection !== 'templates' && activeSection !== 'trash') {
       fetchPage(1)
     }
   }, [activeSection, searchQuery, sortBy, sortOrder, favorites, fetchPage])
@@ -429,26 +440,63 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     [loadDocument, updateUrl]
   )
 
+  const handleOpenTrashedDocument = useCallback(
+    async (id: string) => {
+      const doc = await loadDocument(id)
+      if (!doc) {
+        return
+      }
+      setSelectedDocumentId(id)
+      setCurrentView(doc.trashedAt ? 'trash' : 'editor')
+      updateUrl(id, doc.trashedAt ? 'trash' : 'editor')
+    },
+    [loadDocument, updateUrl]
+  )
+
   /**
    * Handle delete document
    */
   const handleDeleteDocument = useCallback(
-    async (id: string) => {
-      if (confirm(t('confirm-delete'))) {
-        const success = await deleteDocument(id)
-        if (success && selectedDocumentId === id) {
-          setSelectedDocumentId(null)
-          setCurrentView('list')
-          updateUrl(null)
-        }
-        setSelectedDocuments(prev => {
-          const next = new Set(prev)
-          next.delete(id)
-          return next
-        })
+    (id: string, name?: string) => {
+      setPendingTrashDocument({
+        id,
+        name: name || t('title-untitled-document')
+      })
+      setTrashConfirmOpen(true)
+    },
+    [t]
+  )
+
+  const confirmMoveToTrash = useCallback(async () => {
+    if (!pendingTrashDocument) return
+
+    setIsMovingToTrash(true)
+    try {
+      const success = await deleteDocument(pendingTrashDocument.id)
+      if (success && selectedDocumentId === pendingTrashDocument.id) {
+        setSelectedDocumentId(null)
+        setCurrentView('list')
+        updateUrl(null)
+      }
+      setSelectedDocuments(prev => {
+        const next = new Set(prev)
+        next.delete(pendingTrashDocument.id)
+        return next
+      })
+    } finally {
+      setIsMovingToTrash(false)
+      setPendingTrashDocument(null)
+    }
+  }, [deleteDocument, pendingTrashDocument, selectedDocumentId, updateUrl])
+
+  const handleTrashConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      setTrashConfirmOpen(open)
+      if (!open && !isMovingToTrash) {
+        setPendingTrashDocument(null)
       }
     },
-    [deleteDocument, selectedDocumentId, updateUrl, t]
+    [isMovingToTrash]
   )
 
   /**
@@ -520,6 +568,57 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     setCurrentView('list')
     updateUrl(null)
   }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
+
+  const handleGoToDocsHome = useCallback(() => {
+    clearCurrentDocument()
+    resetLoadAttempt()
+    setSelectedDocumentId(null)
+    setParsedWordDocument(null)
+    setCurrentView('list')
+    setActiveSection('my-documents')
+    updateUrl(null, undefined, 'my-documents')
+  }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
+
+  const isTrashedDocument = Boolean(currentDocument?.trashedAt)
+  const canManageTrashedDocument = Boolean(
+    isTrashedDocument && currentDocumentPermission === 'owner' && !currentDocument?.spaceId
+  )
+
+  const handleRestoreTrashedDocument = useCallback(async () => {
+    if (!currentDocument?.id || !canManageTrashedDocument) {
+      return
+    }
+
+    setIsRestoringTrashedDocument(true)
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      await DriveApiService.restoreItems([{ entityType: 'document', entityId: currentDocument.id }])
+      const restoredDocument = await loadDocument(currentDocument.id)
+      if (!restoredDocument) {
+        return
+      }
+      setSelectedDocumentId(currentDocument.id)
+      setActiveSection('my-documents')
+      setCurrentView('editor')
+      updateUrl(currentDocument.id, 'editor', 'my-documents')
+      toast.success(t('toast-restored'))
+      await refreshDocuments()
+    } catch (error) {
+      console.error('[DocumentAppsHub] Failed to restore trashed document:', error)
+      toast.error(t('toast-restore-failed'))
+    } finally {
+      setIsRestoringTrashedDocument(false)
+    }
+  }, [
+    accessToken,
+    canManageTrashedDocument,
+    currentDocument?.id,
+    currentDocumentPermission,
+    loadDocument,
+    refreshDocuments,
+    t,
+    updateUrl
+  ])
 
   /**
    * Start upload flow (Word)
@@ -609,19 +708,20 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const getEmptyStateTitle = () => {
     if (activeSection === 'favorites') return t('empty-favorites-title')
     if (activeSection === 'shared') return t('empty-shared-title')
-    if (activeSection === 'archived') return t('empty-archived-title')
+    if (activeSection === 'trash') return t('empty-trash-title')
     return t('empty-default-title')
   }
 
   const getEmptyStateDescription = () => {
     if (activeSection === 'favorites') return t('empty-favorites-description')
     if (activeSection === 'shared') return t('empty-shared-description')
-    if (activeSection === 'archived') return t('empty-archived-description')
+    if (activeSection === 'trash') return t('empty-trash-description')
     return t('empty-default-description')
   }
 
-  // Render editor view
-  if (currentView === 'editor') {
+  const shouldRenderEditorView = currentView === 'editor' || (currentView === 'trash' && Boolean(currentDocument))
+
+  if (shouldRenderEditorView) {
     return (
       <DocumentAppsHubEditorView
         templateBeingEdited={templateBeingEdited}
@@ -646,6 +746,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         userInfo={userInfo}
         templateEditorRef={templateEditorRef}
         effectiveEntityContext={effectiveEntityContext ?? ''}
+        isTrashedDocument={isTrashedDocument}
+        canRestoreTrashedDocument={canManageTrashedDocument}
+        isRestoringTrashedDocument={isRestoringTrashedDocument}
+        onGoToDocsHome={handleGoToDocsHome}
+        onRestoreTrashedDocument={handleRestoreTrashedDocument}
         testId={testId}
       />
     )
@@ -842,8 +947,50 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </>
         )}
 
+        {currentView === 'list' && activeSection === 'trash' && (
+          <>
+            <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:pt-5 gba:pb-4 gba:border-b gba:border-border/50">
+              <div className="gba:relative">
+                <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
+                <Input
+                  placeholder={t('header-search-placeholder')}
+                  value={trashSearchQuery}
+                  onChange={e => setTrashSearchQuery(e.target.value)}
+                  className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
+                  data-testid={`${testId}-trash-search`}
+                />
+              </div>
+            </div>
+            <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+              <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+                <OfficeTrashList
+                  accessToken={accessToken}
+                  entityType="document"
+                  emptyTitle={t('empty-trash-title')}
+                  emptyDescription={t('empty-trash-description')}
+                  layout="list"
+                  searchQuery={trashSearchQuery}
+                  listControls={{
+                    refreshLabel: t('header-refresh'),
+                    sortNameLabel: t('sort-name'),
+                    sortTrashedOnLabel: t('sort-trashed'),
+                    trashedOnColumnLabel: t('table-trashed'),
+                    defaultSortBy: 'trashedAt',
+                    defaultSortOrder: 'desc'
+                  }}
+                  onOpenItem={item => handleOpenTrashedDocument(item.id)}
+                  onItemsChanged={() => {
+                    void refreshDocuments()
+                  }}
+                  data-testid={`${testId}-trash-list`}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
         {/* List View */}
-        {currentView === 'list' && activeSection !== 'templates' && (
+        {currentView === 'list' && activeSection !== 'templates' && activeSection !== 'trash' && (
           <>
             {/* Content Area */}
             <div className="gba:flex-1 gba:overflow-auto">
@@ -952,7 +1099,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
                       {getEmptyStateDescription()}
                     </p>
-                    {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
+                    {activeSection !== 'favorites' && activeSection !== 'shared' && (
                       <div className="gba:flex gba:gap-3">
                         <Button onClick={handleCreateNew}>
                           <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -1238,7 +1385,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="gba:text-destructive"
-                                    onClick={() => handleDeleteDocument(doc.id)}
+                                    onClick={() => handleDeleteDocument(doc.id, doc.title)}
                                   >
                                     <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                     {t('menu-delete')}
@@ -1373,6 +1520,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </>
         )}
       </main>
+
+      <DeleteConfirmDialog
+        open={trashConfirmOpen}
+        onOpenChange={handleTrashConfirmOpenChange}
+        itemNames={pendingTrashDocument ? [pendingTrashDocument.name] : []}
+        onConfirm={() => {
+          void confirmMoveToTrash()
+        }}
+        isDeleting={isMovingToTrash}
+        t={t}
+        data-testid={`${testId}-trash-confirm`}
+      />
 
       {/* Send for Approval Dialog */}
       {documentForApproval && (

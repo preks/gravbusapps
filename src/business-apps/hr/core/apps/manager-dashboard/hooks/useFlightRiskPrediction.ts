@@ -10,6 +10,11 @@ import { useFeedbackSentiment, EmployeeSentimentResult } from './useFeedbackSent
 import { useRiskTrendHistory, EmployeeTrendResult } from './useRiskTrendHistory'
 import { initFlightRiskCache } from '../utils/cacheManagement'
 import {
+  EmployeeSalaryInfo,
+  calculateTeamMedianSalaryByCurrency,
+  groupSalaryDataByEmployee
+} from '../utils/flightRiskSalaryUtils'
+import {
   FlightRiskEmployee,
   FlightRiskSummary,
   FlightRiskSignal,
@@ -19,8 +24,6 @@ import {
   RawPerformanceGoal,
   RawFeedback,
   RawAbsence,
-  RawSalaryRecord,
-  ProcessedSalaryChange,
   FlightRiskQueryResponse,
   SalaryHistoryQueryResponse
 } from '../types/flightRisk.types'
@@ -47,15 +50,6 @@ import {
   calculateConfidenceLevel,
   generateInterventions
 } from '../utils/flightRiskCalculations'
-
-/**
- * Salary data structure for an employee
- */
-interface EmployeeSalaryInfo {
-  salaryChanges: ProcessedSalaryChange[]
-  currentSalary?: number
-  teamMedianSalary?: number
-}
 
 /**
  * Sentiment analysis data for an employee
@@ -90,7 +84,7 @@ const buildSentimentSignalMetadata = (
 ): { name: string; rawValue: 'ai-analyzed' | 'ratings' | null; dataSource: string } => {
   if (sentimentInfo?.isAIAnalyzed) {
     return {
-      name: 'Sentiment (AI)',
+      name: 'Sentiment Risk',
       rawValue: 'ai-analyzed',
       dataSource: 'FlowBot AI'
     }
@@ -98,14 +92,14 @@ const buildSentimentSignalMetadata = (
 
   if (feedbackCount > 0) {
     return {
-      name: 'Feedback Sentiment',
+      name: 'Sentiment Risk',
       rawValue: 'ratings',
       dataSource: 'EmployeeFeedback.rating'
     }
   }
 
   return {
-    name: 'Feedback Sentiment',
+    name: 'Sentiment Risk',
     rawValue: null,
     dataSource: 'EmployeeFeedback.rating'
   }
@@ -144,7 +138,7 @@ const buildSignals = ({
   const performanceScore = calculatePerformanceRiskScore(employeeGoals)
   signals.push({
     id: `${employeeId}-performance`,
-    name: 'Performance',
+    name: 'Performance Risk',
     category: 'performance',
     rawValue: employeeGoals.length > 0 ? employeeGoals.length : null,
     normalizedScore: performanceScore,
@@ -159,12 +153,12 @@ const buildSignals = ({
   const engagementScore = calculateEngagementRiskScore(employeeFeedbackReceived, employeeManagerFeedback, tenureMonths)
   signals.push({
     id: `${employeeId}-engagement`,
-    name: 'Manager Engagement',
+    name: 'Engagement Risk',
     category: 'engagement',
     rawValue: employeeManagerFeedback.length,
     normalizedScore: engagementScore,
     weight: SIGNAL_WEIGHTS.engagement,
-    description: getEngagementRiskDescription(employeeManagerFeedback, tenureMonths),
+    description: getEngagementRiskDescription(employeeFeedbackReceived, employeeManagerFeedback, tenureMonths),
     dataSource: 'EmployeeFeedback'
   })
 
@@ -173,7 +167,7 @@ const buildSignals = ({
   const absenceScore = calculateAbsenceRiskScore(employeeAbsences, tenureMonths)
   signals.push({
     id: `${employeeId}-wellness`,
-    name: 'Wellness',
+    name: 'Wellness/Absence Risk',
     category: 'wellness',
     rawValue: employeeAbsences.length,
     normalizedScore: absenceScore,
@@ -211,7 +205,7 @@ const buildSignals = ({
   )
   signals.push({
     id: `${employeeId}-compensation`,
-    name: 'Compensation',
+    name: 'Compensation Risk',
     category: 'compensation',
     rawValue: salaryInfo?.currentSalary || null,
     normalizedScore: compensationScore,
@@ -226,142 +220,6 @@ const buildSignals = ({
   })
 
   return signals
-}
-
-/**
- * Get the best available salary amount from a record (prefer annual, then monthly*12, then hourly*2080)
- */
-const getSalaryAmount = (record: RawSalaryRecord): number => {
-  if (record.annualGrossSalary != null && record.annualGrossSalary > 0) {
-    return record.annualGrossSalary
-  }
-  if (record.monthlyGrossSalary != null && record.monthlyGrossSalary > 0) {
-    return record.monthlyGrossSalary * 12
-  }
-  if (record.hourlyGrossSalary != null && record.hourlyGrossSalary > 0) {
-    return record.hourlyGrossSalary * 2080 // 40 hrs/week * 52 weeks
-  }
-  return 0
-}
-
-/**
- * Check if a salary record is currently active
- */
-const isActiveSalary = (record: RawSalaryRecord, today: Date): boolean => {
-  if (!record.startDate) return false
-  const startDate = new Date(record.startDate)
-  if (startDate > today) return false
-  if (record.endDate) {
-    const endDate = new Date(record.endDate)
-    if (endDate < today) return false
-  }
-  return true
-}
-
-/**
- * Process salary records to calculate changes between consecutive records
- */
-const processSalaryChanges = (records: RawSalaryRecord[]): ProcessedSalaryChange[] => {
-  if (records.length === 0) return []
-
-  // Sort by startDate descending (newest first)
-  const sorted = [...records].sort((a, b) => {
-    const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
-    const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
-    return dateB - dateA
-  })
-
-  const changes: ProcessedSalaryChange[] = []
-
-  for (let i = 0; i < sorted.length; i++) {
-    const current = sorted[i]
-    const previous = sorted[i + 1] // Older record
-
-    const newAmount = getSalaryAmount(current)
-    const previousAmount = previous ? getSalaryAmount(previous) : null
-
-    let changePercent: number | null = null
-    if (previousAmount != null && previousAmount > 0 && newAmount > 0) {
-      changePercent = ((newAmount - previousAmount) / previousAmount) * 100
-    }
-
-    changes.push({
-      id: current.id,
-      employeeId: current.employeeId,
-      previousAmount,
-      newAmount,
-      changePercent,
-      currencyCode: current.currency?.code || 'EUR',
-      effectiveDate: current.startDate || current.createdAt,
-      reason: current.salaryAdjustReasonRef || undefined
-    })
-  }
-
-  return changes
-}
-
-/**
- * Calculate team median salary from current salary records
- */
-const calculateTeamMedianSalary = (currentSalaryRecords: RawSalaryRecord[], today: Date): number => {
-  // Get unique active salaries per employee (first active record per employee)
-  const employeeActiveSalaries = new Map<string, number>()
-
-  currentSalaryRecords.forEach(record => {
-    if (!employeeActiveSalaries.has(record.employeeId) && isActiveSalary(record, today)) {
-      const amount = getSalaryAmount(record)
-      if (amount > 0) {
-        employeeActiveSalaries.set(record.employeeId, amount)
-      }
-    }
-  })
-
-  const amounts = Array.from(employeeActiveSalaries.values()).sort((a, b) => a - b)
-  if (amounts.length === 0) return 0
-
-  const mid = Math.floor(amounts.length / 2)
-  if (amounts.length % 2 === 1) {
-    return amounts[mid]
-  }
-
-  return (amounts[mid - 1] + amounts[mid]) / 2
-}
-
-/**
- * Group salary data by employee with processed changes
- */
-const groupSalaryDataByEmployee = (
-  allSalaryRecords: RawSalaryRecord[],
-  today: Date,
-  teamMedianSalary: number
-): Map<string, EmployeeSalaryInfo> => {
-  const salaryMap = new Map<string, EmployeeSalaryInfo>()
-
-  // Group records by employee
-  const recordsByEmployee = new Map<string, RawSalaryRecord[]>()
-  allSalaryRecords.forEach(record => {
-    const existing = recordsByEmployee.get(record.employeeId) || []
-    existing.push(record)
-    recordsByEmployee.set(record.employeeId, existing)
-  })
-
-  // Process each employee's salary data
-  recordsByEmployee.forEach((records, employeeId) => {
-    // Find current (active) salary
-    const activeRecord = records.find(r => isActiveSalary(r, today))
-    const currentSalary = activeRecord ? getSalaryAmount(activeRecord) : undefined
-
-    // Process salary changes
-    const salaryChanges = processSalaryChanges(records)
-
-    salaryMap.set(employeeId, {
-      salaryChanges,
-      currentSalary,
-      teamMedianSalary
-    })
-  })
-
-  return salaryMap
 }
 
 /**
@@ -561,8 +419,8 @@ export const useFlightRiskPrediction = ({
 
       // Process salary data from EmployeeSalary table
       const allSalaryRecords = salaryHistoryResponse.EmployeeSalary || []
-      const teamMedianSalary = calculateTeamMedianSalary(allSalaryRecords, today)
-      const salaryDataMap = groupSalaryDataByEmployee(allSalaryRecords, today, teamMedianSalary)
+      const teamMedianByCurrency = calculateTeamMedianSalaryByCurrency(allSalaryRecords, today)
+      const salaryDataMap = groupSalaryDataByEmployee(allSalaryRecords, today, teamMedianByCurrency)
 
       // Build feedback by employee map for sentiment analysis
       const feedbackByEmployee = new Map<string, RawFeedback[]>()

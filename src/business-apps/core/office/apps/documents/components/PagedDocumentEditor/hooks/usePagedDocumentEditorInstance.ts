@@ -119,6 +119,7 @@ function createStarterKitExtension(isCollaborationMode: boolean) {
 export interface UsePagedDocumentEditorInstanceParams {
   accessToken: string
   documentId?: string
+  collaborationEnabled?: boolean
   documentTitle?: string
   initialTitle?: string
   collaborationBindingSeed?: number
@@ -147,6 +148,7 @@ export interface UsePagedDocumentEditorInstanceParams {
 export function usePagedDocumentEditorInstance({
   accessToken,
   documentId,
+  collaborationEnabled = true,
   documentTitle,
   initialTitle,
   collaborationBindingSeed = 0,
@@ -171,21 +173,21 @@ export function usePagedDocumentEditorInstance({
   clearAutocompleteSuggestion,
   scheduleAutocompleteRef
 }: UsePagedDocumentEditorInstanceParams): TiptapEditor | null {
-  const isCollaborationMode = Boolean(documentId)
+  const isCollaborationMode = Boolean(documentId) && collaborationEnabled
 
   const collaborationExtension = useMemo(
     () =>
-      documentId
+      isCollaborationMode
         ? Collaboration.configure({
             document: ydoc,
             onFirstRender: onCollaborationFirstRender
           })
         : null,
-    [documentId, collaborationBindingSeed, onCollaborationFirstRender, ydoc]
+    [isCollaborationMode, collaborationBindingSeed, onCollaborationFirstRender, ydoc]
   )
   const yjsCursorExtension = useMemo(
-    () => (documentId ? createYjsCursorExtension(awareness) : null),
-    [documentId, collaborationBindingSeed, awareness]
+    () => (isCollaborationMode ? createYjsCursorExtension(awareness) : null),
+    [isCollaborationMode, collaborationBindingSeed, awareness]
   )
 
   const headerFooterExtensions = useMemo(
@@ -336,6 +338,7 @@ export function usePagedDocumentEditorInstance({
     },
     isCollaborationMode
       ? [
+          isCollaborationMode,
           documentId,
           collaborationBindingSeed,
           editorEditable,
@@ -350,6 +353,7 @@ export function usePagedDocumentEditorInstance({
           scheduleAutocompleteRef
         ]
       : [
+          isCollaborationMode,
           documentId,
           editorContent,
           editorEditable,

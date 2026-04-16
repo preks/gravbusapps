@@ -42,6 +42,7 @@ export interface PagedDocumentEditorHeaderProps {
   paginationConfig?: PageLayoutPaginationConfig | null
   title: string
   isReadOnly: boolean
+  isTrashedDocument: boolean
   isSaving: boolean
   isExporting: boolean
   hasUnsavedChanges: boolean
@@ -93,6 +94,7 @@ export function PagedDocumentEditorHeader({
   paginationConfig = null,
   title,
   isReadOnly,
+  isTrashedDocument,
   isSaving,
   isExporting,
   hasUnsavedChanges,
@@ -278,7 +280,7 @@ export function PagedDocumentEditorHeader({
               </Button>
             )}
 
-            {document?.id && (
+            {!isTrashedDocument && document?.id && (
               <>
                 <Button
                   variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
@@ -308,7 +310,7 @@ export function PagedDocumentEditorHeader({
               </>
             )}
 
-            {document?.id && (
+            {!isTrashedDocument && document?.id && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -378,7 +380,7 @@ export function PagedDocumentEditorHeader({
               </DropdownMenu>
             )}
 
-            {document?.id && (
+            {!isTrashedDocument && document?.id && (
               <AiButton
                 size="sm"
                 showIcon
@@ -397,7 +399,7 @@ export function PagedDocumentEditorHeader({
       {headerExtra && <div className="gba:px-4 gba:pb-3">{headerExtra}</div>}
 
       <EditorToolbar
-        editor={activeEditor}
+        editor={isTrashedDocument ? null : activeEditor}
         paginationConfig={paginationConfig}
         onOpenLinkDialog={onOpenLinkDialog}
         onOpenInsertImageDialog={onOpenInsertImageDialog}

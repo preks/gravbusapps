@@ -31,7 +31,8 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     channels,
     types,
     communications,
-    loading
+    loading,
+    initialCommunicationId: initialParams.communicationId
   })
 
   const validation = useCommunicationValidation({

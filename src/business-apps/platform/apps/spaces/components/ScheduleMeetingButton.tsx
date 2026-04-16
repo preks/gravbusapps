@@ -5,10 +5,11 @@
  */
 
 import React, { useCallback } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CalendarPlus } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SpaceMember } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface ScheduleMeetingButtonProps {
   /** Space ID for context */
@@ -38,6 +39,7 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
   disabled = false,
   'data-testid': testId = 'schedule-meeting-button'
 }) => {
+  const { t } = useTranslation(translations)
   const handleScheduleMeeting = useCallback(() => {
     // Navigate to calendar tab in chat with meeting creation context
     const isProduction = process.env.NODE_ENV === 'production'
@@ -48,7 +50,7 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
       tab: 'calendar',
       action: 'createMeeting',
       spaceId,
-      meetingTitle: `${spaceName} Meeting`
+      meetingTitle: t('calendar-meeting-title', { spaceName })
     })
 
     // Add member IDs as comma-separated list
@@ -57,7 +59,7 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
     }
 
     navigateTo(buildPlatformUrl(`${chatPath}?${params.toString()}`))
-  }, [spaceId, spaceName, members])
+  }, [members, spaceId, spaceName, t])
 
   return (
     <Button
@@ -69,7 +71,7 @@ export const ScheduleMeetingButton: React.FC<ScheduleMeetingButtonProps> = ({
       data-testid={testId}
     >
       <CalendarPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-      Schedule Meeting
+      {t('common-schedule-meeting')}
     </Button>
   )
 }

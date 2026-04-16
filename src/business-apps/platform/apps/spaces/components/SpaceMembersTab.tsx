@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { format } from 'date-fns'
 import {
   Button,
   Badge,
@@ -18,6 +17,7 @@ import {
   AvatarImage,
   AvatarFallback,
   Input,
+  useTranslation,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -44,6 +44,8 @@ import {
   Building2
 } from 'lucide-react'
 import type { SpaceMember, SpaceMemberRole, SpaceActivity } from '../types/space.types'
+import translations from '../_i18n'
+import { formatLocalizedDate } from '../utils/spaceLocalization'
 
 export interface EnrichedSpaceMember extends SpaceMember {
   userName?: string
@@ -89,37 +91,6 @@ const getInitials = (name?: string, fallback?: string) => {
   return fallback?.slice(0, 2).toUpperCase() || '??'
 }
 
-// Role configuration
-const roleConfig: Record<
-  SpaceMemberRole,
-  { label: string; icon: React.ElementType; description: string; color: string }
-> = {
-  owner: {
-    label: 'Owner',
-    icon: Star,
-    description: 'Full control over space',
-    color: 'gba:text-warning'
-  },
-  admin: {
-    label: 'Admin',
-    icon: Shield,
-    description: 'Can manage members and content',
-    color: 'gba:text-primary'
-  },
-  editor: {
-    label: 'Editor',
-    icon: Edit3,
-    description: 'Can create and edit content',
-    color: 'gba:text-success'
-  },
-  viewer: {
-    label: 'Viewer',
-    icon: Eye,
-    description: 'Can only view content',
-    color: 'gba:text-muted-foreground'
-  }
-}
-
 // KPI roles to display (exclude owner since there's always just 1)
 const kpiRoles: SpaceMemberRole[] = ['admin', 'editor', 'viewer']
 
@@ -140,6 +111,36 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
   onRemoveMember,
   'data-testid': testId = 'space-members-tab'
 }) => {
+  const { t, locale } = useTranslation(translations)
+  const roleConfig: Record<
+    SpaceMemberRole,
+    { label: string; icon: React.ElementType; description: string; color: string }
+  > = {
+    owner: {
+      label: t('common-owner'),
+      icon: Star,
+      description: t('members-role-owner-description'),
+      color: 'gba:text-warning'
+    },
+    admin: {
+      label: t('common-admin'),
+      icon: Shield,
+      description: t('members-role-admin-description'),
+      color: 'gba:text-primary'
+    },
+    editor: {
+      label: t('common-editor'),
+      icon: Edit3,
+      description: t('members-role-editor-description'),
+      color: 'gba:text-success'
+    },
+    viewer: {
+      label: t('common-viewer'),
+      icon: Eye,
+      description: t('members-role-viewer-description'),
+      color: 'gba:text-muted-foreground'
+    }
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<SortField>('role')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
@@ -289,15 +290,15 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
       {/* Header */}
       <div className="gba:flex gba:flex-col gba:sm:flex-row gba:items-start gba:sm:items-center gba:justify-between gba:gap-4">
         <div>
-          <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">Team Members</h2>
+          <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">{t('members-title')}</h2>
           <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-            {members.length} member{members.length !== 1 ? 's' : ''} in this space
+            {t('members-subtitle', { count: members.length })}
           </p>
         </div>
         {canInvite && (
           <Button onClick={onInvite} className="gba:gap-2" data-testid={`${testId}-invite-button`}>
             <UserPlus className="gba:w-4 gba:h-4" />
-            Invite Members
+            {t('members-invite-members')}
           </Button>
         )}
       </div>
@@ -316,7 +317,7 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
                   </div>
                   <div>
                     <p className="gba:text-2xl gba:font-semibold gba:text-foreground">{roleCounts[role]}</p>
-                    <p className="gba:text-xs gba:text-muted-foreground">{config.label}s</p>
+                    <p className="gba:text-xs gba:text-muted-foreground">{config.label}</p>
                   </div>
                 </div>
               </CardContent>
@@ -330,7 +331,7 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
         <div className="gba:relative gba:flex-1">
           <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
           <Input
-            placeholder="Search members..."
+            placeholder={t('common-search-members-placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:pl-9"
@@ -338,36 +339,36 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
           />
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:text-muted-foreground">Sort by:</span>
+          <span className="gba:text-sm gba:text-muted-foreground">{t('members-sort-by')}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gba:gap-2">
                 <ArrowUpDown className="gba:w-4 gba:h-4" />
-                {sortField === 'name' && 'Name'}
-                {sortField === 'role' && 'Role'}
-                {sortField === 'joinedAt' && 'Join Date'}
-                {sortField === 'activity' && 'Activity'}
+                {sortField === 'name' && t('members-sort-name')}
+                {sortField === 'role' && t('members-sort-role')}
+                {sortField === 'joinedAt' && t('members-sort-join-date')}
+                {sortField === 'activity' && t('members-sort-activity')}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleSort('name')}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                Name
+                {t('members-sort-name')}
                 {sortField === 'name' && <Check className="gba:w-4 gba:h-4 gba:ml-auto" />}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleSort('role')}>
                 <Shield className="gba:w-4 gba:h-4 gba:mr-2" />
-                Role
+                {t('members-sort-role')}
                 {sortField === 'role' && <Check className="gba:w-4 gba:h-4 gba:ml-auto" />}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleSort('joinedAt')}>
                 <Calendar className="gba:w-4 gba:h-4 gba:mr-2" />
-                Join Date
+                {t('members-sort-join-date')}
                 {sortField === 'joinedAt' && <Check className="gba:w-4 gba:h-4 gba:ml-auto" />}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleSort('activity')}>
                 <Activity className="gba:w-4 gba:h-4 gba:mr-2" />
-                Activity
+                {t('members-sort-activity')}
                 {sortField === 'activity' && <Check className="gba:w-4 gba:h-4 gba:ml-auto" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -381,7 +382,7 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
           <div className="gba:text-center gba:py-12">
             <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground/50 gba:mb-4" />
             <p className="gba:text-muted-foreground">
-              {searchQuery ? 'No members match your search' : 'No members yet'}
+              {searchQuery ? t('members-no-search-results') : t('members-no-members')}
             </p>
           </div>
         ) : (
@@ -401,7 +402,9 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
               >
                 {/* Avatar */}
                 <Avatar className="gba:w-10 gba:h-10 gba:flex-shrink-0">
-                  {member.userAvatar ? <AvatarImage src={member.userAvatar} alt={member.userName || 'Member'} /> : null}
+                  {member.userAvatar ? (
+                    <AvatarImage src={member.userAvatar} alt={member.userName || t('common-unknown')} />
+                  ) : null}
                   <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs gba:font-medium">
                     {getInitials(member.userName, member.userId)}
                   </AvatarFallback>
@@ -411,11 +414,11 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                      {member.userName || `User ${member.userId?.slice(0, 8) || ''}...`}
+                      {member.userName || t('common-unknown')}
                     </span>
                     {isCurrentUser && (
                       <Badge variant="secondary" className="gba:text-xs gba:py-0">
-                        You
+                        {t('common-you')}
                       </Badge>
                     )}
                   </div>
@@ -447,12 +450,12 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
                   {stats?.totalActivities ? (
                     <span className="gba:flex gba:items-center gba:gap-1">
                       <Activity className="gba:w-3 gba:h-3" />
-                      {stats.totalActivities} activities
+                      {t('common-activities-count', { count: stats.totalActivities })}
                     </span>
                   ) : (
                     <span className="gba:flex gba:items-center gba:gap-1">
                       <Calendar className="gba:w-3 gba:h-3" />
-                      {format(new Date(member.joinedAt), 'MMM yyyy')}
+                      {formatLocalizedDate(new Date(member.joinedAt), locale, 'MMM yyyy')}
                     </span>
                   )}
                 </div>
@@ -477,7 +480,9 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="gba:w-56">
                       <div className="gba:px-2 gba:py-1.5">
-                        <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">Change Role</p>
+                        <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                          {t('members-change-role')}
+                        </p>
                       </div>
                       {assignableRoles.map(role => {
                         const roleConf = roleConfig[role]
@@ -505,7 +510,7 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
                         data-testid={`${testId}-remove-${member.id}`}
                       >
                         <UserMinus className="gba:w-4 gba:h-4" />
-                        Remove from space
+                        {t('members-remove-from-space')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

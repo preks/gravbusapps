@@ -8,6 +8,7 @@ whiteboard-my-whiteboards = My Whiteboards
 whiteboard-shared-with-me = Shared with Me
 whiteboard-recent = Recent
 whiteboard-favorites = Favorites
+whiteboard-trash = Trash
 whiteboard-archived = Archived
 whiteboard-all = All Whiteboards
 whiteboard-rename = Rename
@@ -72,10 +73,43 @@ whiteboard-rename-placeholder = Whiteboard name
 whiteboard-rename-save = Save
 whiteboard-rename-saving = Saving...
 whiteboard-rename-cancel = Cancel
-whiteboard-delete-confirm-title = Delete Whiteboard
-whiteboard-delete-confirm-description = Are you sure you want to delete this whiteboard? This action cannot be undone.
-whiteboard-delete-confirm = Delete
+whiteboard-delete-confirm-title = Move whiteboard to trash
+whiteboard-delete-confirm-description = Are you sure you want to move this whiteboard to trash?
+whiteboard-delete-confirm = Move to Trash
 whiteboard-delete-cancel = Cancel
+whiteboard-trash-search-placeholder = Search trash...
+whiteboard-shared-badge = Shared
+
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{ $name }" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = { $count } items will be moved to trash. You can restore them within 30 days.
+delete-confirm-action = Move to trash
+delete-confirm-cancel = Cancel
+
+empty-trash-title = No trashed whiteboards
+empty-trash-description = Whiteboards moved to trash will appear here.
+trash-refresh = Refresh
+sort-name = Name
+sort-trashed = Trashed on
+table-trashed = Trashed on
+
+trashed-readonly-title = This whiteboard is in trash
+trashed-readonly-description = "{ $title }" is in trash, so you can view it but not edit or collaborate on it.
+trashed-readonly-owner-note = Restore this whiteboard to resume editing and collaboration.
+trashed-readonly-shared-note = Only the owner can restore this whiteboard. You can keep viewing the content here.
+trashed-readonly-go-home = Go to Whiteboards
+trashed-readonly-restore = Restore
+trashed-readonly-restoring = Restoring...
+
+toast-moved-to-trash = Whiteboard moved to trash
+toast-move-to-trash-failed = Failed to move whiteboard to trash
+toast-restored = Whiteboard restored
+toast-restore-failed = Failed to restore whiteboard
+toast-rename-failed = Failed to rename whiteboard
+toast-duplicated = Whiteboard duplicated
+toast-duplicate-failed = Failed to duplicate whiteboard
+whiteboard-open-failed = Unable to open this whiteboard
+
 time-just-now = Just now
 time-minutes-ago = { $count ->
     [one] 1 minute ago

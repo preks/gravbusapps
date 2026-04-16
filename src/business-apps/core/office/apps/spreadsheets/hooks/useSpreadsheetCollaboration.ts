@@ -292,6 +292,7 @@ function safeParseJwtPayload(
 export interface UseSpreadsheetCollaborationProps {
   appId: string
   accessToken: string
+  disabled?: boolean
   callbacks: CollaborationCallbacks
   onError?: (error: Error) => void
   shouldIgnoreReceivedOperation?: (operation: CollaborationOperation) => boolean
@@ -315,6 +316,7 @@ export interface SpreadsheetCollaborationState {
 export function useSpreadsheetCollaboration({
   appId,
   accessToken,
+  disabled = false,
   callbacks,
   onError,
   shouldIgnoreReceivedOperation
@@ -387,7 +389,7 @@ export function useSpreadsheetCollaboration({
   }, [])
 
   useEffect(() => {
-    if (!accessToken || !appId) {
+    if (disabled || !accessToken || !appId) {
       setRawParticipants([])
       setIsCollaborationConnected(false)
       setIsCollaborationJoined(false)
@@ -552,10 +554,10 @@ export function useSpreadsheetCollaboration({
       onErrorStable(resolvedError)
       return
     }
-  }, [accessToken, appId, clearJoinAckTimeout, onErrorStable, onOperationReceivedStable])
+  }, [accessToken, appId, clearJoinAckTimeout, disabled, onErrorStable, onOperationReceivedStable])
 
   useEffect(() => {
-    if (!accessToken || typeof window === 'undefined') {
+    if (disabled || !accessToken || typeof window === 'undefined') {
       return
     }
 
@@ -568,7 +570,7 @@ export function useSpreadsheetCollaboration({
     return () => {
       window.removeEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)
     }
-  }, [accessToken])
+  }, [accessToken, disabled])
 
   const baseEmitOperation = useCallback(
     (operation: DocumentOperation) => {

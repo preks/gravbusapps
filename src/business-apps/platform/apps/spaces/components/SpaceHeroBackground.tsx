@@ -36,19 +36,16 @@ interface WaveBlob {
 // High contrast: bright cyan/white highlight, mid blue base, deep navy in places
 const BASE_BLUE = 'rgb(50, 90, 150)' // mid blue so bright + dark both read
 const BRIGHT = [
-  'rgba(224, 242, 254, 0.92)',  // very light cyan (main bright spot – pops)
-  'rgba(147, 197, 253, 0.78)',  // light sky blue
+  'rgba(224, 242, 254, 0.92)', // very light cyan (main bright spot – pops)
+  'rgba(147, 197, 253, 0.78)' // light sky blue
 ]
 const MID_DARK = [
-  'rgba(59, 130, 246, 0.6)',    // royal blue
-  'rgba(30, 64, 175, 0.55)',    // deep royal
-  'rgba(15, 23, 42, 0.5)',      // navy (darker areas)
+  'rgba(59, 130, 246, 0.6)', // royal blue
+  'rgba(30, 64, 175, 0.55)', // deep royal
+  'rgba(15, 23, 42, 0.5)' // navy (darker areas)
 ]
 
-export const SpaceHeroBackground: React.FC<SpaceHeroBackgroundProps> = ({
-  className = '',
-  speed = 1
-}) => {
+export const SpaceHeroBackground: React.FC<SpaceHeroBackgroundProps> = ({ className = '', speed = 1 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const frameRef = useRef<number>()
   const wavesRef = useRef<WaveBlob[]>([])
@@ -162,7 +159,7 @@ export const SpaceHeroBackground: React.FC<SpaceHeroBackgroundProps> = ({
       ctx.fillStyle = BASE_BLUE
       ctx.fillRect(0, 0, w, h)
 
-      wavesRef.current.forEach((blob) => {
+      wavesRef.current.forEach(blob => {
         // Wave motion: bright spots drift in a smooth curve (like the video frames)
         const wx = Math.sin(t * 0.35 + blob.phase) * blob.ampX * w
         const wy = Math.cos(t * 0.28 + blob.phase * 1.1) * blob.ampY * h

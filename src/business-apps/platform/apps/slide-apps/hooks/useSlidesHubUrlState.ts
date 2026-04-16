@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import type { Slide } from '../types'
 
-type HubView = 'list' | 'editor'
-type SidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'archived'
+type HubView = 'list' | 'editor' | 'trash'
+type SidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'trash'
 
 export interface UseSlidesHubUrlStateParams {
   currentView: HubView
   currentSlideId: string | null
   isLoadingSlide: boolean
-  loadSlideById: (id: string) => Promise<unknown | null>
+  loadSlideById: (id: string) => Promise<Slide | null>
+  loadTrashedSlideById: (id: string) => Promise<Slide | null>
   setCurrentView: (view: HubView) => void
   setSelectedSlideId: (id: string | null) => void
   activeSection: SidebarSection
@@ -17,7 +19,7 @@ export interface UseSlidesHubUrlStateParams {
 }
 
 export interface UseSlidesHubUrlStateReturn {
-  updateUrl: (slideId: string | null, view?: HubView) => void
+  updateUrl: (slideId: string | null, view?: HubView, sectionOverride?: SidebarSection) => void
   resetLoadAttempt: () => void
 }
 
@@ -36,6 +38,7 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     currentSlideId,
     isLoadingSlide,
     loadSlideById,
+    loadTrashedSlideById,
     setCurrentView,
     setSelectedSlideId,
     activeSection,
@@ -50,8 +53,9 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
   const initialViewRef = useRef(getUrlParams().view)
 
   const updateUrl = useCallback(
-    (slideId: string | null, view?: HubView) => {
+    (slideId: string | null, view?: HubView, sectionOverride?: SidebarSection) => {
       const urlParams = new URLSearchParams(window.location.search)
+      const nextSection = sectionOverride ?? activeSection
       if (slideId) {
         urlParams.set('slideId', slideId)
         if (view) urlParams.set('view', view)
@@ -60,15 +64,15 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
         urlParams.delete('view')
       }
       // Always preserve section in URL (even when no slide is selected)
-      if (activeSection && activeSection !== 'my-slides') {
-        urlParams.set('section', activeSection)
+      if (nextSection && nextSection !== 'my-slides') {
+        urlParams.set('section', nextSection)
       } else {
         urlParams.delete('section')
       }
       const newUrl = urlParams.toString()
         ? `${window.location.pathname}?${urlParams.toString()}`
         : window.location.pathname
-      window.history.pushState({ slideId, view, section: activeSection }, '', newUrl)
+      window.history.pushState({ slideId, view, section: nextSection }, '', newUrl)
     },
     [activeSection]
   )
@@ -108,6 +112,23 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
     loadAttemptedRef.current = slideId
     initialSlideIdRef.current = null
     initialViewRef.current = null
+    if (view === 'trash') {
+      loadTrashedSlideById(slideId).then(slide => {
+        if (!initialLoadCompleteRef.current) {
+          initialLoadCompleteRef.current = true
+          onInitialLoadComplete?.()
+        }
+        if (!slide) {
+          loadAttemptedRef.current = null
+          return
+        }
+
+        setSelectedSlideId(slideId)
+        setCurrentView(slide.trashedAt ? 'trash' : 'editor')
+      })
+      return
+    }
+
     loadSlideById(slideId).then(slide => {
       if (!initialLoadCompleteRef.current) {
         initialLoadCompleteRef.current = true
@@ -120,7 +141,15 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
       setSelectedSlideId(slideId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
-  }, [currentSlideId, isLoadingSlide, loadSlideById, setCurrentView, setSelectedSlideId, onInitialLoadComplete])
+  }, [
+    currentSlideId,
+    isLoadingSlide,
+    loadSlideById,
+    loadTrashedSlideById,
+    setCurrentView,
+    setSelectedSlideId,
+    onInitialLoadComplete
+  ])
 
   // Track if we came from desk
   useEffect(() => {
@@ -160,6 +189,15 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
       }
 
       if (state?.slideId) {
+        if (state.view === 'trash') {
+          loadTrashedSlideById(state.slideId).then(slide => {
+            if (!slide) return
+            setSelectedSlideId(state.slideId!)
+            setCurrentView(slide.trashedAt ? 'trash' : 'editor')
+          })
+          return
+        }
+
         loadSlideById(state.slideId).then(slide => {
           if (!slide) return
           setSelectedSlideId(state.slideId!)
@@ -174,7 +212,7 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [currentView, loadSlideById, setCurrentView, setSelectedSlideId, setActiveSection])
+  }, [currentView, loadSlideById, loadTrashedSlideById, setCurrentView, setSelectedSlideId, setActiveSection])
 
   return { updateUrl, resetLoadAttempt }
 }

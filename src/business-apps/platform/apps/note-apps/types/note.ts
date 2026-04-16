@@ -55,6 +55,7 @@ export interface Note {
   title?: string
   content?: string // HTML content from editor
   contentJson?: Record<string, unknown> // Structured content (for block editors)
+  noteType?: string
   plainText?: string // Plain text for search
   tags?: string[]
   color?: NoteColor
@@ -65,9 +66,11 @@ export interface Note {
   position: number // For ordering within parent
   settings?: NoteSettings
   ownerId: string
+  spaceId?: string | null
   currentVersion: number
   createdAt: string
   updatedAt: string
+  trashedAt?: string | null
   // Computed/joined fields
   children?: Note[]
   // Permission info (from backend for shared notes)
@@ -97,8 +100,10 @@ export interface NoteSummary {
   parentId?: string
   position: number
   ownerId: string
+  spaceId?: string | null
   createdAt: string
   updatedAt: string
+  trashedAt?: string | null
   wordCount?: number
   hasChildren?: boolean
   childCount?: number

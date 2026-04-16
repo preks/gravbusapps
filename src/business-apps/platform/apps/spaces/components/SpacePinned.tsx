@@ -5,9 +5,11 @@
  */
 
 import React from 'react'
-import { formatDistanceToNow } from 'date-fns'
+import { useTranslation } from '@newwork/nw-design-system'
 import { FileText, Table2, StickyNote, Presentation, Pin, ExternalLink } from 'lucide-react'
 import type { SpaceContentItem } from '../types/space.types'
+import translations from '../_i18n'
+import { formatLocalizedDistance } from '../utils/spaceLocalization'
 
 export interface SpacePinnedProps {
   items: SpaceContentItem[]
@@ -15,11 +17,11 @@ export interface SpacePinnedProps {
   'data-testid'?: string
 }
 
-const contentTypeConfig: Record<string, { icon: typeof FileText; color: string; bg: string; label: string }> = {
-  document: { icon: FileText, color: 'gba:text-blue-600', bg: 'gba:bg-blue-500/20', label: 'Document' },
-  spreadsheet: { icon: Table2, color: 'gba:text-emerald-600', bg: 'gba:bg-emerald-500/20', label: 'Spreadsheet' },
-  note: { icon: StickyNote, color: 'gba:text-amber-600', bg: 'gba:bg-amber-500/20', label: 'Note' },
-  slide: { icon: Presentation, color: 'gba:text-info', bg: 'gba:bg-info/20', label: 'Presentation' }
+const contentTypeConfig: Record<string, { icon: typeof FileText; color: string; bg: string }> = {
+  document: { icon: FileText, color: 'gba:text-blue-600', bg: 'gba:bg-blue-500/20' },
+  spreadsheet: { icon: Table2, color: 'gba:text-emerald-600', bg: 'gba:bg-emerald-500/20' },
+  note: { icon: StickyNote, color: 'gba:text-amber-600', bg: 'gba:bg-amber-500/20' },
+  slide: { icon: Presentation, color: 'gba:text-info', bg: 'gba:bg-info/20' }
 }
 
 export const SpacePinned: React.FC<SpacePinnedProps> = ({
@@ -27,14 +29,16 @@ export const SpacePinned: React.FC<SpacePinnedProps> = ({
   onItemClick,
   'data-testid': testId = 'space-pinned'
 }) => {
+  const { t, locale } = useTranslation(translations)
+
   if (items.length === 0) {
     return (
       <div className="gba:text-center gba:py-12" data-testid={testId}>
         <div className="gba:w-14 gba:h-14 gba:mx-auto gba:mb-4 gba:rounded-2xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center">
           <Pin className="gba:w-7 gba:h-7 gba:text-muted-foreground" />
         </div>
-        <p className="gba:text-muted-foreground">No pinned content</p>
-        <p className="gba:text-sm gba:text-muted-foreground/70">Pin important items to feature them here</p>
+        <p className="gba:text-muted-foreground">{t('pinned-empty-title')}</p>
+        <p className="gba:text-sm gba:text-muted-foreground/70">{t('pinned-empty-description')}</p>
       </div>
     )
   }
@@ -44,6 +48,14 @@ export const SpacePinned: React.FC<SpacePinnedProps> = ({
       {items.map((item, index) => {
         const config = contentTypeConfig[item.type] || contentTypeConfig.document
         const Icon = config.icon
+        const typeLabelKey =
+          item.type === 'spreadsheet'
+            ? 'content-type-spreadsheet'
+            : item.type === 'note'
+              ? 'content-type-note'
+              : item.type === 'slide'
+                ? 'content-type-slide'
+                : 'content-type-document'
 
         return (
           <div
@@ -81,9 +93,11 @@ export const SpacePinned: React.FC<SpacePinnedProps> = ({
 
                 <div className="gba:flex gba:items-center gba:gap-3 gba:mt-2 gba:text-xs gba:text-muted-foreground">
                   <span className={`gba:px-2 gba:py-0.5 gba:rounded-md ${config.bg} ${config.color}`}>
-                    {config.label}
+                    {t(typeLabelKey)}
                   </span>
-                  <span>Updated {formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true })}</span>
+                  <span>
+                    {t('common-updated-relative', { time: formatLocalizedDistance(new Date(item.updatedAt), locale) })}
+                  </span>
                 </div>
               </div>
             </div>
