@@ -118,6 +118,7 @@ export interface ReportingChainData {
   levels: number
   totalEmployees: number
   averageSpanOfControl: number
+  chainPath?: string
   bottlenecks: string[]
   efficiency: number
 }

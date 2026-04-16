@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { EveryOneHero } from './EveryOneHero'
 import { PersonalStats } from './PersonalStats'
 import { TopContacts, PresenceInfo } from './TopContacts'
@@ -8,6 +8,7 @@ import { UpcomingMeetings } from './UpcomingMeetings'
 import { useEveryOneAnalytics } from '../../hooks/useEveryOneAnalytics'
 import type { CalendarEvent } from '../../calendar/types'
 import { useChatClient } from '@/common/network/chat/useChatClient'
+import translations from '../../_i18n'
 
 type CallType = 'audio' | 'video'
 
@@ -41,6 +42,7 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
   onJoinMeeting,
   'data-testid': testId = 'everyone-dashboard'
 }) => {
+  const { t } = useTranslation(translations)
   const apiClient = useChatClient(accessToken)
 
   const { userOverview, userContacts, globalStats, isLoading, error } = useEveryOneAnalytics({
@@ -70,8 +72,7 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
         <EveryOneHero userName={userName} />
         <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:p-6">
           <div className="gba:text-center">
-            <p className="gba:text-muted-foreground gba:mb-2">Unable to load dashboard data</p>
-            <p className="gba:text-sm gba:text-muted-foreground/70">{error}</p>
+            <p className="gba:text-muted-foreground gba:mb-2">{t('dashboard-error-loadData')}</p>
           </div>
         </div>
       </div>

@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { useGetHierarchyData } from '../queries/HierarchyQueries'
-import {
-  processHierarchyData,
-  buildSunburstData,
-  generateCompanyColorMap,
-  generateCostCenterColorMap,
-  generateTableData
-} from '../utils/hierarchyUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 import {
   SunburstNode,
   HierarchyStatistics,
@@ -20,10 +13,33 @@ import {
 
 export type ViewMode = 'location' | 'company' | 'costcenter'
 
+export interface AlternativeViewDatasetRow {
+  category: string
+  value: number
+  view_mode?: string | null
+  level?: number | null
+  level_name?: string | null
+  departments_count?: number | null
+  level_total_employees?: number | null
+  percentage_of_level?: number | null
+}
+
+interface HierarchyStatsDatasetRow {
+  category: string
+  value: number
+  total_employees?: number | null
+  total_organizational_units?: number | null
+  max_levels?: number | null
+  countries_represented?: number | null
+  companies_count?: number | null
+  cost_centers_count?: number | null
+}
+
 export interface HierarchyDataIntegrationResult {
   sunburstData: SunburstNode[]
   statistics: HierarchyStatistics
   tableData: HierarchyTableData
+  alternativeViewData: Record<ViewMode, AlternativeViewDatasetRow[]>
   colorMap: CountryColorMap | CompanyColorMap | CostCenterColorMap
   isLoading: boolean
   error: string | null
@@ -47,61 +63,16 @@ export const useHierarchyDataIntegration = (context: BusinessAppContextProps): H
     company: [],
     costcenter: []
   })
+  const [alternativeViewData, setAlternativeViewData] = useState<Record<ViewMode, AlternativeViewDatasetRow[]>>({
+    location: [],
+    company: [],
+    costcenter: []
+  })
   const [colorMap, setColorMap] = useState<CountryColorMap | CompanyColorMap | CostCenterColorMap>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('location')
-  const [rawData, setRawData] = useState<any>(null)
-
-  const { fetchHierarchyData } = useGetHierarchyData(context)
-
-  const processData = useCallback((data: any, mode: ViewMode) => {
-    try {
-      const processed = processHierarchyData(data)
-
-      // Generate table data from processed nodes
-      const newTableData = generateTableData(processed.nodes, processed.statistics)
-
-      let newColorMap: CountryColorMap | CompanyColorMap | CostCenterColorMap
-      if (mode === 'company') {
-        const companies = new Set<string>()
-        processed.nodes.forEach(node => {
-          // Collect companies from employee-company assignments
-          node.employeeCountByCompany?.forEach((_, companyKey) => {
-            if (companyKey !== 'Unknown') {
-              companies.add(companyKey)
-            }
-          })
-        })
-        newColorMap = generateCompanyColorMap(companies)
-      } else if (mode === 'costcenter') {
-        const costCenters = new Set<string>()
-        processed.nodes.forEach(node => {
-          node.employeeCountByCostCenter?.forEach((_, costCenter) => {
-            costCenters.add(costCenter)
-          })
-        })
-        newColorMap = generateCostCenterColorMap(costCenters)
-      } else {
-        newColorMap = processed.colorMap
-      }
-
-      const newSunburstData = buildSunburstData(
-        processed.nodes,
-        newColorMap,
-        mode,
-        mode === 'company' ? 'company' : mode === 'costcenter' ? 'costcenter' : 'country'
-      )
-
-      setSunburstData(newSunburstData)
-      setStatistics(processed.statistics)
-      setTableData(newTableData)
-      setColorMap(newColorMap)
-    } catch (err) {
-      console.error('Error processing hierarchy data:', err)
-      setError(err instanceof Error ? err.message : 'Unknown error processing data')
-    }
-  }, [])
+  const datasetClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -109,27 +80,80 @@ export const useHierarchyDataIntegration = (context: BusinessAppContextProps): H
 
     try {
       const structureId = getCurrentActiveStructureId() ?? ''
+      const localeCode = getCurrentActiveUserLocale() ?? 'en-US'
 
-      const data = await fetchHierarchyData({ structureId })
-      setRawData(data)
-      processData(data, viewMode)
+      const [locationAlternativeRes, companyAlternativeRes, costCenterAlternativeRes, statsRes] = await Promise.all([
+        datasetClient
+          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'location', localeCode })
+          .catch(() => ({ data: [] })),
+        datasetClient
+          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'company', localeCode })
+          .catch(() => ({ data: [] })),
+        datasetClient
+          ?.executeQuery('orgHierarchyView', QueryType.DATASET, { structureId, viewMode: 'costcenter', localeCode })
+          .catch(() => ({ data: [] })),
+        datasetClient?.executeQuery('orgHierarchyStats', QueryType.DATASET, { structureId }).catch(() => ({ data: [] }))
+      ])
+
+      const toRows = (response: unknown): AlternativeViewDatasetRow[] => {
+        if (response && typeof response === 'object' && 'data' in (response as Record<string, unknown>)) {
+          const rawRows = (response as { data?: AlternativeViewDatasetRow[] }).data
+          return Array.isArray(rawRows) ? rawRows : []
+        }
+        return []
+      }
+
+      setAlternativeViewData({
+        location: toRows(locationAlternativeRes),
+        company: toRows(companyAlternativeRes),
+        costcenter: toRows(costCenterAlternativeRes)
+      })
+
+      const statsRows = toRows(statsRes) as HierarchyStatsDatasetRow[]
+      const firstStatsRow = statsRows[0]
+      const toSafeNumber = (value: unknown): number => {
+        const numericValue = typeof value === 'number' ? value : Number(value)
+        return Number.isFinite(numericValue) ? numericValue : 0
+      }
+      const sqlStats: HierarchyStatistics | null = firstStatsRow
+        ? {
+            totalEmployees: toSafeNumber(firstStatsRow.total_employees),
+            totalOrganizationalUnits: toSafeNumber(firstStatsRow.total_organizational_units),
+            maxLevels: toSafeNumber(firstStatsRow.max_levels),
+            countriesRepresented: toSafeNumber(firstStatsRow.countries_represented),
+            companiesCount: toSafeNumber(firstStatsRow.companies_count),
+            costCentersCount: toSafeNumber(firstStatsRow.cost_centers_count)
+          }
+        : null
+
+      setStatistics(
+        sqlStats ?? {
+          totalEmployees: 0,
+          totalOrganizationalUnits: 0,
+          maxLevels: 0,
+          countriesRepresented: 0,
+          companiesCount: 0,
+          costCentersCount: 0
+        }
+      )
+      setSunburstData([])
+      setTableData({
+        location: [],
+        company: [],
+        costcenter: []
+      })
+      setColorMap({})
     } catch (err) {
       console.error('Error loading hierarchy data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsLoading(false)
     }
-  }, [fetchHierarchyData, viewMode, processData])
+  }, [datasetClient])
 
-  const handleViewModeChange = useCallback(
-    (mode: ViewMode) => {
-      setViewMode(mode)
-      if (rawData) {
-        processData(rawData, mode)
-      }
-    },
-    [rawData, processData]
-  )
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode)
+  }, [])
 
   useEffect(() => {
     if (context.accessToken) {
@@ -137,16 +161,11 @@ export const useHierarchyDataIntegration = (context: BusinessAppContextProps): H
     }
   }, [context.accessToken, loadData])
 
-  useEffect(() => {
-    if (rawData && !isLoading) {
-      processData(rawData, viewMode)
-    }
-  }, [viewMode, rawData, isLoading, processData])
-
   return {
     sunburstData,
     statistics,
     tableData,
+    alternativeViewData,
     colorMap,
     isLoading,
     error,

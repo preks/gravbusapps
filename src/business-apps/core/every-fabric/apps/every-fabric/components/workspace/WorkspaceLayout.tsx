@@ -84,6 +84,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
     messages,
     streamingGreeting,
     streamingContent,
+    streamingThinking,
     statusHeadline,
     accessToken,
     isStreaming,
@@ -395,6 +396,7 @@ export const WorkspaceLayout: React.FC<{ onOpenHistory: () => void; onOpenSettin
           messages={messages}
           streamingGreeting={streamingGreeting}
           streamingContent={streamingContent}
+          streamingThinking={streamingThinking}
           statusHeadline={statusHeadline}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}

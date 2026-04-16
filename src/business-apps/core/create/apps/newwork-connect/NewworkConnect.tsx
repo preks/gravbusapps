@@ -38,6 +38,7 @@ import {
   inferProviderIdFromConnection
 } from './components/connectCatalog'
 import translations from './_i18n'
+import { useCredentialBindOptions } from '@/common/hooks/useCredentialBindOptions'
 
 type EditorState =
   | { mode: 'create'; provider: ConnectorProviderODM }
@@ -47,6 +48,7 @@ type HealthState = Pick<ExternalConnectionHealthResponse, 'success' | 'message'>
 
 export const NewworkConnect: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const { t } = useTranslation(translations)
+  const { credentialBindOptions } = useCredentialBindOptions(accessToken)
   const client = usePromptManagerClient(accessToken)
   const clientRef = useRef(client)
   clientRef.current = client
@@ -376,6 +378,7 @@ export const NewworkConnect: React.FC<BusinessAppContextProps> = ({ accessToken 
         onCreate={handleCreateConnection}
         onUpdate={handleUpdateConnection}
         t={t}
+        credentialBindOptions={credentialBindOptions}
       />
     </div>
   )

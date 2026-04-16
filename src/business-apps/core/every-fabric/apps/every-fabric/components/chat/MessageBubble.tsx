@@ -216,6 +216,27 @@ export const MessageBubble = ({ message, onReply, onViewArtifact, accessToken }:
       )
     }
 
+    case 'human_interrupt': {
+      const { question } = message.content as { question: string }
+      return (
+        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
+          <div className="gba:w-fit gba:max-w-full gba:px-1">
+            <div className="gba:flex gba:items-start gba:gap-2.5">
+              <div className="gba:flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted/55 gba:text-muted-foreground gba:shrink-0 gba:mt-0.5">
+                <span className="gba:text-[11px] gba:font-medium">?</span>
+              </div>
+              <div className="gba:flex-1">
+                <p className="gba:text-[12px] gba:font-semibold gba:text-foreground/90 gba:mb-0.5">
+                  Agent has a question
+                </p>
+                <p className="gba:text-[14px] gba:leading-6 gba:text-muted-foreground">{question}</p>
+              </div>
+            </div>
+          </div>
+        </AnimatedMessageWrapper>
+      )
+    }
+
     case 'final_answer': {
       const content = message.content as Parameters<typeof FinalAnswerRenderer>[0]
       return (

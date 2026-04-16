@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { BoardCollection } from '../types/collection'
 import type { BoardSummary } from '../types/board'
 import { CollectionApiService } from '../services/CollectionApiService'
+import translations from '../_i18n'
 
 export interface UseBoardCollectionsReturn {
   collections: BoardCollection[]
@@ -29,6 +31,7 @@ export interface UseBoardCollectionsReturn {
 }
 
 export function useBoardCollections(): UseBoardCollectionsReturn {
+  const { t } = useTranslation(translations)
   const [collections, setCollections] = useState<BoardCollection[]>([])
   const [collectionBoards, setCollectionBoards] = useState<Map<string, BoardSummary[]>>(new Map())
   const [isLoading, setIsLoading] = useState(false)
@@ -41,11 +44,11 @@ export function useBoardCollections(): UseBoardCollectionsReturn {
       const result = await CollectionApiService.listCollections()
       setCollections(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load spaces')
+      setError(err instanceof Error ? err.message : t('error-load-spaces'))
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void refreshCollections()

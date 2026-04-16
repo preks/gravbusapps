@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   Heading1,
   Heading2,
@@ -13,6 +14,7 @@ import {
   ImageIcon,
   type LucideIcon
 } from 'lucide-react'
+import translations from '../../_i18n'
 
 interface SlashMenuItem {
   title: string
@@ -26,65 +28,67 @@ interface RowPageSlashMenuProps {
   onInsertImage: () => void
 }
 
-function buildItems(onInsertImage: () => void): SlashMenuItem[] {
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
+
+function buildItems(t: TranslateFn, onInsertImage: () => void): SlashMenuItem[] {
   return [
     {
-      title: 'Heading 1',
-      description: 'Large section heading',
+      title: t('board-rich-text-heading-1'),
+      description: t('board-slash-heading-1-description'),
       icon: Heading1,
       command: ed => ed.chain().focus().toggleHeading({ level: 1 }).run()
     },
     {
-      title: 'Heading 2',
-      description: 'Medium section heading',
+      title: t('board-rich-text-heading-2'),
+      description: t('board-slash-heading-2-description'),
       icon: Heading2,
       command: ed => ed.chain().focus().toggleHeading({ level: 2 }).run()
     },
     {
-      title: 'Heading 3',
-      description: 'Small section heading',
+      title: t('board-rich-text-heading-3'),
+      description: t('board-slash-heading-3-description'),
       icon: Heading3,
       command: ed => ed.chain().focus().toggleHeading({ level: 3 }).run()
     },
     {
-      title: 'Bullet List',
-      description: 'Unordered list',
+      title: t('board-slash-bullet-list'),
+      description: t('board-slash-bullet-list-description'),
       icon: List,
       command: ed => ed.chain().focus().toggleBulletList().run()
     },
     {
-      title: 'Numbered List',
-      description: 'Ordered list',
+      title: t('board-slash-numbered-list'),
+      description: t('board-slash-numbered-list-description'),
       icon: ListOrdered,
       command: ed => ed.chain().focus().toggleOrderedList().run()
     },
     {
-      title: 'Task List',
-      description: 'Checkable todo items',
+      title: t('board-slash-task-list'),
+      description: t('board-slash-task-list-description'),
       icon: CheckSquare,
       command: ed => ed.chain().focus().toggleTaskList().run()
     },
     {
-      title: 'Quote',
-      description: 'Block quotation',
+      title: t('board-slash-quote'),
+      description: t('board-slash-quote-description'),
       icon: Quote,
       command: ed => ed.chain().focus().toggleBlockquote().run()
     },
     {
-      title: 'Divider',
-      description: 'Horizontal separator',
+      title: t('board-slash-divider'),
+      description: t('board-slash-divider-description'),
       icon: Minus,
       command: ed => ed.chain().focus().setHorizontalRule().run()
     },
     {
-      title: 'Code Block',
-      description: 'Fenced code block',
+      title: t('board-slash-code-block'),
+      description: t('board-slash-code-block-description'),
       icon: Code2,
       command: ed => ed.chain().focus().toggleCodeBlock().run()
     },
     {
-      title: 'Image',
-      description: 'Upload or paste an image',
+      title: t('board-slash-image'),
+      description: t('board-slash-image-description'),
       icon: ImageIcon,
       command: () => onInsertImage()
     }
@@ -92,6 +96,7 @@ function buildItems(onInsertImage: () => void): SlashMenuItem[] {
 }
 
 export function RowPageSlashMenu({ editor, onInsertImage }: RowPageSlashMenuProps) {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -99,7 +104,7 @@ export function RowPageSlashMenu({ editor, onInsertImage }: RowPageSlashMenuProp
   const menuRef = useRef<HTMLDivElement>(null)
   const slashPosRef = useRef<number | null>(null)
 
-  const items = buildItems(onInsertImage)
+  const items = buildItems(t, onInsertImage)
   const filtered = query
     ? items.filter(
         item =>

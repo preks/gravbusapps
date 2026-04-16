@@ -4,13 +4,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { History, Plus, Sparkles, Zap, Brain, Database, MessageSquare, Globe, FlaskConical } from 'lucide-react'
 import { NexusChatMessage } from './NexusChatMessage'
 import { NexusChatInput } from './NexusChatInput'
 import { NexusScopeSelector } from './NexusScopeSelector'
 import type { NexusMessage, NexusArtifact } from '../../types/nexus.types'
+import translations from '../../_i18n'
 
 interface Space {
   id: string
@@ -31,7 +33,7 @@ interface NexusChatProps {
   scope: 'all' | 'space' | 'none'
   spaceId: string | null
   spaces: Space[]
-  activeArtifact: NexusArtifact | null
+  artifactsById: Record<string, NexusArtifact>
   sessionTitle?: string
   llmProvider?: string
   dataAccessEnabled: boolean
@@ -48,6 +50,8 @@ interface NexusChatProps {
   onSpaceChange: (spaceId: string | null) => void
   onNewSession: () => void
   onOpenHistory: () => void
+  /** Focus the canvas (e.g. after clicking “View” on an artifact teaser in the transcript). */
+  onViewArtifact?: (artifactId: string) => void
   testId?: string
 }
 
@@ -65,7 +69,7 @@ export const NexusChat = ({
   scope,
   spaceId,
   spaces,
-  activeArtifact,
+  artifactsById,
   sessionTitle,
   llmProvider,
   dataAccessEnabled,
@@ -82,8 +86,10 @@ export const NexusChat = ({
   onSpaceChange,
   onNewSession,
   onOpenHistory,
+  onViewArtifact,
   testId = 'nexus-chat'
 }: NexusChatProps) => {
+  const { t } = useTranslation(translations)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const userScrolledUpRef = useRef(false)
@@ -160,9 +166,11 @@ export const NexusChat = ({
               </div>
             </div>
             <div className="gba:space-y-1.5">
-              <p className="gba:text-base gba:font-bold gba:tracking-tight gba:text-foreground">Welcome to Nexus</p>
+              <p className="gba:text-base gba:font-bold gba:tracking-tight gba:text-foreground">
+                {t('chat-empty-title')}
+              </p>
               <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[260px] gba:leading-relaxed">
-                Ask me anything about your documents, or instruct me to create content.
+                {t('chat-empty-description')}
               </p>
             </div>
           </div>
@@ -175,9 +183,8 @@ export const NexusChat = ({
             userName={userName}
             userAvatarUrl={userAvatarUrl}
             accessToken={accessToken}
-            artifactType={
-              message.artifactId && activeArtifact?.id === message.artifactId ? activeArtifact.type : undefined
-            }
+            artifactType={message.artifactId ? artifactsById[message.artifactId]?.type : undefined}
+            onViewArtifact={onViewArtifact}
             thinkingSources={messageWebSources?.[message.id]}
           />
         ))}
@@ -221,7 +228,7 @@ export const NexusChat = ({
                       : 'gba:bg-info-secondary gba:text-info-secondary-foreground gba:hover:opacity-90'
                   }`}
                   data-testid={`${testId}-llm-toggle`}
-                  title={llmProvider === 'groq' ? 'Fast mode' : 'Smart mode'}
+                  title={llmProvider === 'groq' ? t('chat-llm-fast-mode') : t('chat-llm-smart-mode')}
                 >
                   {llmProvider === 'groq' ? (
                     <Zap className="gba:h-3.5 gba:w-3.5" />
@@ -236,11 +243,11 @@ export const NexusChat = ({
                   data-testid={`${testId}-llm-option-openai`}
                 >
                   <Brain className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-info" />
-                  Smart {llmProvider !== 'groq' ? '(active)' : ''}
+                  {llmProvider !== 'groq' ? t('chat-llm-smart-active') : t('chat-llm-smart-mode')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onLlmProviderChange('groq')} data-testid={`${testId}-llm-option-groq`}>
                   <Zap className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-warning" />
-                  Fast {llmProvider === 'groq' ? '(active)' : ''}
+                  {llmProvider === 'groq' ? t('chat-llm-fast-active') : t('chat-llm-fast-mode')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -263,10 +270,10 @@ export const NexusChat = ({
               }`}
               onClick={() => onDataAccessToggle(!dataAccessEnabled)}
               data-testid={`${testId}-data-access-toggle`}
-              title="Data access"
+              title={t('chat-data-access')}
             >
               <Database className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0" />
-              {dataAccessEnabled && <span>Data</span>}
+              {dataAccessEnabled && <span>{t('chat-data')}</span>}
             </button>
 
             {/* Web Search pill — icon only when off, icon + label when on */}
@@ -278,10 +285,10 @@ export const NexusChat = ({
               }`}
               onClick={() => onWebSearchToggle(!webSearchEnabled)}
               data-testid={`${testId}-web-search-toggle`}
-              title="Web search"
+              title={t('chat-web-search')}
             >
               <Globe className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0" />
-              {webSearchEnabled && <span>Web</span>}
+              {webSearchEnabled && <span>{t('chat-web')}</span>}
             </button>
 
             {/* Deep Research pill — icon only when off, icon + label when on */}
@@ -293,10 +300,10 @@ export const NexusChat = ({
               }`}
               onClick={() => onDeepResearchToggle(!deepResearchEnabled)}
               data-testid={`${testId}-deep-research-toggle`}
-              title="Deep Research"
+              title={t('chat-deep-research')}
             >
               <FlaskConical className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0" />
-              {deepResearchEnabled && <span>Deep Research</span>}
+              {deepResearchEnabled && <span>{t('chat-deep-research')}</span>}
             </button>
           </>
         }

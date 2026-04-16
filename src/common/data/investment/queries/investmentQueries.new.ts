@@ -22,6 +22,9 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
   // Minimal: Only essential fields for quick lookups
   minimal: ['code', 'createdAt', 'id', 'name'],
 
+  // IRM activity form: linked accounts + contacts on those accounts for secondary pickers
+  irmActivityAssociation: ['code', 'id', 'investmentAccountsForActivityAssociation', 'name'],
+
   // List: Common fields for table/list views
   list: [
     'acquisitionDate',
@@ -328,7 +331,45 @@ export const buildInvestmentFragment = (fields: string[]): string => {
     ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
     
     ${
-      fieldSet.has('investmentAccounts')
+      fieldSet.has('investmentAccountsForActivityAssociation')
+        ? `
+      ${InvestmentFields.investmentAccounts}(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        investmentId
+        investmentAccountId
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+          investmentAccountContact(where: { isDeleted: { _eq: false } }) {
+            id
+            contactId
+            accountId
+            contact {
+              id
+              code
+              firstName
+              lastName
+              fullName
+              communicationChannels(where: { isDeleted: { _eq: false } }) {
+                value
+                valueExtension
+                communicationChannel {
+                  ${CATALOG_ENTRY}
+                }
+                communicationChannelRef
+              }
+            }
+            ${AUDIT_FIELDS}
+          }
+        }
+        ${AUDIT_FIELDS}
+      }
+    `
+        : ''
+    }
+    
+    ${
+      fieldSet.has('investmentAccounts') && !fieldSet.has('investmentAccountsForActivityAssociation')
         ? `
       ${InvestmentFields.investmentAccounts}(where: { isDeleted: { _eq: false } }) {
         id

@@ -18,6 +18,7 @@ import { Bot, Database, FileText, GitBranch, Plug } from 'lucide-react'
 import type { ConnectorKind } from '@/common/network/functions/FunctionsServiceClient'
 import { CodeEditor } from './CodeEditor'
 import { SettingsEditor, type ConfigRow, type StoredSecretOption } from './SettingsEditor'
+import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 import { TestFunctionCard } from './TestFunctionCard'
 import type { FunctionExecutionLogEntry } from '@/common/network/functions/FunctionsServiceClient'
 
@@ -56,6 +57,7 @@ export interface FunctionDefinitionCardProps {
   onOutputSchemaChange: (v: string) => void
   onConfigKeysChange: (rows: ConfigRow[]) => void
   storedSecrets?: StoredSecretOption[]
+  credentialBindOptions?: CredentialBindOption[]
   testOverrideRows: ConfigRow[]
   onTestOverrideRowsChange: (rows: ConfigRow[]) => void
   testSchemaProperties: Record<string, unknown>
@@ -103,6 +105,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
   onOutputSchemaChange,
   onConfigKeysChange,
   storedSecrets,
+  credentialBindOptions,
   testOverrideRows,
   onTestOverrideRowsChange,
   testSchemaProperties,
@@ -355,6 +358,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
               onConnectionChange={onSelectedConnectionIdChange}
               isLoadingConnections={isLoadingConnections}
               storedSecrets={storedSecrets}
+              credentialBindOptions={credentialBindOptions}
               data-testid={`${testId}-settings`}
             />
           </TabsContent>
@@ -370,6 +374,7 @@ export const FunctionDefinitionCard: React.FC<FunctionDefinitionCardProps> = ({
               onPayloadFieldChange={onTestPayloadFieldChange}
               testOverrideRows={testOverrideRows}
               onTestOverrideRowsChange={onTestOverrideRowsChange}
+              credentialBindOptions={credentialBindOptions}
               onTest={onTest}
               isTesting={isTesting}
               testError={testError}

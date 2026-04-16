@@ -400,6 +400,17 @@ function buildChangedCellSignature(cells: Array<{ rowId: string; columnName: str
     .join('|')
 }
 
+export function isClearLikeMutationCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  if (!normalized) return false
+
+  return (
+    normalized.includes('clear-range') ||
+    normalized.includes('delete-selection') ||
+    normalized.includes('deleteselectioncommand')
+  )
+}
+
 function readWorksheetCellValue(
   worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
   row: number,
@@ -412,10 +423,11 @@ function readWorksheetCellValue(
   )
 }
 
-function deriveCellMatrixFromRanges(
+export function deriveCellMatrixFromRanges(
   worksheet: { getRange?: (row: number, col: number) => unknown } | undefined,
   ranges: SheetRangeShape[],
-  maxCells = 10000
+  maxCells = 10000,
+  preserveUndefinedAsNull = false
 ): SheetCellMatrix | undefined {
   const derived: SheetCellMatrix = {}
   let visited = 0
@@ -424,7 +436,13 @@ function deriveCellMatrixFromRanges(
   const addCellValue = (row: number, col: number) => {
     visited += 1
     if (limitReached()) return
+    if (preserveUndefinedAsNull) {
+      if (!derived[row]) derived[row] = {}
+      derived[row][col] = null
+      return
+    }
     const value = readWorksheetCellValue(worksheet, row, col)
+    if (value === undefined) return
     if (!derived[row]) derived[row] = {}
     derived[row][col] = value
   }
@@ -2901,27 +2919,40 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
       ).addEvent?.(
         eventKey,
-        (params: {
-          effectedRanges?: Array<{
-            getRange?: () => { startRow: number; endRow: number; startColumn: number; endColumn: number }
-          }>
-          payload?: {
-            id?: string
-            params?: {
-              cellValue?: Record<number, Record<number, { v?: unknown }>>
-              range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+        (rawParams: unknown) => {
+          if (readOnlyRef.current) return
+          const params = rawParams as {
+            effectedRanges?: Array<{
+              getRange?: () => { startRow: number; endRow: number; startColumn: number; endColumn: number }
+            }>
+            payload?: {
+              id?: string
+              params?: {
+                cellValue?: Record<number, Record<number, { v?: unknown }>>
+                range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+              }
             }
           }
-        }) => {
-          if (readOnlyRef.current) return
           const payload = params?.payload
-          const payloadCellValue = normalizeCellMatrix(payload?.params?.cellValue)
+          const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
+          let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
+          const workbook = univerAPIRef.current?.getActiveWorkbook()
+          const worksheet = workbook?.getActiveSheet()
           const ranges = (payload?.params?.range ??
             params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
             []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+
+          if (preserveUndefinedAsNull) {
+            cellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, true)
+          } else if (!cellValue) {
+            // Fallback: derive changed values from effected ranges when mutation payload
+            // does not provide `cellValue` (observed in some Univer command variants).
+            cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
+          }
+          if (!cellValue) return
           handleDetectedCellMutation({
             source: 'sheet-value-changed',
-            payloadCellValue,
+            payloadCellValue: cellValue,
             ranges
           })
         }
@@ -2932,8 +2963,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
       ).addEvent?.(
         sheetEditEndedEventKey,
-        (
-          params:
+        (rawParams: unknown) => {
+          if (readOnlyRef.current) return
+          const params = rawParams as
             | {
                 row?: number
                 col?: number
@@ -2943,8 +2975,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 range?: { startRow?: number; startColumn?: number }
               }
             | undefined
-        ) => {
-          if (readOnlyRef.current) return
           const cell = params?.cell
           const range = params?.range
           // Never fall back to the current active selection here. After a slow edit ends,

@@ -1,5 +1,7 @@
 export interface QueryVariablesJobProfile {
   jobProfileId?: string
+  /** When set, only job profiles linked to this job function are returned */
+  jobFunctionId?: string
   offset?: number
   limit?: number
   search?: string
@@ -73,7 +75,7 @@ const createSearchCondition = (search?: string, jobProfileId?: string): string =
 }
 
 export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): string => {
-  const { offset, limit, search, jobProfileId } = variables
+  const { offset, limit, search, jobProfileId, jobFunctionId } = variables
 
   // Build where conditions
   const conditions: string[] = []
@@ -83,6 +85,11 @@ export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): strin
 
   if (jobProfileId) {
     conditions.push(`id: { _eq: "${jobProfileId}" }`)
+  }
+
+  if (jobFunctionId) {
+    const escaped = jobFunctionId.replace(/"/g, '\\"')
+    conditions.push(`jobFunction: { id: { _eq: "${escaped}" } }`)
   }
 
   const searchCondition = createSearchCondition(search, jobProfileId)

@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
@@ -204,7 +205,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               },
               activityTypeCatalog: ACTIVITY_TYPE,
               buildActivityPayload: buildCustomerActivityPayload,
-              preSubmit: activityPreSubmit
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
             }
           },
           {

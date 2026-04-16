@@ -71,6 +71,7 @@ import { SpreadsheetSheetTabs } from './components/SpreadsheetSheetTabs'
 
 type ViewerRow = Record<string, unknown>
 type CellChange = { rowId: string; columnName: string; value: unknown; sheetId?: string }
+type SnapshotCellCoordinate = { row: number; col: number }
 type PendingCellBatch = {
   batchId: string
   targetSheetId: string
@@ -968,7 +969,6 @@ const mergeBootstrapSnapshotWithCanonicalRows = (
   const canonicalWorkbook = buildWorkbookSnapshot(sheet, rows, sheet.columns) as unknown as Record<string, unknown>
   const canonicalWorksheet = getWorksheetFromSnapshot(canonicalWorkbook, sheet.id)
   if (!canonicalWorksheet) return snapshot
-
   const nextSnapshot = cloneSnapshot(snapshot)
   const sheets = ((nextSnapshot.sheets as Record<string, unknown> | undefined) ?? {}) as Record<string, unknown>
   const existingWorksheet = getWorksheetFromSnapshot(nextSnapshot, sheet.id) ?? {}
@@ -987,10 +987,89 @@ const mergeBootstrapSnapshotWithCanonicalRows = (
   return nextSnapshot
 }
 
+const snapshotCellCoordinateKey = (row: number, col: number): string => `${row}:${col}`
+
+const isExplicitSnapshotCellClearValue = (value: unknown): boolean => value === null
+
+const collectSnapshotClearCoordinates = (
+  cells: Array<{ value: unknown; univerRow?: number; univerCol?: number }>
+): SnapshotCellCoordinate[] =>
+  cells
+    .filter(
+      (cell): cell is { value: unknown; univerRow: number; univerCol: number } =>
+        isExplicitSnapshotCellClearValue(cell.value) &&
+        typeof cell.univerRow === 'number' &&
+        Number.isFinite(cell.univerRow) &&
+        typeof cell.univerCol === 'number' &&
+        Number.isFinite(cell.univerCol)
+    )
+    .map(cell => ({ row: Math.trunc(cell.univerRow), col: Math.trunc(cell.univerCol) }))
+
+const appendPendingSnapshotClearCoordinates = (
+  pending: Map<string, Set<string>>,
+  sheetId: string,
+  cells: SnapshotCellCoordinate[]
+): void => {
+  if (!sheetId || cells.length === 0) return
+  const current = pending.get(sheetId) ?? new Set<string>()
+  for (const cell of cells) {
+    current.add(snapshotCellCoordinateKey(cell.row, cell.col))
+  }
+  pending.set(sheetId, current)
+}
+
+const getPendingSnapshotClearCoordinates = (
+  pending: Map<string, Set<string>>,
+  sheetId: string
+): SnapshotCellCoordinate[] => {
+  const current = pending.get(sheetId)
+  if (!current || current.size === 0) return []
+  return Array.from(current)
+    .map(entry => {
+      const [rowRaw, colRaw] = entry.split(':')
+      const row = Number(rowRaw)
+      const col = Number(colRaw)
+      return Number.isInteger(row) && Number.isInteger(col) ? { row, col } : null
+    })
+    .filter((cell): cell is SnapshotCellCoordinate => cell != null)
+}
+
+const clearPendingSnapshotClearCoordinates = (pending: Map<string, Set<string>>, sheetId: string): void => {
+  pending.delete(sheetId)
+}
+
+const clearSnapshotCellsByCoordinate = (
+  workbookSnapshot: Record<string, unknown>,
+  activeSheetId: string,
+  cells: SnapshotCellCoordinate[]
+): Record<string, unknown> => {
+  if (cells.length === 0) return workbookSnapshot
+  const worksheet = getWorksheetFromSnapshot(workbookSnapshot, activeSheetId)
+  if (!worksheet) return workbookSnapshot
+  const cellData = worksheet.cellData as Record<string, Record<string, unknown>> | undefined
+  if (!cellData || typeof cellData !== 'object') return workbookSnapshot
+
+  for (const cell of cells) {
+    const rowKey = String(cell.row)
+    const rowEntry = cellData[rowKey] ?? cellData[cell.row]
+    if (!rowEntry || typeof rowEntry !== 'object') continue
+    delete rowEntry[cell.col]
+    delete rowEntry[String(cell.col)]
+    if (Object.keys(rowEntry).length === 0) {
+      delete cellData[cell.row]
+      delete cellData[rowKey]
+    }
+  }
+
+  worksheet.cellData = cellData
+  return workbookSnapshot
+}
+
 const saveSnapshotWithRetry = async ({
   appId,
   activeSheetId,
   baseSnapshot,
+  prepareSnapshotForSave,
   sheetVersionRef,
   snapshotSaveMetricsRef,
   recoverFromVersionConflict,
@@ -1002,6 +1081,7 @@ const saveSnapshotWithRetry = async ({
   appId: string
   activeSheetId: string
   baseSnapshot: unknown
+  prepareSnapshotForSave?: (snapshot: unknown) => unknown
   sheetVersionRef: React.MutableRefObject<number>
   snapshotSaveMetricsRef: React.MutableRefObject<{
     attempts: number
@@ -1023,7 +1103,8 @@ const saveSnapshotWithRetry = async ({
     try {
       const rawSnapshot =
         attempt === 0 ? baseSnapshot : (spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? baseSnapshot)
-      const snapshotToSave = cloneSnapshot(rawSnapshot)
+      const clonedSnapshot = cloneSnapshot(rawSnapshot)
+      const snapshotToSave = prepareSnapshotForSave ? prepareSnapshotForSave(clonedSnapshot) : clonedSnapshot
       const versionForSave = sheetVersionRef.current
       await SpreadsheetApiService.saveUniverSnapshot(appId, activeSheetId, {
         version: versionForSave,
@@ -1188,6 +1269,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const pendingCellChangesRef = useRef<CellChange[]>([])
   const pendingCellBatchesRef = useRef<PendingCellBatch[]>([])
   const pendingCellJournalRestoredKeyRef = useRef<string | null>(null)
+  const pendingSnapshotClearCellsRef = useRef<Map<string, Set<string>>>(new Map())
   const pendingCellPersistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const enqueueSnapshotCheckpointRef = useRef<(() => Promise<void>) | null>(null)
   const pendingSnapshotCheckpointBySheetRef = useRef<Map<string, { requestedAt: number }>>(new Map())
@@ -1911,9 +1993,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     []
   )
 
+  const trackSnapshotCellClears = useCallback((sheetId: string, cells: SnapshotCellCoordinate[]) => {
+    appendPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, sheetId, cells)
+  }, [])
+
   /** Remote ops can arrive before Univer attaches gridRef; retry so tab-to-tab sync is not dropped. */
   const applyRemoteCellUpdateWithRetry = useCallback(
     (rowIndex: number, colIndex: number, value: unknown, rowId?: string, options?: ApplyRemoteCellUpdateOptions) => {
+      if (isExplicitSnapshotCellClearValue(value)) {
+        trackSnapshotCellClears(activeSheetIdRef.current, [{ row: rowIndex, col: colIndex }])
+      }
       const maxAttempts = 12
       const delayMs = 75
       const tryApply = (attempt: number) => {
@@ -1927,7 +2016,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
       tryApply(0)
     },
-    []
+    [trackSnapshotCellClears]
   )
 
   const handleOpenCommentRequest = useCallback(() => {
@@ -2752,7 +2841,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       sheetPersist.beginPersist()
       try {
-        let snapshotToPersist: unknown = snapshot
         let versionRefForSave = targetSheetVersionRef
         let sizeBytesForSave: number | null = snapshotSizeBytes
         let cacheResult: { stored: boolean; reason: string | null } = { stored: false, reason: null }
@@ -2828,11 +2916,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
         const rowsForAuthoritativeSnapshot =
           updatesByRowIndex.size > 0 ? mergeRowsWithIndexUpdates(current, updatesByRowIndex) : current
-        snapshotToPersist = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+        const pendingSnapshotClearCells = getPendingSnapshotClearCoordinates(
+          pendingSnapshotClearCellsRef.current,
+          activeSheetId
+        )
+        const snapshotToPersistBase = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
           snapshot as Record<string, unknown>,
           activeSheetId,
           rowsForAuthoritativeSnapshot,
           activeSheet.columns
+        )
+        const snapshotToPersist = clearSnapshotCellsByCoordinate(
+          snapshotToPersistBase,
+          activeSheetId,
+          pendingSnapshotClearCells
         )
         sizeBytesForSave = getSnapshotSizeBytes(snapshotToPersist)
         if (sizeBytesForSave == null || sizeBytesForSave > 8_500_000) {
@@ -2855,6 +2952,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           appId: app.id,
           activeSheetId: targetSheetId,
           baseSnapshot: snapshotToPersist,
+          prepareSnapshotForSave: currentSnapshot =>
+            clearSnapshotCellsByCoordinate(
+              currentSnapshot as Record<string, unknown>,
+              targetSheetId,
+              getPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, targetSheetId)
+            ),
           sheetVersionRef: versionRefForSave,
           snapshotSaveMetricsRef,
           recoverFromVersionConflict: recoverSnapshotConflict,
@@ -2882,6 +2985,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           lastSuccessAt: Date.now(),
           successCount: prev.successCount + 1
         }))
+        clearPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, activeSheetId)
         const queueClear = !hasPendingCellPersistence() && pendingCellPersistTimeoutRef.current == null
         sheetPersist.recordSuccess(queueClear)
         if (queueClear) {
@@ -3081,6 +3185,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (entityEnabled) return
       if (cells.length === 0) return
 
+      const snapshotClearCells = collectSnapshotClearCoordinates(cells)
+      if (snapshotClearCells.length > 0) {
+        trackSnapshotCellClears(activeSheetId, snapshotClearCells)
+      }
+
       sheetPersist.markDirty()
       versioning.markAsChanged()
       pendingCellChangesRef.current.push(
@@ -3138,6 +3247,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       schedulePendingCellPersist,
       setLocalSheetData,
       sheetPersist.markDirty,
+      trackSnapshotCellClears,
       versioning.markAsChanged
     ]
   )
@@ -3551,11 +3661,30 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleDeleteRow = useCallback(
     async (rowId: string) => {
       if (!canEditWithLock) return
-      const next = localSheetDataRef.current.filter(r => viewerRowId(r) !== String(rowId))
+      const prev = localSheetDataRef.current
+      const deletedRow = prev.find(r => viewerRowId(r) === String(rowId))
+      const backendRowId = deletedRow ? resolveBackendRowIdForViewerRow(deletedRow as ViewerRow, isUuid) : undefined
+      const next = prev.filter(r => viewerRowId(r) !== String(rowId))
       commitLocalSheetData(next, { syncGrid: true })
       sheetPersist.beginPersist()
       try {
-        await SpreadsheetApiService.deleteRow(app.id, activeSheetId, rowId)
+        if (backendRowId) {
+          if (isOpsV2Enabled) {
+            await applyBatchDirectForSheet(
+              activeSheetId,
+              [
+                {
+                  operationId: createOperationId('delete_rows'),
+                  type: 'delete_rows',
+                  data: { rowIds: [backendRowId] }
+                }
+              ],
+              'delete_row'
+            )
+          } else {
+            await SpreadsheetApiService.deleteRow(app.id, activeSheetId, backendRowId)
+          }
+        }
         sheetPersist.recordSuccess(true)
         versioning.markAsSaved()
       } catch (error) {
@@ -3568,7 +3697,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [
       activeSheetId,
       app.id,
+      applyBatchDirectForSheet,
       canEditWithLock,
+      createOperationId,
+      isOpsV2Enabled,
+      isUuid,
       localSheetDataRef,
       onDataChange,
       setLocalSheetData,

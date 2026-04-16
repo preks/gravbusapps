@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -164,7 +165,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               },
               activityTypeCatalog: ACTIVITY_TYPE,
               buildActivityPayload: buildCustomerActivityPayload,
-              preSubmit: activityPreSubmit
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
             }
           },
           {

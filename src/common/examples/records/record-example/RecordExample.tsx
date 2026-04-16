@@ -26,6 +26,7 @@ import { FileTextIcon, UsersIcon, BuildingIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 
 const mockAccountData = {
   name: 'Acme Corporation',
@@ -573,6 +574,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                     component: ActivitySection,
                     props: {
                       ...context,
+                      investmentId: entityIds.investmentId,
                       activities: [
                         {
                           id: 'a1',
@@ -587,6 +589,21 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                             firstName: 'Daniel',
                             lastName: 'Vorberg'
                           },
+                          accountId: entityIds.accountId,
+                          contactId: entityIds.contactId,
+                          opportunityId: entityIds.opportunityId,
+                          leadId: entityIds.leadId,
+                          account: {
+                            name: mockAccountData.name,
+                            pictureThumbnail: mockAccountData.logoUrl
+                          },
+                          contact: {
+                            firstName: mockContact.firstName,
+                            lastName: mockContact.lastName,
+                            pictureThumbnail: mockContact.pictureThumbnailUrl
+                          },
+                          opportunity: { name: 'Q1 Enterprise expansion' },
+                          lead: { companyName: 'Acme pipeline — EU rollout' },
                           documents: [
                             {
                               id: 'doc_activity_1',
@@ -615,6 +632,17 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                             firstName: 'Current',
                             lastName: 'User'
                           },
+                          accountId: entityIds.accountId,
+                          contactId: entityIds.contactId,
+                          opportunityId: entityIds.opportunityId,
+                          investmentId: entityIds.investmentId,
+                          account: { name: mockAccountData.name },
+                          contact: {
+                            firstName: mockContact.firstName,
+                            lastName: mockContact.lastName
+                          },
+                          opportunity: { name: 'Q1 Enterprise expansion' },
+                          investment: { name: 'Demo growth mandate' },
                           documents: [
                             {
                               id: 'doc_activity_3',
@@ -628,6 +656,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                       activitiesLoading: false,
                       activitiesError: null,
                       onReloadActivities: () => {},
+                      getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl,
                       activitySectionActionProps: {
                         contextsArray: [FlowContextName.investmentActivityCreate],
                         externalContextData: { ...entityIds },

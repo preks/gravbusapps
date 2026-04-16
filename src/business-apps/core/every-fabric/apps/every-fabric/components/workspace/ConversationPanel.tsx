@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useLayoutEffect } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
-import { AgentTypingIndicator } from '../chat/AgentTypingIndicator'
 import { MessageBubble } from '../chat/MessageBubble'
 import { StreamingAnswerBubble } from '../chat/StreamingAnswerBubble'
 import {
@@ -22,6 +21,7 @@ interface ConversationPanelProps {
   messages: ChatMessage[]
   streamingGreeting: string
   streamingContent: string
+  streamingThinking: string
   statusHeadline: string | null
   isStreaming: boolean
   isWaitingForInput: boolean
@@ -38,6 +38,7 @@ const isTranscriptMessage = (message: ChatMessage) =>
   message.type === 'expert_call' ||
   message.type === 'final_answer' ||
   message.type === 'structured_input_request' ||
+  message.type === 'human_interrupt' ||
   message.type === 'error'
 
 function useSmartScroll(
@@ -127,6 +128,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   messages,
   streamingGreeting,
   streamingContent,
+  streamingThinking,
   statusHeadline,
   isStreaming,
   hasFixedFollowUps = false,
@@ -149,17 +151,18 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   )
 
   const visibleMessages = messages.filter(isTranscriptMessage)
-  const streamingInsertIndex = (() => {
-    if (!isStreaming) return visibleMessages.length
-    for (let i = visibleMessages.length - 1; i >= 0; i -= 1) {
-      if (visibleMessages[i]?.type === 'user_input') {
-        return i + 1
-      }
-    }
-    return 0
-  })()
-  const messagesBeforeStreaming = visibleMessages.slice(0, streamingInsertIndex)
-  const messagesAfterStreaming = visibleMessages.slice(streamingInsertIndex)
+
+  // When streaming, insert the streaming bubble at the end of all messages
+  // The streaming bubble represents the CURRENT agent turn, so it should always be last
+  const messagesBeforeStreaming = visibleMessages
+  const messagesAfterStreaming: ChatMessage[] = []
+
+  // Only show greeting on the very first turn
+  // Check if there are any prior human_interrupt (HITL questions) which indicate follow-up context
+  const hasHitlQuestions = messages.some(m => m.type === 'human_interrupt' || m.type === 'structured_input_request')
+  const hasCompletedResponses = messages.some(m => m.type === 'final_answer' || m.type === 'expert_call')
+  const isFollowup = hasHitlQuestions || hasCompletedResponses
+  const displayGreeting = isFollowup ? '' : streamingGreeting
 
   useLayoutEffect(() => {
     if (!hasFixedFollowUps) {
@@ -217,17 +220,15 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
             />
           ))}
 
-          {isStreaming &&
-            (streamingGreeting || streamingContent ? (
-              <StreamingAnswerBubble
-                greetingContent={streamingGreeting}
-                responseContent={streamingContent}
-                isStreaming={isStreaming}
-                statusMessage={statusHeadline}
-              />
-            ) : (
-              <AgentTypingIndicator />
-            ))}
+          {isStreaming ? (
+            <StreamingAnswerBubble
+              greetingContent={displayGreeting}
+              responseContent={streamingContent}
+              thinkingContent={streamingThinking}
+              isStreaming={isStreaming}
+              statusMessage={statusHeadline}
+            />
+          ) : null}
 
           {messagesAfterStreaming.map(msg => (
             <MessageBubble

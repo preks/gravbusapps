@@ -23,8 +23,9 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useEmailCrmSuggestions } from '../hooks/useEmailCrmSuggestions'
 import { CrmEntityRow } from './CrmEntityRow'
+import { EmailSummarizeSuggestions } from './EmailSummarizeSuggestions'
 import { EmailApiService } from '../services/EmailApiService'
-import type { EmailMessage, EmailAccount } from '../types'
+import type { EmailMessage, EmailAccount, EmailSummarizeSuggestion } from '../types'
 
 interface EmailCrmBookingProps {
   message: EmailMessage
@@ -33,6 +34,7 @@ interface EmailCrmBookingProps {
   accessToken: string
   activeAccount?: EmailAccount | null
   employeeId?: string
+  initiatorUserId?: string
   'data-testid'?: string
 }
 
@@ -58,6 +60,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   accessToken,
   activeAccount,
   employeeId,
+  initiatorUserId,
   'data-testid': testId = 'email-crm-booking'
 }) => {
   const { t } = useTranslation(translations)
@@ -71,6 +74,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
 
   /* ---- AI Summary pre-fetch ---- */
   const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [aiSuggestions, setAiSuggestions] = useState<EmailSummarizeSuggestion[]>([])
   const [summaryLoading, setSummaryLoading] = useState(false)
   const summaryFetchedForRef = useRef<string | null>(null)
 
@@ -82,20 +86,22 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
     summaryFetchedForRef.current = cacheKey
     setSummaryLoading(true)
     setAiSummary(null)
+    setAiSuggestions([])
 
     EmailApiService.setAccessToken(accessToken)
 
-    // Use thread summarization for threads, single-message for individual emails
     const summaryPromise =
-      isThread && threadId
-        ? EmailApiService.summarizeThread(threadId).then(r => r.summary)
-        : EmailApiService.summarizeMessage(message.id)
+      isThread && threadId ? EmailApiService.summarizeThread(threadId) : EmailApiService.summarizeMessage(message.id)
 
     summaryPromise
-      .then(summary => setAiSummary(summary))
+      .then(result => {
+        setAiSummary(result.summary)
+        setAiSuggestions(result.suggestions ?? [])
+      })
       .catch(err => {
         console.error('AI summary failed, will fallback to text:', err)
         setAiSummary(null)
+        setAiSuggestions([])
       })
       .finally(() => setSummaryLoading(false))
   }, [isExpanded, message?.id, accessToken, isThread, threadId])
@@ -173,6 +179,21 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
               <SparkleIcon className="gba:w-3 gba:h-3 gba:animate-pulse" weight="fill" />
               {isThread ? t('crm-summarizing-thread') : t('crm-summarizing-email')}
             </div>
+          )}
+
+          {!summaryLoading && aiSuggestions.length > 0 && (
+            <EmailSummarizeSuggestions
+              suggestions={aiSuggestions}
+              variant="crm"
+              createActionContext={{
+                message,
+                accessToken,
+                noSubjectLabel: t('reader-no-subject'),
+                initiatorUserId,
+                ...(isThread && threadId ? { threadId } : {})
+              }}
+              data-testid={`${testId}-suggestions`}
+            />
           )}
 
           {/* Section 1: Email matches (primary – shown first) */}

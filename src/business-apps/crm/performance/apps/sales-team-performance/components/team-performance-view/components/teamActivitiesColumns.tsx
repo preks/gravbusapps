@@ -2,9 +2,6 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import {
   UserIcon,
-  TargetIcon,
-  HandshakeIcon,
-  BuildingIcon,
   CalendarBlankIcon as CalendarIcon,
   PhoneIcon,
   EnvelopeIcon,
@@ -13,14 +10,10 @@ import {
 } from '@phosphor-icons/react'
 import type { TeamSalesActivity } from '../hooks/useTeamActivitiesData'
 import type { SalesTeamMember } from '../../sales-members-list/types'
-import {
-  getEntityName,
-  getEntityType,
-  getEntityTypeFromIds,
-  getActivityTypeVariant,
-  safeString
-} from '../../../utils/activityHelpers'
+import { getActivityTypeVariant, safeString } from '../../../utils/activityHelpers'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { ActivityTableReferenceCell } from '@/common/components/common-relations/view-layouts/activity-layout/config/ActivityTableReferenceCell'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { formatDate } from '@/common/utils/windowUtils'
 
 // Get activity type icon (Lucide icons specific to this component)
@@ -39,22 +32,6 @@ const getActivityTypeIcon = (type: string) => {
   }
 }
 
-// Get entity type icon (Lucide icons specific to this component)
-const getEntityTypeIcon = (entityType: string) => {
-  switch (entityType) {
-    case 'Contact':
-      return <UserIcon className="gba:h-4 gba:w-4" />
-    case 'Lead':
-      return <TargetIcon className="gba:h-4 gba:w-4" />
-    case 'Opportunity':
-      return <HandshakeIcon className="gba:h-4 gba:w-4" />
-    case 'Account':
-      return <BuildingIcon className="gba:h-4 gba:w-4" />
-    default:
-      return <UserIcon className="gba:h-4 gba:w-4" />
-  }
-}
-
 // Helper function to get team member from activities
 const getTeamMemberForActivity = (activity: TeamSalesActivity, teamMembers: SalesTeamMember[]) => {
   return teamMembers.find(
@@ -64,19 +41,19 @@ const getTeamMemberForActivity = (activity: TeamSalesActivity, teamMembers: Sale
 
 // Helper function to handle entity reference clicks
 const handleEntityReferenceClick = (activity: TeamSalesActivity) => {
-  if (activity.accountId) {
-    const url = buildPlatformUrl('/platform/crm/account-record', { accountId: activity.accountId })
-    navigateTo(url)
-  } else if (activity.contactId) {
-    const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: activity.contactId })
-    navigateTo(url)
-  } else if (activity.leadId) {
-    const url = buildPlatformUrl('/platform/crm/lead-record', { leadId: activity.leadId })
-    navigateTo(url)
-  } else if (activity.opportunityId) {
-    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: activity.opportunityId })
-    navigateTo(url)
+  const go = (kind: Parameters<typeof buildCrmRelatedEntityRecordUrl>[0], id: string | null | undefined) => {
+    if (!id) return false
+    const url = buildCrmRelatedEntityRecordUrl(kind, id)
+    if (url.length > 0) {
+      navigateTo(url)
+      return true
+    }
+    return false
   }
+  if (go('account', activity.accountId)) return
+  if (go('contact', activity.contactId)) return
+  if (go('lead', activity.leadId)) return
+  if (go('opportunity', activity.opportunityId)) return
 }
 
 export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): ColumnDef<TeamSalesActivity>[] => [
@@ -182,48 +159,14 @@ export const createTeamActivitiesColumns = (teamMembers: SalesTeamMember[]): Col
     header: 'Reference',
     size: 200,
     enableSorting: false,
-    cell: ({ row }) => {
-      const activity = row.original
-      const isUnlinked = !activity.accountId && !activity.contactId && !activity.leadId && !activity.opportunityId
-
-      if (isUnlinked) {
-        return <span className="gba:text-sm gba:text-muted-foreground gba:italic">No reference</span>
-      }
-
-      const entityName = getEntityName(activity)
-      const entityType = getEntityType(activity)
-
-      // Fall back to ID-based type when the joined entity has no resolvable name
-      const resolvedType = entityType === 'No reference' ? getEntityTypeFromIds(activity) : entityType
-      const resolvedName = entityName === 'No reference' ? null : entityName
-
-      const handleClick = (e: React.MouseEvent) => {
-        e.stopPropagation()
-        handleEntityReferenceClick(activity)
-      }
-
-      return (
-        <button
-          type="button"
-          className="gba:flex gba:flex-col gba:gap-1 gba:cursor-pointer gba:hover:bg-accent gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left gba:overflow-hidden gba:max-w-[200px]"
-          onClick={handleClick}
-        >
-          {resolvedName ? (
-            <span className="gba:text-sm gba:font-medium gba:text-primary gba:truncate" title={resolvedName}>
-              {resolvedName}
-            </span>
-          ) : (
-            <span className="gba:text-sm gba:italic gba:text-muted-foreground gba:truncate">
-              Unnamed {resolvedType}
-            </span>
-          )}
-          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-            {getEntityTypeIcon(resolvedType)}
-            <span>{resolvedType}</span>
-          </div>
-        </button>
-      )
-    }
+    cell: ({ row }) => (
+      <ActivityTableReferenceCell
+        activity={row.original}
+        onReferenceClick={handleEntityReferenceClick}
+        emptyVariant="no-reference"
+        singleReferenceButtonClassName="gba:px-3 gba:py-2"
+      />
+    )
   },
   // Created At Column
   {
