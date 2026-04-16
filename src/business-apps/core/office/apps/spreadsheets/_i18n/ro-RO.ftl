@@ -74,7 +74,7 @@ action-sort-name = Nume
 action-sort-modified = Modificat
 action-sort-created = Creat
 action-search-placeholder = Caută...
-header-search-placeholder = Caută foi de calcul...
+spreadsheets-header-search-placeholder = Caută foi de calcul...
 header-refresh = Reîmprospătează
 sort-name = Nume
 sort-trashed = Mutat în coș la
@@ -88,8 +88,8 @@ table-modified-by = Modificat de
 table-rows = Rânduri
 
 # Empty states
-empty-trash-title = Nicio foaie de calcul în coș
-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
+spreadsheets-empty-trash-title = Nicio foaie de calcul în coș
+spreadsheets-empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
 rows-label = rânduri
 
 # Empty states

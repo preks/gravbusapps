@@ -45,7 +45,7 @@ menu-new-create-template-description = Neue Vorlage erstellen
 
 # Header and list
 header-sort = Sortieren
-header-search-placeholder = Dokumente suchen...
+documents-header-search-placeholder = Dokumente suchen...
 header-refresh = Aktualisieren
 sort-name = Titel
 sort-trashed = Im Papierkorb seit
@@ -79,14 +79,14 @@ upload-odf-description = OpenDocument-Textdatei hochladen – Formatierung wird 
 templates-title = Vorlagen
 
 # Empty states
-empty-favorites-title = Noch keine Favoriten
-empty-favorites-description = Markieren Sie häufig verwendete Dokumente mit einem Stern.
-empty-shared-title = Nichts mit Ihnen geteilt
-empty-shared-description = Geteilte Dokumente erscheinen hier.
-empty-trash-title = Keine Dokumente im Papierkorb
-empty-trash-description = In den Papierkorb verschobene Dokumente erscheinen hier.
-empty-default-title = Noch keine Dokumente
-empty-default-description = Erstellen Sie Ihr erstes Dokument.
+documents-empty-favorites-title = Noch keine Favoriten
+documents-empty-favorites-description = Markieren Sie häufig verwendete Dokumente mit einem Stern.
+documents-empty-shared-title = Nichts mit Ihnen geteilt
+documents-empty-shared-description = Geteilte Dokumente erscheinen hier.
+documents-empty-trash-title = Keine Dokumente im Papierkorb
+documents-empty-trash-description = In den Papierkorb verschobene Dokumente erscheinen hier.
+documents-empty-default-title = Noch keine Dokumente
+documents-empty-default-description = Erstellen Sie Ihr erstes Dokument.
 empty-create-document = Dokument erstellen
 empty-upload-word = Word hochladen
 

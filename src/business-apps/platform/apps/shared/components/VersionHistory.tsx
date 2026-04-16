@@ -16,6 +16,7 @@ import { AlertCircle, CheckCircle, Clock, FileText, RotateCcw, User } from 'luci
 import { formatDistanceToNow } from 'date-fns'
 import type { Version } from '../types/versioning'
 import { VersionHistoryApprovalSection } from './VersionHistoryApprovalSection'
+import { getDateFnsLocale } from '../utils/dateLocale'
 
 export interface VersionUserDisplay {
   displayName: string
@@ -102,6 +103,8 @@ export interface VersionHistoryProps {
   approvalDetailsByVersion?: Record<number, VersionHistoryApprovalDetails>
   onOpenApprovalReview?: (versionNumber: number) => void
   messages?: VersionHistoryMessages
+  /** Locale tag (e.g. `de-DE`) used to format relative dates shown in the version list and approval section. */
+  locale?: string
   'data-testid'?: string
 }
 
@@ -119,13 +122,13 @@ function getVersionUserDisplay(
   }
 }
 
-function formatVersionCreatedAt(value: string): string {
+function formatVersionCreatedAt(value: string, locale?: string): string {
   const parsedDate = new Date(value)
   if (Number.isNaN(parsedDate.getTime())) {
     return value
   }
 
-  return formatDistanceToNow(parsedDate, { addSuffix: true })
+  return formatDistanceToNow(parsedDate, { addSuffix: true, locale: getDateFnsLocale(locale) })
 }
 
 function getVersionHeaderRequestStatusLabel(
@@ -199,6 +202,7 @@ export function VersionHistory({
   approvalDetailsByVersion,
   onOpenApprovalReview,
   messages,
+  locale,
   'data-testid': testId = 'version-history'
 }: Readonly<VersionHistoryProps>): React.ReactElement {
   const m = messages ?? {}
@@ -426,7 +430,7 @@ export function VersionHistory({
                         </span>
                         <span className="gba:flex gba:items-center gba:gap-1.5">
                           <Clock className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
-                          {formatVersionCreatedAt(version.createdAt)}
+                          {formatVersionCreatedAt(version.createdAt, locale)}
                         </span>
                       </div>
 
@@ -437,6 +441,7 @@ export function VersionHistory({
                           userDisplayMap={userDisplayMap}
                           versionNumber={version.version}
                           onOpenApprovalReview={onOpenApprovalReview}
+                          locale={locale}
                         />
                       )}
                     </div>

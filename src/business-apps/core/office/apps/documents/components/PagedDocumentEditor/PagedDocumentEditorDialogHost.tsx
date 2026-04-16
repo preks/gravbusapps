@@ -19,6 +19,7 @@ export interface PagedDocumentEditorDialogHostProps {
   versionLoading: boolean
   currentVersion: ComponentProps<typeof VersionHistory>['currentVersion']
   versionHistoryMessages?: ComponentProps<typeof VersionHistory>['messages']
+  versionHistoryLocale?: ComponentProps<typeof VersionHistory>['locale']
   approvalDetailsByVersion?: ComponentProps<typeof VersionHistory>['approvalDetailsByVersion']
   onRestoreVersion: ComponentProps<typeof VersionHistory>['onRestore']
   onOpenApprovalReview?: ComponentProps<typeof VersionHistory>['onOpenApprovalReview']
@@ -70,6 +71,7 @@ export function PagedDocumentEditorDialogHost({
   versionLoading,
   currentVersion,
   versionHistoryMessages,
+  versionHistoryLocale,
   approvalDetailsByVersion,
   onRestoreVersion,
   onOpenApprovalReview,
@@ -125,6 +127,7 @@ export function PagedDocumentEditorDialogHost({
           onClose={onCloseVersionHistory}
           currentVersion={currentVersion}
           messages={versionHistoryMessages}
+          locale={versionHistoryLocale}
           showAutoSaves={false}
           data-testid="document-version-history"
         />

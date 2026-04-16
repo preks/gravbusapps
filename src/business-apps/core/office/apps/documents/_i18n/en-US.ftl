@@ -44,7 +44,7 @@ menu-new-create-template-description = Create a new template
 
 # Header and list
 header-sort = Sort
-header-search-placeholder = Search documents...
+documents-header-search-placeholder = Search documents...
 header-refresh = Refresh
 sort-name = Name
 sort-trashed = Trashed on
@@ -78,14 +78,14 @@ upload-odf-description = Upload your OpenDocument text file and we will preserve
 templates-title = Templates
 
 # Empty states
-empty-favorites-title = No favorites yet
-empty-favorites-description = Star your frequently used documents to see them here.
-empty-shared-title = Nothing shared with you
-empty-shared-description = When someone shares a document with you, it will appear here.
-empty-trash-title = No trashed documents
-empty-trash-description = Documents moved to trash will appear here.
-empty-default-title = No documents yet
-empty-default-description = Create your first document to get started.
+documents-empty-favorites-title = No favorites yet
+documents-empty-favorites-description = Star your frequently used documents to see them here.
+documents-empty-shared-title = Nothing shared with you
+documents-empty-shared-description = When someone shares a document with you, it will appear here.
+documents-empty-trash-title = No trashed documents
+documents-empty-trash-description = Documents moved to trash will appear here.
+documents-empty-default-title = No documents yet
+documents-empty-default-description = Create your first document to get started.
 empty-create-document = Create Document
 empty-upload-word = Upload Word
 

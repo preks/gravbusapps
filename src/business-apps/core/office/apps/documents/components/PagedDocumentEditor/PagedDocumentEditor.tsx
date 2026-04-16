@@ -253,7 +253,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     },
     ref
   ) {
-    const { t } = useTranslation(translations)
+    const { t, locale: currentLocale } = useTranslation(translations)
     const translateRef = useRef(t)
     translateRef.current = t
     const translateStable = useCallback((key: string) => translateRef.current(key), [])
@@ -1844,6 +1844,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           versionLoading={versioning.isLoading || isLoadingVersionHistoryApprovals}
           currentVersion={versioning.currentVersion?.version}
           versionHistoryMessages={versionHistoryMessages}
+          versionHistoryLocale={currentLocale}
           approvalDetailsByVersion={versionHistoryApprovalSummary.approvalDetailsByVersion}
           onRestoreVersion={handleRestoreVersion}
           onOpenApprovalReview={onNavigateToReviewVersion ? handleOpenApprovalReview : undefined}

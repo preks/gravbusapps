@@ -74,7 +74,7 @@ action-sort-name = Name
 action-sort-modified = Modified
 action-sort-created = Created
 action-search-placeholder = Search...
-header-search-placeholder = Search spreadsheets...
+spreadsheets-header-search-placeholder = Search spreadsheets...
 header-refresh = Refresh
 sort-name = Name
 sort-trashed = Trashed on
@@ -88,8 +88,8 @@ table-modified-by = Modified By
 table-rows = Rows
 
 # Empty states
-empty-trash-title = No trashed spreadsheets
-empty-trash-description = Spreadsheets moved to trash will appear here.
+spreadsheets-empty-trash-title = No trashed spreadsheets
+spreadsheets-empty-trash-description = Spreadsheets moved to trash will appear here.
 rows-label = rows
 
 # Empty states

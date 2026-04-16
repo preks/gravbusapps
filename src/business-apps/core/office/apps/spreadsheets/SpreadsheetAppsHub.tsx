@@ -1569,7 +1569,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
               <Input
-                placeholder={t('header-search-placeholder')}
+                placeholder={t('spreadsheets-header-search-placeholder')}
                 value={trashSearchQuery}
                 onChange={e => setTrashSearchQuery(e.target.value)}
                 className="gba:h-12 gba:pl-11 gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm"
@@ -1582,8 +1582,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               <OfficeTrashList
                 accessToken={accessToken}
                 entityType="spreadsheet_app"
-                emptyTitle={t('empty-trash-title')}
-                emptyDescription={t('empty-trash-description')}
+                emptyTitle={t('spreadsheets-empty-trash-title')}
+                emptyDescription={t('spreadsheets-empty-trash-description')}
                 layout="list"
                 searchQuery={trashSearchQuery}
                 listControls={{
@@ -1676,7 +1676,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <div className="gba:relative">
                       <Search className="gba:absolute gba:left-4 gba:top-1/2 gba:-translate-y-1/2 gba:w-5 gba:h-5 gba:text-muted-foreground/70" />
                       <Input
-                        placeholder={t('action-search-placeholder')}
+                        placeholder={t('spreadsheets-header-search-placeholder')}
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="gba:pl-12 gba:pr-4 gba:h-12 gba:text-base gba:rounded-xl gba:bg-muted/40 gba:border-border/60 gba:shadow-sm hover:gba:shadow-md hover:gba:bg-muted/70 hover:gba:border-border gba:transition-all gba:duration-200"

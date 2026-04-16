@@ -384,6 +384,10 @@ export function PagedDocumentEditorHeader({
                         <Save className="gba:w-4 gba:h-4 gba:mr-2" />
                         {onTranslate('editor-save-checkpoint')}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={onOpenVersionHistory} data-testid="document-menu-version-history">
+                        <History className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {onTranslate('editor-version-history')}
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {isLockedByMe ? (
                         <DropdownMenuItem onClick={onReleaseLock}>

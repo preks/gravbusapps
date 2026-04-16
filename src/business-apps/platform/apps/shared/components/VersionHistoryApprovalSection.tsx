@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Button, cn } from '@newwork/nw-design-system'
 import { CheckCircle, Clock, FileText, MessageSquare, User, Users, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { getDateFnsLocale } from '../utils/dateLocale'
 import type {
   VersionHistoryApprovalDetails,
   VersionHistoryApprovalReviewer,
@@ -15,9 +16,10 @@ interface VersionHistoryApprovalSectionProps {
   userDisplayMap?: Record<string, VersionUserDisplay>
   versionNumber: number
   onOpenApprovalReview?: (versionNumber: number) => void
+  locale?: string
 }
 
-function formatRelativeDate(value: string | undefined, fallback: string): string {
+function formatRelativeDate(value: string | undefined, fallback: string, locale?: string): string {
   if (!value) {
     return fallback
   }
@@ -27,7 +29,7 @@ function formatRelativeDate(value: string | undefined, fallback: string): string
     return value
   }
 
-  return formatDistanceToNow(parsedDate, { addSuffix: true })
+  return formatDistanceToNow(parsedDate, { addSuffix: true, locale: getDateFnsLocale(locale) })
 }
 
 function getRequesterAvatarUrl(
@@ -166,15 +168,17 @@ function getStatusBadgeClass(status: VersionHistoryApprovalReviewer['status']): 
 function ReviewerLine({
   reviewer,
   messages,
-  userDisplayMap
+  userDisplayMap,
+  locale
 }: {
   reviewer: VersionHistoryApprovalReviewer
   messages: VersionHistoryMessages
   userDisplayMap?: Record<string, VersionUserDisplay>
+  locale?: string
 }): React.ReactElement {
   const unknownUser = messages.unknownUser ?? 'Unknown'
   const reviewerDisplay = getUserDisplay(reviewer.userId, userDisplayMap, unknownUser)
-  const responseTime = formatRelativeDate(reviewer.respondedAt, messages.approvalUnknownTime ?? 'Unknown time')
+  const responseTime = formatRelativeDate(reviewer.respondedAt, messages.approvalUnknownTime ?? 'Unknown time', locale)
 
   return (
     <div className="gba:flex gba:w-full gba:min-w-0 gba:max-w-full gba:flex-nowrap gba:items-center gba:gap-2.5">
@@ -213,12 +217,17 @@ export function VersionHistoryApprovalSection({
   messages,
   userDisplayMap,
   versionNumber,
-  onOpenApprovalReview
+  onOpenApprovalReview,
+  locale
 }: VersionHistoryApprovalSectionProps): React.ReactElement {
   const unknownUser = messages.unknownUser ?? 'Unknown'
   const requesterDisplay = getUserDisplay(approval.requestedBy, userDisplayMap, unknownUser, approval.requestedByName)
   const requesterAvatarUrl = getRequesterAvatarUrl(approval, userDisplayMap?.[approval.requestedBy])
-  const requestedAtLabel = formatRelativeDate(approval.requestedAt, messages.approvalUnknownTime ?? 'Unknown time')
+  const requestedAtLabel = formatRelativeDate(
+    approval.requestedAt,
+    messages.approvalUnknownTime ?? 'Unknown time',
+    locale
+  )
   const approvedReviewers = approval.reviewers.filter(reviewer => reviewer.status === 'approved')
   const commentLabel = messages.approvalReviewerCommentLabel ?? 'Review comment'
 
@@ -279,7 +288,7 @@ export function VersionHistoryApprovalSection({
       }
       rows.push(
         <div key={`${reviewer.userId}-line`} className={cn(index > 0 && 'gba:col-start-2')}>
-          <ReviewerLine reviewer={reviewer} messages={messages} userDisplayMap={userDisplayMap} />
+          <ReviewerLine reviewer={reviewer} messages={messages} userDisplayMap={userDisplayMap} locale={locale} />
         </div>
       )
       const trimmed = reviewer.comments?.trim()
@@ -315,7 +324,7 @@ export function VersionHistoryApprovalSection({
       }
       rows.push(
         <div key={`${reviewer.userId}-line`} className={cn(index > 0 && 'gba:col-start-2')}>
-          <ReviewerLine reviewer={reviewer} messages={messages} userDisplayMap={userDisplayMap} />
+          <ReviewerLine reviewer={reviewer} messages={messages} userDisplayMap={userDisplayMap} locale={locale} />
         </div>
       )
       const trimmed = reviewer.comments?.trim()

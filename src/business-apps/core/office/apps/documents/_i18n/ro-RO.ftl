@@ -45,7 +45,7 @@ menu-new-create-template-description = Creați un șablon nou
 
 # Header and list
 header-sort = Sortare
-header-search-placeholder = Caută documente...
+documents-header-search-placeholder = Caută documente...
 header-refresh = Reîmprospătează
 sort-name = Nume
 sort-trashed = Aruncat la coș pe
@@ -79,14 +79,14 @@ upload-odf-description = Încărcați fișierul text OpenDocument – păstrăm 
 templates-title = Șabloane
 
 # Empty states
-empty-favorites-title = Încă nu există favorite
-empty-favorites-description = Marcați documentele frecvente cu steluță.
-empty-shared-title = Nimic partajat cu dvs.
-empty-shared-description = Documentele partajate vor apărea aici.
-empty-trash-title = Nu există documente în coș
-empty-trash-description = Documentele mutate în coș vor apărea aici.
-empty-default-title = Încă nu există documente
-empty-default-description = Creați primul document.
+documents-empty-favorites-title = Încă nu există favorite
+documents-empty-favorites-description = Marcați documentele frecvente cu steluță.
+documents-empty-shared-title = Nimic partajat cu dvs.
+documents-empty-shared-description = Documentele partajate vor apărea aici.
+documents-empty-trash-title = Nu există documente în coș
+documents-empty-trash-description = Documentele mutate în coș vor apărea aici.
+documents-empty-default-title = Încă nu există documente
+documents-empty-default-description = Creați primul document.
 empty-create-document = Creați document
 empty-upload-word = Încărcați Word
 
