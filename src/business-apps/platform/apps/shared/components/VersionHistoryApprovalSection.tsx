@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Button, cn } from '@newwork/nw-design-system'
-import { CheckCircle, Clock, Inbox, MessageSquare, User, Users, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, FileText, MessageSquare, User, Users, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import type {
   VersionHistoryApprovalDetails,
@@ -73,13 +73,13 @@ function getStatusLabel(status: VersionHistoryApprovalReviewer['status'], messag
     return messages.approvalSkipped ?? 'Skipped'
   }
 
-  return messages.approvalPending ?? 'Pending'
+  return messages.approvalPendingBadge ?? messages.approvalPending ?? 'Pending'
 }
 
 const COMMENT_COLLAPSE_MIN_LENGTH = 72
 
 const APPROVAL_DETAIL_GRID =
-  'gba:grid gba:grid-cols-[max-content_minmax(0,1fr)] gba:items-start gba:gap-x-3 gba:gap-y-2'
+  'gba:grid gba:grid-cols-[max-content_minmax(0,1fr)] gba:items-start gba:gap-x-4 gba:gap-y-3'
 
 function ApprovalDetailLabel({
   icon: Icon,
@@ -99,7 +99,7 @@ function ApprovalDetailLabel({
         className
       )}
     >
-      <Icon className={cn('gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:mt-0.5', iconClassName)} />
+      <Icon className={cn('gba:h-4 gba:w-4 gba:shrink-0 gba:mt-0.5', iconClassName)} />
       <span>{children}</span>
     </div>
   )
@@ -121,7 +121,7 @@ function ReviewerCommentCollapsible({
     <div className={cn('gba:min-w-0 gba:max-w-full', className)}>
       <p
         className={cn(
-          'gba:text-xs gba:text-foreground gba:break-words gba:whitespace-pre-wrap',
+          'gba:text-sm gba:leading-relaxed gba:text-foreground gba:break-words gba:whitespace-pre-wrap',
           !expanded && needsToggle && 'gba:line-clamp-1'
         )}
       >
@@ -177,15 +177,15 @@ function ReviewerLine({
   const responseTime = formatRelativeDate(reviewer.respondedAt, messages.approvalUnknownTime ?? 'Unknown time')
 
   return (
-    <div className="gba:flex gba:w-full gba:min-w-0 gba:max-w-full gba:flex-nowrap gba:items-center gba:gap-2">
-      <Avatar className="gba:h-6 gba:w-6 gba:shrink-0 gba:ring-1 gba:ring-border">
+    <div className="gba:flex gba:w-full gba:min-w-0 gba:max-w-full gba:flex-nowrap gba:items-center gba:gap-2.5">
+      <Avatar className="gba:h-7 gba:w-7 gba:shrink-0 gba:ring-2 gba:ring-background gba:ring-offset-1 gba:ring-offset-muted/30">
         {reviewerDisplay.avatarUrl && <AvatarImage src={reviewerDisplay.avatarUrl} alt={reviewerDisplay.displayName} />}
         <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs">
           {reviewerDisplay.displayName.slice(0, 2).toUpperCase() || <User className="gba:h-3 gba:w-3" />}
         </AvatarFallback>
       </Avatar>
       <span className="gba:inline-flex gba:min-w-0 gba:max-w-full gba:shrink gba:items-center gba:gap-1.5 gba:overflow-hidden">
-        <span className="gba:min-w-0 gba:truncate gba:text-sm gba:font-medium gba:text-foreground">
+        <span className="gba:min-w-0 gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">
           {reviewerDisplay.displayName}
         </span>
         {(reviewer.status === 'pending' || reviewer.status === 'skipped') && (
@@ -225,17 +225,17 @@ export function VersionHistoryApprovalSection({
   const showTopActionRow = Boolean(approval.canReview) && Boolean(onOpenApprovalReview)
 
   const requestedByValue = (
-    <div className="gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-x-2 gba:gap-y-1">
-      <span className="gba:flex gba:items-center gba:gap-2">
-        <Avatar className="gba:h-6 gba:w-6 gba:ring-1 gba:ring-border">
+    <div className="gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1.5">
+      <span className="gba:flex gba:items-center gba:gap-2.5">
+        <Avatar className="gba:h-7 gba:w-7 gba:ring-2 gba:ring-background gba:ring-offset-1 gba:ring-offset-muted/30">
           {requesterAvatarUrl && <AvatarImage src={requesterAvatarUrl} alt={requesterDisplay.displayName} />}
           <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs">
             {requesterDisplay.displayName.slice(0, 2).toUpperCase() || <User className="gba:h-3 gba:w-3" />}
           </AvatarFallback>
         </Avatar>
-        <span className="gba:text-sm gba:font-medium gba:text-foreground">{requesterDisplay.displayName}</span>
+        <span className="gba:text-sm gba:font-semibold gba:text-foreground">{requesterDisplay.displayName}</span>
       </span>
-      <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+      <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
         <Clock className="gba:h-3 gba:w-3" />
         {requestedAtLabel}
       </span>
@@ -319,10 +319,10 @@ export function VersionHistoryApprovalSection({
     })
 
   return (
-    <div className="gba:mt-3 gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/40 gba:p-2">
-      <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
+    <div className="gba:mt-3 gba:rounded-xl gba:border gba:border-border/70 gba:bg-muted/40 gba:p-3.5 gba:ring-1 gba:ring-inset gba:ring-border/40">
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
         <div className={cn('gba:min-w-0 gba:flex-1', APPROVAL_DETAIL_GRID)}>
-          <ApprovalDetailLabel icon={Inbox}>{messages.approvalRequestedBy ?? 'Requested by'}:</ApprovalDetailLabel>
+          <ApprovalDetailLabel icon={FileText}>{messages.approvalRequestedBy ?? 'Requested by'}:</ApprovalDetailLabel>
           {requestedByValue}
 
           {approval.requestStatus === 'approved' ? renderApprovedReviewerGrid() : renderNonApprovedReviewerGrid()}
@@ -331,7 +331,7 @@ export function VersionHistoryApprovalSection({
           <Button
             size="sm"
             variant="outline"
-            className="gba:shrink-0 gba:self-start gba:px-2 gba:text-xs"
+            className="gba:shrink-0 gba:self-start gba:px-3 gba:text-xs gba:font-medium"
             onClick={event => {
               event.stopPropagation()
               onOpenApprovalReview?.(versionNumber)

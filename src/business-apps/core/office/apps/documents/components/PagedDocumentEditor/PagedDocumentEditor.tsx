@@ -1537,7 +1537,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         approvalUnknownTime: t('editor-version-history-unknown-time'),
         approvalCommentShowMore: t('editor-version-history-comment-show-more'),
         approvalCommentShowLess: t('editor-version-history-comment-show-less'),
-        approvalReviewerCommentLabel: t('editor-version-history-review-comment')
+        approvalReviewerCommentLabel: t('editor-version-history-review-comment'),
+        approvalFilterLabel: t('editor-version-history-approval-filter-label'),
+        approvalFilterAll: t('editor-version-history-approval-filter-all'),
+        approvalFilterInReview: t('editor-version-history-approval-filter-in-review'),
+        approvalFilterApproved: t('editor-version-history-approval-filter-approved'),
+        approvalFilterRejected: t('editor-version-history-approval-filter-rejected'),
+        approvalFilterEmpty: t('editor-version-history-approval-filter-empty'),
+        approvalPendingBadge: t('editor-version-history-reviewer-pending-badge')
       }),
       [t]
     )
