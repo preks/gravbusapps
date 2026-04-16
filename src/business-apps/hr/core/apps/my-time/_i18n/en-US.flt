@@ -1,6 +1,7 @@
 tab_timesheet = My Time
 tab_history = Timesheet
 tab_everyai_assistant = EveryAI Assistant
+tab_project_time = Project Time
 greeting_morning = Good morning, { $name }
 greeting_afternoon = Good afternoon, { $name }
 greeting_evening = Good evening, { $name }
@@ -16,7 +17,7 @@ todays_log = TODAY'S LOG
 clocked_in_log = Clocked in
 clocked_out_log = Clocked out
 no_log_entries = No entries for today
-this_week_card = THIS WEEK
+this_week_card = This Week
 quick_actions = QUICK ACTIONS
 request_leave = Request Leave
 request_leave_description = Vacation, sick day, or personal time
