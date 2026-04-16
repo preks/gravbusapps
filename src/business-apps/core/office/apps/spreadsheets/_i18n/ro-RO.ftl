@@ -45,6 +45,7 @@ sh-tab-tasks = Sarcinile mele
 sh-tab-recent = Recente
 sh-tab-automations = Automatizări
 sh-tab-favorites = Favorite
+sh-tab-trash = Coș de gunoi
 
 # Upload view
 upload-cancel = Anulare
@@ -73,6 +74,11 @@ action-sort-name = Nume
 action-sort-modified = Modificat
 action-sort-created = Creat
 action-search-placeholder = Caută...
+header-search-placeholder = Caută foi de calcul...
+header-refresh = Reîmprospătează
+sort-name = Nume
+sort-trashed = Mutat în coș la
+table-trashed = În coș din
 action-refresh = Reîmprospătează lista
 action-refresh-sheet = Reîmprospătează datele foii de calcul
 status-saving = Se salvează...
@@ -80,6 +86,10 @@ status-saving = Se salvează...
 # List view - table headers
 table-modified-by = Modificat de
 table-rows = Rânduri
+
+# Empty states
+empty-trash-title = Nicio foaie de calcul în coș
+empty-trash-description = Foile de calcul mutate în coș vor apărea aici.
 rows-label = rânduri
 
 # Empty states
@@ -136,6 +146,16 @@ header-breadcrumb-spreadsheets = Foi de calcul
 header-submitted-at = Trimis – { $date }
 header-rename-file-title = Click pentru a redenumi fișierul
 header-rename-file-placeholder = Nume foaie de calcul
+title-untitled = Foaie de calcul fără titlu
+trashed-readonly-title = Această foaie de calcul este în coș
+trashed-readonly-description = "{ $title }" este în coș și se deschide doar în modul de vizualizare până când este restaurată.
+trashed-readonly-owner-note = Pentru a edita din nou această foaie de calcul, restaureaz-o din coș.
+trashed-readonly-shared-note = Pentru a edita din nou această foaie de calcul, cere proprietarului să o restaureze din coș.
+trashed-readonly-back = Înapoi la coș
+trashed-readonly-restore = Restaurează foaia de calcul
+trashed-readonly-restoring = Se restaurează...
+trashed-readonly-delete = Șterge definitiv
+trashed-readonly-deleting = Se șterge...
 
 # Version History (shared dialog)
 version-history-title = Istoric versiuni
@@ -379,9 +399,16 @@ toast-checkpoint-save-failed = Checkpoint-ul nu a putut fi salvat. Încearcă di
 toast-file-name-required = Numele fișierului nu poate fi gol.
 toast-file-rename-success = Numele fișierului a fost actualizat.
 toast-file-rename-failed = Nu s-a putut redenumi fișierul.
+toast-restored = Foaia de calcul a fost restaurată
+toast-restore-failed = Foaia de calcul nu a putut fi restaurată
+toast-delete-permanently-failed = Foaia de calcul nu a putut fi ștearsă definitiv
 
 # Delete confirmation
-delete-confirm = Sigur vrei să ștergi această foaie de calcul?
+delete-confirm-title = Muți în coș?
+delete-confirm-single = "{$name}" va fi mutat(ă) în coș. Îl poți restaura în 30 de zile.
+delete-confirm-multi = {$count} foi de calcul vor fi mutate în coș. Le poți restaura în 30 de zile.
+delete-confirm-action = Mută în coș
+delete-confirm-cancel = Anulează
 
 # Relative time
 time-just-now = Acum

@@ -971,6 +971,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onShare,
   onEdit,
   isEditing = true,
+  isTrashedApp = false,
   accessToken = '',
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
@@ -1891,6 +1892,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const collaboration = useSpreadsheetCollaboration({
     appId: app.id,
     accessToken,
+    disabled: isTrashedApp,
     callbacks: collaborationCallbacks
   })
 

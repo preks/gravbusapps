@@ -14,6 +14,9 @@ export class OfficeDocumentsClient {
   get<T = any>(id: string, options?: RequestOptions) {
     return this.client.get<T>(`/documents/${id}`, options)
   }
+  getTrashedPreview<T = any>(id: string, options?: RequestOptions) {
+    return this.client.get<T>(`/documents/${id}/trashed-preview`, options)
+  }
   getDocumentFile(documentId: string, options?: RequestOptions) {
     return this.client.get<Blob>(`/documents/${documentId}/file`, {
       ...options,

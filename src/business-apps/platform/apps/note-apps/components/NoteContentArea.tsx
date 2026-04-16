@@ -65,7 +65,6 @@ export interface NoteContentAreaProps {
   onDeleteNote: (id: string) => void
   onDuplicateNote: (id: string) => void
   onTogglePin: (id: string) => void
-  onArchiveNote: (id: string) => void
   onShareNote: (id: string) => void
   onCopyLink: (note: NoteSummary) => void
   onToggleFavorite: (id: string, e?: React.MouseEvent) => void
@@ -73,7 +72,6 @@ export interface NoteContentAreaProps {
   onSelectAll: () => void
   onBulkDelete?: () => void
   onBulkPin?: () => void
-  onBulkArchive?: () => void
   onClearSelection?: () => void
   onMoveToFolder?: (noteId: string, folderId: string) => void
   onRenameNote?: (noteId: string, newTitle: string) => void
@@ -131,7 +129,6 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   onDeleteNote,
   onDuplicateNote,
   onTogglePin,
-  onArchiveNote,
   onShareNote,
   onCopyLink,
   onToggleFavorite,
@@ -140,7 +137,6 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   onSelectAll: _onSelectAll,
   onBulkDelete,
   onBulkPin,
-  onBulkArchive,
   onClearSelection,
   onMoveToFolder,
   onRenameNote
@@ -214,8 +210,8 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                 ? t('empty-pinned-title')
                 : activeSection === 'shared'
                   ? t('empty-shared-title')
-                  : activeSection === 'archived'
-                    ? t('empty-archived-title')
+                  : activeSection === 'trash'
+                    ? t('empty-trash-title')
                     : t('empty-default-title')}
             </h3>
             <p className="gba:text-muted-foreground gba:text-sm gba:text-center gba:max-w-sm gba:mb-5">
@@ -223,11 +219,11 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                 ? t('empty-pinned-description')
                 : activeSection === 'shared'
                   ? t('empty-shared-description')
-                  : activeSection === 'archived'
-                    ? t('empty-archived-description')
+                  : activeSection === 'trash'
+                    ? t('empty-trash-description')
                     : t('empty-default-description')}
             </p>
-            {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'archived' && (
+            {activeSection !== 'pinned' && activeSection !== 'shared' && activeSection !== 'trash' && (
               <Button onClick={() => onCreateNote()} size="sm">
                 <Plus className="gba:w-4 gba:h-4 gba:mr-1.5" />
                 {t('empty-create-note')}
@@ -249,7 +245,6 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                 onDelete={onDeleteNote}
                 onDuplicate={onDuplicateNote}
                 onTogglePin={onTogglePin}
-                onArchive={onArchiveNote}
                 onShare={onShareNote}
               />
             ))}
@@ -504,7 +499,6 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
           selectedCount={selectedNotes.size}
           onDelete={onBulkDelete || (() => {})}
           onPin={onBulkPin}
-          onArchive={onBulkArchive}
           onClearSelection={onClearSelection || (() => {})}
         />
       </div>

@@ -13,6 +13,17 @@ export function createEmptyThreadComposeState(): ThreadComposeDraftState {
   }
 }
 
+export function createThreadComposeStateFromDraftMessage(draftMessage: EmailMessage): ThreadComposeDraftState {
+  return {
+    toRecipients: draftMessage.toAddresses || [],
+    ccRecipients: draftMessage.ccAddresses || [],
+    bccRecipients: draftMessage.bccAddresses || [],
+    subject: draftMessage.subject || '',
+    body: draftMessage.textBody || '',
+    showCcBcc: (draftMessage.ccAddresses?.length || 0) > 0 || (draftMessage.bccAddresses?.length || 0) > 0
+  }
+}
+
 function getPrimaryReplyAddress(message: EmailMessage): EmailAddress {
   return message.replyToAddresses?.[0] || message.fromAddress
 }

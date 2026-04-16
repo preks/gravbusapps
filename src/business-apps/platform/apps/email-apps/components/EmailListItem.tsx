@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   Checkbox,
   Badge,
@@ -23,7 +23,8 @@ import {
   Reply,
   ReplyAll,
   Forward,
-  Undo2
+  Undo2,
+  Pencil
 } from 'lucide-react'
 import { getLabelChipClassName } from '../utils/labelUtils'
 import { getDisplayName } from '../utils/emailListFormatting'
@@ -42,6 +43,7 @@ interface EmailListItemProps {
   onReply?: () => void
   onReplyAll?: () => void
   onForward?: () => void
+  onEditDraft?: () => void
   onChatWithUser?: () => void
   canChatWithUser?: boolean
   onToggleRead?: () => void
@@ -66,6 +68,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   onReply,
   onReplyAll,
   onForward,
+  onEditDraft,
   onChatWithUser,
   canChatWithUser = false,
   onToggleRead,
@@ -79,6 +82,7 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   t,
   formatDate
 }) => {
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false)
   const {
     isLabelsExpanded,
     setIsLabelsExpanded,
@@ -101,7 +105,14 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
   } = useEmailListItemLabels({
     message,
     onAddLabels,
-    onRemoveLabel
+    onRemoveLabel,
+    closeEditorOnSuccess: true,
+    onAddSuccess: () => {
+      setIsContextMenuOpen(false)
+    },
+    onRemoveSuccess: () => {
+      setIsContextMenuOpen(false)
+    }
   })
   const labelSuggestionsContent = (
     <LabelSuggestionsList
@@ -117,11 +128,12 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
     />
   )
   const handleContextMenuOpenChange = useCallback((open: boolean) => {
+    setIsContextMenuOpen(open)
     if (!open) setIsLabelsExpanded(false)
-  }, [])
+  }, [setIsLabelsExpanded])
   const isUnread = message.isRead === false
   return (
-    <ContextMenu onOpenChange={handleContextMenuOpenChange}>
+    <ContextMenu open={isContextMenuOpen} onOpenChange={handleContextMenuOpenChange}>
       <ContextMenuTrigger asChild>
         <div
           onClick={onSelect}
@@ -229,22 +241,39 @@ export const EmailListItem: React.FC<EmailListItemProps> = ({
       </ContextMenuTrigger>
 
       <ContextMenuContent className="gba:w-48" data-testid={`${testId}-context-menu`}>
-        <ContextMenuItem onSelect={() => onReply?.()} disabled={!onReply} data-testid={`${testId}-context-reply`}>
-          <Reply className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
-          {t('list-context-reply')}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={() => onReplyAll?.()}
-          disabled={!onReplyAll}
-          data-testid={`${testId}-context-reply-all`}
-        >
-          <ReplyAll className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
-          {t('list-context-reply-all')}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={() => onForward?.()} disabled={!onForward} data-testid={`${testId}-context-forward`}>
-          <Forward className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
-          {t('list-context-forward')}
-        </ContextMenuItem>
+        {message.status === 'draft' ? (
+          <ContextMenuItem
+            onSelect={() => onEditDraft?.()}
+            disabled={!onEditDraft}
+            data-testid={`${testId}-context-edit-draft`}
+          >
+            <Pencil className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+            {t('list-context-edit-draft')}
+          </ContextMenuItem>
+        ) : (
+          <>
+            <ContextMenuItem onSelect={() => onReply?.()} disabled={!onReply} data-testid={`${testId}-context-reply`}>
+              <Reply className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+              {t('list-context-reply')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => onReplyAll?.()}
+              disabled={!onReplyAll}
+              data-testid={`${testId}-context-reply-all`}
+            >
+              <ReplyAll className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+              {t('list-context-reply-all')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => onForward?.()}
+              disabled={!onForward}
+              data-testid={`${testId}-context-forward`}
+            >
+              <Forward className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+              {t('list-context-forward')}
+            </ContextMenuItem>
+          </>
+        )}
         {canChatWithUser && (
           <ContextMenuItem
             onSelect={() => onChatWithUser?.()}

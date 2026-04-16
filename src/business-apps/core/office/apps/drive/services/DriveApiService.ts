@@ -11,7 +11,8 @@ import type {
   DriveSortBy,
   DriveShortcut,
   ShareInfo,
-  ShareLinkInfo
+  ShareLinkInfo,
+  TrashedDriveItemDetail
 } from '../types/drive.types'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -268,6 +269,14 @@ export class DriveApiService {
 
   static async emptyTrash(): Promise<{ deleted: number }> {
     return apiRequest<{ deleted: number }>('/drive/trash', { method: 'DELETE' })
+  }
+
+  static async getTrashedItem(entityType: string, entityId: string): Promise<TrashedDriveItemDetail> {
+    return apiRequest<TrashedDriveItemDetail>(`/drive/trash/${entityType}/${entityId}`)
+  }
+
+  static async deleteTrashedItem(entityType: string, entityId: string): Promise<void> {
+    await apiRequest<void>(`/drive/trash/${entityType}/${entityId}`, { method: 'DELETE' })
   }
 
   static async search(

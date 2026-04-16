@@ -17,6 +17,7 @@ import translations from '../_i18n'
 import {
   buildDocumentApprovalRequest,
   getDocumentById,
+  getDocumentForOpenById,
   mapApiDocToSummary,
   mapApiDocumentToDocument
 } from '../utils/documentOfficeOperations'
@@ -91,12 +92,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         setState(prev => ({ ...prev, isLoading: true, error: null }))
 
-        const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'title'> = {
-          created: 'createdAt',
-          modified: 'updatedAt',
-          name: 'title'
-        }
-        const backendSortBy = query.sortBy ?? (sortByMap[query.sortBy as string] || 'updatedAt')
+        const backendSortBy = query.sortBy ?? 'updatedAt'
         const backendSortOrder = query.sortOrder ?? 'DESC'
 
         const params = new URLSearchParams()
@@ -170,7 +166,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return null
 
       try {
-        const document = await getDocumentById(officeClient, id)
+        const document = await getDocumentForOpenById(officeClient, id)
         if (document) {
           const permission = document.permission || 'owner'
           setState(prev => ({
