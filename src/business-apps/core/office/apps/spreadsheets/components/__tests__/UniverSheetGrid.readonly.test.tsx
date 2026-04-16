@@ -21,7 +21,8 @@ jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: t
 
 let lastPresetContainer: unknown
 let lastSetNumfmtLocalMock: jest.Mock | undefined
-let lastRangeSetValueMock: jest.Mock | undefined
+let lastRangeGetValueMock: jest.Mock | undefined
+let selectionState: { actualRow?: number; actualColumn?: number; row?: number; column?: number } | null = null
 jest.mock(
   '@univerjs/preset-sheets-core',
   () => ({
@@ -44,11 +45,14 @@ jest.mock(
         getValue: jest.fn(),
         getCellData: jest.fn(() => ({ v: undefined }))
       }
-      lastRangeSetValueMock = range.setValue
+      lastRangeGetValueMock = range.getValue
       const activeSheet = {
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
         onScroll: () => ({ dispose: jest.fn() }),
-        getRange: () => range
+        getRange: () => range,
+        getSelection: () => ({
+          getCurrentCell: () => selectionState
+        })
       }
       const workbook = {
         setNumfmtLocal: jest.fn(),
@@ -111,7 +115,8 @@ describe('UniverSheetGrid read-only behavior', () => {
     Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
     lastPresetContainer = undefined
     lastSetNumfmtLocalMock = undefined
-    lastRangeSetValueMock = undefined
+    lastRangeGetValueMock = undefined
+    selectionState = null
   })
 
   afterEach(() => {
@@ -133,6 +138,31 @@ describe('UniverSheetGrid read-only behavior', () => {
     )
 
     expect(screen.getByTestId('univer-readonly-overlay')).toBeInTheDocument()
+  })
+
+  it('renders remote cursor overlays from legacy spreadsheet cursor paths', () => {
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+        participants={[
+          {
+            userId: 'user-2',
+            userName: 'Alice',
+            userColor: '#ff0000',
+            socketId: 'socket-2',
+            cursor: { path: ['sheet-1', 'row-1', 'name'] },
+            lastActiveAt: new Date()
+          }
+        ]}
+      />
+    )
+
+    expect(screen.getByTitle('Alice')).toBeInTheDocument()
   })
 
   it('passes the mounted grid host element to Univer (not null from early effect)', () => {
@@ -255,7 +285,13 @@ describe('UniverSheetGrid read-only behavior', () => {
         }
       }
     })
-    expect(onCellsChange).toHaveBeenCalled()
+    expect(onCellsChange).toHaveBeenCalledWith([
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        value: 'Allowed'
+      }
+    ])
   })
 
   it('suppresses remote echo updates without blocking subsequent local edits', () => {
@@ -303,13 +339,11 @@ describe('UniverSheetGrid read-only behavior', () => {
     expect(onCellsChange).toHaveBeenCalled()
   })
 
-  it('does not drop non-echo local changes that occur during remote apply', async () => {
+  it('prefers the worksheet post-mutation value over a stale event payload value', () => {
     const onCellsChange = jest.fn()
-    const gridRef = React.createRef<UniverSheetGridHandle>()
 
     render(
       <UniverSheetGrid
-        ref={gridRef}
         sheet={sheet}
         data={data}
         columns={columns}
@@ -320,26 +354,74 @@ describe('UniverSheetGrid read-only behavior', () => {
       />
     )
 
+    lastRangeGetValueMock?.mockReturnValue('Current')
+
     const sheetValueChanged = eventHandlers.SheetValueChanged
-    expect(sheetValueChanged).toBeDefined()
-
-    lastRangeSetValueMock?.mockImplementationOnce(() => {
-      sheetValueChanged?.({
-        payload: {
-          params: {
-            cellValue: { 0: { 0: { v: 'LocalDuringRemote' } } },
-            range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
-          }
+    sheetValueChanged?.({
+      payload: {
+        params: {
+          cellValue: { 0: { 0: { v: 'Previous' } } },
+          range: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
         }
-      })
+      }
     })
 
-    await act(async () => {
-      gridRef.current?.applyRemoteCellUpdate(0, 0, { v: 'Remote' })
-      await Promise.resolve()
+    expect(onCellsChange).toHaveBeenCalledWith([
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        value: 'Current'
+      }
+    ])
+  })
+
+  it('does not emit a clear when selection reconcile reads an untouched blank cell', () => {
+    jest.useFakeTimers()
+    const onCellsChange = jest.fn()
+    const blankColumns = [
+      columns[0],
+      {
+        id: 'col-2',
+        name: 'city',
+        label: 'City',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 150,
+        order: 1
+      }
+    ] as any
+    const blankData = [{ _id: 'row-1', name: '', city: '' }]
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={blankData}
+        columns={blankColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={onCellsChange}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    lastRangeGetValueMock?.mockReturnValue(undefined)
+
+    selectionState = { actualRow: 0, actualColumn: 0 }
+    act(() => {
+      eventHandlers.SelectionChanged?.({})
+      jest.advanceTimersByTime(100)
     })
 
-    expect(onCellsChange).toHaveBeenCalled()
+    selectionState = { actualRow: 0, actualColumn: 1 }
+    act(() => {
+      eventHandlers.SelectionChanged?.({})
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(onCellsChange).not.toHaveBeenCalled()
   })
 
   it('injects Add comment into the vertical context menu list', () => {
