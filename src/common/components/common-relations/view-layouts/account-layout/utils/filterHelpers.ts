@@ -46,7 +46,33 @@ export const buildDynamicFilterConfig = (
     }
   }
 
-  return buildFilterConfigFromDescriptors(baseConfig, descriptors, filterDataMap)
+  const enriched = buildFilterConfigFromDescriptors(baseConfig, descriptors, filterDataMap)
+
+  // Override filter type/config when a descriptor says 'number' but the catalog generated
+  // a text filter (e.g. MOIC, IRR whose catalog field type isn't AMOUNT/NUMBER/PERCENTAGE).
+  const numberDescriptorKeys = new Set(
+    descriptors.filter(d => d.type === 'number' && d.path && !d.kind).map(d => d.key)
+  )
+
+  enriched.groups = enriched.groups.map(group => ({
+    ...group,
+    filters: group.filters.map(filter => {
+      if (filter.type !== 'number' && numberDescriptorKeys.has(filter.field ?? filter.id)) {
+        return {
+          ...filter,
+          type: 'number' as const,
+          config: {
+            mode: 'range',
+            placeholderMin: 'Min',
+            placeholderMax: 'Max'
+          }
+        }
+      }
+      return filter
+    })
+  }))
+
+  return enriched
 }
 
 // Re-export for backward compatibility
