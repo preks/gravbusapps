@@ -47,7 +47,8 @@ export interface EvalsDashboardQueryParams {
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
-  llm_model?: string
+  model_kind?: string
+  domain?: 'crm' | 'irm'
 }
 
 export interface MapFromFileResponse {
@@ -66,6 +67,7 @@ export interface ExtractFromFileRequest {
   entity_type: string
   domain?: 'crm' | 'irm'
   import_file: File
+  model_kind?: string
   mapping_json: string
   offset?: number
   max_rows?: number
@@ -91,6 +93,8 @@ function toFlowbotImportDomain(domain?: string): 'crm' | 'irm' | undefined {
   if (domain === 'investment' || domain === 'irm') return 'irm'
   return undefined
 }
+
+const FLOWBOT_IMPORT_MODEL_KIND_DEFAULT = 'default'
 
 export interface DocumentAutocompleteRequest {
   document_id?: string
@@ -175,7 +179,7 @@ export class FlowbotClient extends RestClient {
   public async mapFromFile(
     entityType: string,
     importFile: File,
-    llmModel?: string,
+    modelKind: string = FLOWBOT_IMPORT_MODEL_KIND_DEFAULT,
     domain?: string,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
@@ -186,9 +190,7 @@ export class FlowbotClient extends RestClient {
       formData.append('domain', flowbotDomain)
     }
     formData.append('import_file', importFile)
-    if (llmModel) {
-      formData.append('llm_model', llmModel)
-    }
+    formData.append('model_kind', modelKind)
 
     return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
   }
@@ -199,6 +201,7 @@ export class FlowbotClient extends RestClient {
     mappingJson: string,
     enforcedFieldsJson?: string,
     domain?: string,
+    modelKind: string = FLOWBOT_IMPORT_MODEL_KIND_DEFAULT,
     offset: number = 0,
     maxRows: number = 5000,
     options: Omit<RequestOptions, 'body'> = {}
@@ -210,6 +213,7 @@ export class FlowbotClient extends RestClient {
       formData.append('domain', flowbotDomain)
     }
     formData.append('import_file', importFile)
+    formData.append('model_kind', modelKind)
     formData.append('mapping_json', mappingJson)
     if (enforcedFieldsJson) {
       formData.append('enforced_fields_json', enforcedFieldsJson)
