@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 
 // Client version for tracking
 const CLIENT_VERSION = '1'
@@ -29,6 +30,7 @@ export interface DocumentOperation {
   path?: string
   baseVersion?: number
   broadcastOnly?: boolean
+  version?: number
 }
 
 export interface CollaborationWebSocketOptions {
@@ -36,7 +38,9 @@ export interface CollaborationWebSocketOptions {
   reconnectionAttempts?: number
   reconnectionDelayMax?: number
   path?: string
+  namespace?: string
   enablePollingFallback?: boolean
+  serviceApiUrl?: string
   debug?: boolean
   onReconnectFailed?: () => void
 }
@@ -45,6 +49,7 @@ export type CollaborationEventHandler = (data: any) => void
 
 export class CollaborationClient {
   private socket: Socket | null = null
+  private accessToken = ''
   private url: string
   private options: CollaborationWebSocketOptions
   private reconnectAttempts = 0
@@ -66,7 +71,48 @@ export class CollaborationClient {
     this.maxReconnectAttempts = this.options.reconnectionAttempts || 10
   }
 
+  setAccessToken(token: string) {
+    if (!token || token === this.accessToken) {
+      return
+    }
+
+    this.accessToken = token
+    if (!this.socket) {
+      return
+    }
+
+    this.socket.auth = {
+      token,
+      clientVersion: CLIENT_VERSION
+    }
+
+    if (this.socket.connected) {
+      this.forceReconnect()
+    }
+  }
+
   connect(token: string) {
+    const nextToken = token || this.accessToken
+    if (!nextToken) {
+      throw new Error('[CollaborationClient] Access token required before connecting.')
+    }
+
+    if (this.socket) {
+      this.accessToken = nextToken
+      this.socket.auth = {
+        token: nextToken,
+        clientVersion: CLIENT_VERSION
+      }
+
+      if (this.socket.connected) {
+        return this.socket
+      }
+
+      this.socket.connect()
+      return this.socket
+    }
+
+    this.accessToken = nextToken
     // Build transports array based on configuration
     const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
@@ -81,7 +127,7 @@ export class CollaborationClient {
 
     this.socket = io(this.url, {
       auth: {
-        token,
+        token: nextToken,
         clientVersion: CLIENT_VERSION
       },
       transports,
@@ -421,12 +467,38 @@ export class CollaborationClient {
 
   // Event listeners
 
+  on(event: string, handler: CollaborationEventHandler) {
+    this.socket?.on(event, handler)
+
+    return () => {
+      this.socket?.off(event, handler)
+    }
+  }
+
+  onConnect(handler: () => void) {
+    return this.on('connect', handler)
+  }
+
+  onDisconnect(handler: (reason: string) => void) {
+    return this.on('disconnect', handler)
+  }
+
+  onConnectError(handler: (error: Error) => void) {
+    return this.on('connect_error', handler)
+  }
+
   onUserJoined(handler: (data: { userId: string; userName: string; userColor: string; socketId: string }) => void) {
-    this.socket?.on('user_joined', handler)
+    return this.on('user_joined', handler)
   }
 
   onUserLeft(handler: (data: { userId: string; userName: string; socketId: string }) => void) {
-    this.socket?.on('user_left', handler)
+    return this.on('user_left', handler)
+  }
+
+  onParticipantsUpdated(
+    handler: (data: { entityType: 'document' | 'spreadsheet' | 'note'; entityId: string; participants: any[] }) => void
+  ) {
+    return this.on('participants_updated', handler)
   }
 
   onOperationApplied(
@@ -438,7 +510,7 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('operation_applied', handler)
+    return this.on('operation_applied', handler)
   }
 
   onCursorUpdate(
@@ -454,7 +526,7 @@ export class CollaborationClient {
       }
     }) => void
   ) {
-    this.socket?.on('cursor_update', handler)
+    return this.on('cursor_update', handler)
   }
 
   onSelectionUpdate(
@@ -468,19 +540,19 @@ export class CollaborationClient {
       } | null
     }) => void
   ) {
-    this.socket?.on('selection_update', handler)
+    return this.on('selection_update', handler)
   }
 
   onUserTyping(handler: (data: { userId: string; userName: string; isTyping: boolean }) => void) {
-    this.socket?.on('user_typing', handler)
+    return this.on('user_typing', handler)
   }
 
   onDocumentSaved(handler: (data: { userId: string; version: number; timestamp: number }) => void) {
-    this.socket?.on('document_saved', handler)
+    return this.on('document_saved', handler)
   }
 
   onVersionCreated(handler: (data: { version: number; userId: string; timestamp: number }) => void) {
-    this.socket?.on('version_created', handler)
+    return this.on('version_created', handler)
   }
 
   // ============ Comment Events ============
@@ -498,21 +570,21 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('comment:created', handler)
+    return this.on('comment:created', handler)
   }
 
   onCommentUpdated(
     handler: (data: { commentId: string; updates: Record<string, unknown>; timestamp: number }) => void
   ) {
-    this.socket?.on('comment:updated', handler)
+    return this.on('comment:updated', handler)
   }
 
   onCommentResolved(handler: (data: { commentId: string; resolvedBy: string; timestamp: number }) => void) {
-    this.socket?.on('comment:resolved', handler)
+    return this.on('comment:resolved', handler)
   }
 
   onCommentDeleted(handler: (data: { commentId: string; timestamp: number }) => void) {
-    this.socket?.on('comment:deleted', handler)
+    return this.on('comment:deleted', handler)
   }
 
   // ============ Lock Events ============
@@ -529,11 +601,11 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('lock:acquired', handler)
+    return this.on('lock:acquired', handler)
   }
 
   onLockReleased(handler: (data: { unlockedBy: string; timestamp: number }) => void) {
-    this.socket?.on('lock:released', handler)
+    return this.on('lock:released', handler)
   }
 
   // ============ Publishing Events ============
@@ -549,7 +621,7 @@ export class CollaborationClient {
       timestamp: number
     }) => void
   ) {
-    this.socket?.on('publish:status_changed', handler)
+    return this.on('publish:status_changed', handler)
   }
 
   // Remove event listeners
@@ -567,7 +639,7 @@ export class CollaborationClient {
  * Automatically determines the WebSocket URL from the document service URL
  */
 export function createCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
-  const apiUrl = getDocumentServiceApiUrl()
+  const apiUrl = options?.serviceApiUrl || getDocumentServiceApiUrl()
 
   // Remove /api/v1 suffix if present to get base service URL
   // e.g., 'https://newwork-dev.newwork.com/document/api/v1' -> 'https://newwork-dev.newwork.com/document'
@@ -577,13 +649,14 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Resolve relative URLs (e.g., "/local-doc-api") against the current page origin
   const urlObj = new URL(serviceUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3005')
   const servicePath = urlObj.pathname // e.g., '/document'
+  const namespace = options?.namespace || '/collaboration'
 
   // For localhost, use simple path; for production use service path
   const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
 
   // Socket.io namespace URL is: origin + namespace (NOT service path)
   // The namespace on the server is '/collaboration'
-  const wsUrl = `${urlObj.origin}/collaboration`
+  const wsUrl = `${urlObj.origin}${namespace}`
 
   // Socket.io path: for localhost use default, for production include service path
   const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
@@ -603,6 +676,14 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
     ...options,
     path: socketPath,
     debug: debugEnabled
+  })
+}
+
+export function createSpreadsheetCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
+  return createCollaborationClient({
+    ...options,
+    namespace: '/v2/spreadsheet-collaboration',
+    serviceApiUrl: getSpreadsheetServiceApiUrl()
   })
 }
 

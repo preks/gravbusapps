@@ -10,7 +10,7 @@ import {
   AvatarFallback
 } from '@newwork/nw-design-system'
 import { ExternalLink } from 'lucide-react'
-import { DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { AutomationRun, RunSubmission, TranslateFn } from './automationSectionTypes'
 import {
@@ -39,7 +39,7 @@ export const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken
   const [submissions, setSubmissions] = useState<RunSubmission[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const docServiceUrl = DOCUMENT_API_URL.replace(/\/+$/, '')
+  const docServiceUrl = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
   const StatusIcon = run ? getStatusIcon(run.status) : null
   const graphqlClient = useGraphQLClient(accessToken)
 
