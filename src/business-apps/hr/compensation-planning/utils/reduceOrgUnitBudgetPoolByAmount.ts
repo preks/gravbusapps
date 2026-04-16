@@ -11,7 +11,7 @@ import {
 } from '../queries/budgetPlanQueries'
 import type { BudgetPlanStatusApi } from '../types/budgetPlanGraphqlEnums'
 import { roundMoney2 } from './budgetAmountPercentSync'
-import { graphqlUnknownToStringOrNull } from './graphqlUnknownToString'
+import { graphqlUnknownToString, graphqlUnknownToStringOrNull } from './graphqlUnknownToString'
 
 function num(v: unknown): number {
   if (typeof v === 'number' && !Number.isNaN(v)) {
@@ -95,7 +95,7 @@ export async function reduceOrgUnitBudgetPoolByAmount(
 
   const ouVersion = num(ou.version)
   if (!Number.isFinite(ouVersion)) {
-    throw new Error('Org unit budget row is missing version')
+    throw new TypeError('Org unit budget row is missing version')
   }
 
   const unitPayload = {
@@ -107,7 +107,7 @@ export async function reduceOrgUnitBudgetPoolByAmount(
     bonusBudgetPercent: num(ou.bonusBudgetPercent),
     budgetPlanStatus: coerceOuStatus(ou.budgetPlanStatus),
     compensationBudgetPlanCompany: companyBudgetRowId,
-    organizationalUnit: String(ou.organizationalUnitId ?? '')
+    organizationalUnit: graphqlUnknownToString(ou.organizationalUnitId)
   }
 
   await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, {

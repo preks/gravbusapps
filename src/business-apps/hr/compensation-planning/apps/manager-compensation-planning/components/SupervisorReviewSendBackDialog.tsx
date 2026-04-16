@@ -15,7 +15,7 @@ export interface SupervisorReviewSendBackDialogProps {
   sendBackNotes: string
   onSendBackNotesChange: (value: string) => void
   busy: boolean
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
   t: TranslateFn
 }
 
@@ -47,7 +47,9 @@ export function SupervisorReviewSendBackDialog({
           </Button>
           <Button
             type="button"
-            onClick={() => void onConfirm()}
+            onClick={() => {
+              Promise.resolve(onConfirm()).catch(() => {})
+            }}
             disabled={busy}
             data-testid="supervisor-review-send-back-confirm"
           >

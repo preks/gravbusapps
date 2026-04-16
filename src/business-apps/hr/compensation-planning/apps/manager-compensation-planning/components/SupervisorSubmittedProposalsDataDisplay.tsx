@@ -21,7 +21,7 @@ export interface SupervisorSubmittedProposalsDataDisplayProps {
   sortableColumns: { id: string; label: string }[]
   availableColumnsForDisplay: { id: string; label: string }[]
   handlePaginationChange: (next: { pageIndex: number; pageSize: number }) => void
-  onApproveSelected: () => void
+  onApproveSelected: () => void | Promise<void>
   onSendBackOpen: () => void
 }
 
@@ -78,7 +78,9 @@ export function SupervisorSubmittedProposalsDataDisplay({
               variant="default"
               disabled={busy || selectedIds.size === 0}
               data-testid="supervisor-review-approve-selected"
-              onClick={() => void onApproveSelected()}
+              onClick={() => {
+                Promise.resolve(onApproveSelected()).catch(() => {})
+              }}
             >
               {busy ? t('supervisor-review-busy') : t('supervisor-review-approve-selected')}
             </Button>

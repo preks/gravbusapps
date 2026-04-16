@@ -84,10 +84,10 @@ export function useSupervisorSubmittedProposalsTableModel(
   const sortableColumns = useMemo(
     () => [
       { id: 'employeeDisplayName', label: t('supervisor-review-col-employee') },
+      { id: 'budgetPlanStatus', label: t('supervisor-review-col-status') },
       { id: 'proposedSalaryIncreasePercent', label: t('supervisor-review-col-increase-pct') },
       { id: 'proposedSalaryIncreaseAmount', label: t('supervisor-review-col-increase-amount') },
-      { id: 'proposedNewSalary', label: t('supervisor-review-col-new-salary') },
-      { id: 'budgetPlanStatus', label: t('supervisor-review-col-status') }
+      { id: 'proposedNewSalary', label: t('supervisor-review-col-new-salary') }
     ],
     [t]
   )

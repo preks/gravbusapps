@@ -43,7 +43,7 @@ export interface SupervisorOrgUnitProposalReviewProps {
 function submittedRowsSelectionSignature(rows: readonly CompensationBudgetPlanEmployeeRestRow[]): string {
   return rows
     .map(r => r.id)
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .join(',')
 }
 

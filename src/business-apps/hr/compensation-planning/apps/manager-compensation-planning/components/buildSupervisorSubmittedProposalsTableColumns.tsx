@@ -120,6 +120,30 @@ export function buildSupervisorSubmittedProposalsTableColumns(
       cell: ({ row }) => <span className={`${TABLE_BODY} gba:font-medium`}>{row.original.employeeDisplayName}</span>
     },
     {
+      id: 'budgetPlanStatus',
+      accessorKey: 'budgetPlanStatus',
+      header: columnHeader(t, 'supervisor-review-col-status'),
+      size: COL.status.size,
+      minSize: COL.status.minSize,
+      meta: STATUS_META,
+      sortingFn: (a, b) => {
+        const la = formatBudgetPlanStatusLabelForDisplay(a.original.budgetPlanStatus, t) || ''
+        const lb = formatBudgetPlanStatusLabelForDisplay(b.original.budgetPlanStatus, t) || ''
+        return la.localeCompare(lb)
+      },
+      cell: ({ row }) => {
+        const v = row.original.budgetPlanStatus
+        if (v) {
+          return (
+            <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
+              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+            </div>
+          )
+        }
+        return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
+      }
+    },
+    {
       id: 'proposedSalaryIncreasePercent',
       accessorKey: 'proposedSalaryIncreasePercent',
       header: columnHeader(t, 'supervisor-review-col-increase-pct', 'right'),
@@ -156,30 +180,6 @@ export function buildSupervisorSubmittedProposalsTableColumns(
       cell: ({ row }) => (
         <span className={TABLE_BODY_NUM_RIGHT}>{formatCurrency(row.original.proposedNewSalary, currencyCode)}</span>
       )
-    },
-    {
-      id: 'budgetPlanStatus',
-      accessorKey: 'budgetPlanStatus',
-      header: columnHeader(t, 'supervisor-review-col-status'),
-      size: COL.status.size,
-      minSize: COL.status.minSize,
-      meta: STATUS_META,
-      sortingFn: (a, b) => {
-        const la = formatBudgetPlanStatusLabelForDisplay(a.original.budgetPlanStatus, t) || ''
-        const lb = formatBudgetPlanStatusLabelForDisplay(b.original.budgetPlanStatus, t) || ''
-        return la.localeCompare(lb)
-      },
-      cell: ({ row }) => {
-        const v = row.original.budgetPlanStatus
-        if (v) {
-          return (
-            <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
-            </div>
-          )
-        }
-        return <span className={`${TABLE_BODY} gba:pl-2`}>—</span>
-      }
     }
   ]
 }
@@ -187,8 +187,8 @@ export function buildSupervisorSubmittedProposalsTableColumns(
 /** Data column ids (excludes selection) for column visibility. */
 export const SUPERVISOR_SUBMITTED_PROPOSALS_DATA_COLUMN_IDS = [
   'employeeDisplayName',
+  'budgetPlanStatus',
   'proposedSalaryIncreasePercent',
   'proposedSalaryIncreaseAmount',
-  'proposedNewSalary',
-  'budgetPlanStatus'
+  'proposedNewSalary'
 ] as const

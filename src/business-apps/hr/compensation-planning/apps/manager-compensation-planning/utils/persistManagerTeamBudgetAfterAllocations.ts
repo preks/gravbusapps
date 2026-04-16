@@ -106,7 +106,7 @@ export async function persistManagerTeamBudgetAfterAllocations(input: {
       throw new Error('Org unit budget row is not available for this team; refresh the page and try again.')
     }
     if (!Number.isFinite(snap.version)) {
-      throw new Error('Org unit budget row is missing version; refresh the page and try again.')
+      throw new TypeError('Org unit budget row is missing version; refresh the page and try again.')
     }
 
     const currentOuAmount = roundMoney2(snap.salaryBudgetAmount)
