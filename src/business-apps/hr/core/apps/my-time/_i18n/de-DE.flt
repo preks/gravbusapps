@@ -1,6 +1,7 @@
 tab_timesheet = Meine Zeit
 tab_history = Zeiterfassung
 tab_everyai_assistant = EveryAI Assistent
+tab_project_time = Projektzeit
 greeting_morning = Guten Morgen, { $name }
 greeting_afternoon = Guten Tag, { $name }
 greeting_evening = Guten Abend, { $name }

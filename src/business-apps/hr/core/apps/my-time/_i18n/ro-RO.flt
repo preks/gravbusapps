@@ -1,6 +1,7 @@
 tab_timesheet = Timpul meu
 tab_history = Pontaj
 tab_everyai_assistant = Asistent EveryAI
+tab_project_time = Timp proiect
 greeting_morning = Bună dimineața, { $name }
 greeting_afternoon = Bună ziua, { $name }
 greeting_evening = Bună seara, { $name }

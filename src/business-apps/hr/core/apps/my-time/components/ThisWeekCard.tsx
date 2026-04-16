@@ -124,7 +124,10 @@ export const ThisWeekCard: React.FC<ThisWeekCardProps> = ({ allMonthEntries, wor
             <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={32}>
               <LabelList dataKey="hours" position="top" fontSize={10} formatter={v => (Number(v) > 0 ? `${v}h` : '')} />
               {weekData.map(entry => (
-                <Cell key={entry.day} fill={entry.isToday ? 'var(--nw-color-primary)' : 'var(--nw-color-muted)'} />
+                <Cell
+                  key={entry.day}
+                  fill={entry.isToday ? 'var(--nw-color-primary)' : 'var(--nw-color-muted-foreground)'}
+                />
               ))}
             </Bar>
           </BarChart>
