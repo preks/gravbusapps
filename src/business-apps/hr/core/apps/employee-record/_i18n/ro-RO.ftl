@@ -767,6 +767,17 @@ details-label-private-email = E-mail privat
 details-label-contact-name = Nume contact
 details-label-phone-number = Număr telefon
 
+# Relationships Card
+details-relationships = Relații
+details-relationships-no-entries = Nu există relații înregistrate
+details-relationships-emergency = Contact de urgență
+details-label-relationship-type = Tip
+details-label-relationship-birth-date = Data nașterii
+details-label-relationship-email = E-mail
+delete-relationship-confirm-title = Șterge relația
+delete-relationship-confirm-description = Sigur doriți să ștergeți această relație? Această acțiune nu poate fi anulată.
+delete-relationship-confirm-button = Șterge
+
 # Employment Tab
 employment-overview = Date angajare
 employment-description = Vizualizați informațiile despre angajare și condițiile de lucru
