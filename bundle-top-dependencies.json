@@ -40672,15 +40672,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 10910,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10910/",
-    "chunkJsBytes": 1359393,
+    "bitbucketBuildNumber": 10917,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10917/",
+    "chunkJsBytes": 1359473,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1213950,
-        "gzip": 292685,
+        "rendered": 1214048,
+        "gzip": 292689,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -42711,9 +42711,9 @@
     ]
   },
   "hr/core/apps/my-time": {
-    "bitbucketBuildNumber": 10842,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10842/",
-    "chunkJsBytes": 617062,
+    "bitbucketBuildNumber": 10917,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10917/",
+    "chunkJsBytes": 617221,
     "top": [
       {
         "kind": "bucket",
@@ -42736,8 +42736,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 249773,
-        "gzip": 63027,
+        "rendered": 249996,
+        "gzip": 63076,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
@@ -87933,20 +87933,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10914,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10914/",
-    "chunkJsBytes": 1804789,
+    "bitbucketBuildNumber": 10917,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10917/",
+    "chunkJsBytes": 1804790,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1497920,
-        "gzip": 89881,
+        "gzip": 89880,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1497920,
-            "gzip": 89881
+            "gzip": 89880
           }
         ]
       },
@@ -101593,7 +101593,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-16T14:34:40.620Z",
+    "generatedAt": "2026-04-16T15:05:35.893Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
