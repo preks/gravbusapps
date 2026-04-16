@@ -280,13 +280,22 @@ function toEchoSignature(value: unknown): string {
   }
 }
 
-function normalizeSelectionReconcileSignature(signature: string | undefined): string {
+function normalizeBlankLikeEchoSignature(signature: string | undefined): string {
   if (signature === 'u:' || signature === 'n:' || signature === 's:') return 'blank'
   return signature ?? 'missing'
 }
 
+function normalizeSelectionReconcileSignature(signature: string | undefined): string {
+  return normalizeBlankLikeEchoSignature(signature)
+}
+
 function readAuthoritativeRowCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): unknown {
-  let value = row[column.name] ?? row[column.id]
+  let value: unknown
+  if (Object.prototype.hasOwnProperty.call(row, column.name)) {
+    value = row[column.name]
+  } else if (Object.prototype.hasOwnProperty.call(row, column.id)) {
+    value = row[column.id]
+  }
   if (value === undefined) {
     const rowKeys = Object.keys(row)
     const matchingKey = rowKeys.find(
@@ -1673,7 +1682,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             const expiresAt = Date.now() + REMOTE_ECHO_SUPPRESSION_TTL_MS
             const key = remoteEchoKey(resolvedRow, colIndex)
-            remoteEchoSuppressionRef.current.set(key, { expiresAt, signature: toEchoSignature(value) })
+            remoteEchoSuppressionRef.current.set(key, {
+              expiresAt,
+              signature: normalizeBlankLikeEchoSignature(toEchoSignature(value))
+            })
             globalThis.setTimeout(() => {
               const current = remoteEchoSuppressionRef.current.get(key)
               if (current?.expiresAt === expiresAt) {
@@ -2586,7 +2598,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             remoteEchoSuppressionRef.current.delete(key)
             return false
           }
-          return entry.signature === toEchoSignature(value)
+          return entry.signature === normalizeBlankLikeEchoSignature(toEchoSignature(value))
         }
 
         let hasNonSuppressedCell = false
@@ -2917,74 +2929,68 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         (univerAPI as { Event?: { SheetValueChanged?: string } }).Event?.SheetValueChanged ?? 'SheetValueChanged'
       const valueChangeDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
-      ).addEvent?.(
-        eventKey,
-        (rawParams: unknown) => {
-          if (readOnlyRef.current) return
-          const params = rawParams as {
-            effectedRanges?: Array<{
-              getRange?: () => { startRow: number; endRow: number; startColumn: number; endColumn: number }
-            }>
-            payload?: {
-              id?: string
-              params?: {
-                cellValue?: Record<number, Record<number, { v?: unknown }>>
-                range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-              }
+      ).addEvent?.(eventKey, (rawParams: unknown) => {
+        if (readOnlyRef.current) return
+        const params = rawParams as {
+          effectedRanges?: Array<{
+            getRange?: () => { startRow: number; endRow: number; startColumn: number; endColumn: number }
+          }>
+          payload?: {
+            id?: string
+            params?: {
+              cellValue?: Record<number, Record<number, { v?: unknown }>>
+              range?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
             }
           }
-          const payload = params?.payload
-          const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
-          let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
-          const workbook = univerAPIRef.current?.getActiveWorkbook()
-          const worksheet = workbook?.getActiveSheet()
-          const ranges = (payload?.params?.range ??
-            params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
-            []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-
-          if (preserveUndefinedAsNull) {
-            cellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, true)
-          } else if (!cellValue) {
-            // Fallback: derive changed values from effected ranges when mutation payload
-            // does not provide `cellValue` (observed in some Univer command variants).
-            cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
-          }
-          if (!cellValue) return
-          handleDetectedCellMutation({
-            source: 'sheet-value-changed',
-            payloadCellValue: cellValue,
-            ranges
-          })
         }
-      )
+        const payload = params?.payload
+        const preserveUndefinedAsNull = isClearLikeMutationCommand(String(payload?.id ?? ''))
+        let cellValue = normalizeCellMatrix(payload?.params?.cellValue)
+        const workbook = univerAPIRef.current?.getActiveWorkbook()
+        const worksheet = workbook?.getActiveSheet()
+        const ranges = (payload?.params?.range ??
+          params.effectedRanges?.map(r => r.getRange?.()).filter(Boolean) ??
+          []) as Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+
+        if (preserveUndefinedAsNull) {
+          cellValue = deriveCellMatrixFromRanges(worksheet, ranges, 10000, true)
+        } else if (!cellValue) {
+          // Fallback: derive changed values from effected ranges when mutation payload
+          // does not provide `cellValue` (observed in some Univer command variants).
+          cellValue = deriveCellMatrixFromRanges(worksheet, ranges)
+        }
+        if (!cellValue) return
+        handleDetectedCellMutation({
+          source: 'sheet-value-changed',
+          payloadCellValue: cellValue,
+          ranges
+        })
+      })
       const sheetEditEndedEventKey =
         (univerAPI as { Event?: { SheetEditEnded?: string } }).Event?.SheetEditEnded ?? 'SheetEditEnded'
       const sheetEditEndedDisposable = (
         univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
-      ).addEvent?.(
-        sheetEditEndedEventKey,
-        (rawParams: unknown) => {
-          if (readOnlyRef.current) return
-          const params = rawParams as
-            | {
-                row?: number
-                col?: number
-                startRow?: number
-                startColumn?: number
-                cell?: { row?: number; col?: number; actualRow?: number; actualColumn?: number }
-                range?: { startRow?: number; startColumn?: number }
-              }
-            | undefined
-          const cell = params?.cell
-          const range = params?.range
-          // Never fall back to the current active selection here. After a slow edit ends,
-          // Univer may already have moved selection to the next cell, which can duplicate
-          // the just-typed value into a neighbor. Selection-based reconciliation runs separately.
-          const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
-          const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
-          reconcileSingleCell(row, col, 'sheet-edit-ended')
-        }
-      )
+      ).addEvent?.(sheetEditEndedEventKey, (rawParams: unknown) => {
+        if (readOnlyRef.current) return
+        const params = rawParams as
+          | {
+              row?: number
+              col?: number
+              startRow?: number
+              startColumn?: number
+              cell?: { row?: number; col?: number; actualRow?: number; actualColumn?: number }
+              range?: { startRow?: number; startColumn?: number }
+            }
+          | undefined
+        const cell = params?.cell
+        const range = params?.range
+        // Never fall back to the current active selection here. After a slow edit ends,
+        // Univer may already have moved selection to the next cell, which can duplicate
+        // the just-typed value into a neighbor. Selection-based reconciliation runs separately.
+        const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
+        const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
+        reconcileSingleCell(row, col, 'sheet-edit-ended')
+      })
       const selectionEventKey =
         (univerAPI as { Event?: { SelectionMoveEnd?: string } }).Event?.SelectionMoveEnd ?? 'SelectionMoveEnd'
 

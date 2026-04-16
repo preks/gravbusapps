@@ -184,6 +184,50 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(5)
   })
 
+  it('treats set_range cells without a value as clear operations', () => {
+    const columns: SpreadsheetColumn[] = [
+      col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }),
+      col({ id: 'col-b', name: 'ColumnB', isVisible: true, order: 1 })
+    ]
+    const data: Record<string, unknown>[] = [{ _id: 'row-0', _rowUuid: 'backend-row-1', ColumnA: 'old', ColumnB: 1 }]
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+
+    const callbacks = makeCallbacks({
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      commitLocalSheetData,
+      applyRemoteCellUpdate
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_range',
+              data: {
+                sheetId: 'sheet-1',
+                cells: [{ rowId: 'backend-row-1', columnName: 'ColumnA' }]
+              }
+            }
+          ]
+        }
+      },
+      version: 5,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, null, 'backend-row-1')
+    expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(5)
+  })
+
   it('handleOperation row_update applies row payload without cells_changed echo', () => {
     const columns: SpreadsheetColumn[] = [
       col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }),
@@ -272,5 +316,93 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, null, 'backend-row-29')
     expect(applyRemoteCellUpdate).toHaveBeenCalledWith(2, 0, null, 'backend-row-30')
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(7)
+  })
+
+  it('removes stale column-id aliases when a remote clear is applied', () => {
+    const columns: SpreadsheetColumn[] = [col({ id: 'col-e', name: 'ColumnE', isVisible: true, order: 0 })]
+    const data: Record<string, unknown>[] = [
+      { _id: 'row-1', _rowUuid: 'backend-row-1', ColumnE: 'visible-value', 'col-e': 'stale-alias-value' }
+    ]
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+
+    const callbacks = makeCallbacks({
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      commitLocalSheetData,
+      applyRemoteCellUpdate
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_range',
+              data: {
+                sheetId: 'sheet-1',
+                cells: [{ rowId: 'backend-row-1', columnName: 'ColumnE', value: null }]
+              }
+            }
+          ]
+        }
+      },
+      version: 7,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnE: null, _updatedAt: expect.any(String) }],
+      { persisted: true, syncGrid: true }
+    )
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, null, 'backend-row-1')
+  })
+
+  it('syncs the grid from authoritative rows for very large persisted batch replays', () => {
+    const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })]
+    const data: Record<string, unknown>[] = Array.from({ length: 600 }, (_, index) => ({
+      _id: `row-${index}`,
+      _rowUuid: `backend-row-${index}`,
+      ColumnA: `value-${index}`
+    }))
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const callbacks = makeCallbacks({
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      commitLocalSheetData,
+      applyRemoteCellUpdate
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: Array.from({ length: 600 }, (_, index) => ({
+            type: 'clear_cell',
+            data: {
+              sheetId: 'sheet-1',
+              rowId: `backend-row-${index}`,
+              columnName: 'ColumnA'
+            }
+          }))
+        }
+      },
+      version: 8,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalledWith(expect.any(Array), { persisted: true, syncGrid: true })
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(8)
   })
 })

@@ -294,6 +294,7 @@ export interface UseSpreadsheetCollaborationProps {
   accessToken: string
   callbacks: CollaborationCallbacks
   onError?: (error: Error) => void
+  shouldIgnoreReceivedOperation?: (operation: CollaborationOperation) => boolean
 }
 
 export interface SpreadsheetCollaborationState {
@@ -315,7 +316,8 @@ export function useSpreadsheetCollaboration({
   appId,
   accessToken,
   callbacks,
-  onError
+  onError,
+  shouldIgnoreReceivedOperation
 }: UseSpreadsheetCollaborationProps): SpreadsheetCollaborationState {
   const currentUserIdRef = useRef<string | undefined>(undefined)
   const [currentUserName, setCurrentUserName] = useState<string>('User')
@@ -329,6 +331,11 @@ export function useSpreadsheetCollaboration({
     onErrorRef.current = onError
   }, [onError])
 
+  const shouldIgnoreReceivedOperationRef = useRef(shouldIgnoreReceivedOperation)
+  useEffect(() => {
+    shouldIgnoreReceivedOperationRef.current = shouldIgnoreReceivedOperation
+  }, [shouldIgnoreReceivedOperation])
+
   // Create manager once, update callbacks when the memoized callbacks object changes
   const manager = useMemo(() => new SpreadsheetCollaborationManager(callbacksRef.current), [])
   useEffect(() => {
@@ -338,6 +345,9 @@ export function useSpreadsheetCollaboration({
 
   const onOperationReceivedStable = useCallback(
     (op: CollaborationOperation) => {
+      if (shouldIgnoreReceivedOperationRef.current?.(op)) {
+        return
+      }
       manager.handleOperation(op as CollaborationOperation)
     },
     [manager]

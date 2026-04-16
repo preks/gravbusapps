@@ -63,7 +63,7 @@ export interface CollaborationCallbacks {
    * @param univerRow - Optional row index from Univer grid (used as fallback when row ID lookup fails)
    */
   getBackendRowIdForUiRowId: (uiRowId: string, univerRow?: number) => string | undefined
-  commitLocalSheetData: (data: ViewerRow[], options?: { persisted?: boolean }) => void
+  commitLocalSheetData: (data: ViewerRow[], options?: { persisted?: boolean; syncGrid?: boolean }) => void
   applyRemoteCellUpdate: (
     rowIndex: number,
     colIndex: number,
@@ -101,6 +101,7 @@ const STRUCTURAL_OP_TYPES = new Set(['add_rows', 'delete_rows'])
 const CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell', 'cells_changed'])
 const LIVE_PERSISTED_CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell'])
 const LIVE_STRUCTURAL_OP_TYPES = new Set(['row_add', 'row_delete', 'add_rows', 'delete_rows'])
+const MAX_LIVE_REMOTE_CELL_APPLY = 500
 
 export class SpreadsheetCollaborationManager {
   private callbacks: CollaborationCallbacks
@@ -356,6 +357,7 @@ export class SpreadsheetCollaborationManager {
   ): void {
     const deltaChanges: DeltaChange[] = []
     let requiresStructuralResync = false
+    let liveCellApplyCount = 0
 
     for (const operation of operations) {
       const type = typeof operation.type === 'string' ? operation.type : ''
@@ -374,6 +376,13 @@ export class SpreadsheetCollaborationManager {
       if (!LIVE_PERSISTED_CELL_OP_TYPES.has(type)) continue
       if (!operation.data || typeof operation.data !== 'object') continue
 
+      if (type === 'set_range') {
+        const cells = (operation.data as { cells?: unknown }).cells
+        liveCellApplyCount += Array.isArray(cells) ? cells.length : 0
+      } else {
+        liveCellApplyCount += 1
+      }
+
       deltaChanges.push({
         operationType: type,
         payload: operation.data as Record<string, unknown>,
@@ -382,7 +391,15 @@ export class SpreadsheetCollaborationManager {
     }
 
     if (deltaChanges.length > 0) {
-      this.applyLivePersistedChanges(deltaChanges, 'batch_ops')
+      if (liveCellApplyCount > MAX_LIVE_REMOTE_CELL_APPLY) {
+        this.collabDiag('collab_receive_sync_grid_large_batch_ops', {
+          changeCount: deltaChanges.length,
+          liveCellApplyCount
+        })
+        this.applyLivePersistedChanges(deltaChanges, 'batch_ops', 'sync_grid_only')
+      } else {
+        this.applyLivePersistedChanges(deltaChanges, 'batch_ops')
+      }
     }
     if (requiresStructuralResync) {
       this.callbacks.scheduleRemoteStructuralResync()
@@ -421,13 +438,18 @@ export class SpreadsheetCollaborationManager {
     }
   }
 
-  private applyLivePersistedChanges(changes: DeltaChange[], source: 'batch_ops' | 'single_op'): void {
+  private applyLivePersistedChanges(
+    changes: DeltaChange[],
+    source: 'batch_ops' | 'single_op',
+    mode: 'direct_apply' | 'sync_grid_only' = 'direct_apply'
+  ): void {
     if (changes.length === 0) return
     const activeSheetId = this.callbacks.getActiveSheetId()
-    this.applyDeltaChanges(activeSheetId, changes)
+    this.applyDeltaChanges(activeSheetId, changes, mode)
     this.collabDiag('collab_receive_persisted_ops', {
       source,
-      changeCount: changes.length
+      changeCount: changes.length,
+      syncGridOnly: mode === 'sync_grid_only'
     })
   }
 
@@ -560,7 +582,11 @@ export class SpreadsheetCollaborationManager {
   }
 
   // Translate persisted operations (set_cell, set_range, clear_cell) into data model + grid updates.
-  private applyDeltaChanges(sheetId: string, changes: DeltaChange[]): void {
+  private applyDeltaChanges(
+    sheetId: string,
+    changes: DeltaChange[],
+    mode: 'direct_apply' | 'sync_grid_only' = 'direct_apply'
+  ): void {
     const updatesByRowId = new Map<string, Record<string, unknown>>()
 
     for (const change of changes) {
@@ -591,7 +617,9 @@ export class SpreadsheetCollaborationManager {
           const column = String(cell.columnName ?? cell.column ?? '')
           if (!rowId || !column) continue
           const existing = updatesByRowId.get(rowId) ?? {}
-          existing[this.resolveColumnName(column)] = cell.value
+          existing[this.resolveColumnName(column)] = Object.prototype.hasOwnProperty.call(cell, 'value')
+            ? cell.value
+            : null
           updatesByRowId.set(rowId, existing)
         }
       }
@@ -600,6 +628,10 @@ export class SpreadsheetCollaborationManager {
     if (updatesByRowId.size === 0) return
 
     this.applyDataModelUpdates(updatesByRowId)
+
+    if (mode === 'sync_grid_only') {
+      return
+    }
 
     for (const [rowId, updates] of updatesByRowId) {
       for (const [columnName, value] of Object.entries(updates)) {
@@ -614,6 +646,42 @@ export class SpreadsheetCollaborationManager {
   private resolveColumnName(columnKey: string): string {
     const columns = this.callbacks.getColumns()
     return columns.find(c => c.id === columnKey)?.name ?? columns.find(c => c.name === columnKey)?.name ?? columnKey
+  }
+
+  private normalizeRowColumnValue(
+    row: ViewerRow,
+    columnKey: string,
+    value: unknown
+  ): { nextRow: ViewerRow; changed: boolean } {
+    const columns = this.callbacks.getColumns()
+    const matchedColumn = columns.find(column => column.id === columnKey || column.name === columnKey)
+    const targetColumnName = matchedColumn?.name ?? this.resolveColumnName(columnKey)
+    const aliasKeys = new Set(
+      [columnKey, matchedColumn?.id, matchedColumn?.name, targetColumnName]
+        .map(entry => (entry == null ? '' : String(entry).trim().toLowerCase()))
+        .filter(Boolean)
+    )
+
+    let nextRow = row
+    let changed = false
+    for (const existingKey of Object.keys(nextRow)) {
+      if (!aliasKeys.has(existingKey.toLowerCase())) continue
+      if (nextRow === row) nextRow = { ...row }
+      delete nextRow[existingKey]
+      changed = true
+    }
+
+    if (nextRow[targetColumnName] !== value) {
+      if (nextRow === row) nextRow = { ...row }
+      nextRow[targetColumnName] = value
+      changed = true
+    } else if (!(targetColumnName in nextRow)) {
+      if (nextRow === row) nextRow = { ...row }
+      nextRow[targetColumnName] = value
+      changed = true
+    }
+
+    return { nextRow, changed }
   }
 
   private resolveCoordinates(
@@ -659,18 +727,24 @@ export class SpreadsheetCollaborationManager {
       const canonical = getCanonicalRowId(row)
       const updates = findUpdatesForRow(row)
       if (!updates) return row
+      let nextRow = row
       let hasChange = false
       for (const [col, val] of Object.entries(updates)) {
-        if (row[col] !== val) {
-          changedKeys.add(`${canonical}:${col}`)
+        const normalized = this.normalizeRowColumnValue(nextRow, col, val)
+        nextRow = normalized.nextRow
+        if (normalized.changed) {
+          changedKeys.add(`${canonical}:${this.resolveColumnName(col)}`)
           hasChange = true
         }
       }
       if (!hasChange) return row
-      return { ...row, ...updates, _updatedAt: new Date().toISOString() }
+      return { ...nextRow, _updatedAt: new Date().toISOString() }
     })
     if (changedKeys.size > 0) {
-      this.callbacks.commitLocalSheetData(nextLocal, { persisted: true })
+      this.callbacks.commitLocalSheetData(nextLocal, {
+        persisted: true,
+        syncGrid: true
+      })
     }
     return changedKeys
   }

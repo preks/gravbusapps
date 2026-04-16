@@ -25,6 +25,7 @@ import translations from './_i18n'
 import { useSpreadsheetCollaboration } from './hooks/useSpreadsheetCollaboration'
 import type {
   CollaborationCallbacks,
+  CollaborationOperation,
   SpreadsheetCollaborationManager
 } from './services/SpreadsheetCollaborationManager'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
@@ -241,6 +242,8 @@ const isBlankLikeCellValue = (value: unknown): boolean => {
   return false
 }
 
+const MAX_INDIVIDUAL_CLEAR_CELL_OPS = 200
+
 const shouldSkipFreshRowCellReplay = (baselineValue: unknown, queuedValue: unknown): boolean => {
   if (toComparableCellSignature(baselineValue) === toComparableCellSignature(queuedValue)) {
     return true
@@ -335,7 +338,7 @@ const applySetRangeDelta = (
     if (!rowId || !columnName) continue
     const updates = updatesByRowId.get(rowId) ?? {}
     const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-    updates[targetColumnName] = cell.value
+    updates[targetColumnName] = Object.prototype.hasOwnProperty.call(cell, 'value') ? cell.value : null
     updatesByRowId.set(rowId, updates)
   }
   return rows.map(row => {
@@ -2023,13 +2026,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setShowComments(true)
   }, [])
 
-  const scheduleRemoteStructuralResync = useCallback(() => {
-    scheduleCoalescedTimeout(remoteStructuralResyncTimeoutRef, 500, () => {
-      remoteStructuralResyncTimeoutRef.current = null
-      void recoverFromVersionConflictRef.current()
-    })
-  }, [])
-
   const scheduleSheetVersionRefreshFromApi = useCallback(() => {
     scheduleCoalescedTimeout(remoteVersionRefreshTimeoutRef, 250, () => {
       remoteVersionRefreshTimeoutRef.current = null
@@ -2046,6 +2042,81 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     })
   }, [app.id, activeSheetId])
 
+  const reloadSheetFromCanonicalSnapshot = useCallback(
+    async (seedPrefix: string): Promise<boolean> => {
+      try {
+        const snapshot = await SpreadsheetApiService.getSheetSnapshot(app.id, activeSheetId)
+        const recoveredSheetMeta = (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? activeSheet
+        const rows = sortSpreadsheetRowsBySheetSettings(
+          mapSnapshotRowsToViewerRows(snapshot.rows || []),
+          recoveredSheetMeta
+        )
+        const sheetMeta = snapshot.sheet as Record<string, unknown> | undefined
+
+        clearUniverSnapshotCache(app.id, activeSheetId)
+        let restoredUniverSnapshot: Record<string, unknown> | null = null
+        try {
+          const univerData = await SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId)
+          if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+            let snap = univerData.snapshot as Record<string, unknown>
+            const columnsForMerge =
+              (Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : null) ??
+              app.sheets.find(s => s.id === activeSheetId)?.columns ??
+              []
+            if (rows.length > 0 && columnsForMerge.length > 0) {
+              const merged = overlaySnapshotIfRowsMismatch(snap, activeSheetId, rows, columnsForMerge)
+              if (merged && merged !== snap) {
+                debugLog('snapshot reload: merged Univer snapshot with row-authoritative overlay', {
+                  appId: app.id,
+                  sheetId: activeSheetId,
+                  seedPrefix
+                })
+                snap = merged
+              }
+            }
+            restoredUniverSnapshot = snap
+            writeUniverSnapshotCache(app.id, activeSheetId, univerData.version, snap)
+          }
+        } catch (e) {
+          console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during sheet reload:', e)
+        }
+
+        sheetVersionRef.current = Number(snapshot.version || 0)
+        commitLocalSheetData(rows, { persisted: true, syncGrid: true })
+        if (onSheetUpdate && sheetMeta && Array.isArray(sheetMeta.columns)) {
+          void onSheetUpdate(app.id, activeSheetId, {
+            columns: sheetMeta.columns as SpreadsheetColumn[]
+          })
+        }
+        setBootstrapSnapshot(restoredUniverSnapshot)
+        setBootstrapSnapshotSeed(`${seedPrefix}-${Date.now()}`)
+        requestGridRefresh()
+        return true
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to reload sheet snapshot:', error)
+        scheduleSheetVersionRefreshFromApi()
+        return false
+      }
+    },
+    [
+      activeSheet,
+      activeSheetId,
+      app.id,
+      app.sheets,
+      commitLocalSheetData,
+      onSheetUpdate,
+      requestGridRefresh,
+      scheduleSheetVersionRefreshFromApi
+    ]
+  )
+
+  const scheduleRemoteStructuralResync = useCallback(() => {
+    scheduleCoalescedTimeout(remoteStructuralResyncTimeoutRef, 500, () => {
+      remoteStructuralResyncTimeoutRef.current = null
+      void reloadSheetFromCanonicalSnapshot('remote-structural-resync')
+    })
+  }, [reloadSheetFromCanonicalSnapshot])
+
   const rememberLocalCommittedVersion = useCallback((version: number | undefined) => {
     if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
     const expiresAt = Date.now() + 15000
@@ -2055,6 +2126,26 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (candidateExpiresAt <= Date.now()) next.delete(candidateVersion)
     }
     recentLocalCommittedVersionsRef.current = next
+  }, [])
+
+  const shouldIgnoreRecentlyCommittedOperation = useCallback((operation: CollaborationOperation): boolean => {
+    const version =
+      typeof operation.version === 'number'
+        ? Math.trunc(operation.version)
+        : typeof operation.operation?.version === 'number'
+          ? Math.trunc(operation.operation.version)
+          : null
+    if (version == null || !Number.isFinite(version) || version < 0) {
+      return false
+    }
+
+    const now = Date.now()
+    const next = new Map(recentLocalCommittedVersionsRef.current)
+    for (const [candidateVersion, candidateExpiresAt] of next) {
+      if (candidateExpiresAt <= now) next.delete(candidateVersion)
+    }
+    recentLocalCommittedVersionsRef.current = next
+    return next.has(version)
   }, [])
   scheduleSheetVersionRefreshFromApiRef.current = scheduleSheetVersionRefreshFromApi
 
@@ -2163,7 +2254,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const collaboration = useSpreadsheetCollaboration({
     appId: app.id,
     accessToken,
-    callbacks: collaborationCallbacks
+    callbacks: collaborationCallbacks,
+    shouldIgnoreReceivedOperation: shouldIgnoreRecentlyCommittedOperation
   })
 
   collaborationManagerRef.current = collaboration.manager
@@ -2475,51 +2567,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       snapshotSaveMetricsRef.current.fallbackLoads += 1
-      const snapshot = await SpreadsheetApiService.getSheetSnapshot(app.id, activeSheetId)
-      const recoveredSheetMeta = (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? activeSheet
-      const rows = sortSpreadsheetRowsBySheetSettings(
-        mapSnapshotRowsToViewerRows(snapshot.rows || []),
-        recoveredSheetMeta
-      )
-      sheetVersionRef.current = Number(snapshot.version || 0)
-      commitLocalSheetData(rows, { persisted: true })
-      requestGridRefresh()
-
-      const sheetMeta = snapshot.sheet as Record<string, unknown> | undefined
-      if (onSheetUpdate && sheetMeta && Array.isArray(sheetMeta.columns)) {
-        void onSheetUpdate(app.id, activeSheetId, {
-          columns: sheetMeta.columns as SpreadsheetColumn[]
-        })
-      }
-
-      clearUniverSnapshotCache(app.id, activeSheetId)
-      let restoredUniverSnapshot: Record<string, unknown> | null = null
-      try {
-        const univerData = await SpreadsheetApiService.getUniverSnapshot(app.id, activeSheetId)
-        if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
-          let snap = univerData.snapshot as Record<string, unknown>
-          const columnsForMerge =
-            (Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : null) ??
-            app.sheets.find(s => s.id === activeSheetId)?.columns ??
-            []
-          if (rows.length > 0 && columnsForMerge.length > 0) {
-            const merged = overlaySnapshotIfRowsMismatch(snap, activeSheetId, rows, columnsForMerge)
-            if (merged && merged !== snap) {
-              debugLog('conflict recovery: merged Univer snapshot with row-authoritative overlay', {
-                appId: app.id,
-                sheetId: activeSheetId
-              })
-              snap = merged
-            }
-          }
-          restoredUniverSnapshot = snap
-          writeUniverSnapshotCache(app.id, activeSheetId, univerData.version, snap)
-        }
-      } catch (e) {
-        console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during conflict recovery:', e)
-      }
-      setBootstrapSnapshot(restoredUniverSnapshot)
-      setBootstrapSnapshotSeed(`conflict-recovery-${Date.now()}`)
+      const reloaded = await reloadSheetFromCanonicalSnapshot('conflict-recovery')
+      if (!reloaded) return false
 
       debugLog('version conflict fallback snapshot loaded', {
         appId: app.id,
@@ -2536,14 +2585,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       return false
     }
   }, [
+    activeSheet.columns,
     activeSheetId,
     app.id,
     commitLocalSheetData,
     localSheetDataRef,
-    onDataChange,
-    onSheetUpdate,
+    reloadSheetFromCanonicalSnapshot,
     scheduleSheetVersionRefreshFromApi,
-    setLocalSheetData,
     sheetPersist.recordError,
     sheetPersist.recordSuccess,
     sheetT,
@@ -2585,24 +2633,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           ...cell,
           value: normalizeCellValueForBatchPersistence(cell.value)
         }))
+        const shouldCollapseClearCellsIntoSetRange = clearCells.length > MAX_INDIVIDUAL_CLEAR_CELL_OPS
+        const collapsedClearCells = shouldCollapseClearCellsIntoSetRange
+          ? clearCells.map(cell => ({
+              ...cell,
+              value: null as unknown
+            }))
+          : []
+        const setRangeCells = [...setCellsToPersist, ...collapsedClearCells]
         const operations: SpreadsheetBatchOperation[] = []
-        if (setCellsToPersist.length > 0) {
+        if (setRangeCells.length > 0) {
           operations.push({
             operationId: createOperationId('set_range'),
             type: 'set_range',
-            data: { cells: setCellsToPersist }
+            data: { cells: setRangeCells }
           })
         }
-        operations.push(
-          ...clearCells.map(cell => ({
-            operationId: createOperationId('clear_cell'),
-            type: 'clear_cell' as const,
-            data: {
-              rowId: cell.rowId,
-              columnName: cell.columnName
-            }
-          }))
-        )
+        if (!shouldCollapseClearCellsIntoSetRange) {
+          operations.push(
+            ...clearCells.map(cell => ({
+              operationId: createOperationId('clear_cell'),
+              type: 'clear_cell' as const,
+              data: {
+                rowId: cell.rowId,
+                columnName: cell.columnName
+              }
+            }))
+          )
+        }
         if (operations.length === 0) continue
         workItems.push({
           batchId: createOperationId(`cell_ops_${targetSheetId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)}`),

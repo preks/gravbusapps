@@ -222,6 +222,53 @@ describe('useSpreadsheetCollaboration', () => {
     expect(client.setAccessToken).toHaveBeenLastCalledWith('token-2')
   })
 
+  it('ignores received operations when instructed by the caller', async () => {
+    const callbacks = createCallbacks()
+    const shouldIgnoreReceivedOperation = jest.fn((operation: { version?: number }) => operation.version === 7)
+
+    renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: createMockAccessToken(),
+        callbacks,
+        shouldIgnoreReceivedOperation
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([])
+    })
+
+    act(() => {
+      client.trigger('operation_applied', {
+        userId: 'user-2',
+        userName: 'Alice',
+        operation: {
+          type: 'batch_operations',
+          data: {
+            sheetId: 'sheet-1',
+            operations: [
+              {
+                type: 'set_cell',
+                data: { sheetId: 'sheet-1', rowId: 'row-1', columnName: 'Name', value: 'x' }
+              }
+            ]
+          }
+        },
+        version: 7,
+        timestamp: Date.now()
+      })
+    })
+
+    expect(shouldIgnoreReceivedOperation).toHaveBeenCalled()
+    expect(callbacks.onVersionUpdate).not.toHaveBeenCalled()
+    expect(callbacks.commitLocalSheetData).not.toHaveBeenCalled()
+  })
+
   it('flushes queued spreadsheet operations after the spreadsheet socket joins', async () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({
