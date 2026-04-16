@@ -110,6 +110,21 @@ describe('useSpreadsheetCollaboration', () => {
     jest.clearAllMocks()
   })
 
+  it('does not connect to spreadsheet collaboration when disabled', () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: 'token-1',
+        disabled: true,
+        callbacks: createCallbacks()
+      })
+    )
+
+    expect(mockOfficeClientInstances).toHaveLength(0)
+    expect(result.current.isCollaborationConnected).toBe(false)
+    expect(result.current.isCollaborationJoined).toBe(false)
+  })
+
   it('joins spreadsheet collaboration through the office socket client', async () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({

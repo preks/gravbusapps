@@ -1,13 +1,12 @@
 import React from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { Trash2, X, Pin, Archive } from 'lucide-react'
+import { Trash2, X, Pin } from 'lucide-react'
 import translations from '../_i18n'
 
 export interface NoteBulkActionsProps {
   selectedCount: number
   onDelete: () => void
   onPin?: () => void
-  onArchive?: () => void
   onClearSelection: () => void
   'data-testid'?: string
 }
@@ -16,7 +15,6 @@ export const NoteBulkActions: React.FC<NoteBulkActionsProps> = ({
   selectedCount,
   onDelete,
   onPin,
-  onArchive,
   onClearSelection,
   'data-testid': testId = 'note-bulk-actions'
 }) => {
@@ -45,18 +43,6 @@ export const NoteBulkActions: React.FC<NoteBulkActionsProps> = ({
         >
           <Pin className="gba:w-3.5 gba:h-3.5" />
           {t('menu-pin')}
-        </Button>
-      )}
-      {onArchive && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onArchive}
-          className="gba:gap-1.5 gba:text-background hover:gba:bg-background/10 hover:gba:text-background gba:h-7"
-          data-testid={`${testId}-archive`}
-        >
-          <Archive className="gba:w-3.5 gba:h-3.5" />
-          {t('menu-archive')}
         </Button>
       )}
       <Button

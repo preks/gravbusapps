@@ -181,6 +181,7 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
   isReadOnly?: boolean
+  isTrashedDocument?: boolean
   /** Left panel (e.g. Insert field for templates); shown when editing a template */
   leftPanel?: React.ReactNode
   /** Extra content rendered below the title row (e.g. external-source badge) */
@@ -238,6 +239,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onSaveAsTemplate,
       onSendForApproval,
       isReadOnly = false,
+      isTrashedDocument = false,
       leftPanel,
       headerExtra,
       accessToken: accessTokenProp,
@@ -279,7 +281,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [document?.id, document?.updatedAt])
 
     useEffect(() => {
-      if (!document?.id) return
+      if (!document?.id || isTrashedDocument) return
 
       type FlowbotDocumentStreamCompleteDetail = {
         documentId?: string
@@ -321,7 +323,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return () => {
         globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
       }
-    }, [document?.id, officeClient, title])
+    }, [document?.id, isTrashedDocument, officeClient, title])
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
 
@@ -530,11 +532,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [accessToken])
 
     const entityId = document?.id || ''
+    const collaborationEnabled = Boolean(document?.id) && !isTrashedDocument
 
     // Collaboration state
     const { participants: rawParticipants, socket: collaborationSocket } = useOfficeDocumentCollaboration({
       entityId,
-      enabled: !!document?.id,
+      enabled: collaborationEnabled,
       accessToken,
       onOperationReceived: onCollaborationOperationReceived,
       onError: onErrorCallback
@@ -750,16 +753,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       suppressSnapshotSaveRef: suppressYjsSnapshotSaveRef,
       debugTablesEnabled: targetDocumentTableDebugEnabled,
       isReadOnly,
+      isTrashedDocument,
       title,
       onBootstrapEditorRebind: handleBootstrapEditorRebind,
       getFormattingForSave: () => buildPersistedFormatting(layoutFormatting),
       setLastSaved,
       setHasUnsavedChanges
     })
+    const documentSessionIsYjsSynced = collaborationEnabled ? isYjsSynced : true
 
     useEffect(() => {
-      isYjsSyncedRef.current = isYjsSynced
-    }, [isYjsSynced])
+      isYjsSyncedRef.current = documentSessionIsYjsSynced
+    }, [documentSessionIsYjsSynced])
 
     const { persistFormatting } = useSyncPagedDocumentFormatting({
       documentId: document?.id,
@@ -776,7 +781,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     useEffect(() => {
       if (!ENABLE_DOCUMENT_LIVE_SYNC_POLL_FALLBACK) return
-      if (!document?.id || !isYjsSynced) return
+      if (!document?.id || !isYjsSynced || isTrashedDocument) return
 
       let cancelled = false
 
@@ -825,7 +830,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         cancelled = true
         globalThis.window.clearInterval(pollInterval)
       }
-    }, [document?.id, isYjsSynced, officeClient, title])
+    }, [document?.id, isTrashedDocument, isYjsSynced, officeClient, title])
+
+    useEffect(() => {
+      if (isTrashedDocument && rightSidebar !== 'closed') {
+        setRightSidebar('closed')
+      }
+    }, [isTrashedDocument, rightSidebar])
 
     useEffect(() => {
       return () => {
@@ -839,16 +850,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Seed collaborative title once synced (do not overwrite an existing value from the room).
     useEffect(() => {
       if (!document?.id) return
+      if (!collaborationEnabled) return
       if (!isYjsSynced) return
       if (metaYMap.get('title')) return
       const initial = (document?.title || '').trim()
       if (!initial) return
       metaYMap.set('title', initial)
-    }, [document?.id, document?.title, isYjsSynced, metaYMap])
+    }, [collaborationEnabled, document?.id, document?.title, isYjsSynced, metaYMap])
 
     // Apply title updates from other collaborators.
     useEffect(() => {
       if (!document?.id) return
+      if (!collaborationEnabled) return
 
       const applyFromYjs = () => {
         const next = metaYMap.get('title')
@@ -863,15 +876,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const handler = () => applyFromYjs()
       metaYMap.observe(handler)
       return () => metaYMap.unobserve(handler)
-    }, [document?.id, metaYMap])
+    }, [collaborationEnabled, document?.id, metaYMap])
 
     const editorContent = React.useMemo(() => {
       const rawContent = document?.content || initialContent || '<p></p>'
       return sanitizeDocumentHtmlForEditor(rawContent)
     }, [document?.content, initialContent])
     const editorEditable = React.useMemo(
-      () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
-      [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
+      () => !isReadOnly && (!document?.id || (documentSessionIsYjsSynced && fileLock.canEdit)),
+      [isReadOnly, document?.id, documentSessionIsYjsSynced, fileLock.canEdit]
     )
     const autocompleteController = usePagedDocumentAutocompleteController({
       editorRef,
@@ -921,6 +934,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const editor = usePagedDocumentEditorInstance({
       accessToken,
       documentId: document?.id,
+      collaborationEnabled,
       documentTitle: document?.title,
       initialTitle,
       collaborationBindingSeed,
@@ -954,7 +968,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       title,
       documentTitle: document?.title,
       initialTitle,
-      isYjsSynced,
+      isYjsSynced: documentSessionIsYjsSynced,
       setPagesEditorState: handlePagesActiveEditorChange
     })
 
@@ -986,11 +1000,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         editor,
         editorContainerRef,
         documentId: document?.id,
-        isYjsSynced,
+        isYjsSynced: documentSessionIsYjsSynced,
         layoutInputsKey
       })
 
-    const showDocumentOpeningIndicator = Boolean(document?.id) && (!isYjsSynced || !isInitialLayoutSettled)
+    const showDocumentOpeningIndicator =
+      Boolean(document?.id) && (!documentSessionIsYjsSynced || !isInitialLayoutSettled)
 
     useEffect(() => {
       setDocumentTocLayoutHints({
@@ -1321,7 +1336,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       currentUserId,
       currentUserName,
       currentUserAvatar,
-      isYjsSynced,
+      isYjsSynced: documentSessionIsYjsSynced,
       isReadOnly,
       editorEditable,
       translate: t
@@ -1394,7 +1409,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       editor,
       documentId: document?.id,
       isReadOnly,
-      isYjsSynced,
+      isYjsSynced: documentSessionIsYjsSynced,
       metaYMap,
       lastSavedTitleRef,
       setLastSaved,
@@ -1436,11 +1451,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     })
 
     useDocumentEditorShortcuts({
-      onSave: () => {
-        void handleSave()
-      },
-      onAddInlineComment: handleAddInlineComment,
-      onAiEdit: openAiEditSidebar,
+      onSave: isReadOnly
+        ? () => {}
+        : () => {
+            void handleSave()
+          },
+      onAddInlineComment: isTrashedDocument ? () => {} : handleAddInlineComment,
+      onAiEdit: isTrashedDocument ? undefined : openAiEditSidebar,
       onOpenLinkDialog: openLinkDialog,
       editorContainerRef
     })
@@ -1532,7 +1549,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           >
             <Spinner size="sm" />
             <span className="gba:text-sm gba:text-muted-foreground">
-              {!isYjsSynced ? t('editor-opening-collaboration') : t('editor-opening-layout')}
+              {!documentSessionIsYjsSynced ? t('editor-opening-collaboration') : t('editor-opening-layout')}
             </span>
           </div>
         ) : null}
@@ -1542,6 +1559,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             paginationConfig={paginationConfig}
             title={title}
             isReadOnly={isReadOnly}
+            isTrashedDocument={isTrashedDocument}
             isSaving={isSaving}
             isExporting={isExporting}
             hasUnsavedChanges={hasUnsavedChanges}

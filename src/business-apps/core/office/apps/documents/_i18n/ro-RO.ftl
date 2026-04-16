@@ -8,7 +8,7 @@ dh-tab-shared = Partajate
 dh-tab-templates = Șabloane
 dh-tab-favorites = Favorite
 dh-tab-recent = Recente
-dh-tab-archived = Arhivate
+dh-tab-trash = Coș de gunoi
 
 # Sidebar (legacy)
 sidebar-back-to-desk = Înapoi la birou
@@ -23,7 +23,7 @@ sidebar-shared = Partajat cu mine
 sidebar-templates = Șabloane
 sidebar-favorites = Favorite
 sidebar-recent = Recente
-sidebar-archived = Arhivate
+sidebar-trash = Coș de gunoi
 sidebar-storage = Depozitare
 sidebar-storage-cloud = Depozitare cloud
 sidebar-storage-local = Depozitare locală
@@ -48,9 +48,11 @@ header-sort = Sortare
 header-search-placeholder = Caută documente...
 header-refresh = Reîmprospătează
 sort-name = Nume
+sort-trashed = Aruncat la coș pe
 sort-modified = Modificat
 sort-created = Creat
 table-owner = Proprietar
+table-trashed = Aruncat la coș pe
 menu-open = Deschide
 menu-share = Partajare
 menu-manage-sharing = Gestionați partajarea
@@ -59,7 +61,12 @@ menu-duplicate = Duplicare
 menu-send-for-approval = Trimiteți pentru aprobare
 menu-remove-favorite = Eliminați din favorite
 menu-add-favorite = Adăugați la favorite
-menu-delete = Ștergere
+menu-delete = Șterge
+delete-confirm-title = Mutați în coșul de gunoi?
+delete-confirm-single = "{$name}" va fi mutat în coșul de gunoi. Îl puteți restaura în decurs de 30 de zile.
+delete-confirm-multi = {$count} elemente vor fi mutate în coșul de gunoi. Le puteți restaura în decurs de 30 de zile.
+delete-confirm-action = Mută în coșul de gunoi
+delete-confirm-cancel = Anulare
 
 # Upload and templates
 common-cancel = Anulare
@@ -76,8 +83,8 @@ empty-favorites-title = Încă nu există favorite
 empty-favorites-description = Marcați documentele frecvente cu steluță.
 empty-shared-title = Nimic partajat cu dvs.
 empty-shared-description = Documentele partajate vor apărea aici.
-empty-archived-title = Nu există documente arhivate
-empty-archived-description = Documentele arhivate vor apărea aici.
+empty-trash-title = Nu există documente în coș
+empty-trash-description = Documentele mutate în coș vor apărea aici.
 empty-default-title = Încă nu există documente
 empty-default-description = Creați primul document.
 empty-create-document = Creați document
@@ -93,12 +100,14 @@ title-untitled = Fără titlu
 title-untitled-document = Document fără titlu
 
 # Toasts and confirmations
-confirm-delete = Sunteți sigur că doriți să ștergeți acest document?
+confirm-delete = Sunteți sigur că doriți să mutați acest document în coșul de gunoi?
 toast-duplicated = Document duplicat
 toast-removed-favorites = Eliminat din favorite
 toast-added-favorites = Adăugat la favorite
 toast-link-copied = Link copiat în clipboard
 toast-pdf-uploaded = PDF încărcat cu succes
+toast-restored = Document restaurat
+toast-restore-failed = Restaurarea documentului a eșuat
 
 # Shared tooltip
 shared-with-count = Partajat cu { $count } { $count ->
@@ -128,6 +137,13 @@ editor-status-saved-now = Salvat acum
 editor-status-saved-minute = Salvat acum 1 minut
 editor-status-saved-minutes = Salvat acum { $count } minute
 editor-status-saved-at = Salvat la { $time }
+trashed-readonly-title = Acest document este în coș
+trashed-readonly-description = "{ $title }" este în coș și se deschide doar în modul de vizualizare până când este restaurat.
+trashed-readonly-owner-note = Pentru a edita din nou acest document, scoate-l din coș.
+trashed-readonly-shared-note = Pentru a edita din nou acest document, cere proprietarului să îl scoată din coș.
+trashed-readonly-go-home = Mergi la ecranul principal Docs
+trashed-readonly-restore = Scoate din coș
+trashed-readonly-restoring = Se restaurează...
 
 # Relative time (for lists, dates)
 time-just-now = Acum
@@ -1041,7 +1057,7 @@ preview-card-status-saved = Salvat
 preview-card-status-pending = Aprobare în așteptare
 preview-card-status-approved = Aprobat
 preview-card-status-rejected = Respins
-preview-card-status-archived = Arhivat
+preview-card-status-archived = Coș de gunoi
 preview-card-just-now = Acum
 preview-card-minutes-ago = acum { $count } min
 preview-card-hour-ago = acum 1 oră
@@ -1055,7 +1071,7 @@ preview-card-export = Exportă
 preview-card-share = Partajează
 preview-card-manage-sharing = Gestionați partajarea
 preview-card-send-approval = Trimiteți pentru aprobare
-preview-card-delete = Șterge
+preview-card-delete = Mută în coșul de gunoi
 preview-card-words = { $count } cuvinte
 preview-card-awaiting = Așteaptă aprobarea de la { $count } { $count ->
   [one] persoană
@@ -1149,8 +1165,8 @@ doc-apps-error-load-document = Nu s-a putut încărca documentul
 doc-apps-toast-document-created = Document creat cu succes
 doc-apps-toast-create-failed = Nu s-a putut crea documentul
 doc-apps-toast-save-failed = Nu s-a putut salva documentul
-doc-apps-toast-document-deleted = Document șters
-doc-apps-toast-delete-failed = Nu s-a putut șterge documentul
+doc-apps-toast-document-deleted = Document mutat în coșul de gunoi
+doc-apps-toast-delete-failed = Documentul nu a putut fi mutat în coșul de gunoi
 doc-apps-toast-document-duplicated = Document duplicat
 doc-apps-toast-duplicate-failed = Nu s-a putut duplica documentul
 doc-apps-toast-share-success = Document partajat cu succes

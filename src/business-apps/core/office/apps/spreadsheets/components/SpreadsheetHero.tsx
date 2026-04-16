@@ -30,7 +30,8 @@ const SECTION_TABS: SectionTab[] = [
   { id: 'tasks', labelKey: 'sh-tab-tasks' },
   { id: 'recent', labelKey: 'sh-tab-recent' },
   { id: 'automations', labelKey: 'sh-tab-automations' },
-  { id: 'favorites', labelKey: 'sh-tab-favorites' }
+  { id: 'favorites', labelKey: 'sh-tab-favorites' },
+  { id: 'trash', labelKey: 'sh-tab-trash' }
 ]
 
 export interface SpreadsheetHeroProps {
