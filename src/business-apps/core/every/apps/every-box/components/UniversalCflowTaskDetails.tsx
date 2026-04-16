@@ -393,6 +393,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // Determine task type (approval, acknowledge, or regular)
   const isApprovalTask = task.availableActions?.canReject === true
   const isAcknowledgeTask = task.name?.toLowerCase().includes('acknowledge')
+  const requiresRejectionComment = Boolean(isCurrentDocumentApprovalTask && isApprovalTask)
 
   // Get completion details title based on task type
   const getCompletionDetailsTitle = () => {
@@ -408,10 +409,14 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // Reset state when task changes - clear everything immediately to prevent stale data
   React.useEffect(() => {
     if (task.id !== currentTaskId) {
-      // Reset all form-related state when switching to a new task
+      const links = (task.links as Array<{ type?: string; metadata?: Record<string, unknown> }>) || []
+      const entityLinkForReset = links.find(link => link.type?.startsWith('entity:'))
+      const openCommentByDefault =
+        isDocumentApprovalTaskRecord(task, entityLinkForReset) && task.availableActions?.canReject === true
+
       setFormValues({})
       setFormInitialized(false)
-      setShowComment(false)
+      setShowComment(openCommentByDefault)
       setComment('')
       setFieldErrors({})
       setCurrentTaskId(task.id)
@@ -743,7 +748,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
     }
 
-    await syncDocumentApprovalDecision('approved')
+    await syncDocumentApprovalDecision('approved', {
+      comments: comment?.trim() ? comment.trim() : undefined
+    })
 
     const base = getCflowEndpoint()
     const response = await fetch(`${base}/api/tasks/${task.id}/complete`, {
@@ -782,13 +789,21 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // Helper: Reject task action
   const handleRejectTask = async (data?: any) => {
-    const rejectRequestBody = {
-      userId: userId,
-      rejectionComment: comment || data?.comment || '',
-      comment: comment || data?.comment || ''
+    const mergedComment = (comment || data?.comment || '').trim()
+
+    if (requiresRejectionComment && !mergedComment) {
+      toast.error(t('task-details-rejection-comment-missing'))
+      setShowComment(true)
+      return
     }
 
-    await syncDocumentApprovalDecision('rejected')
+    const rejectRequestBody = {
+      userId: userId,
+      rejectionComment: mergedComment,
+      comment: mergedComment
+    }
+
+    await syncDocumentApprovalDecision('rejected', { comments: mergedComment })
 
     const base = getCflowEndpoint()
     const response = await fetch(`${base}/api/tasks/${task.id}/reject`, {
@@ -922,13 +937,17 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const entityDisplayUrl = entityLink?.url
 
   const syncDocumentApprovalDecision = useCallback(
-    async (decision: 'approved' | 'rejected') => {
+    async (decision: 'approved' | 'rejected', options?: { comments?: string }) => {
       if (!isCurrentDocumentApprovalTask || !documentApprovalRequestId) {
         return
       }
 
+      const trimmed = options?.comments?.trim()
       officeClient.setAccessToken(accessToken)
-      await officeClient.documents.respondToApproval(documentApprovalRequestId, { decision })
+      await officeClient.documents.respondToApproval(documentApprovalRequestId, {
+        decision,
+        ...(trimmed ? { comments: trimmed } : {})
+      })
     },
     [accessToken, documentApprovalRequestId, isCurrentDocumentApprovalTask]
   )
@@ -1891,7 +1910,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex gba:items-center gba:gap-2"
               >
                 <MessageSquare className="gba:h-4 gba:w-4" />
-                {t('task-details-add-comment')} {!showComment && t('task-details-optional')}
+                {t('task-details-add-comment')}{' '}
+                {requiresRejectionComment ? (
+                  <span className="gba:text-muted-foreground">({t('task-details-rejection-comment-hint')})</span>
+                ) : (
+                  !showComment && t('task-details-optional')
+                )}
               </Label>
             </div>
 
@@ -1906,7 +1930,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
                 <Textarea
                   id="comment"
-                  placeholder={t('task-details-comment-placeholder')}
+                  placeholder={
+                    requiresRejectionComment
+                      ? t('task-details-comment-placeholder-reject')
+                      : t('task-details-comment-placeholder')
+                  }
                   value={comment}
                   onChange={e => {
                     setComment(e.target.value)

@@ -21,7 +21,14 @@ describe('buildVersionHistoryApprovalSummary', () => {
         status: 'approved',
         versionAtRequest: 5,
         createdAt: '2026-04-15T12:00:00.000Z',
-        steps: [{ approverId: 'reviewer-3', status: 'approved', respondedAt: '2026-04-15T13:00:00.000Z' }]
+        steps: [
+          {
+            approverId: 'reviewer-3',
+            status: 'approved',
+            respondedAt: '2026-04-15T13:00:00.000Z',
+            comments: 'Looks good.'
+          }
+        ]
       },
       {
         id: 'older-request-same-version',
@@ -66,7 +73,9 @@ describe('buildVersionHistoryApprovalSummary', () => {
       requestedByName: 'Kim Reviewer',
       requestedByPicture: undefined,
       requestedAt: '2026-04-15T12:00:00.000Z',
-      reviewers: [{ userId: 'reviewer-3', status: 'approved', respondedAt: '2026-04-15T13:00:00.000Z' }],
+      reviewers: [
+        { userId: 'reviewer-3', status: 'approved', respondedAt: '2026-04-15T13:00:00.000Z', comments: 'Looks good.' }
+      ],
       canReview: false
     })
   })

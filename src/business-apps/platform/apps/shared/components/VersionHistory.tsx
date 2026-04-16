@@ -25,6 +25,8 @@ export interface VersionHistoryApprovalReviewer {
   userId: string
   status: 'pending' | 'approved' | 'rejected' | 'skipped'
   respondedAt?: string
+  /** Approver comment (e.g. rejection reason), from document-service approval step */
+  comments?: string
 }
 
 export interface VersionHistoryApprovalDetails {
@@ -61,10 +63,16 @@ export interface VersionHistoryMessages {
   approvalSkipped?: string
   approvalRequestedBy?: string
   approvalReviewers?: string
+  /** Version history label when the request was rejected (replaces approvalReviewers). */
+  approvalRejectedBy?: string
   approvalApprovedBy?: string
   approvalOpenReview?: string
   approvalNoApprovedReviewers?: string
   approvalUnknownTime?: string
+  approvalCommentShowMore?: string
+  approvalCommentShowLess?: string
+  /** Label above approver comment text in version history */
+  approvalReviewerCommentLabel?: string
 }
 
 export interface VersionHistoryProps {

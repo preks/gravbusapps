@@ -1,6 +1,6 @@
-import React from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Badge, Button } from '@newwork/nw-design-system'
-import { CheckCircle, Clock, User } from 'lucide-react'
+import React, { useState } from 'react'
+import { Avatar, AvatarFallback, AvatarImage, Badge, Button, cn } from '@newwork/nw-design-system'
+import { CheckCircle, Clock, Inbox, MessageSquare, User, Users, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import type {
   VersionHistoryApprovalDetails,
@@ -76,6 +76,77 @@ function getStatusLabel(status: VersionHistoryApprovalReviewer['status'], messag
   return messages.approvalPending ?? 'Pending'
 }
 
+const COMMENT_COLLAPSE_MIN_LENGTH = 72
+
+const APPROVAL_DETAIL_GRID =
+  'gba:grid gba:grid-cols-[max-content_minmax(0,1fr)] gba:items-start gba:gap-x-3 gba:gap-y-2'
+
+function ApprovalDetailLabel({
+  icon: Icon,
+  iconClassName,
+  className,
+  children
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  iconClassName?: string
+  className?: string
+  children: React.ReactNode
+}): React.ReactElement {
+  return (
+    <div
+      className={cn(
+        'gba:flex gba:min-h-[1.25rem] gba:items-start gba:gap-1.5 gba:pt-0.5 gba:text-xs gba:font-medium gba:leading-snug gba:text-muted-foreground',
+        className
+      )}
+    >
+      <Icon className={cn('gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:mt-0.5', iconClassName)} />
+      <span>{children}</span>
+    </div>
+  )
+}
+
+function ReviewerCommentCollapsible({
+  text,
+  messages,
+  className
+}: {
+  text: string
+  messages: VersionHistoryMessages
+  className?: string
+}): React.ReactElement {
+  const [expanded, setExpanded] = useState(false)
+  const needsToggle = text.length > COMMENT_COLLAPSE_MIN_LENGTH || text.includes('\n')
+
+  return (
+    <div className={cn('gba:min-w-0 gba:max-w-full', className)}>
+      <p
+        className={cn(
+          'gba:text-xs gba:text-foreground gba:break-words gba:whitespace-pre-wrap',
+          !expanded && needsToggle && 'gba:line-clamp-1'
+        )}
+      >
+        {text}
+      </p>
+      {needsToggle && (
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="gba:h-auto gba:px-0 gba:py-0.5 gba:text-xs"
+          onClick={event => {
+            event.stopPropagation()
+            setExpanded(value => !value)
+          }}
+        >
+          {expanded
+            ? (messages.approvalCommentShowLess ?? 'Show less')
+            : (messages.approvalCommentShowMore ?? 'Show more')}
+        </Button>
+      )}
+    </div>
+  )
+}
+
 function getStatusBadgeClass(status: VersionHistoryApprovalReviewer['status']): string {
   if (status === 'approved') {
     return 'gba:border-success/30 gba:bg-success/10 gba:text-success'
@@ -92,7 +163,7 @@ function getStatusBadgeClass(status: VersionHistoryApprovalReviewer['status']): 
   return 'gba:border-warning/30 gba:bg-warning/10 gba:text-warning'
 }
 
-function ReviewerRow({
+function ReviewerLine({
   reviewer,
   messages,
   userDisplayMap
@@ -106,7 +177,7 @@ function ReviewerRow({
   const responseTime = formatRelativeDate(reviewer.respondedAt, messages.approvalUnknownTime ?? 'Unknown time')
 
   return (
-    <div className="gba:flex gba:min-w-0 gba:max-w-full gba:flex-nowrap gba:items-center gba:gap-2">
+    <div className="gba:flex gba:w-full gba:min-w-0 gba:max-w-full gba:flex-nowrap gba:items-center gba:gap-2">
       <Avatar className="gba:h-6 gba:w-6 gba:shrink-0 gba:ring-1 gba:ring-border">
         {reviewerDisplay.avatarUrl && <AvatarImage src={reviewerDisplay.avatarUrl} alt={reviewerDisplay.displayName} />}
         <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs">
@@ -149,70 +220,112 @@ export function VersionHistoryApprovalSection({
   const requesterAvatarUrl = getRequesterAvatarUrl(approval, userDisplayMap?.[approval.requestedBy])
   const requestedAtLabel = formatRelativeDate(approval.requestedAt, messages.approvalUnknownTime ?? 'Unknown time')
   const approvedReviewers = approval.reviewers.filter(reviewer => reviewer.status === 'approved')
+  const commentLabel = messages.approvalReviewerCommentLabel ?? 'Review comment'
 
   const showTopActionRow = Boolean(approval.canReview) && Boolean(onOpenApprovalReview)
+
+  const requestedByValue = (
+    <div className="gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-x-2 gba:gap-y-1">
+      <span className="gba:flex gba:items-center gba:gap-2">
+        <Avatar className="gba:h-6 gba:w-6 gba:ring-1 gba:ring-border">
+          {requesterAvatarUrl && <AvatarImage src={requesterAvatarUrl} alt={requesterDisplay.displayName} />}
+          <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs">
+            {requesterDisplay.displayName.slice(0, 2).toUpperCase() || <User className="gba:h-3 gba:w-3" />}
+          </AvatarFallback>
+        </Avatar>
+        <span className="gba:text-sm gba:font-medium gba:text-foreground">{requesterDisplay.displayName}</span>
+      </span>
+      <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+        <Clock className="gba:h-3 gba:w-3" />
+        {requestedAtLabel}
+      </span>
+    </div>
+  )
+
+  const renderApprovedReviewerGrid = () => {
+    if (approvedReviewers.length === 0) {
+      return (
+        <p className="gba:col-span-2 gba:text-sm gba:text-muted-foreground">
+          {messages.approvalNoApprovedReviewers ?? 'No approvers recorded'}
+        </p>
+      )
+    }
+
+    return approvedReviewers.flatMap((reviewer, index) => {
+      const rows: React.ReactElement[] = []
+      if (index === 0) {
+        rows.push(
+          <ApprovalDetailLabel
+            key="approved-by-lbl"
+            icon={CheckCircle}
+            iconClassName="gba:text-success"
+            className="gba:text-success"
+          >
+            {messages.approvalApprovedBy ?? 'Approved by'}
+          </ApprovalDetailLabel>
+        )
+      }
+      rows.push(
+        <div key={`${reviewer.userId}-line`} className={cn(index > 0 && 'gba:col-start-2')}>
+          <ReviewerLine reviewer={reviewer} messages={messages} userDisplayMap={userDisplayMap} />
+        </div>
+      )
+      const trimmed = reviewer.comments?.trim()
+      if (trimmed) {
+        rows.push(
+          <ApprovalDetailLabel key={`${reviewer.userId}-cmt-lbl`} icon={MessageSquare}>
+            {commentLabel}
+          </ApprovalDetailLabel>,
+          <ReviewerCommentCollapsible key={`${reviewer.userId}-cmt`} text={trimmed} messages={messages} />
+        )
+      }
+      return rows
+    })
+  }
+
+  const renderNonApprovedReviewerGrid = () =>
+    approval.reviewers.flatMap((reviewer, index) => {
+      const isRejectedRequest = approval.requestStatus === 'rejected'
+      const rows: React.ReactElement[] = []
+      if (index === 0) {
+        rows.push(
+          <ApprovalDetailLabel
+            key="reviewers-lbl"
+            icon={isRejectedRequest ? XCircle : Users}
+            iconClassName={isRejectedRequest ? 'gba:text-destructive' : undefined}
+            className={isRejectedRequest ? 'gba:text-destructive' : undefined}
+          >
+            {isRejectedRequest
+              ? (messages.approvalRejectedBy ?? 'Rejected By')
+              : (messages.approvalReviewers ?? 'Reviewers')}
+          </ApprovalDetailLabel>
+        )
+      }
+      rows.push(
+        <div key={`${reviewer.userId}-line`} className={cn(index > 0 && 'gba:col-start-2')}>
+          <ReviewerLine reviewer={reviewer} messages={messages} userDisplayMap={userDisplayMap} />
+        </div>
+      )
+      const trimmed = reviewer.comments?.trim()
+      if (trimmed) {
+        rows.push(
+          <ApprovalDetailLabel key={`${reviewer.userId}-cmt-lbl`} icon={MessageSquare}>
+            {commentLabel}
+          </ApprovalDetailLabel>,
+          <ReviewerCommentCollapsible key={`${reviewer.userId}-cmt`} text={trimmed} messages={messages} />
+        )
+      }
+      return rows
+    })
 
   return (
     <div className="gba:mt-3 gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/40 gba:p-2">
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-        <div className="gba:min-w-0 gba:flex-1 gba:space-y-1.5">
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-2 gba:gap-y-1">
-            <span className="gba:text-xs gba:text-muted-foreground">
-              {messages.approvalRequestedBy ?? 'Requested by'}:
-            </span>
-            <span className="gba:flex gba:items-center gba:gap-2">
-              <Avatar className="gba:h-6 gba:w-6 gba:ring-1 gba:ring-border">
-                {requesterAvatarUrl && <AvatarImage src={requesterAvatarUrl} alt={requesterDisplay.displayName} />}
-                <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs">
-                  {requesterDisplay.displayName.slice(0, 2).toUpperCase() || <User className="gba:h-3 gba:w-3" />}
-                </AvatarFallback>
-              </Avatar>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">{requesterDisplay.displayName}</span>
-            </span>
-            <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-              <Clock className="gba:h-3 gba:w-3" />
-              {requestedAtLabel}
-            </span>
-          </div>
+        <div className={cn('gba:min-w-0 gba:flex-1', APPROVAL_DETAIL_GRID)}>
+          <ApprovalDetailLabel icon={Inbox}>{messages.approvalRequestedBy ?? 'Requested by'}:</ApprovalDetailLabel>
+          {requestedByValue}
 
-          {approval.requestStatus === 'approved' ? (
-            approvedReviewers.length > 0 ? (
-              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-2 gba:gap-y-1">
-                <CheckCircle className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-success" />
-                <span className="gba:shrink-0 gba:text-xs gba:text-muted-foreground">
-                  {messages.approvalApprovedBy ?? 'Approved by'}
-                </span>
-                {approvedReviewers.map(reviewer => (
-                  <ReviewerRow
-                    key={`${approval.requestId}-${reviewer.userId}`}
-                    reviewer={reviewer}
-                    messages={messages}
-                    userDisplayMap={userDisplayMap}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {messages.approvalNoApprovedReviewers ?? 'No approvers recorded'}
-              </p>
-            )
-          ) : (
-            <div className="gba:grid gba:grid-cols-[auto_minmax(0,1fr)] gba:items-start gba:gap-x-2 gba:gap-y-1">
-              <span className="gba:pt-1 gba:text-xs gba:leading-none gba:text-muted-foreground">
-                {messages.approvalReviewers ?? 'Reviewers'}
-              </span>
-              <div className="gba:flex gba:min-w-0 gba:w-full gba:max-w-full gba:flex-col gba:gap-1 gba:overflow-hidden">
-                {approval.reviewers.map(reviewer => (
-                  <ReviewerRow
-                    key={`${approval.requestId}-${reviewer.userId}`}
-                    reviewer={reviewer}
-                    messages={messages}
-                    userDisplayMap={userDisplayMap}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          {approval.requestStatus === 'approved' ? renderApprovedReviewerGrid() : renderNonApprovedReviewerGrid()}
         </div>
         {showTopActionRow && (
           <Button
@@ -221,7 +334,7 @@ export function VersionHistoryApprovalSection({
             className="gba:shrink-0 gba:self-start gba:px-2 gba:text-xs"
             onClick={event => {
               event.stopPropagation()
-              onOpenApprovalReview(versionNumber)
+              onOpenApprovalReview?.(versionNumber)
             }}
             data-testid={`version-history-review-${versionNumber}`}
           >

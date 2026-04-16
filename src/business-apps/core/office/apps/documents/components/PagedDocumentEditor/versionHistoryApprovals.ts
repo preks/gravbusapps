@@ -7,6 +7,7 @@ export interface DocumentApprovalHistoryStep {
   approverId: string
   status: DocumentApprovalHistoryStepStatus
   respondedAt?: string | null
+  comments?: string | null
 }
 
 export interface DocumentApprovalHistoryRequest {
@@ -29,7 +30,7 @@ export interface VersionHistoryApprovalSummary {
 }
 
 function isVersionNumber(value: number | null | undefined): value is number {
-  return Number.isInteger(value) && value > 0
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
 function getRequestedAtValue(approval: DocumentApprovalHistoryRequest): string {
@@ -63,10 +64,13 @@ export function buildVersionHistoryApprovalSummary(
         approvalUserIds.add(step.approverId)
       }
 
+      const stepComments = step.comments?.trim()
+
       return {
         userId: step.approverId,
         status: step.status,
-        respondedAt: step.respondedAt ?? undefined
+        respondedAt: step.respondedAt ?? undefined,
+        ...(stepComments ? { comments: stepComments } : {})
       }
     })
 
