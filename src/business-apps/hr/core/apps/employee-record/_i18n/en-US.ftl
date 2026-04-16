@@ -774,6 +774,17 @@ details-label-private-email = Private Email
 details-label-contact-name = Contact Name
 details-label-phone-number = Phone Number
 
+# Relationships Card
+details-relationships = Relationships
+details-relationships-no-entries = No relationships registered
+details-relationships-emergency = Emergency Contact
+details-label-relationship-type = Type
+details-label-relationship-birth-date = Date of Birth
+details-label-relationship-email = Email
+delete-relationship-confirm-title = Delete relationship
+delete-relationship-confirm-description = Are you sure you want to delete this relationship? This action cannot be undone.
+delete-relationship-confirm-button = Delete
+
 # Employment Tab
 employment-overview = Employment Data
 employment-description = View employment information and working conditions
