@@ -39,7 +39,9 @@ header-search-placeholder = Suchen...
 sort-name = Name
 sort-modified = Geändert
 sort-created = Erstellt
+sort-trashed = In den Papierkorb verschoben am
 table-owner = Besitzer
+table-trashed = In den Papierkorb verschoben am
 
 empty-favorites-title = Noch keine Favoriten
 empty-favorites-description = Markieren Sie häufig verwendete Folien mit einem Stern.
@@ -50,6 +52,15 @@ empty-trash-description = In den Papierkorb verschobene Folien erscheinen hier.
 empty-default-title = Noch keine Folien
 empty-default-description = Erstellen Sie Ihre erste Folie.
 empty-create-slide = Folie erstellen
+trash-state-title = Diese Präsentation befindet sich im Papierkorb
+trash-state-description = Präsentationen im Papierkorb sind schreibgeschützt, bis Sie sie wiederherstellen. Sie können sie jetzt wiederherstellen oder dauerhaft löschen.
+trashed-readonly-title = Diese Präsentation befindet sich im Papierkorb
+trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb. Sie können die Inhalte ansehen, aber weder bearbeiten noch daran zusammenarbeiten.
+trashed-readonly-owner-note = Stellen Sie diese Präsentation wieder her, um Bearbeitung und Zusammenarbeit fortzusetzen.
+trashed-readonly-shared-note = Nur der Eigentümer kann diese Präsentation wiederherstellen. Sie können die Inhalte hier weiterhin ansehen.
+trashed-readonly-go-home = Zu Folien
+trashed-readonly-restore = Wiederherstellen
+trashed-readonly-restoring = Wird wiederhergestellt...
 
 menu-open = Öffnen
 menu-share = Teilen
@@ -71,7 +82,12 @@ shared-with-count = Geteilt mit { $count } { $count ->
 }
 shared-click-manage = Klicken zum Verwalten
 
-confirm-delete = Möchten Sie diese Folie wirklich löschen?
+confirm-delete = Diese Präsentation in den Papierkorb verschieben?
+delete-confirm-title = In den Papierkorb verschieben?
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-action = In den Papierkorb verschieben
+delete-confirm-cancel = Abbrechen
 toast-slide-duplicated = Folie dupliziert
 toast-link-copied = Link in Zwischenablage kopiert
 toast-favorite-removed = Aus Favoriten entfernt
@@ -82,6 +98,8 @@ toast-import-partial = Präsentation erstellt, aber Folieninhalte konnten nicht 
 import-saving = Präsentation wird gespeichert...
 toast-template-matched = Vorlage wird verwendet: { $name }
 toast-template-applied = Vorlage angewendet
+toast-restored = Präsentation wiederhergestellt
+toast-restore-failed = Wiederherstellung der Präsentation fehlgeschlagen
 
 # Editor
 editor-slide-saved = Folie gespeichert
@@ -476,6 +494,7 @@ slides-toast-created = Präsentation erstellt
 slides-toast-create-failed = Präsentation konnte nicht erstellt werden
 slides-toast-save-failed = Speichern fehlgeschlagen
 slides-toast-deleted = Präsentation gelöscht
+slides-toast-moved-to-trash = Präsentation in den Papierkorb verschoben
 slides-toast-delete-failed = Löschen fehlgeschlagen
 slides-toast-duplicated = Präsentation dupliziert
 slides-toast-duplicate-failed = Duplizieren fehlgeschlagen

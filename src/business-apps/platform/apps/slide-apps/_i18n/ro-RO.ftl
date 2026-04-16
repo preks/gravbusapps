@@ -39,7 +39,9 @@ header-search-placeholder = Căutare...
 sort-name = Nume
 sort-modified = Modificat
 sort-created = Creat
+sort-trashed = Mutat în coș la
 table-owner = Proprietar
+table-trashed = Mutat în coș la
 
 empty-favorites-title = Încă nu există favorite
 empty-favorites-description = Marcați slide-urile frecvente cu steluță.
@@ -50,6 +52,15 @@ empty-trash-description = Slide-urile mutate în coș vor apărea aici.
 empty-default-title = Încă nu există slide-uri
 empty-default-description = Creați primul slide.
 empty-create-slide = Creați slide
+trash-state-title = Această prezentare este în coș
+trash-state-description = Prezentările din coș sunt doar pentru citire până când le restaurați. O puteți restaura acum sau o puteți șterge definitiv.
+trashed-readonly-title = Această prezentare este în coș
+trashed-readonly-description = „{ $title }” este în coș, așa că o puteți vedea, dar nu o puteți edita sau colabora la ea.
+trashed-readonly-owner-note = Restaurați această prezentare pentru a relua editarea și colaborarea.
+trashed-readonly-shared-note = Doar proprietarul poate restaura această prezentare. Puteți continua să vedeți conținutul aici.
+trashed-readonly-go-home = Mergeți la Prezentări
+trashed-readonly-restore = Restaurare
+trashed-readonly-restoring = Se restaurează...
 
 menu-open = Deschide
 menu-share = Partajare
@@ -71,7 +82,12 @@ shared-with-count = Partajat cu { $count } { $count ->
 }
 shared-click-manage = Apăsați pentru gestionare
 
-confirm-delete = Sunteți sigur că doriți să ștergeți acest slide?
+confirm-delete = Mutați această prezentare în coș?
+delete-confirm-title = Muți la coșul de gunoi?
+delete-confirm-single = "{$name}" va fi mutat la coșul de gunoi. Îl poți restaura în 30 de zile.
+delete-confirm-multi = {$count} elemente vor fi mutate la coșul de gunoi. Le poți restaura în 30 de zile.
+delete-confirm-action = Mută la coșul de gunoi
+delete-confirm-cancel = Anulează
 toast-slide-duplicated = Slide duplicat
 toast-link-copied = Link copiat în clipboard
 toast-favorite-removed = Eliminat din favorite
@@ -82,6 +98,8 @@ toast-import-partial = Prezentarea a fost creată, dar conținutul slide-urilor 
 import-saving = Se salvează prezentarea...
 toast-template-matched = Se folosește șablonul: { $name }
 toast-template-applied = Șablon aplicat
+toast-restored = Prezentare restaurată
+toast-restore-failed = Restaurarea prezentării a eșuat
 
 # Editor
 editor-slide-saved = Slide salvat
@@ -457,6 +475,7 @@ slides-toast-created = Prezentare creată
 slides-toast-create-failed = Prezentarea nu a putut fi creată
 slides-toast-save-failed = Salvare eșuată
 slides-toast-deleted = Prezentare ștearsă
+slides-toast-moved-to-trash = Prezentare mutată în coș
 slides-toast-delete-failed = Ștergere eșuată
 slides-toast-duplicated = Prezentare duplicată
 slides-toast-duplicate-failed = Duplicare eșuată

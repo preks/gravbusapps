@@ -39,7 +39,9 @@ header-search-placeholder = Search...
 sort-name = Name
 sort-modified = Modified
 sort-created = Created
+sort-trashed = Trashed on
 table-owner = Owner
+table-trashed = Trashed on
 
 empty-favorites-title = No favorites yet
 empty-favorites-description = Star your frequently used slides to see them here.
@@ -50,6 +52,15 @@ empty-trash-description = Slides moved to trash will appear here.
 empty-default-title = No slides yet
 empty-default-description = Create your first slide to get started.
 empty-create-slide = Create Slide
+trash-state-title = This slide deck is in trash
+trash-state-description = Trashed slide decks are read-only until you restore them. You can restore it now or delete it permanently.
+trashed-readonly-title = This slide deck is in trash
+trashed-readonly-description = "{ $title }" is in trash, so you can view it but not edit or collaborate on it.
+trashed-readonly-owner-note = Restore this slide deck to resume editing and collaboration.
+trashed-readonly-shared-note = Only the owner can restore this slide deck. You can keep viewing the content here.
+trashed-readonly-go-home = Go to Slides
+trashed-readonly-restore = Restore
+trashed-readonly-restoring = Restoring...
 
 menu-open = Open
 menu-share = Share
@@ -71,7 +82,12 @@ shared-with-count = Shared with { $count } { $count ->
 }
 shared-click-manage = Click to manage
 
-confirm-delete = Are you sure you want to delete this slide?
+confirm-delete = Move this slide deck to trash?
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{$name}" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = {$count} items will be moved to trash. You can restore them within 30 days.
+delete-confirm-action = Move to trash
+delete-confirm-cancel = Cancel
 toast-slide-duplicated = Slide duplicated
 toast-link-copied = Link copied to clipboard
 toast-favorite-removed = Removed from favorites
@@ -82,6 +98,8 @@ toast-import-partial = Presentation created, but slide content could not be save
 import-saving = Saving presentation...
 toast-template-matched = Using template: { $name }
 toast-template-applied = Template applied
+toast-restored = Presentation restored
+toast-restore-failed = Failed to restore presentation
 
 # Editor
 editor-slide-saved = Slide saved
@@ -479,6 +497,7 @@ slides-toast-created = Presentation created
 slides-toast-create-failed = Failed to create presentation
 slides-toast-save-failed = Failed to save
 slides-toast-deleted = Presentation deleted
+slides-toast-moved-to-trash = Presentation moved to trash
 slides-toast-delete-failed = Failed to delete
 slides-toast-duplicated = Presentation duplicated
 slides-toast-duplicate-failed = Failed to duplicate
