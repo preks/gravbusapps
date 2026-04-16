@@ -32,8 +32,7 @@ interface ThisWeekCardProps {
 }
 
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const DAYS_TO_SHOW = 5
-const HALF = Math.floor(DAYS_TO_SHOW / 2)
+const WEEK_LENGTH = 7
 
 function toLocalDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -49,13 +48,21 @@ const HOURS_BY_DOW: readonly (keyof WorkingHours)[] = [
   'saturdayHours'
 ]
 
+function getMondayOfWeek(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const jsDay = d.getDay()
+  const offset = jsDay === 0 ? -6 : 1 - jsDay
+  d.setDate(d.getDate() + offset)
+  return d
+}
+
 function buildWeekData(
   entries: TimeEntry[],
   todayRecordedMinutes: number
 ): Array<{ day: string; hours: number; isToday: boolean; dow: number }> {
   const now = new Date()
   const todayKey = toLocalDateKey(now)
-  const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - HALF)
+  const monday = getMondayOfWeek(now)
 
   const entryMap = new Map<string, number>()
   for (const entry of entries) {
@@ -64,9 +71,9 @@ function buildWeekData(
     entryMap.set(key, (entryMap.get(key) ?? 0) + (entry.totalMinutes ?? 0))
   }
 
-  return Array.from({ length: DAYS_TO_SHOW }, (_, i) => {
-    const date = new Date(startDate)
-    date.setDate(startDate.getDate() + i)
+  return Array.from({ length: WEEK_LENGTH }, (_, i) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + i)
     const key = toLocalDateKey(date)
     const dow = date.getDay()
     const isToday = key === todayKey
@@ -114,8 +121,8 @@ export const ThisWeekCard: React.FC<ThisWeekCardProps> = ({ allMonthEntries, wor
             <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
             <YAxis hide />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={40}>
-              <LabelList dataKey="hours" position="top" fontSize={11} formatter={v => (Number(v) > 0 ? `${v}h` : '')} />
+            <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={32}>
+              <LabelList dataKey="hours" position="top" fontSize={10} formatter={v => (Number(v) > 0 ? `${v}h` : '')} />
               {weekData.map(entry => (
                 <Cell key={entry.day} fill={entry.isToday ? 'var(--nw-color-primary)' : 'var(--nw-color-muted)'} />
               ))}
