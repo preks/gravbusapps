@@ -39,6 +39,8 @@ export interface RadialBarChartProps extends SunburstVisualizationProps {
 
 type TranslateFn = (key: string) => string
 
+const displayLevelLabel = (rawLevel: number, t: TranslateFn): string => `${t('hr-analytics-level')} ${rawLevel + 1}`
+
 const segmentHeaderLabelForViewMode = (viewMode: ViewMode, t: TranslateFn): string => {
   if (viewMode === 'company') return t('hr-analytics-companies')
   if (viewMode === 'costcenter') return t('hr-analytics-cost-centers')
@@ -139,7 +141,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       const departmentsCount = Number.isFinite(departmentsRaw) ? departmentsRaw : 0
       const segmentPercentageRaw = Number(rawRow.percentage_of_level ?? 0)
       const percentageOfLevel = Number.isFinite(segmentPercentageRaw) ? segmentPercentageRaw : 0
-      const levelName = String(rawRow.level_name ?? `Level ${safeLevel}`).trim() || `Level ${safeLevel}`
+      const levelName = displayLevelLabel(safeLevel, t)
 
       if (!rowsByLevel.has(safeLevel)) {
         rowsByLevel.set(safeLevel, {
@@ -356,7 +358,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         const employeeCount = Number.isFinite(employeeCountRaw) ? employeeCountRaw : 0
         const levelTotalRaw = Number(rawRow.level_total_employees ?? 0)
         const levelTotal = Number.isFinite(levelTotalRaw) ? levelTotalRaw : 0
-        const levelName = String(rawRow.level_name ?? `Level ${safeLevel}`).trim() || `Level ${safeLevel}`
+        const levelName = displayLevelLabel(safeLevel, t)
 
         if (!levelRows.has(safeLevel)) {
           levelRows.set(safeLevel, {
@@ -487,12 +489,6 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <h3 className="gba:m-0 gba:text-foreground gba:text-xl gba:font-semibold gba:leading-6 gba:pt-0.5">
             {t('hr-analytics-organizational-hierarchy-report')}
           </h3>
-          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:bg-info-secondary gba:text-info-secondary-foreground">
-            <UsersIcon size={16} />
-            <span>
-              {statistics.totalEmployees} {t('hr-analytics-employees')}
-            </span>
-          </span>
         </div>
 
         {/* View Mode Switcher */}
