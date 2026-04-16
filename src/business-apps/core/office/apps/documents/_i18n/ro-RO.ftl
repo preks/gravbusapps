@@ -903,6 +903,7 @@ editor-version-history-approval-filter-empty = Niciun checkpoint nu corespunde a
 editor-version-history-reviewer-pending-badge = Aprobare în așteptare
 editor-version-history-approved-by = Aprobat de
 editor-version-history-open-review = Revizuiește acum
+editor-version-history-view-approved-version = Deschide
 editor-version-history-no-approved-reviewers = Nu există aprobatori înregistrați
 editor-version-history-unknown-time = Timp necunoscut
 editor-version-history-comment-show-more = Arată mai mult

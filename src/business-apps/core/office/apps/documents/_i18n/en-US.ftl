@@ -906,6 +906,7 @@ editor-version-history-approval-filter-empty = No checkpoints match this approva
 editor-version-history-reviewer-pending-badge = Pending approval
 editor-version-history-approved-by = Approved by
 editor-version-history-open-review = Review Now
+editor-version-history-view-approved-version = Open
 editor-version-history-no-approved-reviewers = No approved reviewers recorded
 editor-version-history-unknown-time = Unknown time
 editor-version-history-comment-show-more = Show more

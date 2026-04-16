@@ -64,7 +64,8 @@ describe('buildVersionHistoryApprovalSummary', () => {
         { userId: 'reviewer-1', status: 'pending', respondedAt: undefined },
         { userId: 'reviewer-2', status: 'approved', respondedAt: '2026-04-16T09:30:00.000Z' }
       ],
-      canReview: true
+      canReview: true,
+      canViewApproved: false
     })
     expect(summary.approvalDetailsByVersion[5]).toEqual({
       requestId: 'approved-request',
@@ -76,7 +77,26 @@ describe('buildVersionHistoryApprovalSummary', () => {
       reviewers: [
         { userId: 'reviewer-3', status: 'approved', respondedAt: '2026-04-15T13:00:00.000Z', comments: 'Looks good.' }
       ],
-      canReview: false
+      canReview: false,
+      canViewApproved: true
     })
+  })
+
+  it('marks approved requests as viewable even when current user is not an approver', () => {
+    const approvals: DocumentApprovalHistoryRequest[] = [
+      {
+        id: 'approved-request',
+        requestedBy: 'requester-1',
+        status: 'approved',
+        versionAtRequest: 2,
+        createdAt: '2026-04-15T12:00:00.000Z',
+        steps: [{ approverId: 'reviewer-1', status: 'approved', respondedAt: '2026-04-15T13:00:00.000Z' }]
+      }
+    ]
+
+    const summary = buildVersionHistoryApprovalSummary(approvals, 'unrelated-viewer')
+
+    expect(summary.approvalDetailsByVersion[2].canReview).toBe(false)
+    expect(summary.approvalDetailsByVersion[2].canViewApproved).toBe(true)
   })
 })

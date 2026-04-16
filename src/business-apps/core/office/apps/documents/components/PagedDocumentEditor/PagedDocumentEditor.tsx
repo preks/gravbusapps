@@ -1533,6 +1533,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         approvalRejectedBy: t('editor-version-history-rejected-by'),
         approvalApprovedBy: t('editor-version-history-approved-by'),
         approvalOpenReview: t('editor-version-history-open-review'),
+        approvalOpenApprovedView: t('editor-version-history-view-approved-version'),
         approvalNoApprovedReviewers: t('editor-version-history-no-approved-reviewers'),
         approvalUnknownTime: t('editor-version-history-unknown-time'),
         approvalCommentShowMore: t('editor-version-history-comment-show-more'),

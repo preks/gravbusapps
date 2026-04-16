@@ -39,6 +39,8 @@ export interface VersionHistoryApprovalDetails {
   requestedAt: string
   reviewers: VersionHistoryApprovalReviewer[]
   canReview?: boolean
+  /** True when the request is approved and any user with document view access may open the read-only snapshot. */
+  canViewApproved?: boolean
 }
 
 export interface VersionHistoryMessages {
@@ -68,6 +70,8 @@ export interface VersionHistoryMessages {
   approvalRejectedBy?: string
   approvalApprovedBy?: string
   approvalOpenReview?: string
+  /** Button label shown on approved versions for users who may only view (print, export PDF/DOCX). */
+  approvalOpenApprovedView?: string
   approvalNoApprovedReviewers?: string
   approvalUnknownTime?: string
   approvalCommentShowMore?: string

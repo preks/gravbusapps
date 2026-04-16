@@ -222,7 +222,19 @@ export function VersionHistoryApprovalSection({
   const approvedReviewers = approval.reviewers.filter(reviewer => reviewer.status === 'approved')
   const commentLabel = messages.approvalReviewerCommentLabel ?? 'Review comment'
 
-  const showTopActionRow = Boolean(approval.canReview) && Boolean(onOpenApprovalReview)
+  const canOpenReview = Boolean(approval.canReview) && Boolean(onOpenApprovalReview)
+  const canOpenApprovedView =
+    approval.requestStatus === 'approved' &&
+    Boolean(approval.canViewApproved) &&
+    Boolean(onOpenApprovalReview) &&
+    !canOpenReview
+  const showAction = canOpenReview || canOpenApprovedView
+  const actionLabel = canOpenReview
+    ? (messages.approvalOpenReview ?? 'Review Now')
+    : (messages.approvalOpenApprovedView ?? 'Open')
+  const actionTestId = canOpenReview
+    ? `version-history-review-${versionNumber}`
+    : `version-history-view-approved-${versionNumber}`
 
   const requestedByValue = (
     <div className="gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1.5">
@@ -327,18 +339,18 @@ export function VersionHistoryApprovalSection({
 
           {approval.requestStatus === 'approved' ? renderApprovedReviewerGrid() : renderNonApprovedReviewerGrid()}
         </div>
-        {showTopActionRow && (
+        {showAction && (
           <Button
             size="sm"
             variant="outline"
-            className="gba:shrink-0 gba:self-start gba:px-3 gba:text-xs gba:font-medium"
+            className="gba:h-7 gba:shrink-0 gba:self-start gba:px-2.5 gba:text-xs gba:font-medium"
             onClick={event => {
               event.stopPropagation()
               onOpenApprovalReview?.(versionNumber)
             }}
-            data-testid={`version-history-review-${versionNumber}`}
+            data-testid={actionTestId}
           >
-            {messages.approvalOpenReview ?? 'Review Now'}
+            {actionLabel}
           </Button>
         )}
       </div>

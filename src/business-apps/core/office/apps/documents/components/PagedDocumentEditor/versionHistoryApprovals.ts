@@ -84,6 +84,8 @@ export function buildVersionHistoryApprovalSummary(
         reviewers.some(step => step.userId === currentUserId && step.status === 'pending')
     )
 
+    const canViewApproved = approval.status === 'approved'
+
     approvalDetailsByVersion[approval.versionAtRequest] = {
       requestId: approval.id,
       requestStatus: approval.status,
@@ -92,7 +94,8 @@ export function buildVersionHistoryApprovalSummary(
       requestedByPicture: approval.requestedByPicture,
       requestedAt: getRequestedAtValue(approval),
       reviewers,
-      canReview
+      canReview,
+      canViewApproved
     }
   }
 

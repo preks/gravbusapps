@@ -903,6 +903,7 @@ editor-version-history-approval-filter-empty = Keine Checkpoints entsprechen die
 editor-version-history-reviewer-pending-badge = Ausstehende Freigabe
 editor-version-history-approved-by = Genehmigt von
 editor-version-history-open-review = Jetzt prüfen
+editor-version-history-view-approved-version = Öffnen
 editor-version-history-no-approved-reviewers = Keine genehmigenden Prüfer erfasst
 editor-version-history-unknown-time = Unbekannte Zeit
 editor-version-history-comment-show-more = Mehr anzeigen
