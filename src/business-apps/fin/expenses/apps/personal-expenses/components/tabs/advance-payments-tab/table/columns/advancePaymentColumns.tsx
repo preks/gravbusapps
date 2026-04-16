@@ -133,6 +133,7 @@ export function createAdvancePaymentColumns(): ColumnDef<AdvancePayment>[] {
       accessorFn: (row: AdvancePayment) => row.expensePlan?.totalAmount,
       header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount'),
       size: 120,
+      sortDescFirst: false,
       meta: { align: 'right' as const },
       cell: renderAdvAmountCell
     },
@@ -144,6 +145,7 @@ export function createAdvancePaymentColumns(): ColumnDef<AdvancePayment>[] {
         'Advance'
       ),
       size: 120,
+      sortDescFirst: false,
       meta: { align: 'right' as const },
       cell: renderAdvAdvanceCell
     },
