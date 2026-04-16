@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, toast } from '@newwork/nw-design-system'
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle, toast, useTranslation } from '@newwork/nw-design-system'
 import { CloudDownload, HardDrive, CheckCircle2, ArrowRight } from 'lucide-react'
 import { DocumentExternalSourceService } from '@/business-apps/core/office/apps/documents/services/DocumentExternalSourceService'
 import type {
@@ -13,6 +13,7 @@ import { UnstructuredImportConfig } from '@/business-apps/core/office/apps/docum
 import { UnstructuredSyncProgress } from '@/business-apps/core/office/apps/documents/components/external-import/UnstructuredSyncProgress'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AddFromDriveStep } from './AddFromDriveStep'
+import translations from '../_i18n'
 
 type Step = 'select' | 'browse-drive' | 'preview' | 'config' | 'progress'
 
@@ -35,6 +36,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
   onAfterImport,
   'data-testid': testId = 'drive-external-import-sheet'
 }) => {
+  const { t } = useTranslation(translations)
   const promptManagerClient = usePromptManagerClient(accessToken)
   const [step, setStep] = useState<Step>('select')
   const [connectors, setConnectors] = useState<UnstructuredConnectorSummary[]>([])
@@ -96,11 +98,11 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
       const filtered = allConnectors.filter(c => activeConnectorIds.has(c.name))
       setConnectors(filtered)
     } catch {
-      setConnectorError('Failed to load connectors')
+      setConnectorError(t('external-import-error-load-connectors'))
     } finally {
       setIsLoadingConnectors(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (open && step === 'select') {
@@ -138,13 +140,13 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
         }
       } catch {
         setSharedConnections([])
-        setSharedConnectionsError('Failed to load shared connections')
+        setSharedConnectionsError(t('external-import-error-load-shared-connections'))
       } finally {
         setIsLoadingSharedConnections(false)
       }
     }
     void loadSharedConnections()
-  }, [promptManagerClient, selectedConnector])
+  }, [promptManagerClient, selectedConnector, t])
 
   const handlePreview = useCallback(async () => {
     if (!selectedConnector) return
@@ -162,17 +164,17 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
         setPreviewItems(result.items)
         setEstimatedTotal(result.estimatedTotal)
       } else {
-        toast.error('Preview failed')
+        toast.error(t('external-import-error-preview'))
         setStep('select')
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Preview failed'
+      const message = err instanceof Error ? err.message : t('external-import-error-preview')
       setPreviewError(message)
       toast.error(message)
     } finally {
       setIsLoadingPreview(false)
     }
-  }, [selectedConnector, selectedConnectionId])
+  }, [selectedConnector, selectedConnectionId, t])
 
   const pollRunStatus = useCallback(
     async (activeRunId: string) => {
@@ -194,12 +196,12 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
           pollingRef.current = null
         }
         if (status.status === 'completed') {
-          toast.success(`Imported ${status.totalImported.toLocaleString()} items from external source`)
+          toast.success(t('external-import-success-imported', { count: status.totalImported.toLocaleString() }))
           onAfterImport?.()
         }
       }
     },
-    [onAfterImport]
+    [onAfterImport, t]
   )
 
   const startPolling = useCallback(
@@ -228,7 +230,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
         destinationFolderId: currentFolderId || undefined
       })
       if (!result) {
-        toast.error('Failed to start import')
+        toast.error(t('external-import-error-start'))
         return
       }
       setRunId(result.runId)
@@ -243,7 +245,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
       setStep('progress')
       startPolling(result.runId)
     } catch {
-      toast.error('Failed to start import')
+      toast.error(t('external-import-error-start'))
     } finally {
       setIsImporting(false)
     }
@@ -255,7 +257,8 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
     refreshMode,
     startPolling,
     spaceId,
-    currentFolderId
+    currentFolderId,
+    t
   ])
 
   const handleCancel = useCallback(async () => {
@@ -332,12 +335,12 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
             {step === 'browse-drive' ? (
               <>
                 <HardDrive className="gba:w-4 gba:h-4" />
-                Add from my Drive
+                {t('external-import-sheet-title-my-drive')}
               </>
             ) : (
               <>
                 <CloudDownload className="gba:w-4 gba:h-4" />
-                Import from external source
+                {t('external-import-sheet-title')}
               </>
             )}
           </SheetTitle>
@@ -346,9 +349,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
         <div className="gba:overflow-y-auto gba:flex-1 gba:px-4 gba:pb-4">
           {currentFolderId && step === 'select' && (
             <div className="gba:mb-3 gba:rounded gba:border gba:border-info/50 gba:bg-info-secondary gba:p-2">
-              <p className="gba:text-xs gba:text-info-foreground">
-                Imported files will be placed into the current folder.
-              </p>
+              <p className="gba:text-xs gba:text-info-foreground">{t('external-import-current-folder-info')}</p>
             </div>
           )}
 
@@ -371,9 +372,9 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
                         <HardDrive className="gba:w-5 gba:h-5 gba:text-primary" />
                       </div>
                       <div className="gba:min-w-0 gba:flex-1">
-                        <div className="gba:text-sm gba:font-semibold">My NEWWORK Drive</div>
+                        <div className="gba:text-sm gba:font-semibold">{t('external-import-my-drive-title')}</div>
                         <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                          Browse your personal Drive and add files to this space
+                          {t('external-import-my-drive-description')}
                         </div>
                       </div>
                       {myDriveSelected && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-primary gba:shrink-0" />}
@@ -383,7 +384,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
                   {myDriveSelected && (
                     <div className="gba:flex gba:justify-end gba:mt-3">
                       <Button size="sm" onClick={() => setStep('browse-drive')} data-testid={`${testId}-my-drive-next`}>
-                        Browse <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
+                        {t('external-import-my-drive-browse')} <ArrowRight className="gba:w-3 gba:h-3 gba:ml-1" />
                       </Button>
                     </div>
                   )}
@@ -394,7 +395,7 @@ export const DriveExternalImportSheet: React.FC<DriveExternalImportSheetProps> =
                     </div>
                     <div className="gba:relative gba:flex gba:justify-center">
                       <span className="gba:bg-background gba:px-3 gba:text-xs gba:text-muted-foreground">
-                        or import from an external source
+                        {t('external-import-or-external')}
                       </span>
                     </div>
                   </div>

@@ -15,11 +15,13 @@ import {
   Button,
   Input,
   Checkbox,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { FileText, Table2, StickyNote, Search, Loader2, FolderOpen } from 'lucide-react'
 import { useAvailableContent, type AvailableContentItem } from '../hooks/useAvailableContent'
-import { formatDistanceToNow } from 'date-fns'
+import translations from '../_i18n'
+import { formatLocalizedDistance } from '../utils/spaceLocalization'
 
 export interface AddContentDialogProps {
   open: boolean
@@ -33,10 +35,10 @@ export interface AddContentDialogProps {
 type ContentTab = 'documents' | 'notes' | 'spreadsheets'
 type ContentType = 'document' | 'note' | 'spreadsheet'
 
-const tabs: { key: ContentTab; type: ContentType; label: string; icon: typeof FileText }[] = [
-  { key: 'documents', type: 'document', label: 'Documents', icon: FileText },
-  { key: 'notes', type: 'note', label: 'Notes', icon: StickyNote },
-  { key: 'spreadsheets', type: 'spreadsheet', label: 'Spreadsheets', icon: Table2 }
+const tabs: { key: ContentTab; type: ContentType; labelKey: string; icon: typeof FileText }[] = [
+  { key: 'documents', type: 'document', labelKey: 'content-type-documents', icon: FileText },
+  { key: 'notes', type: 'note', labelKey: 'content-type-notes', icon: StickyNote },
+  { key: 'spreadsheets', type: 'spreadsheet', labelKey: 'content-type-spreadsheets', icon: Table2 }
 ]
 
 export const AddContentDialog: React.FC<AddContentDialogProps> = ({
@@ -47,6 +49,7 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
   accessToken,
   'data-testid': testId = 'add-content-dialog'
 }) => {
+  const { t, locale } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<ContentTab>('documents')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedItems, setSelectedItems] = useState<Map<string, { type: ContentType; id: string }>>(new Map())
@@ -131,16 +134,28 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
     [onOpenChange]
   )
 
-  const getItemName = (item: AvailableContentItem) => item.title || item.name || 'Untitled'
+  const getItemName = (item: AvailableContentItem) => item.title || item.name || t('common-untitled')
+  const getEmptyStateLabel = () => {
+    switch (activeTab) {
+      case 'documents':
+        return t('add-content-empty-documents')
+      case 'notes':
+        return t('add-content-empty-notes')
+      case 'spreadsheets':
+        return t('add-content-empty-spreadsheets')
+      default:
+        return t('add-content-empty-documents')
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="gba:max-w-2xl gba:p-0 gba:overflow-hidden gba:max-h-[85vh]" data-testid={testId}>
         {/* Header */}
         <DialogHeader className="gba:p-6 gba:pb-4">
-          <DialogTitle className="gba:text-lg gba:font-semibold">Add Content</DialogTitle>
+          <DialogTitle className="gba:text-lg gba:font-semibold">{t('add-content-title')}</DialogTitle>
           <DialogDescription className="gba:text-sm gba:text-muted-foreground">
-            Select your content to add to this space
+            {t('add-content-description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -149,7 +164,7 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
           <div className="gba:relative">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
             <Input
-              placeholder="Search by name..."
+              placeholder={t('common-search-files-placeholder')}
               value={searchQuery}
               onChange={handleSearchChange}
               className="gba:pl-9 gba:h-10"
@@ -163,7 +178,7 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
 
         {/* Tabs */}
         <div className="gba:px-6 gba:flex gba:gap-1 gba:border-b gba:border-border">
-          {tabs.map(({ key, label, icon: Icon }) => {
+          {tabs.map(({ key, labelKey, icon: Icon }) => {
             const count = key === 'documents' ? documents.length : key === 'notes' ? notes.length : spreadsheets.length
             return (
               <button
@@ -177,7 +192,7 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
                 data-testid={`${testId}-tab-${key}`}
               >
                 <Icon className="gba:w-4 gba:h-4" />
-                {label}
+                {t(labelKey)}
                 <Badge variant="secondary" className="gba:text-xs gba:px-1.5 gba:py-0 gba:min-w-[20px]">
                   {count}
                 </Badge>
@@ -196,18 +211,16 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
             <div className="gba:text-center gba:py-12">
               <p className="gba:text-sm gba:text-destructive gba:mb-4">{error}</p>
               <Button variant="secondary" size="sm" onClick={refresh}>
-                Try Again
+                {t('common-try-again')}
               </Button>
             </div>
           ) : activeItems.length === 0 ? (
             <div className="gba:text-center gba:py-12">
               <FolderOpen className="gba:w-10 gba:h-10 gba:text-muted-foreground/40 gba:mx-auto gba:mb-3" />
               <p className="gba:text-sm gba:text-muted-foreground">
-                {searchQuery ? 'No matching content found' : `No ${activeTab} available to add`}
+                {searchQuery ? t('add-content-empty-search-title') : getEmptyStateLabel()}
               </p>
-              <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
-                Only content you own can be added to a space
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('add-content-owned-only')}</p>
             </div>
           ) : (
             <div className="gba:space-y-1">
@@ -233,7 +246,9 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
                         {getItemName(item)}
                       </p>
                       <p className="gba:text-xs gba:text-muted-foreground">
-                        Updated {formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true })}
+                        {t('common-updated-relative', {
+                          time: formatLocalizedDistance(new Date(item.updatedAt), locale)
+                        })}
                       </p>
                     </div>
                   </div>
@@ -247,19 +262,19 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
         <div className="gba:border-t gba:border-border gba:p-4 gba:flex gba:items-center gba:justify-between gba:bg-card">
           <p className="gba:text-sm gba:text-muted-foreground">
             {selectedItems.size > 0
-              ? `${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''} selected`
-              : 'Select items to add'}
+              ? t('common-selected-items', { count: selectedItems.size })
+              : t('add-content-select-items')}
           </p>
           <div className="gba:flex gba:gap-2">
             <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={isAdding}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button
               onClick={handleAdd}
               disabled={selectedItems.size === 0 || isAdding}
               data-testid={`${testId}-add-button`}
             >
-              {isAdding ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : 'Add to Space'}
+              {isAdding ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : t('add-content-button')}
             </Button>
           </div>
         </div>
