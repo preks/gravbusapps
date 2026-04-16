@@ -2,8 +2,12 @@ import type { UnifiedTask } from '../types'
 import {
   filterFormFieldsForDocumentApproval,
   getTaskAppTag,
+  isAnyDocumentApprovalTask,
+  isDocumentApprovalOutcomeTask,
   isDocumentApprovalTask,
-  resolveDocumentApprovalRequestId
+  resolveDocumentApprovalDecision,
+  resolveDocumentApprovalRequestId,
+  resolveDocumentApprovalReviewerName
 } from './documentApprovalCflowUi'
 
 function createTask(overrides: Partial<UnifiedTask> = {}): UnifiedTask {
@@ -99,5 +103,55 @@ describe('documentApprovalCflowUi', () => {
     })
 
     expect(filterFormFieldsForDocumentApproval(task)).toEqual(task.form)
+  })
+
+  it('recognizes document-approval-outcome notification tasks as outcome tasks', () => {
+    const task = createTask({
+      tags: {
+        app: 'document-approval-outcome',
+        approvalRequestId: 'approval-outcome-1',
+        decision: 'approved',
+        reviewerDisplayName: 'Mo Salah'
+      }
+    })
+
+    expect(isDocumentApprovalTask(task)).toBe(false)
+    expect(isDocumentApprovalOutcomeTask(task)).toBe(true)
+    expect(isAnyDocumentApprovalTask(task)).toBe(true)
+    expect(resolveDocumentApprovalDecision(task)).toBe('approved')
+    expect(resolveDocumentApprovalReviewerName(task)).toBe('Mo Salah')
+  })
+
+  it('treats approver-side and requester-side document approval tasks together via isAnyDocumentApprovalTask', () => {
+    const approverTask = createTask({
+      tags: {
+        app: 'document-approval',
+        approvalRequestId: 'approval-1'
+      }
+    })
+    const outcomeTask = createTask({
+      tags: {
+        app: 'document-approval-outcome',
+        approvalRequestId: 'approval-1',
+        decision: 'rejected'
+      }
+    })
+
+    expect(isAnyDocumentApprovalTask(approverTask)).toBe(true)
+    expect(isAnyDocumentApprovalTask(outcomeTask)).toBe(true)
+    expect(resolveDocumentApprovalDecision(approverTask)).toBeUndefined()
+    expect(resolveDocumentApprovalDecision(outcomeTask)).toBe('rejected')
+  })
+
+  it('returns undefined reviewer name when no display name is present', () => {
+    const task = createTask({
+      tags: {
+        app: 'document-approval-outcome',
+        approvalRequestId: 'approval-outcome-2',
+        decision: 'approved'
+      }
+    })
+
+    expect(resolveDocumentApprovalReviewerName(task)).toBeUndefined()
   })
 })
