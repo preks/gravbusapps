@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Button, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Button, Popover, PopoverContent, PopoverTrigger, useTranslation } from '@newwork/nw-design-system'
 import EmojiPicker, { type EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react'
 import { ImageIcon, Smile, X, Palette, PencilLine } from 'lucide-react'
 import { COVER_GRADIENTS } from './useRowPageCover'
+import translations from '../../_i18n'
 
 interface RowPageHeaderProps {
   title: string
@@ -27,6 +28,7 @@ export function RowPageHeader({
   isUploadingCover,
   'data-testid': testId = 'row-page-header'
 }: RowPageHeaderProps) {
+  const { t } = useTranslation(translations)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showCoverPicker, setShowCoverPicker] = useState(false)
   const titleRef = useRef<HTMLTextAreaElement>(null)
@@ -78,7 +80,7 @@ export function RowPageHeader({
                   data-testid={`${testId}-cover-change`}
                 >
                   <PencilLine className="gba:h-3 gba:w-3 gba:mr-1" />
-                  Change
+                  {t('common-rename')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="gba:w-72 gba:p-3" align="end" side="bottom">
@@ -148,7 +150,7 @@ export function RowPageHeader({
                   }}
                   data-testid={`${testId}-icon-remove`}
                 >
-                  Remove
+                  {t('common-remove')}
                 </Button>
               </div>
             </PopoverContent>
@@ -173,7 +175,7 @@ export function RowPageHeader({
                   data-testid={`${testId}-add-icon`}
                 >
                   <Smile className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
-                  Add icon
+                  {t('board-add-icon')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="gba:w-auto gba:p-0 gba:border-0" align="start" side="bottom">
@@ -198,7 +200,7 @@ export function RowPageHeader({
                   data-testid={`${testId}-add-cover`}
                 >
                   <ImageIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
-                  Add cover
+                  {t('board-add-cover')}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="gba:w-72 gba:p-3" align="start" side="bottom">
@@ -229,7 +231,7 @@ export function RowPageHeader({
           onKeyDown={e => {
             if (e.key === 'Enter') e.preventDefault()
           }}
-          placeholder="Untitled"
+          placeholder={t('board-untitled')}
           rows={1}
           className="gba:w-full gba:text-4xl gba:font-extrabold gba:tracking-tight gba:text-foreground gba:bg-transparent gba:border-0 gba:outline-none gba:placeholder-muted-foreground/20 gba:resize-none gba:leading-tight gba:mb-4 gba:block gba:overflow-hidden"
           data-testid={`${testId}-title`}
@@ -248,9 +250,11 @@ function CoverPicker({
   onUpload: () => void
   testId: string
 }) {
+  const { t } = useTranslation(translations)
+
   return (
     <div data-testid={testId}>
-      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Gradient</p>
+      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">{t('board-gradient')}</p>
       <div className="gba:grid gba:grid-cols-3 gba:gap-1.5 gba:mb-3">
         {COVER_GRADIENTS.map((gradient, i) => (
           <button
@@ -271,7 +275,7 @@ function CoverPicker({
         data-testid={`${testId}-upload`}
       >
         <Palette className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-        Upload image
+        {t('board-upload-image')}
       </Button>
     </div>
   )

@@ -15,13 +15,15 @@ import {
   Button,
   Input,
   Label,
-  Badge
+  Badge,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Server, Save, Loader2 } from 'lucide-react'
 import type {
   AdminProviderConfig,
   UpsertProviderSettingsRequest
 } from '../../email-apps/services/EmailProviderSettingsApi'
+import translations from '../_i18n'
 
 interface ImapSmtpSettingsCardProps {
   existingSettings?: AdminProviderConfig
@@ -34,6 +36,7 @@ export const ImapSmtpSettingsCard: React.FC<ImapSmtpSettingsCardProps> = ({
   onSave,
   'data-testid': testId = 'provider-card-imap-smtp'
 }) => {
+  const { t } = useTranslation(translations)
   const [isEnabled, setIsEnabled] = useState(existingSettings?.isEnabled ?? true)
   const [defaultImapHost, setDefaultImapHost] = useState(
     (existingSettings?.publicConfig?.defaultImapHost as string) || ''
@@ -64,13 +67,13 @@ export const ImapSmtpSettingsCard: React.FC<ImapSmtpSettingsCardProps> = ({
       }
 
       await onSave(data)
-      toast.success('IMAP/SMTP settings saved successfully')
+      toast.success(t('imap-toast-settings-saved'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save settings')
+      toast.error(err instanceof Error ? err.message : t('provider-toast-save-failed'))
     } finally {
       setIsSaving(false)
     }
-  }, [defaultImapHost, defaultImapPort, defaultSmtpHost, defaultSmtpPort, isEnabled, onSave])
+  }, [defaultImapHost, defaultImapPort, defaultSmtpHost, defaultSmtpPort, isEnabled, onSave, t])
 
   return (
     <Card data-testid={testId}>
@@ -79,23 +82,19 @@ export const ImapSmtpSettingsCard: React.FC<ImapSmtpSettingsCardProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3">
             <Server className="gba:w-6 gba:h-6 gba:text-primary" />
             <div>
-              <CardTitle>IMAP / SMTP (Generic)</CardTitle>
-              <CardDescription>
-                Allow users to connect any email account via IMAP/SMTP. Optionally set default server details so users
-                only need to enter their credentials.
-              </CardDescription>
+              <CardTitle>{t('imap-card-title')}</CardTitle>
+              <CardDescription>{t('imap-card-description')}</CardDescription>
             </div>
           </div>
           {existingSettings && (
             <Badge variant={existingSettings.isEnabled ? 'success' : 'secondary'}>
-              {existingSettings.isEnabled ? 'Enabled' : 'Disabled'}
+              {existingSettings.isEnabled ? t('common-enabled') : t('common-disabled')}
             </Badge>
           )}
         </div>
       </CardHeader>
 
       <CardContent className="gba:space-y-4">
-        {/* Enable/Disable toggle */}
         <div className="gba:flex gba:items-center gba:gap-3">
           <input
             type="checkbox"
@@ -105,36 +104,32 @@ export const ImapSmtpSettingsCard: React.FC<ImapSmtpSettingsCardProps> = ({
             className="gba:w-4 gba:h-4"
             data-testid={`${testId}-enabled`}
           />
-          <Label htmlFor={`${testId}-enabled`}>Enable IMAP/SMTP for users</Label>
+          <Label htmlFor={`${testId}-enabled`}>{t('imap-label-enable-provider')}</Label>
         </div>
 
-        {/* Default server settings (optional) */}
         <div className="gba:space-y-2">
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Default Server Settings (optional)</p>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Pre-fill server details so users only need to enter their email and password. Leave empty to let users
-            configure everything themselves.
-          </p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('imap-defaults-title')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('imap-defaults-description')}</p>
         </div>
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-3">
           <div className="gba:space-y-2">
-            <Label htmlFor={`${testId}-imap-host`}>Default IMAP Host</Label>
+            <Label htmlFor={`${testId}-imap-host`}>{t('imap-label-imap-host')}</Label>
             <Input
               id={`${testId}-imap-host`}
               value={defaultImapHost}
               onChange={e => setDefaultImapHost(e.target.value)}
-              placeholder="e.g. imap.company.com"
+              placeholder={t('imap-placeholder-imap-host')}
               data-testid={`${testId}-imap-host`}
             />
           </div>
           <div className="gba:space-y-2">
-            <Label htmlFor={`${testId}-imap-port`}>Default IMAP Port</Label>
+            <Label htmlFor={`${testId}-imap-port`}>{t('imap-label-imap-port')}</Label>
             <Input
               id={`${testId}-imap-port`}
               value={defaultImapPort}
               onChange={e => setDefaultImapPort(e.target.value)}
-              placeholder="993"
+              placeholder={t('imap-placeholder-imap-port')}
               data-testid={`${testId}-imap-port`}
             />
           </div>
@@ -142,22 +137,22 @@ export const ImapSmtpSettingsCard: React.FC<ImapSmtpSettingsCardProps> = ({
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-3">
           <div className="gba:space-y-2">
-            <Label htmlFor={`${testId}-smtp-host`}>Default SMTP Host</Label>
+            <Label htmlFor={`${testId}-smtp-host`}>{t('imap-label-smtp-host')}</Label>
             <Input
               id={`${testId}-smtp-host`}
               value={defaultSmtpHost}
               onChange={e => setDefaultSmtpHost(e.target.value)}
-              placeholder="e.g. smtp.company.com"
+              placeholder={t('imap-placeholder-smtp-host')}
               data-testid={`${testId}-smtp-host`}
             />
           </div>
           <div className="gba:space-y-2">
-            <Label htmlFor={`${testId}-smtp-port`}>Default SMTP Port</Label>
+            <Label htmlFor={`${testId}-smtp-port`}>{t('imap-label-smtp-port')}</Label>
             <Input
               id={`${testId}-smtp-port`}
               value={defaultSmtpPort}
               onChange={e => setDefaultSmtpPort(e.target.value)}
-              placeholder="587"
+              placeholder={t('imap-placeholder-smtp-port')}
               data-testid={`${testId}-smtp-port`}
             />
           </div>
@@ -171,7 +166,7 @@ export const ImapSmtpSettingsCard: React.FC<ImapSmtpSettingsCardProps> = ({
           ) : (
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
           )}
-          Save IMAP/SMTP settings
+          {t('imap-button-save-settings')}
         </Button>
       </CardFooter>
     </Card>

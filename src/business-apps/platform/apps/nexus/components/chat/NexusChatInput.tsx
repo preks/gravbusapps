@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { SendHorizontal } from 'lucide-react'
+import translations from '../../_i18n'
 
 interface NexusChatInputProps {
   onSend: (message: string) => void
@@ -18,15 +19,17 @@ interface NexusChatInputProps {
 export const NexusChatInput = ({
   onSend,
   disabled = false,
-  placeholder = 'Ask a question, or instruct me to create something...',
+  placeholder,
   prefillText,
   onPrefillComplete,
   toolbar,
   testId = 'nexus-chat-input'
 }: NexusChatInputProps) => {
+  const { t } = useTranslation(translations)
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resolvedPlaceholder = placeholder ?? t('chat-input-placeholder')
   const getTextareaElement = useCallback(() => {
     const el = textareaRef.current
     if (!el) return null
@@ -151,7 +154,7 @@ export const NexusChatInput = ({
             value={value}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             disabled={disabled}
             className="gba:h-9 gba:min-h-9 gba:max-h-[160px] gba:resize-none gba:overflow-y-auto gba:w-full gba:border-0 gba:bg-transparent gba:text-sm gba:placeholder:text-muted-foreground/60 gba:px-3 gba:py-2 gba:focus-visible:ring-0 gba:focus-visible:ring-offset-0 gba:block"
             rows={1}

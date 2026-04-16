@@ -12,6 +12,16 @@ const schema = new Schema({
       content: 'inline*',
       toDOM: () => ['p', 0]
     },
+    section: {
+      group: 'block',
+      content: 'block+',
+      toDOM: () => ['section', 0]
+    },
+    pageBreak: {
+      group: 'block',
+      atom: true,
+      toDOM: () => ['div', { 'data-page-break': '' }]
+    },
     table: {
       group: 'block',
       content: 'tableRow+',
@@ -49,6 +59,14 @@ function createTableNode(cellText: string) {
       schema.node('tableCell', null, [schema.node('paragraph', null, [schema.text(cellText)])])
     ])
   ])
+}
+
+function createWrappedTableNode(cellText: string) {
+  return schema.node('section', null, [createTableNode(cellText)])
+}
+
+function createWrappedParagraphNode(text: string) {
+  return schema.node('section', null, [schema.node('paragraph', null, [schema.text(text)])])
 }
 
 describe('classifyPaginationTransaction', () => {
@@ -111,5 +129,149 @@ describe('classifyPaginationTransaction', () => {
 
     expect(classification.touchesTable).toBe(true)
     expect(classification.touchesTableRegion).toBe(true)
+  })
+
+  it('flags block splits immediately before a wrapped table as table-adjacent', () => {
+    const previousState = createState(
+      schema.node('doc', null, [schema.node('paragraph', null, [schema.text('hello')]), createWrappedTableNode('cell')])
+    )
+    const transaction = previousState.tr.split(6)
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('structure')
+    expect(classification.touchesTableAdjacentContent).toBe(true)
+    expect(classification.touchesTableRegion).toBe(true)
+    expect(classification.shouldScheduleSettledRefresh).toBe(true)
+  })
+
+  it('flags typing one textblock before a wrapped table region as table-adjacent', () => {
+    const previousState = createState(
+      schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('hello')]),
+        schema.node('paragraph', null, [schema.text('world')]),
+        createWrappedTableNode('cell')
+      ])
+    )
+    const transaction = previousState.tr.insertText('!', 6)
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('local-text')
+    expect(classification.touchesTableAdjacentContent).toBe(true)
+    expect(classification.touchesTableRegion).toBe(true)
+    expect(classification.shouldScheduleSettledRefresh).toBe(true)
+  })
+
+  it('flags block splits across a wrapped paragraph before a wrapped table region as table-adjacent', () => {
+    const previousState = createState(
+      schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('hello')]),
+        createWrappedParagraphNode('world'),
+        createWrappedTableNode('cell')
+      ])
+    )
+    const transaction = previousState.tr.split(6)
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('structure')
+    expect(classification.touchesTableAdjacentContent).toBe(true)
+    expect(classification.touchesTableRegion).toBe(true)
+    expect(classification.shouldScheduleSettledRefresh).toBe(true)
+  })
+
+  it('flags block-boundary splits one paragraph before a table region as table-adjacent', () => {
+    const previousState = createState(
+      schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('hello')]),
+        schema.node('paragraph', null, [schema.text('world')]),
+        createWrappedTableNode('cell')
+      ])
+    )
+    const transaction = previousState.tr.insert(7, schema.node('paragraph'))
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('structure')
+    expect(classification.touchesTableAdjacentContent).toBe(true)
+    expect(classification.touchesTableRegion).toBe(true)
+    expect(classification.shouldScheduleSettledRefresh).toBe(true)
+  })
+
+  it('flags typing across a wrapped paragraph before a wrapped table region as table-adjacent', () => {
+    const previousState = createState(
+      schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('hello')]),
+        createWrappedParagraphNode('world'),
+        createWrappedTableNode('cell')
+      ])
+    )
+    const transaction = previousState.tr.insertText('!', 6)
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('local-text')
+    expect(classification.touchesTableAdjacentContent).toBe(true)
+    expect(classification.touchesTableRegion).toBe(true)
+    expect(classification.shouldScheduleSettledRefresh).toBe(true)
+  })
+
+  it('flags typing two textblocks before a wrapped table region in the current local window', () => {
+    const previousState = createState(
+      schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('hello')]),
+        schema.node('paragraph', null, [schema.text('world')]),
+        schema.node('paragraph', null, [schema.text('again')]),
+        createWrappedTableNode('cell')
+      ])
+    )
+    const transaction = previousState.tr.insertText('!', 6)
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('local-text')
+    expect(classification.touchesTableAdjacentContent).toBe(true)
+    expect(classification.touchesTableRegion).toBe(true)
+    expect(classification.shouldScheduleSettledRefresh).toBe(true)
+  })
+
+  it('does not bridge through block atoms before a wrapped table region', () => {
+    const previousState = createState(
+      schema.node('doc', null, [
+        schema.node('paragraph', null, [schema.text('hello')]),
+        schema.node('pageBreak'),
+        createWrappedTableNode('cell')
+      ])
+    )
+    const transaction = previousState.tr.insertText('!', 6)
+    const classification = classifyPaginationTransaction({
+      transaction,
+      previousDoc: previousState.doc,
+      nextDoc: transaction.doc
+    })
+
+    expect(classification.kind).toBe('local-text')
+    expect(classification.touchesTableAdjacentContent).toBe(false)
+    expect(classification.touchesTableRegion).toBe(false)
+    expect(classification.shouldScheduleSettledRefresh).toBe(false)
   })
 })

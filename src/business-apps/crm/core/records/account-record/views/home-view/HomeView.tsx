@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -340,7 +341,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               activityEntityActionProps: activityEntityActionProps,
               activityTypeCatalog: ACTIVITY_TYPE,
               buildActivityPayload: buildCustomerActivityPayload,
-              preSubmit: activityPreSubmit
+              preSubmit: activityPreSubmit,
+              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
             }
           },
           {

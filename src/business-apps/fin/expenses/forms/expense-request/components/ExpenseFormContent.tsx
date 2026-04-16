@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Form } from 'antd'
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -30,6 +30,25 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   expenseCatalogueData = {}
 }) => {
   const transportationMeans = expenseCatalogueData?.expenseTransportationMeans || []
+
+  /**
+   * initialValues only apply on first mount. Catalogue + default cost center load async, so we must
+   * sync the form when selectedCostCenter becomes available (otherwise the dropdown stays empty).
+   */
+  useEffect(() => {
+    if (!selectedCostCenter || costCenters.length === 0) {
+      return
+    }
+    const exists = costCenters.some(c => c.id === selectedCostCenter)
+    if (!exists) {
+      return
+    }
+    const current = form.getFieldValue('costCenter')
+    if (current === selectedCostCenter) {
+      return
+    }
+    form.setFieldsValue({ costCenter: selectedCostCenter })
+  }, [selectedCostCenter, costCenters, form])
 
   return (
     <div style={{ margin: '0' }} data-testid={`${testIdPrefix}-form-container`}>

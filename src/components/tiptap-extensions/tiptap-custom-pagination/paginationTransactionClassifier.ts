@@ -2,6 +2,8 @@ import type { Fragment, Node as PMNode } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
 import { AddMarkStep, RemoveMarkStep, ReplaceStep, type Step } from '@tiptap/pm/transform'
 
+const MAX_INTERVENING_TEXTBLOCKS_NEAR_TABLE = 5
+
 export interface PaginationTransactionChangedRange {
   from: number
   to: number
@@ -75,6 +77,88 @@ function isTableNodeName(name: string | undefined) {
   return name === 'table' || name === 'tableRow' || name === 'tableCell' || name === 'tableHeader'
 }
 
+function nodeContainsTable(node: PMNode | null | undefined) {
+  if (!node) {
+    return false
+  }
+
+  if (isTableNodeName(node.type.name)) {
+    return true
+  }
+
+  let containsTable = false
+  node.descendants(descendant => {
+    if (isTableNodeName(descendant.type.name)) {
+      containsTable = true
+      return false
+    }
+
+    return true
+  })
+
+  return containsTable
+}
+
+function nodeContainsTextblock(node: PMNode | null | undefined) {
+  if (!node) {
+    return false
+  }
+
+  if (node.isTextblock) {
+    return true
+  }
+
+  let containsTextblock = false
+  node.descendants(descendant => {
+    if (descendant.isTextblock) {
+      containsTextblock = true
+      return false
+    }
+
+    return true
+  })
+
+  return containsTextblock
+}
+
+function isTableAdjacencyBridgeNode(node: PMNode | null | undefined) {
+  if (!node) {
+    return false
+  }
+
+  if (node.isTextblock) {
+    return true
+  }
+
+  return node.isBlock && !node.isAtom && !node.isLeaf && !nodeContainsTable(node) && nodeContainsTextblock(node)
+}
+
+function hasNearbyTableSibling(parent: PMNode, indexInParent: number, direction: -1 | 1) {
+  let traversedTextblocks = 0
+
+  for (
+    let siblingIndex = indexInParent + direction;
+    siblingIndex >= 0 && siblingIndex < parent.childCount;
+    siblingIndex += direction
+  ) {
+    const sibling = parent.child(siblingIndex)
+    if (nodeContainsTable(sibling)) {
+      return true
+    }
+
+    if (!isTableAdjacencyBridgeNode(sibling)) {
+      return false
+    }
+
+    traversedTextblocks += 1
+    if (traversedTextblocks > MAX_INTERVENING_TEXTBLOCKS_NEAR_TABLE) {
+      return false
+    }
+  }
+
+  return false
+}
+
 function positionHasTableAncestor(doc: PMNode | null, position: number) {
   if (doc === null) {
     return false
@@ -121,13 +205,14 @@ function isTableAdjacentAtPosition(doc: PMNode | null, position: number) {
   }
 
   const $pos = doc.resolve(clampPosition(doc, position))
-  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+  if (hasNearbyTableSibling($pos.node(0), $pos.index(0), -1) || hasNearbyTableSibling($pos.node(0), $pos.index(0), 1)) {
+    return true
+  }
+
+  for (let depth = $pos.depth; depth > 1; depth -= 1) {
     const parent = $pos.node(depth - 1)
     const indexInParent = $pos.index(depth - 1)
-    const previousSibling = indexInParent > 0 ? parent.child(indexInParent - 1) : null
-    const nextSibling = indexInParent + 1 < parent.childCount ? parent.child(indexInParent + 1) : null
-
-    if (isTableNodeName(previousSibling?.type.name) || isTableNodeName(nextSibling?.type.name)) {
+    if (hasNearbyTableSibling(parent, indexInParent, -1) || hasNearbyTableSibling(parent, indexInParent, 1)) {
       return true
     }
   }

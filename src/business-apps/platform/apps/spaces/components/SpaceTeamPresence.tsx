@@ -6,9 +6,18 @@
  */
 
 import React from 'react'
-import { Avatar, AvatarImage, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { useSpacePresence } from '../hooks/useSpacePresence'
 import type { SpaceMember } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceTeamPresenceProps {
   /** Space members to show presence for */
@@ -38,6 +47,7 @@ export const SpaceTeamPresence: React.FC<SpaceTeamPresenceProps> = ({
   maxAvatars = 7,
   'data-testid': testId = 'space-team-presence'
 }) => {
+  const { t } = useTranslation(translations)
   const { onlineCount, totalCount, getMemberPresence, hasPresenceData } = useSpacePresence(members)
 
   // Members to show (limited by maxAvatars)
@@ -69,7 +79,9 @@ export const SpaceTeamPresence: React.FC<SpaceTeamPresenceProps> = ({
           }`}
         />
         <span className="gba:text-sm gba:text-muted-foreground">
-          {hasPresenceData ? `${onlineCount} of ${totalCount} online` : `${totalCount} members`}
+          {hasPresenceData
+            ? t('presence-online-summary', { online: onlineCount, total: totalCount })
+            : t('presence-members-summary', { total: totalCount })}
         </span>
       </div>
 
@@ -89,7 +101,7 @@ export const SpaceTeamPresence: React.FC<SpaceTeamPresenceProps> = ({
                     }`}
                   >
                     {member.userAvatar ? (
-                      <AvatarImage src={member.userAvatar} alt={member.userName || 'Team member'} />
+                      <AvatarImage src={member.userAvatar} alt={member.userName || t('common-team-member')} />
                     ) : null}
                     <AvatarFallback className="gba:text-[10px] gba:font-medium gba:bg-primary/10 gba:text-primary">
                       {getInitials(member.userName, member.userId)}
@@ -106,9 +118,11 @@ export const SpaceTeamPresence: React.FC<SpaceTeamPresenceProps> = ({
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="gba:font-medium">{member.userName || 'Team member'}</p>
+                <p className="gba:font-medium">{member.userName || t('common-team-member')}</p>
                 {hasPresenceData && (
-                  <p className="gba:text-xs gba:text-muted-foreground">{isOnline ? 'Online' : 'Offline'}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {isOnline ? t('common-online') : t('common-offline')}
+                  </p>
                 )}
               </TooltipContent>
             </Tooltip>
@@ -124,7 +138,7 @@ export const SpaceTeamPresence: React.FC<SpaceTeamPresenceProps> = ({
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{hiddenCount} more team members</p>
+              <p>{t('presence-more-members', { count: hiddenCount })}</p>
             </TooltipContent>
           </Tooltip>
         )}

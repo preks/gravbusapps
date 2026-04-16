@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ChevronRight } from 'lucide-react'
 import type { BoardRow, BoardColumn } from '../../types'
 import { CellRenderer } from '../table/CellRenderer'
 import { FlowTimelinePanel } from '../flow-engine/FlowTimelinePanel'
+import translations from '../../_i18n'
 
 interface RowPagePropertiesProps {
   row: BoardRow
@@ -15,6 +17,7 @@ export function RowPageProperties({
   columns,
   'data-testid': testId = 'row-page-properties'
 }: RowPagePropertiesProps) {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(true)
   const hasFlow = row.data.flowId && typeof row.data.flowId === 'string'
 
@@ -32,7 +35,7 @@ export function RowPageProperties({
               expanded ? 'gba:rotate-90' : ''
             }`}
           />
-          <span>Properties</span>
+          <span>{t('board-properties')}</span>
           <span className="gba:text-muted-foreground/40 gba:tabular-nums">{columns.length}</span>
         </button>
 

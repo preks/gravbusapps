@@ -198,7 +198,9 @@ class ContentMatcher {
     this.keywordIndex.clear()
     this.ngramIndex.clear()
 
-    for (const element of slide.elements) {
+    const elements = Array.isArray(slide.elements) ? slide.elements : []
+
+    for (const element of elements) {
       if (element.type !== 'text') continue
 
       const text = (element as { content: string }).content
@@ -417,7 +419,9 @@ export function useSpeechMatcher(options: UseSpeechMatcherOptions): UseSpeechMat
       const lowerText = text.toLowerCase()
 
       // Find video elements on current slide
-      const videoElements = currentSlide?.elements.filter(e => e.type === 'video') || []
+      const videoElements = Array.isArray(currentSlide?.elements)
+        ? currentSlide.elements.filter(e => e.type === 'video')
+        : []
       if (videoElements.length === 0) return null
 
       for (const trigger of VIDEO_TRIGGER_PHRASES) {

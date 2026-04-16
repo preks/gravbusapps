@@ -309,6 +309,7 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
     description: apiApp.description as string | undefined,
     icon: apiApp.icon as string | undefined,
     status: apiApp.status as AppStatus,
+    trashedAt: (apiApp.trashedAt as string | undefined) ?? null,
     createdAt: apiApp.createdAt as string,
     updatedAt: apiApp.updatedAt as string,
     createdBy: apiApp.ownerId as string,
@@ -407,6 +408,7 @@ export const SpreadsheetApiService = {
         description: app.description as string | undefined,
         icon: app.icon as string | undefined,
         status: app.status as AppStatus,
+        trashedAt: (app.trashedAt as string | undefined) ?? null,
         createdAt: app.createdAt as string,
         updatedAt: app.updatedAt as string,
         createdBy: app.ownerId as string,
@@ -434,6 +436,17 @@ export const SpreadsheetApiService = {
       return mapApiAppToSpreadsheetApp(app)
     } catch (error) {
       console.error('Failed to get app:', error)
+      return null
+    }
+  },
+
+  async getTrashedPreview(id: string): Promise<SpreadsheetApp | null> {
+    try {
+      debugLog('getTrashedPreview', id)
+      const app = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}/trashed-preview`)
+      return mapApiAppToSpreadsheetApp(app)
+    } catch (error) {
+      console.error('Failed to get trashed spreadsheet preview:', error)
       return null
     }
   },
@@ -854,9 +867,7 @@ export const SpreadsheetApiService = {
         },
         delete_rows: async operation => {
           const rowIds = getOperationRowIds(operation)
-          for (const rowId of rowIds) {
-            await SpreadsheetApiService.deleteRow(appId, sheetId, String(rowId))
-          }
+          await Promise.all(rowIds.map(rowId => SpreadsheetApiService.deleteRow(appId, sheetId, String(rowId))))
           return { result: { deletedRows: rowIds.length } }
         }
       }

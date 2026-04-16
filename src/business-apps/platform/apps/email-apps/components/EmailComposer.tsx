@@ -7,6 +7,7 @@ interface EmailComposerProps {
   onClose: () => void
   mode: ComposeMode
   replyToMessage?: EmailMessage | null
+  draftMessage?: EmailMessage | null
   accounts: EmailAccount[]
   defaultAccountId?: string
   onSent: () => void
@@ -20,6 +21,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   onClose,
   mode,
   replyToMessage,
+  draftMessage,
   accounts,
   defaultAccountId,
   onSent,
@@ -33,6 +35,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       onClose={onClose}
       mode={mode}
       replyToMessage={replyToMessage}
+      draftMessage={draftMessage}
       accounts={accounts}
       defaultAccountId={defaultAccountId}
       onSent={onSent}

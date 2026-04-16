@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowLeft, Download, Share2, Image as ImageIcon, ChevronDown } from 'lucide-react'
+import { ArrowLeftIcon, CaretDownIcon, DownloadSimpleIcon, ImageIcon, ShareNetworkIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCollaboration } from '@/business-apps/platform/apps/shared/hooks/useCollaboration'
@@ -119,6 +119,7 @@ function sanitizeSceneElements(elements: Record<string, unknown>[]): ExcalidrawE
 
 interface WhiteboardEditorProps extends BusinessAppContextProps {
   whiteboardId: string
+  isReadOnly?: boolean
   onBack: () => void
   onAiReady?: (
     api: ExcalidrawImperativeAPI,
@@ -133,6 +134,7 @@ interface WhiteboardEditorProps extends BusinessAppContextProps {
 
 export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   whiteboardId,
+  isReadOnly = false,
   accessToken,
   userInfo,
   onBack,
@@ -182,6 +184,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   const yElements = useMemo(() => ydoc.getArray('elements'), [ydoc])
   const yFiles = useMemo(() => ydoc.getMap<string>('files'), [ydoc])
   const yAppState = useMemo(() => ydoc.getMap<unknown>('appState'), [ydoc])
+  const isTrashedWhiteboard = isReadOnly || Boolean(whiteboard?.trashedAt)
 
   useEffect(() => {
     if (excalidrawApi && onAiReady) {
@@ -200,7 +203,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     lastAppliedRemoteSceneRef.current = null
     initialSceneDataRef.current = undefined
     lastSavedSceneRef.current = null
-    WhiteboardApiService.get(accessToken, whiteboardId)
+    WhiteboardApiService.getTrashedPreview(accessToken, whiteboardId)
       .then(loadedWhiteboard => {
         setWhiteboard(loadedWhiteboard)
         initialSceneDataRef.current = loadedWhiteboard.sceneData as Record<string, unknown> | undefined
@@ -231,13 +234,13 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   const { participants, socket: collaborationSocket } = useCollaboration({
     entityType: 'whiteboard',
     entityId: whiteboardId,
-    enabled: !!whiteboardId && hasLoadedWhiteboard,
+    enabled: !!whiteboardId && hasLoadedWhiteboard && !isTrashedWhiteboard,
     accessToken
   })
 
   const scheduleSceneSave = useCallback(
     (sceneData: Record<string, unknown>) => {
-      if (!accessToken || !whiteboardId) return
+      if (!accessToken || !whiteboardId || isTrashedWhiteboard) return
 
       const nextSerialized = serializeSceneDocument(sceneData)
       if (lastSavedSceneRef.current === nextSerialized) return
@@ -261,7 +264,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           })
       }, 800)
     },
-    [accessToken, whiteboardId]
+    [accessToken, isTrashedWhiteboard, whiteboardId]
   )
 
   const flushPendingSave = useCallback(() => {
@@ -270,12 +273,12 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       sceneSaveTimeoutRef.current = null
     }
     const sceneData = pendingSaveRef.current
-    if (!sceneData || !accessToken || !whiteboardId) return
+    if (!sceneData || !accessToken || !whiteboardId || isTrashedWhiteboard) return
     pendingSaveRef.current = null
     WhiteboardApiService.update(accessToken, whiteboardId, { sceneData }).catch(err => {
       console.error('Failed to flush whiteboard save:', err.message)
     })
-  }, [accessToken, whiteboardId])
+  }, [accessToken, isTrashedWhiteboard, whiteboardId])
 
   useEffect(() => {
     if (participants.length === 0) {
@@ -607,7 +610,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
   const handleChange = useCallback(
     (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
-      if (isRemoteUpdateRef.current) return
+      if (isRemoteUpdateRef.current || isTrashedWhiteboard) return
 
       const hasLocalContent = elements.length > 0 || Object.keys(files).length > 0
       const hasPersistedBaseline = hasSceneContent(initialSceneDataRef.current) || hasPersistedSnapshotRef.current
@@ -653,18 +656,18 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
       scheduleSceneSave(sceneData)
     },
-    [ydoc, yElements, yFiles, yAppState, isSynced, scheduleSceneSave]
+    [ydoc, yElements, yFiles, yAppState, isSynced, isTrashedWhiteboard, scheduleSceneSave]
   )
 
   const handlePointerUpdate = useCallback(
     (payload: { pointer: { x: number; y: number; tool: 'pointer' | 'laser' }; button: 'down' | 'up' }) => {
-      if (!isSynced) return
+      if (!isSynced || isTrashedWhiteboard) return
       awareness.setLocalStateField('cursor', {
         x: payload.pointer.x,
         y: payload.pointer.y
       })
     },
-    [isSynced, awareness]
+    [isSynced, isTrashedWhiteboard, awareness]
   )
 
   const handleScrollChange = useCallback((scrollX: number, scrollY: number, zoomObj: Zoom) => {
@@ -707,11 +710,11 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
   const handleEditorRename = useCallback(
     async (newTitle: string) => {
-      if (!accessToken || !whiteboardId) return
+      if (!accessToken || !whiteboardId || isTrashedWhiteboard) return
       const updated = await WhiteboardApiService.update(accessToken, whiteboardId, { title: newTitle })
       setWhiteboard(prev => (prev ? { ...prev, title: updated?.title ?? newTitle } : prev))
     },
-    [accessToken, whiteboardId]
+    [accessToken, isTrashedWhiteboard, whiteboardId]
   )
 
   return (
@@ -720,12 +723,17 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-background">
         <div className="gba:flex gba:items-center gba:gap-3">
           <Button variant="ghost" size="sm" onClick={onBack} data-testid={`${testId}-back`}>
-            <ArrowLeft className="gba:h-4 gba:w-4" />
+            <ArrowLeftIcon className="gba:h-4 gba:w-4" />
           </Button>
           <button
             type="button"
             className="gba:text-lg gba:font-semibold gba:truncate gba:max-w-md gba:hover:underline gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
-            onClick={() => setRenameDialogOpen(true)}
+            onClick={() => {
+              if (!isTrashedWhiteboard) {
+                setRenameDialogOpen(true)
+              }
+            }}
+            disabled={isTrashedWhiteboard}
             data-testid={`${testId}-title`}
           >
             {whiteboard?.title || t('whiteboard-untitled')}
@@ -742,7 +750,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gba:gap-1.5" data-testid={`${testId}-whiteboard-menu`}>
                   {t('whiteboard-menu-label')}
-                  <ChevronDown className="gba:h-3 gba:w-3 gba:opacity-60" />
+                  <CaretDownIcon className="gba:h-3 gba:w-3 gba:opacity-60" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="gba:w-52">
@@ -751,17 +759,21 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                   {t('whiteboard-export-png')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportSvg} data-testid={`${testId}-export-svg`}>
-                  <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <DownloadSimpleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                   {t('whiteboard-export-svg')}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShareDialogOpen(true)} data-testid={`${testId}-share`}>
-                  <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('whiteboard-share')}
-                </DropdownMenuItem>
+                {!isTrashedWhiteboard ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShareDialogOpen(true)} data-testid={`${testId}-share`}>
+                      <ShareNetworkIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {t('whiteboard-share')}
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
-            {onToggleAiChat && (
+            {onToggleAiChat && !isTrashedWhiteboard ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <AiButton
@@ -776,7 +788,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                 </TooltipTrigger>
                 <TooltipContent>{t('whiteboard-ai-toggle')}</TooltipContent>
               </Tooltip>
-            )}
+            ) : null}
           </TooltipProvider>
         </div>
       </div>
@@ -792,9 +804,11 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           initialData={{
             appState: {
               currentItemRoughness: 0,
-              currentItemFontFamily: NW_FUNNEL_DISPLAY_FONT_FAMILY
+              currentItemFontFamily: NW_FUNNEL_DISPLAY_FONT_FAMILY,
+              viewModeEnabled: isTrashedWhiteboard
             }
           }}
+          viewModeEnabled={isTrashedWhiteboard}
           onChange={handleChange}
           onPointerUpdate={handlePointerUpdate}
           onScrollChange={handleScrollChange}
@@ -811,7 +825,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           <MainMenu>
             <MainMenu.DefaultItems.ToggleTheme />
             <MainMenu.DefaultItems.ChangeCanvasBackground />
-            <MainMenu.DefaultItems.ClearCanvas />
+            {!isTrashedWhiteboard ? <MainMenu.DefaultItems.ClearCanvas /> : null}
           </MainMenu>
         </Excalidraw>
         {isSynced && (

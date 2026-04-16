@@ -164,6 +164,8 @@ export interface Document {
   createdAt: string
   updatedAt: string
   createdBy: string
+  spaceId?: string | null
+  trashedAt?: string | null
   lastModifiedBy?: string
   filePath?: string // Storage path for shareable URLs
   sharedWith?: DocumentShare[]
@@ -214,9 +216,11 @@ export interface DocumentSummary {
   createdAt: string
   updatedAt: string
   createdBy: string
+  spaceId?: string | null
+  trashedAt?: string | null
   filePath?: string
   isOwner?: boolean
-  permission?: 'owner' | 'view' | 'edit' | 'comment'
+  permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
   sharedCount?: number
   sharedPreviewUserIds?: string[]
   sharedWithCount?: number

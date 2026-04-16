@@ -34,6 +34,8 @@ app-slides-title = Prezentări
 app-slides-description = Creați prezentări cu colaborare live
 app-whiteboards-title = Tablă albă
 app-whiteboards-description = Colaborați pe o pânză infinită cu forme, diagrame și notite adezive
+app-drive-title = Stocare
+app-drive-description = Organizați, căutați și partajați toate fișierele într-un singur loc
 
 # Quick Actions
 search-placeholder = Căutați documente, foi de calcul și note...
@@ -43,6 +45,7 @@ search-create-document = Creează document
 search-create-spreadsheet = Creează foaie de calcul
 search-create-note = Creează notă
 search-create-presentation = Creează prezentare
+search-create-whiteboard = Creează tablă albă
 search-navigate = navigare
 search-open = deschide
 search-close = închide
@@ -62,6 +65,8 @@ type-spreadsheets = Foile de calcul
 type-notes = Note
 type-presentations = Prezentări
 type-slides = Slide-uri
+type-whiteboard = Tablă albă
+type-whiteboards = Table albe
 
 # Relative time
 time-just-now = Acum
@@ -94,7 +99,7 @@ app-open = Deschide
 # Nexus Teaser
 nexus-title = Nexus
 nexus-badge = Bazat pe AI
-nexus-description = Spațiul tău inteligent de conținut. Generează documente, analize și prezentări prin conversație.
+nexus-description = Spațiul tău inteligent de conținut. Generează documente și analize prin conversație.
 nexus-try = Încearcă Nexus
 
 # Activity visualization

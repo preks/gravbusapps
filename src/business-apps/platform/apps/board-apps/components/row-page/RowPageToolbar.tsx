@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import type { Editor } from '@tiptap/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import {
   Bold,
   Italic,
@@ -18,6 +18,7 @@ import {
   Heading2,
   Heading3
 } from 'lucide-react'
+import translations from '../../_i18n'
 
 interface RowPageToolbarProps {
   editor: Editor
@@ -51,6 +52,7 @@ function ToolbarButton({
 }
 
 export function RowPageToolbar({ editor }: RowPageToolbarProps) {
+  const { t } = useTranslation(translations)
   const [linkInput, setLinkInput] = useState('')
   const [showLinkInput, setShowLinkInput] = useState(false)
 
@@ -120,35 +122,35 @@ export function RowPageToolbar({ editor }: RowPageToolbarProps) {
               isActive={editor.isActive('bold')}
               onClick={() => editor.chain().focus().toggleBold().run()}
               icon={Bold}
-              label="Bold"
+              label={t('board-rich-text-bold')}
               testId="toolbar-bold"
             />
             <ToolbarButton
               isActive={editor.isActive('italic')}
               onClick={() => editor.chain().focus().toggleItalic().run()}
               icon={Italic}
-              label="Italic"
+              label={t('board-rich-text-italic')}
               testId="toolbar-italic"
             />
             <ToolbarButton
               isActive={editor.isActive('underline')}
               onClick={() => editor.chain().focus().toggleUnderline().run()}
               icon={Underline}
-              label="Underline"
+              label={t('board-rich-text-underline')}
               testId="toolbar-underline"
             />
             <ToolbarButton
               isActive={editor.isActive('strike')}
               onClick={() => editor.chain().focus().toggleStrike().run()}
               icon={Strikethrough}
-              label="Strikethrough"
+              label={t('board-rich-text-strikethrough')}
               testId="toolbar-strike"
             />
             <ToolbarButton
               isActive={editor.isActive('code')}
               onClick={() => editor.chain().focus().toggleCode().run()}
               icon={Code}
-              label="Code"
+              label={t('board-rich-text-code')}
               testId="toolbar-code"
             />
 
@@ -158,14 +160,14 @@ export function RowPageToolbar({ editor }: RowPageToolbarProps) {
               isActive={editor.isActive('highlight')}
               onClick={() => editor.chain().focus().toggleHighlight().run()}
               icon={Highlighter}
-              label="Highlight"
+              label={t('board-rich-text-highlight')}
               testId="toolbar-highlight"
             />
             <ToolbarButton
               isActive={editor.isActive('link')}
               onClick={toggleLink}
               icon={editor.isActive('link') ? Link2Off : Link2}
-              label="Link"
+              label={t('board-rich-text-link')}
               testId="toolbar-link"
             />
 
@@ -175,21 +177,21 @@ export function RowPageToolbar({ editor }: RowPageToolbarProps) {
               isActive={editor.isActive({ textAlign: 'left' })}
               onClick={() => editor.chain().focus().setTextAlign('left').run()}
               icon={AlignLeft}
-              label="Align left"
+              label={t('board-rich-text-align-left')}
               testId="toolbar-align-left"
             />
             <ToolbarButton
               isActive={editor.isActive({ textAlign: 'center' })}
               onClick={() => editor.chain().focus().setTextAlign('center').run()}
               icon={AlignCenter}
-              label="Align center"
+              label={t('board-rich-text-align-center')}
               testId="toolbar-align-center"
             />
             <ToolbarButton
               isActive={editor.isActive({ textAlign: 'right' })}
               onClick={() => editor.chain().focus().setTextAlign('right').run()}
               icon={AlignRight}
-              label="Align right"
+              label={t('board-rich-text-align-right')}
               testId="toolbar-align-right"
             />
 
@@ -199,21 +201,21 @@ export function RowPageToolbar({ editor }: RowPageToolbarProps) {
               isActive={editor.isActive('heading', { level: 1 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
               icon={Heading1}
-              label="Heading 1"
+              label={t('board-rich-text-heading-1')}
               testId="toolbar-h1"
             />
             <ToolbarButton
               isActive={editor.isActive('heading', { level: 2 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
               icon={Heading2}
-              label="Heading 2"
+              label={t('board-rich-text-heading-2')}
               testId="toolbar-h2"
             />
             <ToolbarButton
               isActive={editor.isActive('heading', { level: 3 })}
               onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
               icon={Heading3}
-              label="Heading 3"
+              label={t('board-rich-text-heading-3')}
               testId="toolbar-h3"
             />
           </>

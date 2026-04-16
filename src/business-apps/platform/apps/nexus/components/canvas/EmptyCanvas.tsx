@@ -1,6 +1,8 @@
-import { Card, CardContent } from '@newwork/nw-design-system'
-import { MessageSquare, FileText, BarChart3, Presentation, Database, ArrowRight, Sparkles } from 'lucide-react'
+import { useMemo } from 'react'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
+import { MessageSquare, FileText, BarChart3, Database, ArrowRight, Sparkles } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import translations from '../../_i18n'
 
 interface EmptyCanvasProps {
   /** Called when the user wants to just open the chat (no text) */
@@ -10,46 +12,45 @@ interface EmptyCanvasProps {
   testId?: string
 }
 
-const suggestions = [
+const suggestionDefinitions = [
   {
     icon: MessageSquare,
-    title: 'Ask about your documents',
-    description: 'Search and query across all your documents, notes, and spreadsheets',
+    titleKey: 'canvas-suggestion-ask-title',
+    descriptionKey: 'canvas-suggestion-ask-description',
     prompt: 'What are the key topics across my recent documents?'
   },
   {
     icon: FileText,
-    title: 'Generate a document',
-    description: 'Create reports, memos, proposals, or summaries from your content',
+    titleKey: 'canvas-suggestion-document-title',
+    descriptionKey: 'canvas-suggestion-document-description',
     prompt: 'Create a comprehensive summary document based on my recent notes'
   },
   {
     icon: BarChart3,
-    title: 'Create an analysis',
-    description: 'Build dashboards with KPIs, charts, tables, and key insights',
+    titleKey: 'canvas-suggestion-analysis-title',
+    descriptionKey: 'canvas-suggestion-analysis-description',
     prompt: 'Create an analysis dashboard with key metrics and trends from my data'
   },
   {
-    icon: Presentation,
-    title: 'Build a presentation',
-    description: 'Generate professional slide decks from your content',
-    prompt: 'Create a presentation about the main topics in my documents'
-  },
-  {
     icon: Database,
-    title: 'Query system data',
-    description: 'Pull real HR, CRM, or finance data from NEWWORK (enable Data Access first)',
+    titleKey: 'canvas-suggestion-data-title',
+    descriptionKey: 'canvas-suggestion-data-description',
     prompt: 'Get me the latest employee data from the system'
   }
 ]
 
-/** Glass-style card for the 5 suggestion options */
+/** Glass-style card for the suggestion options */
 const GlassCard = ({
   suggestion,
   onClick,
   testId
 }: {
-  suggestion: (typeof suggestions)[number]
+  suggestion: {
+    icon: (typeof suggestionDefinitions)[number]['icon']
+    title: string
+    description: string
+    prompt: string
+  }
   onClick: () => void
   testId: string
 }) => (
@@ -74,6 +75,17 @@ const GlassCard = ({
 )
 
 export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-empty-canvas' }: EmptyCanvasProps) => {
+  const { t } = useTranslation(translations)
+  const suggestions = useMemo(
+    () =>
+      suggestionDefinitions.map(suggestion => ({
+        ...suggestion,
+        title: t(suggestion.titleKey),
+        description: t(suggestion.descriptionKey)
+      })),
+    [t]
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto" data-testid={testId}>
       <div className="gba:relative gba:overflow-hidden gba:flex-shrink-0">
@@ -93,9 +105,7 @@ export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-emp
           >
             Nexus
           </h1>
-          <p className="gba:text-sm gba:text-white/60 gba:max-w-lg">
-            Your AI-powered workspace. Generate documents, build analyses, create presentations, and query live data.
-          </p>
+          <p className="gba:text-sm gba:text-white/60 gba:max-w-lg">{t('canvas-hero-description')}</p>
         </div>
       </div>
 
@@ -104,15 +114,13 @@ export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-emp
         <div className="gba:max-w-3xl gba:w-full gba:space-y-8">
           {/* Subtitle */}
           <div className="gba:text-center gba:space-y-2">
-            <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight">
-              What would you like to create?
-            </h2>
+            <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight">{t('canvas-title')}</h2>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md gba:mx-auto gba:leading-relaxed">
-              Choose a starting point below, or open the chat to ask anything.
+              {t('canvas-description')}
             </p>
           </div>
 
-          {/* Cards — 3 on top, 3 on bottom */}
+          {/* Cards */}
           <div className="gba:grid gba:grid-cols-3 gba:gap-3">
             {/* 1st card: Open Chat — decorative blue */}
             <Card
@@ -126,17 +134,19 @@ export const EmptyCanvas = ({ onOpenChat, onSuggestionClick, testId = 'nexus-emp
                 </div>
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <h3 className="gba:text-sm gba:font-bold gba:text-decorative-foreground">Start a conversation</h3>
+                    <h3 className="gba:text-sm gba:font-bold gba:text-decorative-foreground">
+                      {t('canvas-open-chat-title')}
+                    </h3>
                     <ArrowRight className="gba:h-3 gba:w-3 gba:text-decorative-foreground/60 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:duration-200" />
                   </div>
                   <p className="gba:text-xs gba:text-decorative-foreground/70 gba:mt-0.5 gba:leading-relaxed">
-                    Open the AI chat and ask me anything about your content
+                    {t('canvas-open-chat-description')}
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Remaining 5 glass-style cards */}
+            {/* Remaining glass-style cards */}
             {suggestions.map(suggestion => (
               <GlassCard
                 key={suggestion.title}

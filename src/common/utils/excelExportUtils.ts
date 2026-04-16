@@ -36,20 +36,39 @@ const normalizeHexToArgb = (value: unknown): string | null => {
   return null
 }
 
-const extractExportCell = (value: unknown): { text: string; bgArgb?: string } => {
+const coerceExportRawValue = (v: unknown): string | number | boolean => {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v
+  return ''
+}
+
+const displayTextFromExportValue = (v: unknown): string => {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v)
+  return ''
+}
+
+const parseStructuredExportRecord = (
+  value: Record<string, unknown>
+): { text: string; raw: string | number | boolean; bgArgb?: string } => {
+  const raw = coerceExportRawValue(value.v)
+  const display = typeof value.m === 'string' ? value.m : displayTextFromExportValue(value.v)
+  const bgArgb = normalizeHexToArgb(value.bg)
+  return { text: display, raw, bgArgb: bgArgb ?? undefined }
+}
+
+const extractExportCell = (value: unknown): { text: string; raw: string | number | boolean; bgArgb?: string } => {
   if (isRecord(value) && ('v' in value || 'm' in value || 'f' in value || 'bg' in value)) {
-    const display =
-      typeof value.m === 'string'
-        ? value.m
-        : value.v === null || value.v === undefined
-          ? ''
-          : typeof value.v === 'string' || typeof value.v === 'number' || typeof value.v === 'boolean'
-            ? String(value.v)
-            : ''
-    const bgArgb = normalizeHexToArgb(value.bg)
-    return { text: display, bgArgb: bgArgb ?? undefined }
+    return parseStructuredExportRecord(value)
   }
-  return { text: formatCellValue(value) }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return { text: String(value), raw: value }
+  }
+  if (typeof value === 'boolean') {
+    return { text: value ? 'Yes' : 'No', raw: value }
+  }
+  const text = formatCellValue(value)
+  return { text, raw: text }
 }
 
 /** Formats a cell value for display in exports (handles null, Date, arrays, booleans, objects). */
@@ -166,11 +185,11 @@ const populateWorksheet = (
 
   // Add data rows
   data.forEach(row => {
-    const rowData: Record<string, string> = {}
+    const rowData: Record<string, string | number | boolean> = {}
     const rowCellStyles: Array<{ colIndex: number; bgArgb: string }> = []
     columns.forEach(col => {
       const parsedCell = extractExportCell(row[col.key])
-      rowData[col.key] = parsedCell.text
+      rowData[col.key] = parsedCell.raw
       if (parsedCell.bgArgb) {
         const colIndex = columns.findIndex(c => c.key === col.key)
         if (colIndex >= 0) {

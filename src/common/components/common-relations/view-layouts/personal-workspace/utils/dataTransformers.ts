@@ -55,24 +55,3 @@ export const transformActivityToCalendarActivity = (activity: any): CalendarActi
     entityName: activity.title
   }
 }
-
-/**
- * Get display name for entity
- */
-export const getEntityDisplayName = (entity: any, entityType: string): string => {
-  if (!entity) return 'Unknown'
-
-  switch (entityType) {
-    case 'account':
-      return entity.name || 'Unknown Account'
-    case 'contact':
-      return `${entity.firstName || ''} ${entity.lastName || ''}`.trim() || 'Unknown Contact'
-    case 'lead':
-      // Lead doesn't have a name field - use companyName or firstName/lastName
-      return entity.companyName || `${entity.firstName || ''} ${entity.lastName || ''}`.trim() || 'Unknown Lead'
-    case 'opportunity':
-      return entity.name || 'Unknown Opportunity'
-    default:
-      return 'Unknown'
-  }
-}

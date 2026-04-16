@@ -5,6 +5,7 @@ import type {
   NexusSession,
   NexusMessage,
   NexusArtifact,
+  NexusHistoryAck,
   NexusCompleteEvent,
   ArtifactStartEvent,
   ArtifactChunkEvent,
@@ -29,6 +30,52 @@ interface UseNexusSocketProps {
   accessToken: string
 }
 
+const createInitialArtifactContent = (type: NexusArtifact['type'], title: string) => {
+  if (type === 'document') {
+    return { markdown: '', title }
+  }
+
+  if (type === 'analysis') {
+    return { summary: '', kpis: [], charts: [], tables: [], insights: [], sections: [] }
+  }
+
+  return { title, slides: [] }
+}
+
+const mapArtifactsById = (artifacts: NexusArtifact[]) =>
+  artifacts.reduce<Record<string, NexusArtifact>>((acc, artifact) => {
+    acc[artifact.id] = artifact
+    return acc
+  }, {})
+
+const getStreamingStatusForArtifactType = (type: NexusArtifact['type']) => {
+  switch (type) {
+    case 'document':
+      return 'Generating document...'
+    case 'analysis':
+      return 'Generating analysis...'
+    default:
+      return 'Preparing response...'
+  }
+}
+
+const getStreamingStatusForArtifact = (artifact: NexusArtifact) => getStreamingStatusForArtifactType(artifact.type)
+
+const mergeCompletedMessages = (messages: NexusMessage[], completeEvent: NexusCompleteEvent, tempId?: string) => {
+  const idsToReplace = new Set(
+    [tempId, completeEvent.userMessage.id, completeEvent.assistantMessage.id].filter(Boolean)
+  )
+  const nextMessages = messages.filter(message => !idsToReplace.has(message.id))
+
+  return [...nextMessages, completeEvent.userMessage, completeEvent.assistantMessage]
+}
+
+const hasPendingAssistantResponse = (history: NexusMessage[]) => {
+  const latestMessage = history[history.length - 1]
+
+  return latestMessage?.role === 'user'
+}
+
 export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -44,6 +91,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
 
   // Artifact state
   const [activeArtifact, setActiveArtifact] = useState<NexusArtifact | null>(null)
+  const [artifactsById, setArtifactsById] = useState<Record<string, NexusArtifact>>({})
   const [artifactStreaming, setArtifactStreaming] = useState(false)
   const [artifactStreamContent, setArtifactStreamContent] = useState('')
 
@@ -56,11 +104,49 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
 
   const streamingContentRef = useRef('')
   const artifactStreamRef = useRef('')
+  const activeArtifactRef = useRef<NexusArtifact | null>(null)
+  const activeArtifactIdRef = useRef<string | null>(null)
+  const artifactsByIdRef = useRef<Record<string, NexusArtifact>>({})
+  const pendingArtifactIdRef = useRef<string | null>(null)
   const pendingUserMessageRef = useRef<{
     tempId: string
     sessionId: string
     content: string
   } | null>(null)
+
+  useEffect(() => {
+    activeArtifactRef.current = activeArtifact
+    activeArtifactIdRef.current = activeArtifact?.id ?? null
+  }, [activeArtifact])
+
+  useEffect(() => {
+    artifactsByIdRef.current = artifactsById
+  }, [artifactsById])
+
+  const resetStreamingState = useCallback(() => {
+    setIsStreaming(false)
+    streamingContentRef.current = ''
+    setStreamingContent('')
+    setThinkingStatus(null)
+    setThinkingSources([])
+    setError(null)
+    setArtifactStreaming(false)
+    artifactStreamRef.current = ''
+    setArtifactStreamContent('')
+    pendingArtifactIdRef.current = null
+    pendingUserMessageRef.current = null
+  }, [])
+
+  const resetSessionState = useCallback(() => {
+    resetStreamingState()
+    activeArtifactRef.current = null
+    activeArtifactIdRef.current = null
+    artifactsByIdRef.current = {}
+    setMessages([])
+    setMessageWebSources({})
+    setArtifactsById({})
+    setActiveArtifact(null)
+  }, [resetStreamingState])
 
   // ── Connect ─────────────────────────────────────────────────
 
@@ -128,6 +214,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     })
 
     newSocket.on('token', ({ token }: { token: string }) => {
+      setIsStreaming(true)
       streamingContentRef.current += token
       setStreamingContent(streamingContentRef.current)
       // Don't clear thinking status here — deep research sends an initial
@@ -156,71 +243,138 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
       // Don't clear thinking status — deep research sends artifact-start early
       // and then continues researching for minutes with status updates.
 
-      setActiveArtifact(prev => {
-        // If we already have an artifact (refinement case), keep its content visible
-        // and just update the id/status so the user doesn't lose what they're looking at
-        if (prev && prev.status === 'complete') {
-          return {
-            ...prev,
-            id: data.id,
-            status: 'generating' as const
-          }
-        }
+      pendingArtifactIdRef.current = data.id
 
-        // New artifact — start with empty content
-        const initialContent =
-          data.type === 'document'
-            ? { markdown: '', title: data.title }
-            : data.type === 'analysis'
-              ? { summary: '', kpis: [], charts: [], tables: [], insights: [], sections: [] }
-              : { title: data.title, slides: [] }
+      const existingArtifact =
+        (activeArtifactIdRef.current === data.id ? activeArtifactRef.current : null) ||
+        artifactsByIdRef.current[data.id]
 
-        return {
-          id: data.id,
-          sessionId: '',
+      if (existingArtifact) {
+        const updatedArtifact = {
+          ...existingArtifact,
           type: data.type,
           title: data.title,
           status: 'generating' as const,
-          content: initialContent,
-          createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         }
-      })
+
+        artifactsByIdRef.current = { ...artifactsByIdRef.current, [data.id]: updatedArtifact }
+        activeArtifactRef.current = updatedArtifact
+        activeArtifactIdRef.current = updatedArtifact.id
+        setArtifactsById(prev => ({ ...prev, [data.id]: updatedArtifact }))
+        setActiveArtifact(updatedArtifact)
+        return
+      }
+
+      const nextArtifact: NexusArtifact = {
+        id: data.id,
+        sessionId: '',
+        type: data.type,
+        title: data.title,
+        status: 'generating' as const,
+        content: createInitialArtifactContent(data.type, data.title),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+
+      artifactsByIdRef.current = { ...artifactsByIdRef.current, [data.id]: nextArtifact }
+      setArtifactsById(prev => ({ ...prev, [data.id]: nextArtifact }))
+
+      // Keep the current artifact visible until the new one has actual content.
+      if (!activeArtifactRef.current) {
+        activeArtifactRef.current = nextArtifact
+        activeArtifactIdRef.current = nextArtifact.id
+        setActiveArtifact(nextArtifact)
+      }
     })
 
     newSocket.on('artifact-chunk', (data: ArtifactChunkEvent) => {
       if (data.chunkType === 'analysis-partial') {
+        const isTrackedArtifact =
+          pendingArtifactIdRef.current === data.artifactId ||
+          activeArtifactIdRef.current === data.artifactId ||
+          Boolean(artifactsByIdRef.current[data.artifactId])
+
+        if (!isTrackedArtifact) {
+          return
+        }
+
         // Progressive analysis update: merge parsed fields into existing content
         try {
           const partial = JSON.parse(data.chunk)
-          setActiveArtifact(prev => {
-            if (!prev) return prev
-            const prevContent = (prev.content || {}) as Record<string, unknown>
-            return {
-              ...prev,
-              title: partial.title || prev.title,
-              content: {
-                summary: partial.summary || prevContent.summary || '',
-                kpis: partial.kpis?.length ? partial.kpis : (prevContent.kpis as unknown[]) || [],
-                charts: partial.charts?.length ? partial.charts : (prevContent.charts as unknown[]) || [],
-                tables: partial.tables?.length ? partial.tables : (prevContent.tables as unknown[]) || [],
-                insights: partial.insights?.length ? partial.insights : (prevContent.insights as unknown[]) || [],
-                sections: partial.sections?.length ? partial.sections : (prevContent.sections as unknown[]) || []
-              }
+          const baseArtifact =
+            (activeArtifactIdRef.current === data.artifactId ? activeArtifactRef.current : null) ||
+            artifactsByIdRef.current[data.artifactId]
+
+          if (!baseArtifact) {
+            return
+          }
+
+          const prevContent = (baseArtifact.content || {}) as unknown as Record<string, unknown>
+          const updatedArtifact: NexusArtifact = {
+            ...baseArtifact,
+            title: partial.title || baseArtifact.title,
+            status: 'generating',
+            updatedAt: new Date().toISOString(),
+            content: {
+              summary: partial.summary || prevContent.summary || '',
+              kpis: partial.kpis?.length ? partial.kpis : (prevContent.kpis as unknown[]) || [],
+              charts: partial.charts?.length ? partial.charts : (prevContent.charts as unknown[]) || [],
+              tables: partial.tables?.length ? partial.tables : (prevContent.tables as unknown[]) || [],
+              insights: partial.insights?.length ? partial.insights : (prevContent.insights as unknown[]) || [],
+              sections: partial.sections?.length ? partial.sections : (prevContent.sections as unknown[]) || []
             }
-          })
+          }
+
+          artifactsByIdRef.current = { ...artifactsByIdRef.current, [data.artifactId]: updatedArtifact }
+          setArtifactsById(prev => ({ ...prev, [data.artifactId]: updatedArtifact }))
+
+          if (
+            pendingArtifactIdRef.current === data.artifactId ||
+            activeArtifactIdRef.current === data.artifactId ||
+            !activeArtifactRef.current
+          ) {
+            activeArtifactRef.current = updatedArtifact
+            activeArtifactIdRef.current = updatedArtifact.id
+            setActiveArtifact(updatedArtifact)
+          }
         } catch {
           // Partial JSON not parseable yet — skip this chunk
         }
       } else {
+        const isTrackedArtifact =
+          pendingArtifactIdRef.current === data.artifactId ||
+          activeArtifactIdRef.current === data.artifactId ||
+          Boolean(artifactsByIdRef.current[data.artifactId])
+
+        if (!isTrackedArtifact) {
+          return
+        }
+
+        if (pendingArtifactIdRef.current === data.artifactId && activeArtifactIdRef.current !== data.artifactId) {
+          const pendingArtifact = artifactsByIdRef.current[data.artifactId]
+          if (pendingArtifact) {
+            activeArtifactRef.current = pendingArtifact
+            activeArtifactIdRef.current = pendingArtifact.id
+            setActiveArtifact(pendingArtifact)
+          }
+        }
+
         artifactStreamRef.current += data.chunk
         setArtifactStreamContent(artifactStreamRef.current)
       }
     })
 
     newSocket.on('artifact-complete', (data: ArtifactCompleteEvent) => {
+      if (pendingArtifactIdRef.current === data.artifactId) {
+        pendingArtifactIdRef.current = null
+      }
       setArtifactStreaming(false)
+      artifactsByIdRef.current = { ...artifactsByIdRef.current, [data.artifact.id]: data.artifact }
+      activeArtifactRef.current = data.artifact
+      activeArtifactIdRef.current = data.artifact.id
       setActiveArtifact(data.artifact)
+      setArtifactsById(prev => ({ ...prev, [data.artifact.id]: data.artifact }))
     })
 
     newSocket.on('complete', (data: NexusCompleteEvent) => {
@@ -241,13 +395,18 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
       const tempId = pendingUserMessageRef.current?.tempId
       pendingUserMessageRef.current = null
 
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== tempId)
-        return [...filtered, data.userMessage, data.assistantMessage]
-      })
+      setMessages(prev => mergeCompletedMessages(prev, data, tempId))
 
-      if (data.artifact) {
-        setActiveArtifact(data.artifact)
+      const artifact = data.artifact
+      if (artifact) {
+        if (pendingArtifactIdRef.current === artifact.id) {
+          pendingArtifactIdRef.current = null
+        }
+        artifactsByIdRef.current = { ...artifactsByIdRef.current, [artifact.id]: artifact }
+        activeArtifactRef.current = artifact
+        activeArtifactIdRef.current = artifact.id
+        setActiveArtifact(artifact)
+        setArtifactsById(prev => ({ ...prev, [artifact.id]: artifact }))
       }
     })
 
@@ -261,10 +420,8 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     })
 
     newSocket.on('error', ({ message }: { message: string }) => {
+      resetStreamingState()
       setError(message)
-      setIsStreaming(false)
-      setThinkingStatus(null)
-      setThinkingSources([])
     })
 
     setSocket(newSocket)
@@ -278,22 +435,16 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
   const createSession = useCallback(
     (opts?: { scope?: 'all' | 'space' | 'none'; spaceId?: string; title?: string; llmProvider?: string }) => {
       if (!socket) return
-      setMessages([])
-      setMessageWebSources({})
-      setActiveArtifact(null)
-      setArtifactStreamContent('')
+      resetSessionState()
       socket.emit('create-session', opts || {})
     },
-    [socket]
+    [resetSessionState, socket]
   )
 
   const joinSession = useCallback(
     async (sessionId: string) => {
       if (!socket) return
-      setMessages([])
-      setMessageWebSources({})
-      setActiveArtifact(null)
-      setArtifactStreamContent('')
+      resetSessionState()
 
       const result: any = await socket.emitWithAck('join', { sessionId })
       if (!result?.success) return
@@ -303,17 +454,62 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
         setCurrentSession(result.session)
       }
 
-      const historyResult: any = await socket.emitWithAck('get-history', { sessionId })
+      const historyResult = (await socket.emitWithAck('get-history', { sessionId })) as NexusHistoryAck
       if (historyResult?.success) {
-        setMessages(historyResult.history || [])
+        const history: NexusMessage[] = historyResult.history || []
+        setMessages(history)
+        const activeRun = historyResult.activeRun
+        const pendingAssistantResponse = hasPendingAssistantResponse(history)
         // Set latest artifact if any
         const artifacts: NexusArtifact[] = historyResult.artifacts || []
+        setArtifactsById(mapArtifactsById(artifacts))
+        const activeRunArtifact = activeRun?.artifactId
+          ? artifacts.find(artifact => artifact.id === activeRun.artifactId)
+          : null
         if (artifacts.length > 0) {
-          setActiveArtifact(artifacts[0])
+          const artifactToDisplay = activeRunArtifact || artifacts[0]
+          activeArtifactRef.current = artifactToDisplay
+          activeArtifactIdRef.current = artifactToDisplay.id
+          setActiveArtifact(artifactToDisplay)
+
+          if (!activeRun && artifactToDisplay.status === 'generating') {
+            pendingArtifactIdRef.current = artifactToDisplay.id
+            setIsStreaming(true)
+            setThinkingStatus(getStreamingStatusForArtifact(artifactToDisplay))
+            setArtifactStreaming(true)
+            streamingContentRef.current = ''
+            setStreamingContent('')
+          }
+        }
+
+        if (activeRun) {
+          const activeRunStatus =
+            activeRun.status ||
+            (activeRunArtifact
+              ? getStreamingStatusForArtifact(activeRunArtifact)
+              : activeRun.artifactType
+                ? getStreamingStatusForArtifactType(activeRun.artifactType)
+                : pendingAssistantResponse
+                  ? 'Preparing response...'
+                  : null)
+
+          setIsStreaming(true)
+          setThinkingStatus(activeRunStatus)
+          if (activeRun.artifactId) {
+            pendingArtifactIdRef.current = activeRun.artifactId
+            setArtifactStreaming(true)
+          }
+          streamingContentRef.current = ''
+          setStreamingContent('')
+        } else if (pendingAssistantResponse && !pendingArtifactIdRef.current) {
+          setIsStreaming(true)
+          setThinkingStatus('Preparing response...')
+          streamingContentRef.current = ''
+          setStreamingContent('')
         }
       }
     },
-    [socket]
+    [resetSessionState, socket]
   )
 
   const toggleDataAccess = useCallback(
@@ -408,6 +604,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     messageWebSources,
     error,
     activeArtifact,
+    artifactsById,
     artifactStreaming,
     artifactStreamContent,
     lastSessionTitleUpdate,

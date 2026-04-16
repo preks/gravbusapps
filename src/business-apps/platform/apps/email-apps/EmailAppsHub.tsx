@@ -176,6 +176,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [isComposing, setIsComposing] = useState(false)
   const [composeMode, setComposeMode] = useState<ComposeMode>('new')
   const [replyToMessage, setReplyToMessage] = useState<EmailMessage | null>(null)
+  const [draftMessage, setDraftMessage] = useState<EmailMessage | null>(null)
 
   // Data hooks
   const {
@@ -242,7 +243,21 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const handleCompose = useCallback((mode: ComposeMode = 'new', replyTo?: EmailMessage) => {
     setComposeMode(mode)
     setReplyToMessage(replyTo || null)
+    setDraftMessage(null)
     setIsComposing(true)
+  }, [])
+
+  const handleEditDraft = useCallback((message: EmailMessage) => {
+    setComposeMode('new')
+    setReplyToMessage(null)
+    setDraftMessage(message)
+    setIsComposing(true)
+  }, [])
+
+  const handleCloseCompose = useCallback(() => {
+    setIsComposing(false)
+    setReplyToMessage(null)
+    setDraftMessage(null)
   }, [])
 
   const handleSelectFolder = useCallback(
@@ -356,6 +371,18 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       }
     },
     [handleCompose, t]
+  )
+
+  const handleEditDraftFromList = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = await EmailApiService.getMessage(messageId)
+        handleEditDraft(message)
+      } catch {
+        toast.error(t('list-context-action-failed'))
+      }
+    },
+    [handleEditDraft, t]
   )
 
   const handleToggleReadFromList = useCallback(
@@ -518,6 +545,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onReply={handleReplyFromList}
         onReplyAll={handleReplyAllFromList}
         onForward={handleForwardFromList}
+        onEditDraft={handleEditDraftFromList}
         onChatWithUser={handleChatWithUserFromList}
         canChatWithUser={canChatWithSender}
         onToggleRead={handleToggleReadFromList}
@@ -535,9 +563,10 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       {isComposing ? (
         <EmailThreadComposeSurface
           isOpen={isComposing}
-          onClose={() => setIsComposing(false)}
+          onClose={handleCloseCompose}
           mode={composeMode}
           replyToMessage={replyToMessage}
+          draftMessage={draftMessage}
           accounts={accounts}
           defaultAccountId={defaultAccount?.id}
           onSent={refreshMessages}
@@ -549,6 +578,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         <EmailReader
           message={selectedMessage}
           onCompose={handleCompose}
+          onEditDraft={handleEditDraft}
           onDelete={deleteMessage}
           onToggleStar={toggleStar}
           onArchive={handleArchive}
@@ -559,6 +589,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           accessToken={accessToken}
           activeAccount={defaultAccount}
           employeeId={userInfo?.employeeDetails?.employeeId}
+          initiatorUserId={userInfo?.id}
           threadEnabled={threadViewEnabled}
           onToggleThreadView={() => {
             setThreadViewEnabled(prev => {

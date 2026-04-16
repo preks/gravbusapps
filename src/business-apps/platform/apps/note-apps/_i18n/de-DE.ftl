@@ -6,7 +6,8 @@ nh-tab-my-notes = Meine Notizen
 nh-tab-shared = Geteilt
 nh-tab-pinned = Angepinnt
 nh-tab-recent = Zuletzt verwendet
-nh-tab-archived = Archiviert
+nh-tab-archived = Papierkorb
+nh-tab-trash = Papierkorb
 nh-refresh = Aktualisieren
 
 sidebar-back-to-desk = Zurück zum Schreibtisch
@@ -22,7 +23,8 @@ sidebar-my-items = Meine Notizen
 sidebar-shared = Mit mir geteilt
 sidebar-pinned = Angeheftet
 sidebar-recent = Zuletzt verwendet
-sidebar-archived = Archiviert
+sidebar-archived = Papierkorb
+sidebar-trash = Papierkorb
 sidebar-storage = Speicher
 sidebar-storage-cloud = Cloud-Speicher
 sidebar-storage-notes = { $count } Notizen
@@ -47,11 +49,14 @@ empty-pinned-title = Keine angehefteten Notizen
 empty-pinned-description = Heften Sie wichtige Notizen an für schnellen Zugriff.
 empty-shared-title = Nichts mit Ihnen geteilt
 empty-shared-description = Geteilte Notizen erscheinen hier.
-empty-archived-title = Keine archivierten Notizen
-empty-archived-description = Archivierte Notizen erscheinen hier.
+empty-archived-title = Keine Notizen im Papierkorb
+empty-archived-description = In den Papierkorb verschobene Notizen erscheinen hier.
+empty-trash-title = Keine Notizen im Papierkorb
+empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
 empty-default-title = Noch keine Notizen
 empty-default-description = Erstellen Sie Ihre erste Notiz.
 empty-create-note = Notiz erstellen
+loading-message = Wird geladen...
 
 menu-open = Öffnen
 menu-share = Teilen
@@ -61,8 +66,13 @@ menu-pin = Anheften
 menu-unpin = Loslösen
 menu-remove-favorite = Aus Favoriten entfernen
 menu-add-favorite = Zu Favoriten hinzufügen
-menu-archive = Archivieren
+menu-archive = Löschen
 menu-delete = Löschen
+delete-confirm-title = In den Papierkorb verschieben?
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-cancel = Abbrechen
+delete-confirm-action = In den Papierkorb verschieben
 
 bulk-selected = {$count} ausgewählt
 
@@ -77,11 +87,15 @@ shared-with-count = Geteilt mit { $count } { $count ->
 }
 shared-click-manage = Klicken zum Verwalten
 
-confirm-delete = Möchten Sie diese Notiz wirklich löschen?
+confirm-delete = Möchten Sie diese Notiz wirklich in den Papierkorb verschieben?
 toast-note-duplicated = Notiz dupliziert
 toast-note-unpinned = Notiz gelöst
 toast-note-pinned = Notiz angeheftet
-toast-note-archived = Notiz archiviert
+toast-note-archived = Notiz in den Papierkorb verschoben
+toast-note-restored = Notiz wiederhergestellt
+toast-note-restore-failed = Notiz konnte nicht wiederhergestellt werden
+toast-note-deleted-permanently = Notiz dauerhaft gelöscht
+toast-note-delete-permanently-failed = Notiz konnte nicht dauerhaft gelöscht werden
 toast-link-copied = Link in Zwischenablage kopiert
 toast-favorite-removed = Aus Favoriten entfernt
 toast-favorite-added = Zu Favoriten hinzugefügt
@@ -102,13 +116,14 @@ time-days-ago-plural = Vor { $count } Tagen
 # FolderTreeSidebar
 folder-add-note-inside = Notiz hier hinzufügen
 folder-rename = Umbenennen
+menu-rename = Umbenennen
 folder-move-to = Verschieben nach...
 folder-folders = Ordner
 folder-new-note = Neue Notiz
 folder-collapse-sidebar = Seitenleiste einklappen
 folder-all-notes = Alle Notizen
 folder-favorites = Favoriten
-folder-archive = Archiv
+folder-archive = In den Papierkorb verschieben
 folder-no-folders = Noch keine Ordner
 folder-create-to-start = Erstellen Sie eine Notiz zum Start
 folder-settings = Einstellungen
@@ -198,8 +213,8 @@ search-new-folder = Neuer Ordner
 search-new-folder-desc = Neuen Ordner erstellen
 search-go-pinned = Zu Angehefteten
 search-go-pinned-desc = Angeheftete Notizen anzeigen
-search-go-archive = Zum Archiv
-search-go-archive-desc = Archivierte Notizen anzeigen
+search-go-archive = Zum Papierkorb
+search-go-archive-desc = Notizen im Papierkorb anzeigen
 search-go-shared = Zu Geteilten
 search-go-shared-desc = Geteilte Notizen anzeigen
 search-to-navigate = zum Navigieren
@@ -386,8 +401,7 @@ editor-lock-note = Notiz sperren
 editor-publish = Veröffentlichen…
 editor-duplicate = Duplikat
 editor-export = Exportieren
-editor-archive = Archivieren
-editor-delete = Löschen
+editor-archive = In den Papierkorb verschieben
 editor-toast-not-authenticated = Nicht authentifiziert
 editor-toast-no-text = Kein Text zum Umwandeln
 editor-toast-transform-failed = Umwandlung fehlgeschlagen
@@ -471,6 +485,51 @@ translation-language-zh = Chinesisch
 translation-language-ja = Japanisch
 translation-language-ko = Koreanisch
 translation-language-ar = Arabisch
+
+# Quick Access
+qa-all-notes = Alle Notizen
+qa-favorites = Favoriten
+qa-pinned = Angepinnt
+qa-shared = Mit mir geteilt
+qa-recent = Zuletzt verwendet
+qa-archived = Papierkorb
+qa-trash = Papierkorb
+
+# Trash
+trash-list-refresh = Aktualisieren
+trash-list-sort-name = Name
+trash-list-sort-trashed-on = Papierkorbdatum
+trash-list-trashed-on-column = Im Papierkorb seit
+trash-list-owner-badge = Meine Notiz
+trash-list-restore = Wiederherstellen
+trash-list-restoring = Wird wiederhergestellt...
+trash-list-delete = Dauerhaft löschen
+trash-list-load-failed = Papierkorb konnte nicht geladen werden
+trash-list-item-restored = Notiz wiederhergestellt
+trash-list-item-restore-failed = Notiz konnte nicht wiederhergestellt werden
+trash-list-item-deleted = Notiz dauerhaft gelöscht
+trash-list-item-delete-failed = Notiz konnte nicht dauerhaft gelöscht werden
+trashed-readonly-title = Diese Notiz befindet sich im Papierkorb
+trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb und wird bis zur Wiederherstellung nur im Ansichtsmodus geöffnet.
+trashed-readonly-owner-note = Um diese Notiz wieder zu bearbeiten, holen Sie sie aus dem Papierkorb.
+trashed-readonly-shared-note = Um diese Notiz wieder zu bearbeiten, bitten Sie den Besitzer, sie aus dem Papierkorb zu holen.
+trashed-readonly-go-home = Zur Startseite von Notizen
+trashed-readonly-restore = Aus dem Papierkorb holen
+trashed-readonly-restoring = Wird wiederhergestellt...
+trashed-readonly-delete = Dauerhaft löschen
+trashed-readonly-deleting = Wird gelöscht...
+
+# Tree sidebar
+tree-label = Notizen
+tree-empty = Keine Notizen im Baum
+tree-drag-hint = Ziehen, um Notizen neu anzuordnen oder zu verschachteln
+tree-drop-inside = Hier hinein ablegen
+tree-drop-after = Danach ablegen
+
+# Keyboard shortcuts
+shortcut-toggle-sidebar = Seitenleiste umschalten (⌘B)
+shortcut-new-note = Neue Notiz (⌘N)
+shortcut-search = Suchen (⌘K)
 
 # useNoteTree
 note-tree-load-failed = Notizbaum konnte nicht geladen werden

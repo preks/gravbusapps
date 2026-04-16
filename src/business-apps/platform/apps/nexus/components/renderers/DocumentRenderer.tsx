@@ -1,9 +1,11 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { Loader2, FileText } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { InlineEditableMarkdownBlock } from '../editing/InlineEditableMarkdownBlock'
 import { InlineEditableTitle } from '../editing/InlineEditableTitle'
 import type { DocumentContent } from '../../types/nexus.types'
 import { normalizeNexusMarkdown } from '../../utils/normalizeNexusMarkdown'
+import translations from '../../_i18n'
 
 interface DocumentRendererProps {
   content: DocumentContent
@@ -24,6 +26,7 @@ export const DocumentRenderer = ({
   onContentChange,
   testId = 'nexus-doc-renderer'
 }: DocumentRendererProps) => {
+  const { t } = useTranslation(translations)
   const markdown = isStreaming && streamContent ? streamContent : content.markdown
   const normalizedMarkdown = normalizeNexusMarkdown(markdown || '')
   const normalizedValue = normalizeNexusMarkdown(content.markdown || '')
@@ -72,7 +75,7 @@ export const DocumentRenderer = ({
             </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
               <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
-              <span className="gba:text-sm">Generating document...</span>
+              <span className="gba:text-sm">{t('document-generating')}</span>
             </div>
           </div>
         )}
@@ -81,7 +84,7 @@ export const DocumentRenderer = ({
         {isStreaming && markdown && (
           <div className="gba:mt-8 gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-4">
             <Loader2 className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-primary" />
-            <span className="gba:text-xs gba:font-medium">Writing...</span>
+            <span className="gba:text-xs gba:font-medium">{t('document-writing')}</span>
           </div>
         )}
       </div>

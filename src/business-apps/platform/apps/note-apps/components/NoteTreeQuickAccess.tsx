@@ -1,9 +1,9 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { FileText, Star, Pin, Users, Clock, Archive } from 'lucide-react'
+import { ClockIcon, FileTextIcon, PushPinIcon, StarIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react'
 import translations from '../_i18n'
 
-export type QuickAccessSection = 'all-notes' | 'favorites' | 'pinned' | 'shared' | 'recent' | 'archived'
+export type QuickAccessSection = 'all-notes' | 'favorites' | 'pinned' | 'shared' | 'recent' | 'trash'
 
 interface QuickAccessItem {
   id: QuickAccessSection
@@ -12,12 +12,12 @@ interface QuickAccessItem {
 }
 
 const ITEMS: QuickAccessItem[] = [
-  { id: 'all-notes', labelKey: 'qa-all-notes', icon: FileText },
-  { id: 'favorites', labelKey: 'qa-favorites', icon: Star },
-  { id: 'pinned', labelKey: 'qa-pinned', icon: Pin },
-  { id: 'shared', labelKey: 'qa-shared', icon: Users },
-  { id: 'recent', labelKey: 'qa-recent', icon: Clock },
-  { id: 'archived', labelKey: 'qa-archived', icon: Archive }
+  { id: 'all-notes', labelKey: 'qa-all-notes', icon: FileTextIcon },
+  { id: 'favorites', labelKey: 'qa-favorites', icon: StarIcon },
+  { id: 'pinned', labelKey: 'qa-pinned', icon: PushPinIcon },
+  { id: 'shared', labelKey: 'qa-shared', icon: UsersIcon },
+  { id: 'recent', labelKey: 'qa-recent', icon: ClockIcon },
+  { id: 'trash', labelKey: 'qa-trash', icon: TrashIcon }
 ]
 
 export interface NoteTreeQuickAccessProps {

@@ -1,17 +1,16 @@
-import { type FC, useEffect, useRef, useState } from 'react'
+import type { FC } from 'react'
 import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
 import { ElegantStatusIndicator } from './ElegantStatusIndicator'
+import { AgentThinkingStream } from './AgentThinkingStream'
+import { useAnimatedGreeting } from './useAnimatedGreeting'
 
 interface StreamingAnswerBubbleProps {
   greetingContent: string
   responseContent: string
+  thinkingContent: string
   isStreaming: boolean
   statusMessage?: string | null
 }
-
-const GREETING_INITIAL_DELAY_MS = 70
-const GREETING_STEP_MS = 18
-const GREETING_MAX_STEPS = 48
 
 const ThinkingIndicator: FC = () => (
   <div className="gba:flex gba:items-center gba:gap-2.5">
@@ -36,63 +35,13 @@ const ThinkingIndicator: FC = () => (
 export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({
   greetingContent,
   responseContent,
+  thinkingContent,
   isStreaming,
   statusMessage
 }) => {
-  const [animatedGreetingContent, setAnimatedGreetingContent] = useState(greetingContent)
-  const greetingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const animatedGreetingRef = useRef('')
-
-  useEffect(() => {
-    if (greetingTimerRef.current) {
-      clearTimeout(greetingTimerRef.current)
-      greetingTimerRef.current = null
-    }
-
-    if (!greetingContent) {
-      animatedGreetingRef.current = ''
-      setAnimatedGreetingContent('')
-      return
-    }
-
-    if (animatedGreetingRef.current === greetingContent) {
-      setAnimatedGreetingContent(greetingContent)
-      return
-    }
-
-    let visibleChars = 0
-    const stepSize = Math.max(1, Math.ceil(greetingContent.length / GREETING_MAX_STEPS))
-
-    const revealNextChunk = () => {
-      visibleChars = Math.min(greetingContent.length, visibleChars + stepSize)
-      const nextContent = greetingContent.slice(0, visibleChars)
-      setAnimatedGreetingContent(nextContent)
-
-      if (visibleChars < greetingContent.length) {
-        greetingTimerRef.current = setTimeout(revealNextChunk, GREETING_STEP_MS)
-        return
-      }
-
-      animatedGreetingRef.current = greetingContent
-      greetingTimerRef.current = null
-    }
-
-    animatedGreetingRef.current = ''
-    setAnimatedGreetingContent('')
-    greetingTimerRef.current = setTimeout(revealNextChunk, GREETING_INITIAL_DELAY_MS)
-
-    return () => {
-      if (greetingTimerRef.current) {
-        clearTimeout(greetingTimerRef.current)
-        greetingTimerRef.current = null
-      }
-    }
-  }, [greetingContent])
+  const { animatedGreetingContent, isGreetingAnimating } = useAnimatedGreeting(greetingContent)
 
   if (!greetingContent && !responseContent && !isStreaming) return null
-
-  const isGreetingAnimating =
-    animatedGreetingContent.length > 0 && animatedGreetingContent.length < greetingContent.length
 
   return (
     <div
@@ -122,7 +71,7 @@ export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({
       <div className="gba:border-t gba:border-border/70" />
 
       <div className="gba:pt-5 gba:min-h-[2.5rem]">
-        {greetingContent || responseContent ? (
+        {greetingContent || responseContent || statusMessage || isStreaming ? (
           <div className="gba:relative">
             {greetingContent ? (
               <div
@@ -133,7 +82,8 @@ export const StreamingAnswerBubble: FC<StreamingAnswerBubbleProps> = ({
                 <StreamingMarkdown content={animatedGreetingContent} isStreaming={isGreetingAnimating} />
               </div>
             ) : null}
-            {isStreaming && statusMessage ? <ElegantStatusIndicator statusText={statusMessage} /> : null}
+            {thinkingContent ? <AgentThinkingStream thinkingText={thinkingContent} isStreaming={isStreaming} /> : null}
+            {isStreaming ? <ElegantStatusIndicator statusText={statusMessage || 'Processing your request...'} /> : null}
             {responseContent ? (
               <div className={greetingContent ? 'gba:mt-4' : undefined}>
                 <StreamingMarkdown content={responseContent} isStreaming={isStreaming} />

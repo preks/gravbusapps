@@ -89,6 +89,13 @@ const toEpoch = (timestamp: string): number => {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
+function epochFromStreamEvent(event: AgentStreamEvent): number | null {
+  if (!('timestamp' in event) || typeof event.timestamp !== 'string') {
+    return null
+  }
+  return toEpoch(event.timestamp)
+}
+
 const currentTurnTrace = (events: AgentStreamEvent[]): AgentStreamEvent[] => {
   if (events.length === 0) return events
 
@@ -124,6 +131,100 @@ const looksLikeInternalErrorLeak = (content: string): boolean => {
   )
 }
 
+function sessionTraceOrEmpty(mergedSession: DeepAgentSession | null | undefined): AgentStreamEvent[] {
+  return mergedSession?.trace ?? []
+}
+
+function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string | null {
+  const responseSnapshots = events
+    .filter(
+      (entry): entry is AgentChunkEvent =>
+        entry.type === 'agent_chunk' &&
+        entry.role === 'ai' &&
+        entry.chunk_kind === 'response_stream' &&
+        typeof entry.content === 'string' &&
+        entry.content.trim().length > 0
+    )
+    .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+
+  if (responseSnapshots.length === 0) {
+    return null
+  }
+
+  const primarySnapshots = responseSnapshots.filter(snapshot => chunkStreamKey(snapshot) !== 'continuation')
+  const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
+  const safeSnapshots = preferredSnapshots.filter(snapshot => !looksLikeInternalErrorLeak(snapshot.content.trim()))
+  if (safeSnapshots.length === 0) {
+    return ''
+  }
+
+  let stableContent = ''
+  for (const snapshot of safeSnapshots) {
+    const nextContent = snapshot.content.trim()
+    if (!nextContent) continue
+    if (!stableContent) {
+      stableContent = nextContent
+      continue
+    }
+    if (nextContent.length >= stableContent.length && nextContent.startsWith(stableContent)) {
+      stableContent = nextContent
+    }
+  }
+
+  return stableContent || safeSnapshots[safeSnapshots.length - 1].content.trim()
+}
+
+function buildStreamingContentFromLegacyThinking(events: AgentStreamEvent[]): string {
+  const legacyThinking = events
+    .filter(
+      (entry): entry is AgentChunkEvent =>
+        entry.type === 'agent_chunk' &&
+        entry.role === 'ai' &&
+        entry.chunk_kind === 'thinking' &&
+        typeof entry.content === 'string' &&
+        entry.content.trim().length > 0
+    )
+    .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+
+  if (legacyThinking.length === 0) {
+    return ''
+  }
+
+  return legacyThinking
+    .map(e => e.content.trim())
+    .filter(Boolean)
+    .join('\n\n')
+}
+
+function computeStreamingDisplayContent(
+  liveTurnEvents: AgentStreamEvent[],
+  lastReplyTimestamp: number,
+  isAgentRunning: boolean,
+  mergedStatus: DeepAgentSession['status'] | undefined
+): string {
+  const isActivelyRunning = isAgentRunning || mergedStatus === 'running'
+  if (!isActivelyRunning) {
+    return ''
+  }
+
+  if (lastReplyTimestamp > 0) {
+    const hasRecentEvents = liveTurnEvents.some(event => {
+      const t = epochFromStreamEvent(event)
+      return t !== null && t >= lastReplyTimestamp
+    })
+    if (!hasRecentEvents) {
+      return ''
+    }
+  }
+
+  const fromSnapshots = buildStreamingContentFromSnapshots(liveTurnEvents)
+  if (fromSnapshots !== null) {
+    return fromSnapshots
+  }
+
+  return buildStreamingContentFromLegacyThinking(liveTurnEvents)
+}
+
 export const useAgentSession = (
   sessionId: string | null,
   accessToken: string,
@@ -139,6 +240,8 @@ export const useAgentSession = (
   const [isAgentRunning, setIsAgentRunning] = useState(false)
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>([])
   const [activeSkill, setActiveSkill] = useState<ActiveSkillInfo | null>(null)
+  // Tracks when a new reply was just sent to prevent showing stale streaming content
+  const [lastReplyTimestamp, setLastReplyTimestamp] = useState<number>(0)
 
   const matchedBootstrapSession = useMemo(
     () => (bootstrapSession?.session_id === sessionId ? bootstrapSession : null),
@@ -174,6 +277,7 @@ export const useAgentSession = (
     setIsAgentRunning(false)
     setOptimisticMessages([])
     setActiveSkill(null)
+    setLastReplyTimestamp(0)
     processedTerminalAtRef.current = -1
     if (!sessionId) {
       setStreamVersion(0)
@@ -252,6 +356,20 @@ export const useAgentSession = (
     }
   }, [events])
 
+  // Clear lastReplyTimestamp once we receive fresh events from the new turn
+  useEffect(() => {
+    if (lastReplyTimestamp === 0 || events.length === 0) return
+
+    const hasFreshEvents = events.some(event => {
+      const eventTime = epochFromStreamEvent(event)
+      return eventTime !== null && eventTime >= lastReplyTimestamp
+    })
+
+    if (hasFreshEvents) {
+      setLastReplyTimestamp(0)
+    }
+  }, [events, lastReplyTimestamp])
+
   const mergedSession = useMemo((): DeepAgentSession | null => {
     const restSession = session ?? matchedBootstrapSession
     if (!restSession) return null
@@ -325,11 +443,14 @@ export const useAgentSession = (
 
   const liveTurnEvents = useMemo(() => {
     if (events.length > 0) return currentTurnTrace(events)
-    return currentTurnTrace((mergedSession?.trace ?? []) as AgentStreamEvent[])
-  }, [events, mergedSession?.trace])
+    return currentTurnTrace(sessionTraceOrEmpty(mergedSession))
+  }, [events, mergedSession])
 
+  // Extract greeting from the ENTIRE session history, not just current turn
+  // This ensures we only show one greeting at the very beginning
   const streamingGreeting = useMemo(() => {
-    const greetingEvents = liveTurnEvents
+    const allEvents = events.length > 0 ? events : sessionTraceOrEmpty(mergedSession)
+    const greetingEvents = allEvents
       .filter(
         (entry): entry is AgentChunkEvent =>
           entry.type === 'agent_chunk' &&
@@ -340,71 +461,39 @@ export const useAgentSession = (
       )
       .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
 
+    // Only return the FIRST greeting ever, not per-turn
     return greetingEvents[0]?.content.trim() ?? ''
-  }, [liveTurnEvents])
+  }, [events, mergedSession])
 
-  const streamingContent = useMemo(() => {
-    const isActivelyRunning = isAgentRunning || mergedSession?.status === 'running'
-    if (!isActivelyRunning) {
-      return ''
-    }
+  const streamingContent = useMemo(
+    () => computeStreamingDisplayContent(liveTurnEvents, lastReplyTimestamp, isAgentRunning, mergedSession?.status),
+    [isAgentRunning, liveTurnEvents, mergedSession?.status, lastReplyTimestamp]
+  )
 
-    const responseSnapshots = liveTurnEvents
+  // Extract agent reasoning/thinking from ALL session events (not filtered by turn)
+  // This ensures thinking is visible even after human-in-the-loop replies
+  const streamingThinking = useMemo(() => {
+    // Show thinking during active sessions, but also keep it visible briefly after completion
+    const allEvents = events.length > 0 ? events : sessionTraceOrEmpty(mergedSession)
+    const thinkingSnapshots = allEvents
       .filter(
         (entry): entry is AgentChunkEvent =>
           entry.type === 'agent_chunk' &&
           entry.role === 'ai' &&
-          entry.chunk_kind === 'response_stream' &&
+          entry.chunk_kind === 'agent_reasoning' &&
           typeof entry.content === 'string' &&
           entry.content.trim().length > 0
       )
       .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
 
-    if (responseSnapshots.length > 0) {
-      const primarySnapshots = responseSnapshots.filter(snapshot => chunkStreamKey(snapshot) !== 'continuation')
-      const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
-      const safeSnapshots = preferredSnapshots.filter(snapshot => !looksLikeInternalErrorLeak(snapshot.content.trim()))
-      if (safeSnapshots.length === 0) {
-        return ''
-      }
-      const snapshotsForDisplay = safeSnapshots
-
-      let stableContent = ''
-      for (const snapshot of snapshotsForDisplay) {
-        const nextContent = snapshot.content.trim()
-        if (!nextContent) continue
-        if (!stableContent) {
-          stableContent = nextContent
-          continue
-        }
-        if (nextContent.length >= stableContent.length && nextContent.startsWith(stableContent)) {
-          stableContent = nextContent
-        }
-      }
-
-      return stableContent || snapshotsForDisplay[snapshotsForDisplay.length - 1].content.trim()
-    }
-
-    const legacyThinking = liveTurnEvents
-      .filter(
-        (entry): entry is AgentChunkEvent =>
-          entry.type === 'agent_chunk' &&
-          entry.role === 'ai' &&
-          entry.chunk_kind === 'thinking' &&
-          typeof entry.content === 'string' &&
-          entry.content.trim().length > 0
-      )
-      .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
-
-    if (legacyThinking.length > 0) {
-      return legacyThinking
-        .map(e => e.content.trim())
-        .filter(Boolean)
-        .join('\n\n')
+    if (thinkingSnapshots.length > 0) {
+      // Get the latest/longest thinking snapshot (cumulative mode)
+      const latestThinking = thinkingSnapshots[thinkingSnapshots.length - 1]
+      return latestThinking.content.trim()
     }
 
     return ''
-  }, [isAgentRunning, liveTurnEvents, mergedSession?.status])
+  }, [events, mergedSession])
 
   // Extract the latest status update from agent_chunk events with chunk_kind='status'
   // This provides real-time status headlines during agent initialization and execution
@@ -467,6 +556,7 @@ export const useAgentSession = (
       }
 
       setIsAgentRunning(true)
+      setLastReplyTimestamp(Date.now()) // Mark when we sent a new reply to prevent showing stale content
       const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput)
 
       try {
@@ -490,6 +580,7 @@ export const useAgentSession = (
     events,
     streamingGreeting,
     streamingContent,
+    streamingThinking,
     statusHeadline,
     isConnected,
     isStreaming: isAgentRunning || (!!mergedSession && mergedSession.status === 'running'),

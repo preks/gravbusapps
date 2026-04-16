@@ -13,12 +13,15 @@ import {
   CardTitle,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Pulse, FileText, Note, Table, Presentation } from '@phosphor-icons/react'
 import { useSpaceDocumentActivity, type DocumentActivity, type DocumentType } from '../hooks/useSpaceDocumentActivity'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SpaceContentItem } from '../types/space.types'
+import translations from '../_i18n'
+import { formatLiveDuration } from '../utils/spaceLocalization'
 
 export interface SpaceRealTimeActivityProps {
   /** Space ID to track activity for */
@@ -52,11 +55,6 @@ const getDocumentIcon = (type: DocumentType) => {
   }
 }
 
-// Get activity verb
-const getActivityVerb = (activity: DocumentActivity) => {
-  return activity.activityType === 'editing' ? 'is editing' : 'is viewing'
-}
-
 // Get initials for avatar fallback
 const getInitials = (name?: string) => {
   if (!name) return '?'
@@ -68,17 +66,6 @@ const getInitials = (name?: string) => {
     .slice(0, 2)
 }
 
-// Format relative time
-const formatDuration = (startedAt: Date) => {
-  const diffMs = Date.now() - startedAt.getTime()
-  const diffMins = Math.floor(diffMs / (1000 * 60))
-
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m`
-  const diffHours = Math.floor(diffMins / 60)
-  return `${diffHours}h`
-}
-
 export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
   spaceId,
   spaceContent,
@@ -88,7 +75,10 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
   onActivityClick,
   'data-testid': testId = 'space-realtime-activity'
 }) => {
+  const { t } = useTranslation(translations)
   const { activities, hasActivity } = useSpaceDocumentActivity(spaceId, spaceContent, accessToken, currentUserId)
+  const getActivityVerb = (activity: DocumentActivity) =>
+    activity.activityType === 'editing' ? t('live-activity-editing') : t('live-activity-viewing')
 
   // Navigate to the document when activity is clicked
   const handleActivityClick = useCallback(
@@ -168,7 +158,7 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
       <CardHeader className="gba:pb-3">
         <CardTitle className="gba:text-base gba:font-medium gba:flex gba:items-center gba:gap-2">
           <Pulse className="gba:w-4 gba:h-4" />
-          Live Activity
+          {t('live-activity-title')}
           {hasActivity && (
             <span className="gba:relative gba:flex gba:h-2 gba:w-2">
               <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-success gba:opacity-75" />
@@ -183,10 +173,8 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
             <div className="gba:w-10 gba:h-10 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-2">
               <Pulse className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
             </div>
-            <p className="gba:text-sm gba:text-muted-foreground">No active editing right now</p>
-            <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
-              Activity will appear when team members work on documents
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('live-activity-empty-title')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('live-activity-empty-description')}</p>
           </div>
         ) : (
           <div className="gba:space-y-3">
@@ -213,14 +201,14 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:gap-1.5">
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                      {currentUserId && activity.userId === currentUserId ? 'You' : activity.userName}
+                      {currentUserId && activity.userId === currentUserId ? t('common-you') : activity.userName}
                     </span>
                     <span className="gba:text-sm gba:text-muted-foreground">{getActivityVerb(activity)}</span>
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
                     {getDocumentIcon(activity.documentType)}
                     <span className="gba:truncate">{activity.documentTitle}</span>
-                    <span className="gba:text-muted-foreground/60">· {formatDuration(activity.startedAt)}</span>
+                    <span className="gba:text-muted-foreground/60">· {formatLiveDuration(activity.startedAt, t)}</span>
                   </div>
                 </div>
               </div>
@@ -228,7 +216,7 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
 
             {activities.length > maxActivities && (
               <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:pt-1">
-                +{activities.length - maxActivities} more active
+                {t('live-activity-more', { count: activities.length - maxActivities })}
               </p>
             )}
           </div>

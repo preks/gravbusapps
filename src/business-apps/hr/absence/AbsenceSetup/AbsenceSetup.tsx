@@ -169,6 +169,8 @@ const AbsenceSetup: React.FC<AbsenceSetupProps> = ({ accessToken }) => {
                 items={activeSection.items || emptyItems}
                 isLoading={activeSection.isLoading}
                 onAdd={activeSection.onAdd}
+                onSelect={activeSection.onSelect}
+                sortOptions={activeSection.sortOptions}
                 onEdit={activeSection.onEdit}
                 onDelete={activeSection.onDelete}
                 addButtonTestId={activeSection.addButtonTestId}

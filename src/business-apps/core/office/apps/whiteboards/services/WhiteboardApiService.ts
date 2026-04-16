@@ -65,6 +65,10 @@ export const WhiteboardApiService = {
     return request(`/whiteboards/${id}`, accessToken)
   },
 
+  async getTrashedPreview(accessToken: string, id: string): Promise<WhiteboardSummary> {
+    return request(`/whiteboards/${id}/trashed-preview`, accessToken)
+  },
+
   async create(
     accessToken: string,
     data: { title: string; description?: string; spaceId?: string }

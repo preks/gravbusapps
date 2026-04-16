@@ -2,7 +2,7 @@
  * Nexus - Intelligent Content Workspace
  *
  * A fullscreen AI workspace where users can chat with AI about their documents,
- * and instruct it to generate documents, analyses with dashboards, and presentations.
+ * and instruct it to generate documents, analyses with dashboards, and live-data answers.
  *
  * URL: /platform/nexus
  */

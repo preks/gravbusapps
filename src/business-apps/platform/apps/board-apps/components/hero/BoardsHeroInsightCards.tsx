@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Skeleton, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles, TrendingUp, Users, BarChart3, FileCheck, Layers } from 'lucide-react'
 import type { BoardStatsResponse, BoardSummary } from '../../types'
+import translations from '../../_i18n'
 
 interface BoardsHeroInsightCardsProps {
   stats: BoardStatsResponse | null
@@ -22,8 +23,9 @@ export const BoardsHeroInsightCards: React.FC<BoardsHeroInsightCardsProps> = ({
   isLoading,
   'data-testid': testId = 'boards-hero-insights'
 }) => {
-  const forecast = useMemo(() => computeForecast(stats, boards), [stats, boards])
-  const breakdown = useMemo(() => computeBreakdown(stats, boards), [stats, boards])
+  const { t } = useTranslation(translations)
+  const forecast = useMemo(() => computeForecast(t, stats, boards), [stats, boards, t])
+  const breakdown = useMemo(() => computeBreakdown(t, stats, boards), [stats, boards, t])
 
   if (isLoading && !stats) {
     return (
@@ -43,12 +45,12 @@ export const BoardsHeroInsightCards: React.FC<BoardsHeroInsightCardsProps> = ({
   return (
     <Card className="gba:h-full gba:overflow-hidden gba:flex gba:flex-col" data-testid={`${testId}-forecast`}>
       <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-sm gba:font-semibold">Statistics & Forecast</CardTitle>
+        <CardTitle className="gba:text-sm gba:font-semibold">{t('hero-insights-title')}</CardTitle>
       </CardHeader>
       <CardContent className="gba:pt-0 gba:flex-1 gba:flex gba:flex-col">
         {/* 30-day forecast metrics */}
         <p className="gba:text-[10px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-2">
-          Next 30 Days
+          {t('hero-insights-next-30-days')}
         </p>
         <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-2">
           {forecast.grid.map(m => (
@@ -61,7 +63,7 @@ export const BoardsHeroInsightCards: React.FC<BoardsHeroInsightCardsProps> = ({
 
         {/* Board breakdown */}
         <p className="gba:text-[10px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-2">
-          Board Breakdown
+          {t('hero-insights-board-breakdown')}
         </p>
         <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-2">
           {breakdown.map(m => (
@@ -88,6 +90,7 @@ interface MetricItem {
 }
 
 function computeForecast(
+  t: (key: string, args?: Record<string, unknown>) => string,
   stats: BoardStatsResponse | null,
   boards: BoardSummary[]
 ): { grid: MetricItem[]; insight: string } {
@@ -103,16 +106,24 @@ function computeForecast(
 
   return {
     grid: [
-      { label: 'Est. New Boards', value: String(estNewBoards), icon: <TrendingUp className="gba:w-3 gba:h-3" /> },
-      { label: 'Expected Rows', value: estNewRows, icon: <BarChart3 className="gba:w-3 gba:h-3" /> },
-      { label: 'Active Boards', value: String(active), icon: <Layers className="gba:w-3 gba:h-3" /> },
-      { label: 'Collaboration', value: collaborationRate, icon: <Users className="gba:w-3 gba:h-3" /> }
+      {
+        label: t('hero-forecast-est-new-boards'),
+        value: String(estNewBoards),
+        icon: <TrendingUp className="gba:w-3 gba:h-3" />
+      },
+      { label: t('hero-forecast-expected-rows'), value: estNewRows, icon: <BarChart3 className="gba:w-3 gba:h-3" /> },
+      { label: t('hero-forecast-active-boards'), value: String(active), icon: <Layers className="gba:w-3 gba:h-3" /> },
+      { label: t('hero-forecast-collaboration'), value: collaborationRate, icon: <Users className="gba:w-3 gba:h-3" /> }
     ],
-    insight: active >= total * 0.4 ? 'Board engagement is strong' : 'Growth trajectory on track'
+    insight: active >= total * 0.4 ? t('hero-insight-strong-engagement') : t('hero-insight-growth-on-track')
   }
 }
 
-function computeBreakdown(stats: BoardStatsResponse | null, boards: BoardSummary[]): MetricItem[] {
+function computeBreakdown(
+  t: (key: string, args?: Record<string, unknown>) => string,
+  stats: BoardStatsResponse | null,
+  boards: BoardSummary[]
+): MetricItem[] {
   const draft = stats?.boardsByStatus?.draft ?? 0
   const promoted = stats?.boardsByStatus?.promoted ?? 0
   const total = stats?.totalBoards ?? boards.length
@@ -121,10 +132,14 @@ function computeBreakdown(stats: BoardStatsResponse | null, boards: BoardSummary
   const formattedRows = totalRows >= 1000 ? `${(totalRows / 1000).toFixed(1)}K` : String(totalRows)
 
   return [
-    { label: 'Total Rows', value: formattedRows, icon: <BarChart3 className="gba:w-3 gba:h-3" /> },
-    { label: 'Avg Rows/Board', value: avgRows.toLocaleString(), icon: <Layers className="gba:w-3 gba:h-3" /> },
-    { label: 'Draft', value: String(draft), icon: <FileCheck className="gba:w-3 gba:h-3" /> },
-    { label: 'Promoted', value: String(promoted), icon: <TrendingUp className="gba:w-3 gba:h-3" /> }
+    { label: t('hero-breakdown-total-rows'), value: formattedRows, icon: <BarChart3 className="gba:w-3 gba:h-3" /> },
+    {
+      label: t('hero-breakdown-avg-rows-per-board'),
+      value: avgRows.toLocaleString(),
+      icon: <Layers className="gba:w-3 gba:h-3" />
+    },
+    { label: t('hero-draft'), value: String(draft), icon: <FileCheck className="gba:w-3 gba:h-3" /> },
+    { label: t('hero-promoted'), value: String(promoted), icon: <TrendingUp className="gba:w-3 gba:h-3" /> }
   ]
 }
 
