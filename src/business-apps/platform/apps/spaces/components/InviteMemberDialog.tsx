@@ -17,11 +17,13 @@ import {
   Label,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Search, Loader2, Check } from 'lucide-react'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import type { SpaceMemberRole, AddMemberInput } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface InviteMemberDialogProps {
   open: boolean
@@ -31,13 +33,6 @@ export interface InviteMemberDialogProps {
   accessToken?: string
   'data-testid'?: string
 }
-
-// Role options - simple labels
-const roleOptions: { role: SpaceMemberRole; label: string; description: string }[] = [
-  { role: 'admin', label: 'Admin', description: 'Can manage members and content' },
-  { role: 'editor', label: 'Editor', description: 'Can create and edit content' },
-  { role: 'viewer', label: 'Viewer', description: 'Can only view content' }
-]
 
 // Get initials for avatar fallback
 const getInitials = (name?: string) => {
@@ -65,6 +60,12 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
   accessToken,
   'data-testid': testId = 'invite-member-dialog'
 }) => {
+  const { t } = useTranslation(translations)
+  const roleOptions: { role: SpaceMemberRole; label: string; description: string }[] = [
+    { role: 'admin', label: t('common-admin'), description: t('members-role-admin-description') },
+    { role: 'editor', label: t('common-editor'), description: t('members-role-editor-description') },
+    { role: 'viewer', label: t('common-viewer'), description: t('members-role-viewer-description') }
+  ]
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeLiteOption | null>(null)
   const [selectedRole, setSelectedRole] = useState<SpaceMemberRole>('editor')
@@ -128,9 +129,9 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
       <DialogContent className="gba:max-w-md gba:p-0 gba:overflow-hidden" data-testid={testId}>
         {/* Header */}
         <DialogHeader className="gba:p-6 gba:pb-4">
-          <DialogTitle className="gba:text-lg gba:font-semibold">Invite Member</DialogTitle>
+          <DialogTitle className="gba:text-lg gba:font-semibold">{t('invite-title')}</DialogTitle>
           <DialogDescription className="gba:text-sm gba:text-muted-foreground">
-            Search for employees to add to this space
+            {t('invite-description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -166,7 +167,7 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
                 onClick={() => setSelectedEmployee(null)}
                 className="gba:text-muted-foreground hover:gba:text-foreground"
               >
-                Change
+                {t('common-change')}
               </Button>
             </div>
           )}
@@ -174,11 +175,11 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
           {/* Search Input */}
           {!selectedEmployee && (
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium">Search Employee</Label>
+              <Label className="gba:text-sm gba:font-medium">{t('invite-search-label')}</Label>
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder="Search by name..."
+                  placeholder={t('common-search-employees-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-9 gba:h-10"
@@ -224,7 +225,9 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
 
               {/* No Results */}
               {searchQuery.length >= 2 && !loading && filteredEmployees.length === 0 && (
-                <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">No employees found</p>
+                <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
+                  {t('invite-no-results')}
+                </p>
               )}
             </div>
           )}
@@ -232,7 +235,7 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
           {/* Role Selection */}
           {selectedEmployee && (
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium">Role</Label>
+              <Label className="gba:text-sm gba:font-medium">{t('invite-role-label')}</Label>
               <div className="gba:space-y-1">
                 {roleOptions.map(({ role, label, description }) => (
                   <button
@@ -259,7 +262,7 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
           {/* Actions */}
           <div className="gba:flex gba:gap-3 gba:pt-2">
             <Button variant="secondary" className="gba:flex-1" onClick={() => handleClose(false)} disabled={isInviting}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button
               className="gba:flex-1"
@@ -267,7 +270,7 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
               disabled={!selectedEmployee || isInviting}
               data-testid={`${testId}-invite-button`}
             >
-              {isInviting ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : 'Invite'}
+              {isInviting ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : t('common-invite')}
             </Button>
           </div>
         </div>

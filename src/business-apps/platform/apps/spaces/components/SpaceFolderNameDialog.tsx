@@ -13,9 +13,11 @@ import {
   DialogTitle,
   DialogDescription,
   Button,
-  Input
+  Input,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Folder, Loader2 } from 'lucide-react'
+import translations from '../_i18n'
 
 export interface SpaceFolderNameDialogProps {
   open: boolean
@@ -34,10 +36,11 @@ export const SpaceFolderNameDialog: React.FC<SpaceFolderNameDialogProps> = ({
   title,
   description,
   initialName = '',
-  confirmLabel = 'Save',
+  confirmLabel,
   onConfirm,
   'data-testid': testId = 'space-folder-name-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [name, setName] = useState(initialName)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -88,7 +91,7 @@ export const SpaceFolderNameDialog: React.FC<SpaceFolderNameDialogProps> = ({
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Enter folder name"
+            placeholder={t('folder-name-placeholder')}
             autoFocus
             className="gba:h-10"
             data-testid={`${testId}-input`}
@@ -102,16 +105,16 @@ export const SpaceFolderNameDialog: React.FC<SpaceFolderNameDialogProps> = ({
             disabled={isSaving}
             data-testid={`${testId}-cancel`}
           >
-            Cancel
+            {t('common-cancel')}
           </Button>
           <Button onClick={handleConfirm} disabled={!name.trim() || isSaving} data-testid={`${testId}-confirm`}>
             {isSaving ? (
               <>
                 <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:animate-spin" />
-                Saving...
+                {t('folder-saving')}
               </>
             ) : (
-              confirmLabel
+              confirmLabel || t('common-save')
             )}
           </Button>
         </div>

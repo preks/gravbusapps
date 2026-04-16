@@ -1,6 +1,6 @@
 // Space-scoped drive panel using the Drive API directly with spaceId filter.
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation, Switch } from '@newwork/nw-design-system'
 import { Loader2, HardDrive } from 'lucide-react'
 import type {
@@ -31,6 +31,8 @@ import { useDriveDropZone } from '@/business-apps/core/office/apps/drive/hooks/u
 import { useDriveSelection } from '@/business-apps/core/office/apps/drive/hooks/useDriveSelection'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
 import driveTranslations from '@/business-apps/core/office/apps/drive/_i18n'
+import translations from '../_i18n'
+import { mergeTranslationBundles } from '../utils/spaceLocalization'
 
 export interface SpaceDrivePanelProps {
   spaceId: string
@@ -53,7 +55,8 @@ export const SpaceDrivePanel: React.FC<SpaceDrivePanelProps> = ({
   onActivityChange,
   'data-testid': testId = 'space-drive-panel'
 }) => {
-  const { t } = useTranslation(driveTranslations)
+  const mergedTranslations = useMemo(() => mergeTranslationBundles(driveTranslations, translations), [])
+  const { t } = useTranslation(mergedTranslations)
 
   const [folderId, setFolderId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<DriveViewMode>('list')
@@ -243,10 +246,10 @@ export const SpaceDrivePanel: React.FC<SpaceDrivePanelProps> = ({
     const refs = selection.getSelectedRefs().map(r => {
       const item = drive.items.find(i => i.type === r.entityType && i.id === r.entityId)
       const folder = drive.folders.find(f => f.id === r.entityId && r.entityType === 'drive_folder')
-      return { ...r, name: item?.name ?? folder?.name ?? 'Unknown' }
+      return { ...r, name: item?.name ?? folder?.name ?? t('common-unknown') }
     })
     if (refs.length > 0) requestTrash(refs)
-  }, [selection, drive.items, drive.folders, requestTrash])
+  }, [drive.folders, drive.items, requestTrash, selection, t])
 
   const confirmTrash = useCallback(() => {
     const refs = pendingDeleteRefs.map(({ entityType, entityId }) => ({ entityType, entityId }))
@@ -350,7 +353,7 @@ export const SpaceDrivePanel: React.FC<SpaceDrivePanelProps> = ({
                 setFolderId(id)
                 setPage(1)
               }}
-              rootLabel="Drive"
+              rootLabel={t('detail-tab-drive')}
               t={t}
               data-testid={`${testId}-breadcrumbs`}
             />
@@ -385,7 +388,7 @@ export const SpaceDrivePanel: React.FC<SpaceDrivePanelProps> = ({
                   />
                   <HardDrive className="gba:w-3 gba:h-3 gba:text-muted-foreground/50 group-hover:gba:text-muted-foreground gba:transition-colors" />
                   <span className="gba:text-[11px] gba:text-muted-foreground/60 group-hover:gba:text-muted-foreground gba:transition-colors gba:whitespace-nowrap">
-                    Also save to my Drive
+                    {t('drive-also-save-to-my-drive')}
                   </span>
                 </label>
               ) : undefined
