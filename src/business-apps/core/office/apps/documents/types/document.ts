@@ -131,6 +131,9 @@ export interface DocumentApprovalRequest {
   documentId: string
   requestedBy: string
   requestedAt: string
+  createdAt?: string
+  requestedByName?: string
+  requestedByPicture?: string
   approvers: Array<{
     userId: string
     userName?: string
@@ -145,6 +148,34 @@ export interface DocumentApprovalRequest {
   message?: string
   workflowId?: string // Legacy: first workflow ID
   workflowIds?: string[] // All workflow IDs (one per approver)
+  versionAtRequest?: number
+  entityUrl?: string
+}
+
+export interface DocumentApprovalMetadata {
+  pendingApprovalVersion?: number | null
+  currentApprovedVersion?: number | null
+  hasOpenApproval?: boolean
+  lastApprovalRequestId?: string | null
+  approvedAt?: string | null
+  approvedBy?: string | null
+}
+
+export interface DocumentReviewContext {
+  liveDocument: Document
+  reviewSnapshot: Record<string, unknown> | null
+  reviewVersion: {
+    versionNumber: number
+    createdAt: string
+    changedBy: string
+  } | null
+  reviewUrl: string
+  approvalRequest: DocumentApprovalRequest
+  approvalMetadata: DocumentApprovalMetadata
+  hasLiveChanges: boolean
+  canRespond: boolean
+  versionUnderReview: number
+  latestLiveVersion: number
 }
 
 /**
@@ -188,6 +219,7 @@ export interface Document {
   settings?: {
     external?: import('./externalUnstructuredConnector').ExternalDocumentProvenance
     readOnly?: boolean
+    approvalMetadata?: DocumentApprovalMetadata
     [key: string]: unknown
   }
 }
@@ -235,6 +267,7 @@ export interface DocumentSummary {
   settings?: {
     external?: import('./externalUnstructuredConnector').ExternalDocumentProvenance
     readOnly?: boolean
+    approvalMetadata?: DocumentApprovalMetadata
     [key: string]: unknown
   }
 }

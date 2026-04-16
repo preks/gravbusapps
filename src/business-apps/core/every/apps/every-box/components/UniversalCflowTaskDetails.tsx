@@ -59,11 +59,18 @@ import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result
 import { calculateDueDateCriticality, getCriticalityBadgeVariant } from '../utils/dueDateUtils'
 import { getInitials } from '../utils/avatarUtils'
 import { uploadFilesForTaskCompletion } from '../utils/taskFileUpload'
+import { officeClient } from '@/common/network/office/OfficeClient'
 import { TaskAiSection } from './TaskAiSection'
 import { AiToolbar } from './AiToolbar'
 import { useAiAssistant, useAiCapabilities } from '../hooks/useAi'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import {
+  filterFormFieldsForDocumentApproval,
+  getTaskAppTag,
+  isDocumentApprovalTask as isDocumentApprovalTaskRecord,
+  resolveDocumentApprovalRequestId
+} from './documentApprovalCflowUi'
 import translations from '../_i18n'
 
 dayjs.extend(localizedFormat)
@@ -261,6 +268,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [aiUsedForComment, setAiUsedForComment] = useState(false)
   const [participantsExpanded, setParticipantsExpanded] = useState(false)
+  const allLinks = (task.links as Array<{ name: string; url: string; type?: string; metadata?: any }>) || []
+  const entityLink = allLinks.find(link => link.type?.startsWith('entity:'))
+  const documentApprovalRequestId = resolveDocumentApprovalRequestId(task, entityLink)
+  const isCurrentDocumentApprovalTask = isDocumentApprovalTaskRecord(task, entityLink)
+  const visibleTaskForm = React.useMemo(() => filterFormFieldsForDocumentApproval(task, entityLink), [task, entityLink])
+  const taskAppTag = React.useMemo(() => getTaskAppTag(task), [task])
 
   // AI feature check
   const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
@@ -407,9 +420,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // Check if form fields have values directly (cFlow sends values in form definition)
   const formHasDirectValues = React.useMemo(() => {
-    if (!task.form || !Array.isArray(task.form)) return false
-    return task.form.some((field: any) => field.value !== undefined)
-  }, [task.form])
+    return visibleTaskForm.some((field: any) => field.value !== undefined)
+  }, [visibleTaskForm])
 
   // Helper: Get field initial value based on priority
   const getFieldInitialValue = React.useCallback(
@@ -451,10 +463,10 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // Initialize formValues from task.inputs, field.value, or flowStepData (for completed tasks)
   React.useEffect(() => {
     if (shouldWaitForData()) return
-    if (formInitialized || !task.form || !Array.isArray(task.form)) return
+    if (formInitialized || !Array.isArray(task.form)) return
 
     const initialValues: Record<string, any> = {}
-    task.form.forEach((field: any) => {
+    visibleTaskForm.forEach((field: any) => {
       const fieldName = field.name || field.id
       const value = getFieldInitialValue(field, fieldName)
       if (value !== undefined) {
@@ -475,15 +487,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     isLoadingFlowData,
     formHasDirectValues,
     shouldWaitForData,
-    getFieldInitialValue
+    getFieldInitialValue,
+    visibleTaskForm
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-  const taskAppTag =
-    task.tags?.app ||
-    task.sourceMetadata?.tags?.app ||
-    task.workflowMeta?.tags?.app ||
-    (task.sourceMetadata as any)?.app
   const isMarkdownMessageTask = taskAppTag === 'scheduled_task' || taskAppTag === 'spreadsheet-automation'
   // Check both task.tags and sourceMetadata.tags for glossary request detection
   const isGlossaryRequestTask =
@@ -634,33 +642,31 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     const errors: string[] = []
     const fieldErrorsMap: Record<string, string> = {}
 
-    if (task.form && Array.isArray(task.form)) {
-      task.form.forEach((field: any) => {
-        const fieldName = field.name || field.id
-        const fieldLabel = field.label || fieldName
-        const value = formValues[fieldName]
+    visibleTaskForm.forEach((field: any) => {
+      const fieldName = field.name || field.id
+      const fieldLabel = field.label || fieldName
+      const value = formValues[fieldName]
 
-        // Check required fields
-        if (field.required) {
-          if (value === null || value === undefined || value === '') {
-            const errorMsg = t('validation-field-required', { field: fieldLabel })
+      // Check required fields
+      if (field.required) {
+        if (value === null || value === undefined || value === '') {
+          const errorMsg = t('validation-field-required', { field: fieldLabel })
+          errors.push(errorMsg)
+          fieldErrorsMap[fieldName] = errorMsg
+          return
+        }
+
+        // For number fields, check if the value is a valid number
+        if (isNumberType(field)) {
+          const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
+          if (Number.isNaN(numValue)) {
+            const errorMsg = t('validation-field-number-invalid', { field: fieldLabel })
             errors.push(errorMsg)
             fieldErrorsMap[fieldName] = errorMsg
-            return
-          }
-
-          // For number fields, check if the value is a valid number
-          if (isNumberType(field)) {
-            const numValue = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
-            if (Number.isNaN(numValue)) {
-              const errorMsg = t('validation-field-number-invalid', { field: fieldLabel })
-              errors.push(errorMsg)
-              fieldErrorsMap[fieldName] = errorMsg
-            }
           }
         }
-      })
-    }
+      }
+    })
 
     return { isValid: errors.length === 0, errors, fieldErrors: fieldErrorsMap }
   }
@@ -669,8 +675,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const processFormData = (): Record<string, any> => {
     const processedFormData: Record<string, any> = {}
 
-    if (task.form && Array.isArray(task.form)) {
-      task.form.forEach((field: any) => {
+    if (visibleTaskForm.length > 0) {
+      visibleTaskForm.forEach((field: any) => {
         const fieldName = field.name || field.id
         const processedValue = processFieldValue(field, formValues[fieldName])
         if (processedValue !== undefined) {
@@ -702,12 +708,18 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     setFieldErrors({})
 
     let processedFormData = processFormData()
+    if (isCurrentDocumentApprovalTask) {
+      processedFormData = {
+        ...processedFormData,
+        decision: 'approved'
+      }
+    }
 
     // Upload any local File objects in FILE-type fields before completing the task.
     // This replaces raw {uid, name, status} entries with server-side references
     // containing fileId and downloadPath so downstream workflow steps can access them.
-    if (task.form && Array.isArray(task.form)) {
-      const fileFields = task.form.filter((f: any) => (f.type || '').toUpperCase() === 'FILE')
+    if (visibleTaskForm.length > 0) {
+      const fileFields = visibleTaskForm.filter((f: any) => (f.type || '').toUpperCase() === 'FILE')
       if (fileFields.length > 0) {
         try {
           processedFormData = await uploadFilesForTaskCompletion(
@@ -730,6 +742,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       formData: processedFormData,
       ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
     }
+
+    await syncDocumentApprovalDecision('approved')
 
     const base = getCflowEndpoint()
     const response = await fetch(`${base}/api/tasks/${task.id}/complete`, {
@@ -773,6 +787,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       rejectionComment: comment || data?.comment || '',
       comment: comment || data?.comment || ''
     }
+
+    await syncDocumentApprovalDecision('rejected')
 
     const base = getCflowEndpoint()
     const response = await fetch(`${base}/api/tasks/${task.id}/reject`, {
@@ -888,11 +904,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     }
   }
 
-  // Extract links from task (direct property for all tasks)
-  const allLinks = (task.links as Array<{ name: string; url: string; type?: string; metadata?: any }>) || []
-
   // Separate entity reference link from document links
-  const entityLink = allLinks.find(link => link.type?.startsWith('entity:'))
   const documentLinks = allLinks.filter(link => link.type?.startsWith('document:'))
   // All other links (internal:*, external:*, or any other type) - generic fallback
   const otherLinks = allLinks.filter(link => !link.type?.startsWith('entity:') && !link.type?.startsWith('document:'))
@@ -908,6 +920,18 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const entityId = entityLink?.metadata?.entityId
   const entityName = entityLink?.name
   const entityDisplayUrl = entityLink?.url
+
+  const syncDocumentApprovalDecision = useCallback(
+    async (decision: 'approved' | 'rejected') => {
+      if (!isCurrentDocumentApprovalTask || !documentApprovalRequestId) {
+        return
+      }
+
+      officeClient.setAccessToken(accessToken)
+      await officeClient.documents.respondToApproval(documentApprovalRequestId, { decision })
+    },
+    [accessToken, documentApprovalRequestId, isCurrentDocumentApprovalTask]
+  )
 
   // For Glossary Request tasks, load the static task form
   // Also check workflowMeta and other possible locations for tags
@@ -1166,7 +1190,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
           {/* Entity Reference (if linked to an entity) */}
           {entityType && entityId && entityName && (
-            <Card variant="outlined" className="gba:border-primary/20 gba:bg-muted/20">
+            <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/20">
               <CardContent className="gba:pt-4">
                 <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
                   {t('task-details-related-to')}
@@ -1195,7 +1219,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
           {/* Document Attachments (if any) */}
           {documentLinks.length > 0 && (
-            <Card variant="outlined" className="gba:border-primary/20 gba:bg-muted/30">
+            <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/30">
               <CardContent className="gba:pt-4">
                 <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
                   {t('task-details-attachments', { count: documentLinks.length })}
@@ -1614,7 +1638,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         )}
 
         {/* For meeting-invite: Form first, then Related Links. Otherwise: Related Links then Form. */}
-        {task.tags?.app === 'meeting-invite' && task.form && Array.isArray(task.form) && task.form.length > 0 && (
+        {task.tags?.app === 'meeting-invite' && visibleTaskForm.length > 0 && (
           <Card>
             <CardContent>
               {Object.keys(fieldErrors).length > 0 && (
@@ -1633,7 +1657,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               )}
 
               <div className="gba:space-y-4">
-                {task.form.map((input: any, index: number) => {
+                {visibleTaskForm.map((input: any, index: number) => {
                   const fieldName = input.name || input.id || `field_${index}`
                   const fieldValue = formValues[fieldName]
                   const fieldError = fieldErrors[fieldName]
@@ -1703,7 +1727,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         )}
 
         {/* Form Section - for non-meeting-invite (or when meeting-invite has no form); no "Form" title */}
-        {task.tags?.app !== 'meeting-invite' && task.form && Array.isArray(task.form) && task.form.length > 0 && (
+        {task.tags?.app !== 'meeting-invite' && visibleTaskForm.length > 0 && (
           <Card>
             <CardContent>
               {Object.keys(fieldErrors).length > 0 && (
@@ -1722,7 +1746,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               )}
 
               <div className="gba:space-y-4">
-                {task.form.map((input: any, index: number) => {
+                {visibleTaskForm.map((input: any, index: number) => {
                   const fieldName = input.name || input.id || `field_${index}`
                   const fieldValue = formValues[fieldName]
                   const fieldError = fieldErrors[fieldName]

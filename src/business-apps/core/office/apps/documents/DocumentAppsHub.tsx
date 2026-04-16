@@ -280,7 +280,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
-    if (currentView === 'list' && !selectedDocumentId) {
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    const hasDeepLinkedDocument = Boolean(urlParams.get('docId'))
+
+    if (currentView === 'list' && !selectedDocumentId && !hasDeepLinkedDocument) {
       updateUrl(null)
     }
   }, [activeSection, currentView, selectedDocumentId, updateUrl])
@@ -518,6 +521,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     setApprovalDialogOpen(true)
   }, [])
 
+  const handleNavigateToDocumentReview = useCallback(
+    (versionNumber: number) => {
+      if (!currentDocument?.id) {
+        return
+      }
+
+      updateUrl(currentDocument.id, 'review', undefined, String(versionNumber))
+      setCurrentView('review')
+    },
+    [currentDocument?.id, updateUrl]
+  )
+
   /**
    * Handle share document click
    */
@@ -719,11 +734,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     return t('empty-default-description')
   }
 
-  const shouldRenderEditorView = currentView === 'editor' || (currentView === 'trash' && Boolean(currentDocument))
+  const shouldRenderEditorView =
+    currentView === 'editor' || (currentView === 'trash' && Boolean(currentDocument)) || currentView === 'review'
 
   if (shouldRenderEditorView) {
     return (
       <DocumentAppsHubEditorView
+        currentView={currentView}
         templateBeingEdited={templateBeingEdited}
         setTemplateBeingEdited={setTemplateBeingEdited}
         setSessionEntityContext={setSessionEntityContext}
@@ -737,6 +754,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         updateDocument={updateDocument}
         updateTemplate={updateTemplate}
         updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
+        onNavigateToDocumentReview={handleNavigateToDocumentReview}
         setCurrentView={v => setCurrentView(v as HubView)}
         setActiveSection={s => setActiveSection(s as SidebarSection)}
         handleBack={handleBack}
@@ -751,6 +769,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         isRestoringTrashedDocument={isRestoringTrashedDocument}
         onGoToDocsHome={handleGoToDocsHome}
         onRestoreTrashedDocument={handleRestoreTrashedDocument}
+        onApprovalResolved={async () => {
+          await refreshDocuments()
+          if (currentDocument?.id) {
+            await loadDocument(currentDocument.id)
+          }
+        }}
         testId={testId}
       />
     )
@@ -1180,8 +1204,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         const isFavorite = favorites.has(doc.id)
                         const ownerInfo = doc.createdBy ? ownerInfoMap.get(doc.createdBy) : undefined
                         const sharedWith = sharedUsersMap[doc.id] || []
-                        const canSendForApproval =
-                          isOwner && !['pending_approval', 'approved', 'rejected'].includes(doc.status)
+                        const approvalMetadata = doc.settings?.approvalMetadata
+                        const canSendForApproval = isOwner && !approvalMetadata?.hasOpenApproval
 
                         return (
                           <div
@@ -1230,12 +1254,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   <span className="gba:font-medium gba:text-foreground gba:truncate">
                                     {doc.title || t('title-untitled')}
                                   </span>
-                                  {doc.status === 'pending_approval' && (
+                                  {doc.approvalStatus === 'pending' && (
                                     <Badge variant="default" className="gba:text-[10px] gba:px-1.5 gba:py-0">
                                       {t('status-pending')}
                                     </Badge>
                                   )}
-                                  {doc.status === 'approved' && (
+                                  {approvalMetadata?.currentApprovedVersion && (
                                     <Badge
                                       variant="secondary"
                                       className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:bg-success/20 gba:text-success"
@@ -1407,6 +1431,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                       const isOwner = doc.isOwner || doc.permission === 'owner'
                       const isSelected = selectedDocuments.has(doc.id)
                       const isFavorite = favorites.has(doc.id)
+                      const approvalMetadata = doc.settings?.approvalMetadata
 
                       return (
                         <Card
@@ -1458,9 +1483,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                             </button>
 
                             {/* Status badge */}
-                            {doc.status === 'pending_approval' && (
+                            {doc.approvalStatus === 'pending' && (
                               <Badge variant="default" className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px]">
                                 {t('menu-send-for-approval')}
+                              </Badge>
+                            )}
+
+                            {doc.approvalStatus !== 'pending' && approvalMetadata?.currentApprovedVersion && (
+                              <Badge
+                                variant="secondary"
+                                className="gba:absolute gba:bottom-2 gba:left-2 gba:text-[10px] gba:bg-success/20 gba:text-success"
+                              >
+                                {t('status-approved')}
                               </Badge>
                             )}
 
@@ -1547,29 +1581,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           currentUserName={currentUserName}
           accessToken={accessToken}
           shareDocument={shareDocument}
-          onApprovalSent={async (approverIds, approverWorkflows) => {
+          onApprovalSent={async () => {
             if (documentForApproval) {
-              const workflowIds = approverWorkflows?.map(aw => aw.workflowId) || []
-              await updateDocument(documentForApproval, {
-                status: 'pending_approval',
-                approvalRequest: {
-                  id: `approval_${Date.now()}`,
-                  documentId: documentForApproval,
-                  status: 'pending',
-                  requestedBy: currentUserId,
-                  requestedAt: new Date().toISOString(),
-                  approvers: approverIds.map(id => {
-                    const workflow = approverWorkflows?.find(aw => aw.userId === id)
-                    return {
-                      userId: id,
-                      userName: workflow?.userName,
-                      status: 'pending' as const,
-                      workflowId: workflow?.workflowId
-                    }
-                  }),
-                  workflowIds
-                }
-              })
+              await refreshDocuments()
+              if (currentDocument?.id === documentForApproval) {
+                await loadDocument(documentForApproval)
+              }
             }
             setDocumentForApproval(null)
           }}
