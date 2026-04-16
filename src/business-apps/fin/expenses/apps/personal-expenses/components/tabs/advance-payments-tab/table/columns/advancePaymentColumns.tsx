@@ -1,8 +1,8 @@
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
-import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../../utils'
-import type { AdvancePayment } from '../../../../hooks/useGetAdvancePayments'
+import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../../../utils'
+import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 
 export const ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID = 'AdvancePaymentsTable'
 

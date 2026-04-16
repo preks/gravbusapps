@@ -1,11 +1,11 @@
 import React, { useMemo, useCallback } from 'react'
 import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, BankIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics'
+import { useGetAdvancePaymentStatistics } from '../../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay } from '../../../utils'
-import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
+import { formatCurrencyDisplay } from '../../../../utils'
+import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean

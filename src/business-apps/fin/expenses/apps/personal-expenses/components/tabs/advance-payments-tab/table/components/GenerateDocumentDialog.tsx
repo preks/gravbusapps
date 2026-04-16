@@ -4,12 +4,12 @@ import { GenerateDocumentDialog as OfficeGenerateDocumentDialog } from '@/busine
 import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
 import { toast } from 'sonner'
-import type { AdvancePayment } from '../../../../hooks/useGetAdvancePayments'
+import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 import { ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID } from '../columns/advancePaymentColumns'
 import {
   buildAdvancePaymentDocumentEntityMap,
   type AdvancePaymentApproverContext
-} from '../utils/advancePaymentDocumentEntityMap'
+} from '../../utils/advancePaymentDocumentEntityMap'
 
 export interface AdvancePaymentGenerateDocumentDialogProps {
   open: boolean

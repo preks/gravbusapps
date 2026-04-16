@@ -17,9 +17,9 @@ import {
   advancePaymentAvailableColumns,
   advancePaymentDefaultVisibleColumnIds
 } from '../config/advancePaymentAvailableColumns'
-import { createAdvancePaymentColumns } from '../columns/advancePaymentColumns'
-import { AdvancePaymentRowActions } from '../components/AdvancePaymentRowActions'
-import type { AdvancePaymentsDataBodyProps } from '../components/AdvancePaymentsDataBody'
+import { createAdvancePaymentColumns } from '../table/columns/advancePaymentColumns'
+import { AdvancePaymentRowActions } from '../table/components/AdvancePaymentRowActions'
+import type { AdvancePaymentsDataBodyProps } from '../table/components/AdvancePaymentsDataBody'
 import type { AdvancePaymentsTableProps } from '../types/advancePaymentsTable.types'
 
 const DEFAULT_PAGE_SIZE = 20

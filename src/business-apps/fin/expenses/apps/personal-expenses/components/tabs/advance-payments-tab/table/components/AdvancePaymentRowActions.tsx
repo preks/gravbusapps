@@ -1,9 +1,9 @@
 import React from 'react'
 import { AppAction } from '@/components/app-action'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { RowActionsIcon, RowActionsWrapper } from '../../../shared/TableSharedComponents'
+import { RowActionsIcon, RowActionsWrapper } from '../../../../shared/TableSharedComponents'
 import { ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID } from '../columns/advancePaymentColumns'
-import type { AdvancePayment } from '../../../../hooks/useGetAdvancePayments'
+import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 
 export interface AdvancePaymentRowActionsProps {
   record: AdvancePayment

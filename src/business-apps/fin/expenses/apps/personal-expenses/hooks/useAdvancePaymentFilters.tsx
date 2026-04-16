@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils'
-import CompactRangeFilter from '../components/tabs/advance-payments-tab/CompactRangeFilter'
+import CompactRangeFilter from '../components/tabs/advance-payments-tab/filters/CompactRangeFilter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface UseAdvancePaymentFiltersReturn {

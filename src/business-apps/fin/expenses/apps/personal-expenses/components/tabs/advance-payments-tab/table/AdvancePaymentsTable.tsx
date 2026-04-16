@@ -1,15 +1,15 @@
 import React from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import AdvancePaymentDetails from './AdvancePaymentDetails'
-import ExpensePlanDetails from '../expense-plans-tab/details/ExpensePlanDetails'
-import ExpenseRequestDetails from '../expense-requests-tab/details/ExpenseRequestDetails'
-import { DetailsSheet } from '../../shared/TableSharedComponents'
+import AdvancePaymentDetails from '../details/AdvancePaymentDetails'
+import ExpensePlanDetails from '../../expense-plans-tab/details/ExpensePlanDetails'
+import ExpenseRequestDetails from '../../expense-requests-tab/details/ExpenseRequestDetails'
+import { DetailsSheet } from '../../../shared/TableSharedComponents'
 import { AdvancePaymentsDataBody } from './components/AdvancePaymentsDataBody'
 import { AdvancePaymentGenerateDocumentDialog } from './components/GenerateDocumentDialog'
-import { useAdvancePaymentsTableModel } from './hooks/useAdvancePaymentsTableModel'
-import type { AdvancePaymentsTableProps } from './types/advancePaymentsTable.types'
+import { useAdvancePaymentsTableModel } from '../hooks/useAdvancePaymentsTableModel'
+import type { AdvancePaymentsTableProps } from '../types/advancePaymentsTable.types'
 
-export type { AdvancePaymentsTableProps } from './types/advancePaymentsTable.types'
+export type { AdvancePaymentsTableProps } from '../types/advancePaymentsTable.types'
 
 function resolveExpensePlanTypeLabel(selectedExpensePlan: unknown): string | undefined {
   const sp = selectedExpensePlan as {

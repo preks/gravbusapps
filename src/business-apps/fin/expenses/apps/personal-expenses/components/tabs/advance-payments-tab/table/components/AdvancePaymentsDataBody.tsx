@@ -2,9 +2,9 @@ import React from 'react'
 import { DataDisplay, DataTable, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { advancePaymentAvailableColumns } from '../config/advancePaymentAvailableColumns'
-import { advancePaymentSortableColumns } from '../config/advancePaymentSortableColumns'
-import type { AdvancePayment } from '../../../../hooks/useGetAdvancePayments'
+import { advancePaymentAvailableColumns } from '../../config/advancePaymentAvailableColumns'
+import { advancePaymentSortableColumns } from '../../config/advancePaymentSortableColumns'
+import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 import { ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID } from '../columns/advancePaymentColumns'
 
 export interface AdvancePaymentsDataBodyProps {
