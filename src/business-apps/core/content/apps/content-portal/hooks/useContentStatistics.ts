@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 
 export interface ContentStatistics {
   recentNewsCount: number
@@ -59,7 +59,7 @@ export const useContentStatistics = (accessToken?: string): ContentStatistics =>
           newsAggregate: ContentEntryAggregate(
             where: {
               role: { _eq: "${ContentRole.ROOT}" }
-              contentGroupRef: { _eq: "${ContentGroup.NEWS}" }
+              contentGroup: { _eq: "${ContentGroup.NEWS}" }
               isDeleted: { _eq: false }
             }
           ) {
@@ -70,7 +70,7 @@ export const useContentStatistics = (accessToken?: string): ContentStatistics =>
           knowledgeAggregate: ContentEntryAggregate(
             where: {
               role: { _eq: "${ContentRole.ROOT}" }
-              contentGroupRef: { _eq: "${ContentGroup.KNOWLEDGE}" }
+              contentGroup: { _eq: "${ContentGroup.KNOWLEDGE}" }
               isDeleted: { _eq: false }
             }
           ) {
@@ -81,7 +81,7 @@ export const useContentStatistics = (accessToken?: string): ContentStatistics =>
           documentsAggregate: ContentEntryAggregate(
             where: {
               role: { _eq: "${ContentRole.ROOT}" }
-              contentGroupRef: { _eq: "${ContentGroup.DOCUMENT}" }
+              contentGroup: { _eq: "${ContentGroup.DOCUMENT}" }
               isDeleted: { _eq: false }
             }
           ) {
@@ -92,7 +92,7 @@ export const useContentStatistics = (accessToken?: string): ContentStatistics =>
           questions: ContentEntry(
             where: {
               role: { _eq: "${ContentRole.ROOT}" }
-              contentGroupRef: { _eq: "${ContentGroup.QUESTION}" }
+              contentGroup: { _eq: "${ContentGroup.QUESTION}" }
               isDeleted: { _eq: false }
             }
             limit: 1000

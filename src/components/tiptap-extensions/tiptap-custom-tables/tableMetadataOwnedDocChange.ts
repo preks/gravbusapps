@@ -1,0 +1,1 @@
+export const TABLE_METADATA_OWNED_DOC_CHANGE_META = 'tableMetadataOwnedDocChange'

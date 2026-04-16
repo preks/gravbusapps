@@ -4,18 +4,19 @@ import { MyTasksView } from '@/common/components/common-relations/view-layouts/p
 import { buildIrmMyTasksConfig } from '../config/myTasksConfig'
 import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
 import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useInvestmentTaskStatistics'
+import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 
 /**
  * My Tasks Tab Wrapper
  * Builds task config when this tab is mounted (lazy loading)
  */
 export const MyTasksTab: React.FC<BusinessAppContextProps> = context => {
-  // Call hooks at component level (not inside config builder)
+  const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
+    useViewPreferencesStorage('irm:my-task-preferences:v1')
+
   const investmentTasksHook = useInvestmentTasks(context)
   const taskStatistics = useInvestmentTaskStatistics(context)
 
-  // Build config with hook results (memoize based on stable primitive values)
-  // Only depend on primitives that actually change, not object references
   const tasksConfig = useMemo(
     () => buildIrmMyTasksConfig(context, investmentTasksHook, taskStatistics),
     [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id, taskStatistics]
@@ -29,6 +30,12 @@ export const MyTasksTab: React.FC<BusinessAppContextProps> = context => {
       dataTestId="workspace-my-tasks"
       enableExport
       exportFilenamePrefix="irm-my-tasks"
+      initialFilters={initialFilters}
+      onFilterChange={saveFilters}
+      initialSorting={initialSorting ?? undefined}
+      onSortingChange={saveSorting}
+      initialVisibleColumns={initialVisibleColumns ?? undefined}
+      onVisibleColumnsChange={saveVisibleColumns}
     />
   )
 }

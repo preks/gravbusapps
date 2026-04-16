@@ -270,6 +270,20 @@ export const GET_ASSET_IDS_BY_EMPLOYEE_IDS = `
   }
 `
 
+/** Asset IDs that have any allocation history (used to determine delete eligibility). */
+export const GET_ASSET_IDS_WITH_ALLOCATION_HISTORY = `
+  query GetAssetIdsWithAllocationHistory($assetIds: [uuid!]!) {
+    EmployeeAsset(
+      where: {
+        assetId: { _in: $assetIds }
+        isDeleted: { _eq: false }
+      }
+    ) {
+      assetId
+    }
+  }
+`
+
 export const ALLOCATE_ASSET = `
   mutation AllocateAsset($allocation: EmployeeAssetInsertInput!) {
     insert_EmployeeAsset_one(object: $allocation) {
@@ -339,7 +353,6 @@ export interface UpdateAssetVariables {
     assetStatus?: string
     siteLocationId?: string
     notes?: string
-    isDeleted?: boolean
     currencyRef?: string
     inventoryValue?: number
     assetBrandRef?: string
@@ -367,4 +380,8 @@ export interface DeallocateAssetVariables {
   version: number
   endDate: string
   conditionEnd?: string
+}
+
+export interface AssetIdsWithAllocationHistoryVariables {
+  assetIds: string[]
 }

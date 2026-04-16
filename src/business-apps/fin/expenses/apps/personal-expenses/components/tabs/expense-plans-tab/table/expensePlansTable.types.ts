@@ -1,6 +1,6 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import type { ExpensePlan } from '../../../hooks/useGetExpensePlans'
+import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 
 export interface ExpensePlansTableProps extends BusinessAppContextProps {
   items: ExpensePlan[] | undefined
@@ -22,7 +22,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   removeFilter: (filterId: string) => void
   tableRefreshTrigger?: number
   currencyStats?: Array<{ ref: string; code: string; count: number }>
-  sortField?: string
+  sortField?: string | null
   sortOrder?: 'ascend' | 'descend' | null
   planDateRange?: [Date | null, Date | null] | null
   setPlanDateRange?: (range: [Date | null, Date | null] | null) => void
@@ -34,4 +34,5 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
   onFiltersChange?: () => void
   availableStatuses?: string[]
+  widgetTopDestinationFilterTokens?: string[]
 }

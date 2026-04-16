@@ -6,7 +6,7 @@ import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 
-const LLM_MODEL = 'gpt-4.1'
+const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
 const DOCUMENT_PREVIEW_EXCERPT_MAX_LENGTH = 500 // Maximum characters for document preview sent to AI
 
 /**
@@ -552,7 +552,7 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
 
         const form = new FormData()
         form.append('session_id', effectiveSessionId)
-        form.append('llm_model', LLM_MODEL)
+        form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
         form.append('use_web_search_tool', 'false')
 
         // Build context in the format FlowBot expects

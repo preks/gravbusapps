@@ -23,7 +23,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Share2, Search, X, CheckCircle, Eye, Pencil, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employ
 import type { BoardPermission } from '../types'
 import { BoardApiService } from '../services/BoardApiService'
 import { sendBoardShareNotification } from '../services/boardShareNotification'
+import translations from '../_i18n'
 
 export interface ShareBoardDialogProps {
   open: boolean
@@ -59,6 +61,7 @@ export const ShareBoardDialog: React.FC<ShareBoardDialogProps> = ({
   onShareComplete,
   'data-testid': testId = 'share-board-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([])
   const [defaultPermission, setDefaultPermission] = useState<BoardPermission>('view')
@@ -164,7 +167,7 @@ export const ShareBoardDialog: React.FC<ShareBoardDialogProps> = ({
           permission: u.permission
         }))
 
-      await sendBoardShareNotification(accessToken, {
+      await sendBoardShareNotification(accessToken, t, {
         boardId,
         boardTitle,
         recipients,

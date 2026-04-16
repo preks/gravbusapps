@@ -37,6 +37,8 @@ export interface CollaborationWebSocketOptions {
   reconnectionDelayMax?: number
   path?: string
   enablePollingFallback?: boolean
+  debug?: boolean
+  onReconnectFailed?: () => void
 }
 
 export type CollaborationEventHandler = (data: any) => void
@@ -47,9 +49,13 @@ export class CollaborationClient {
   private options: CollaborationWebSocketOptions
   private reconnectAttempts = 0
   private maxReconnectAttempts: number
+  private debug: boolean
+  private onReconnectFailed?: () => void
 
   constructor(url: string, options: CollaborationWebSocketOptions = {}) {
     this.url = url
+    this.debug = options.debug ?? false
+    this.onReconnectFailed = options.onReconnectFailed
     this.options = {
       connectionTimeout: options.connectionTimeout || 20000,
       reconnectionAttempts: options.reconnectionAttempts || 10,
@@ -64,12 +70,14 @@ export class CollaborationClient {
     // Build transports array based on configuration
     const transports = this.options.enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 
-    console.log('[CollaborationClient] INITIATING CONNECTION')
-    console.log('[CollaborationClient] Client Version:', CLIENT_VERSION)
-    console.log('[CollaborationClient] URL:', this.url)
-    console.log('[CollaborationClient] Path:', this.options.path)
-    console.log('[CollaborationClient] Transports:', transports)
-    console.log('[CollaborationClient] Full connection URL:', `${this.url}${this.options.path}`)
+    if (this.debug) {
+      console.log('[CollaborationClient] INITIATING CONNECTION')
+      console.log('[CollaborationClient] Client Version:', CLIENT_VERSION)
+      console.log('[CollaborationClient] URL:', this.url)
+      console.log('[CollaborationClient] Path:', this.options.path)
+      console.log('[CollaborationClient] Transports:', transports)
+      console.log('[CollaborationClient] Full connection URL:', `${this.url}${this.options.path}`)
+    }
 
     this.socket = io(this.url, {
       auth: {
@@ -97,11 +105,11 @@ export class CollaborationClient {
 
     // Log transport upgrade attempts
     this.socket.io.engine.on('upgrading', transport => {
-      console.log('[CollaborationClient] Upgrading transport to:', transport.name)
+      if (this.debug) console.log('[CollaborationClient] Upgrading transport to:', transport.name)
     })
 
     this.socket.io.engine.on('upgrade', transport => {
-      console.log('[CollaborationClient] Transport upgraded to:', transport.name)
+      if (this.debug) console.log('[CollaborationClient] Transport upgraded to:', transport.name)
     })
 
     this.socket.io.engine.on('upgradeError', error => {
@@ -110,9 +118,11 @@ export class CollaborationClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0
-      console.log(
-        `[CollaborationClient] CONNECTED! Socket ID: ${this.socket?.id}, Transport: ${this.socket?.io?.engine?.transport?.name}`
-      )
+      if (this.debug) {
+        console.log(
+          `[CollaborationClient] CONNECTED! Socket ID: ${this.socket?.id}, Transport: ${this.socket?.io?.engine?.transport?.name}`
+        )
+      }
     })
 
     this.socket.on('disconnect', reason => {
@@ -144,11 +154,12 @@ export class CollaborationClient {
     })
 
     this.socket.io.on('reconnect', () => {
-      console.log('[CollaborationClient] Reconnected after disconnect, socketId:', this.socket?.id)
+      if (this.debug) console.log('[CollaborationClient] Reconnected after disconnect, socketId:', this.socket?.id)
     })
 
     this.socket.io.on('reconnect_failed', () => {
       console.error('[CollaborationClient] Reconnection failed after all attempts')
+      this.onReconnectFailed?.()
     })
 
     return this.socket
@@ -199,7 +210,7 @@ export class CollaborationClient {
    * Join a document, spreadsheet, or note for collaboration
    */
   joinDocument(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     onParticipantsReceived?: (participants: any[]) => void
   ) {
@@ -211,21 +222,25 @@ export class CollaborationClient {
       return
     }
 
-    console.log('[CollaborationClient] Joining document (emit):', { entityType, entityId, socketId: this.socket?.id })
+    if (this.debug) {
+      console.log('[CollaborationClient] Joining document (emit):', { entityType, entityId, socketId: this.socket?.id })
+    }
 
     let callbackFired = false
     this.socket.emit('join_document', { entityType, entityId }, (response: any) => {
       callbackFired = true
       const elapsed = Date.now() - joinStartedAt
-      console.log('[CollaborationClient] Join document response:', {
-        success: response?.success,
-        participantsCount: response?.participants?.length ?? 0,
-        elapsedMs: elapsed,
-        room
-      })
+      if (this.debug) {
+        console.log('[CollaborationClient] Join document response:', {
+          success: response?.success,
+          participantsCount: response?.participants?.length ?? 0,
+          elapsedMs: elapsed,
+          room
+        })
+      }
 
-      if (response?.success && response?.participants) {
-        onParticipantsReceived?.(response.participants)
+      if (response?.success === true) {
+        onParticipantsReceived?.(Array.isArray(response.participants) ? response.participants : [])
       } else if (response?.success === false) {
         console.warn('[CollaborationClient] join_document failed:', response?.error ?? 'unknown')
       } else if (!response) {
@@ -249,44 +264,99 @@ export class CollaborationClient {
   /**
    * Leave a document, spreadsheet, or note
    */
-  leaveDocument(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
-    console.log('[CollaborationClient] Leaving document:', { entityType, entityId })
+  leaveDocument(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
+    if (this.debug) console.log('[CollaborationClient] Leaving document:', { entityType, entityId })
     this.socket?.emit('leave_document', { entityType, entityId })
   }
 
   /**
    * Send a document operation (edit, insert, delete, etc.)
+   * No retry logic — callers (e.g. SpreadsheetCollaborationManager) handle retries.
    */
   sendDocumentOperation(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
-    operation: DocumentOperation
+    operation: DocumentOperation,
+    onAckFailure?: (operation: DocumentOperation) => void
   ) {
     if (!this.socket?.connected) {
-      console.error('[CollaborationClient] Cannot send operation: socket not connected')
-      return
+      console.warn('[CollaborationClient] Cannot send operation (socket not connected):', operation.type)
+      onAckFailure?.(operation)
+      return false
     }
 
-    this.socket.emit(
-      'document_operation',
-      {
-        entityType,
-        entityId,
-        operation
-      },
-      (response: any) => {
-        if (response?.success === false) {
-          console.warn('[CollaborationClient] document_operation failed:', response?.error ?? response)
-        }
+    let ackReceived = false
+    const ackTimeout = setTimeout(() => {
+      if (!ackReceived) {
+        ackReceived = true
+        console.warn('[CollaborationClient] document_operation ack timeout (5s):', operation.type)
+        onAckFailure?.(operation)
       }
-    )
+    }, 5000)
+
+    this.socket.emit('document_operation', { entityType, entityId, operation }, (response: any) => {
+      if (ackReceived) return
+      ackReceived = true
+      clearTimeout(ackTimeout)
+      if (response?.success === false) {
+        console.warn('[CollaborationClient] document_operation ack failure:', operation.type, response?.error)
+        onAckFailure?.(operation)
+      }
+    })
+    return true
+  }
+
+  /**
+   * Send document_operation and await ack (success + optional sheet version).
+   * Used when spreadsheet cell edits must be persisted via the collaboration gateway.
+   */
+  sendDocumentOperationAsync(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string,
+    operation: DocumentOperation,
+    timeoutMs = 15000
+  ): Promise<{ success: boolean; version?: number; error?: string }> {
+    return new Promise(resolve => {
+      if (!this.socket?.connected) {
+        resolve({ success: false, error: 'not_connected' })
+        return
+      }
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        resolve({ success: false, error: 'timeout' })
+      }, timeoutMs)
+      this.socket.emit('document_operation', { entityType, entityId, operation }, (response: unknown) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        if (response == null) {
+          resolve({ success: false, error: 'empty_ack' })
+          return
+        }
+        const r = response as { success?: boolean; version?: number; error?: string }
+        if (r.success === false) {
+          resolve({ success: false, error: String(r?.error ?? 'ack_failure') })
+          return
+        }
+        const v = r.version
+        resolve({
+          success: true,
+          version: typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : undefined
+        })
+      })
+    })
   }
 
   /**
    * Send cursor position update
    */
   sendCursorMove(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     position: {
       line?: number
@@ -315,7 +385,7 @@ export class CollaborationClient {
    * Send selection change
    */
   sendSelectionChange(
-    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard',
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
     entityId: string,
     selection: {
       start: { line?: number; column?: number; offset?: number }
@@ -332,14 +402,20 @@ export class CollaborationClient {
   /**
    * Send typing start indicator
    */
-  sendTypingStart(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  sendTypingStart(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     this.socket?.emit('typing_start', { entityType, entityId })
   }
 
   /**
    * Send typing stop indicator
    */
-  sendTypingStop(entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard', entityId: string) {
+  sendTypingStop(
+    entityType: 'document' | 'spreadsheet' | 'note' | 'whiteboard' | 'slide' | 'presentation',
+    entityId: string
+  ) {
     this.socket?.emit('typing_stop', { entityType, entityId })
   }
 
@@ -512,15 +588,21 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Socket.io path: for localhost use default, for production include service path
   const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
 
-  console.log('[CollaborationClient] Creating client:')
-  console.log('[CollaborationClient]   Service URL:', serviceUrl)
-  console.log('[CollaborationClient]   Is Localhost:', isLocalhost)
-  console.log('[CollaborationClient]   WebSocket URL (namespace):', wsUrl)
-  console.log('[CollaborationClient]   Socket.io Path:', socketPath)
+  const debugEnabled =
+    isLocalhost || (typeof localStorage !== 'undefined' && localStorage.getItem('nw-collab-debug') === 'true')
+
+  if (debugEnabled) {
+    console.log('[CollaborationClient] Creating client:')
+    console.log('[CollaborationClient]   Service URL:', serviceUrl)
+    console.log('[CollaborationClient]   Is Localhost:', isLocalhost)
+    console.log('[CollaborationClient]   WebSocket URL (namespace):', wsUrl)
+    console.log('[CollaborationClient]   Socket.io Path:', socketPath)
+  }
 
   return new CollaborationClient(wsUrl, {
     ...options,
-    path: socketPath
+    path: socketPath,
+    debug: debugEnabled
   })
 }
 

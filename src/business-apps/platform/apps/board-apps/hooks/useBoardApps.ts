@@ -5,8 +5,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Board, BoardSummary, BoardSheet, BoardRow, BoardPermission } from '../types'
 import { BoardApiService } from '../services/BoardApiService'
+import translations from '../_i18n'
 
 export interface UseBoardAppsReturn {
   boards: BoardSummary[]
@@ -50,6 +52,7 @@ export interface UseBoardAppsReturn {
 }
 
 export function useBoardApps(accessToken: string): UseBoardAppsReturn {
+  const { t } = useTranslation(translations)
   const [boards, setBoards] = useState<BoardSummary[]>([])
   const [currentBoard, setCurrentBoard] = useState<Board | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -69,11 +72,11 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
       const result = await BoardApiService.listBoards({ limit: 100 })
       setBoards(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load boards')
+      setError(err instanceof Error ? err.message : t('error-load-boards'))
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken])
+  }, [accessToken, t])
 
   useEffect(() => {
     if (loadedRef.current || !accessToken) return
@@ -81,25 +84,28 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     void refreshBoards()
   }, [accessToken, refreshBoards])
 
-  const loadBoard = useCallback(async (id: string): Promise<Board | null> => {
-    if (prevBoardIdRef.current !== id) {
-      prevBoardIdRef.current = id
-      setRows([])
-      setRowsTotal(0)
-      loadRowsKeyRef.current = ''
-    }
-    setIsLoading(true)
-    try {
-      const board = await BoardApiService.getBoard(id)
-      if (board) setCurrentBoard(board)
-      return board
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load board')
-      return null
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const loadBoard = useCallback(
+    async (id: string): Promise<Board | null> => {
+      if (prevBoardIdRef.current !== id) {
+        prevBoardIdRef.current = id
+        setRows([])
+        setRowsTotal(0)
+        loadRowsKeyRef.current = ''
+      }
+      setIsLoading(true)
+      try {
+        const board = await BoardApiService.getBoard(id)
+        if (board) setCurrentBoard(board)
+        return board
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('error-load-board'))
+        return null
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [t]
+  )
 
   const createBoard = useCallback(
     async (board: Partial<Board>): Promise<Board | null> => {
@@ -108,11 +114,11 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         await refreshBoards()
         return created
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to create board')
+        setError(err instanceof Error ? err.message : t('error-create-board'))
         return null
       }
     },
-    [refreshBoards]
+    [refreshBoards, t]
   )
 
   const updateBoard = useCallback(
@@ -122,10 +128,10 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         setCurrentBoard(updated)
         await refreshBoards()
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to update board')
+        setError(err instanceof Error ? err.message : t('error-update-board'))
       }
     },
-    [refreshBoards]
+    [refreshBoards, t]
   )
 
   const deleteBoard = useCallback(
@@ -212,13 +218,13 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         }
         setRowsTotal(result.total)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load rows')
+        setError(err instanceof Error ? err.message : t('error-load-rows'))
       } finally {
         setRowsLoading(false)
         loadRowsKeyRef.current = ''
       }
     },
-    []
+    [t]
   )
 
   const createRow = useCallback(
@@ -250,10 +256,10 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         setRows(prev => prev.map(r => (r.id !== rowId ? r : updated)))
       } catch (err) {
         if (snapshot) setRows(prev => prev.map(r => (r.id !== rowId ? r : snapshot!)))
-        setError(err instanceof Error ? err.message : 'Failed to update row')
+        setError(err instanceof Error ? err.message : t('error-update-row'))
       }
     },
-    []
+    [t]
   )
 
   const deleteRow = useCallback(async (boardId: string, sheetId: string, rowId: string): Promise<boolean> => {

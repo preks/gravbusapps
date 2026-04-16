@@ -28,6 +28,71 @@ function markUnlocked(lock: FileLock | null): FileLock | null {
   return { ...lock, isLocked: false }
 }
 
+function areLocksEqual(left: FileLock | null, right: FileLock | null): boolean {
+  if (left === right) return true
+  if (!left || !right) return false
+
+  return (
+    left.isLocked === right.isLocked &&
+    left.lockedBy === right.lockedBy &&
+    left.lockedByName === right.lockedByName &&
+    left.lockedByAvatar === right.lockedByAvatar &&
+    left.lockedAt === right.lockedAt &&
+    left.lockExpiry === right.lockExpiry &&
+    left.lockReason === right.lockReason
+  )
+}
+
+export function resolveNextResolvedState(
+  prev: UseFileLockState,
+  lock: FileLock | null,
+  currentUserId?: string
+): UseFileLockState {
+  const { canEdit, isLockedByMe } = computeLockFlags(lock, currentUserId)
+  if (
+    areLocksEqual(prev.lock, lock) &&
+    prev.canEdit === canEdit &&
+    prev.isLockedByMe === isLockedByMe &&
+    prev.isChecking === false &&
+    prev.error === null
+  ) {
+    return prev
+  }
+
+  return {
+    ...prev,
+    lock,
+    canEdit,
+    isLockedByMe,
+    isChecking: false,
+    error: null
+  }
+}
+
+function resolveNextCheckingState(prev: UseFileLockState): UseFileLockState {
+  if (prev.isChecking && prev.error === null) {
+    return prev
+  }
+
+  return {
+    ...prev,
+    isChecking: true,
+    error: null
+  }
+}
+
+function resolveNextCheckErrorState(prev: UseFileLockState, errorMessage: string): UseFileLockState {
+  if (prev.error === errorMessage && prev.isChecking === false) {
+    return prev
+  }
+
+  return {
+    ...prev,
+    error: errorMessage,
+    isChecking: false
+  }
+}
+
 export interface UseFileLockOptions {
   entityId: string
   entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
@@ -111,51 +176,42 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
   /**
    * Check current lock status
    */
-  const checkLockStatus = useCallback(async () => {
-    if (!apiService) {
-      console.warn('[useFileLock] Backend API not yet implemented')
-      return
-    }
-
-    setState(prev => ({ ...prev, isChecking: true, error: null }))
-
-    try {
-      const lock = await apiService.getLockStatus(entityId)
-      if (isExpired(lock)) {
-        onLockExpiredRef.current?.()
-        setState(prev => ({
-          ...prev,
-          lock: markUnlocked(lock),
-          canEdit: true,
-          isLockedByMe: false,
-          isChecking: false
-        }))
+  const runLockStatusCheck = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!apiService) {
+        console.warn('[useFileLock] Backend API not yet implemented')
         return
       }
 
-      const { canEdit, isLockedByMe } = computeLockFlags(lock, currentUserId)
-
-      setState(prev => ({
-        ...prev,
-        lock,
-        canEdit,
-        isLockedByMe,
-        isChecking: false
-      }))
-    } catch (error) {
-      const errorMessage = t ? t('shared-error-check-lock') : error instanceof Error ? error.message : String(error)
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        isChecking: false
-      }))
-
-      const errFn = onErrorRef.current
-      if (errFn) {
-        errFn(error instanceof Error ? error : new Error(errorMessage))
+      if (!options?.silent) {
+        setState(resolveNextCheckingState)
       }
-    }
-  }, [entityId, currentUserId, apiService, t])
+
+      try {
+        const lock = await apiService.getLockStatus(entityId)
+        if (isExpired(lock)) {
+          onLockExpiredRef.current?.()
+          setState(prev => resolveNextResolvedState(prev, markUnlocked(lock), currentUserId))
+          return
+        }
+
+        setState(prev => resolveNextResolvedState(prev, lock, currentUserId))
+      } catch (error) {
+        const errorMessage = t ? t('shared-error-check-lock') : error instanceof Error ? error.message : String(error)
+        setState(prev => resolveNextCheckErrorState(prev, errorMessage))
+
+        const errFn = onErrorRef.current
+        if (errFn) {
+          errFn(error instanceof Error ? error : new Error(errorMessage))
+        }
+      }
+    },
+    [entityId, currentUserId, apiService, t]
+  )
+
+  const checkLockStatus = useCallback(async () => {
+    await runLockStatusCheck()
+  }, [runLockStatusCheck])
 
   /**
    * Acquire a lock on the file
@@ -327,7 +383,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
     if (!apiService || !autoRefreshInterval) return
 
     refreshTimerRef.current = setInterval(() => {
-      checkLockStatus()
+      void runLockStatusCheck({ silent: true })
     }, autoRefreshInterval)
 
     return () => {
@@ -335,7 +391,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
         clearInterval(refreshTimerRef.current)
       }
     }
-  }, [apiService, autoRefreshInterval, checkLockStatus])
+  }, [apiService, autoRefreshInterval, runLockStatusCheck])
 
   // Optional real-time lock updates via collaboration socket.
   // This is opt-in: only callers that pass a socket receive push updates.
@@ -395,7 +451,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
 
     const handleConnect = () => {
       // Re-sync after reconnect in case events were missed.
-      void checkLockStatus()
+      void runLockStatusCheck({ silent: true })
     }
 
     realtimeSocket.on('lock:acquired', handleLockAcquired)
@@ -407,7 +463,7 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
       realtimeSocket.off('lock:released', handleLockReleased)
       realtimeSocket.off('connect', handleConnect)
     }
-  }, [realtimeSocket, currentUserId, checkLockStatus])
+  }, [realtimeSocket, currentUserId, runLockStatusCheck])
 
   return {
     // State

@@ -27,7 +27,7 @@ import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionInput } from '../shared/ExpressionInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { EntityPreview } from './EntityPreview'
 
 interface InputFieldsConfigurationProps {
@@ -154,8 +154,8 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
       setIsLoadingEntities(true)
       hasFetchedEntities.current = true
       try {
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-        const response = await fetch(`${apiUrl}/api/entities?includeFields=true`)
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
+        const response = await fetch(`${apiUrl}/entities?includeFields=true`)
         if (!response.ok) {
           throw new Error(`Failed to fetch entities: ${response.statusText}`)
         }
@@ -186,8 +186,8 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
       setIsLoadingCustomDataNamespaces(true)
       hasFetchedCustomDataNamespaces.current = true
       try {
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-        const response = await fetch(`${apiUrl}/api/custom-data/namespaces`, {
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
+        const response = await fetch(`${apiUrl}/custom-data/namespaces`, {
           headers: {
             Authorization: `Bearer ${context.accessToken}`,
             'Content-Type': 'application/json'
@@ -219,8 +219,8 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
 
       setIsLoadingCustomDataKeys(prev => ({ ...prev, [ns]: true }))
       try {
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-        const response = await fetch(`${apiUrl}/api/custom-data-sources/schema`, {
+        const apiUrl = CUSTOM_FLOW_ENGINE_API_URL
+        const response = await fetch(`${apiUrl}/custom-data-sources/schema`, {
           headers: {
             Authorization: `Bearer ${context.accessToken}`,
             'Content-Type': 'application/json',

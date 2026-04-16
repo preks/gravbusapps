@@ -11,7 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { ErrorAlert } from '@/components/error-alert'
 import { useEmployeeAvatar } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatar'
 import { Book, User, Info } from 'lucide-react'

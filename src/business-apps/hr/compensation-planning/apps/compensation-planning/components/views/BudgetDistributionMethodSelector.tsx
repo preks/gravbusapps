@@ -80,6 +80,11 @@ export interface BudgetDistributionMethodSelectorProps {
   t: Translate
   /** Methods omitted from the radio list (e.g. manager team view excludes headcount). */
   excludedMethods?: readonly DistributionMethod[]
+  /**
+   * `tiles` — wrapped card with icon tiles (default, e.g. manager team).
+   * `sidebar` — vertical list for split-panel layout with departments preview.
+   */
+  variant?: 'tiles' | 'sidebar'
 }
 
 export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethodSelectorProps> = ({
@@ -88,7 +93,8 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
   disabled = false,
   sectionTitle,
   t,
-  excludedMethods
+  excludedMethods,
+  variant = 'tiles'
 }) => {
   const options = useMemo(() => {
     const excluded = new Set(excludedMethods ?? [])
@@ -111,79 +117,137 @@ export const BudgetDistributionMethodSelector: React.FC<BudgetDistributionMethod
 
   const radioValue = selectedDetail?.value ?? selectedMethod
 
+  const methodRadioGroup = (
+    <RadioGroup
+      value={radioValue}
+      onValueChange={v => onMethodChange(v as DistributionMethod)}
+      disabled={disabled}
+      className={
+        variant === 'sidebar'
+          ? 'gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:items-start gba:gap-2'
+          : 'gba:flex gba:w-full gba:min-w-0 gba:flex-wrap gba:gap-2'
+      }
+      data-testid="budget-distribution-method-radio-group"
+    >
+      {options.map(opt => {
+        const isSelected = radioValue === opt.value
+        const inputId = `budget-distribution-method-${opt.value}`
+        const OptionIcon = opt.Icon
+
+        if (variant === 'sidebar') {
+          return (
+            <div
+              key={opt.value}
+              className={cn(
+                'gba:flex gba:max-w-xs gba:items-center gba:gap-2 gba:rounded-md gba:border gba:px-2 gba:py-2 gba:transition-colors',
+                isSelected
+                  ? 'gba:border-primary gba:bg-muted/50'
+                  : 'gba:border-border gba:bg-card gba:hover:bg-muted/30',
+                disabled ? 'gba:pointer-events-none gba:opacity-60' : 'gba:cursor-pointer'
+              )}
+              data-testid={`budget-distribution-method-option-${opt.value}`}
+              title={opt.description}
+            >
+              <RadioGroupItem
+                value={opt.value}
+                id={inputId}
+                className="gba:mt-0.5 gba:shrink-0"
+                data-testid={`budget-distribution-method-input-${opt.value}`}
+              />
+              <span
+                className={cn(
+                  'gba:inline-flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:bg-background',
+                  isSelected && 'gba:border-primary/60'
+                )}
+              >
+                <OptionIcon className="gba:h-3.5 gba:w-3.5" aria-hidden />
+              </span>
+              <Label
+                htmlFor={inputId}
+                className="gba:min-w-0 gba:cursor-pointer gba:text-sm gba:font-medium gba:leading-snug gba:text-foreground"
+              >
+                {opt.title}
+              </Label>
+            </div>
+          )
+        }
+
+        return (
+          <div
+            key={opt.value}
+            className={cn(
+              'gba:relative gba:min-w-[7.5rem] gba:max-w-[14rem] gba:flex-1 gba:basis-[8rem]',
+              disabled ? 'gba:pointer-events-none gba:opacity-60' : 'gba:cursor-pointer'
+            )}
+            data-testid={`budget-distribution-method-option-${opt.value}`}
+            title={opt.description}
+          >
+            <div
+              className={cn(
+                'gba:flex gba:h-full gba:flex-col gba:items-center gba:gap-0.5 gba:rounded-md gba:border gba:px-1 gba:py-1.5 gba:transition-colors',
+                isSelected
+                  ? 'gba:border-primary gba:bg-muted/50'
+                  : 'gba:border-border gba:bg-card gba:hover:bg-muted/30'
+              )}
+            >
+              <RadioGroupItem
+                value={opt.value}
+                id={inputId}
+                className="gba:absolute gba:right-1 gba:top-1 gba:size-4 gba:!rounded-sm [&_[data-slot=radio-group-indicator]_span]:!rounded-sm"
+                data-testid={`budget-distribution-method-input-${opt.value}`}
+              />
+              <Label
+                htmlFor={inputId}
+                className="gba:flex gba:w-full gba:cursor-pointer gba:flex-col gba:items-center gba:justify-center gba:gap-0.5 gba:px-0.5 gba:pt-2 gba:text-center"
+              >
+                <span
+                  className={cn(
+                    'gba:inline-flex gba:h-6 gba:w-6 gba:shrink-0 gba:items-center gba:justify-center gba:rounded gba:border gba:border-border gba:bg-background',
+                    isSelected && 'gba:border-primary/60'
+                  )}
+                >
+                  <OptionIcon className="gba:h-3 gba:w-3" aria-hidden />
+                </span>
+                <span
+                  className="gba:block gba:w-full gba:truncate gba:text-center gba:text-xs gba:font-medium gba:leading-tight gba:text-foreground"
+                  title={opt.title}
+                >
+                  {opt.title}
+                </span>
+              </Label>
+            </div>
+          </div>
+        )
+      })}
+    </RadioGroup>
+  )
+
+  const selectedDescription = (
+    <p
+      className="gba:border-t gba:border-border gba:pt-2 gba:text-xs gba:leading-snug gba:text-muted-foreground"
+      data-testid="budget-distribution-method-selected-description"
+    >
+      {selectedDetail?.description ?? ''}
+    </p>
+  )
+
+  if (variant === 'sidebar') {
+    return (
+      <div className="gba:w-full gba:max-w-xs gba:space-y-3" data-testid="budget-distribution-method-selector-sidebar">
+        {methodRadioGroup}
+        {selectedDescription}
+      </div>
+    )
+  }
+
   return (
     <Card className="gba:overflow-hidden" data-testid="budget-distribution-method-selector">
       <CardContent className="gba:space-y-2 gba:p-3">
         <div>
           <h3 className="gba:text-sm gba:font-semibold gba:leading-tight gba:text-foreground">{sectionTitle}</h3>
         </div>
-
-        <RadioGroup
-          value={radioValue}
-          onValueChange={v => onMethodChange(v as DistributionMethod)}
-          disabled={disabled}
-          className="gba:flex gba:w-full gba:min-w-0 gba:flex-nowrap gba:gap-1"
-          data-testid="budget-distribution-method-radio-group"
-        >
-          {options.map(opt => {
-            const isSelected = radioValue === opt.value
-            const inputId = `budget-distribution-method-${opt.value}`
-            const OptionIcon = opt.Icon
-            return (
-              <div
-                key={opt.value}
-                className={cn(
-                  'gba:relative gba:min-w-0 gba:flex-1 gba:basis-0',
-                  disabled ? 'gba:pointer-events-none gba:opacity-60' : 'gba:cursor-pointer'
-                )}
-                data-testid={`budget-distribution-method-option-${opt.value}`}
-                title={opt.description}
-              >
-                <div
-                  className={cn(
-                    'gba:flex gba:h-full gba:flex-col gba:items-center gba:gap-0.5 gba:rounded-md gba:border gba:px-1 gba:py-1.5 gba:transition-colors',
-                    isSelected
-                      ? 'gba:border-primary gba:bg-muted/50'
-                      : 'gba:border-border gba:bg-card gba:hover:bg-muted/30'
-                  )}
-                >
-                  <RadioGroupItem
-                    value={opt.value}
-                    id={inputId}
-                    className="gba:absolute gba:right-1 gba:top-1 gba:size-4 gba:!rounded-sm [&_[data-slot=radio-group-indicator]_span]:!rounded-sm"
-                    data-testid={`budget-distribution-method-input-${opt.value}`}
-                  />
-                  <Label
-                    htmlFor={inputId}
-                    className="gba:flex gba:w-full gba:cursor-pointer gba:flex-col gba:items-center gba:justify-center gba:gap-0.5 gba:px-0.5 gba:pt-2 gba:text-center"
-                  >
-                    <span
-                      className={cn(
-                        'gba:inline-flex gba:h-6 gba:w-6 gba:shrink-0 gba:items-center gba:justify-center gba:rounded gba:border gba:border-border gba:bg-background',
-                        isSelected && 'gba:border-primary/60'
-                      )}
-                    >
-                      <OptionIcon className="gba:h-3 gba:w-3" aria-hidden />
-                    </span>
-                    <span
-                      className="gba:block gba:w-full gba:truncate gba:text-center gba:text-xs gba:font-medium gba:leading-tight gba:text-foreground"
-                      title={opt.title}
-                    >
-                      {opt.title}
-                    </span>
-                  </Label>
-                </div>
-              </div>
-            )
-          })}
-        </RadioGroup>
-
-        <p
-          className="gba:border-t gba:border-border gba:pt-2 gba:text-xs gba:leading-snug gba:text-muted-foreground"
-          data-testid="budget-distribution-method-selected-description"
-        >
-          {selectedDetail?.description ?? ''}
-        </p>
+        {methodRadioGroup}
+        {selectedDescription}
       </CardContent>
     </Card>
   )

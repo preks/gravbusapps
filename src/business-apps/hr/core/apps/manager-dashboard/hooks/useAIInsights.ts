@@ -45,7 +45,7 @@ export const useAIInsights = ({ accessToken, managerId }: UseAIInsightsProps): U
         'user_input_text',
         'Give me a brief summary of my team status today. Focus on: who is on sick leave, team availability, and any upcoming important events like birthdays or anniversaries. Keep it concise and actionable.'
       )
-      form.append('llm_model', 'gpt-4.1')
+      form.append('model_kind', 'default')
       form.append('use_web_search_tool', 'false')
 
       // Add page context for manager dashboard

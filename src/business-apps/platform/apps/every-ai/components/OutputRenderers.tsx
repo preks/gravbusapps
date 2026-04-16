@@ -1110,8 +1110,8 @@ export const OutputItemRenderer: React.FC<{
             flowData.preview ||
             flowData.previewText ||
             flowData.content ||
-            flowData.contentGroupRef ||
-            flowData.contentTypeRef ||
+            flowData.contentGroup ||
+            flowData.contentTypeId ||
             flowData.role)
             ? flowData
             : null
@@ -1121,8 +1121,8 @@ export const OutputItemRenderer: React.FC<{
             taskData.preview ||
             taskData.previewText ||
             taskData.content ||
-            taskData.contentGroupRef ||
-            taskData.contentTypeRef ||
+            taskData.contentGroup ||
+            taskData.contentTypeId ||
             taskData.role)
             ? taskData
             : null
@@ -1142,9 +1142,9 @@ export const OutputItemRenderer: React.FC<{
           previewText: contentEntryData.preview ?? '', // Some forms use previewText instead of preview
           content: contentEntryData.content ?? '',
           role: contentEntryData.role ?? '',
-          contentGroupRef: contentEntryData.contentGroupRef ?? '',
-          contentTypeRef:
-            contentEntryData.contentTypeRef ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
+          contentGroup: contentEntryData.contentGroup ?? '',
+          contentTypeId:
+            contentEntryData.contentTypeId ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
           creatorEmployee: contentEntryData.creatorEmployee ?? ''
         }
 

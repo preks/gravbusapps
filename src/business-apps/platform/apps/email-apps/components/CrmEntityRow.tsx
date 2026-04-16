@@ -176,7 +176,8 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
             const result = await EmailApiService.summarizeThread(threadId)
             description = result.summary
           } else {
-            description = await EmailApiService.summarizeMessage(message.id)
+            const messageResult = await EmailApiService.summarizeMessage(message.id)
+            description = messageResult.summary
           }
         } catch {
           // Fallback to raw text

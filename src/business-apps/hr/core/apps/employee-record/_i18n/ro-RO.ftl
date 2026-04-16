@@ -298,6 +298,7 @@ notification-sick-leave-reported-success = Concediul medical a fost raportat cu 
 notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+notification-communication-deleted-success = Înregistrarea de comunicare a fost ștearsă cu succes.
 
 # Employee Record - Errors and states
 employee-record-error-title = Eroare
@@ -737,6 +738,11 @@ details-private-communication = Comunicare privată
 details-emergency-contact = Contact de urgență
 details-additional-attributes = Atribute suplimentare
 details-no-emergency-contact = Nu sunt disponibile informații despre contactul de urgență
+details-communication-no-entries = Nu există înregistrări de comunicare
+details-communication-add = Adaugă comunicare
+delete-communication-confirm-title = Șterge înregistrarea de comunicare
+delete-communication-confirm-description = Sigur doriți să ștergeți această înregistrare de comunicare? Această acțiune nu poate fi anulată.
+delete-communication-confirm-button = Șterge
 details-label-salutation = Salutare
 details-label-academic-titles = Titluri academice
 details-label-first-name = Prenume

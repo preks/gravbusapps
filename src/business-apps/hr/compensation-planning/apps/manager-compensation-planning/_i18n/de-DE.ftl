@@ -1,5 +1,5 @@
 title = Teamvergütung
-subtitle = Teamgehälter, Boni und Leistungen einsehen und vergleichen. Wählen Sie ein Unternehmen, um Ihr Team zu laden.
+subtitle = Teamgehälter, Boni und Leistungen einsehen und vergleichen.
 loading = Teamdaten werden geladen...
 
 select-company-placeholder = Unternehmen wählen…
@@ -12,6 +12,8 @@ error-performance-scores = Leistungsbewertungen für Teammitglieder konnten nich
 error-salary-budget-title = Team-Gehaltsbudget konnte nicht geladen werden
 error-title = Etwas ist schiefgelaufen
 table-section-title = Teammitglieder
+manager-team-context-card-title = Teamvergütung
+manager-team-budget-allocation-card-title = Verbleibendes Budget
 budget-summary-total-available = Verfügbares Gesamtbudget
 budget-summary-placeholder-value = -
 budget-summary-placeholder-footer = Summiert Gehaltsbudgets für die OEs Ihrer Teammitglieder im neuesten Unternehmensbudgetplan, sofern Zeilen existieren (sonst OE Ihrer Position, falls Mitglieder keine OE haben).
@@ -113,3 +115,29 @@ manager-team-save-missing-plan-ou = Für die Organisationseinheit von {$name} fe
 manager-team-save-custom-exceeds-pool = Die benutzerdefinierten Zuweisungen übersteigen den Erhöhungspool. Bitte Beträge anpassen.
 manager-team-save-error = Zuweisungen konnten nicht gespeichert werden. {$message}
 manager-team-save-error-generic = Beim Speichern ist ein Fehler aufgetreten.
+manager-team-submit-proposals = Vorschläge einreichen
+manager-team-submitting = Wird eingereicht…
+manager-team-submit-no-drafts = Speichern Sie mindestens eine Zuweisung im Budgetplan, bevor Sie einreichen. Verteilen und im Dialog speichern.
+manager-team-submit-error = Vorschläge konnten nicht eingereicht werden. {$message}
+manager-team-submit-missing-row-version = Budgetzeilen-Version für die Einreichung konnte nicht geladen werden. Seite aktualisieren und erneut versuchen.
+manager-team-proposals-readonly-hint = Die Vorschläge wurden zur Prüfung eingereicht. Bearbeitung ist deaktiviert.
+
+supervisor-review-no-auth = Sie müssen angemeldet sein, um Vorschläge zu genehmigen oder zurückzusenden.
+supervisor-review-no-submitted = Es gibt keine eingereichten Vorschläge für diese Aktion.
+supervisor-review-error-generic = Etwas ist schiefgelaufen. Bitte erneut versuchen.
+supervisor-review-card-title = Freigabe durch Vorgesetzte
+supervisor-review-loading = Vorschläge werden geladen…
+supervisor-review-submitted-count = { $count ->
+  [zero] Keine eingereichten Vorschläge zur Prüfung.
+  [one] 1 eingereichter Vorschlag zur Prüfung.
+  *[other] {$count} eingereichte Vorschläge zur Prüfung.
+}
+supervisor-review-busy = Wird ausgeführt…
+supervisor-review-approve-all = Alle genehmigen
+supervisor-review-send-back = Zurücksenden
+supervisor-review-send-back-notes-required = Bitte Notizen für das Team hinzufügen, bevor Sie zurücksenden.
+supervisor-review-send-back-title = An Team zurücksenden
+supervisor-review-send-back-placeholder = Erklären Sie, was das Team ändern soll…
+supervisor-review-send-back-cancel = Abbrechen
+supervisor-review-send-back-confirm = Zurücksenden
+supervisor-review-back-to-team = Zur Teamvergütung

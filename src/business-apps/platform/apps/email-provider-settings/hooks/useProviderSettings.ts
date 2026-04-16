@@ -9,6 +9,7 @@ export interface UseProviderSettingsResult {
   settings: AdminProviderConfig[]
   isLoading: boolean
   error: string | null
+  errorFallbackKey: string | null
   saveSettings: (data: UpsertProviderSettingsRequest) => Promise<void>
   refreshSettings: () => Promise<void>
 }
@@ -17,18 +18,25 @@ export function useProviderSettings(accessToken: string): UseProviderSettingsRes
   const [settings, setSettings] = useState<AdminProviderConfig[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorFallbackKey, setErrorFallbackKey] = useState<string | null>(null)
 
   const loadSettings = useCallback(async () => {
     if (!accessToken) return
     setIsLoading(true)
     setError(null)
+    setErrorFallbackKey(null)
 
     try {
       EmailProviderSettingsApi.setAccessToken(accessToken)
       const data = await EmailProviderSettingsApi.getAdminSettings()
       setSettings(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load settings')
+      if (err instanceof Error) {
+        setError(err.message)
+        return
+      }
+
+      setErrorFallbackKey('error-load-settings')
     } finally {
       setIsLoading(false)
     }
@@ -52,6 +60,7 @@ export function useProviderSettings(accessToken: string): UseProviderSettingsRes
     settings,
     isLoading,
     error,
+    errorFallbackKey,
     saveSettings,
     refreshSettings: loadSettings
   }

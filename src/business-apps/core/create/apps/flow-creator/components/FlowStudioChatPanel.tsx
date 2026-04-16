@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CreateChatPanel, CreateChatMessageUser, CreateChatMessageAssistant } from '@/common/components/ai-builder'
-import { MarkdownRenderer } from '@/business-apps/core/create/apps/ai-builder/pages/session-detail-page/components/MarkdownRenderer'
+import { MarkdownRenderer } from '@/business-apps/core/create/apps/screen-builder/pages/session-detail-page/components/MarkdownRenderer'
 import type { FlowStudioChatMessage } from '../types/studioTypes'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { useEmployeeAvatar } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatar'

@@ -5,7 +5,7 @@
  * Integrates with the dynamic template execution API for approval processes.
  */
 
-import { env } from '@/common/env/EnvUtils'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import type { ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 
 /**
@@ -65,7 +65,7 @@ export class DocumentApprovalService {
   constructor(accessToken: string, currentUserId: string) {
     this.accessToken = accessToken
     this.currentUserId = currentUserId
-    this.baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+    this.baseUrl = CUSTOM_FLOW_ENGINE_API_URL
   }
 
   /**
@@ -153,7 +153,7 @@ export class DocumentApprovalService {
 
       // Create individual workflows for each approver
       for (const approverId of config.approvers) {
-        const response = await fetch(`${this.baseUrl}/api/templates/execute-dynamic`, {
+        const response = await fetch(`${this.baseUrl}/templates/execute-dynamic`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -239,7 +239,7 @@ export class DocumentApprovalService {
 
     try {
       // Use /api/flows endpoint (not /api/workflows)
-      const response = await fetch(`${this.baseUrl}/api/flows/${workflowId}/cancel`, {
+      const response = await fetch(`${this.baseUrl}/flows/${workflowId}/cancel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +270,7 @@ export class DocumentApprovalService {
   async getApprovalStatus(workflowId: string): Promise<'pending' | 'approved' | 'rejected' | 'cancelled' | null> {
     try {
       // Use /api/flows endpoint (not /api/workflows)
-      const response = await fetch(`${this.baseUrl}/api/flows/${workflowId}`, {
+      const response = await fetch(`${this.baseUrl}/flows/${workflowId}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -318,7 +318,7 @@ export class DocumentApprovalService {
   } | null> {
     try {
       // Use /api/flows endpoint (not /api/workflows)
-      const response = await fetch(`${this.baseUrl}/api/flows/${workflowId}`, {
+      const response = await fetch(`${this.baseUrl}/flows/${workflowId}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
