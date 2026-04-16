@@ -13,6 +13,7 @@ import {
   RawFeedback,
   RawAbsence
 } from '../types/flightRisk.types'
+import { getTrackState } from '../../employee-record/components/tabs/performance-evaluation/utils/performanceGoalsSummary'
 
 // Signal weights - configurable based on organization preferences
 export const SIGNAL_WEIGHTS: Record<SignalCategory, number> = {
@@ -72,6 +73,10 @@ export const getTenureRiskDescription = (tenureMonths: number): string => {
  * Calculate performance trajectory risk score
  * Analyzes goal progress trends over time
  */
+const isGoalBehindTarget = (goal: RawPerformanceGoal): boolean => {
+  return goal.status === 'AT_RISK' || goal.status === 'BEHIND_TARGET' || getTrackState(goal) === 'BEHIND_TARGET'
+}
+
 const getPerformanceRiskAssessment = (goals: RawPerformanceGoal[]): { score: number; description: string } => {
   if (goals.length === 0) {
     return {
@@ -91,7 +96,7 @@ const getPerformanceRiskAssessment = (goals: RawPerformanceGoal[]): { score: num
     }
   }
 
-  const behindCount = activeGoals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'AT_RISK').length
+  const behindCount = activeGoals.filter(isGoalBehindTarget).length
   const avgProgress = activeGoals.reduce((sum, g) => sum + (g.progressPercent || 0), 0) / activeGoals.length
   const progressRisk = 100 - avgProgress
   const statusRisk = (behindCount / activeGoals.length) * 100
@@ -99,7 +104,7 @@ const getPerformanceRiskAssessment = (goals: RawPerformanceGoal[]): { score: num
 
   return {
     score,
-    description: `Progress risk ${Math.round(progressRisk)}% from avg progress ${Math.round(avgProgress)}%; status risk ${Math.round(statusRisk)}% (${behindCount}/${activeGoals.length} active goals behind target).`
+    description: `Progress risk ${Math.round(progressRisk)}% from avg progress ${Math.round(avgProgress)}%; status risk ${Math.round(statusRisk)}% (${behindCount}/${activeGoals.length} active goals behind target or at risk).`
   }
 }
 

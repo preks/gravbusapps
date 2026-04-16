@@ -67,6 +67,17 @@ describe('flightRiskCalculations', () => {
     expect(getPerformanceRiskDescription(goals)).toContain('status risk 50%')
   })
 
+  it('treats overdue low-progress goals as behind target even when stored status is on track', () => {
+    const goals = [
+      buildGoal({ id: 'goal-1', progressPercent: 80, status: 'ON_TRACK' }),
+      buildGoal({ id: 'goal-2', progressPercent: 10, status: 'ON_TRACK' })
+    ]
+
+    expect(calculatePerformanceRiskScore(goals)).toBe(53)
+    expect(getPerformanceRiskDescription(goals)).toContain('status risk 50%')
+    expect(getPerformanceRiskDescription(goals)).toContain('1/2 active goals behind target or at risk')
+  })
+
   it('uses tenure when no manager feedback exists', () => {
     expect(calculateEngagementRiskScore([], [], 4)).toBe(20)
     expect(calculateEngagementRiskScore([], [], 8)).toBe(80)
