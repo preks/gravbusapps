@@ -18,7 +18,8 @@ import type {
 } from '../types/automation'
 import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
-import { CUSTOM_FLOW_ENGINE_API_URL, DOCUMENT_API_URL } from '@/common/utils/serviceResolver'
+import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 import { getSpreadsheetBasePath } from '../utils/spreadsheetPaths'
 import { fetchBulkCollectionEntitySelectOptions } from '../utils/entitySelectOptionsResolver'
 
@@ -520,7 +521,7 @@ export class SpreadsheetAutomationService {
     options?: { persistMode?: 'upsert' | 'create-only' }
   ): Promise<string | null> {
     const persistMode = options?.persistMode ?? 'upsert'
-    const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
+    const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
     const spreadsheetAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
 
     const backendCandidate =
@@ -599,7 +600,7 @@ export class SpreadsheetAutomationService {
     const { automation, recipients } = params
     const executedAt = new Date().toISOString()
 
-    const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
+    const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
 
     let backendId: string
     try {
@@ -649,7 +650,7 @@ export class SpreadsheetAutomationService {
         return {
           success: false,
           error: isTemplateMissing
-            ? 'Template spreadsheet not found. If using a local document-service, ensure the spreadsheet app exists there. Check NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL.'
+            ? 'Template spreadsheet not found. Ensure the spreadsheet app is available through spreadsheet-service.'
             : errorMessage,
           workflows: [],
           executedAt,
@@ -1802,8 +1803,12 @@ export class SpreadsheetAutomationService {
     }>
   > {
     try {
-      // Document-service lists flows and filters by tags (supports bulk_collection + excel_collection).
-      const aggregateUrl = `${DOCUMENT_API_URL.replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
+      // For excel_collection, use spreadsheet-service (which proxies aggregate-bulk).
+      // Flow engine does not have this endpoint (returns 404).
+      const aggregateUrl =
+        params.automationType === 'excel_collection'
+          ? `${getSpreadsheetServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
+          : `${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk`
 
       const queryParams = new URLSearchParams({
         spreadsheetId: params.spreadsheetId,
@@ -2422,7 +2427,7 @@ export class SpreadsheetAutomationService {
 
   private async markDocumentRunSubmissionComplete(copyAppId: string): Promise<boolean> {
     try {
-      const docBase = DOCUMENT_API_URL.replace(/\/+$/, '')
+      const docBase = getSpreadsheetServiceApiUrl().replace(/\/+$/, '')
       const markRes = await fetch(`${docBase}/automations/runs/submissions/complete`, {
         method: 'POST',
         headers: {

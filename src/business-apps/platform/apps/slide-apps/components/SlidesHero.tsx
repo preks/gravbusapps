@@ -7,7 +7,7 @@ import { Presentation, ChevronRight, Layers } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-export type SlideSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'archived'
+export type SlideSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'trash'
 
 interface SectionTab {
   id: SlideSection
@@ -19,7 +19,7 @@ const SECTION_TABS: SectionTab[] = [
   { id: 'shared', labelKey: 'slh-tab-shared' },
   { id: 'favorites', labelKey: 'slh-tab-favorites' },
   { id: 'recent', labelKey: 'slh-tab-recent' },
-  { id: 'archived', labelKey: 'slh-tab-archived' }
+  { id: 'trash', labelKey: 'slh-tab-trash' }
 ]
 
 export interface SlidesHeroProps {

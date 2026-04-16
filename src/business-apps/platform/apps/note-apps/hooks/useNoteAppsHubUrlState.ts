@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
-type HubView = 'list' | 'editor'
-type SidebarSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'archived'
+type HubView = 'list' | 'editor' | 'trash'
+type SidebarSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'trash'
 
 export interface UseNoteAppsHubUrlStateParams {
   currentView: HubView
   currentNoteId: string | null
   isLoadingNote: boolean
-  loadNoteById: (id: string) => Promise<unknown | null>
+  loadNoteById: (id: string) => Promise<{ trashedAt?: string | null } | null>
   setCurrentView: (view: HubView) => void
   setSelectedNoteId: (id: string | null) => void
   activeSection: SidebarSection
@@ -18,7 +18,7 @@ export interface UseNoteAppsHubUrlStateParams {
 }
 
 export interface UseNoteAppsHubUrlStateReturn {
-  updateUrl: (noteId: string | null, view?: HubView) => void
+  updateUrl: (noteId: string | null, view?: HubView, sectionOverride?: SidebarSection | null) => void
   resetLoadAttempt: () => void
   initialParentId: string | null
 }
@@ -58,8 +58,9 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
   const initialParentId = initialUrlParams.current.parentId
 
   const updateUrl = useCallback(
-    (noteId: string | null, view?: HubView) => {
+    (noteId: string | null, view?: HubView, sectionOverride?: SidebarSection | null) => {
       const urlParams = new URLSearchParams(window.location.search)
+      const nextSection = sectionOverride === undefined ? activeSection : sectionOverride
       if (noteId) {
         urlParams.set('noteId', noteId)
         if (view) urlParams.set('view', view)
@@ -67,8 +68,8 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
         urlParams.delete('noteId')
         urlParams.delete('view')
       }
-      if (activeSection && activeSection !== 'my-notes') {
-        urlParams.set('section', activeSection)
+      if (nextSection && nextSection !== 'my-notes') {
+        urlParams.set('section', nextSection)
       } else {
         urlParams.delete('section')
       }
@@ -80,7 +81,11 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
       const newUrl = urlParams.toString()
         ? `${window.location.pathname}?${urlParams.toString()}`
         : window.location.pathname
-      window.history.pushState({ noteId, view, section: activeSection, parentId: params.treeParentId }, '', newUrl)
+      window.history.pushState(
+        { noteId, view, section: nextSection ?? undefined, parentId: params.treeParentId },
+        '',
+        newUrl
+      )
     },
     [activeSection, params.treeParentId]
   )
@@ -91,9 +96,14 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
 
   // Restore section from URL on mount
   useEffect(() => {
-    const { section } = getUrlParams()
+    const { section, view } = getUrlParams()
     if (section && section !== activeSection) {
       setActiveSection(section)
+      return
+    }
+
+    if (!section && view === 'trash' && activeSection !== 'trash') {
+      setActiveSection('trash')
     }
   }, []) // Run only on mount
 
@@ -111,6 +121,19 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
     loadAttemptedRef.current = noteId
     initialNoteIdRef.current = null
     initialViewRef.current = null
+    if (view === 'trash') {
+      loadNoteById(noteId).then(note => {
+        if (!note) {
+          loadAttemptedRef.current = null
+          return
+        }
+
+        setSelectedNoteId(noteId)
+        setCurrentView(note.trashedAt ? 'trash' : 'editor')
+      })
+      return
+    }
+
     loadNoteById(noteId).then(note => {
       if (!note) {
         loadAttemptedRef.current = null
@@ -176,6 +199,8 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
       // Restore section if present
       if (state?.section) {
         setActiveSection(state.section)
+      } else if (state?.view === 'trash') {
+        setActiveSection('trash')
       }
 
       if (state?.fromDesk && !state?.noteId && currentView === 'list') {
@@ -184,6 +209,15 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
       }
 
       if (state?.noteId) {
+        if (state.view === 'trash') {
+          loadNoteById(state.noteId).then(note => {
+            if (!note) return
+            setSelectedNoteId(state.noteId!)
+            setCurrentView(note.trashedAt ? 'trash' : 'editor')
+          })
+          return
+        }
+
         loadNoteById(state.noteId).then(note => {
           if (!note) return
           setSelectedNoteId(state.noteId!)

@@ -121,6 +121,12 @@ function normalizeColumnToken(value: string): string {
   return value.toLowerCase()
 }
 
+function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
+  return Array.from(
+    new Set([row._id, row.id, row._rowUuid].map(value => (typeof value === 'string' ? value : '')).filter(Boolean))
+  )
+}
+
 function isAvatarColumn(column: SpreadsheetColumn): boolean {
   const normalizedName = normalizeColumnToken(String(column.name || ''))
   const normalizedId = normalizeColumnToken(String(column.id || ''))
@@ -756,28 +762,13 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
-    const idField = row._id ?? row.id
-    let primaryRowId: string
-    if (idField != null) {
-      const s = typeof idField === 'number' ? String(idField) : String(idField)
-      primaryRowId = s || `row_${index}`
-    } else if (typeof row._rowUuid === 'string' && row._rowUuid) {
-      primaryRowId = row._rowUuid
-    } else {
-      primaryRowId = `row_${index}`
-    }
-    rowIndexToId.set(index, primaryRowId)
-    const aliasKeys = new Set<string>()
-    aliasKeys.add(primaryRowId)
-    aliasKeys.add(`row_${index}`)
-    for (const v of [row._id, row.id, row._rowUuid]) {
-      if (v == null) continue
-      const s = String(v)
-      if (s) aliasKeys.add(s)
-    }
-    for (const k of aliasKeys) {
-      rowIdToIndex.set(k, index)
-    }
+    const candidateRowIds = getRowIdentityCandidates(row)
+    const canonicalRowId = candidateRowIds[0] || `row_${index}`
+    candidateRowIds.forEach(rowId => {
+      rowIdToIndex.set(rowId, index)
+    })
+    rowIdToIndex.set(canonicalRowId, index)
+    rowIndexToId.set(index, canonicalRowId)
   })
   return {
     columnIdToIndex,
@@ -788,6 +779,18 @@ export function createUniverConversionContext(
     excelColToIndex,
     indexToExcelCol
   }
+}
+
+export function overlaySparseRowIndexMappings(
+  ctx: ConversionContext,
+  sparseRowMappings: Array<{ rowIndex: number; rowId: string }>
+): ConversionContext {
+  sparseRowMappings.forEach(({ rowIndex, rowId }) => {
+    if (!Number.isFinite(rowIndex) || rowIndex < 0 || !rowId) return
+    ctx.rowIndexToId.set(rowIndex, rowId)
+    ctx.rowIdToIndex.set(rowId, rowIndex)
+  })
+  return ctx
 }
 
 /**

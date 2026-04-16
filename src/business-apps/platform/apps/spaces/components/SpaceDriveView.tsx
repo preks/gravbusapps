@@ -14,8 +14,9 @@ import { SpaceContent } from './SpaceContent'
 import { SpaceFolderNameDialog } from './SpaceFolderNameDialog'
 import { MoveToFolderDialog } from './MoveToFolderDialog'
 import { useSpaceFolders } from '../hooks/useSpaceFolders'
-import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { AlertTriangle, HardDrive } from 'lucide-react'
+import translations from '../_i18n'
 
 export interface SpaceDriveViewProps {
   spaceId: string
@@ -42,6 +43,7 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
   onRemoveContent,
   'data-testid': testId = 'space-drive-view'
 }) => {
+  const { t } = useTranslation(translations)
   const { folders, createFolder, updateFolder, deleteFolder, isSupported, error } = useSpaceFolders(
     spaceId,
     accessToken,
@@ -96,14 +98,18 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
     async (folderId: string) => {
       if (!canEdit) return
       const folder = folderById.get(folderId)
-      const ok = confirm(`Delete folder "${folder?.name ?? 'Folder'}"? Items will move to the parent/root.`)
+      const ok = confirm(
+        t('folder-delete-confirm', {
+          name: folder?.name ?? t('common-folder')
+        })
+      )
       if (!ok) return
       const success = await deleteFolder(folderId)
       if (success && selectedFolderId === folderId) {
         setSelectedFolderId(null)
       }
     },
-    [canEdit, deleteFolder, folderById, selectedFolderId]
+    [canEdit, deleteFolder, folderById, selectedFolderId, t]
   )
 
   const handleMoveToFolderClick = useCallback(
@@ -125,9 +131,9 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
   )
 
   const currentFolderName = useMemo(() => {
-    if (!selectedFolderId) return 'Root directory'
-    return folderById.get(selectedFolderId)?.name ?? 'Folder'
-  }, [folderById, selectedFolderId])
+    if (!selectedFolderId) return t('common-root-directory')
+    return folderById.get(selectedFolderId)?.name ?? t('common-folder')
+  }, [folderById, selectedFolderId, t])
 
   const itemCount = visibleItems.length
   const folderCount = folders.filter(f => (f.parentId ?? null) === selectedFolderId).length
@@ -155,10 +161,7 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
           {!isSupported && (
             <Alert className="gba:mb-4" data-testid={`${testId}-folders-not-supported`}>
               <AlertTriangle className="gba:h-4 gba:w-4" />
-              <AlertDescription>
-                Folders are not available on the backend instance you're connected to yet. Once the updated
-                document-service is running (with migrations applied), folders will work here.
-              </AlertDescription>
+              <AlertDescription>{t('drive-not-supported')}</AlertDescription>
             </Alert>
           )}
           {isSupported && error && (
@@ -179,10 +182,10 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
                     {currentFolderName}
                   </h2>
                   <p className="gba:text-xs gba:text-muted-foreground">
-                    {folderCount > 0 && `${folderCount} folder${folderCount !== 1 ? 's' : ''}`}
+                    {folderCount > 0 && t('common-folder-count', { count: folderCount })}
                     {folderCount > 0 && itemCount > 0 && ' · '}
-                    {itemCount > 0 && `${itemCount} item${itemCount !== 1 ? 's' : ''}`}
-                    {itemCount === 0 && folderCount === 0 && 'Empty'}
+                    {itemCount > 0 && t('common-item-count', { count: itemCount })}
+                    {itemCount === 0 && folderCount === 0 && t('common-empty')}
                   </p>
                 </div>
               </div>
@@ -227,9 +230,9 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
       <SpaceFolderNameDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        title="New folder"
-        description={createParentId ? 'Create a subfolder' : 'Create a folder in the drive root'}
-        confirmLabel="Create"
+        title={t('folder-create-title')}
+        description={createParentId ? t('folder-create-description-subfolder') : t('folder-create-description-root')}
+        confirmLabel={t('common-create')}
         onConfirm={async name => {
           await createFolder({ name, ...(createParentId ? { parentId: createParentId } : {}) })
         }}
@@ -240,9 +243,9 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
       <SpaceFolderNameDialog
         open={renameDialogOpen}
         onOpenChange={setRenameDialogOpen}
-        title="Rename folder"
+        title={t('folder-rename-title')}
         initialName={renameFolderId ? (folderById.get(renameFolderId)?.name ?? '') : ''}
-        confirmLabel="Rename"
+        confirmLabel={t('common-rename')}
         onConfirm={async name => {
           if (!renameFolderId) return
           await updateFolder(renameFolderId, { name })
@@ -263,8 +266,8 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
             moveItems.length === 1
               ? moveItems[0].title
                 ? `"${moveItems[0].title}"`
-                : 'this item'
-              : `${moveItems.length} items`
+                : t('common-this-item')
+              : t('common-item-count', { count: moveItems.length })
           }
           onMove={async folderId => {
             // Move all selected items

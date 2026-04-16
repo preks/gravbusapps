@@ -139,6 +139,8 @@ export interface SlideEditorProps extends BusinessAppContextProps {
   slide: SlideType
   onBack: () => void
   onSlideUpdated?: (slide: SlideType) => void
+  isReadOnly?: boolean
+  isTrashedSlide?: boolean
   /** Initial template to apply when editor loads (for "Create from Template" flow) */
   initialTemplate?: {
     slides: SlideData[]
@@ -177,11 +179,31 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
   }
 }
 
+function normalizeSlideData(slide: Partial<SlideData> | undefined, fallbackId: string): SlideData {
+  return {
+    id: slide?.id || fallbackId,
+    notes: slide?.notes || '',
+    elements: Array.isArray(slide?.elements) ? slide.elements : [],
+    background: slide?.background || { type: 'solid', color: '#ffffff' },
+    ...(slide?.transition ? { transition: slide.transition } : {})
+  }
+}
+
+function normalizeSlidesData(slides: Partial<SlideData>[] | undefined, fallbackSlide: SlideData): SlideData[] {
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return [fallbackSlide]
+  }
+
+  return slides.map((slide, index) => normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`))
+}
+
 export const SlideEditor: React.FC<SlideEditorProps> = ({
   slideId,
   slide,
   onBack,
   onSlideUpdated,
+  isReadOnly = false,
+  isTrashedSlide = false,
   accessToken,
   userInfo,
   initialTemplate,
@@ -230,10 +252,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const graphqlClient = useGraphQLClient(accessToken || '')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
+  const collaborationEnabled = Boolean(slideId) && !isTrashedSlide
 
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
-    () => (slide.contentJson?.slides as SlideData[] | undefined) || [defaultSlide],
+    () => normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide),
     [slide.id, defaultSlide]
   )
   const initialThemeId = useMemo(
@@ -272,12 +295,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     currentUserId,
     currentUserName,
     currentUserAvatar,
-    enabled: !!slideId,
+    enabled: collaborationEnabled,
     initialSlides,
     initialThemeId,
     onSynced: handleSynced,
     onLocalDocumentChange: scheduleSnapshotSave
   })
+
+  const editorIsSynced = collaborationEnabled ? isSynced : true
+  const editorIsInitialized = collaborationEnabled ? isInitialized : true
 
   // Sync collaborative masters to local state
   useEffect(() => {
@@ -535,7 +561,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
-    return collaborativeSlides?.length ? collaborativeSlides : [defaultSlide]
+    return normalizeSlidesData(collaborativeSlides, defaultSlide)
   }, [collaborativeSlides, defaultSlide])
 
   // AI Assist - Effect Manager
@@ -670,12 +696,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
-  // Ensure elements array always exists
-  const currentSlide: SlideData = {
-    ...currentSlideRaw,
-    elements: currentSlideRaw.elements || [],
-    background: currentSlideRaw.background || { type: 'solid', color: '#ffffff' }
-  }
+  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
@@ -713,8 +734,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     latestThemeIdRef.current = collaborativeThemeId
   }, [collaborativeThemeId])
   useEffect(() => {
-    canSnapshotSaveRef.current = isSynced && isInitialized
-  }, [isSynced, isInitialized])
+    canSnapshotSaveRef.current = collaborationEnabled && isSynced && isInitialized
+  }, [collaborationEnabled, isSynced, isInitialized])
 
   // Cancel pending snapshot save and release cached Object URLs on unmount
   useEffect(() => {
@@ -729,13 +750,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Set initial save time when collaboration syncs
   useEffect(() => {
-    if (isSynced && !lastSaveTime) {
+    if (editorIsSynced && !lastSaveTime) {
       setLastSaveTime(new Date())
     }
-  }, [isSynced, lastSaveTime])
+  }, [editorIsSynced, lastSaveTime])
 
   const handleSave = useCallback(
     async (silent = false) => {
+      if (isReadOnly) return
       if (!silent) setIsSaving(true)
       try {
         const contentJson: Record<string, unknown> = { slides, themeId: collaborativeThemeId }
@@ -752,10 +774,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         if (!silent) setIsSaving(false)
       }
     },
-    [slideId, slides, collaborativeThemeId, t]
+    [isReadOnly, slideId, slides, collaborativeThemeId, t]
   )
 
-  const canEdit = isSynced && isInitialized
+  const canEdit = !isReadOnly && editorIsSynced && editorIsInitialized
 
   // Spell check hook for presentation-wide grammar/spelling checks
   const spellCheck = useSlideSpellCheck(slides, {
@@ -1264,6 +1286,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const deleteSlide = useCallback(() => {
+    if (!canEdit) return
     const indicesToDelete =
       selectedSlideIndices.size > 1 ? Array.from(selectedSlideIndices).sort((a, b) => b - a) : [currentSlideIndex]
 
@@ -1289,9 +1312,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(
       count > 1 ? t('editor-slides-deleted', { count }) || `${count} slides deleted` : t('editor-slide-deleted')
     )
-  }, [slides, currentSlideIndex, selectedSlideIndices, isSynced, updateCollaborativeSlides, t])
+  }, [canEdit, slides, currentSlideIndex, selectedSlideIndices, isSynced, updateCollaborativeSlides, t])
 
   const duplicateSlide = useCallback(() => {
+    if (!canEdit) return
     const indicesToDuplicate =
       selectedSlideIndices.size > 1 ? Array.from(selectedSlideIndices).sort((a, b) => a - b) : [currentSlideIndex]
 
@@ -1326,7 +1350,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(
       count > 1 ? t('toast-slides-duplicated', { count }) || `${count} slides duplicated` : t('toast-slide-duplicated')
     )
-  }, [slides, currentSlideIndex, selectedSlideIndices, isSynced, updateCollaborativeSlides, t])
+  }, [canEdit, slides, currentSlideIndex, selectedSlideIndices, isSynced, updateCollaborativeSlides, t])
 
   // Reorder slides via drag and drop
   const reorderSlides = useCallback(
@@ -1354,7 +1378,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Handle AI-generated slides
   const handleGeneratedSlides = useCallback(
     (generatedSlides: SlideData[], title: string, matchedTemplate?: { id: string; name: string; themeId?: string }) => {
-      if (!isSynced || generatedSlides.length === 0) return
+      if (!canEdit || !isSynced || generatedSlides.length === 0) return
 
       // Replace all slides with generated ones
       updateCollaborativeSlides(generatedSlides)
@@ -1377,13 +1401,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         })
       }
     },
-    [isSynced, updateCollaborativeSlides, updateCollaborativeTheme, presentationTitle, slideId, t]
+    [canEdit, isSynced, updateCollaborativeSlides, updateCollaborativeTheme, presentationTitle, slideId, t]
   )
 
   // Handle AI-refined slide
   const handleRefineSlide = useCallback(
     (refinedSlide: SlideData) => {
-      if (!isSynced) return
+      if (!canEdit || !isSynced) return
 
       // Keep the original slide ID when updating
       const updatedSlide = { ...refinedSlide, id: currentSlide.id }
@@ -1391,13 +1415,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setSelectedElementIds(new Set())
       toast.success(t('editor-slide-refined') || 'Slide refined')
     },
-    [isSynced, currentSlide.id, currentSlideIndex, updateCollaborativeSlide, t]
+    [canEdit, isSynced, currentSlide.id, currentSlideIndex, updateCollaborativeSlide, t]
   )
 
   // Handle template application
   const handleApplyTemplate = useCallback(
     (templateSlides: SlideData[], themeId: string, templateMasters?: SlideMaster[]) => {
-      if (!isSynced || templateSlides.length === 0) return
+      if (!canEdit || !isSynced || templateSlides.length === 0) return
 
       // Generate new IDs for template slides to avoid conflicts
       const slidesWithNewIds = templateSlides.map(slide => ({
@@ -1426,12 +1450,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setCurrentSlideIndex(slides.length)
       setSelectedElementIds(new Set())
     },
-    [isSynced, slides, updateCollaborativeSlides, updateCollaborativeTheme, updateCollaborativeMasters]
+    [canEdit, isSynced, slides, updateCollaborativeSlides, updateCollaborativeTheme, updateCollaborativeMasters]
   )
 
   // Handle image upload
   const handleImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!canEdit) return
       const file = e.target.files?.[0]
       if (!file) return
 
@@ -1449,10 +1474,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setShowImageDialog(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     },
-    [addElement]
+    [addElement, canEdit]
   )
 
   const handleImageUrl = useCallback(() => {
+    if (!canEdit) return
     if (!imageUrl.trim()) return
     addElement(
       createImageElement(imageUrl, {
@@ -1462,11 +1488,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     )
     setImageUrl('')
     setShowImageDialog(false)
-  }, [imageUrl, addElement])
+  }, [imageUrl, addElement, canEdit])
 
   // Handle video upload
   const handleVideoUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!canEdit) return
       const file = e.target.files?.[0]
       if (!file) return
 
@@ -1484,10 +1511,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setShowVideoDialog(false)
       if (videoInputRef.current) videoInputRef.current.value = ''
     },
-    [addElement]
+    [addElement, canEdit]
   )
 
   const handleVideoUrl = useCallback(() => {
+    if (!canEdit) return
     if (!videoUrl.trim()) return
     addElement(
       createVideoElement(videoUrl, {
@@ -1497,7 +1525,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     )
     setVideoUrl('')
     setShowVideoDialog(false)
-  }, [videoUrl, addElement])
+  }, [videoUrl, addElement, canEdit])
 
   const handleVideoBackground = useCallback(
     (url: string) => {
@@ -1539,9 +1567,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   // Text editing
-  const handleEditText = useCallback((id: string) => {
-    setEditingTextId(id)
-  }, [])
+  const handleEditText = useCallback(
+    (id: string) => {
+      if (!canEdit) return
+      setEditingTextId(id)
+    },
+    [canEdit]
+  )
 
   const handleTextChange = useCallback(
     (valueOrEvent: string | React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1579,6 +1611,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Rename presentation
   const handleRename = useCallback(async () => {
+    if (isReadOnly) return
     if (!newTitle.trim()) {
       toast.error(t('editor-title-empty'))
       return
@@ -1595,12 +1628,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       console.error('[SlideEditor] Rename error:', err)
       toast.error(t('editor-rename-failed'))
     }
-  }, [slideId, newTitle, slide, onSlideUpdated, t])
+  }, [isReadOnly, slideId, newTitle, slide, onSlideUpdated, t])
 
   const openRenameDialog = useCallback(() => {
+    if (isReadOnly) return
     setNewTitle(presentationTitle)
     setShowRenameDialog(true)
-  }, [presentationTitle])
+  }, [isReadOnly, presentationTitle])
 
   const getExistingLinkUrl = useCallback((): string | undefined => {
     if (!selectedElement || selectedElement.type !== 'text') return undefined
@@ -2071,6 +2105,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <div className="gba:flex gba:flex-col">
                   <button
                     onClick={openRenameDialog}
+                    disabled={isReadOnly}
                     className="gba:flex gba:items-center gba:gap-2 gba:group gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left"
                     title={t('editor-click-to-rename')}
                   >
@@ -2089,7 +2124,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
 
             {/* Collaboration presence indicator */}
-            {participantsWithAvatars.length > 0 && (
+            {!isReadOnly && participantsWithAvatars.length > 0 && (
               <>
                 <Separator orientation="vertical" className="gba:h-6" />
                 <PresenceIndicator participants={participantsWithAvatars} maxVisible={3} size="sm" showLabel={false} />
@@ -2101,25 +2136,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
             {/* Right-aligned header controls */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-              <SlideEditorHeaderActions
-                slideId={slideId}
-                slideTitle={presentationTitle}
-                accessToken={accessToken}
-                currentUserId={currentUserId}
-                currentUserName={currentUserName}
-                applyContentJsonSnapshot={contentJson => {
-                  applyContentJsonSnapshot(contentJson)
-                }}
-                data-testid={`${testId}-header-actions`}
-              />
+              {!isReadOnly ? (
+                <>
+                  <SlideEditorHeaderActions
+                    slideId={slideId}
+                    slideTitle={presentationTitle}
+                    accessToken={accessToken}
+                    currentUserId={currentUserId}
+                    currentUserName={currentUserName}
+                    applyContentJsonSnapshot={contentJson => {
+                      applyContentJsonSnapshot(contentJson)
+                    }}
+                    data-testid={`${testId}-header-actions`}
+                  />
 
-              <Separator orientation="vertical" className="gba:h-6" />
+                  <Separator orientation="vertical" className="gba:h-6" />
+                </>
+              ) : null}
 
               {/* Auto-save status - consistent with document-apps */}
               <AutoSaveIndicator
                 isSaving={isSaving}
                 lastSaveTime={lastSaveTime}
-                hasUnsavedChanges={!isSynced}
+                hasUnsavedChanges={!editorIsSynced}
                 data-testid={`${testId}-auto-save`}
               />
 
@@ -2194,67 +2233,69 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       </div>
 
       {/* Ribbon Toolbar */}
-      <SlideToolbarRibbon
-        context={toolbarContext}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        hasClipboardContent={clipboard !== null}
-        isSynced={isSynced}
-        currentTheme={currentTheme}
-        showSpellCheckPanel={showSpellCheckPanel}
-        spellCheckIssueCount={spellCheck.totalIssues}
-        spellCheckIsChecking={spellCheck.isChecking}
-        showNotesPanel={showNotesPanel}
-        isCastConnected={isCastConnected}
-        isCastConnecting={castConnectionState === 'connecting'}
-        slides={slides}
-        currentSlide={currentSlide}
-        accessToken={accessToken}
-        onUndo={undo}
-        onRedo={redo}
-        onCopy={copyElement}
-        onPaste={pasteElement}
-        onAddElement={addElement}
-        onUpdateElement={updateElement}
-        onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
-        onShowImageDialog={() => setShowImageDialog(true)}
-        onShowVideoDialog={() => setShowVideoDialog(true)}
-        onShowLinkDialog={() => setShowLinkDialog(true)}
-        onUpdateTheme={handleUpdateTheme}
-        onToggleSpellCheck={() => {
-          if (!showSpellCheckPanel) {
-            setShowSpellCheckPanel(true)
-            spellCheck.checkAllSlides()
-          } else {
-            setShowSpellCheckPanel(false)
-          }
-        }}
-        onApplyTemplate={handleApplyTemplate}
-        onPresent={() => {
-          setIsPresentMode(true)
-          document.documentElement.requestFullscreen?.().catch(() => {})
-        }}
-        onPresenterView={() => setPresenterMode(true)}
-        onPresentInWindow={handleStartWindowPresent}
-        onCastToDisplay={handleStartCast}
-        onToggleNotes={() => setShowNotesPanel(!showNotesPanel)}
-        onShowTransitions={() => {
-          // Select the current slide in the property panel to show transitions
-          setShowPropertyPanel(true)
-        }}
-        onSaveNow={() => handleSave(false)}
-        onExportPptx={handleExportToPptx}
-        onExportPdf={() => setShowPdfExportDialog(true)}
-        onRefineSlide={handleRefineSlide}
-        onGenerateSlides={handleGeneratedSlides}
-        onOpenMasterView={() => setEditorView('master')}
-        masters={masters}
-        onChangeLayout={handleChangeLayout}
-        data-testid={`${testId}-toolbar`}
-      />
+      {!isReadOnly ? (
+        <SlideToolbarRibbon
+          context={toolbarContext}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          hasClipboardContent={clipboard !== null}
+          isSynced={editorIsSynced}
+          currentTheme={currentTheme}
+          showSpellCheckPanel={showSpellCheckPanel}
+          spellCheckIssueCount={spellCheck.totalIssues}
+          spellCheckIsChecking={spellCheck.isChecking}
+          showNotesPanel={showNotesPanel}
+          isCastConnected={isCastConnected}
+          isCastConnecting={castConnectionState === 'connecting'}
+          slides={slides}
+          currentSlide={currentSlide}
+          accessToken={accessToken}
+          onUndo={undo}
+          onRedo={redo}
+          onCopy={copyElement}
+          onPaste={pasteElement}
+          onAddElement={addElement}
+          onUpdateElement={updateElement}
+          onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
+          onShowImageDialog={() => setShowImageDialog(true)}
+          onShowVideoDialog={() => setShowVideoDialog(true)}
+          onShowLinkDialog={() => setShowLinkDialog(true)}
+          onUpdateTheme={handleUpdateTheme}
+          onToggleSpellCheck={() => {
+            if (!showSpellCheckPanel) {
+              setShowSpellCheckPanel(true)
+              spellCheck.checkAllSlides()
+            } else {
+              setShowSpellCheckPanel(false)
+            }
+          }}
+          onApplyTemplate={handleApplyTemplate}
+          onPresent={() => {
+            setIsPresentMode(true)
+            document.documentElement.requestFullscreen?.().catch(() => {})
+          }}
+          onPresenterView={() => setPresenterMode(true)}
+          onPresentInWindow={handleStartWindowPresent}
+          onCastToDisplay={handleStartCast}
+          onToggleNotes={() => setShowNotesPanel(!showNotesPanel)}
+          onShowTransitions={() => {
+            // Select the current slide in the property panel to show transitions
+            setShowPropertyPanel(true)
+          }}
+          onSaveNow={() => handleSave(false)}
+          onExportPptx={handleExportToPptx}
+          onExportPdf={() => setShowPdfExportDialog(true)}
+          onRefineSlide={handleRefineSlide}
+          onGenerateSlides={handleGeneratedSlides}
+          onOpenMasterView={() => setEditorView('master')}
+          masters={masters}
+          onChangeLayout={handleChangeLayout}
+          data-testid={`${testId}-toolbar`}
+        />
+      ) : null}
 
       {/* Property Panel Toggle - only show when panel is hidden */}
-      {!showPropertyPanel && (
+      {!isReadOnly && !showPropertyPanel && (
         <div className="gba:flex gba:items-center gba:justify-end gba:px-4 gba:py-1 gba:border-b gba:bg-card">
           <Button
             variant="ghost"
@@ -2400,37 +2441,41 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   {selectedSlideIndices.size} {t('editor-slides-selected') || 'slides selected'}
                 </div>
               )}
-              <SlideLayoutPicker
-                masters={masters}
-                currentTheme={currentTheme}
-                onSelectLayout={addSlideWithLayout}
-                onDuplicateSlide={duplicateSlide}
-                lastUsedLayoutId={lastUsedLayoutId}
-                data-testid={`${testId}-add-slide-btn`}
-              />
-              <div className="gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:border gba:bg-muted/30 gba:p-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={duplicateSlide}
-                  title={t('editor-duplicate-slide')}
-                  className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background"
-                  data-testid={`${testId}-duplicate-slide-btn`}
-                >
-                  <CopyPlus className="gba:w-4 gba:h-4" />
-                </Button>
-                <div className="gba:w-px gba:h-5 gba:bg-border" />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={deleteSlide}
-                  title={t('editor-delete-slide')}
-                  className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-destructive hover:gba:bg-destructive/10"
-                  data-testid={`${testId}-delete-slide-btn`}
-                >
-                  <Trash2 className="gba:w-4 gba:h-4" />
-                </Button>
-              </div>
+              {!isReadOnly ? (
+                <>
+                  <SlideLayoutPicker
+                    masters={masters}
+                    currentTheme={currentTheme}
+                    onSelectLayout={addSlideWithLayout}
+                    onDuplicateSlide={duplicateSlide}
+                    lastUsedLayoutId={lastUsedLayoutId}
+                    data-testid={`${testId}-add-slide-btn`}
+                  />
+                  <div className="gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:border gba:bg-muted/30 gba:p-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={duplicateSlide}
+                      title={t('editor-duplicate-slide')}
+                      className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-background"
+                      data-testid={`${testId}-duplicate-slide-btn`}
+                    >
+                      <CopyPlus className="gba:w-4 gba:h-4" />
+                    </Button>
+                    <div className="gba:w-px gba:h-5 gba:bg-border" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={deleteSlide}
+                      title={t('editor-delete-slide')}
+                      className="gba:flex-1 gba:h-8 gba:text-muted-foreground hover:gba:text-destructive hover:gba:bg-destructive/10"
+                      data-testid={`${testId}-delete-slide-btn`}
+                    >
+                      <Trash2 className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -2444,7 +2489,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 onDragOver={handleCanvasDragOver}
                 onDrop={handleCanvasDrop}
                 onMouseMove={e => {
-                  if (isSynced && awareness) {
+                  if (collaborationEnabled && awareness) {
                     const rect = e.currentTarget.getBoundingClientRect()
                     const x = (e.clientX - rect.left) / canvasScale
                     const y = (e.clientY - rect.top) / canvasScale
@@ -2456,7 +2501,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   }
                 }}
                 onMouseLeave={() => {
-                  if (isSynced && awareness) {
+                  if (collaborationEnabled && awareness) {
                     awareness.setLocalStateField('cursor', null)
                   }
                 }}
@@ -2471,7 +2516,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     if (!showPropertyPanel && ids.size > 0) {
                       setShowPropertyPanel(true)
                     }
-                    if (isSynced && awareness) {
+                    if (collaborationEnabled && awareness) {
                       const primaryId = ids.size > 0 ? [...ids][0] : null
                       awareness.setLocalStateField(
                         'selection',
@@ -2526,7 +2571,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 />
 
                 {/* Collaborator cursors overlay */}
-                {isInitialized && (
+                {collaborationEnabled && isInitialized && (
                   <CollaboratorCursors
                     awareness={awareness}
                     currentSlideIndex={currentSlideIndex}
@@ -2541,6 +2586,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               {selectedElementIds.size === 1 &&
                 selectedElement?.type === 'text' &&
                 !editingTextId &&
+                !isReadOnly &&
                 !isPresentMode && (
                   <FloatingTextActions
                     element={selectedElement as TextElement}
@@ -2569,7 +2615,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           </div>
 
           {/* Property Panel - Always visible until X button is clicked */}
-          {showPropertyPanel && (
+          {!isReadOnly && showPropertyPanel && (
             <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
               <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
                 <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>

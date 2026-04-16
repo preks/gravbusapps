@@ -13,10 +13,12 @@ import {
   DialogDescription,
   Button,
   Input,
-  Label
+  Label,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { FolderInput, FileText, Table2, StickyNote, AlertCircle } from 'lucide-react'
 import type { MoveContentInput } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface MoveContentDialogProps {
   open: boolean
@@ -29,10 +31,28 @@ export interface MoveContentDialogProps {
 
 type ContentType = 'note' | 'document' | 'spreadsheet'
 
-const contentTypes: { type: ContentType; icon: typeof FileText; label: string; color: string }[] = [
-  { type: 'document', icon: FileText, label: 'Document', color: 'gba:text-blue-600' },
-  { type: 'spreadsheet', icon: Table2, label: 'Spreadsheet', color: 'gba:text-emerald-600' },
-  { type: 'note', icon: StickyNote, label: 'Note', color: 'gba:text-amber-600' }
+const contentTypes: { type: ContentType; icon: typeof FileText; labelKey: string; color: string; bg: string }[] = [
+  {
+    type: 'document',
+    icon: FileText,
+    labelKey: 'content-type-document',
+    color: 'gba:text-blue-600',
+    bg: 'gba:bg-blue-500/10'
+  },
+  {
+    type: 'spreadsheet',
+    icon: Table2,
+    labelKey: 'content-type-spreadsheet',
+    color: 'gba:text-emerald-600',
+    bg: 'gba:bg-emerald-500/10'
+  },
+  {
+    type: 'note',
+    icon: StickyNote,
+    labelKey: 'content-type-note',
+    color: 'gba:text-amber-600',
+    bg: 'gba:bg-amber-500/10'
+  }
 ]
 
 export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
@@ -42,6 +62,7 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
   spaceId,
   'data-testid': testId = 'move-content-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   const [contentType, setContentType] = useState<ContentType>('document')
   const [entityId, setEntityId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -79,11 +100,9 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
           <DialogHeader className="gba:absolute gba:bottom-4 gba:left-6 gba:right-6">
             <DialogTitle className="gba:text-foreground gba:flex gba:items-center gba:gap-2">
               <FolderInput className="gba:w-5 gba:h-5 gba:text-primary" />
-              Move Content
+              {t('move-content-title')}
             </DialogTitle>
-            <DialogDescription className="gba:text-muted-foreground">
-              Add existing content to this space
-            </DialogDescription>
+            <DialogDescription className="gba:text-muted-foreground">{t('move-content-description')}</DialogDescription>
           </DialogHeader>
         </div>
 
@@ -91,9 +110,9 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
         <div className="gba:p-6 gba:space-y-6">
           {/* Content Type Selection */}
           <div className="gba:space-y-3">
-            <Label className="gba:text-sm gba:font-medium">Content Type</Label>
+            <Label className="gba:text-sm gba:font-medium">{t('move-content-type-label')}</Label>
             <div className="gba:flex gba:gap-2 gba:p-1 gba:bg-muted/30 gba:rounded-xl">
-              {contentTypes.map(({ type, icon: Icon, label, color }) => (
+              {contentTypes.map(({ type, icon: Icon, labelKey, color }) => (
                 <button
                   key={type}
                   onClick={() => setContentType(type)}
@@ -105,7 +124,7 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
                   data-testid={`${testId}-type-${type}`}
                 >
                   <Icon className={`gba:w-4 gba:h-4 ${contentType === type ? color : ''}`} />
-                  <span className="gba:hidden gba:sm:inline">{label}</span>
+                  <span className="gba:hidden gba:sm:inline">{t(labelKey)}</span>
                 </button>
               ))}
             </div>
@@ -114,7 +133,11 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
           {/* Entity ID Input */}
           <div className="gba:space-y-2">
             <Label htmlFor="entity-id" className="gba:text-sm gba:font-medium">
-              {selectedType.label} ID
+              {contentType === 'document'
+                ? t('move-content-document-id')
+                : contentType === 'note'
+                  ? t('move-content-note-id')
+                  : t('move-content-spreadsheet-id')}
             </Label>
             <div className="gba:relative">
               <div
@@ -124,7 +147,13 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
               </div>
               <Input
                 id="entity-id"
-                placeholder={`Enter ${selectedType.label.toLowerCase()} ID`}
+                placeholder={
+                  contentType === 'document'
+                    ? t('move-content-document-placeholder')
+                    : contentType === 'note'
+                      ? t('move-content-note-placeholder')
+                      : t('move-content-spreadsheet-placeholder')
+                }
                 value={entityId}
                 onChange={e => setEntityId(e.target.value)}
                 className="gba:h-11 gba:pl-14"
@@ -137,18 +166,15 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
           <div className="gba:flex gba:gap-3 gba:p-4 gba:rounded-xl gba:bg-info-secondary gba:border gba:border-info/20">
             <AlertCircle className="gba:w-5 gba:h-5 gba:text-info gba:flex-shrink-0 gba:mt-0.5" />
             <div className="gba:text-sm">
-              <p className="gba:text-info-secondary-foreground gba:font-medium">Moving content</p>
-              <p className="gba:text-info-secondary-foreground/80 gba:mt-1">
-                When you move content to this space, it will be exclusively owned by the space and removed from your
-                personal area.
-              </p>
+              <p className="gba:text-info-secondary-foreground gba:font-medium">{t('move-content-note-title')}</p>
+              <p className="gba:text-info-secondary-foreground/80 gba:mt-1">{t('move-content-note-description')}</p>
             </div>
           </div>
 
           {/* Actions */}
           <div className="gba:flex gba:gap-3 gba:pt-2">
             <Button variant="outline" className="gba:flex-1" onClick={() => onOpenChange(false)} disabled={isLoading}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button
               className="gba:flex-1 gba:gap-2 gba:shadow-lg gba:shadow-primary/20"
@@ -161,7 +187,7 @@ export const MoveContentDialog: React.FC<MoveContentDialogProps> = ({
               ) : (
                 <FolderInput className="gba:w-4 gba:h-4" />
               )}
-              Move to Space
+              {t('common-move-to-space')}
             </Button>
           </div>
         </div>

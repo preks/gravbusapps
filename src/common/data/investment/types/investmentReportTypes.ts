@@ -545,16 +545,16 @@ export const createInvestmentReportDescriptors = (
   },
   {
     key: 'realEstateLocality',
-    path: 'realEstateInvestmentReport.locality',
-    searchPaths: ['realEstateInvestmentReport.locality'],
-    sortPath: 'realEstateInvestmentReport.locality',
+    path: 'realEstateInvestmentReport.realEstateInvestment.locality',
+    searchPaths: ['realEstateInvestmentReport.realEstateInvestment.locality'],
+    sortPath: 'realEstateInvestmentReport.realEstateInvestment.locality',
     type: 'text'
   },
   {
     key: 'realEstatePostalCode',
-    path: 'realEstateInvestmentReport.postalCode',
-    searchPaths: ['realEstateInvestmentReport.postalCode'],
-    sortPath: 'realEstateInvestmentReport.postalCode',
+    path: 'realEstateInvestmentReport.realEstateInvestment.postalCode',
+    searchPaths: ['realEstateInvestmentReport.realEstateInvestment.postalCode'],
+    sortPath: 'realEstateInvestmentReport.realEstateInvestment.postalCode',
     type: 'text'
   },
 

@@ -5,11 +5,23 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Spinner, ScrollArea } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
+  Spinner,
+  ScrollArea,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { Calendar, Clock, Video, ArrowRight, CalendarBlank, Users } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useChatClient } from '@/common/network/chat/useChatClient'
 import type { SpaceMember } from '../types/space.types'
+import translations from '../_i18n'
+import { formatMeetingTimeRange } from '../utils/spaceLocalization'
 
 export interface SpaceMeeting {
   id: string
@@ -52,6 +64,7 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   onScheduleMeeting,
   'data-testid': testId = 'space-calendar'
 }) => {
+  const { t, locale } = useTranslation(translations)
   const chatClient = useChatClient(accessToken)
   const [meetings, setMeetings] = useState<SpaceMeeting[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -93,12 +106,12 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
       setMeetings(sortedMeetings)
     } catch (err) {
       console.error('[SpaceCalendar] Error fetching meetings:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load meetings')
+      setError(err instanceof Error ? err.message : t('error-load-meetings'))
       setMeetings([])
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, members, maxMeetings, chatClient])
+  }, [accessToken, chatClient, maxMeetings, members, t])
 
   useEffect(() => {
     fetchMeetings()
@@ -112,21 +125,6 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
   }, [spaceId])
 
   // Format meeting time
-  const formatMeetingTime = (startStr: string, endStr: string) => {
-    const start = new Date(startStr)
-    const end = new Date(endStr)
-    const now = new Date()
-
-    const isToday = start.toDateString() === now.toDateString()
-    const isTomorrow = start.toDateString() === new Date(now.getTime() + 86400000).toDateString()
-
-    const timeStr = `${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-
-    if (isToday) return `Today, ${timeStr}`
-    if (isTomorrow) return `Tomorrow, ${timeStr}`
-    return `${start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}, ${timeStr}`
-  }
-
   // Check if meeting is live
   const isMeetingLive = (meeting: SpaceMeeting) => {
     const now = new Date()
@@ -141,10 +139,10 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:text-base gba:font-medium gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:w-4 gba:h-4" />
-            Team Calendar
+            {t('calendar-title')}
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={handleViewCalendar} data-testid={`${testId}-view-all`}>
-            View All
+            {t('common-view-all')}
             <ArrowRight className="gba:w-4 gba:h-4 gba:ml-1" />
           </Button>
         </div>
@@ -161,10 +159,10 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
             <div className="gba:w-12 gba:h-12 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-3">
               <CalendarBlank className="gba:w-6 gba:h-6 gba:text-muted-foreground" />
             </div>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">No upcoming meetings</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('calendar-no-upcoming')}</p>
             {onScheduleMeeting && (
               <Button variant="secondary" size="sm" onClick={onScheduleMeeting}>
-                Schedule Meeting
+                {t('common-schedule-meeting')}
               </Button>
             )}
           </div>
@@ -185,19 +183,19 @@ export const SpaceCalendar: React.FC<SpaceCalendarProps> = ({
                         </h4>
                         {isMeetingLive(meeting) && (
                           <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
-                            Live
+                            {t('common-live')}
                           </Badge>
                         )}
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-xs gba:text-muted-foreground">
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <Clock className="gba:w-3 gba:h-3" />
-                          {formatMeetingTime(meeting.start, meeting.end)}
+                          {formatMeetingTimeRange(meeting.start, meeting.end, locale, t)}
                         </span>
                         {meeting.isVideoCall && (
                           <span className="gba:flex gba:items-center gba:gap-1">
                             <Video className="gba:w-3 gba:h-3" />
-                            Video
+                            {t('calendar-video')}
                           </span>
                         )}
                         {meeting.participantCount && (

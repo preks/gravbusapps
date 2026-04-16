@@ -5,8 +5,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Space, SpaceMember, AddMemberInput, UpdateSpaceInput } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -27,6 +29,7 @@ export function useSpace(
   accessToken: string | undefined,
   includeContent = true
 ): UseSpaceResult {
+  const { t } = useTranslation(translations)
   const [space, setSpace] = useState<Space | null>(null)
   const [isLoading, setIsLoading] = useState(!!spaceId)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +38,7 @@ export function useSpace(
     if (!spaceId) return
 
     if (!accessToken) {
-      setError('Not authenticated')
+      setError(t('error-not-authenticated'))
       setIsLoading(false)
       return
     }
@@ -54,24 +57,24 @@ export function useSpace(
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch space: ${response.statusText}`)
+        throw new Error(t('error-load-space'))
       }
 
       const data = await response.json()
       setSpace(data)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load space'
+      const message = err instanceof Error ? err.message : t('error-load-space')
       setError(message)
       console.error('[useSpace] Error:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, accessToken, includeContent])
+  }, [accessToken, includeContent, spaceId, t])
 
   const updateSpace = useCallback(
     async (input: UpdateSpaceInput): Promise<Space | null> => {
       if (!spaceId || !accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return null
       }
 
@@ -86,26 +89,26 @@ export function useSpace(
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to update space: ${response.statusText}`)
+          throw new Error(t('error-update-space'))
         }
 
         const updatedSpace = await response.json()
         setSpace(updatedSpace)
         return updatedSpace
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to update space'
+        const message = err instanceof Error ? err.message : t('error-update-space')
         setError(message)
         console.error('[useSpace] Update error:', err)
         return null
       }
     },
-    [spaceId, accessToken]
+    [accessToken, spaceId, t]
   )
 
   const addMember = useCallback(
     async (input: AddMemberInput): Promise<SpaceMember | null> => {
       if (!spaceId || !accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return null
       }
 
@@ -120,7 +123,7 @@ export function useSpace(
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to add member: ${response.statusText}`)
+          throw new Error(t('error-add-member'))
         }
 
         const member = await response.json()
@@ -128,19 +131,19 @@ export function useSpace(
         await refresh()
         return member
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to add member'
+        const message = err instanceof Error ? err.message : t('error-add-member')
         setError(message)
         console.error('[useSpace] Add member error:', err)
         return null
       }
     },
-    [spaceId, accessToken, refresh]
+    [accessToken, refresh, spaceId, t]
   )
 
   const updateMember = useCallback(
     async (userId: string, role: string): Promise<SpaceMember | null> => {
       if (!spaceId || !accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return null
       }
 
@@ -155,7 +158,7 @@ export function useSpace(
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to update member: ${response.statusText}`)
+          throw new Error(t('error-update-member'))
         }
 
         const member = await response.json()
@@ -163,19 +166,19 @@ export function useSpace(
         await refresh()
         return member
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to update member'
+        const message = err instanceof Error ? err.message : t('error-update-member')
         setError(message)
         console.error('[useSpace] Update member error:', err)
         return null
       }
     },
-    [spaceId, accessToken, refresh]
+    [accessToken, refresh, spaceId, t]
   )
 
   const removeMember = useCallback(
     async (userId: string): Promise<boolean> => {
       if (!spaceId || !accessToken) {
-        setError('Not authenticated')
+        setError(t('error-not-authenticated'))
         return false
       }
 
@@ -188,25 +191,25 @@ export function useSpace(
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to remove member: ${response.statusText}`)
+          throw new Error(t('error-remove-member'))
         }
 
         // Refresh to get updated member list
         await refresh()
         return true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to remove member'
+        const message = err instanceof Error ? err.message : t('error-remove-member')
         setError(message)
         console.error('[useSpace] Remove member error:', err)
         return false
       }
     },
-    [spaceId, accessToken, refresh]
+    [accessToken, refresh, spaceId, t]
   )
 
   const deleteSpace = useCallback(async (): Promise<boolean> => {
     if (!spaceId || !accessToken) {
-      setError('Not authenticated')
+      setError(t('error-not-authenticated'))
       return false
     }
 
@@ -221,19 +224,19 @@ export function useSpace(
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}))
-        const msg = typeof body?.message === 'string' ? body.message : `Failed to delete space (${response.status})`
+        const msg = typeof body?.message === 'string' ? body.message : t('error-delete-space')
         throw new Error(msg)
       }
 
       setSpace(null)
       return true
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete space'
+      const message = err instanceof Error ? err.message : t('error-delete-space')
       setError(message)
       console.error('[useSpace] Delete space error:', err)
       return false
     }
-  }, [spaceId, accessToken])
+  }, [accessToken, spaceId, t])
 
   useEffect(() => {
     if (spaceId && accessToken) {
