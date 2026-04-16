@@ -7,6 +7,7 @@ nh-tab-shared = Shared
 nh-tab-pinned = Pinned
 nh-tab-recent = Recent
 nh-tab-archived = Trash
+nh-tab-trash = Trash
 nh-refresh = Refresh
 
 sidebar-back-to-desk = Back to Desk
@@ -23,6 +24,7 @@ sidebar-shared = Shared with me
 sidebar-pinned = Pinned
 sidebar-recent = Recent
 sidebar-archived = Trash
+sidebar-trash = Trash
 sidebar-storage = Storage
 sidebar-storage-cloud = Cloud storage
 sidebar-storage-notes = { $count } notes
@@ -49,9 +51,12 @@ empty-shared-title = Nothing shared with you
 empty-shared-description = When someone shares a note with you, it will appear here.
 empty-archived-title = No trashed notes
 empty-archived-description = Notes moved to trash will appear here.
+empty-trash-title = No trashed notes
+empty-trash-description = Notes moved to trash will appear here.
 empty-default-title = No notes yet
 empty-default-description = Create your first note to get started.
 empty-create-note = Create Note
+loading-message = Loading...
 
 menu-open = Open
 menu-share = Share
@@ -62,7 +67,12 @@ menu-unpin = Unpin
 menu-remove-favorite = Remove from favorites
 menu-add-favorite = Add to favorites
 menu-archive = Move to trash
-menu-delete = Delete
+menu-delete = Move to trash
+delete-confirm-title = Move to trash?
+delete-confirm-single = "{$name}" will be moved to trash. You can restore it within 30 days.
+delete-confirm-multi = {$count} items will be moved to trash. You can restore them within 30 days.
+delete-confirm-cancel = Cancel
+delete-confirm-action = Move to trash
 
 bulk-selected = {$count} selected
 
@@ -77,11 +87,15 @@ shared-with-count = Shared with { $count } { $count ->
 }
 shared-click-manage = Click to manage
 
-confirm-delete = Are you sure you want to delete this note?
+confirm-delete = Are you sure you want to move this note to trash?
 toast-note-duplicated = Note duplicated
 toast-note-unpinned = Note unpinned
 toast-note-pinned = Note pinned
 toast-note-archived = Note moved to trash
+toast-note-restored = Note restored
+toast-note-restore-failed = Failed to restore note
+toast-note-deleted-permanently = Note deleted permanently
+toast-note-delete-permanently-failed = Failed to delete note permanently
 toast-link-copied = Link copied to clipboard
 toast-favorite-removed = Removed from favorites
 toast-favorite-added = Added to favorites
@@ -368,7 +382,7 @@ editor-publish = Publish...
 editor-duplicate = Duplicate
 editor-export = Export
 editor-archive = Move to trash
-editor-delete = Delete
+editor-delete = Move to trash
 editor-toast-not-authenticated = Not authenticated
 editor-toast-no-text = No text to transform
 editor-toast-transform-failed = Transform failed
@@ -460,6 +474,31 @@ qa-pinned = Pinned
 qa-shared = Shared with Me
 qa-recent = Recent
 qa-archived = Trash
+qa-trash = Trash
+
+# Trash
+trash-list-refresh = Refresh
+trash-list-sort-name = Name
+trash-list-sort-trashed-on = Trashed on
+trash-list-trashed-on-column = Trashed on
+trash-list-owner-badge = My note
+trash-list-restore = Restore
+trash-list-restoring = Restoring...
+trash-list-delete = Delete permanently
+trash-list-load-failed = Failed to load trash items
+trash-list-item-restored = Note restored
+trash-list-item-restore-failed = Failed to restore note
+trash-list-item-deleted = Note deleted permanently
+trash-list-item-delete-failed = Failed to delete note permanently
+trashed-readonly-title = This note is in trash
+trashed-readonly-description = "{ $title }" is in trash and opens in view-only mode until it is restored.
+trashed-readonly-owner-note = To edit this note again, take it out of trash.
+trashed-readonly-shared-note = To edit this note again, ask the owner to take it out of trash.
+trashed-readonly-go-home = Go to Notes home screen
+trashed-readonly-restore = Take out of trash
+trashed-readonly-restoring = Restoring...
+trashed-readonly-delete = Delete permanently
+trashed-readonly-deleting = Deleting...
 
 # Tree sidebar
 tree-label = Notes

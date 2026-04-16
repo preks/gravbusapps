@@ -7,6 +7,7 @@ nh-tab-shared = Partajate
 nh-tab-pinned = Fixate
 nh-tab-recent = Recente
 nh-tab-archived = Coș de gunoi
+nh-tab-trash = Coș de gunoi
 nh-refresh = Reîmprospătează
 
 sidebar-back-to-desk = Înapoi la birou
@@ -23,6 +24,7 @@ sidebar-shared = Partajat cu mine
 sidebar-pinned = Fixate
 sidebar-recent = Recente
 sidebar-archived = Coș de gunoi
+sidebar-trash = Coș de gunoi
 sidebar-storage = Depozitare
 sidebar-storage-cloud = Depozitare cloud
 sidebar-storage-notes = { $count } note
@@ -49,9 +51,12 @@ empty-shared-title = Nimic partajat cu dvs.
 empty-shared-description = Notele partajate vor apărea aici.
 empty-archived-title = Nu există note în coșul de gunoi
 empty-archived-description = Notele mutate în coșul de gunoi vor apărea aici.
+empty-trash-title = Nu există note în coșul de gunoi
+empty-trash-description = Notele mutate în coșul de gunoi vor apărea aici.
 empty-default-title = Încă nu există note
 empty-default-description = Creați prima notă.
 empty-create-note = Creați notă
+loading-message = Se încarcă...
 
 menu-open = Deschide
 menu-share = Partajare
@@ -62,7 +67,12 @@ menu-unpin = Defixare
 menu-remove-favorite = Eliminați din favorite
 menu-add-favorite = Adăugați la favorite
 menu-archive = Mută în coșul de gunoi
-menu-delete = Ștergere
+menu-delete = Mută în coșul de gunoi
+delete-confirm-title = Mutați în coșul de gunoi?
+delete-confirm-single = "{$name}" va fi mutat în coșul de gunoi. Îl puteți restaura în decurs de 30 de zile.
+delete-confirm-multi = {$count} elemente vor fi mutate în coșul de gunoi. Le puteți restaura în decurs de 30 de zile.
+delete-confirm-cancel = Anulare
+delete-confirm-action = Mută în coșul de gunoi
 
 bulk-selected = {$count} selectate
 
@@ -77,11 +87,15 @@ shared-with-count = Partajat cu { $count } { $count ->
 }
 shared-click-manage = Apăsați pentru gestionare
 
-confirm-delete = Sunteți sigur că doriți să ștergeți această notă?
+confirm-delete = Sigur doriți să mutați această notă în coșul de gunoi?
 toast-note-duplicated = Notă duplicată
 toast-note-unpinned = Notă defixată
 toast-note-pinned = Notă fixată
 toast-note-archived = Notă mutată în coșul de gunoi
+toast-note-restored = Notă restaurată
+toast-note-restore-failed = Restaurarea notei a eșuat
+toast-note-deleted-permanently = Notă ștearsă definitiv
+toast-note-delete-permanently-failed = Ștergerea definitivă a notei a eșuat
 toast-link-copied = Link copiat în clipboard
 toast-favorite-removed = Eliminat din favorite
 toast-favorite-added = Adăugat la favorite
@@ -388,7 +402,7 @@ editor-publish = Publicare…
 editor-duplicate = Duplicare
 editor-export = Exportă
 editor-archive = Mută în coșul de gunoi
-editor-delete = Ștergere
+editor-delete = Mută în coșul de gunoi
 editor-toast-not-authenticated = Neautentificat
 editor-toast-no-text = Niciun text de transformat
 editor-toast-transform-failed = Transformare eșuată
@@ -480,6 +494,31 @@ qa-pinned = Fixate
 qa-shared = Partajate cu mine
 qa-recent = Recente
 qa-archived = Coș de gunoi
+qa-trash = Coș de gunoi
+
+# Trash
+trash-list-refresh = Reîmprospătează
+trash-list-sort-name = Nume
+trash-list-sort-trashed-on = Data mutării în coș
+trash-list-trashed-on-column = În coș din
+trash-list-owner-badge = Nota mea
+trash-list-restore = Restaurează
+trash-list-restoring = Se restaurează...
+trash-list-delete = Șterge definitiv
+trash-list-load-failed = Coșul de gunoi nu a putut fi încărcat
+trash-list-item-restored = Notă restaurată
+trash-list-item-restore-failed = Restaurarea notei a eșuat
+trash-list-item-deleted = Notă ștearsă definitiv
+trash-list-item-delete-failed = Ștergerea definitivă a notei a eșuat
+trashed-readonly-title = Această notă este în coșul de gunoi
+trashed-readonly-description = „{ $title }” este în coșul de gunoi și se deschide în modul doar-citire până când este restaurată.
+trashed-readonly-owner-note = Pentru a edita din nou această notă, scoateți-o din coșul de gunoi.
+trashed-readonly-shared-note = Pentru a edita din nou această notă, cereți proprietarului să o scoată din coșul de gunoi.
+trashed-readonly-go-home = Mergeți la ecranul principal Notes
+trashed-readonly-restore = Scoate din coșul de gunoi
+trashed-readonly-restoring = Se restaurează...
+trashed-readonly-delete = Șterge definitiv
+trashed-readonly-deleting = Se șterge...
 
 # Tree sidebar
 tree-label = Note

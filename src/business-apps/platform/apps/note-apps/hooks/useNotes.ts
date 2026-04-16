@@ -123,7 +123,7 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
     setError(null)
 
     try {
-      const note = await NoteApiService.getNote(id)
+      const note = await NoteApiService.getNoteForOpenById(id)
       if (note) {
         setCurrentNote(note)
         // Use backend permission, default to 'owner' if not specified (creator case)
@@ -166,8 +166,10 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
         parentId: note.parentId,
         position: note.position,
         ownerId: note.ownerId,
+        spaceId: note.spaceId,
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
+        trashedAt: note.trashedAt,
         permission: 'owner'
       }
 
@@ -203,7 +205,9 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
                   icon: note.icon,
                   isPinned: note.isPinned,
                   isArchived: note.isArchived,
-                  updatedAt: note.updatedAt
+                  spaceId: note.spaceId,
+                  updatedAt: note.updatedAt,
+                  trashedAt: note.trashedAt
                 }
               : n
           )
@@ -265,8 +269,10 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
           parentId: note.parentId,
           position: note.position,
           ownerId: note.ownerId,
+          spaceId: note.spaceId,
           createdAt: note.createdAt,
           updatedAt: note.updatedAt,
+          trashedAt: note.trashedAt,
           permission: 'owner'
         }
         setNotes(prev => [summary, ...prev])
