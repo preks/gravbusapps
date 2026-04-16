@@ -10,11 +10,34 @@ export function createPersonalAdvancePaymentFilterConfig({
   filterLabelMap
 }: PersonalAdvancePaymentFilterConfigOptions): FilterConfiguration {
   const statusFilters = Object.keys(filterLabelMap)
-    .filter(k => !k.startsWith('currency:') && k !== 'amountRange' && k !== 'advanceRange')
+    .filter(
+      k => !k.startsWith('currency:') && k !== 'amountRange' && k !== 'advanceRange' && k !== 'cardCreatedAtRange'
+    )
     .map(s => ({ id: s, label: filterLabelMap[s] || s }))
 
+  const statusGroup = createStatusFilterGroup(statusFilters, 'lowcoder:expense_table.status', 'Status')
+
+  /**
+   * Toolbar chip only: design-system FilterGroup renders `filters[0]` in the sheet, so this entry is
+   * never shown in the sidebar but is still matched by generateFilterChips (same pattern as expense
+   * plans top-destination chip).
+   */
+  const statusGroupWithCardChip: FilterConfiguration['groups'][number] = {
+    ...statusGroup,
+    filters: [
+      ...statusGroup.filters,
+      {
+        id: 'cardCreatedAtRange',
+        field: 'cardCreatedAtRange',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.created_in_month', 'Created in'),
+        type: 'text',
+        config: {}
+      }
+    ]
+  }
+
   const groups: FilterConfiguration['groups'] = [
-    createStatusFilterGroup(statusFilters, 'lowcoder:expense_table.status', 'Status'),
+    statusGroupWithCardChip,
     {
       id: 'amount-group',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),

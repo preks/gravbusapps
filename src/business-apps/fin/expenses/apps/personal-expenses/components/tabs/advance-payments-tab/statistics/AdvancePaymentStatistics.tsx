@@ -114,7 +114,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     }
   }, [amountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount])
 
-  // Handle widget clicks
+  // Handle widget clicks (WidgetGroup also calls widget.onClick for card styling; keep no-op there to avoid double-invoke)
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
       if (isLoading) {
@@ -127,6 +127,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     },
     [onWidgetClick, isLoading]
   )
+
+  const widgetClickNoop = useCallback(() => {}, [])
 
   // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = useMemo(
@@ -150,7 +152,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         ),
         trend: paymentsTrend,
         active: activeWidgetKey === 'total-payments',
-        onClick: () => handleWidgetClick('total-payments')
+        onClick: widgetClickNoop
       },
       {
         key: 'total-amount',
@@ -169,7 +171,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         trend: amountTrend,
         valueIsString: true,
         active: activeWidgetKey === 'total-amount',
-        onClick: () => handleWidgetClick('total-amount')
+        onClick: widgetClickNoop
       },
       {
         key: 'pending-payments',
@@ -181,7 +183,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval', 'Awaiting approval'),
         trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'pending-payments',
-        onClick: () => handleWidgetClick('pending-payments')
+        onClick: widgetClickNoop
       },
       {
         key: 'approved-payments',
@@ -196,10 +198,10 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         ),
         trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'approved-payments',
-        onClick: () => handleWidgetClick('approved-payments')
+        onClick: widgetClickNoop
       }
     ],
-    [currentMonthName, statistics, paymentsTrend, amountTrend, activeWidgetKey, handleWidgetClick]
+    [currentMonthName, statistics, paymentsTrend, amountTrend, activeWidgetKey, widgetClickNoop]
   )
 
   return (
@@ -208,6 +210,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       isLoading={isLoading}
       error={error}
       onRetry={fetchStatistics}
+      onWidgetClick={handleWidgetClick}
       skeletonCount={4}
       useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(

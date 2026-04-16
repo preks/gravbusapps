@@ -6,6 +6,8 @@ export interface AdvancePaymentFilters {
   amountRange?: { min?: number; max?: number }
   advanceRange?: { min?: number; max?: number }
   currencyRef?: string
+  /** When set, restricts rows to AdvancePayment.createdAt within [gte, lte] (matches statistics cards). */
+  createdAtRange?: { gte: string; lte: string } | null
 }
 
 export interface AdvancePaymentsQueryOptions {
@@ -17,6 +19,7 @@ export interface FilterState {
   hasAmountRange: boolean
   hasAdvanceRange: boolean
   hasCurrencyRef: boolean
+  hasCreatedAtRange: boolean
 }
 
 export const validateFilters = (filters: AdvancePaymentFilters): FilterState => {
@@ -28,12 +31,14 @@ export const validateFilters = (filters: AdvancePaymentFilters): FilterState => 
     filters.advanceRange && (filters.advanceRange.min !== undefined || filters.advanceRange.max !== undefined)
   )
   const hasCurrencyRef = Boolean(filters.currencyRef && filters.currencyRef.length > 0)
+  const hasCreatedAtRange = Boolean(filters.createdAtRange?.gte && filters.createdAtRange?.lte)
 
   return {
     hasStatusFilter,
     hasAmountRange,
     hasAdvanceRange,
-    hasCurrencyRef
+    hasCurrencyRef,
+    hasCreatedAtRange
   }
 }
 
@@ -66,6 +71,11 @@ const buildQueryParameters = (filterState: FilterState, filters: AdvancePaymentF
 
   if (filterState.hasCurrencyRef) {
     parameters.push('$currencyRef: String!')
+  }
+
+  if (filterState.hasCreatedAtRange) {
+    parameters.push('$createdAtGte: timestamptz!')
+    parameters.push('$createdAtLte: timestamptz!')
   }
 
   // Add orderBy parameter for dynamic sorting (always present)
@@ -137,7 +147,8 @@ const buildWhereConditions = (
   statusConditionString: string,
   currencyConditionString: string,
   advancePaymentConditionString: string,
-  searchConditionString: string
+  searchConditionString: string,
+  createdAtConditionString: string
 ): string => {
   const conditions: string[] = [
     `expensePlan: {
@@ -146,6 +157,7 @@ const buildWhereConditions = (
     'isDeleted: {_eq: false}'
   ]
 
+  if (createdAtConditionString) conditions.push(createdAtConditionString)
   if (statusConditionString) conditions.push(statusConditionString)
   if (currencyConditionString) conditions.push(currencyConditionString)
   if (advancePaymentConditionString) conditions.push(advancePaymentConditionString)
@@ -177,13 +189,17 @@ export const buildAdvancePaymentsListQuery = (
   const searchConditionString = includeSearch ? buildSearchCondition() : ''
   const statusConditionString = filterState.hasStatusFilter ? 'status: {_in: $statusFilter}' : ''
   const currencyConditionString = filterState.hasCurrencyRef ? 'currencyRef: {_eq: $currencyRef}' : ''
+  const createdAtConditionString = filterState.hasCreatedAtRange
+    ? 'createdAt: {_gte: $createdAtGte, _lte: $createdAtLte}'
+    : ''
 
   const whereConditions = buildWhereConditions(
     expensePlanConditionString,
     statusConditionString,
     currencyConditionString,
     advancePaymentConditionString,
-    searchConditionString
+    searchConditionString,
+    createdAtConditionString
   )
 
   return `

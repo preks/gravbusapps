@@ -1,7 +1,8 @@
 import React from 'react'
-import { DataDisplay, DataTable, type FilterConfiguration } from '@newwork/nw-design-system'
+import { DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import ExpenseDataTable from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import { advancePaymentAvailableColumns } from '../../config/advancePaymentAvailableColumns'
 import { advancePaymentSortableColumns } from '../../config/advancePaymentSortableColumns'
 import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
@@ -98,29 +99,20 @@ export function AdvancePaymentsDataBody({
       filterSheetTitle={filterSheetTitle}
       filterSheetDescription={filterSheetDescription}
     >
-      <DataTable<AdvancePayment>
+      <ExpenseDataTable<AdvancePayment>
         data={items || []}
         columns={filteredColumns}
         loading={isLoading}
-        error={error || undefined}
+        error={error}
         totalCount={totalCount}
         sorting={sorting}
         onSortingChange={onSortingChange}
         pagination={pagination}
         onPaginationChange={onPaginationChange}
-        enablePagination
-        enableSorting
-        enableSelection={false}
-        enableColumnPinning
-        enableResizing={false}
-        tableLayout="fixed"
-        rowsPerPageOptions={[10, 20, 50, 100]}
-        showPageNumbers
-        maxVisiblePages={7}
         emptyMessage={emptyMessage}
         actions={rowActions}
         onRowClick={onRowClick}
-        data-testid={ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID}
+        dataTestId={ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID}
       />
     </DataDisplay>
   )

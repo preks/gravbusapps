@@ -75,11 +75,13 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter])
   const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange])
   const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange])
+  const currentCardCreatedAtRange = useMemo(() => props.cardCreatedAtRange ?? null, [props.cardCreatedAtRange])
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap])
 
   const debouncedStatusFilter = useDebounce(currentStatusFilter, 200)
   const debouncedAmountRange = useDebounce(currentAmountRange, 200)
   const debouncedAdvanceRange = useDebounce(currentAdvanceRange, 200)
+  const debouncedCardCreatedAtRange = useDebounce(currentCardCreatedAtRange, 200)
   const debouncedSearchText = useDebounce(searchText, 200)
 
   const advancePaymentsFilterConfig = useMemo(
@@ -89,7 +91,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
 
   const filtersObject = useMemo((): Record<string, unknown> => {
     const statusIds = currentStatusFilter.filter(
-      s => !s.startsWith('currency:') && s !== 'amountRange' && s !== 'advanceRange'
+      s => !s.startsWith('currency:') && s !== 'amountRange' && s !== 'advanceRange' && s !== 'cardCreatedAtRange'
     )
     const obj: Record<string, unknown> = {}
     if (statusIds.length > 0) obj.statusIds = statusIds
@@ -99,8 +101,17 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     if (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined)) {
       obj.advance = { ...currentAdvanceRange }
     }
+    const cardPillLabel = filterLabelMap['cardCreatedAtRange']
+    if (
+      currentCardCreatedAtRange?.gte &&
+      currentCardCreatedAtRange?.lte &&
+      typeof cardPillLabel === 'string' &&
+      cardPillLabel.trim() !== ''
+    ) {
+      obj.cardCreatedAtRange = cardPillLabel
+    }
     return obj
-  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange])
+  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, currentCardCreatedAtRange, filterLabelMap])
 
   const handleFilterChangeFromDisplay = useCallback(
     (filters: Record<string, unknown>) => {
@@ -109,10 +120,18 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       const adv = filters.advance as { min?: number; max?: number } | undefined
       const hasAmount = amt && (amt.min !== undefined || amt.max !== undefined)
       const hasAdvance = adv && (adv.min !== undefined || adv.max !== undefined)
+      const cardLabel = filters.cardCreatedAtRange
+      const hasCardPill = typeof cardLabel === 'string' && cardLabel.trim() !== '' && props.cardCreatedAtRange?.gte
+
+      if (!hasCardPill) {
+        props.setCardCreatedAtRange?.(null)
+      }
+
       const currencyTokens = (props.selectedFilters || []).filter(f => f.startsWith('currency:'))
       const rangeMarkers: string[] = []
       if (hasAmount) rangeMarkers.push('amountRange')
       if (hasAdvance) rangeMarkers.push('advanceRange')
+      if (hasCardPill) rangeMarkers.push('cardCreatedAtRange')
       if (props.onFilterChange) {
         props.onFilterChange([...statusIds, ...currencyTokens, ...rangeMarkers])
       }
@@ -120,7 +139,14 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       props.setAdvanceRange?.(hasAdvance ? (adv ?? null) : null)
       setCurrentPage(1)
     },
-    [props.selectedFilters, props.onFilterChange, props.setAmountRange, props.setAdvanceRange]
+    [
+      props.selectedFilters,
+      props.onFilterChange,
+      props.setAmountRange,
+      props.setAdvanceRange,
+      props.setCardCreatedAtRange,
+      props.cardCreatedAtRange
+    ]
   )
 
   const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...advancePaymentDefaultVisibleColumnIds])
@@ -133,12 +159,13 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
 
   const handleCurrencyChange = useCallback(
     (code: string) => {
+      props.setCardCreatedAtRange?.(null)
       if (props.onFilterChange) {
         applyCurrencyChange(code, props.selectedFilters || [], currencyStats, props.onFilterChange)
       }
       setCurrentPage(1)
     },
-    [props.selectedFilters, currencyStats, props.onFilterChange]
+    [props.selectedFilters, currencyStats, props.onFilterChange, props.setCardCreatedAtRange]
   )
 
   const prevFilterSignatureRef = useRef<string | null>(null)
@@ -148,6 +175,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       status: currentStatusFilter,
       amountRange: currentAmountRange,
       advanceRange: currentAdvanceRange,
+      cardCreatedAtRange: currentCardCreatedAtRange,
       selectedFilters: props.selectedFilters || []
     })
 
@@ -157,7 +185,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     }
 
     prevFilterSignatureRef.current = signature
-  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, props.selectedFilters])
+  }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, currentCardCreatedAtRange, props.selectedFilters])
 
   useEffect(() => {
     currentPageRef.current = currentPage
@@ -195,6 +223,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       currentStatusFilter: debouncedStatusFilter,
       currentAmountRange: debouncedAmountRange,
       currentAdvanceRange: debouncedAdvanceRange,
+      cardCreatedAtRange: debouncedCardCreatedAtRange,
       sortField,
       sortOrder,
       selectedCurrencyRef
@@ -206,6 +235,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       debouncedStatusFilter,
       debouncedAmountRange,
       debouncedAdvanceRange,
+      debouncedCardCreatedAtRange,
       sortField,
       sortOrder,
       selectedCurrencyRef
@@ -229,6 +259,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
         statusFilter: fetchParams.currentStatusFilter,
         amountRange: fetchParams.currentAmountRange,
         advanceRange: fetchParams.currentAdvanceRange,
+        createdAtRange: fetchParams.cardCreatedAtRange,
         sortField: fetchParams.sortField,
         sortOrder: fetchParams.sortOrder,
         currencyRef: fetchParams.selectedCurrencyRef
@@ -254,6 +285,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
           statusFilter: fetchParams.currentStatusFilter,
           amountRange: fetchParams.currentAmountRange,
           advanceRange: fetchParams.currentAdvanceRange,
+          createdAtRange: fetchParams.cardCreatedAtRange,
           sortField: fetchParams.sortField,
           sortOrder: fetchParams.sortOrder,
           currencyRef: fetchParams.selectedCurrencyRef,

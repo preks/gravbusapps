@@ -1,11 +1,24 @@
-import React, { useState, useMemo, useCallback, ReactNode } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, ReactNode } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import AdvancePaymentStatistics from './statistics/AdvancePaymentStatistics'
 import AdvancePaymentsTable from './table/AdvancePaymentsTable'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
-import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
+import { getSelectedCurrencyRef, pickMostUsedCurrencyRef, type CurrencyStat } from '../../../utils/currencyUtils'
 import { useProcessRefresh } from '@/business-apps/fin/expenses/common/hooks/useProcessRefresh'
 import { useSyncContentHeader } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
+import { preserveCurrencyAndResetAdvancePayments } from './utils/cardStrategies'
+import { TOTAL_PAYMENTS_CARD_STATUSES } from '../../../utils/totalPaymentsCardStatuses'
+
+const APPROVED_LIKE_STATUSES: string[] = ['APPROVED', 'PAID', 'BOOKED']
+const PENDING_STATUSES: string[] = ['PENDING', 'PREPARED']
+
+function statusSetsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const sa = [...a].sort()
+  const sb = [...b].sort()
+  return sa.every((v, i) => v === sb[i])
+}
 
 export interface AdvancePaymentsTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: ReactNode) => void
@@ -21,6 +34,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
   )
 
   const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0)
+  const [activeWidget, setActiveWidget] = useState<string | null>(null)
   const bumpTableRefresh = useCallback(() => {
     setTableRefreshTrigger(prev => prev + 1)
   }, [])
@@ -32,16 +46,82 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     statusFilter,
     amountRange,
     advanceRange,
+    cardCreatedAtRange,
+    setCardCreatedAtRange,
     setAmountRange,
     setAdvanceRange,
+    applyStatisticsCardFilter,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
     selectedFilters,
     setFilters,
-    removeFilter,
-    filtersVersion
+    removeFilter
   } = useAdvancePaymentFilters()
+
+  const { currencyStats } = useAdvancePaymentCurrencies(contextProps, selectedFilters, setFilters)
+  const mostUsedCurrencyRef = useMemo(() => pickMostUsedCurrencyRef(currencyStats as CurrencyStat[]), [currencyStats])
+
+  useEffect(() => {
+    if (!activeWidget) return
+
+    if (activeWidget === 'total-payments') {
+      if (!cardCreatedAtRange) {
+        setActiveWidget(null)
+        return
+      }
+      if (!statusSetsEqual(statusFilter, TOTAL_PAYMENTS_CARD_STATUSES)) {
+        setActiveWidget(null)
+      }
+      return
+    }
+
+    if (activeWidget === 'total-amount') {
+      if (!cardCreatedAtRange) {
+        setActiveWidget(null)
+        return
+      }
+      if (!statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)) {
+        setActiveWidget(null)
+      }
+      return
+    }
+
+    if (activeWidget === 'pending-payments') {
+      if (!statusSetsEqual(statusFilter, PENDING_STATUSES)) {
+        setActiveWidget(null)
+      }
+      return
+    }
+
+    if (activeWidget === 'approved-payments') {
+      if (cardCreatedAtRange) {
+        setActiveWidget(null)
+        return
+      }
+      if (!statusSetsEqual(statusFilter, APPROVED_LIKE_STATUSES)) {
+        setActiveWidget(null)
+      }
+    }
+  }, [activeWidget, statusFilter, cardCreatedAtRange])
+
+  const handleWidgetClick = useCallback(
+    (widgetKey: string) => {
+      const isDeactivating = activeWidget === widgetKey
+      const nextActive = isDeactivating ? null : widgetKey
+      setActiveWidget(nextActive)
+
+      if (isDeactivating) {
+        preserveCurrencyAndResetAdvancePayments(selectedFilters, setFilters, mostUsedCurrencyRef)
+        applyStatisticsCardFilter(null)
+        return
+      }
+
+      preserveCurrencyAndResetAdvancePayments(selectedFilters, setFilters, mostUsedCurrencyRef)
+      applyStatisticsCardFilter(widgetKey)
+    },
+    [activeWidget, selectedFilters, setFilters, mostUsedCurrencyRef, applyStatisticsCardFilter]
+  )
 
   const contentHeader = useMemo(() => {
     const selectedCurrencyRef = getSelectedCurrencyRef(selectedFilters || [], 'Currency:v1:EUR')
@@ -50,6 +130,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       statusFilter,
       amountRange,
       advanceRange,
+      cardCreatedAtRange,
       selectedCurrencyRef
     })
     return (
@@ -58,6 +139,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
         accessToken={contextProps.accessToken}
         userInfo={contextProps.userInfo}
         selectedCurrencyRef={selectedCurrencyRef}
+        onWidgetClick={handleWidgetClick}
+        activeWidgetKey={activeWidget ?? undefined}
       />
     )
   }, [
@@ -68,7 +151,9 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     statusFilter,
     amountRange,
     advanceRange,
-    filtersVersion
+    cardCreatedAtRange,
+    handleWidgetClick,
+    activeWidget
   ])
 
   useSyncContentHeader(contentHeader, props.onContentHeaderChange)
@@ -93,6 +178,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
   )
 
   const handleClearAllFiltersNoParams = useCallback(() => {
+    setActiveWidget(null)
     setFilters([])
   }, [setFilters])
 
@@ -111,6 +197,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       advanceRange={advanceRange}
       setAmountRange={setAmountRange}
       setAdvanceRange={setAdvanceRange}
+      cardCreatedAtRange={cardCreatedAtRange}
+      setCardCreatedAtRange={setCardCreatedAtRange}
       selectedFilters={selectedFilters}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}
