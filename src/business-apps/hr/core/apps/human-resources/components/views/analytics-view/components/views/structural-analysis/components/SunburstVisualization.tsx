@@ -94,7 +94,7 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
         <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-sunburst-description')}</p>
       </div>
 
-      <div className="gba:min-h-[600px]">
+      <div>
         {hasValidData ? (
           <ResponsiveContainer height={450} width="100%">
             <SunburstChart

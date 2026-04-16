@@ -4,7 +4,7 @@ import { useHierarchyDataIntegration } from './hooks/useHierarchyData'
 import RadialBarChart from './components/RadialBarChart'
 
 const OrganizationalHierarchyReport: React.FC<BusinessAppContextProps> = context => {
-  const { sunburstData, statistics, tableData, isLoading, error, viewMode, setViewMode, refetch } =
+  const { sunburstData, statistics, tableData, alternativeViewData, isLoading, error, viewMode, setViewMode, refetch } =
     useHierarchyDataIntegration(context)
 
   const prefixDataTestId = 'OrganizationalHierarchyReport'
@@ -52,6 +52,7 @@ const OrganizationalHierarchyReport: React.FC<BusinessAppContextProps> = context
         data={sunburstData}
         statistics={statistics}
         tableData={tableData}
+        alternativeViewData={alternativeViewData}
         isLoading={isLoading}
         error={error}
         onRefresh={refetch}
