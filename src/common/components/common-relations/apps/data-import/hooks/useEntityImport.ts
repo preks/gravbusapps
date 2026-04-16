@@ -231,6 +231,16 @@ function toRecordObject(value: unknown): Record<string, any> {
   return value as Record<string, any>
 }
 
+function toLeadAddressLineString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+
+  const lines = (value as { lines?: unknown }).lines
+  if (!Array.isArray(lines) || lines.length === 0) return undefined
+  const firstLine = lines[0]
+  return typeof firstLine === 'string' ? firstLine : undefined
+}
+
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error && typeof error.message === 'string' && error.message.trim().length > 0) {
     return error.message
@@ -782,7 +792,8 @@ export function useEntityImport<T = ConvertedEntity>(
             file,
             backendMappingJson,
             enforcedFieldsJson,
-            config.domain
+            config.domain,
+            'default'
           )
         } catch (error) {
           if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
@@ -792,7 +803,8 @@ export function useEntityImport<T = ConvertedEntity>(
               file,
               uiMappingJson,
               enforcedFieldsJson,
-              config.domain
+              config.domain,
+              'default'
             )
             usedUiMappings = true
           } else {
@@ -852,6 +864,17 @@ export function useEntityImport<T = ConvertedEntity>(
         if (config.entityType === 'lead' && !base.leadStatusRef) {
           base.leadStatusRef =
             config.domain === 'investment' ? 'InvestmentLeadStatus:v1:OPEN' : 'SalesLeadStatus:v1:OPEN'
+        }
+
+        // Java lead endpoints expect addressLine as plain string.
+        // Flowbot can return JSON/object-like addressLine, so normalize it back before submit.
+        if (config.entityType === 'lead') {
+          const addressLine = toLeadAddressLineString(base.addressLine)
+          if (addressLine) {
+            base.addressLine = addressLine
+          } else {
+            delete base.addressLine
+          }
         }
 
         return stripEmptyValues(base)
