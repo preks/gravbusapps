@@ -12,6 +12,7 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
+  useTranslation,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,6 +21,7 @@ import {
 } from '@newwork/nw-design-system'
 import { MoreHorizontal, UserPlus, Check, UserMinus } from 'lucide-react'
 import type { SpaceMember, SpaceMemberRole } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface EnrichedSpaceMember extends SpaceMember {
   userName?: string
@@ -49,21 +51,6 @@ const getInitials = (name?: string, fallback?: string) => {
   return fallback?.slice(0, 2).toUpperCase() || '??'
 }
 
-// Available roles for assignment (owner cannot be assigned)
-const assignableRoles: { role: SpaceMemberRole; label: string; description: string }[] = [
-  { role: 'admin', label: 'Admin', description: 'Can manage members and content' },
-  { role: 'editor', label: 'Editor', description: 'Can create and edit content' },
-  { role: 'viewer', label: 'Viewer', description: 'Can only view content' }
-]
-
-// Role labels
-const roleLabels: Record<SpaceMemberRole, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  editor: 'Editor',
-  viewer: 'Viewer'
-}
-
 export const SpaceMembers: React.FC<SpaceMembersProps> = ({
   members,
   currentUserId,
@@ -74,6 +61,18 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
   onRemoveMember,
   'data-testid': testId = 'space-members'
 }) => {
+  const { t } = useTranslation(translations)
+  const assignableRoles: { role: SpaceMemberRole; label: string; description: string }[] = [
+    { role: 'admin', label: t('common-admin'), description: t('members-role-admin-description') },
+    { role: 'editor', label: t('common-editor'), description: t('members-role-editor-description') },
+    { role: 'viewer', label: t('common-viewer'), description: t('members-role-viewer-description') }
+  ]
+  const roleLabels: Record<SpaceMemberRole, string> = {
+    owner: t('common-owner'),
+    admin: t('common-admin'),
+    editor: t('common-editor'),
+    viewer: t('common-viewer')
+  }
   const [loadingMember, setLoadingMember] = useState<string | null>(null)
 
   // Sort members: owner first, then by role
@@ -110,7 +109,7 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
         <span className="gba:text-sm gba:text-muted-foreground">
-          {members.length} member{members.length !== 1 ? 's' : ''}
+          {t('common-member-count', { count: members.length })}
         </span>
         {canInvite && (
           <Button
@@ -121,7 +120,7 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
             data-testid={`${testId}-invite-button`}
           >
             <UserPlus className="gba:w-4 gba:h-4" />
-            Invite
+            {t('common-invite')}
           </Button>
         )}
       </div>
@@ -141,7 +140,9 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
             >
               {/* Avatar */}
               <Avatar className="gba:w-9 gba:h-9">
-                {member.userAvatar ? <AvatarImage src={member.userAvatar} alt={member.userName || 'Member'} /> : null}
+                {member.userAvatar ? (
+                  <AvatarImage src={member.userAvatar} alt={member.userName || t('common-unknown')} />
+                ) : null}
                 <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-sm gba:font-medium">
                   {getInitials(member.userName, member.userId)}
                 </AvatarFallback>
@@ -150,8 +151,13 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
               {/* Info */}
               <div className="gba:flex-1 gba:min-w-0">
                 <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:block">
-                  {member.userName || `User ${member.userId?.slice(0, 8) || ''}...`}
-                  {isCurrentUser && <span className="gba:text-muted-foreground gba:font-normal"> (you)</span>}
+                  {member.userName || t('common-unknown')}
+                  {isCurrentUser && (
+                    <span className="gba:text-muted-foreground gba:font-normal">
+                      {' '}
+                      ({t('common-you').toLowerCase()})
+                    </span>
+                  )}
                 </span>
               </div>
 
@@ -178,7 +184,9 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="gba:w-56">
                     <div className="gba:px-2 gba:py-1.5">
-                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">Change Role</p>
+                      <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                        {t('members-change-role')}
+                      </p>
                     </div>
                     {assignableRoles.map(({ role, label, description }) => (
                       <DropdownMenuItem
@@ -201,7 +209,7 @@ export const SpaceMembers: React.FC<SpaceMembersProps> = ({
                       data-testid={`${testId}-remove-${member.id}`}
                     >
                       <UserMinus className="gba:w-4 gba:h-4" />
-                      Remove from space
+                      {t('members-remove-from-space')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

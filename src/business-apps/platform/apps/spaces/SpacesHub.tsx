@@ -9,6 +9,7 @@ import {
   Button,
   Input,
   toast,
+  useTranslation,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -30,6 +31,7 @@ import { PremiumHeroBackground } from '@/common/components/premium-hero-backgrou
 // Hooks
 import { useSpaces } from './hooks/useSpaces'
 import type { CreateSpaceInput, Space } from './types/space.types'
+import translations from './_i18n'
 
 export interface SpacesHubProps extends BusinessAppContextProps {
   /** Open a specific space in detail view (handled by SpacesRouter) */
@@ -39,12 +41,22 @@ export interface SpacesHubProps extends BusinessAppContextProps {
 
 type FilterType = 'all' | 'owned' | 'shared'
 
+const loadingCardIds = [
+  'space-loading-1',
+  'space-loading-2',
+  'space-loading-3',
+  'space-loading-4',
+  'space-loading-5',
+  'space-loading-6'
+]
+
 export const SpacesHub: React.FC<SpacesHubProps> = ({
   accessToken,
   userInfo,
   onOpenSpace,
   'data-testid': testId = 'spaces-hub'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<FilterType>('all')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -118,15 +130,15 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
     try {
       const ok = await deleteSpace(spacePendingDelete.id)
       if (ok) {
-        toast.success('Space deleted')
+        toast.success(t('hub-toast-space-deleted'))
         setSpacePendingDelete(null)
       } else {
-        toast.error('Could not delete space. Only the owner can delete a space.')
+        toast.error(t('hub-toast-space-delete-failed'))
       }
     } finally {
       setIsDeletingSpace(false)
     }
-  }, [spacePendingDelete, deleteSpace])
+  }, [deleteSpace, spacePendingDelete, t])
 
   return (
     <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
@@ -139,19 +151,16 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-6 gba:mb-10">
             <div>
               <h1 className="gba:font-funnel-display gba:text-4xl gba:sm:text-5xl gba:lg:text-6xl gba:font-semibold gba:text-white gba:tracking-tight gba:mb-3">
-                Spaces
+                {t('hub-title')}
               </h1>
-              <p className="gba:text-lg gba:text-white/80 gba:max-w-xl gba:mb-6">
-                Collaborative workspaces for your team. Documents, notes, and spreadsheets in one place.
-              </p>
+              <p className="gba:text-lg gba:text-white/80 gba:max-w-xl gba:mb-6">{t('hub-description')}</p>
               <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-white/60">
-                <span data-testid={`${testId}-stat-total`}>
-                  {stats.total} space{stats.total !== 1 ? 's' : ''}
-                </span>
+                <span data-testid={`${testId}-stat-total`}>{t('hub-total-spaces', { count: stats.total })}</span>
                 {stats.owned > 0 && (
                   <span>
-                    {stats.owned} yours
-                    {stats.shared > 0 ? ` · ${stats.shared} shared with you` : ''}
+                    {stats.shared > 0
+                      ? t('hub-owned-shared-summary', { owned: stats.owned, shared: stats.shared })
+                      : t('hub-owned-summary', { count: stats.owned })}
                   </span>
                 )}
               </div>
@@ -165,7 +174,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
                 data-testid={`${testId}-every-office-link`}
               >
                 <LayoutDashboard className="gba:w-5 gba:h-5" />
-                Every Office
+                {t('hub-every-office')}
               </Button>
               <Button
                 size="lg"
@@ -174,7 +183,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
                 data-testid={`${testId}-create-button`}
               >
                 <Plus className="gba:w-5 gba:h-5" />
-                Create Space
+                {t('common-create-space')}
               </Button>
             </div>
           </div>
@@ -184,7 +193,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
             <div className="gba:relative gba:flex-1">
               <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-white/50" />
               <Input
-                placeholder="Search spaces..."
+                placeholder={t('common-search-spaces-placeholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="gba:pl-9 gba:h-11 gba:bg-white/10 gba:border-white/20 gba:text-white placeholder:gba:text-white/50 focus:gba:border-white/40"
@@ -203,7 +212,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
                   }`}
                   data-testid={`${testId}-filter-${f}`}
                 >
-                  {f === 'all' ? 'All' : f === 'owned' ? 'Owned' : 'Shared'}
+                  {f === 'all' ? t('hub-filter-all') : f === 'owned' ? t('hub-filter-owned') : t('hub-filter-shared')}
                 </button>
               ))}
             </div>
@@ -216,8 +225,8 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         {/* Loading State */}
         {isLoading && (
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="gba:h-48 gba:rounded-lg gba:bg-card gba:animate-pulse" />
+            {loadingCardIds.map(id => (
+              <div key={id} className="gba:h-48 gba:rounded-lg gba:bg-card gba:animate-pulse" />
             ))}
           </div>
         )}
@@ -227,7 +236,7 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
           <div className="gba:text-center gba:py-16">
             <p className="gba:text-sm gba:text-destructive gba:mb-4">{error}</p>
             <Button onClick={refresh} variant="secondary">
-              Try Again
+              {t('common-try-again')}
             </Button>
           </div>
         )}
@@ -236,17 +245,15 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         {!isLoading && !error && displaySpaces.length === 0 && (
           <div className="gba:text-center gba:py-16">
             <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">
-              {searchQuery ? 'No spaces found' : 'No spaces yet'}
+              {searchQuery ? t('hub-no-spaces-found') : t('hub-no-spaces-yet')}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-6 gba:max-w-sm gba:mx-auto">
-              {searchQuery
-                ? 'Try adjusting your search to find what you are looking for'
-                : 'Create a space to start organizing your team content'}
+              {searchQuery ? t('hub-search-empty-description') : t('hub-empty-description')}
             </p>
             {!searchQuery && (
               <Button onClick={() => setCreateDialogOpen(true)} className="gba:gap-2">
                 <Plus className="gba:w-4 gba:h-4" />
-                Create Space
+                {t('common-create-space')}
               </Button>
             )}
           </div>
@@ -282,20 +289,17 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
       <AlertDialog open={!!spacePendingDelete} onOpenChange={open => !open && setSpacePendingDelete(null)}>
         <AlertDialogContent data-testid={`${testId}-delete-space-alert`}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this space?</AlertDialogTitle>
+            <AlertDialogTitle>{t('hub-delete-title')}</AlertDialogTitle>
             <AlertDialogDescription>
               {spacePendingDelete?.name ? (
-                <>
-                  &quot;{spacePendingDelete.name}&quot; will be removed for everyone. Your documents, notes, boards, and
-                  slides stay in Every Office; they are only unlinked from this space.
-                </>
+                <>{t('hub-delete-with-name', { name: spacePendingDelete.name })}</>
               ) : (
-                'This space will be removed for everyone. Your content stays in Every Office; it is only unlinked from this space.'
+                t('hub-delete-without-name')
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingSpace}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeletingSpace}>{t('common-cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={isDeletingSpace}
               onClick={() => void handleConfirmDeleteFromHub()}
@@ -304,11 +308,11 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
             >
               {isDeletingSpace ? (
                 <>
-                  <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline gba:animate-spin" /> Deleting...
+                  <Loader2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline gba:animate-spin" /> {t('common-deleting')}
                 </>
               ) : (
                 <>
-                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline" /> Delete space
+                  <Trash2 className="gba:w-4 gba:h-4 gba:mr-2 gba:inline" /> {t('hub-delete-confirm')}
                 </>
               )}
             </AlertDialogAction>

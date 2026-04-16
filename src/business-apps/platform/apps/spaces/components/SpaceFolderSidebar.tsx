@@ -17,7 +17,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChevronDown,
@@ -31,6 +32,7 @@ import {
   FolderTree
 } from 'lucide-react'
 import type { SpaceFolder } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceFolderSidebarProps {
   folders: SpaceFolder[]
@@ -87,6 +89,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
   onDeleteFolder,
   'data-testid': testId = 'space-folder-sidebar'
 }) => {
+  const { t } = useTranslation(translations)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   const tree = useMemo(() => buildTree(folders), [folders])
@@ -172,14 +175,14 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
                   data-testid={`${testId}-folder-add-${node.id}`}
                 >
                   <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                  New subfolder
+                  {t('folder-new-subfolder')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => onRenameFolder(node.id)}
                   data-testid={`${testId}-folder-rename-${node.id}`}
                 >
                   <Edit3 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Rename
+                  {t('common-rename')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -188,7 +191,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
                   data-testid={`${testId}-folder-delete-${node.id}`}
                 >
                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Delete
+                  {t('common-delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -215,7 +218,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
       <div className="gba:p-4 gba:border-b gba:border-border/50 gba:flex gba:items-center gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
           <FolderTree className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-          <span className="gba:font-medium gba:text-sm gba:text-foreground">Navigation</span>
+          <span className="gba:font-medium gba:text-sm gba:text-foreground">{t('folder-navigation')}</span>
         </div>
         {canEdit ? (
           <TooltipProvider>
@@ -231,7 +234,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
                   <Plus className="gba:w-4 gba:h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">New folder</TooltipContent>
+              <TooltipContent side="right">{t('folder-new-folder')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         ) : null}
@@ -240,7 +243,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
       {/* Quick access */}
       <div className="gba:p-3 gba:space-y-1">
         <p className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:px-2 gba:mb-2">
-          Quick access
+          {t('folder-quick-access')}
         </p>
         <button
           onClick={onSelectRoot}
@@ -263,7 +266,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
               }`}
             />
           </div>
-          Root
+          {t('common-root')}
         </button>
       </div>
 
@@ -276,15 +279,15 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
       <ScrollArea className="gba:flex-1">
         <div className="gba:p-3">
           <p className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:px-2 gba:mb-2">
-            Folders
+            {t('folder-section-title')}
           </p>
           {tree.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:px-4">
               <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-3">
                 <Folder className="gba:w-6 gba:h-6 gba:text-muted-foreground/50" />
               </div>
-              <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">No folders yet</p>
-              <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">Create one to organize your space</p>
+              <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('folder-empty-title')}</p>
+              <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('folder-empty-description')}</p>
             </div>
           ) : (
             <div className="gba:space-y-0.5">

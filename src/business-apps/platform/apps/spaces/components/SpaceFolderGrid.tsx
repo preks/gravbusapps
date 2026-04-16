@@ -6,9 +6,10 @@
  */
 
 import React, { useMemo, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Folder, Plus, ChevronRight } from 'lucide-react'
 import type { SpaceFolder } from '../types/space.types'
+import translations from '../_i18n'
 
 export interface SpaceFolderGridProps {
   folders: SpaceFolder[]
@@ -34,6 +35,7 @@ export const SpaceFolderGrid: React.FC<SpaceFolderGridProps> = ({
   onDropItem,
   'data-testid': testId = 'space-folder-grid'
 }) => {
+  const { t } = useTranslation(translations)
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
 
   const visible = useMemo(() => {
@@ -49,7 +51,7 @@ export const SpaceFolderGrid: React.FC<SpaceFolderGridProps> = ({
     <div className="gba:space-y-3" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Folders</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('folder-section-title')}</h3>
           {visible.length > 0 && (
             <span className="gba:text-xs gba:text-muted-foreground gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded-full">
               {visible.length}
@@ -65,7 +67,7 @@ export const SpaceFolderGrid: React.FC<SpaceFolderGridProps> = ({
             data-testid={`${testId}-new-folder`}
           >
             <Plus className="gba:w-4 gba:h-4" />
-            New folder
+            {t('folder-new-folder')}
           </Button>
         )}
       </div>
@@ -75,8 +77,8 @@ export const SpaceFolderGrid: React.FC<SpaceFolderGridProps> = ({
           <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-3">
             <Folder className="gba:w-6 gba:h-6 gba:text-muted-foreground/50" />
           </div>
-          <p className="gba:text-sm gba:text-muted-foreground">No folders here yet</p>
-          <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">Create a folder to organize your content</p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('folder-empty-here')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">{t('folder-empty-here-description')}</p>
         </div>
       ) : (
         <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-4 gba:gap-3">
@@ -124,7 +126,7 @@ export const SpaceFolderGrid: React.FC<SpaceFolderGridProps> = ({
                   <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:group-hover:text-primary">
                     {folder.name}
                   </p>
-                  <p className="gba:text-xs gba:text-muted-foreground">Folder</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('common-folder')}</p>
                 </div>
                 <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/50 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity" />
               </button>

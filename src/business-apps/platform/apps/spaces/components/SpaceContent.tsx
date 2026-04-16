@@ -6,7 +6,6 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react'
-import { format } from 'date-fns'
 import {
   Button,
   DropdownMenu,
@@ -14,7 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
-  Checkbox
+  Checkbox,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Search,
@@ -33,6 +33,8 @@ import {
   Trash2
 } from 'lucide-react'
 import type { SpaceContentItem } from '../types/space.types'
+import translations from '../_i18n'
+import { formatLocalizedDate } from '../utils/spaceLocalization'
 
 export interface SpaceContentProps {
   items: SpaceContentItem[]
@@ -48,21 +50,21 @@ type ContentTab = 'all' | 'document' | 'spreadsheet' | 'note' | 'slide' | 'white
 type SortField = 'title' | 'updatedAt' | 'createdAt' | 'type'
 type SortDirection = 'asc' | 'desc'
 
-const tabConfig: Record<ContentTab, { icon: typeof FileText; label: string }> = {
-  all: { icon: FolderOpen, label: 'All' },
-  document: { icon: FileText, label: 'Documents' },
-  spreadsheet: { icon: Table2, label: 'Spreadsheets' },
-  note: { icon: StickyNote, label: 'Notes' },
-  slide: { icon: Presentation, label: 'Slides' },
-  whiteboard: { icon: PenTool, label: 'Whiteboards' }
+const tabConfig: Record<ContentTab, { icon: typeof FileText; labelKey: string }> = {
+  all: { icon: FolderOpen, labelKey: 'content-tab-all' },
+  document: { icon: FileText, labelKey: 'content-type-documents' },
+  spreadsheet: { icon: Table2, labelKey: 'content-type-spreadsheets' },
+  note: { icon: StickyNote, labelKey: 'content-type-notes' },
+  slide: { icon: Presentation, labelKey: 'content-type-slides' },
+  whiteboard: { icon: PenTool, labelKey: 'content-type-whiteboards' }
 }
 
-const contentTypeConfig: Record<string, { icon: typeof FileText; label: string }> = {
-  document: { icon: FileText, label: 'Document' },
-  spreadsheet: { icon: Table2, label: 'Spreadsheet' },
-  note: { icon: StickyNote, label: 'Note' },
-  slide: { icon: Presentation, label: 'Presentation' },
-  whiteboard: { icon: PenTool, label: 'Whiteboard' }
+const contentTypeConfig: Record<string, { icon: typeof FileText; labelKey: string }> = {
+  document: { icon: FileText, labelKey: 'content-type-document' },
+  spreadsheet: { icon: Table2, labelKey: 'content-type-spreadsheet' },
+  note: { icon: StickyNote, labelKey: 'content-type-note' },
+  slide: { icon: Presentation, labelKey: 'content-type-slide' },
+  whiteboard: { icon: PenTool, labelKey: 'content-type-whiteboard' }
 }
 
 export const SpaceContent: React.FC<SpaceContentProps> = ({
@@ -74,6 +76,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
   onRemoveContent,
   'data-testid': testId = 'space-content'
 }) => {
+  const { t, locale } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<ContentTab>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<SortField>('updatedAt')
@@ -186,7 +189,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
       {/* Header with search and tabs */}
       <div className="gba:flex gba:flex-col gba:gap-3 gba:sm:flex-row gba:sm:items-center gba:sm:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Files</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('common-files')}</h3>
           {items.length > 0 && (
             <span className="gba:text-xs gba:text-muted-foreground gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded-full">
               {items.length}
@@ -199,7 +202,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
           <div className="gba:relative gba:w-full gba:sm:w-64">
             <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
             <Input
-              placeholder="Search files..."
+              placeholder={t('common-search-files-placeholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="gba:pl-9 gba:h-9"
@@ -230,7 +233,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
               data-testid={`${testId}-tab-${tab}`}
             >
               <Icon className="gba:w-3.5 gba:h-3.5" />
-              <span className="gba:hidden gba:sm:inline">{config.label}</span>
+              <span className="gba:hidden gba:sm:inline">{t(config.labelKey)}</span>
               <span className="gba:text-xs gba:opacity-60">{count}</span>
             </button>
           )
@@ -244,10 +247,10 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
             <FolderOpen className="gba:w-7 gba:h-7 gba:text-muted-foreground/50" />
           </div>
           <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-            {searchQuery ? 'No files match your search' : 'No files in this location'}
+            {searchQuery ? t('content-empty-search-title') : t('content-empty-title')}
           </p>
           <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
-            {searchQuery ? 'Try a different search term' : 'Add content to this space to get started'}
+            {searchQuery ? t('content-empty-search-description') : t('content-empty-description')}
           </p>
         </div>
       )}
@@ -256,7 +259,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
       {selectedItems.size > 0 && (
         <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:bg-primary/10 gba:border gba:border-primary/20 gba:rounded-lg">
           <span className="gba:text-sm gba:font-medium gba:text-foreground">
-            {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+            {t('common-selected-items', { count: selectedItems.size })}
           </span>
           <div className="gba:flex gba:gap-2 gba:ml-auto">
             {onMoveMultipleToFolder && (
@@ -267,11 +270,11 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                 data-testid={`${testId}-move-selected`}
               >
                 <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
-                Move to folder
+                {t('common-move-to-folder')}
               </Button>
             )}
             <Button variant="ghost" size="sm" onClick={clearSelection} data-testid={`${testId}-clear-selection`}>
-              Clear
+              {t('common-clear')}
             </Button>
           </div>
         </div>
@@ -293,7 +296,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                 onClick={() => handleSort('title')}
                 className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
               >
-                Name {getSortIcon('title')}
+                {t('content-column-name')} {getSortIcon('title')}
               </button>
             </div>
             <div className="gba:col-span-2 gba:hidden gba:sm:block">
@@ -302,7 +305,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                 onClick={() => handleSort('type')}
                 className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
               >
-                Type {getSortIcon('type')}
+                {t('content-column-type')} {getSortIcon('type')}
               </button>
             </div>
             <div className="gba:col-span-4 gba:sm:col-span-2">
@@ -311,7 +314,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                 onClick={() => handleSort('updatedAt')}
                 className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
               >
-                Modified {getSortIcon('updatedAt')}
+                {t('content-column-modified')} {getSortIcon('updatedAt')}
               </button>
             </div>
             <div className="gba:col-span-2 gba:hidden gba:sm:block">
@@ -320,7 +323,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                 onClick={() => handleSort('createdAt')}
                 className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
               >
-                Created {getSortIcon('createdAt')}
+                {t('content-column-created')} {getSortIcon('createdAt')}
               </button>
             </div>
             <div className="gba:col-span-1" />
@@ -383,20 +386,20 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
 
                   {/* Type */}
                   <div className="gba:col-span-2 gba:hidden gba:sm:flex gba:items-center">
-                    <span className="gba:text-sm gba:text-muted-foreground">{config.label}</span>
+                    <span className="gba:text-sm gba:text-muted-foreground">{t(config.labelKey)}</span>
                   </div>
 
                   {/* Modified */}
                   <div className="gba:col-span-4 gba:sm:col-span-2 gba:flex gba:items-center">
                     <span className="gba:text-sm gba:text-muted-foreground">
-                      {format(new Date(item.updatedAt), 'MMM d, yyyy')}
+                      {formatLocalizedDate(new Date(item.updatedAt), locale)}
                     </span>
                   </div>
 
                   {/* Created */}
                   <div className="gba:col-span-2 gba:hidden gba:sm:flex gba:items-center">
                     <span className="gba:text-sm gba:text-muted-foreground">
-                      {format(new Date(item.createdAt), 'MMM d, yyyy')}
+                      {formatLocalizedDate(new Date(item.createdAt), locale)}
                     </span>
                   </div>
 
@@ -421,7 +424,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                           {onMoveToFolderClick && (
                             <DropdownMenuItem onClick={() => onMoveToFolderClick(item)}>
                               <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Move to folder
+                              {t('common-move-to-folder')}
                             </DropdownMenuItem>
                           )}
                           {onRemoveContent && (
@@ -430,7 +433,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                               className="gba:text-destructive focus:gba:text-destructive"
                             >
                               <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              Remove from space
+                              {t('content-remove-from-space')}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

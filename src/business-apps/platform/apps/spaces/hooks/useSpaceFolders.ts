@@ -5,8 +5,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { Space, SpaceFolder, CreateSpaceFolderInput, UpdateSpaceFolderInput } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -27,6 +29,7 @@ export function useSpaceFolders(
   space: Space | null,
   onFoldersChange?: () => void
 ): UseSpaceFoldersResult {
+  const { t } = useTranslation(translations)
   const [folders, setFolders] = useState<SpaceFolder[]>([])
   const [isSupported, setIsSupported] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
@@ -45,31 +48,31 @@ export function useSpaceFolders(
       if (response.status === 404) {
         setIsSupported(false)
         setFolders([])
-        setError('Folders are not available on the current backend instance.')
+        setError(t('drive-not-supported'))
         return
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch folders: ${response.statusText}`)
+        throw new Error(t('error-load-folders'))
       }
 
       const data = await response.json()
       setIsSupported(true)
       setFolders(Array.isArray(data) ? data : [])
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load folders'
+      const message = err instanceof Error ? err.message : t('error-load-folders')
       setError(message)
       console.error('[useSpaceFolders] Error:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, accessToken])
+  }, [accessToken, spaceId, t])
 
   const createFolder = useCallback(
     async (input: CreateSpaceFolderInput): Promise<SpaceFolder | null> => {
       if (!spaceId || !accessToken) return null
       if (!isSupported) {
-        setError('Folders are not available on the current backend instance.')
+        setError(t('drive-not-supported'))
         return null
       }
       try {
@@ -90,7 +93,7 @@ export function useSpaceFolders(
             setIsSupported(false)
           }
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Failed to create folder: ${response.statusText}`)
+          throw new Error(errorData.message || t('error-create-folder'))
         }
 
         const created = await response.json()
@@ -98,7 +101,7 @@ export function useSpaceFolders(
         onFoldersChange?.()
         return created
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to create folder'
+        const message = err instanceof Error ? err.message : t('error-create-folder')
         setError(message)
         console.error('[useSpaceFolders] Create error:', err)
         return null
@@ -106,14 +109,14 @@ export function useSpaceFolders(
         setIsLoading(false)
       }
     },
-    [spaceId, accessToken, refresh, onFoldersChange, isSupported]
+    [accessToken, isSupported, onFoldersChange, refresh, spaceId, t]
   )
 
   const updateFolder = useCallback(
     async (folderId: string, input: UpdateSpaceFolderInput): Promise<SpaceFolder | null> => {
       if (!spaceId || !accessToken) return null
       if (!isSupported) {
-        setError('Folders are not available on the current backend instance.')
+        setError(t('drive-not-supported'))
         return null
       }
       try {
@@ -134,7 +137,7 @@ export function useSpaceFolders(
             setIsSupported(false)
           }
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Failed to update folder: ${response.statusText}`)
+          throw new Error(errorData.message || t('error-update-folder'))
         }
 
         const updated = await response.json()
@@ -142,7 +145,7 @@ export function useSpaceFolders(
         onFoldersChange?.()
         return updated
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to update folder'
+        const message = err instanceof Error ? err.message : t('error-update-folder')
         setError(message)
         console.error('[useSpaceFolders] Update error:', err)
         return null
@@ -150,14 +153,14 @@ export function useSpaceFolders(
         setIsLoading(false)
       }
     },
-    [spaceId, accessToken, refresh, onFoldersChange, isSupported]
+    [accessToken, isSupported, onFoldersChange, refresh, spaceId, t]
   )
 
   const deleteFolder = useCallback(
     async (folderId: string): Promise<boolean> => {
       if (!spaceId || !accessToken) return false
       if (!isSupported) {
-        setError('Folders are not available on the current backend instance.')
+        setError(t('drive-not-supported'))
         return false
       }
       try {
@@ -174,14 +177,14 @@ export function useSpaceFolders(
             setIsSupported(false)
           }
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.message || `Failed to delete folder: ${response.statusText}`)
+          throw new Error(errorData.message || t('error-delete-folder'))
         }
 
         await refresh()
         onFoldersChange?.()
         return true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to delete folder'
+        const message = err instanceof Error ? err.message : t('error-delete-folder')
         setError(message)
         console.error('[useSpaceFolders] Delete error:', err)
         return false
@@ -189,7 +192,7 @@ export function useSpaceFolders(
         setIsLoading(false)
       }
     },
-    [spaceId, accessToken, refresh, onFoldersChange, isSupported]
+    [accessToken, isSupported, onFoldersChange, refresh, spaceId, t]
   )
 
   useEffect(() => {
