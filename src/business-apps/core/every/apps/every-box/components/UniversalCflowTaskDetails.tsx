@@ -400,49 +400,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   const canShowDocumentReview = Boolean(isCurrentDocumentApprovalTask && documentApprovalRequestId)
 
-  const documentReviewPrompt = canShowDocumentReview ? (
-    <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/30">
-      <CardContent className="gba:flex gba:flex-col gba:gap-3 gba:pt-4 sm:gba:flex-row sm:gba:items-center sm:gba:justify-between">
-        <div className="gba:flex gba:items-start gba:gap-3">
-          <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary/10">
-            <Eye className="gba:h-4 gba:w-4 gba:text-primary" />
-          </div>
-          <div className="gba:min-w-0">
-            <div className="gba:text-sm gba:font-semibold gba:text-foreground">
-              {t('document-approval-review-title')}
-            </div>
-            <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-              {t('document-approval-review-description')}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsReviewDialogOpen(true)}
-          data-testid="task-document-review-open"
-          className="gba:shrink-0"
-        >
-          <Eye className="gba:mr-2 gba:h-4 gba:w-4" />
-          {t('document-approval-review-open')}
-        </Button>
-      </CardContent>
-    </Card>
-  ) : null
-
-  const documentReviewDialog =
-    canShowDocumentReview && documentApprovalRequestId ? (
-      <DocumentApprovalReviewDialog
-        open={isReviewDialogOpen}
-        onOpenChange={setIsReviewDialogOpen}
-        source={{ kind: 'approvalRequest', approvalRequestId: documentApprovalRequestId }}
-        accessToken={accessToken}
-        bannerMode="metadataOnly"
-        description={t('document-approval-review-description')}
-        testId="task-document-review-dialog"
-      />
-    ) : null
-
   // Get completion details title based on task type
   const getCompletionDetailsTitle = () => {
     if (isApprovalTask) {
@@ -984,6 +941,108 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const entityName = entityLink?.name
   const entityDisplayUrl = entityLink?.url
 
+  // Resolve the best display name for a document under review.
+  // 1. Prefer the explicit documentTitle on the link metadata (new tasks).
+  // 2. Fall back to entityLink.name, unless it is the legacy hardcoded "Open document".
+  // 3. Otherwise surface no name (card uses a generic fallback copy).
+  const documentTitleMetadata =
+    typeof entityLink?.metadata?.documentTitle === 'string' ? (entityLink.metadata.documentTitle as string).trim() : ''
+  const linkNameTrimmed = typeof entityName === 'string' ? entityName.trim() : ''
+  const isLegacyGenericLinkName = linkNameTrimmed.toLowerCase() === 'open document'
+  const resolvedDocumentName = documentTitleMetadata || (isLegacyGenericLinkName ? '' : linkNameTrimmed)
+
+  // Document version under review: prefer link metadata, then task tags.
+  const parseVersionNumber = (raw: unknown): number | null => {
+    if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 1) {
+      return raw
+    }
+    if (typeof raw === 'string' && raw.trim()) {
+      const parsed = Number(raw.trim())
+      if (Number.isInteger(parsed) && parsed >= 1) {
+        return parsed
+      }
+    }
+    return null
+  }
+  const reviewVersionNumber =
+    parseVersionNumber(entityLink?.metadata?.versionAtRequest) ??
+    parseVersionNumber(task.tags?.version) ??
+    parseVersionNumber(task.sourceMetadata?.tags?.version) ??
+    parseVersionNumber(task.workflowMeta?.tags?.version)
+  const reviewVersionLabel = reviewVersionNumber ? `v${reviewVersionNumber}` : null
+
+  const documentReviewPrompt = canShowDocumentReview ? (
+    <Card variant="surface" className="gba:border-primary/30 gba:bg-muted/30" data-testid="task-document-review-card">
+      <CardContent className="gba:flex gba:flex-col gba:gap-4 gba:pt-4">
+        <div className="gba:flex gba:items-start gba:gap-3">
+          <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary/10">
+            <FileText className="gba:h-4 gba:w-4 gba:text-primary" />
+          </div>
+          <div className="gba:min-w-0 gba:flex-1">
+            <div className="gba:text-xs gba:text-muted-foreground gba:font-medium">
+              {t('document-approval-review-card-label')}
+            </div>
+            <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:flex-wrap">
+              <span
+                className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground"
+                data-testid="task-document-review-entity-name"
+              >
+                {resolvedDocumentName || t('document-approval-review-card-fallback-name')}
+              </span>
+              {reviewVersionLabel && (
+                <Badge
+                  variant="outline"
+                  className="gba:shrink-0 gba:text-xs gba:font-mono"
+                  data-testid="task-document-review-version"
+                >
+                  {reviewVersionLabel}
+                </Badge>
+              )}
+              <Badge variant="outline" className="gba:shrink-0 gba:text-xs">
+                {t('document-approval-review-card-snapshot-badge')}
+              </Badge>
+            </div>
+            <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
+              {t('document-approval-review-card-description')}
+            </p>
+          </div>
+        </div>
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:pl-12 sm:gba:flex-row sm:gba:items-center sm:gba:gap-2">
+          <Button size="sm" onClick={() => setIsReviewDialogOpen(true)} data-testid="task-document-review-open">
+            <Eye className="gba:mr-2 gba:h-4 gba:w-4" />
+            {t('document-approval-review-open-here')}
+          </Button>
+          {entityDisplayUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateTo(entityDisplayUrl)}
+              title={t('document-approval-review-open-external-tooltip')}
+              data-testid="task-document-review-open-external"
+            >
+              <ExternalLink className="gba:mr-2 gba:h-4 gba:w-4" />
+              {t('document-approval-review-open-external')}
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  ) : null
+
+  const documentReviewDialog =
+    canShowDocumentReview && documentApprovalRequestId ? (
+      <DocumentApprovalReviewDialog
+        open={isReviewDialogOpen}
+        onOpenChange={setIsReviewDialogOpen}
+        source={{ kind: 'approvalRequest', approvalRequestId: documentApprovalRequestId }}
+        accessToken={accessToken}
+        bannerMode="metadataOnly"
+        title={resolvedDocumentName || undefined}
+        description={t('document-approval-review-dialog-description')}
+        testId="task-document-review-dialog"
+      />
+    ) : null
+
   const syncDocumentApprovalDecision = useCallback(
     async (decision: 'approved' | 'rejected', options?: { comments?: string }) => {
       if (!isCurrentDocumentApprovalTask || !documentApprovalRequestId) {
@@ -1258,8 +1317,10 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
               </div>
             )}
 
-            {/* Entity Reference (if linked to an entity) */}
-            {entityType && entityId && entityName && (
+            {/* Entity Reference (if linked to an entity). Hidden on document-approval tasks
+                because documentReviewPrompt already names the document and provides both
+                in-task and Documents-app actions. */}
+            {entityType && entityId && entityName && !isCurrentDocumentApprovalTask && (
               <Card variant="surface" className="gba:border-primary/20 gba:bg-muted/20">
                 <CardContent className="gba:pt-4">
                   <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
@@ -1665,8 +1726,10 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </Card>
           )}
 
-          {/* Entity Reference (if linked to an entity) - Same for all cFlow tasks */}
-          {entityType && entityId && entityName && (
+          {/* Entity Reference (if linked to an entity) - Same for all cFlow tasks.
+              Hidden on document-approval tasks because documentReviewPrompt shows the
+              document name and both in-task and Documents-app actions. */}
+          {entityType && entityId && entityName && !isCurrentDocumentApprovalTask && (
             <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
               <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
                 {t('task-details-related-to')}

@@ -355,6 +355,7 @@ review-error-back = Go back
 review-error-retry = Try again
 review-dialog-title-fallback = Document review
 review-dialog-description = Read-only preview of the version submitted for approval.
+review-dialog-readonly-badge = Read-only
 review-dialog-close = Close
 
 # Create template dialog

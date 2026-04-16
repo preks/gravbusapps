@@ -424,10 +424,6 @@ export function VersionHistory({
                           <Clock className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
                           {formatVersionCreatedAt(version.createdAt)}
                         </span>
-                        <span className="gba:hidden gba:text-muted-foreground/50 sm:gba:inline" aria-hidden>
-                          ·
-                        </span>
-                        <span className="gba:tabular-nums">{(version.fileSize / 1024).toFixed(1)} KB</span>
                       </div>
 
                       {approvalDetails && (

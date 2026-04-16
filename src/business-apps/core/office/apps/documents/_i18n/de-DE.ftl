@@ -343,6 +343,7 @@ review-error-back = Zuruck
 review-error-retry = Erneut versuchen
 review-dialog-title-fallback = Dokumentenprufung
 review-dialog-description = Schreibgeschutzte Vorschau der zur Genehmigung eingereichten Version.
+review-dialog-readonly-badge = Schreibgeschutzt
 review-dialog-close = Schliessen
 
 # Create template dialog

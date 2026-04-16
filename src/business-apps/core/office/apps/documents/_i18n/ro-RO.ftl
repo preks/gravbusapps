@@ -343,6 +343,7 @@ review-error-back = Înapoi
 review-error-retry = Încercați din nou
 review-dialog-title-fallback = Revizie document
 review-dialog-description = Previzualizare doar pentru citire a versiunii trimise pentru aprobare.
+review-dialog-readonly-badge = Doar citire
 review-dialog-close = Închide
 
 # Create template dialog

@@ -74,6 +74,9 @@ export function DocumentApprovalReviewDialog({
                 {versionLabel}
               </Badge>
             )}
+            <Badge variant="secondary" className="gba:shrink-0" data-testid={`${testId}-readonly`}>
+              {t('review-dialog-readonly-badge')}
+            </Badge>
           </div>
           <DialogDescription>{resolvedDescription}</DialogDescription>
         </DialogHeader>
