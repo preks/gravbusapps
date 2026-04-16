@@ -40672,8 +40672,8 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 10869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10869/",
+    "bitbucketBuildNumber": 10892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10892/",
     "chunkJsBytes": 1359450,
     "top": [
       {
@@ -41829,15 +41829,15 @@
     ]
   },
   "hr/core/apps/manager-dashboard": {
-    "bitbucketBuildNumber": 10853,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10853/",
-    "chunkJsBytes": 332188,
+    "bitbucketBuildNumber": 10892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10892/",
+    "chunkJsBytes": 335231,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 359369,
-        "gzip": 79794,
+        "rendered": 366717,
+        "gzip": 81766,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/manager-dashboard/components/manager-workboard/TodaysPrioritiesSection.tsx",
@@ -42141,8 +42141,8 @@
     ]
   },
   "hr/core/apps/my-development": {
-    "bitbucketBuildNumber": 10869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10869/",
+    "bitbucketBuildNumber": 10892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10892/",
     "chunkJsBytes": 771123,
     "top": [
       {
@@ -87933,20 +87933,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 10889,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10889/",
-    "chunkJsBytes": 1804800,
+    "bitbucketBuildNumber": 10892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/10892/",
+    "chunkJsBytes": 1804806,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1497923,
-        "gzip": 89632,
+        "gzip": 89661,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1497923,
-            "gzip": 89632
+            "gzip": 89661
           }
         ]
       },
@@ -101593,7 +101593,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-04-16T12:14:42.552Z",
+    "generatedAt": "2026-04-16T12:27:50.302Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
