@@ -32,7 +32,7 @@ interface PayrollGridViewProps {
   t: (key: string) => string
 }
 
-type SortField = 'displayName' | 'department' | 'baseSalary' | 'readinessStatus' | 'issues'
+type SortField = 'fullName' | 'department' | 'baseSalary' | 'readinessStatus' | 'issues'
 type SortOrder = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100]
@@ -95,8 +95,8 @@ function getOpenIssuesCount(employee: PayrollEmployee): number {
 
 function compareEmployees(a: PayrollEmployee, b: PayrollEmployee, field: SortField): number {
   switch (field) {
-    case 'displayName':
-      return a.displayName.localeCompare(b.displayName)
+    case 'fullName':
+      return a.fullName.localeCompare(b.fullName)
     case 'department':
       return (a.department || '').localeCompare(b.department || '')
     case 'baseSalary':
@@ -184,9 +184,7 @@ const PayrollGridRow: React.FC<PayrollGridRowProps> = ({ employee, onSelectEmplo
             )}
           </div>
           <div>
-            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
-              {employee.displayName}
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">{employee.fullName}</p>
           </div>
         </div>
       </TableCell>
@@ -284,7 +282,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   refreshing,
   t
 }) => {
-  const [sortField, setSortField] = useState<SortField>('displayName')
+  const [sortField, setSortField] = useState<SortField>('fullName')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -346,7 +344,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
             <TableHeader>
               <TableRow>
                 <PayrollGridSortableHead
-                  field="displayName"
+                  field="fullName"
                   label={t('grid-employee')}
                   sticky
                   activeField={sortField}

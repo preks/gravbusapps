@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import { ArrowsClockwiseIcon, WarningCircleIcon, ShieldWarningIcon, InfoIcon } from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
 import { SeverityBadge } from '../../shared/StatusBadge'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -33,6 +33,17 @@ const CATEGORY_KEYS: Record<IssueCategory, string> = {
   retroactive_changes: 'category-retroactive-changes',
   pending_final_payroll: 'category-pending-final-payroll',
   invalid_effective_dates: 'category-invalid-effective-dates'
+}
+
+const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
+  switch (severity) {
+    case 'blocker':
+      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
+    case 'warning':
+      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
+    case 'info':
+      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
+  }
 }
 
 interface IssueWithEmployee extends PayrollIssue {
@@ -65,7 +76,7 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
         if (issue.status !== 'open') continue
         issues.push({
           ...issue,
-          employeeName: `${emp.firstName} ${emp.lastName}`,
+          employeeName: emp.fullName,
           employeeCode: emp.code
         })
       }
@@ -255,10 +266,13 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
                     checked={isAddressed}
                     onCheckedChange={() => toggleAddressed(issueKey)}
                     aria-label={t('exceptions-mark-addressed')}
-                    className="gba:mt-0.5"
+                    className="gba:mt-1"
                     data-testid={`payroll-prep-exception-addressed-checkbox-${issueKey}`}
                   />
-                  <SeverityIcon severity={issue.severity} />
+                  <div className="gba:mt-1">
+                    <SeverityIcon severity={issue.severity} />
+                  </div>
+
                   <button
                     type="button"
                     className="gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:text-left"

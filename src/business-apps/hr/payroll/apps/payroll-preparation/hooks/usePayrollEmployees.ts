@@ -604,6 +604,7 @@ function buildPayrollEmployee(
     code: emp.code || '',
     firstName: pos.firstName || '',
     lastName: pos.lastName || '',
+    fullName: emp.fullName || `${pos.firstName} ${pos.lastName}`.trim(),
     displayName: emp.displayName || `${pos.firstName} ${pos.lastName}`,
     pictureThumbnail: emp.pictureThumbnail || undefined,
     country,
@@ -749,7 +750,7 @@ export function useFilteredEmployees(employees: PayrollEmployee[], filters: Payr
         e =>
           e.firstName.toLowerCase().includes(q) ||
           e.lastName.toLowerCase().includes(q) ||
-          e.displayName.toLowerCase().includes(q) ||
+          e.fullName.toLowerCase().includes(q) ||
           e.code.toLowerCase().includes(q) ||
           e.employeeId.toLowerCase().includes(q)
       )

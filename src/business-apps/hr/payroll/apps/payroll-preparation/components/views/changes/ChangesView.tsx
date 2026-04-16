@@ -56,7 +56,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ employees, t }) => {
       for (const change of emp.changes) {
         changes.push({
           ...change,
-          employeeName: `${emp.firstName} ${emp.lastName}`,
+          employeeName: emp.fullName,
           employeeCode: emp.code
         })
       }

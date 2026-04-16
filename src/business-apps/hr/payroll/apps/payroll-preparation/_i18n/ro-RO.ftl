@@ -196,6 +196,7 @@ create-run-payment = Dată plată
 create-run-submit = Creează rulare
 create-run-cancel = Anulează
 create-run-duplicate-error = Există deja o rulare de salarizare pentru această perioadă.
+create-run-payment-date-error = Data plății trebuie să fie după data limită.
 
 back-to-runs = Înapoi la rulări
 runs-select-hint = Selectați o rulare de salarizare din fila „Prezentare generală” pentru a începe.

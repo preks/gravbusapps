@@ -196,6 +196,7 @@ create-run-payment = Zahldatum
 create-run-submit = Lauf erstellen
 create-run-cancel = Abbrechen
 create-run-duplicate-error = Für diesen Zeitraum existiert bereits ein Abrechnungslauf.
+create-run-payment-date-error = Das Zahldatum muss nach dem Stichtag liegen.
 
 back-to-runs = Zurück zu den Läufen
 runs-select-hint = Wählen Sie einen Abrechnungslauf im Reiter „Übersicht“, um zu starten.

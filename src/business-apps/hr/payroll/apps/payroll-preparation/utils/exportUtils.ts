@@ -168,7 +168,7 @@ export function generateExceptionsCSV(employees: PayrollEmployee[]): string {
     for (const issue of emp.issues) {
       rows.push([
         emp.employeeId,
-        `${emp.firstName} ${emp.lastName}`,
+        emp.fullName,
         issue.issueCode,
         issue.category,
         issue.severity,

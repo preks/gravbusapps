@@ -71,6 +71,7 @@ export interface PayrollEmployee {
   code: string
   firstName: string
   lastName: string
+  fullName: string
   displayName: string
   pictureThumbnail?: string
   country: PayrollCountry

@@ -293,7 +293,7 @@ function RunDashboardView({
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
                 {employeesWithoutCompany.slice(0, 10).map(e => (
                   <Badge key={e.id} variant="outline" className="gba:text-xs">
-                    {e.displayName} ({e.code})
+                    {e.fullName} ({e.code})
                   </Badge>
                 ))}
                 {employeesWithoutCompany.length > 10 && (

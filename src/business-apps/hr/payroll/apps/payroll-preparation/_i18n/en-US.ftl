@@ -81,6 +81,7 @@ create-run-payment = Payment Date
 create-run-submit = Create Run
 create-run-cancel = Cancel
 create-run-duplicate-error = A payroll run already exists for this period.
+create-run-payment-date-error = Payment date must be after the cut-off date.
 
 back-to-runs = Back to Runs
 runs-select-hint = Select a payroll run from the Overview tab to get started.

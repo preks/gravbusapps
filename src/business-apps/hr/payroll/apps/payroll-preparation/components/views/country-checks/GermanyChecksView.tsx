@@ -68,13 +68,13 @@ export const GermanyChecksView: React.FC<GermanyChecksViewProps> = ({ employees,
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Avatar size="sm" className="gba:h-7 gba:w-7 gba:flex-shrink-0">
-                          <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.displayName} />
+                          <AvatarImage src={getPictureDataUrl(emp.pictureThumbnail)} alt={emp.fullName} />
                           <AvatarFallback className="gba:text-xs gba:font-medium">
                             {emp.firstName?.charAt(0) || ''}
                             {emp.lastName?.charAt(0) || ''}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="gba:text-sm gba:font-medium gba:text-foreground">{emp.displayName}</span>
+                        <span className="gba:text-sm gba:font-medium gba:text-foreground">{emp.fullName}</span>
                       </div>
                     </TableCell>
                     <TableCell>

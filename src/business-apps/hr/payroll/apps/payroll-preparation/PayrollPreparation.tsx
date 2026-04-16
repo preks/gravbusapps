@@ -440,18 +440,15 @@ export const PayrollPreparation: React.FC<BusinessAppContextProps> = context => 
                 {t('back-to-runs')}
               </Button>
             )}
-            <PayrollRunSelector
-              companies={companies}
-              companiesLoading={companiesLoading}
-              onCompanyChange={handleCompanyChange}
-              t={t}
-            />
+            {activeTab === 'overview' ? (
+              <PayrollRunSelector
+                companies={companies}
+                companiesLoading={companiesLoading}
+                onCompanyChange={handleCompanyChange}
+                t={t}
+              />
+            ) : null}
           </div>
-          {activeRun && (
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {t(`month-${activeRun.month}`)} {activeRun.year}
-            </div>
-          )}
         </div>
 
         <div className="gba:h-full gba:overflow-auto">{renderContent()}</div>
