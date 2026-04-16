@@ -50,7 +50,6 @@ import {
   Share2,
   Pin,
   Copy,
-  Trash2,
   Download,
   Bold,
   Italic,
@@ -248,7 +247,6 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onSave: (title: string, content: string, contentJson?: Record<string, unknown>) => Promise<void>
   onBack: () => void
   onTogglePin?: () => void
-  onDelete?: () => void
   onShare?: () => void
   onDuplicate?: () => void
   onColorChange?: (color: NoteColor) => void
@@ -269,7 +267,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onSave,
   onBack,
   onTogglePin,
-  onDelete,
   onShare,
   onDuplicate,
   onColorChange,
@@ -2027,12 +2024,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Download className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('editor-export')}
                   </DropdownMenuItem>
-                  {onDelete && (
-                    <DropdownMenuItem onClick={onDelete} className="gba:text-destructive">
-                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {t('editor-delete')}
-                    </DropdownMenuItem>
-                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 

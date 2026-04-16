@@ -382,7 +382,6 @@ editor-publish = Publish...
 editor-duplicate = Duplicate
 editor-export = Export
 editor-archive = Move to trash
-editor-delete = Move to trash
 editor-toast-not-authenticated = Not authenticated
 editor-toast-no-text = No text to transform
 editor-toast-transform-failed = Transform failed

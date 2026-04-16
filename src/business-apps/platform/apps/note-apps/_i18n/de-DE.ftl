@@ -402,7 +402,6 @@ editor-publish = Veröffentlichen…
 editor-duplicate = Duplikat
 editor-export = Exportieren
 editor-archive = In den Papierkorb verschieben
-editor-delete = In den Papierkorb verschieben
 editor-toast-not-authenticated = Nicht authentifiziert
 editor-toast-no-text = Kein Text zum Umwandeln
 editor-toast-transform-failed = Umwandlung fehlgeschlagen

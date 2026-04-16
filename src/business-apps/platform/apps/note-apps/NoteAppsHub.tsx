@@ -977,7 +977,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             }}
             onBack={handleBack}
             onTogglePin={() => handleTogglePin(currentNote.id)}
-            onDelete={isTrashedNote ? undefined : () => handleDeleteNote(currentNote.id)}
             onShare={!isTrashedNote && isOwner ? () => handleShareNote(currentNote.id) : undefined}
             onDuplicate={() => handleDuplicateNote(currentNote.id)}
             isReadOnly={isTrashedNote || !canEdit}

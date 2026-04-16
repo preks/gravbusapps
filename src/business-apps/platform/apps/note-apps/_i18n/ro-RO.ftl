@@ -402,7 +402,6 @@ editor-publish = Publicare…
 editor-duplicate = Duplicare
 editor-export = Exportă
 editor-archive = Mută în coșul de gunoi
-editor-delete = Mută în coșul de gunoi
 editor-toast-not-authenticated = Neautentificat
 editor-toast-no-text = Niciun text de transformat
 editor-toast-transform-failed = Transformare eșuată
