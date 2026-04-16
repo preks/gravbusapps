@@ -1,10 +1,11 @@
 import React, { useMemo, useCallback } from 'react'
-import { FileTextIcon, CurrencyDollarIcon, CalendarIcon, BankIcon } from '@phosphor-icons/react'
+import { CurrencyDollarIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
+import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
@@ -49,6 +50,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
 
   // Calculate current month name
   const currentMonthName = getTranslatedMonthName(new Date())
+
+  const currencyCode = useMemo(() => selectedCurrencyRef?.split(':').pop()?.trim() || 'EUR', [selectedCurrencyRef])
 
   // Calculate percentage changes
   const paymentsPercentageChange = useMemo(() => {
@@ -143,7 +146,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           ' ' +
           currentMonthName,
         value: statistics.currentMonthPayments || 0,
-        prefix: <FileTextIcon size={16} />,
+        prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
         description: getTranslationFromI18nKeyAndLabel(
@@ -160,7 +163,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month', 'Total Amount for') +
           ' ' +
           currentMonthName,
-        value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), selectedCurrencyRef?.split(':').pop() || 'EUR')}`,
+        value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), currencyCode)}`,
         prefix: <CurrencyDollarIcon size={16} />,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
@@ -177,7 +180,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         key: 'pending-payments',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payments', 'Pending Payments'),
         value: statistics.pendingPayments || 0,
-        prefix: <CalendarIcon size={16} />,
+        prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
         footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval', 'Awaiting approval'),
@@ -189,7 +192,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         key: 'approved-payments',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.approved_payments', 'Approved Payments'),
         value: statistics.approvedPayments || 0,
-        prefix: <BankIcon size={16} />,
+        prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 6 },
         footer: getTranslationFromI18nKeyAndLabel(
@@ -201,7 +204,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         onClick: widgetClickNoop
       }
     ],
-    [currentMonthName, statistics, paymentsTrend, amountTrend, activeWidgetKey, widgetClickNoop]
+    [currentMonthName, currencyCode, statistics, paymentsTrend, amountTrend, activeWidgetKey, widgetClickNoop]
   )
 
   return (
