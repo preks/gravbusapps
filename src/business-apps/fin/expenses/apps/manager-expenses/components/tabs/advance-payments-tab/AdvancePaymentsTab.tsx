@@ -24,6 +24,7 @@ import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCur
 import { useAdvancePaymentsOverviewData } from '../../../hooks/useAdvancePaymentsOverviewData'
 import { createAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
 import { buildAdvancePaymentOrderBy } from './config/advancePaymentOrderBy'
+import { ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS } from './config/advancePaymentColumnDefinitions'
 import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
 import { advancePaymentAvailableColumns } from './config/advancePaymentAvailableColumns'
 import type { AdvancePayment } from '../../../hooks/useMainViewAdvancePayments'
@@ -32,16 +33,6 @@ import {
   isAmountRangeFilterActive,
   type ExpenseAmountRangeValue
 } from '../../../../../common/utils/amountRangeFilterUtils'
-
-const DEFAULT_VISIBLE_COLUMN_IDS = [
-  'expensePlan.title',
-  'expensePlan.startDate',
-  'expensePlan.endDate',
-  'expensePlan.employee.fullName',
-  'createdAt',
-  'amount',
-  'status'
-]
 
 const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const { t } = useTranslation(translations)
@@ -58,7 +49,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     accessToken: props.accessToken ?? '',
     managerId
   })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS])
   const [currentPage, setCurrentPage] = useState(1)
   const [sorting, setSorting] = useState<{
     field: string | null

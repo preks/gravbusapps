@@ -22,6 +22,7 @@ import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
+import { EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS } from './config/expensePlanColumnDefinitions'
 import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
@@ -34,17 +35,6 @@ import {
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string
 }
-
-const DEFAULT_VISIBLE_COLUMN_IDS = [
-  'title',
-  'requestCode',
-  'startDate',
-  'endDate',
-  'employee',
-  'createdAt',
-  'totalAmount',
-  'status'
-]
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const { t } = useTranslation(translations)
@@ -77,7 +67,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
   const [pageSize, setPageSize] = useState<number>(20)
   const [totalAmountRange, setTotalAmountRange] = useState<ExpenseAmountRangeValue>(null)
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS])
 
   const DEFAULT_SORT: { field: SortField | null; order: 'ASC' | 'DESC' | null; lastField: SortField | null } = useMemo(
     () => ({ field: 'createdAt', order: 'DESC', lastField: 'createdAt' }),
@@ -91,6 +81,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     lastField: SortField | null
   }>(DEFAULT_SORT)
 
+  /** Sort `field` values come from TanStack column ids (see expensePlanColumnDefinitions.ts). */
   const buildOrderByClause = useCallback((field: string, order: 'ASC' | 'DESC') => {
     if (field === 'employee' || field === 'employee.fullName') {
       return [{ employee: { fullName: order } } as any]

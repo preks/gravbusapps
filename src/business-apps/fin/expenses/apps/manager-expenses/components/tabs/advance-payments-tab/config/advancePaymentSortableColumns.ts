@@ -1,44 +1,13 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../common/types/columnTypes'
+import { ADVANCE_PAYMENT_COLUMN_DEFINITIONS } from './advancePaymentColumnDefinitions'
 
-export const advancePaymentSortableColumns: ColumnConfig[] = [
-  {
-    id: 'expensePlan.title',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.initial_expense_plan_select_label',
-      'Expense Plan'
-    )
-  },
-  {
-    id: 'expensePlan.startDate',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date')
-  },
-  {
-    id: 'expensePlan.endDate',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date')
-  },
-  {
-    id: 'expensePlan.employee.fullName',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_config_calculation_rule_list.expense_table.employee',
-      'Employee'
-    )
-  },
-  {
-    id: 'createdAt',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:manager_expense_request_list.expense_table.creation_date',
-      'Creation Date'
-    )
-  },
-  {
-    id: 'amount',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:sales_hub.amount', 'Amount')
-  },
-  {
-    id: 'status',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status')
-  }
-]
+/** Toolbar sort + column visibility: same ids/labels as {@link ADVANCE_PAYMENT_COLUMN_DEFINITIONS}. */
+export const advancePaymentSortableColumns: ColumnConfig[] = ADVANCE_PAYMENT_COLUMN_DEFINITIONS.map(
+  ({ id, i18nKey, fallback }) => ({
+    id,
+    label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
+  })
+)
 
 export const advancePaymentAvailableColumns = advancePaymentSortableColumns

@@ -14,6 +14,7 @@ import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { useExpenseRequestsOverviewData } from '../../../hooks/useExpenseRequestsOverviewData'
 import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterConfig'
 import { buildExpenseRequestOrderBy } from './config/expenseRequestOrderBy'
+import { EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS } from './config/expenseRequestColumnDefinitions'
 import { expenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
 import { expenseRequestAvailableColumns } from './config/expenseRequestAvailableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
@@ -38,17 +39,6 @@ export type ExpenseRequestsTabProps = BusinessAppContextProps
 
 type DateRange = [Date | null, Date | null] | null
 
-const DEFAULT_VISIBLE_COLUMN_IDS = [
-  'title',
-  'planCode',
-  'startDate',
-  'endDate',
-  'employee',
-  'requestDate',
-  'totalAmount',
-  'status'
-]
-
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const { t } = useTranslation(translations)
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
@@ -64,7 +54,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const [totalAmountRange, setTotalAmountRange] = useState<ExpenseAmountRangeValue>(null)
   const [pageSize, setPageSize] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...DEFAULT_VISIBLE_COLUMN_IDS])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS])
   const DEFAULT_SORT = useMemo(() => ({ field: 'requestDate' as const, order: 'DESC' as const }), [])
   const [sorting, setSorting] = useState<{ field: string | null; order: 'ASC' | 'DESC' | null }>(DEFAULT_SORT)
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null)
